@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentLabs Upgrade Guide</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+        line-height: 1.6;
+        color: #333;
+      }
+      h1 {
+        color: #1a1a2e;
+        border-bottom: 3px solid #4361ee;
+        padding-bottom: 10px;
+      }
+      h2 {
+        color: #4361ee;
+        margin-top: 30px;
+      }
+      .step {
+        background: #f8f9fa;
+        border-left: 4px solid #4361ee;
+        padding: 15px 20px;
+        margin: 15px 0;
+        border-radius: 0 8px 8px 0;
+      }
+      .step-number {
+        background: #4361ee;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+        margin-right: 10px;
+      }
+      .warning {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px 20px;
+        margin: 15px 0;
+        border-radius: 0 8px 8px 0;
+      }
+      .success {
+        background: #d4edda;
+        border-left: 4px solid #28a745;
+        padding: 15px 20px;
+        margin: 15px 0;
+        border-radius: 0 8px 8px 0;
+      }
+      code {
+        background: #e9ecef;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-family: "Consolas", monospace;
+      }
+      pre {
+        background: #1a1a2e;
+        color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AgentLabs Upgrade Guide</h1>
+    <p>
+      Follow these steps to upgrade from an older version to the latest version while preserving
+      your database data.
+    </p>
+
+    <div class="warning">
+      <strong>⚠️ Important:</strong> Always backup your database before upgrading. Your data will be
+      preserved, but backups protect against unexpected issues.
+    </div>
+
+    <h2>Pre-Upgrade Checklist</h2>
+
+    <div class="step">
+      <span class="step-number">1</span>
+      <strong>Backup Your Database</strong>
+      <p>Export your PostgreSQL database:</p>
+      <pre>pg_dump $DATABASE_URL > agentlabs_backup_$(date +%Y%m%d).sql</pre>
+    </div>
+
+    <div class="step">
+      <span class="step-number">2</span>
+      <strong>Note Your Environment Variables</strong>
+      <p>Save a copy of your current secrets and environment variables:</p>
+      <ul>
+        <li>DATABASE_URL</li>
+        <li>ELEVENLABS_API_KEY (pool credentials)</li>
+        <li>TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN</li>
+        <li>STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET</li>
+        <li>OPENAI_API_KEY</li>
+        <li>Any other custom secrets</li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <span class="step-number">3</span>
+      <strong>Stop Running Services</strong>
+      <p>Stop the application to prevent conflicts during upgrade.</p>
+    </div>
+
+    <h2>Upgrade Steps</h2>
+
+    <div class="step">
+      <span class="step-number">4</span>
+      <strong>Download Latest Version</strong>
+      <p>
+        Replace your source files with the new version from CodeCanyon. Keep these folders intact:
+      </p>
+      <ul>
+        <li><code>/uploads</code> - User uploaded files</li>
+        <li><code>/.env</code> or secrets - Your configuration</li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <span class="step-number">5</span>
+      <strong>Install Dependencies</strong>
+      <pre>npm install</pre>
+    </div>
+
+    <div class="step">
+      <span class="step-number">6</span>
+      <strong>Run Database Migrations</strong>
+      <p>This will update your database schema without losing data:</p>
+      <pre>npm run db:push</pre>
+      <p>
+        <em>Note: Drizzle ORM safely adds new columns/tables while preserving existing data.</em>
+      </p>
+    </div>
+
+    <div class="step">
+      <span class="step-number">7</span>
+      <strong>Build Plugins (If Using)</strong>
+      <pre>node scripts/build-plugins.js</pre>
+    </div>
+
+    <div class="step">
+      <span class="step-number">8</span>
+      <strong>Restore Environment Variables</strong>
+      <p>Re-add any secrets that were removed during the file replacement.</p>
+    </div>
+
+    <div class="step">
+      <span class="step-number">9</span>
+      <strong>Start the Application</strong>
+      <pre>npm run dev</pre>
+    </div>
+
+    <h2>Post-Upgrade Verification</h2>
+
+    <div class="step">
+      <span class="step-number">10</span>
+      <strong>Verify Your Data</strong>
+      <ul>
+        <li>Login with existing admin/user accounts</li>
+        <li>Check agents, campaigns, and call history</li>
+        <li>Verify payment gateway connections</li>
+        <li>Test ElevenLabs credential pool</li>
+        <li>Confirm webhook endpoints are working</li>
+      </ul>
+    </div>
+
+    <div class="success">
+      <strong>✅ Upgrade Complete!</strong>
+      <p>
+        Your AgentLabs installation is now running the latest version with all your existing data
+        preserved.
+      </p>
+    </div>
+
+    <h2>Troubleshooting</h2>
+
+    <p><strong>Database connection errors:</strong> Verify DATABASE_URL is correctly set.</p>
+    <p><strong>Missing tables/columns:</strong> Re-run <code>npm run db:push</code></p>
+    <p>
+      <strong>Plugin errors:</strong> Rebuild plugins with
+      <code>node scripts/build-plugins.js</code>
+    </p>
+    <p>
+      <strong>Need to rollback:</strong> Restore from your backup:
+      <code>psql $DATABASE_URL < agentlabs_backup_YYYYMMDD.sql</code>
+    </p>
+  </body>
+</html>

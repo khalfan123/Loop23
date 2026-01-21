@@ -38,3 +38,11 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[userenv]
+
+[userenv.shared]
+JWT_SECRET = "agentlabs-development-jwt-secret-key-2025"
+APP_DOMAIN = "https://workspace.replit.dev"
+APP_URL = "https://workspace.replit.dev"
+NODE_ENV = "development"

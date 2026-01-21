@@ -213,9 +213,9 @@ app.use((req, res, next) => {
     }
   });
 
-  // API 404 handler - catches any /api/* route that wasn't matched
+  // API 404 handler - catches any /api route that wasn't matched
   // This MUST run before Vite catch-all to prevent HTML responses for API routes
-  app.use('/api/*', (req: Request, res: Response) => {
+  app.use('/api', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
     res.status(404).json({
       success: false,

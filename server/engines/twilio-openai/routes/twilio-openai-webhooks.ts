@@ -32,7 +32,7 @@ import type { TwilioWebhookParams } from '../types';
 const router = Router();
 
 // Apply Twilio webhook signature validation to all voice routes
-router.use('/voice/*', validateTwilioWebhook);
+router.use('/voice', validateTwilioWebhook);
 
 /**
  * Normalize phone number for database lookup.

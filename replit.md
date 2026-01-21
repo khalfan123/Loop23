@@ -91,6 +91,13 @@ The application serves on port 5000 with both frontend and backend.
 - 2026-01-21: Initial installation from CodeCanyon package
 - Downgraded Express from 5.x to 4.21.2 for compatibility with wildcard routes
 - All core features installed and database schema pushed
+- 2026-01-21: **Dashboard UI Redesign** - Google Workspace Studio-inspired layout:
+  - Hero section with gradient background and quick-create AI agent input
+  - 6 pre-built agent template cards (Appointment, Lead Qualifier, Survey, Payment, Support, Notification)
+  - Category filtering tabs (All, Sales, Support, Reminders, Surveys, Custom)
+  - Stats overview section with clickable metrics cards
+  - Quick Actions panel and Weekly Call Activity chart
+  - Modern card design with gradients and consistent spacing
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

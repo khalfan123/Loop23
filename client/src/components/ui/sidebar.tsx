@@ -1,3 +1,19 @@
+/**
+ * ============================================================
+ * © 2025 Diploy — a brand of Bisht Technologies Private Limited
+ * Original Author: BTPL Engineering Team
+ * Website: https://diploy.in
+ * Contact: cs@diploy.in
+ *
+ * Distributed under the Envato / CodeCanyon License Agreement.
+ * Licensed to the purchaser for use as defined by the
+ * Envato Market (CodeCanyon) Regular or Extended License.
+ *
+ * You are NOT permitted to redistribute, resell, sublicense,
+ * or share this source code, in whole or in part.
+ * Respect the author's rights and Envato licensing terms.
+ * ============================================================
+ */
 "use client"
 
 import * as React from "react"
@@ -375,9 +391,10 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden scrollbar-stable scrollbar-thin group-data-[collapsible=icon]:overflow-hidden",
         className
       )}
+      style={{ scrollbarGutter: 'stable' }}
       {...props}
     />
   )

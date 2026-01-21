@@ -81,6 +81,20 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        success: "hsl(142 71% 45%)",
+        warning: "hsl(38 92% 50%)",
+        info: "hsl(199 89% 48%)",
+        teal: {
+          300: "#5eead4",
+          400: "#2dd4bf",
+          500: "#14b8a6",
+          600: "#0d9488",
+        },
+        navy: {
+          900: "#050B1A",
+          800: "#0a1628",
+          700: "#112240",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
@@ -103,5 +117,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography"), require("tailwindcss-rtl")],
 } satisfies Config;

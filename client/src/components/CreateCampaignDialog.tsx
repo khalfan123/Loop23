@@ -19,20 +19,19 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Loader2, Clock, Calendar, CheckCircle2, Target } from "lucide-react";
-import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { Upload, Loader2, Clock, ChevronLeft, ChevronRight, Download, Phone, Info, Minus, Plus } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "./PhoneConflictDialog";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Agent {
   id: string;
@@ -42,17 +41,6 @@ interface Agent {
   telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
   sipPhoneNumberId?: string | null;
 }
-
-const getEngineLabel = (provider: string | null): string => {
-  switch (provider) {
-    case 'plivo': return 'Plivo+OpenAI';
-    case 'twilio_openai': return 'Twilio+OpenAI';
-    case 'elevenlabs-sip': return 'ElevenLabs SIP';
-    case 'openai-sip': return 'OpenAI SIP';
-    default: return 'Twilio+ElevenLabs';
-  }
-};
-
 
 interface PhoneNumber {
   id: string;
@@ -86,12 +74,15 @@ interface CreateCampaignDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface ParsedContact {
+  phone_number: string;
+  [key: string]: string;
+}
 
 export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialogProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { isSipPluginEnabled } = usePluginStatus();
-  const [animationState, setAnimationState] = useState<'idle' | 'success' | 'error'>('idle');
   const [formData, setFormData] = useState({
     name: "",
     type: "Lead Qualification",
@@ -104,15 +95,18 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     transferNumber: "",
     transferKeywords: [] as string[],
     scheduleEnabled: false,
-    scheduleTimeStart: "09:00",
-    scheduleTimeEnd: "17:00",
-    scheduleDays: [] as string[],
+    scheduleTimeStart: "00:00",
+    scheduleTimeEnd: "23:59",
+    scheduleDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as string[],
     scheduleTimezone: "America/New_York",
+    reservedConcurrency: 5,
   });
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [step, setStep] = useState(1);
+  const [parsedContacts, setParsedContacts] = useState<ParsedContact[]>([]);
   const [conflictDialog, setConflictDialog] = useState<PhoneConflictState>(initialPhoneConflictState);
   const [showTimezoneModal, setShowTimezoneModal] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showScheduleSettings, setShowScheduleSettings] = useState(false);
 
   const { data: userData } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
@@ -139,7 +133,6 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     enabled: open,
   });
 
-
   const { data: phoneNumbers = [] } = useQuery<PhoneNumber[]>({
     queryKey: ["/api/phone-numbers"],
     enabled: open,
@@ -162,14 +155,29 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const isPlivoAgent = selectedAgent?.telephonyProvider === 'plivo';
   const isTwilioAgent = !selectedAgent?.telephonyProvider || selectedAgent?.telephonyProvider === 'twilio' || selectedAgent?.telephonyProvider === 'twilio_openai';
 
-  const { data: flows = [] } = useQuery<Array<{ id: string; name: string; description?: string }>>({
-    queryKey: ["/api/flow-automation/flows"],
-    enabled: open,
-  });
+  const getAvailablePhoneNumbers = (): (PhoneNumber | SipPhoneNumber | PlivoPhoneNumber)[] => {
+    if (isSipAgent) return sipPhoneNumbers;
+    if (isPlivoAgent) return plivoPhoneNumbers;
+    return phoneNumbers;
+  };
+
+  const availablePhoneNumbers = getAvailablePhoneNumbers();
+
+  const filteredAgents = agents
+    .filter(agent => agent.type !== 'incoming')
+    .filter(agent => {
+      const isSipAgentType = agent.telephonyProvider === 'elevenlabs-sip' || agent.telephonyProvider === 'openai-sip';
+      if (isSipAgentType && !isSipPluginEnabled) return false;
+      return true;
+    });
+
+  const dayKeys = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const payload = { ...formData };
+      const payload = {
+        ...formData,
+      };
       if (payload.flowId) {
         payload.script = "";
       }
@@ -207,18 +215,10 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       }
 
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
-      setAnimationState('success');
       toast({ title: t("campaigns.toast.createdSuccess") });
-      setTimeout(() => {
-        setAnimationState('idle');
-        handleClose();
-      }, 1500);
+      handleClose();
     },
     onError: (error: any) => {
-      setAnimationState('error');
-      setTimeout(() => setAnimationState('idle'), 600);
-      
-      // Check for phone conflict (409)
       if (error.status === 409 || error.conflictType) {
         setConflictDialog({
           isOpen: true,
@@ -252,14 +252,15 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       transferNumber: "",
       transferKeywords: [],
       scheduleEnabled: false,
-      scheduleTimeStart: "09:00",
-      scheduleTimeEnd: "17:00",
-      scheduleDays: [],
+      scheduleTimeStart: "00:00",
+      scheduleTimeEnd: "23:59",
+      scheduleDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
       scheduleTimezone: "America/New_York",
+      reservedConcurrency: 5,
     });
     setCsvFile(null);
-    setStep(1);
-    setAnimationState('idle');
+    setParsedContacts([]);
+    setShowScheduleSettings(false);
   };
 
   const handleClose = () => {
@@ -267,56 +268,130 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     onOpenChange(false);
   };
 
-  const handleNext = () => {
-    if (step === 1 && !formData.name) {
+  const handleSubmit = () => {
+    if (!formData.name) {
       toast({ title: t("campaigns.toast.pleaseEnterName"), variant: "destructive" });
       return;
     }
-    if (step === 2) {
-      if (!formData.agentId) {
-        toast({ title: t("campaigns.toast.pleaseSelectAgent"), variant: "destructive" });
-        return;
-      }
-      if (isSipAgent) {
-        if (!isSipPluginEnabled) {
-          toast({ title: "SIP Plugin is disabled. Please select a different agent or contact your administrator.", variant: "destructive" });
-          return;
-        }
-        if (!formData.sipPhoneNumberId) {
-          toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
-          return;
-        }
-      } else if (isPlivoAgent) {
-        if (!formData.phoneNumberId) {
-          toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
-          return;
-        }
-      } else {
-        if (!formData.phoneNumberId) {
-          toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
-          return;
-        }
-      }
-    }
-    setStep(step + 1);
-  };
-
-  const handleSubmit = () => {
     if (!formData.agentId) {
       toast({ title: t("campaigns.toast.pleaseSelectAgent"), variant: "destructive" });
       return;
     }
+    
+    if (isSipAgent) {
+      if (!isSipPluginEnabled) {
+        toast({ title: "SIP Plugin is disabled. Please select a different agent.", variant: "destructive" });
+        return;
+      }
+      if (!formData.sipPhoneNumberId) {
+        toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
+        return;
+      }
+    } else if (isPlivoAgent) {
+      if (!formData.phoneNumberId) {
+        toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
+        return;
+      }
+    } else {
+      if (!formData.phoneNumberId) {
+        toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
+        return;
+      }
+    }
+    
+    if (formData.scheduleEnabled) {
+      if (formData.scheduleDays.length === 0) {
+        toast({ title: t("campaigns.toast.pleaseSelectDays", "Please select at least one day for scheduling"), variant: "destructive" });
+        return;
+      }
+    }
+    
     createMutation.mutate();
   };
 
-  const handleOpenChange = (isOpen: boolean) => {
-    onOpenChange(isOpen);
-    if (!isOpen) {
-      resetFormState();
+  const parseCSV = (text: string): ParsedContact[] => {
+    const lines = text.split(/\r?\n/).filter(line => line.trim());
+    if (lines.length <= 1) return [];
+    
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+    const contacts: ParsedContact[] = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (const char of lines[i]) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+      
+      const contact: ParsedContact = { phone_number: '' };
+      headers.forEach((header, idx) => {
+        contact[header] = values[idx]?.replace(/^"|"$/g, '') || '';
+      });
+      if (contact.phone_number) {
+        contacts.push(contact);
+      }
+    }
+    return contacts;
+  };
+
+  const handleFileChange = (file: File | null) => {
+    setCsvFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const contacts = parseCSV(text);
+        setParsedContacts(contacts);
+      };
+      reader.readAsText(file);
+    } else {
+      setParsedContacts([]);
     }
   };
 
-  const dayKeys = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.name.endsWith('.csv')) {
+      handleFileChange(file);
+    }
+  };
+
+  const formatSchedule = () => {
+    const activeDays = formData.scheduleDays;
+    let daysStr = 'Mon-Sun';
+    if (activeDays.length === 7) {
+      daysStr = 'Mon-Sun';
+    } else if (activeDays.length === 5 && !activeDays.includes('saturday') && !activeDays.includes('sunday')) {
+      daysStr = 'Mon-Fri';
+    } else if (activeDays.length > 0) {
+      daysStr = activeDays.map(d => d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3)).join(', ');
+    }
+    return `${formData.scheduleTimeStart}-${formData.scheduleTimeEnd}, ${daysStr}`;
+  };
+
+  const allocatedConcurrency = 20 - formData.reservedConcurrency;
 
   return (
     <>
@@ -330,489 +405,407 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
         }}
         onSuccess={handleTimezoneSet}
       />
-      <Dialog open={open && !showTimezoneModal} onOpenChange={handleOpenChange}>
-        <DialogContent className={`max-w-2xl flex flex-col max-h-[85vh] p-0 gap-0 overflow-hidden ${animationState === 'error' ? 'animate-shake' : ''}`}>
-        {animationState === 'success' && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/90 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-4 animate-in zoom-in-50 fade-in duration-300">
-              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
-                <CheckCircle2 className="h-10 w-10 text-white animate-in zoom-in-75 duration-300 delay-150" />
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-semibold text-foreground">{t("campaigns.create.successTitle")}</p>
-                <p className="text-sm text-muted-foreground">{t("campaigns.create.successSubtitle")}</p>
+      <Dialog open={open && !showTimezoneModal} onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) resetFormState();
+      }}>
+        <DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={handleClose} data-testid="button-back">
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h2 className="font-semibold">{t('campaigns.createBatchCall', 'Create a batch call')}</h2>
+                <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
               </div>
             </div>
           </div>
-        )}
-        
-        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-md">
-              <Target className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <DialogTitle>{t("campaigns.create.title")}</DialogTitle>
-              <DialogDescription>{t("campaigns.create.subtitle")}</DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6">
-        <div className="flex items-center justify-center gap-2 py-4">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center">
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                  step >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {s}
-              </div>
-              {s < 3 && <div className={`h-0.5 w-12 ${step > s ? "bg-primary" : "bg-muted"}`} />}
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-6 py-4">
-          {step === 1 && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">{t("campaigns.create.step1Title")}</h3>
-              <div className="space-y-2">
-                <Label htmlFor="campaign-name">{t("campaigns.create.nameRequired")}</Label>
-                <Input
-                  id="campaign-name"
-                  placeholder={t("campaigns.create.namePlaceholder")}
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  data-testid="input-campaign-name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center">
-                  <Label htmlFor="campaign-type">{t("campaigns.create.typeRequired")}</Label>
-                  <InfoTooltip content={t("campaigns.create.typeTooltip")} />
-                </div>
-                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                  <SelectTrigger data-testid="select-campaign-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Lead Qualification">{t("campaigns.create.typeOptions.lead")}</SelectItem>
-                    <SelectItem value="Feedback Collection">{t("campaigns.create.typeOptions.feedback")}</SelectItem>
-                    <SelectItem value="Promotional">{t("campaigns.create.typeOptions.promotional")}</SelectItem>
-                    <SelectItem value="Payment Reminder">{t("campaigns.create.typeOptions.payment")}</SelectItem>
-                    <SelectItem value="Event Promotion">{t("campaigns.create.typeOptions.event")}</SelectItem>
-                    <SelectItem value="Survey">{t("campaigns.create.typeOptions.survey")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center">
-                  <Label htmlFor="campaign-goal">{t("campaigns.create.goalOptional")}</Label>
-                  <InfoTooltip content={t("campaigns.create.goalTooltip")} />
-                </div>
-                <Textarea
-                  id="campaign-goal"
-                  placeholder={t("campaigns.create.goalPlaceholder")}
-                  value={formData.goal}
-                  onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
-                  rows={3}
-                  data-testid="input-campaign-goal"
-                />
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">{t("campaigns.create.step2Title")}</h3>
-              
-              <div className="space-y-2">
-                <Label htmlFor="agent-select">{t("campaigns.create.selectAgentRequired")}</Label>
-                <Select value={formData.agentId} onValueChange={(value) => setFormData({ ...formData, agentId: value })}>
-                  <SelectTrigger data-testid="select-agent">
-                    <SelectValue placeholder={agents.filter(a => a.type !== 'incoming').length === 0 ? t("campaigns.create.noAgentsAvailable") : t("campaigns.create.agentPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agents
-                      .filter(agent => agent.type !== 'incoming')
-                      .filter(agent => {
-                        // Filter out SIP agents when SIP plugin is disabled
-                        const isSipAgentType = agent.telephonyProvider === 'elevenlabs-sip' || agent.telephonyProvider === 'openai-sip';
-                        if (isSipAgentType && !isSipPluginEnabled) {
-                          return false;
-                        }
-                        return true;
-                      })
-                      .map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id}>
-                          {agent.name} - {agent.personality} ({agent.type === 'flow' ? t("agents.type.flow") : t("agents.type.natural")}) [{getEngineLabel(agent.telephonyProvider)}]
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                {agents.filter(a => a.type !== 'incoming').length === 0 && (
-                  <p className="text-sm text-muted-foreground">{t("campaigns.create.goToAgentsPage")}</p>
-                )}
-                {agents.filter(a => a.type !== 'incoming').length > 0 && 
-                 agents.filter(a => a.type !== 'incoming').filter(a => {
-                   const isSipAgentType = a.telephonyProvider === 'elevenlabs-sip' || a.telephonyProvider === 'openai-sip';
-                   return !(isSipAgentType && !isSipPluginEnabled);
-                 }).length === 0 && (
-                  <p className="text-sm text-muted-foreground">All your agents use SIP telephony, but the SIP Engine plugin is disabled. Contact your administrator or create a Twilio/Plivo agent.</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone-select">{t("campaigns.create.phoneNumberRequired")}</Label>
-                {isSipAgent && !isSipPluginEnabled ? (
-                  <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
-                    <p className="text-sm text-destructive font-medium">SIP Plugin is disabled</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      The selected agent uses SIP telephony, but the SIP Engine plugin is currently disabled. 
-                      Please contact your administrator to enable the SIP Engine plugin, or select a different agent.
-                    </p>
+          {/* Content */}
+          <div className="flex h-[70vh]">
+            {/* Left Form Column */}
+            <div className="w-1/2 border-r overflow-auto">
+              <ScrollArea className="h-full">
+                <div className="p-6 space-y-6">
+                  {/* Batch Call Name */}
+                  <div className="space-y-2">
+                    <Label htmlFor="batch-call-name">{t('campaigns.batchCallName', 'Batch Call Name')}</Label>
+                    <Input
+                      id="batch-call-name"
+                      placeholder={t('campaigns.enterName', 'Enter')}
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      data-testid="input-batch-call-name"
+                    />
                   </div>
-                ) : isSipAgent && isSipPluginEnabled ? (
-                  <>
-                    <Select value={formData.sipPhoneNumberId} onValueChange={(value) => setFormData({ ...formData, sipPhoneNumberId: value })}>
-                      <SelectTrigger data-testid="select-phone">
-                        <SelectValue placeholder={sipPhoneNumbers.length === 0 ? "No SIP phone numbers available" : "Select a SIP phone number"} />
+
+                  {/* Campaign Type */}
+                  <div className="space-y-2">
+                    <Label>{t('campaigns.create.typeRequired', 'Campaign Type *')}</Label>
+                    <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                      <SelectTrigger data-testid="select-campaign-type">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {sipPhoneNumbers.map((phone) => (
-                          <SelectItem key={phone.id} value={phone.id}>
-                            {phone.label || phone.phoneNumber} [{phone.engine === 'elevenlabs-sip' ? 'ElevenLabs' : 'OpenAI'}]
+                        <SelectItem value="Lead Qualification">{t("campaigns.create.typeOptions.lead")}</SelectItem>
+                        <SelectItem value="Feedback Collection">{t("campaigns.create.typeOptions.feedback")}</SelectItem>
+                        <SelectItem value="Promotional">{t("campaigns.create.typeOptions.promotional")}</SelectItem>
+                        <SelectItem value="Payment Reminder">{t("campaigns.create.typeOptions.payment")}</SelectItem>
+                        <SelectItem value="Event Promotion">{t("campaigns.create.typeOptions.event")}</SelectItem>
+                        <SelectItem value="Survey">{t("campaigns.create.typeOptions.survey")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Agent Selection */}
+                  <div className="space-y-2">
+                    <Label>{t('campaigns.selectAgent', 'Select Agent *')}</Label>
+                    <Select 
+                      value={formData.agentId} 
+                      onValueChange={(value) => setFormData({ ...formData, agentId: value, phoneNumberId: '', sipPhoneNumberId: '' })}
+                    >
+                      <SelectTrigger data-testid="select-agent">
+                        <SelectValue placeholder={filteredAgents.length === 0 ? t("campaigns.create.noAgentsAvailable") : t('campaigns.selectAgentPlaceholder', 'Select an agent')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredAgents.map((agent) => (
+                          <SelectItem key={agent.id} value={agent.id}>
+                            {agent.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {sipPhoneNumbers.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No SIP phone numbers available. Import a SIP phone number first.</p>
+                    {agents.filter(a => a.type !== 'incoming').length === 0 && (
+                      <p className="text-sm text-muted-foreground">{t("campaigns.create.goToAgentsPage")}</p>
                     )}
-                  </>
-                ) : isPlivoAgent ? (
-                  <>
-                    <Select value={formData.phoneNumberId} onValueChange={(value) => setFormData({ ...formData, phoneNumberId: value })}>
-                      <SelectTrigger data-testid="select-phone">
-                        <SelectValue placeholder={plivoPhoneNumbers.length === 0 ? "No Plivo phone numbers available" : "Select a Plivo phone number"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {plivoPhoneNumbers.map((phone) => (
-                          <SelectItem key={phone.id} value={phone.id}>
-                            {phone.friendlyName || phone.phoneNumber}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {plivoPhoneNumbers.length === 0 && (
-                      <p className="text-sm text-muted-foreground">No Plivo phone numbers available. Purchase a Plivo phone number first.</p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <Select value={formData.phoneNumberId} onValueChange={(value) => setFormData({ ...formData, phoneNumberId: value })}>
-                      <SelectTrigger data-testid="select-phone">
-                        <SelectValue placeholder={phoneNumbers.length === 0 ? t("campaigns.create.noPhoneNumbers") : t("campaigns.create.phoneNumberPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {phoneNumbers.map((phone) => (
-                          <SelectItem key={phone.id} value={phone.id}>
-                            {phone.friendlyName || phone.phoneNumber}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {phoneNumbers.length === 0 && (
-                      <p className="text-sm text-muted-foreground">{t("campaigns.create.goToPhoneNumbers")}</p>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center">
-                  <Label htmlFor="flow-select">{t("campaigns.create.visualFlowOptional")}</Label>
-                  <InfoTooltip content={t("campaigns.create.flowTooltip")} />
-                </div>
-                <Select 
-                  value={formData.flowId} 
-                  onValueChange={(value) => setFormData({ ...formData, flowId: value === "none" ? "" : value, script: value === "none" ? formData.script : "" })}
-                >
-                  <SelectTrigger data-testid="select-flow">
-                    <SelectValue placeholder={flows.length === 0 ? t("campaigns.create.noFlowsAvailable") : t("campaigns.create.flowPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{t("campaigns.create.noneUseAgentScript")}</SelectItem>
-                    {flows.map((flow) => (
-                      <SelectItem key={flow.id} value={flow.id}>
-                        {flow.name}
-                        {flow.description && ` - ${flow.description}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {flows.length === 0 && (
-                  <p className="text-sm text-muted-foreground">{t("campaigns.create.goToFlowBuilder")}</p>
-                )}
-              </div>
-
-              {!formData.flowId && (
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <Label htmlFor="campaign-script">{t("campaigns.create.customScriptOptional")}</Label>
-                    <InfoTooltip content={t("campaigns.create.scriptTooltip")} />
                   </div>
-                  <Textarea
-                    id="campaign-script"
-                    placeholder={t("campaigns.create.scriptPlaceholder")}
-                    value={formData.script}
-                    onChange={(e) => setFormData({ ...formData, script: e.target.value })}
-                    rows={4}
-                    data-testid="input-campaign-script"
-                  />
-                </div>
-              )}
 
-              <div className="space-y-4 border-t pt-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    <Label className="text-base">{t("campaigns.schedule.titleOptional")}</Label>
-                    <InfoTooltip content={t("campaigns.schedule.tooltip")} />
-                  </div>
-                  <Switch
-                    checked={formData.scheduleEnabled}
-                    onCheckedChange={(checked) => setFormData({ ...formData, scheduleEnabled: checked })}
-                    data-testid="switch-schedule-enabled"
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t("campaigns.schedule.description")}
-                </p>
-
-                {formData.scheduleEnabled && (
-                  <div className="space-y-4 pl-7">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <Label htmlFor="schedule-time-start">{t("campaigns.schedule.startTime")}</Label>
-                          <InfoTooltip content={t("campaigns.schedule.startTimeTooltip")} />
-                        </div>
-                        <Input
-                          id="schedule-time-start"
-                          type="time"
-                          value={formData.scheduleTimeStart}
-                          onChange={(e) => setFormData({ ...formData, scheduleTimeStart: e.target.value })}
-                          data-testid="input-schedule-time-start"
-                        />
+                  {/* From Number */}
+                  <div className="space-y-2">
+                    <Label>{t('campaigns.fromNumber', 'From number')}</Label>
+                    {isSipAgent && !isSipPluginEnabled ? (
+                      <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
+                        <p className="text-sm text-destructive font-medium">SIP Plugin is disabled</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          The selected agent uses SIP telephony, but the SIP Engine plugin is currently disabled.
+                        </p>
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <Label htmlFor="schedule-time-end">{t("campaigns.schedule.endTime")}</Label>
-                          <InfoTooltip content={t("campaigns.schedule.endTimeTooltip")} />
-                        </div>
-                        <Input
-                          id="schedule-time-end"
-                          type="time"
-                          value={formData.scheduleTimeEnd}
-                          onChange={(e) => setFormData({ ...formData, scheduleTimeEnd: e.target.value })}
-                          data-testid="input-schedule-time-end"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <Label>{t("campaigns.schedule.daysOfWeek")}</Label>
-                        <InfoTooltip content={t("campaigns.schedule.daysTooltip")} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {dayKeys.map((day) => (
-                          <div key={day} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`day-${day}`}
-                              checked={formData.scheduleDays.includes(day)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setFormData({ ...formData, scheduleDays: [...formData.scheduleDays, day] });
-                                } else {
-                                  setFormData({ ...formData, scheduleDays: formData.scheduleDays.filter(d => d !== day) });
-                                }
-                              }}
-                              data-testid={`checkbox-day-${day}`}
-                            />
-                            <Label htmlFor={`day-${day}`} className="text-sm font-normal cursor-pointer">
-                              {t(`campaigns.schedule.days.${day}`)}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <Label htmlFor="schedule-timezone">{t("campaigns.schedule.timezone")}</Label>
-                        <InfoTooltip content={t("campaigns.schedule.timezoneTooltip")} />
-                      </div>
+                    ) : (
                       <Select 
-                        value={formData.scheduleTimezone} 
-                        onValueChange={(value) => setFormData({ ...formData, scheduleTimezone: value })}
+                        value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId} 
+                        onValueChange={(value) => {
+                          if (isSipAgent) {
+                            setFormData({ ...formData, sipPhoneNumberId: value });
+                          } else {
+                            setFormData({ ...formData, phoneNumberId: value });
+                          }
+                        }}
                       >
-                        <SelectTrigger data-testid="select-schedule-timezone">
-                          <SelectValue />
+                        <SelectTrigger data-testid="select-from-number">
+                          <SelectValue placeholder={availablePhoneNumbers.length === 0 
+                            ? (isSipAgent ? "No SIP phone numbers available" : isPlivoAgent ? "No Plivo phone numbers available" : t("campaigns.create.noPhoneNumbers"))
+                            : t('campaigns.selectNumber', 'Select a phone number')} 
+                          />
                         </SelectTrigger>
                         <SelectContent>
-                          {/* Universal */}
-                          <SelectItem value="UTC">UTC (Coordinated Universal Time)</SelectItem>
-                          {/* Americas */}
-                          <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
-                          <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
-                          <SelectItem value="America/Denver">Mountain Time (US & Canada)</SelectItem>
-                          <SelectItem value="America/Los_Angeles">Pacific Time (US & Canada)</SelectItem>
-                          <SelectItem value="America/Anchorage">Alaska</SelectItem>
-                          <SelectItem value="America/Toronto">Toronto</SelectItem>
-                          <SelectItem value="America/Vancouver">Vancouver</SelectItem>
-                          <SelectItem value="America/Mexico_City">Mexico City</SelectItem>
-                          <SelectItem value="America/Sao_Paulo">São Paulo</SelectItem>
-                          <SelectItem value="America/Buenos_Aires">Buenos Aires</SelectItem>
-                          <SelectItem value="America/Lima">Lima</SelectItem>
-                          <SelectItem value="America/Bogota">Bogota</SelectItem>
-                          {/* Europe */}
-                          <SelectItem value="Europe/London">London</SelectItem>
-                          <SelectItem value="Europe/Paris">Paris</SelectItem>
-                          <SelectItem value="Europe/Berlin">Berlin</SelectItem>
-                          <SelectItem value="Europe/Madrid">Madrid</SelectItem>
-                          <SelectItem value="Europe/Rome">Rome</SelectItem>
-                          <SelectItem value="Europe/Amsterdam">Amsterdam</SelectItem>
-                          <SelectItem value="Europe/Brussels">Brussels</SelectItem>
-                          <SelectItem value="Europe/Zurich">Zurich</SelectItem>
-                          <SelectItem value="Europe/Moscow">Moscow</SelectItem>
-                          <SelectItem value="Europe/Istanbul">Istanbul</SelectItem>
-                          {/* Asia */}
-                          <SelectItem value="Asia/Dubai">Dubai</SelectItem>
-                          <SelectItem value="Asia/Kolkata">Mumbai/New Delhi</SelectItem>
-                          <SelectItem value="Asia/Singapore">Singapore</SelectItem>
-                          <SelectItem value="Asia/Hong_Kong">Hong Kong</SelectItem>
-                          <SelectItem value="Asia/Shanghai">Shanghai</SelectItem>
-                          <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
-                          <SelectItem value="Asia/Seoul">Seoul</SelectItem>
-                          <SelectItem value="Asia/Jakarta">Jakarta</SelectItem>
-                          <SelectItem value="Asia/Manila">Manila</SelectItem>
-                          {/* Africa */}
-                          <SelectItem value="Africa/Cairo">Cairo</SelectItem>
-                          <SelectItem value="Africa/Lagos">Lagos</SelectItem>
-                          <SelectItem value="Africa/Johannesburg">Johannesburg</SelectItem>
-                          <SelectItem value="Africa/Nairobi">Nairobi</SelectItem>
-                          {/* Oceania */}
-                          <SelectItem value="Australia/Sydney">Sydney</SelectItem>
-                          <SelectItem value="Australia/Melbourne">Melbourne</SelectItem>
-                          <SelectItem value="Australia/Perth">Perth</SelectItem>
-                          <SelectItem value="Pacific/Auckland">Auckland</SelectItem>
-                          <SelectItem value="Pacific/Honolulu">Hawaii</SelectItem>
+                          {availablePhoneNumbers.map((phone: any) => (
+                            <SelectItem key={phone.id} value={phone.id}>
+                              {phone.friendlyName || phone.label || phone.phoneNumber}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
-                    </div>
+                    )}
+                    {availablePhoneNumbers.length === 0 && formData.agentId && !(isSipAgent && !isSipPluginEnabled) && (
+                      <p className="text-sm text-muted-foreground">
+                        {isSipAgent ? "No SIP phone numbers available. Import a SIP phone number first." 
+                          : isPlivoAgent ? "No Plivo phone numbers available. Purchase a Plivo phone number first."
+                          : t("campaigns.create.goToPhoneNumbers")}
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
 
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">{t("campaigns.create.step3Title")}</h3>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contacts-csv">{t("campaigns.create.uploadCSV")}</Label>
-                  <div className="border-2 border-dashed rounded-md p-8 text-center hover-elevate">
-                    <input
-                      id="contacts-csv"
-                      type="file"
-                      accept=".csv"
-                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                      className="hidden"
-                      data-testid="input-csv-file"
-                    />
-                    <label htmlFor="contacts-csv" className="cursor-pointer">
-                      <Upload className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+                  {/* Upload Recipients */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>{t('campaigns.uploadRecipients', 'Upload Recipients')}</Label>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs text-muted-foreground"
+                        asChild
+                      >
+                        <a 
+                          href="/campaign_template.csv"
+                          download="campaign_template.csv"
+                          data-testid="link-download-template"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          {t('campaigns.downloadTemplate', 'Download the template')}
+                        </a>
+                      </Button>
+                    </div>
+                    <div 
+                      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                        isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => document.getElementById('csv-upload')?.click()}
+                      data-testid="dropzone-csv"
+                    >
+                      <input
+                        id="csv-upload"
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                        className="hidden"
+                        data-testid="input-csv-upload"
+                      />
+                      <Phone className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                       {csvFile ? (
-                        <p className="text-sm font-medium">{csvFile.name}</p>
+                        <p className="text-sm font-medium">{csvFile.name} ({parsedContacts.length} contacts)</p>
                       ) : (
                         <>
-                          <p className="text-sm font-medium">{t("campaigns.create.clickToUpload")}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {t("campaigns.create.csvRequiredOptional")}
-                          </p>
+                          <p className="text-sm">{t('campaigns.dragDropCsv', 'Choose a csv or drag & drop it here.')}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{t('campaigns.upTo50MB', 'Up to 50 MB')}</p>
                         </>
                       )}
-                    </label>
+                    </div>
                   </div>
-                </div>
 
-                <div className="bg-muted p-4 rounded-md">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium">{t("campaigns.create.csvFormatExample")}</p>
-                    <a 
-                      href="/campaign_template.csv"
-                      download="campaign_template.csv"
-                      className="text-xs text-primary hover:underline"
-                      data-testid="link-download-sample-csv"
-                    >
-                      {t("campaigns.create.downloadTemplate")}
-                    </a>
+                  {/* When to send the calls */}
+                  <div className="space-y-3">
+                    <Label>{t('campaigns.whenToSend', 'When to send the calls')}</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={!formData.scheduleEnabled ? "default" : "outline"}
+                        className="rounded-full"
+                        onClick={() => setFormData({ ...formData, scheduleEnabled: false })}
+                        data-testid="button-send-now"
+                      >
+                        {t('campaigns.sendNow', 'Send Now')}
+                        {!formData.scheduleEnabled && <div className="h-2 w-2 rounded-full bg-primary-foreground ml-2" />}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={formData.scheduleEnabled ? "default" : "outline"}
+                        className="rounded-full"
+                        onClick={() => setFormData({ ...formData, scheduleEnabled: true })}
+                        data-testid="button-schedule"
+                      >
+                        {t('campaigns.schedule', 'Schedule')}
+                        {formData.scheduleEnabled && <div className="h-2 w-2 rounded-full bg-primary-foreground ml-2" />}
+                      </Button>
+                    </div>
                   </div>
-                  <code className="text-xs block bg-background p-2 rounded">
-                    phone_number,language,voice_id,first_message,prompt,city,other_dyn_variable<br />
-                    +12345678900,en,,,,London,<br />
-                    +48517067931,pl,,,,Warsaw,
-                  </code>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {t("campaigns.create.customColumnsInfo")}
+
+                  {/* When Calls Can Run - only show when scheduling is enabled */}
+                  {formData.scheduleEnabled && (
+                    <div className="space-y-2">
+                      <Label>{t('campaigns.whenCallsCanRun', 'When Calls Can Run')}</Label>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-between"
+                        onClick={() => setShowScheduleSettings(!showScheduleSettings)}
+                        data-testid="button-schedule-settings"
+                      >
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          {formatSchedule()}
+                        </div>
+                        <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${showScheduleSettings ? 'rotate-90' : ''}`} />
+                      </Button>
+                      
+                      {showScheduleSettings && (
+                        <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="schedule-time-start">{t("campaigns.schedule.startTime")}</Label>
+                              <Input
+                                id="schedule-time-start"
+                                type="time"
+                                value={formData.scheduleTimeStart}
+                                onChange={(e) => setFormData({ ...formData, scheduleTimeStart: e.target.value })}
+                                data-testid="input-schedule-time-start"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="schedule-time-end">{t("campaigns.schedule.endTime")}</Label>
+                              <Input
+                                id="schedule-time-end"
+                                type="time"
+                                value={formData.scheduleTimeEnd}
+                                onChange={(e) => setFormData({ ...formData, scheduleTimeEnd: e.target.value })}
+                                data-testid="input-schedule-time-end"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>{t("campaigns.schedule.daysOfWeek")}</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {dayKeys.map((day) => (
+                                <div key={day} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`day-${day}`}
+                                    checked={formData.scheduleDays.includes(day)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setFormData({ ...formData, scheduleDays: [...formData.scheduleDays, day] });
+                                      } else {
+                                        setFormData({ ...formData, scheduleDays: formData.scheduleDays.filter(d => d !== day) });
+                                      }
+                                    }}
+                                    data-testid={`checkbox-day-${day}`}
+                                  />
+                                  <Label htmlFor={`day-${day}`} className="text-sm font-normal cursor-pointer">
+                                    {t(`campaigns.schedule.days.${day}`)}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="schedule-timezone">{t("campaigns.schedule.timezone")}</Label>
+                            <Select 
+                              value={formData.scheduleTimezone} 
+                              onValueChange={(value) => setFormData({ ...formData, scheduleTimezone: value })}
+                            >
+                              <SelectTrigger data-testid="select-schedule-timezone">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="UTC">UTC (Coordinated Universal Time)</SelectItem>
+                                <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
+                                <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
+                                <SelectItem value="America/Denver">Mountain Time (US & Canada)</SelectItem>
+                                <SelectItem value="America/Los_Angeles">Pacific Time (US & Canada)</SelectItem>
+                                <SelectItem value="America/Toronto">Toronto</SelectItem>
+                                <SelectItem value="Europe/London">London</SelectItem>
+                                <SelectItem value="Europe/Paris">Paris</SelectItem>
+                                <SelectItem value="Europe/Berlin">Berlin</SelectItem>
+                                <SelectItem value="Asia/Dubai">Dubai</SelectItem>
+                                <SelectItem value="Asia/Kolkata">Mumbai/New Delhi</SelectItem>
+                                <SelectItem value="Asia/Singapore">Singapore</SelectItem>
+                                <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
+                                <SelectItem value="Australia/Sydney">Sydney</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Reserved Concurrency */}
+                  <div className="space-y-3">
+                    <div>
+                      <Label>{t('campaigns.reservedConcurrency', 'Reserved Concurrency for Other Calls')}</Label>
+                      <p className="text-xs text-muted-foreground">{t('campaigns.concurrencyDescription', 'Number of concurrency reserved for all other calls, such as inbound calls.')}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setFormData({ ...formData, reservedConcurrency: Math.max(0, formData.reservedConcurrency - 1) })}
+                        data-testid="button-decrease-concurrency"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Slider
+                        value={[formData.reservedConcurrency]}
+                        onValueChange={(value) => setFormData({ ...formData, reservedConcurrency: value[0] })}
+                        max={20}
+                        min={0}
+                        step={1}
+                        className="flex-1"
+                        data-testid="slider-concurrency"
+                      />
+                      <span className="text-sm font-medium w-6 text-center">{formData.reservedConcurrency}</span>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setFormData({ ...formData, reservedConcurrency: Math.min(20, formData.reservedConcurrency + 1) })}
+                        data-testid="button-increase-concurrency"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Concurrency Info */}
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-blue-700 dark:text-blue-300">
+                        {t('campaigns.concurrencyAllocated', 'Concurrency allocated to batch calling:')} {allocatedConcurrency}
+                      </p>
+                      <Button variant="link" size="sm" className="h-auto p-0 text-xs text-blue-600 dark:text-blue-400" data-testid="link-purchase-concurrency">
+                        {t('campaigns.purchaseMoreConcurrency', 'Purchase more concurrency')}
+                        <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Terms */}
+                  <p className="text-xs text-muted-foreground">
+                    {t('campaigns.termsAgreement', "You've read and agree with the")} <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" asChild><a href="/terms" data-testid="link-terms">{t('campaigns.termsOfService', 'Terms of service')}</a></Button>.
                   </p>
                 </div>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                {t("campaigns.create.skipContactsInfo")}
-              </p>
+              </ScrollArea>
             </div>
-          )}
-        </div>
-        </div>
 
-        <div className="flex justify-between gap-2 px-6 py-4 border-t flex-shrink-0">
-          <Button variant="outline" onClick={handleClose}>
-            {t("common.cancel")}
-          </Button>
-          <div className="flex gap-2">
-            {step > 1 && (
-              <Button variant="outline" onClick={() => setStep(step - 1)}>
-                {t("common.back")}
-              </Button>
-            )}
-            {step < 3 ? (
-              <Button onClick={handleNext} data-testid="button-next-step">
-                {t("common.next")}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={createMutation.isPending || !formData.agentId || (isSipAgent ? (!isSipPluginEnabled || !formData.sipPhoneNumberId) : !formData.phoneNumberId)}
-                data-testid="button-create-campaign"
-              >
-                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {t("campaigns.actions.createCampaign")}
-              </Button>
-            )}
+            {/* Right Recipients Column */}
+            <div className="w-1/2 flex flex-col bg-muted/30">
+              <div className="p-4 border-b">
+                <h3 className="font-semibold">{t('campaigns.recipients', 'Recipients')}</h3>
+              </div>
+              <div className="flex-1 flex items-center justify-center p-6">
+                {parsedContacts.length === 0 ? (
+                  <div className="text-center text-muted-foreground">
+                    <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">{t('campaigns.pleaseUploadRecipients', 'Please upload recipients first')}</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-full w-full">
+                    <div className="space-y-2">
+                      {parsedContacts.map((contact, idx) => (
+                        <div key={idx} className="flex items-center gap-3 p-2 bg-background rounded border" data-testid={`recipient-row-${idx}`}>
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{contact.phone_number}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </DialogContent>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-4 border-t">
+            <Button variant="outline" onClick={handleClose} data-testid="button-save-draft">
+              {t('campaigns.saveAsDraft', 'Save as draft')}
+            </Button>
+            <Button 
+              onClick={handleSubmit}
+              disabled={createMutation.isPending || !formData.agentId || (isSipAgent ? (!isSipPluginEnabled || !formData.sipPhoneNumberId) : !formData.phoneNumberId)}
+              data-testid="button-send"
+            >
+              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('campaigns.send', 'Send')}
+            </Button>
+          </div>
+        </DialogContent>
       </Dialog>
 
       <PhoneConflictDialog

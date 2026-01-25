@@ -48,6 +48,27 @@ The Agent automatically creates checkpoints at strategic moments:
 
 Checkpoints are created frequently enough to provide good recovery points without overwhelming storage. The Agent intelligently determines when a checkpoint would be most valuable.
 
+### Rebuild After Each Prompt
+
+A key behavior of the Agent is that it **rebuilds and verifies the application after each prompt**. This ensures:
+
+1. **Immediate Validation** - Changes are tested right away, not accumulated
+2. **Clean Checkpoints** - Each checkpoint represents a verified working state
+3. **Fast Feedback** - Issues are caught immediately, not after multiple changes
+4. **Safe Recovery Points** - You can rollback to any prompt knowing it was tested
+
+**What happens after each prompt:**
+
+```
+1. Agent implements the requested changes
+2. Application is rebuilt/restarted automatically
+3. Agent verifies the changes work correctly
+4. Checkpoint is created capturing the verified state
+5. Ready for your next request
+```
+
+This rebuild-after-prompt pattern means you can confidently rollback to any checkpoint knowing the application was in a working state at that point.
+
 ---
 
 ## Checkpoint Components

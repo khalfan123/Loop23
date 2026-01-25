@@ -29,6 +29,17 @@ Checkpoints are **automatically created** by the Agent at key development milest
 
 You don't need to manually create checkpoints - the Agent handles this for you.
 
+### Rebuild After Each Prompt
+
+The Agent **rebuilds and verifies the application after each prompt**:
+
+1. Changes are implemented
+2. Application is rebuilt/restarted automatically
+3. Agent verifies everything works correctly
+4. Checkpoint is created capturing the verified state
+
+This ensures every checkpoint represents a tested, working state you can safely rollback to.
+
 ## How to Rollback
 
 Rolling back to a previous checkpoint is simple:

@@ -366,9 +366,9 @@ export default function CreateCampaign() {
         onSuccess={handleTimezoneSet}
       />
 
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] -m-4 lg:-m-6">
+      <div className="fixed inset-0 top-[56px] flex flex-col md:flex-row bg-gray-100 dark:bg-background">
         {/* Left Form Column */}
-        <div className="w-full lg:w-[320px] flex-shrink-0 border-b lg:border-b-0 lg:border-r bg-white dark:bg-card flex flex-col">
+        <div className="w-full md:w-[320px] flex-shrink-0 border-b md:border-b-0 md:border-r bg-white dark:bg-card flex flex-col overflow-hidden">
           {/* Header */}
           <div className="p-4 border-b">
             <div className="flex items-center gap-2">
@@ -383,7 +383,7 @@ export default function CreateCampaign() {
           </div>
 
           {/* Form Content */}
-          <ScrollArea className="flex-1 max-h-[50vh] lg:max-h-none">
+          <div className="flex-1 overflow-y-auto">
             <div className="p-4 space-y-5">
               {/* Batch Call Name */}
               <div className="space-y-1.5">
@@ -682,7 +682,7 @@ export default function CreateCampaign() {
                 {t('campaigns.termsAgreement', "You've read and agree with the")} <a href="/terms" className="text-primary hover:underline" data-testid="link-terms">{t('campaigns.termsOfService', 'Terms of service')}</a>.
               </p>
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Footer */}
           <div className="p-4 border-t flex items-center justify-center gap-3">
@@ -702,11 +702,11 @@ export default function CreateCampaign() {
         </div>
 
         {/* Right Recipients Column */}
-        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-muted/20 min-h-[300px] lg:min-h-0">
-          <div className="p-4 border-b bg-white dark:bg-card">
+        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-muted/20 overflow-hidden">
+          <div className="p-4 border-b bg-white dark:bg-card flex-shrink-0">
             <h3 className="font-semibold text-sm">{t('campaigns.recipients', 'Recipients')}</h3>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
+          <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
             {parsedContacts.length === 0 ? (
               <div className="text-center text-muted-foreground">
                 <p className="text-sm">{t('campaigns.pleaseUploadRecipients', 'Please upload recipients first')}</p>

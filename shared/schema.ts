@@ -188,6 +188,12 @@ export const agents = pgTable("agents", {
   agentLink: text("agent_link"),
   config: jsonb("config"),
   isActive: boolean("is_active").notNull().default(true),
+  
+  // Template tracking - which template was this agent created from
+  sourceTemplateId: varchar("source_template_id"), // References prompt_templates.id
+  isFromTemplate: boolean("is_from_template").default(false),
+  tags: text("tags").array(), // Searchable tags for categorization
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

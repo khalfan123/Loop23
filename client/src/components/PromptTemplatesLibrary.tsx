@@ -71,10 +71,13 @@ interface PromptTemplate {
 
 interface PromptTemplatesLibraryProps {
   onSelectTemplate?: (template: { 
+    id: string;
     systemPrompt: string; 
     firstMessage?: string;
     suggestedVoiceTone?: string;
     suggestedPersonality?: string;
+    tags?: string[];
+    isSystemTemplate?: boolean;
   }) => void;
   mode?: 'browse' | 'select';
 }
@@ -191,18 +194,22 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
   };
 
   const useMutation_template = useMutation({
-    mutationFn: async ({ id, variableValues }: { id: string; variableValues: Record<string, string> }) => {
+    mutationFn: async ({ id, variableValues, template }: { id: string; variableValues: Record<string, string>; template: PromptTemplate }) => {
       const res = await apiRequest('POST', `/api/prompt-templates/${id}/use`, { variableValues });
-      return res.json();
+      const data = await res.json();
+      return { ...data, template };
     },
-    onSuccess: (data: any) => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/prompt-templates'] });
       if (onSelectTemplate) {
         onSelectTemplate({
-          systemPrompt: data.systemPrompt,
-          firstMessage: data.firstMessage || undefined,
-          suggestedVoiceTone: data.suggestedVoiceTone || undefined,
-          suggestedPersonality: data.suggestedPersonality || undefined,
+          id: result.template.id,
+          systemPrompt: result.systemPrompt,
+          firstMessage: result.firstMessage || undefined,
+          suggestedVoiceTone: result.suggestedVoiceTone || undefined,
+          suggestedPersonality: result.suggestedPersonality || undefined,
+          tags: result.template.tags || undefined,
+          isSystemTemplate: result.template.isSystemTemplate || undefined,
         });
       }
       setVariableDialogOpen(false);
@@ -246,7 +253,7 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
       setVariableValues({});
       setVariableDialogOpen(true);
     } else {
-      useMutation_template.mutate({ id: template.id, variableValues: {} });
+      useMutation_template.mutate({ id: template.id, variableValues: {}, template });
     }
   };
 
@@ -604,7 +611,7 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
             <Button 
               onClick={() => {
                 if (selectedTemplate) {
-                  useMutation_template.mutate({ id: selectedTemplate.id, variableValues });
+                  useMutation_template.mutate({ id: selectedTemplate.id, variableValues, template: selectedTemplate });
                 }
               }}
               disabled={useMutation_template.isPending}

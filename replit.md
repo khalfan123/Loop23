@@ -105,6 +105,12 @@ The application serves on port 5000 with both frontend and backend.
   - Enhanced search filters by name, description, AND tags
   - "Staff Pick" badge with amber/gold styling replaces "System" badge for curated templates
   - Created documentation: README.md, docs/AGENT_AI_GUIDE.md
+- 2026-01-25: **Agent Template Tracking**:
+  - Extended agents schema with sourceTemplateId, isFromTemplate, and tags fields
+  - Agent cards now display "Staff Pick" badge and tags when created from templates
+  - PromptTemplatesLibrary passes template metadata (id, tags, isSystemTemplate) during selection
+  - Server routes updated to persist template tracking information
+  - Up to 3 tags displayed per agent card with "+N" overflow indicator
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

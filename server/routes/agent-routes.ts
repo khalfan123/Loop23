@@ -76,7 +76,11 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         voiceSimilarityBoost,
         voiceSpeed,
         telephonyProvider,
-        openaiVoice
+        openaiVoice,
+        // Template tracking fields
+        sourceTemplateId,
+        isFromTemplate,
+        tags
       } = req.body;
 
       if (!type || (type !== 'incoming' && type !== 'flow')) {
@@ -387,6 +391,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         // OpenAI Realtime configuration (for plivo and twilio_openai providers)
         telephonyProvider: isOpenAIProvider ? telephonyProvider : 'twilio',
         openaiVoice: isOpenAIProvider ? (openaiVoice || 'alloy') : null,
+        // Template tracking fields
+        sourceTemplateId: sourceTemplateId || null,
+        isFromTemplate: isFromTemplate || false,
+        tags: tags || null,
       });
 
       if (usedCredentialId) {
@@ -595,6 +603,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           knowledgeBaseIds: agent.knowledgeBaseIds,
           maxDurationSeconds: agent.maxDurationSeconds,
           config: agent.config as Record<string, unknown> | null,
+          // Template tracking fields (preserved for audit)
+          sourceTemplateId: agent.sourceTemplateId,
+          isFromTemplate: agent.isFromTemplate,
+          tags: agent.tags,
         };
         
         const changedFields: string[] = [];

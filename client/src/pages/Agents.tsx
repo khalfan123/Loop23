@@ -105,6 +105,9 @@ interface Agent {
   appointmentBookingEnabled: boolean | null;
   telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
   openaiVoice: string | null;
+  sourceTemplateId: string | null;
+  isFromTemplate: boolean | null;
+  tags: string[] | null;
   createdAt: string;
 }
 
@@ -252,6 +255,10 @@ export default function Agents() {
     openaiVoice: "alloy",
     // SIP phone number selection (for SIP engines)
     sipPhoneNumberId: "",
+    // Template tracking
+    sourceTemplateId: "" as string,
+    isFromTemplate: false,
+    tags: [] as string[],
   });
   const [knowledgeData, setKnowledgeData] = useState({
     title: "",
@@ -490,6 +497,10 @@ export default function Agents() {
       telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
+      // Template tracking
+      sourceTemplateId: "",
+      isFromTemplate: false,
+      tags: [],
     });
   };
 
@@ -598,6 +609,10 @@ export default function Agents() {
       telephonyProvider: (agent.telephonyProvider || "twilio") as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
       openaiVoice: agent.openaiVoice || "alloy",
       sipPhoneNumberId: (agent as any).sipPhoneNumberId || "",
+      // Template tracking
+      sourceTemplateId: agent.sourceTemplateId || "",
+      isFromTemplate: agent.isFromTemplate ?? false,
+      tags: agent.tags || [],
     });
   };
 
@@ -913,15 +928,23 @@ export default function Agents() {
                         <h3 className="font-semibold truncate" data-testid="text-agent-name">
                           {agent.name}
                         </h3>
-                        <Badge 
-                          variant="outline"
-                          className={`mt-1 text-xs ${isIncoming 
-                            ? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10' 
-                            : 'border-violet-500/50 text-violet-700 dark:text-violet-300 bg-violet-500/10'}`}
-                          data-testid={`badge-agent-type-${agent.type}`}
-                        >
-                          {isIncoming ? t('agents.type.incoming') : t('agents.type.flow')}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1 mt-1">
+                          <Badge 
+                            variant="outline"
+                            className={`text-xs ${isIncoming 
+                              ? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10' 
+                              : 'border-violet-500/50 text-violet-700 dark:text-violet-300 bg-violet-500/10'}`}
+                            data-testid={`badge-agent-type-${agent.type}`}
+                          >
+                            {isIncoming ? t('agents.type.incoming') : t('agents.type.flow')}
+                          </Badge>
+                          {agent.isFromTemplate && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                              <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+                              Staff Pick
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -975,6 +998,25 @@ export default function Agents() {
                     <p className="mt-3 text-xs text-muted-foreground line-clamp-2 border-t border-border/50 pt-3">
                       {agent.systemPrompt}
                     </p>
+                  )}
+                  
+                  {agent.tags && agent.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-border/30">
+                      {agent.tags.slice(0, 3).map((tag) => (
+                        <Badge 
+                          key={tag} 
+                          variant="outline" 
+                          className="text-[10px] px-1.5 py-0 bg-secondary/50 border-border/50"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                      {agent.tags.length > 3 && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          +{agent.tags.length - 3}
+                        </Badge>
+                      )}
+                    </div>
                   )}
                 </div>
               </Card>
@@ -2278,6 +2320,9 @@ export default function Agents() {
                   firstMessage: template.firstMessage || formData.firstMessage,
                   voiceTone: template.suggestedVoiceTone || formData.voiceTone,
                   personality: template.suggestedPersonality || formData.personality,
+                  sourceTemplateId: template.id,
+                  isFromTemplate: template.isSystemTemplate || false,
+                  tags: template.tags || [],
                 });
               }}
             />

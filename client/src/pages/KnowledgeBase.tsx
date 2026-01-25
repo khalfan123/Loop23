@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
@@ -411,26 +412,35 @@ export default function KnowledgeBase() {
 
   if (userError) {
     return (
-      <div className="flex h-full">
+      <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-[200px] border-r flex-shrink-0 bg-white dark:bg-background">
-          <div className="p-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <FileStack className="h-4 w-4 text-foreground" />
-              <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
+        <div className="w-64 border-r bg-muted/30 flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="p-3">
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary"
+                data-testid="folder-all-knowledge"
+              >
+                <FileStack className="h-4 w-4" />
+                {t('knowledgeBase.title')}
+              </button>
             </div>
-          </div>
-          {/* Divider */}
-          <div className="mx-3 border-t border-border" />
+          </ScrollArea>
         </div>
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-background">
-          <Card className="p-8 text-center max-w-md">
-            <h2 className="text-xl font-semibold mb-2">{t('knowledgeBase.unableToLoad')}</h2>
-            <p className="text-muted-foreground">
-              {t('knowledgeBase.unableToLoadDesc')}
-            </p>
-          </Card>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-semibold">{t('knowledgeBase.title')}</h2>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <Card className="p-8 text-center max-w-md">
+              <h2 className="text-xl font-semibold mb-2">{t('knowledgeBase.unableToLoad')}</h2>
+              <p className="text-muted-foreground">
+                {t('knowledgeBase.unableToLoadDesc')}
+              </p>
+            </Card>
+          </div>
         </div>
       </div>
     );
@@ -440,89 +450,98 @@ export default function KnowledgeBase() {
 
   if (isFreeUser) {
     return (
-      <div className="flex h-full">
+      <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-[200px] border-r flex-shrink-0 bg-white dark:bg-background">
-          <div className="p-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <FileStack className="h-4 w-4 text-foreground" />
-              <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
+        <div className="w-64 border-r bg-muted/30 flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="p-3">
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary"
+                data-testid="folder-all-knowledge"
+              >
+                <FileStack className="h-4 w-4" />
+                {t('knowledgeBase.title')}
+              </button>
             </div>
-          </div>
-          {/* Divider */}
-          <div className="mx-3 border-t border-border" />
+          </ScrollArea>
         </div>
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-background p-8">
-          <div className="max-w-2xl mx-auto space-y-6 text-center">
-            <div className="flex justify-center">
-              <div className="relative">
-                <BookOpen className="w-20 h-20 text-muted-foreground/30" />
-                <Lock className="w-8 h-8 text-primary absolute -bottom-1 -right-1 bg-background rounded-full p-1" />
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <h2 className="text-2xl font-bold">{t('knowledgeBase.unlock.title')}</h2>
-              <p className="text-muted-foreground text-lg">
-                {t('knowledgeBase.unlock.description')}
-              </p>
-            </div>
-
-            <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-              <h3 className="font-semibold text-lg mb-4">{t('knowledgeBase.unlock.proFeatures')}</h3>
-              <div className="grid gap-3 text-left">
-                <div className="flex items-start gap-3">
-                  <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">{t('knowledgeBase.unlock.uploadDocs')}</p>
-                    <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.uploadDocsDesc')}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">{t('knowledgeBase.unlock.addWebContent')}</p>
-                    <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.addWebContentDesc')}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">{t('knowledgeBase.unlock.customText')}</p>
-                    <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.customTextDesc')}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Brain className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">{t('knowledgeBase.unlock.aiSearch')}</p>
-                    <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.aiSearchDesc')}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">{t('knowledgeBase.unlock.storage')}</p>
-                    <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.storageDesc')}</p>
-                  </div>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-semibold">{t('knowledgeBase.title')}</h2>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-auto">
+            <div className="max-w-2xl mx-auto space-y-6 text-center">
+              <div className="flex justify-center">
+                <div className="relative">
+                  <BookOpen className="w-20 h-20 text-muted-foreground/30" />
+                  <Lock className="w-8 h-8 text-primary absolute -bottom-1 -right-1 bg-background rounded-full p-1" />
                 </div>
               </div>
-            </div>
+              
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold">{t('knowledgeBase.unlock.title')}</h2>
+                <p className="text-muted-foreground text-lg">
+                  {t('knowledgeBase.unlock.description')}
+                </p>
+              </div>
 
-            <div className="pt-4">
-              <Button 
-                size="lg" 
-                className="gap-2"
-                onClick={() => setLocation('/app/upgrade')}
-                data-testid="button-upgrade-to-pro"
-              >
-                <Crown className="w-5 h-5" />
-                {t('knowledgeBase.unlock.upgradeButton')}
-              </Button>
-              <p className="text-sm text-muted-foreground mt-3">
-                {t('knowledgeBase.unlock.upgradeDesc')}
-              </p>
+              <div className="bg-muted/50 rounded-lg p-6 space-y-4">
+                <h3 className="font-semibold text-lg mb-4">{t('knowledgeBase.unlock.proFeatures')}</h3>
+                <div className="grid gap-3 text-left">
+                  <div className="flex items-start gap-3">
+                    <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">{t('knowledgeBase.unlock.uploadDocs')}</p>
+                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.uploadDocsDesc')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">{t('knowledgeBase.unlock.addWebContent')}</p>
+                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.addWebContentDesc')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">{t('knowledgeBase.unlock.customText')}</p>
+                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.customTextDesc')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Brain className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">{t('knowledgeBase.unlock.aiSearch')}</p>
+                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.aiSearchDesc')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">{t('knowledgeBase.unlock.storage')}</p>
+                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.storageDesc')}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <Button 
+                  size="lg" 
+                  className="gap-2"
+                  onClick={() => setLocation('/app/upgrade')}
+                  data-testid="button-upgrade-to-pro"
+                >
+                  <Crown className="w-5 h-5" />
+                  {t('knowledgeBase.unlock.upgradeButton')}
+                </Button>
+                <p className="text-sm text-muted-foreground mt-3">
+                  {t('knowledgeBase.unlock.upgradeDesc')}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -533,67 +552,109 @@ export default function KnowledgeBase() {
   const processingCount = knowledgeBase.filter(item => item.ragStatus === 'processing').length;
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
       {/* Left Sidebar */}
-      <div className="w-[200px] border-r flex-shrink-0 bg-white dark:bg-background">
-        <div className="p-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <FileStack className="h-4 w-4 text-foreground" />
-            <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
-          </div>
-          <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                size="icon"
-                data-testid="button-add-knowledge"
+      <div className="w-64 border-r bg-muted/30 flex flex-col">
+        <ScrollArea className="flex-1">
+          <div className="p-3">
+            {/* All Knowledge Base */}
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary"
+              data-testid="folder-all-knowledge"
+            >
+              <FileStack className="h-4 w-4" />
+              {t('knowledgeBase.title')}
+            </button>
+            
+            {/* Type Filters Section */}
+            <div className="mt-4">
+              <div className="px-3 py-1">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('knowledgeBase.filters.byType')}</span>
+              </div>
+              <button
+                onClick={() => setTypeFilter('file')}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  typeFilter === 'file' 
+                    ? 'bg-primary/10 text-primary font-medium' 
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+                data-testid="filter-file"
               >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setUrlDialogOpen(true); }}>
-                <Link className="mr-2 h-4 w-4" />
-                {t('knowledgeBase.actions.addUrl')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setFileDialogOpen(true); }}>
-                <FileText className="mr-2 h-4 w-4" />
-                {t('knowledgeBase.actions.addFiles')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setTextDialogOpen(true); }}>
-                <Type className="mr-2 h-4 w-4" />
-                {t('knowledgeBase.actions.createText')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        
-        {/* Divider */}
-        <div className="mx-3 border-t border-border" />
-        
-        {/* Knowledge base items list in sidebar */}
-        <div className="p-2">
-          {knowledgeBase.length > 0 && (
-            <div className="space-y-1">
-              {knowledgeBase.map((item) => (
-                <button
-                  key={item.id}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-left rounded hover-elevate"
-                  data-testid={`sidebar-kb-item-${item.id}`}
-                >
-                  {getTypeIcon(item.type)}
-                  <span className="truncate flex-1">{item.title}</span>
-                  {item.ragStatus === 'processing' && (
-                    <Loader2 className="h-3 w-3 animate-spin text-blue-500 flex-shrink-0" />
-                  )}
-                </button>
-              ))}
+                <FileText className="h-4 w-4" />
+                {t('knowledgeBase.types.file')}
+              </button>
+              <button
+                onClick={() => setTypeFilter('url')}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  typeFilter === 'url' 
+                    ? 'bg-primary/10 text-primary font-medium' 
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+                data-testid="filter-url"
+              >
+                <Globe className="h-4 w-4" />
+                {t('knowledgeBase.types.url')}
+              </button>
+              <button
+                onClick={() => setTypeFilter('text')}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  typeFilter === 'text' 
+                    ? 'bg-primary/10 text-primary font-medium' 
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+                data-testid="filter-text"
+              >
+                <Type className="h-4 w-4" />
+                {t('knowledgeBase.types.text')}
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        </ScrollArea>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-background">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b gap-3">
+          <h2 className="text-lg font-semibold">{t('knowledgeBase.title')}</h2>
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t('knowledgeBase.searchPlaceholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-64"
+                data-testid="input-search-knowledge-base"
+              />
+            </div>
+            {/* Add Knowledge Base Dropdown */}
+            <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button data-testid="button-add-knowledge">
+                  {t('knowledgeBase.actions.add')}
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setUrlDialogOpen(true); }}>
+                  <Link className="mr-2 h-4 w-4" />
+                  {t('knowledgeBase.actions.addUrl')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setFileDialogOpen(true); }}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  {t('knowledgeBase.actions.addFiles')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setTextDialogOpen(true); }}>
+                  <Type className="mr-2 h-4 w-4" />
+                  {t('knowledgeBase.actions.createText')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -626,45 +687,6 @@ export default function KnowledgeBase() {
                 </Button>
               </div>
             )}
-
-            {/* Search and filter */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative flex-1 min-w-[250px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t('knowledgeBase.searchPlaceholder')}
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  data-testid="input-search-knowledge-base"
-                />
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2" data-testid="button-filter-type">
-                    {typeFilter ? t(`knowledgeBase.types.${typeFilter}`) : t('knowledgeBase.filters.allTypes')}
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setTypeFilter(null)}>
-                    {t('knowledgeBase.filters.allTypes')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTypeFilter('file')}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    {t('knowledgeBase.types.file')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTypeFilter('url')}>
-                    <Link className="mr-2 h-4 w-4" />
-                    {t('knowledgeBase.types.url')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTypeFilter('text')}>
-                    <Type className="mr-2 h-4 w-4" />
-                    {t('knowledgeBase.types.text')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
 
             {/* Table */}
             {filteredItems.length === 0 ? (

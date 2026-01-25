@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Phone, Info, Minus, Plus } from "lucide-react";
+import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "@/components/PhoneConflictDialog";
@@ -366,401 +366,366 @@ export default function CreateCampaign() {
         onSuccess={handleTimezoneSet}
       />
 
-      <div className="bg-white dark:bg-card rounded-xl shadow-sm">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h2 className="font-semibold text-lg">{t('campaigns.createBatchCall', 'Create a batch call')}</h2>
-              <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
+      <div className="flex h-full">
+        {/* Left Form Column */}
+        <div className="w-[320px] flex-shrink-0 border-r bg-white dark:bg-card flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h2 className="font-semibold text-base">{t('campaigns.createBatchCall', 'Create a batch call')}</h2>
+                <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="flex min-h-[70vh]">
-          {/* Left Form Column */}
-          <div className="w-1/2 border-r">
-            <ScrollArea className="h-[70vh]">
-              <div className="p-6 space-y-6">
-                {/* Batch Call Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="batch-call-name">{t('campaigns.batchCallName', 'Batch Call Name')}</Label>
-                  <Input
-                    id="batch-call-name"
-                    placeholder={t('campaigns.enterName', 'Enter')}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    data-testid="input-batch-call-name"
-                  />
-                </div>
+          {/* Form Content */}
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-5">
+              {/* Batch Call Name */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">{t('campaigns.batchCallName', 'Batch Call Name')}</Label>
+                <Input
+                  placeholder={t('campaigns.enterName', 'Enter')}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="h-9"
+                  data-testid="input-batch-call-name"
+                />
+              </div>
 
-                {/* Campaign Type */}
-                <div className="space-y-2">
-                  <Label>{t('campaigns.create.typeRequired', 'Campaign Type *')}</Label>
-                  <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                    <SelectTrigger data-testid="select-campaign-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Lead Qualification">{t("campaigns.create.typeOptions.lead")}</SelectItem>
-                      <SelectItem value="Feedback Collection">{t("campaigns.create.typeOptions.feedback")}</SelectItem>
-                      <SelectItem value="Promotional">{t("campaigns.create.typeOptions.promotional")}</SelectItem>
-                      <SelectItem value="Payment Reminder">{t("campaigns.create.typeOptions.payment")}</SelectItem>
-                      <SelectItem value="Event Promotion">{t("campaigns.create.typeOptions.event")}</SelectItem>
-                      <SelectItem value="Survey">{t("campaigns.create.typeOptions.survey")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              {/* Agent Selection */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">{t('campaigns.selectAgent', 'Agent')}</Label>
+                <Select 
+                  value={formData.agentId} 
+                  onValueChange={(value) => setFormData({ ...formData, agentId: value, phoneNumberId: '', sipPhoneNumberId: '' })}
+                >
+                  <SelectTrigger className="h-9" data-testid="select-agent">
+                    <SelectValue placeholder={filteredAgents.length === 0 ? t("campaigns.create.noAgentsAvailable") : t('campaigns.selectAgentPlaceholder', 'Select an agent')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredAgents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                {/* Agent Selection */}
-                <div className="space-y-2">
-                  <Label>{t('campaigns.selectAgent', 'Select Agent *')}</Label>
+              {/* From Number */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">{t('campaigns.fromNumber', 'From number')}</Label>
+                {isSipAgent && !isSipPluginEnabled ? (
+                  <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20">
+                    <p className="text-xs text-destructive font-medium">SIP Plugin is disabled</p>
+                  </div>
+                ) : (
                   <Select 
-                    value={formData.agentId} 
-                    onValueChange={(value) => setFormData({ ...formData, agentId: value, phoneNumberId: '', sipPhoneNumberId: '' })}
+                    value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId} 
+                    onValueChange={(value) => {
+                      if (isSipAgent) {
+                        setFormData({ ...formData, sipPhoneNumberId: value });
+                      } else {
+                        setFormData({ ...formData, phoneNumberId: value });
+                      }
+                    }}
                   >
-                    <SelectTrigger data-testid="select-agent">
-                      <SelectValue placeholder={filteredAgents.length === 0 ? t("campaigns.create.noAgentsAvailable") : t('campaigns.selectAgentPlaceholder', 'Select an agent')} />
+                    <SelectTrigger className="h-9" data-testid="select-from-number">
+                      <SelectValue placeholder={availablePhoneNumbers.length === 0 
+                        ? (isSipAgent ? "No SIP numbers" : isPlivoAgent ? "No Plivo numbers" : t("campaigns.create.noPhoneNumbers"))
+                        : t('campaigns.selectNumber', 'Select a phone number')} 
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {filteredAgents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id}>
-                          {agent.name}
+                      {availablePhoneNumbers.map((phone: any) => (
+                        <SelectItem key={phone.id} value={phone.id}>
+                          {phone.friendlyName || phone.label || phone.phoneNumber}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {agents.filter(a => a.type !== 'incoming').length === 0 && (
-                    <p className="text-sm text-muted-foreground">{t("campaigns.create.goToAgentsPage")}</p>
-                  )}
-                </div>
+                )}
+              </div>
 
-                {/* From Number */}
-                <div className="space-y-2">
-                  <Label>{t('campaigns.fromNumber', 'From number')}</Label>
-                  {isSipAgent && !isSipPluginEnabled ? (
-                    <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
-                      <p className="text-sm text-destructive font-medium">SIP Plugin is disabled</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        The selected agent uses SIP telephony, but the SIP Engine plugin is currently disabled.
-                      </p>
-                    </div>
+              {/* Upload Recipients */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">{t('campaigns.uploadRecipients', 'Upload Recipients')}</Label>
+                </div>
+                <a 
+                  href="/campaign_template.csv"
+                  download="campaign_template.csv"
+                  className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
+                  data-testid="link-download-template"
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  {t('campaigns.downloadTemplate', 'Download the template')}
+                </a>
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                    isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/40'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById('csv-upload')?.click()}
+                  data-testid="dropzone-csv"
+                >
+                  <input
+                    id="csv-upload"
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                    className="hidden"
+                    data-testid="input-csv-upload"
+                  />
+                  <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                  {csvFile ? (
+                    <p className="text-sm font-medium">{csvFile.name} ({parsedContacts.length} contacts)</p>
                   ) : (
-                    <Select 
-                      value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId} 
-                      onValueChange={(value) => {
-                        if (isSipAgent) {
-                          setFormData({ ...formData, sipPhoneNumberId: value });
-                        } else {
-                          setFormData({ ...formData, phoneNumberId: value });
-                        }
-                      }}
-                    >
-                      <SelectTrigger data-testid="select-from-number">
-                        <SelectValue placeholder={availablePhoneNumbers.length === 0 
-                          ? (isSipAgent ? "No SIP phone numbers available" : isPlivoAgent ? "No Plivo phone numbers available" : t("campaigns.create.noPhoneNumbers"))
-                          : t('campaigns.selectNumber', 'Select a phone number')} 
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePhoneNumbers.map((phone: any) => (
-                          <SelectItem key={phone.id} value={phone.id}>
-                            {phone.friendlyName || phone.label || phone.phoneNumber}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {availablePhoneNumbers.length === 0 && formData.agentId && !(isSipAgent && !isSipPluginEnabled) && (
-                    <p className="text-sm text-muted-foreground">
-                      {isSipAgent ? "No SIP phone numbers available. Import a SIP phone number first." 
-                        : isPlivoAgent ? "No Plivo phone numbers available. Purchase a Plivo phone number first."
-                        : t("campaigns.create.goToPhoneNumbers")}
-                    </p>
+                    <>
+                      <p className="text-sm text-muted-foreground">{t('campaigns.dragDropCsv', 'Choose a csv or drag & drop it here.')}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t('campaigns.upTo50MB', 'Up to 50 MB')}</p>
+                    </>
                   )}
                 </div>
+              </div>
 
-                {/* Upload Recipients */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>{t('campaigns.uploadRecipients', 'Upload Recipients')}</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-auto p-0 text-xs text-muted-foreground"
-                      asChild
-                    >
-                      <a 
-                        href="/campaign_template.csv"
-                        download="campaign_template.csv"
-                        data-testid="link-download-template"
-                      >
-                        <Download className="h-3 w-3 mr-1" />
-                        {t('campaigns.downloadTemplate', 'Download the template')}
-                      </a>
-                    </Button>
-                  </div>
-                  <div 
-                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                      isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onClick={() => document.getElementById('csv-upload')?.click()}
-                    data-testid="dropzone-csv"
+              {/* When to send the calls */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('campaigns.whenToSend', 'When to send the calls')}</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={!formData.scheduleEnabled ? "default" : "outline"}
+                    size="sm"
+                    className="rounded-full h-8 px-4"
+                    onClick={() => setFormData({ ...formData, scheduleEnabled: false })}
+                    data-testid="button-send-now"
                   >
-                    <input
-                      id="csv-upload"
-                      type="file"
-                      accept=".csv"
-                      onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                      className="hidden"
-                      data-testid="input-csv-upload"
-                    />
-                    <Phone className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    {csvFile ? (
-                      <p className="text-sm font-medium">{csvFile.name} ({parsedContacts.length} contacts)</p>
-                    ) : (
-                      <>
-                        <p className="text-sm">{t('campaigns.dragDropCsv', 'Choose a csv or drag & drop it here.')}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{t('campaigns.upTo50MB', 'Up to 50 MB')}</p>
-                      </>
-                    )}
-                  </div>
+                    {t('campaigns.sendNow', 'Send Now')}
+                    {!formData.scheduleEnabled && <div className="h-1.5 w-1.5 rounded-full bg-primary-foreground ml-2" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.scheduleEnabled ? "default" : "outline"}
+                    size="sm"
+                    className="rounded-full h-8 px-4"
+                    onClick={() => setFormData({ ...formData, scheduleEnabled: true })}
+                    data-testid="button-schedule"
+                  >
+                    {t('campaigns.schedule', 'Schedule')}
+                    {formData.scheduleEnabled && <div className="h-1.5 w-1.5 rounded-full bg-primary-foreground ml-2" />}
+                  </Button>
                 </div>
+              </div>
 
-                {/* When to send the calls */}
-                <div className="space-y-3">
-                  <Label>{t('campaigns.whenToSend', 'When to send the calls')}</Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={!formData.scheduleEnabled ? "default" : "outline"}
-                      className="rounded-full"
-                      onClick={() => setFormData({ ...formData, scheduleEnabled: false })}
-                      data-testid="button-send-now"
-                    >
-                      {t('campaigns.sendNow', 'Send Now')}
-                      {!formData.scheduleEnabled && <div className="h-2 w-2 rounded-full bg-primary-foreground ml-2" />}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={formData.scheduleEnabled ? "default" : "outline"}
-                      className="rounded-full"
-                      onClick={() => setFormData({ ...formData, scheduleEnabled: true })}
-                      data-testid="button-schedule"
-                    >
-                      {t('campaigns.schedule', 'Schedule')}
-                      {formData.scheduleEnabled && <div className="h-2 w-2 rounded-full bg-primary-foreground ml-2" />}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* When Calls Can Run - only show when scheduling is enabled */}
-                {formData.scheduleEnabled && (
-                  <div className="space-y-2">
-                    <Label>{t('campaigns.whenCallsCanRun', 'When Calls Can Run')}</Label>
-                    <Button 
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => setShowScheduleSettings(!showScheduleSettings)}
-                      data-testid="button-schedule-settings"
-                    >
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        {formatSchedule()}
+              {/* When Calls Can Run */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">{t('campaigns.whenCallsCanRun', 'When Calls Can Run')}</Label>
+                <Button 
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start h-9 text-sm font-normal"
+                  onClick={() => setShowScheduleSettings(!showScheduleSettings)}
+                  data-testid="button-schedule-settings"
+                >
+                  <Clock className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                  <span className="text-muted-foreground">{formatSchedule()}</span>
+                  <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+                </Button>
+                
+                {showScheduleSettings && (
+                  <div className="space-y-3 p-3 border rounded-lg bg-muted/20 mt-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">{t("campaigns.schedule.startTime")}</Label>
+                        <Input
+                          type="time"
+                          value={formData.scheduleTimeStart}
+                          onChange={(e) => setFormData({ ...formData, scheduleTimeStart: e.target.value })}
+                          className="h-8 text-sm"
+                          data-testid="input-schedule-time-start"
+                        />
                       </div>
-                      <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${showScheduleSettings ? 'rotate-90' : ''}`} />
-                    </Button>
-                    
-                    {showScheduleSettings && (
-                      <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-2">
-                            <Label htmlFor="schedule-time-start">{t("campaigns.schedule.startTime")}</Label>
-                            <Input
-                              id="schedule-time-start"
-                              type="time"
-                              value={formData.scheduleTimeStart}
-                              onChange={(e) => setFormData({ ...formData, scheduleTimeStart: e.target.value })}
-                              data-testid="input-schedule-time-start"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="schedule-time-end">{t("campaigns.schedule.endTime")}</Label>
-                            <Input
-                              id="schedule-time-end"
-                              type="time"
-                              value={formData.scheduleTimeEnd}
-                              onChange={(e) => setFormData({ ...formData, scheduleTimeEnd: e.target.value })}
-                              data-testid="input-schedule-time-end"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>{t("campaigns.schedule.daysOfWeek")}</Label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {dayKeys.map((day) => (
-                              <div key={day} className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`day-${day}`}
-                                  checked={formData.scheduleDays.includes(day)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setFormData({ ...formData, scheduleDays: [...formData.scheduleDays, day] });
-                                    } else {
-                                      setFormData({ ...formData, scheduleDays: formData.scheduleDays.filter(d => d !== day) });
-                                    }
-                                  }}
-                                  data-testid={`checkbox-day-${day}`}
-                                />
-                                <Label htmlFor={`day-${day}`} className="text-sm font-normal cursor-pointer">
-                                  {t(`campaigns.schedule.days.${day}`)}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="schedule-timezone">{t("campaigns.schedule.timezone")}</Label>
-                          <Select 
-                            value={formData.scheduleTimezone} 
-                            onValueChange={(value) => setFormData({ ...formData, scheduleTimezone: value })}
-                          >
-                            <SelectTrigger data-testid="select-schedule-timezone">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="UTC">UTC (Coordinated Universal Time)</SelectItem>
-                              <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
-                              <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
-                              <SelectItem value="America/Denver">Mountain Time (US & Canada)</SelectItem>
-                              <SelectItem value="America/Los_Angeles">Pacific Time (US & Canada)</SelectItem>
-                              <SelectItem value="America/Toronto">Toronto</SelectItem>
-                              <SelectItem value="Europe/London">London</SelectItem>
-                              <SelectItem value="Europe/Paris">Paris</SelectItem>
-                              <SelectItem value="Europe/Berlin">Berlin</SelectItem>
-                              <SelectItem value="Asia/Dubai">Dubai</SelectItem>
-                              <SelectItem value="Asia/Kolkata">Mumbai/New Delhi</SelectItem>
-                              <SelectItem value="Asia/Singapore">Singapore</SelectItem>
-                              <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
-                              <SelectItem value="Australia/Sydney">Sydney</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">{t("campaigns.schedule.endTime")}</Label>
+                        <Input
+                          type="time"
+                          value={formData.scheduleTimeEnd}
+                          onChange={(e) => setFormData({ ...formData, scheduleTimeEnd: e.target.value })}
+                          className="h-8 text-sm"
+                          data-testid="input-schedule-time-end"
+                        />
                       </div>
-                    )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t("campaigns.schedule.daysOfWeek")}</Label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {dayKeys.map((day) => (
+                          <div key={day} className="flex items-center gap-1.5">
+                            <Checkbox
+                              id={`day-${day}`}
+                              checked={formData.scheduleDays.includes(day)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setFormData({ ...formData, scheduleDays: [...formData.scheduleDays, day] });
+                                } else {
+                                  setFormData({ ...formData, scheduleDays: formData.scheduleDays.filter(d => d !== day) });
+                                }
+                              }}
+                              className="h-3.5 w-3.5"
+                              data-testid={`checkbox-day-${day}`}
+                            />
+                            <Label htmlFor={`day-${day}`} className="text-xs font-normal cursor-pointer">
+                              {t(`campaigns.schedule.days.${day}`)}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("campaigns.schedule.timezone")}</Label>
+                      <Select 
+                        value={formData.scheduleTimezone} 
+                        onValueChange={(value) => setFormData({ ...formData, scheduleTimezone: value })}
+                      >
+                        <SelectTrigger className="h-8 text-sm" data-testid="select-schedule-timezone">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UTC">UTC</SelectItem>
+                          <SelectItem value="America/New_York">Eastern Time</SelectItem>
+                          <SelectItem value="America/Chicago">Central Time</SelectItem>
+                          <SelectItem value="America/Denver">Mountain Time</SelectItem>
+                          <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
+                          <SelectItem value="Europe/London">London</SelectItem>
+                          <SelectItem value="Europe/Paris">Paris</SelectItem>
+                          <SelectItem value="Asia/Kolkata">Mumbai</SelectItem>
+                          <SelectItem value="Asia/Singapore">Singapore</SelectItem>
+                          <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
+                          <SelectItem value="Australia/Sydney">Sydney</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
+              </div>
 
-                {/* Reserved Concurrency */}
-                <div className="space-y-3">
-                  <div>
-                    <Label>{t('campaigns.reservedConcurrency', 'Reserved Concurrency for Other Calls')}</Label>
-                    <p className="text-xs text-muted-foreground">{t('campaigns.concurrencyDescription', 'Number of concurrency reserved for all other calls, such as inbound calls.')}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Button 
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setFormData({ ...formData, reservedConcurrency: Math.max(0, formData.reservedConcurrency - 1) })}
-                      data-testid="button-decrease-concurrency"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
+              {/* Reserved Concurrency */}
+              <div className="space-y-2">
+                <div>
+                  <Label className="text-sm font-medium">{t('campaigns.reservedConcurrency', 'Reserved Concurrency for Other Calls')}</Label>
+                  <p className="text-xs text-muted-foreground">{t('campaigns.concurrencyDescription', 'Number of concurrency reserved for all other calls, such as inbound calls.')}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={() => setFormData({ ...formData, reservedConcurrency: Math.max(0, formData.reservedConcurrency - 1) })}
+                    data-testid="button-decrease-concurrency"
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <div className="flex-1 relative">
                     <Slider
                       value={[formData.reservedConcurrency]}
                       onValueChange={(value) => setFormData({ ...formData, reservedConcurrency: value[0] })}
                       max={20}
                       min={0}
                       step={1}
-                      className="flex-1"
                       data-testid="slider-concurrency"
                     />
-                    <span className="text-sm font-medium w-6 text-center">{formData.reservedConcurrency}</span>
-                    <Button 
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setFormData({ ...formData, reservedConcurrency: Math.min(20, formData.reservedConcurrency + 1) })}
-                      data-testid="button-increase-concurrency"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-medium">
+                      {formData.reservedConcurrency}
+                    </div>
                   </div>
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={() => setFormData({ ...formData, reservedConcurrency: Math.min(20, formData.reservedConcurrency + 1) })}
+                    data-testid="button-increase-concurrency"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
                 </div>
-
-                {/* Concurrency Info */}
-                <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm">
-                    <p className="font-medium text-blue-700 dark:text-blue-300">
-                      {t('campaigns.concurrencyAllocated', 'Concurrency allocated to batch calling:')} {allocatedConcurrency}
-                    </p>
-                    <Button variant="ghost" size="sm" className="h-auto p-0 text-xs text-blue-600 dark:text-blue-400" data-testid="link-purchase-concurrency">
-                      {t('campaigns.purchaseMoreConcurrency', 'Purchase more concurrency')}
-                      <ChevronRight className="h-3 w-3 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Terms */}
-                <p className="text-xs text-muted-foreground">
-                  {t('campaigns.termsAgreement', "You've read and agree with the")} <Button variant="ghost" size="sm" className="h-auto p-0 text-xs text-primary" asChild><a href="/terms" data-testid="link-terms">{t('campaigns.termsOfService', 'Terms of service')}</a></Button>.
-                </p>
               </div>
-            </ScrollArea>
-          </div>
 
-          {/* Right Recipients Column */}
-          <div className="w-1/2 flex flex-col bg-muted/30">
-            <div className="p-4 border-b">
-              <h3 className="font-semibold">{t('campaigns.recipients', 'Recipients')}</h3>
-            </div>
-            <div className="flex-1 flex items-center justify-center p-6">
-              {parsedContacts.length === 0 ? (
-                <div className="text-center text-muted-foreground">
-                  <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">{t('campaigns.pleaseUploadRecipients', 'Please upload recipients first')}</p>
+              {/* Concurrency Info */}
+              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-700 dark:text-blue-300">
+                    {t('campaigns.concurrencyAllocated', 'Concurrency allocated to batch calling:')} {allocatedConcurrency}
+                  </p>
+                  <a href="/app/billing" className="inline-flex items-center text-xs text-blue-600 dark:text-blue-400 hover:underline" data-testid="link-purchase-concurrency">
+                    {t('campaigns.purchaseMoreConcurrency', 'Purchase more concurrency')}
+                    <ChevronRight className="h-3 w-3 ml-0.5" />
+                  </a>
                 </div>
-              ) : (
-                <ScrollArea className="h-full w-full">
-                  <div className="space-y-2">
-                    {parsedContacts.map((contact, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-2 bg-background rounded border" data-testid={`recipient-row-${idx}`}>
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{contact.phone_number}</span>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
+              </div>
+
+              {/* Terms */}
+              <p className="text-xs text-muted-foreground">
+                {t('campaigns.termsAgreement', "You've read and agree with the")} <a href="/terms" className="text-primary hover:underline" data-testid="link-terms">{t('campaigns.termsOfService', 'Terms of service')}</a>.
+              </p>
             </div>
+          </ScrollArea>
+
+          {/* Footer */}
+          <div className="p-4 border-t flex items-center justify-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => setLocation("/app/campaigns")} data-testid="button-save-draft">
+              {t('campaigns.saveAsDraft', 'Save as draft')}
+            </Button>
+            <Button 
+              size="sm"
+              onClick={handleSubmit}
+              disabled={createMutation.isPending || !formData.agentId || (isSipAgent ? (!isSipPluginEnabled || !formData.sipPhoneNumberId) : !formData.phoneNumberId)}
+              data-testid="button-send"
+            >
+              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('campaigns.send', 'Send')}
+            </Button>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t">
-          <Button variant="outline" onClick={() => setLocation("/app/campaigns")} data-testid="button-save-draft">
-            {t('campaigns.saveAsDraft', 'Save as draft')}
-          </Button>
-          <Button 
-            onClick={handleSubmit}
-            disabled={createMutation.isPending || !formData.agentId || (isSipAgent ? (!isSipPluginEnabled || !formData.sipPhoneNumberId) : !formData.phoneNumberId)}
-            data-testid="button-send"
-          >
-            {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {t('campaigns.send', 'Send')}
-          </Button>
+        {/* Right Recipients Column */}
+        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-muted/20">
+          <div className="p-4 border-b bg-white dark:bg-card">
+            <h3 className="font-semibold text-sm">{t('campaigns.recipients', 'Recipients')}</h3>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-6">
+            {parsedContacts.length === 0 ? (
+              <div className="text-center text-muted-foreground">
+                <p className="text-sm">{t('campaigns.pleaseUploadRecipients', 'Please upload recipients first')}</p>
+              </div>
+            ) : (
+              <ScrollArea className="h-full w-full">
+                <div className="space-y-2 p-2">
+                  {parsedContacts.map((contact, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 bg-white dark:bg-card rounded-lg border" data-testid={`recipient-row-${idx}`}>
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                        <span className="text-xs font-medium">{idx + 1}</span>
+                      </div>
+                      <span className="text-sm">{contact.phone_number}</span>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1477,8 +1477,19 @@
   },
   "campaigns": {
     "title": "Campaigns",
+    "batchCall": "Batch Call",
+    "createBatchCall": "Create a batch call",
+    "noBatchCalls": "You don't have any batch calls",
     "description": "Manage and monitor all your calling campaigns",
     "createNew": "New Campaign",
+    "table": {
+      "batchCallName": "Batch Call Name",
+      "status": "Status",
+      "recipients": "Recipients",
+      "completed": "Completed",
+      "successful": "Successful",
+      "lastUpdated": "Last Updated"
+    },
     "activeCampaigns": "Active Campaigns",
     "deletedCampaigns": "Deleted Campaigns",
     "noCampaigns": "No campaigns found",
@@ -1505,7 +1516,8 @@
       "cancelled": "Cancelled",
       "deleted": "Deleted",
       "scheduled": "Scheduled",
-      "inProgress": "In Progress"
+      "inProgress": "In Progress",
+      "failed": "Failed"
     },
     "details": {
       "totalContacts": "Total Contacts",

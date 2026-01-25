@@ -366,9 +366,9 @@ export default function CreateCampaign() {
         onSuccess={handleTimezoneSet}
       />
 
-      <div className="fixed inset-0 top-[56px] flex flex-col md:flex-row bg-gray-100 dark:bg-background">
+      <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] bg-white dark:bg-card rounded-xl border overflow-hidden">
         {/* Left Form Column */}
-        <div className="w-full md:w-[320px] flex-shrink-0 border-b md:border-b-0 md:border-r bg-white dark:bg-card flex flex-col overflow-hidden">
+        <div className="w-full md:w-[320px] flex-shrink-0 border-b md:border-b-0 md:border-r flex flex-col overflow-hidden">
           {/* Header */}
           <div className="p-4 border-b">
             <div className="flex items-center gap-2">
@@ -702,8 +702,8 @@ export default function CreateCampaign() {
         </div>
 
         {/* Right Recipients Column */}
-        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-muted/20 overflow-hidden">
-          <div className="p-4 border-b bg-white dark:bg-card flex-shrink-0">
+        <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden min-h-[200px] md:min-h-0">
+          <div className="p-4 border-b flex-shrink-0">
             <h3 className="font-semibold text-sm">{t('campaigns.recipients', 'Recipients')}</h3>
           </div>
           <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">

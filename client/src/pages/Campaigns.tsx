@@ -18,7 +18,6 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from 'react-i18next';
-import { CreateCampaignDialog } from "@/components/CreateCampaignDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Phone, AlertTriangle, Loader2 } from "lucide-react";
@@ -68,7 +67,6 @@ interface User {
 export default function Campaigns() {
   const [, setLocation] = useLocation();
   const { t } = useTranslation();
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [showPhoneNumberAlert, setShowPhoneNumberAlert] = useState(false);
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -152,7 +150,7 @@ export default function Campaigns() {
           <span className="font-medium">{t('campaigns.batchCall', 'Batch Call')}</span>
         </div>
         <Button 
-          onClick={() => setCreateDialogOpen(true)}
+          onClick={() => setLocation('/app/campaigns/new')}
           data-testid="button-create-campaign"
         >
           {t('campaigns.createBatchCall', 'Create a batch call')}
@@ -224,8 +222,6 @@ export default function Campaigns() {
           </ScrollArea>
         )}
       </div>
-
-      <CreateCampaignDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
 
       <AlertDialog open={showPhoneNumberAlert} onOpenChange={setShowPhoneNumberAlert}>
         <AlertDialogContent data-testid="dialog-phone-number-required">

@@ -35,6 +35,7 @@ import { TeamAuth } from "./lib/team-auth";
 import { useQuery } from "@tanstack/react-query";
 import Dashboard from "@/pages/Dashboard";
 import Campaigns from "@/pages/Campaigns";
+import CreateCampaign from "@/pages/CreateCampaign";
 import CampaignDetail from "@/pages/CampaignDetail";
 import Calls from "@/pages/Calls";
 import CallDetail from "@/pages/CallDetail";
@@ -249,6 +250,7 @@ function UserRouter() {
                 </Route>
                 <Route path="/app" component={Dashboard} />
                 <Route path="/app/dashboard" component={Dashboard} />
+                <Route path="/app/campaigns/new" component={CreateCampaign} />
                 <Route path="/app/campaigns/:id" component={CampaignDetail} />
                 <Route path="/app/campaigns" component={Campaigns} />
                 <Route path="/app/calls/:id" component={CallDetail} />
@@ -334,6 +336,7 @@ function TeamMemberRouter() {
                 </Route>
                 <Route path="/app" component={Dashboard} />
                 <Route path="/app/dashboard" component={Dashboard} />
+                <Route path="/app/campaigns/new" component={CreateCampaign} />
                 <Route path="/app/campaigns/:id" component={CampaignDetail} />
                 <Route path="/app/campaigns" component={Campaigns} />
                 <Route path="/app/calls/:id" component={CallDetail} />

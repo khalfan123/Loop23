@@ -434,14 +434,14 @@ export default function CreateCampaign() {
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Flow Template</Label>
                 <Select 
-                  value={formData.flowId} 
-                  onValueChange={(value) => setFormData({ ...formData, flowId: value })}
+                  value={formData.flowId || "none"} 
+                  onValueChange={(value) => setFormData({ ...formData, flowId: value === "none" ? "" : value })}
                 >
                   <SelectTrigger className="h-9" data-testid="select-flow-template">
                     <SelectValue placeholder={activeFlows.length === 0 ? "No flows available" : "Select a flow template"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (use agent script)</SelectItem>
+                    <SelectItem value="none">None (use agent script)</SelectItem>
                     {activeFlows.map((flow) => (
                       <SelectItem key={flow.id} value={flow.id}>
                         {flow.name}

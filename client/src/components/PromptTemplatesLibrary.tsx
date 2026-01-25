@@ -57,6 +57,7 @@ interface PromptTemplate {
   name: string;
   description: string | null;
   category: string;
+  tags: string[] | null;
   systemPrompt: string;
   firstMessage: string | null;
   variables: string[] | null;
@@ -215,9 +216,11 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
   });
 
   const filteredTemplates = templates.filter(t => {
+    const searchLower = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery || 
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      t.name.toLowerCase().includes(searchLower) ||
+      t.description?.toLowerCase().includes(searchLower) ||
+      t.tags?.some(tag => tag.toLowerCase().includes(searchLower));
     return matchesSearch;
   });
 
@@ -375,9 +378,9 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
                           {template.category}
                         </Badge>
                         {template.isSystemTemplate && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            <Shield className="h-2.5 w-2.5 mr-0.5" />
-                            System
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                            <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+                            Staff Pick
                           </Badge>
                         )}
                       </div>
@@ -410,6 +413,25 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
                         {template.variables.length > 2 && (
                           <Badge variant="outline" className="text-[10px] px-1 py-0">
                             +{template.variables.length - 2} more
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
+                    {template.tags && template.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {template.tags.slice(0, 3).map((tag) => (
+                          <Badge 
+                            key={tag} 
+                            variant="outline" 
+                            className="text-[10px] px-1 py-0 bg-secondary/50 border-border/50"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                        {template.tags.length > 3 && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">
+                            +{template.tags.length - 3}
                           </Badge>
                         )}
                       </div>

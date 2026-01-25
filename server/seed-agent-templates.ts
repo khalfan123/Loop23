@@ -22,6 +22,7 @@ const AGENT_TEMPLATES_SEED_DATA = [
     name: "Virtual Receptionist Agent",
     description: "Professional virtual receptionist for handling incoming calls, routing to departments, and answering FAQs. Perfect for businesses that need 24/7 call handling.",
     category: "agent_preset",
+    tags: ["receptionist", "24/7", "call-routing", "front-desk", "automation"],
     systemPrompt: `You are a professional virtual receptionist for {{company_name}}. Your role is to:
 - Greet callers warmly and professionally
 - Answer common questions about business hours, location, and services
@@ -44,6 +45,7 @@ Location: {{company_address}}`,
     name: "Appointment Setter Agent",
     description: "Efficient appointment scheduling assistant that qualifies callers, checks availability, and books meetings. Ideal for sales teams and service businesses.",
     category: "agent_preset",
+    tags: ["appointment", "scheduling", "sales", "calendar", "qualification"],
     systemPrompt: `You are an appointment scheduling assistant for {{company_name}}. Your responsibilities are:
 - Qualify callers to ensure they're a good fit
 - Check available time slots
@@ -71,6 +73,7 @@ Meeting duration: {{meeting_duration}} minutes`,
     name: "Lead Qualification Agent",
     description: "Strategic lead qualification specialist that screens prospects, gathers requirements, and scores leads based on BANT criteria (Budget, Authority, Need, Timeline).",
     category: "agent_preset",
+    tags: ["lead-gen", "qualification", "bant", "sales", "prospecting"],
     systemPrompt: `You are a lead qualification specialist for {{company_name}}. Your mission is to:
 - Understand the prospect's needs and pain points
 - Gather key information: budget, timeline, decision process
@@ -99,6 +102,7 @@ Key product benefits: {{key_benefits}}`,
     name: "Survey & Feedback Agent",
     description: "Friendly survey conductor for gathering customer insights, conducting NPS surveys, and collecting feedback through natural conversation.",
     category: "agent_preset",
+    tags: ["survey", "nps", "feedback", "customer-voice", "insights"],
     systemPrompt: `You are a friendly survey conductor for {{company_name}}. Your goals are:
 - Make the survey feel like a natural conversation
 - Ask questions clearly and wait for complete responses
@@ -126,6 +130,7 @@ Survey type: {{survey_type}}`,
     name: "Customer Service Agent",
     description: "Empathetic customer service representative for resolving issues, answering questions, and providing exceptional support with a focus on customer satisfaction.",
     category: "agent_preset",
+    tags: ["support", "customer-service", "help-desk", "resolution", "care"],
     systemPrompt: `You are a customer service representative for {{company_name}}. Your priorities are:
 - Listen to customer concerns with empathy
 - Resolve issues quickly and effectively
@@ -155,6 +160,7 @@ Escalation criteria: {{escalation_criteria}}`,
     name: "Outbound Sales Agent",
     description: "Professional outbound sales caller for product introductions, follow-ups, and warm lead engagement with a focus on value-based selling.",
     category: "agent_preset",
+    tags: ["outbound", "sales", "cold-calling", "value-selling", "pipeline"],
     systemPrompt: `You are a professional sales representative for {{company_name}}. Your goal is to introduce {{product_name}} to potential customers in a friendly, non-pushy manner.
 
 Key behaviors:
@@ -185,6 +191,7 @@ Remember: The goal is to start a conversation, not make a hard sell. Build rappo
     name: "Debt Collection Agent",
     description: "Professional and compliant debt collection agent that reminds about payments while maintaining positive customer relationships and offering flexible arrangements.",
     category: "agent_preset",
+    tags: ["collections", "payments", "compliance", "fdcpa", "accounts-receivable"],
     systemPrompt: `You are calling on behalf of {{company_name}} regarding an outstanding payment. Your approach must be:
 - Professional and respectful at all times
 - Compliant with debt collection regulations (FDCPA)
@@ -222,6 +229,7 @@ Remember: The goal is to collect payment while preserving the customer relations
     name: "Event Registration Agent",
     description: "Enthusiastic event registration assistant for handling registrations, providing event details, and managing RSVPs for conferences, webinars, and gatherings.",
     category: "agent_preset",
+    tags: ["events", "registration", "conferences", "webinars", "rsvp"],
     systemPrompt: `You are handling registrations for {{event_name}} organized by {{company_name}}.
 
 Registration process:
@@ -257,6 +265,46 @@ Information to collect:
     isSystemTemplate: true,
     isPublic: true,
   },
+  {
+    name: "Real Estate Lead Agent",
+    description: "Professional real estate lead qualification agent for capturing buyer/seller details, understanding property requirements, and scheduling viewings.",
+    category: "agent_preset",
+    tags: ["real-estate", "property", "buyer-leads", "seller-leads", "viewings"],
+    systemPrompt: `You are a real estate lead qualification specialist for {{company_name}}. Your goal is to:
+- Qualify incoming leads (buyers or sellers)
+- Understand their property requirements
+- Capture essential contact information
+- Schedule property viewings or listing appointments
+- Provide helpful market insights
+
+For Buyers, gather:
+- Budget range
+- Preferred locations
+- Property type (house, condo, etc.)
+- Must-have features
+- Timeline for purchase
+
+For Sellers, gather:
+- Property address
+- Reason for selling
+- Expected timeline
+- Desired price range
+
+Key behaviors:
+- Be knowledgeable about local market
+- Ask questions naturally, not like a checklist
+- Provide helpful information about the process
+- Be enthusiastic but not pushy
+
+Service area: {{service_area}}
+Agent specialties: {{specialties}}`,
+    firstMessage: "Hi! Thank you for reaching out to {{company_name}}. I'm {{agent_name}}, and I'd love to help you with your real estate needs. Are you looking to buy or sell a property?",
+    variables: ["company_name", "agent_name", "service_area", "specialties"],
+    suggestedVoiceTone: "Professional, knowledgeable, helpful",
+    suggestedPersonality: "Friendly real estate expert who understands your needs",
+    isSystemTemplate: true,
+    isPublic: true,
+  },
 ];
 
 async function seedAgentTemplates() {
@@ -277,7 +325,7 @@ async function seedAgentTemplates() {
     
     console.log("✅ Successfully seeded Agent Templates!");
     AGENT_TEMPLATES_SEED_DATA.forEach(template => {
-      console.log(`   - ${template.name}: ${template.variables.length} variables`);
+      console.log(`   - ${template.name}: ${template.variables.length} variables, ${template.tags.length} tags`);
     });
     
   } catch (error) {

@@ -668,13 +668,14 @@ export const promptTemplates = pgTable("prompt_templates", {
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }), // null = system template
   name: text("name").notNull(),
   description: text("description"),
-  category: text("category").notNull().default("general"), // 'sales', 'support', 'appointment', 'survey', 'general'
+  category: text("category").notNull().default("general"), // 'sales', 'support', 'appointment', 'survey', 'general', 'agent_preset'
+  tags: text("tags").array(), // Searchable tags: ['cold-calling', 'b2b', 'healthcare', 'automation', etc.]
   systemPrompt: text("system_prompt").notNull(),
   firstMessage: text("first_message"),
   variables: text("variables").array(), // Available variables: ['company', 'product', 'customerName', etc.]
   suggestedVoiceTone: text("suggested_voice_tone"), // Recommended voice settings
   suggestedPersonality: text("suggested_personality"),
-  isSystemTemplate: boolean("is_system_template").notNull().default(false), // System-provided templates
+  isSystemTemplate: boolean("is_system_template").notNull().default(false), // System-provided templates (Staff Picks)
   isPublic: boolean("is_public").notNull().default(false), // Can be used by other users
   usageCount: integer("usage_count").notNull().default(0), // Track popularity
   createdAt: timestamp("created_at").notNull().defaultNow(),

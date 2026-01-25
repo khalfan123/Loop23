@@ -516,8 +516,8 @@ export default function KnowledgeBase() {
   return (
     <div className="flex h-full">
       {/* Left Sidebar */}
-      <div className="w-[200px] border-r bg-muted/50 flex-shrink-0">
-        <div className="p-3 border-b flex items-center justify-between">
+      <div className="w-[200px] border-r flex-shrink-0 bg-white dark:bg-background">
+        <div className="p-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <FileStack className="h-4 w-4 text-foreground" />
             <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
@@ -547,6 +547,9 @@ export default function KnowledgeBase() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        
+        {/* Divider */}
+        <div className="mx-3 border-t border-border" />
         
         {/* Knowledge base items list in sidebar */}
         <div className="p-2">

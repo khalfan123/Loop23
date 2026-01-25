@@ -2189,7 +2189,14 @@
       "text": "Text"
     },
     "filters": {
-      "allTypes": "All Types"
+      "allTypes": "All Types",
+      "byType": "By Type"
+    },
+    "actions": {
+      "add": "Add",
+      "addUrl": "Add URL",
+      "addFiles": "Upload File",
+      "createText": "Create Text"
     },
     "stats": {
       "totalItems": "Total Items",

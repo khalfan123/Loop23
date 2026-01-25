@@ -74,6 +74,13 @@ interface ParsedContact {
   [key: string]: string;
 }
 
+interface Flow {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+}
+
 export default function CreateCampaign() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -141,6 +148,12 @@ export default function CreateCampaign() {
   const { data: plivoPhoneNumbers = [] } = useQuery<PlivoPhoneNumber[]>({
     queryKey: ["/api/plivo/phone-numbers"],
   });
+
+  const { data: flows = [] } = useQuery<Flow[]>({
+    queryKey: ["/api/flow-automation/flows"],
+  });
+
+  const activeFlows = flows.filter(flow => flow.isActive);
 
   const selectedAgent = agents.find(a => a.id === formData.agentId);
   const isSipAgent = selectedAgent?.telephonyProvider === 'elevenlabs-sip' || selectedAgent?.telephonyProvider === 'openai-sip';
@@ -411,6 +424,27 @@ export default function CreateCampaign() {
                     {filteredAgents.map((agent) => (
                       <SelectItem key={agent.id} value={agent.id}>
                         {agent.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Flow Template */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Flow Template</Label>
+                <Select 
+                  value={formData.flowId} 
+                  onValueChange={(value) => setFormData({ ...formData, flowId: value })}
+                >
+                  <SelectTrigger className="h-9" data-testid="select-flow-template">
+                    <SelectValue placeholder={activeFlows.length === 0 ? "No flows available" : "Select a flow template"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None (use agent script)</SelectItem>
+                    {activeFlows.map((flow) => (
+                      <SelectItem key={flow.id} value={flow.id}>
+                        {flow.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

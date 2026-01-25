@@ -2219,7 +2219,7 @@
       "created": "Created"
     },
     "empty": {
-      "title": "No documents found",
+      "title": "You don't have any knowledge base",
       "adjustFilters": "Try adjusting your filters",
       "uploadFirst": "Upload your first document to get started"
     },

@@ -554,140 +554,67 @@ export default function KnowledgeBase() {
   return (
     <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
       {/* Left Sidebar */}
-      <div className="w-64 border-r bg-muted/30 flex flex-col">
+      <div className="w-[200px] border-r flex-shrink-0 bg-white dark:bg-background">
+        <div className="p-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <FileStack className="h-4 w-4 text-foreground" />
+            <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
+          </div>
+          <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                size="icon"
+                data-testid="button-add-knowledge"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setUrlDialogOpen(true); }}>
+                <Link className="mr-2 h-4 w-4" />
+                {t('knowledgeBase.actions.addUrl')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setFileDialogOpen(true); }}>
+                <FileText className="mr-2 h-4 w-4" />
+                {t('knowledgeBase.actions.addFiles')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setTextDialogOpen(true); }}>
+                <Type className="mr-2 h-4 w-4" />
+                {t('knowledgeBase.actions.createText')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        
+        {/* Divider */}
+        <div className="mx-3 border-t border-border" />
+        
+        {/* Knowledge base items list in sidebar */}
         <ScrollArea className="flex-1">
-          <div className="p-3">
-            {/* All Knowledge Base */}
-            <button
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary"
-              data-testid="folder-all-knowledge"
-            >
-              <FileStack className="h-4 w-4" />
-              {t('knowledgeBase.title')}
-            </button>
-            
-            {/* Type Filters Section */}
-            <div className="mt-4">
-              <div className="px-3 py-1">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('knowledgeBase.filters.byType')}</span>
+          <div className="p-2">
+            {knowledgeBase.length > 0 && (
+              <div className="space-y-1">
+                {knowledgeBase.map((item) => (
+                  <button
+                    key={item.id}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-left rounded hover-elevate"
+                    data-testid={`sidebar-kb-item-${item.id}`}
+                  >
+                    {getTypeIcon(item.type)}
+                    <span className="truncate flex-1">{item.title}</span>
+                    {item.ragStatus === 'processing' && (
+                      <Loader2 className="h-3 w-3 animate-spin text-blue-500 flex-shrink-0" />
+                    )}
+                  </button>
+                ))}
               </div>
-              <div className="flex items-center group">
-                <button
-                  onClick={() => setTypeFilter('file')}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                    typeFilter === 'file' 
-                      ? 'bg-primary/10 text-primary font-medium' 
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                  data-testid="filter-file"
-                >
-                  <FileText className="h-4 w-4" />
-                  {t('knowledgeBase.types.file')}
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => setFileDialogOpen(true)}
-                  data-testid="button-add-file"
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="flex items-center group">
-                <button
-                  onClick={() => setTypeFilter('url')}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                    typeFilter === 'url' 
-                      ? 'bg-primary/10 text-primary font-medium' 
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                  data-testid="filter-url"
-                >
-                  <Globe className="h-4 w-4" />
-                  {t('knowledgeBase.types.url')}
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => setUrlDialogOpen(true)}
-                  data-testid="button-add-url"
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="flex items-center group">
-                <button
-                  onClick={() => setTypeFilter('text')}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                    typeFilter === 'text' 
-                      ? 'bg-primary/10 text-primary font-medium' 
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                  data-testid="filter-text"
-                >
-                  <Type className="h-4 w-4" />
-                  {t('knowledgeBase.types.text')}
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => setTextDialogOpen(true)}
-                  data-testid="button-add-text"
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
+            )}
           </div>
         </ScrollArea>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b gap-3">
-          <h2 className="text-lg font-semibold">{t('knowledgeBase.title')}</h2>
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t('knowledgeBase.searchPlaceholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-64"
-                data-testid="input-search-knowledge-base"
-              />
-            </div>
-            {/* Add Knowledge Base Dropdown */}
-            <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button data-testid="button-add-knowledge">
-                  {t('knowledgeBase.actions.add')}
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setUrlDialogOpen(true); }}>
-                  <Link className="mr-2 h-4 w-4" />
-                  {t('knowledgeBase.actions.addUrl')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setFileDialogOpen(true); }}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  {t('knowledgeBase.actions.addFiles')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setTextDialogOpen(true); }}>
-                  <Type className="mr-2 h-4 w-4" />
-                  {t('knowledgeBase.actions.createText')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        
+      <div className="flex-1 flex flex-col bg-white dark:bg-background">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

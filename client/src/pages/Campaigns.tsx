@@ -144,12 +144,12 @@ export default function Campaigns() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-120px)]">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-background">
+      <div className="flex items-center justify-between py-4 px-1">
         <div className="flex items-center gap-2">
           <Phone className="h-4 w-4 text-foreground" />
-          <span className="font-medium text-sm">{t('campaigns.batchCall', 'Batch Call')}</span>
+          <span className="font-medium">{t('campaigns.batchCall', 'Batch Call')}</span>
         </div>
         <Button 
           onClick={() => setCreateDialogOpen(true)}
@@ -158,9 +158,9 @@ export default function Campaigns() {
           {t('campaigns.createBatchCall', 'Create a batch call')}
         </Button>
       </div>
-
-      {/* Table Content */}
-      <div className="flex-1 overflow-hidden">
+      
+      {/* White Content Container */}
+      <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-hidden">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

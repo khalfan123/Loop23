@@ -241,7 +241,7 @@ function UserRouter() {
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto bg-gray-100 dark:bg-muted/30">
             <div className="w-full px-4 md:px-10 lg:px-16 xl:px-20 py-4 md:py-6">
               <Switch>
                 <Route path="/">
@@ -326,7 +326,7 @@ function TeamMemberRouter() {
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto bg-gray-100 dark:bg-muted/30">
             <div className="w-full px-4 md:px-10 lg:px-16 xl:px-20 py-4 md:py-6">
               <Switch>
                 <Route path="/">

@@ -98,6 +98,13 @@ The application serves on port 5000 with both frontend and backend.
   - Stats overview section with clickable metrics cards
   - Quick Actions panel and Weekly Call Activity chart
   - Modern card design with gradients and consistent spacing
+- 2026-01-25: **Prompt Templates Enhancement**:
+  - Added tags field for better template categorization and discoverability
+  - 25 system templates ("Staff Picks") across 6 categories: agent_preset, sales, support, appointment, survey, general
+  - Each template has 3-5 searchable tags (e.g., 'cold-calling', 'b2b', 'healthcare', 'automation')
+  - Enhanced search filters by name, description, AND tags
+  - "Staff Pick" badge with amber/gold styling replaces "System" badge for curated templates
+  - Created documentation: README.md, docs/AGENT_AI_GUIDE.md
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

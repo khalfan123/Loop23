@@ -516,7 +516,7 @@ export default function KnowledgeBase() {
   return (
     <div className="flex h-full">
       {/* Left Sidebar */}
-      <div className="w-[200px] border-r bg-background flex-shrink-0">
+      <div className="w-[200px] border-r bg-muted/50 flex-shrink-0">
         <div className="p-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileStack className="h-4 w-4 text-foreground" />
@@ -571,7 +571,7 @@ export default function KnowledgeBase() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-white dark:bg-background">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

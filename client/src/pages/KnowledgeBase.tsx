@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Link, FileText, Type, Search, ChevronDown, FileStack, Trash2, Upload, Globe, FileType, Crown, Zap, Lock, BookOpen, Loader2, CheckCircle2, AlertCircle, Brain, RefreshCw } from "lucide-react";
+import { Link, FileText, Type, Search, ChevronDown, FileStack, Trash2, Upload, Globe, FileType, Crown, Zap, Lock, BookOpen, Loader2, CheckCircle2, AlertCircle, Brain, RefreshCw, Plus } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import {
   Dialog,
@@ -118,6 +118,7 @@ export default function KnowledgeBase() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [deletingItem, setDeletingItem] = useState<KnowledgeBaseItem | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -510,252 +511,236 @@ export default function KnowledgeBase() {
     );
   }
 
-  const urlCount = knowledgeBase.filter(item => item.type === 'url').length;
-  const fileCount = knowledgeBase.filter(item => item.type === 'file').length;
-  const textCount = knowledgeBase.filter(item => item.type === 'text').length;
   const processingCount = knowledgeBase.filter(item => item.ragStatus === 'processing').length;
-  const totalChunks = knowledgeBase.reduce((sum, item) => sum + (item.chunkCount || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50 via-purple-100/50 to-fuchsia-50 dark:from-violet-950/40 dark:via-purple-900/30 dark:to-fuchsia-950/40 border border-violet-100 dark:border-violet-900/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
-              <Brain className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t('knowledgeBase.title')}</h1>
-              <p className="text-muted-foreground mt-0.5">{t('knowledgeBase.description')}</p>
-            </div>
-          </div>
+    <div className="flex h-full">
+      {/* Left Sidebar */}
+      <div className="w-[200px] border-r bg-background flex-shrink-0">
+        <div className="p-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button 
-              onClick={() => setUrlDialogOpen(true)}
-              className="bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg"
-              data-testid="button-add-url"
-            >
-              <Link className="h-4 w-4 mr-2" />
-              {t('knowledgeBase.actions.addUrl')}
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={() => setFileDialogOpen(true)}
-              data-testid="button-add-files"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              {t('knowledgeBase.actions.addFiles')}
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={() => setTextDialogOpen(true)}
-              data-testid="button-create-text"
-            >
-              <Type className="h-4 w-4 mr-2" />
-              {t('knowledgeBase.actions.createText')}
-            </Button>
+            <FileStack className="h-4 w-4 text-foreground" />
+            <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
           </div>
+          <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                size="icon"
+                data-testid="button-add-knowledge"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setUrlDialogOpen(true); }}>
+                <Link className="mr-2 h-4 w-4" />
+                {t('knowledgeBase.actions.addUrl')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setFileDialogOpen(true); }}>
+                <FileText className="mr-2 h-4 w-4" />
+                {t('knowledgeBase.actions.addFiles')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setTextDialogOpen(true); }}>
+                <Type className="mr-2 h-4 w-4" />
+                {t('knowledgeBase.actions.createText')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-violet-100/50 dark:border-violet-800/30">
-            <div className="text-2xl font-bold text-violet-700 dark:text-violet-300">{knowledgeBase.length}</div>
-            <div className="text-violet-600/70 dark:text-violet-400/70 text-sm">{t('knowledgeBase.stats.totalItems')}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50 dark:border-blue-800/30">
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{totalChunks}</div>
-              <Brain className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+        {/* Knowledge base items list in sidebar */}
+        <div className="p-2">
+          {knowledgeBase.length > 0 && (
+            <div className="space-y-1">
+              {knowledgeBase.map((item) => (
+                <button
+                  key={item.id}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-left rounded hover-elevate"
+                  data-testid={`sidebar-kb-item-${item.id}`}
+                >
+                  {getTypeIcon(item.type)}
+                  <span className="truncate flex-1">{item.title}</span>
+                  {item.ragStatus === 'processing' && (
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-500 flex-shrink-0" />
+                  )}
+                </button>
+              ))}
             </div>
-            <div className="text-blue-600/70 dark:text-blue-400/70 text-sm">{t('knowledgeBase.stats.knowledgeChunks')}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-emerald-100/50 dark:border-emerald-800/30">
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{urlCount + fileCount}</div>
-              <FileText className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
-            </div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-sm">{t('knowledgeBase.stats.docsAndUrls')}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-amber-100/50 dark:border-amber-800/30">
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">{textCount}</div>
-              <Type className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-            </div>
-            <div className="text-amber-600/70 dark:text-amber-400/70 text-sm">{t('knowledgeBase.stats.textEntries')}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-purple-100/50 dark:border-purple-800/30">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <div className="text-lg font-bold text-purple-700 dark:text-purple-300">{formatBytes(totalSize)}</div>
-                <span className="text-xs text-purple-600/70 dark:text-purple-400/70">/ 20 MB</span>
-              </div>
-              <Progress 
-                value={storageUsage?.usagePercent || Math.round((totalSize / (20 * 1024 * 1024)) * 100)} 
-                className="h-1.5" 
-              />
-            </div>
-            <div className="text-purple-600/70 dark:text-purple-400/70 text-sm mt-1">{t('knowledgeBase.stats.storageUsed')}</div>
-          </div>
+          )}
         </div>
+      </div>
 
-        {processingCount > 0 && (
-          <div className="relative mt-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 flex items-center gap-3 border border-blue-200 dark:border-blue-800">
-            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-            <span className="text-sm text-blue-700 dark:text-blue-300">
-              {t('knowledgeBase.processing.message', { count: processingCount })}
-            </span>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="ml-auto h-7 text-blue-600"
-              onClick={() => refetch()}
-              data-testid="button-refresh-status"
-            >
-              <RefreshCw className="h-3 w-3 mr-1" />
-              {t('common.refresh')}
-            </Button>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {isLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : knowledgeBase.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md border bg-background">
+              <FileStack className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">{t('knowledgeBase.empty.title')}</p>
+          </div>
+        ) : (
+          <div className="flex-1 p-4 space-y-4 overflow-auto">
+            {/* Processing indicator */}
+            {processingCount > 0 && (
+              <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 flex items-center gap-3 border border-blue-200 dark:border-blue-800">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <span className="text-sm text-blue-700 dark:text-blue-300">
+                  {t('knowledgeBase.processing.message', { count: processingCount })}
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="ml-auto h-7 text-blue-600"
+                  onClick={() => refetch()}
+                  data-testid="button-refresh-status"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  {t('common.refresh')}
+                </Button>
+              </div>
+            )}
+
+            {/* Search and filter */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[250px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t('knowledgeBase.searchPlaceholder')}
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  data-testid="input-search-knowledge-base"
+                />
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2" data-testid="button-filter-type">
+                    {typeFilter ? t(`knowledgeBase.types.${typeFilter}`) : t('knowledgeBase.filters.allTypes')}
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setTypeFilter(null)}>
+                    {t('knowledgeBase.filters.allTypes')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTypeFilter('file')}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    {t('knowledgeBase.types.file')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTypeFilter('url')}>
+                    <Link className="mr-2 h-4 w-4" />
+                    {t('knowledgeBase.types.url')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTypeFilter('text')}>
+                    <Type className="mr-2 h-4 w-4" />
+                    {t('knowledgeBase.types.text')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Table */}
+            {filteredItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md border bg-background">
+                  <FileStack className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery || typeFilter ? t('knowledgeBase.empty.adjustFilters') : t('knowledgeBase.empty.uploadFirst')}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t('knowledgeBase.table.name')}</TableHead>
+                        <TableHead>{t('common.type')}</TableHead>
+                        <TableHead>{t('knowledgeBase.table.aiStatus')}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t('knowledgeBase.table.chunks')}</TableHead>
+                        <TableHead className="hidden sm:table-cell">{t('knowledgeBase.table.size')}</TableHead>
+                        <TableHead className="hidden lg:table-cell">{t('knowledgeBase.table.created')}</TableHead>
+                        <TableHead className="w-[100px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedItems.map((item) => (
+                        <TableRow key={item.id} data-testid={`row-kb-item-${item.id}`}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {getTypeIcon(item.type)}
+                              <span className="truncate max-w-[200px]">{item.title}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getTypeBadgeVariant(item.type)}>
+                              {item.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2">
+                                  {getStatusIcon(item.ragStatus)}
+                                  <span className="text-sm text-muted-foreground">
+                                    {getStatusText(item.ragStatus)}
+                                  </span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {item.ragStatus === 'completed' 
+                                  ? t('knowledgeBase.tooltips.indexed')
+                                  : item.ragStatus === 'processing'
+                                  ? t('knowledgeBase.tooltips.generating')
+                                  : item.ragStatus === 'failed'
+                                  ? t('knowledgeBase.tooltips.failed')
+                                  : t('knowledgeBase.tooltips.waiting')}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground hidden md:table-cell">
+                            {item.chunkCount || 0}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground hidden sm:table-cell">
+                            {formatBytes(item.storageSize)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground hidden lg:table-cell">
+                            {new Date(item.createdAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletingItem(item)}
+                              data-testid={`button-delete-${item.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <DataPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                />
+              </>
+            )}
           </div>
         )}
       </div>
-
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[250px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('knowledgeBase.searchPlaceholder')}
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-testid="input-search-knowledge-base"
-          />
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2" data-testid="button-filter-type">
-              {typeFilter ? t(`knowledgeBase.types.${typeFilter}`) : t('knowledgeBase.filters.allTypes')}
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setTypeFilter(null)}>
-              {t('knowledgeBase.filters.allTypes')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTypeFilter('file')}>
-              <FileText className="mr-2 h-4 w-4" />
-              {t('knowledgeBase.types.file')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTypeFilter('url')}>
-              <Link className="mr-2 h-4 w-4" />
-              {t('knowledgeBase.types.url')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTypeFilter('text')}>
-              <Type className="mr-2 h-4 w-4" />
-              {t('knowledgeBase.types.text')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
-          <p className="text-sm text-muted-foreground">{t('knowledgeBase.loading')}</p>
-        </div>
-      ) : filteredItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-muted">
-            <FileStack className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground mb-2">{t('knowledgeBase.empty.title')}</h3>
-          <p className="text-sm text-muted-foreground">
-            {searchQuery || typeFilter ? t('knowledgeBase.empty.adjustFilters') : t('knowledgeBase.empty.uploadFirst')}
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('knowledgeBase.table.name')}</TableHead>
-                  <TableHead>{t('common.type')}</TableHead>
-                  <TableHead>{t('knowledgeBase.table.aiStatus')}</TableHead>
-                  <TableHead className="hidden md:table-cell">{t('knowledgeBase.table.chunks')}</TableHead>
-                  <TableHead className="hidden sm:table-cell">{t('knowledgeBase.table.size')}</TableHead>
-                  <TableHead className="hidden lg:table-cell">{t('knowledgeBase.table.created')}</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedItems.map((item) => (
-                  <TableRow key={item.id} data-testid={`row-kb-item-${item.id}`}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(item.type)}
-                        <span className="truncate max-w-[200px]">{item.title}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getTypeBadgeVariant(item.type)}>
-                        {item.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(item.ragStatus)}
-                            <span className="text-sm text-muted-foreground">
-                              {getStatusText(item.ragStatus)}
-                            </span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {item.ragStatus === 'completed' 
-                            ? t('knowledgeBase.tooltips.indexed')
-                            : item.ragStatus === 'processing'
-                            ? t('knowledgeBase.tooltips.generating')
-                            : item.ragStatus === 'failed'
-                            ? t('knowledgeBase.tooltips.failed')
-                            : t('knowledgeBase.tooltips.waiting')}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden md:table-cell">
-                      {item.chunkCount || 0}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden sm:table-cell">
-                      {formatBytes(item.storageSize)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden lg:table-cell">
-                      {new Date(item.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeletingItem(item)}
-                        data-testid={`button-delete-${item.id}`}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <DataPagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={handlePageChange}
-            onItemsPerPageChange={handleItemsPerPageChange}
-          />
-        </>
-      )}
 
       <Dialog open={urlDialogOpen} onOpenChange={setUrlDialogOpen}>
         <DialogContent>

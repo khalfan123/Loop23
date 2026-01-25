@@ -218,7 +218,7 @@ function UserRouter() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b bg-gray-100 dark:bg-muted/30">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="md:hidden" data-testid="button-mobile-menu" />
               <div className="md:hidden">
@@ -305,7 +305,7 @@ function TeamMemberRouter() {
       <div className="flex h-screen w-full">
         <TeamMemberSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b bg-gray-100 dark:bg-muted/30">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="md:hidden" data-testid="button-mobile-menu" />
               <div className="md:hidden">
@@ -386,7 +386,7 @@ function AdminTeamMemberRouter() {
       <div className="flex h-screen w-full">
         <AdminTeamMemberSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b bg-gray-100 dark:bg-muted/30">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="md:hidden" data-testid="button-mobile-menu" />
               <div className="md:hidden">

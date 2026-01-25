@@ -26,7 +26,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History } from "lucide-react";
+import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, FolderOpen, ChevronRight, RefreshCw, Phone } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { AuthStorage } from "@/lib/auth-storage";
 import PromptTemplatesLibrary from "@/components/PromptTemplatesLibrary";
 import Voices from "@/pages/Voices";
@@ -218,6 +234,7 @@ export default function Agents() {
   const [activeTab, setActiveTab] = useState<'agents' | 'templates' | 'voices'>('agents');
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<'all' | 'incoming' | 'flow'>('all');
+  const [selectedFolder, setSelectedFolder] = useState<'all' | 'template' | 'transfer'>('all');
   const [engineFilter, setEngineFilter] = useState<'all' | 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip'>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -634,6 +651,13 @@ export default function Agents() {
 
   const filteredAgents = agents
     .filter((agent) => {
+      // Filter by folder
+      if (selectedFolder === 'template' && !agent.isFromTemplate) {
+        return false;
+      }
+      if (selectedFolder === 'transfer' && !agent.transferEnabled) {
+        return false;
+      }
       // Filter by type
       if (typeFilter !== 'all' && agent.type !== typeFilter) {
         return false;
@@ -693,351 +717,277 @@ export default function Agents() {
         </TabsContent>
 
         {/* Agents Tab */}
-        <TabsContent value="agents" className="mt-0 space-y-6">
-      {/* Page Header with Light Gradient */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-violet-950/40 border border-blue-100 dark:border-blue-900/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <Bot className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t('agents.title')}</h1>
-              <p className="text-muted-foreground mt-0.5">{t('agents.description')}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={() => setWizardOpen(true)}
-              variant="outline"
-              className="border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-950"
-              data-testid="button-wizard-agent"
-            >
-              <Wand2 className="h-4 w-4 mr-2 text-violet-600 dark:text-violet-400" />
-              {t('agents.guidedWizard', 'Guided Wizard')}
-            </Button>
-            <Button 
-              onClick={() => setCreateDialogOpen(true)} 
-              disabled={createDialogOpen} 
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
-              data-testid="button-create-agent"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t('agents.createNew')}
-            </Button>
-          </div>
-        </div>
-        
-        {/* Stats Row */}
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50 dark:border-blue-800/30">
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{agents.length}</div>
-            <div className="text-blue-600/70 dark:text-blue-400/70 text-sm">{t('agents.stats.totalAgents')}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-emerald-100/50 dark:border-emerald-800/30">
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{incomingCount}</div>
-              <Sparkles className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
-            </div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-sm">{t('agents.type.incoming')}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-violet-100/50 dark:border-violet-800/30">
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-violet-700 dark:text-violet-300">{flowCount}</div>
-              <GitBranch className="h-4 w-4 text-violet-500 dark:text-violet-400" />
-            </div>
-            <div className="text-violet-600/70 dark:text-violet-400/70 text-sm">{t('agents.type.flow')}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters and Search Row */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        {/* Type Filter Tabs */}
-        <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-lg">
-          <Button
-            variant={typeFilter === 'all' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setTypeFilter('all')}
-            className={typeFilter === 'all' ? '' : 'text-muted-foreground'}
-            data-testid="button-filter-all"
-          >
-            {t('common.all')} ({agents.length})
-          </Button>
-          <Button
-            variant={typeFilter === 'incoming' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setTypeFilter('incoming')}
-            className={typeFilter === 'incoming' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'text-muted-foreground hover:text-emerald-600'}
-            data-testid="button-filter-incoming"
-          >
-            <Sparkles className="h-4 w-4 mr-1.5" />
-            {t('agents.type.incoming')} ({incomingCount})
-          </Button>
-          <Button
-            variant={typeFilter === 'flow' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setTypeFilter('flow')}
-            className={typeFilter === 'flow' ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'text-muted-foreground hover:text-violet-600'}
-            data-testid="button-filter-flow"
-          >
-            <GitBranch className="h-4 w-4 mr-1.5" />
-            {t('agents.type.flow')} ({flowCount})
-          </Button>
-        </div>
-
-        {/* Engine Filter Dropdown - Show if multiple engines exist */}
-        {hasAlternateEngines && (
-          <Select
-            value={engineFilter}
-            onValueChange={(value) => setEngineFilter(value as typeof engineFilter)}
-          >
-            <SelectTrigger className="w-48" data-testid="select-engine-filter">
-              <SelectValue placeholder="Filter by engine" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Engines</SelectItem>
-              <SelectItem value="twilio">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-violet-500" />
-                  ElevenLabs + Twilio
-                </div>
-              </SelectItem>
-              {isTwilioOpenaiEnabled && (
-                <SelectItem value="twilio_openai">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-teal-500" />
-                    OpenAI + Twilio
-                  </div>
-                </SelectItem>
-              )}
-              {isPlivoEnabled && (
-                <SelectItem value="plivo">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                    OpenAI + Plivo
-                  </div>
-                </SelectItem>
-              )}
-              {isElevenLabsSipAllowed && (
-                <SelectItem value="elevenlabs-sip">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-orange-500" />
-                    ElevenLabs SIP
-                  </div>
-                </SelectItem>
-              )}
-              {isOpenAISipAllowed && (
-                <SelectItem value="openai-sip">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-pink-500" />
-                    OpenAI SIP
-                  </div>
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-        )}
-
-        {/* Search */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('agents.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            data-testid="input-search-agents"
-          />
-        </div>
-      </div>
-
-      {agentsLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-6 animate-pulse">
-              <div className="h-6 bg-muted rounded w-3/4 mb-4" />
-              <div className="h-4 bg-muted rounded w-full mb-2" />
-              <div className="h-4 bg-muted rounded w-2/3" />
-            </Card>
-          ))}
-        </div>
-      ) : filteredAgents.length === 0 ? (
-        <div className="relative overflow-hidden rounded-2xl border border-dashed border-muted-foreground/25 p-12 text-center">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-violet-500/5" />
-          <div className="relative">
-            <div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500/20 to-violet-500/20 flex items-center justify-center">
-              <Bot className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">
-              {searchQuery ? t('agents.noAgentsFound') : t('agents.noAgents')}
-            </h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchQuery 
-                ? t('agents.noMatchingSearch') 
-                : t('agents.getStarted')}
-            </p>
-            {!searchQuery && (
-              <Button 
-                onClick={() => setCreateDialogOpen(true)} 
-                disabled={createDialogOpen}
-                className="bg-gradient-to-r from-blue-600 to-violet-600 text-white"
+        <TabsContent value="agents" className="mt-0">
+      {/* New Sidebar + Table Layout */}
+      <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
+        {/* Left Sidebar */}
+        <div className="w-64 border-r bg-muted/30 flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="p-3">
+              {/* All Agents */}
+              <button
+                onClick={() => { setSelectedFolder('all'); setTypeFilter('all'); }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedFolder === 'all' 
+                    ? 'bg-primary/10 text-primary' 
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+                data-testid="folder-all-agents"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                {t('agents.createFirstAgent')}
+                <Bot className="h-4 w-4" />
+                All Agents
+              </button>
+              
+              {/* Folders Section */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between px-3 py-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Folders</span>
+                  <Button variant="ghost" size="icon" className="h-5 w-5">
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+                <button
+                  onClick={() => { setSelectedFolder('template'); setTypeFilter('all'); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                    selectedFolder === 'template' 
+                      ? 'bg-primary/10 text-primary font-medium' 
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                  data-testid="folder-template-agents"
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Template Agents
+                </button>
+              </div>
+              
+              {/* Transfer Agents Section */}
+              <div className="mt-4">
+                <div className="px-3 py-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transfer Agents</span>
+                </div>
+                <button
+                  onClick={() => { setSelectedFolder('transfer'); setTypeFilter('all'); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                    selectedFolder === 'transfer' 
+                      ? 'bg-primary/10 text-primary font-medium' 
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                  data-testid="folder-transfer-agents"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Transfer Screening Agents
+                </button>
+              </div>
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-semibold">
+              {selectedFolder === 'all' ? 'All Agents' : 
+               selectedFolder === 'template' ? 'Template Agents' : 
+               'Transfer Screening Agents'}
+            </h2>
+            <div className="flex items-center gap-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-64"
+                  data-testid="input-search-agents"
+                />
+              </div>
+              {/* Import Button */}
+              <Button variant="outline" data-testid="button-import-agent">
+                Import
               </Button>
-            )}
+              {/* Create Agent Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="bg-primary text-primary-foreground" data-testid="button-create-agent">
+                    Create an Agent
+                    <ChevronRight className="h-4 w-4 ml-1 rotate-90" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setCreateDialogOpen(true)}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Single Prompt Agent
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setFormData(prev => ({ ...prev, type: 'flow' })); setCreateDialogOpen(true); }}>
+                    <GitBranch className="h-4 w-4 mr-2" />
+                    Conversation Flow Agent
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setWizardOpen(true)}>
+                    <Wand2 className="h-4 w-4 mr-2" />
+                    Guided Wizard
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {paginatedItems.map((agent) => {
-            const isOpenAIProvider = agent.telephonyProvider === "plivo" || agent.telephonyProvider === "twilio_openai" || agent.telephonyProvider === "openai-sip";
-            const voiceName = isOpenAIProvider 
-              ? openaiVoices.find(v => v.value === agent.openaiVoice)?.label || null
-              : getVoiceName(agent.elevenLabsVoiceId);
-            const languageName = agent.language ? t(`agents.languages.${agent.language}`, { defaultValue: getLanguageLabel(agent.language) }) : t('agents.languages.en');
 
-            const isIncoming = agent.type === 'incoming';
-            const cardGradient = isIncoming 
-              ? 'from-emerald-500/5 via-transparent to-teal-500/5 dark:from-emerald-500/10 dark:to-teal-500/10'
-              : 'from-violet-500/5 via-transparent to-indigo-500/5 dark:from-violet-500/10 dark:to-indigo-500/10';
-            const iconBg = isIncoming 
-              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-              : 'bg-violet-500/10 text-violet-600 dark:text-violet-400';
-            const borderColor = isIncoming 
-              ? 'border-emerald-500/20 hover:border-emerald-500/40' 
-              : 'border-violet-500/20 hover:border-violet-500/40';
-
-            return (
-              <Card 
-                key={agent.id} 
-                className={`relative overflow-hidden border ${borderColor} transition-all duration-200 hover-elevate group`} 
-                data-testid={`card-agent-${agent.id}`}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${cardGradient}`} />
-                <div className="relative p-5">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-                        {isIncoming ? <Sparkles className="h-5 w-5" /> : <GitBranch className="h-5 w-5" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate" data-testid="text-agent-name">
-                          {agent.name}
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-1 mt-1">
-                          <Badge 
-                            variant="outline"
-                            className={`text-xs ${isIncoming 
-                              ? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10' 
-                              : 'border-violet-500/50 text-violet-700 dark:text-violet-300 bg-violet-500/10'}`}
-                            data-testid={`badge-agent-type-${agent.type}`}
-                          >
-                            {isIncoming ? t('agents.type.incoming') : t('agents.type.flow')}
-                          </Badge>
-                          {agent.isFromTemplate && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
-                              <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-                              Staff Pick
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <AgentVersionHistory 
-                        agentId={agent.id} 
-                        agentName={agent.name} 
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleEdit(agent)}
-                        data-testid="button-edit-agent"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setDeletingAgent(agent)}
-                        data-testid="button-delete-agent"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Mic className="h-3.5 w-3.5" />
-                      <span data-testid="text-agent-voice">{voiceName || t('agents.voiceNotSet')}</span>
-                      <span className="text-muted-foreground/50">•</span>
-                      <span data-testid="text-agent-language">{languageName}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <span className="capitalize">{agent.voiceTone}</span>
-                      <span className="text-muted-foreground/50">•</span>
-                      <span className="capitalize">{agent.personality}</span>
-                    </div>
-                    {agent.config?.model && MODEL_COSTS[agent.config.model] && (
-                      <div className={`flex items-center gap-2 text-xs font-medium ${isIncoming ? 'text-emerald-600 dark:text-emerald-400' : 'text-violet-600 dark:text-violet-400'}`}>
-                        <span>≈ ${(VOICE_COST + MODEL_COSTS[agent.config.model].llm).toFixed(3)}/min</span>
-                        <span className="opacity-50">•</span>
-                        <span>{MODEL_COSTS[agent.config.model].speed}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {agent.systemPrompt && (
-                    <p className="mt-3 text-xs text-muted-foreground line-clamp-2 border-t border-border/50 pt-3">
-                      {agent.systemPrompt}
-                    </p>
-                  )}
-                  
-                  {agent.tags && agent.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-border/30">
-                      {agent.tags.slice(0, 3).map((tag) => (
-                        <Badge 
-                          key={tag} 
-                          variant="outline" 
-                          className="text-[10px] px-1.5 py-0 bg-secondary/50 border-border/50"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                      {agent.tags.length > 3 && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          +{agent.tags.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+          {/* Table Content */}
+          <ScrollArea className="flex-1">
+            {agentsLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                <p className="mt-4 text-muted-foreground">Loading agents...</p>
+              </div>
+            ) : filteredAgents.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+                  <Bot className="h-8 w-8 text-muted-foreground" />
                 </div>
-              </Card>
-            );
-          })}
-        </div>
-        
-        {/* Pagination */}
-        <DataPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          itemsPerPage={itemsPerPage}
-          onPageChange={handlePageChange}
-          onItemsPerPageChange={handleItemsPerPageChange}
-          itemsPerPageOptions={[9, 18, 27, 45]}
-          data-testid="agents-pagination"
-        />
-        </div>
-      )}
+                <h3 className="text-lg font-semibold mb-2">
+                  {searchQuery ? t('agents.noAgentsFound') : t('agents.noAgents')}
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  {searchQuery ? t('agents.noMatchingSearch') : t('agents.getStarted')}
+                </p>
+                {!searchQuery && (
+                  <Button onClick={() => setCreateDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create your first agent
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[300px]">Agent Name</TableHead>
+                    <TableHead>Agent Type</TableHead>
+                    <TableHead>Voice</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Edited by</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedItems.map((agent) => {
+                    const isOpenAIProvider = agent.telephonyProvider === "plivo" || agent.telephonyProvider === "twilio_openai" || agent.telephonyProvider === "openai-sip";
+                    const voiceName = isOpenAIProvider 
+                      ? openaiVoices.find(v => v.value === agent.openaiVoice)?.label || 'Alloy'
+                      : getVoiceName(agent.elevenLabsVoiceId) || 'Not set';
+                    const languageCode = agent.language || 'en';
+                    const isIncoming = agent.type === 'incoming';
+                    const formattedDate = new Date(agent.createdAt).toLocaleDateString('en-US', {
+                      month: '2-digit',
+                      day: '2-digit',
+                      year: 'numeric',
+                    }) + ', ' + new Date(agent.createdAt).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false
+                    });
 
+                    return (
+                      <TableRow 
+                        key={agent.id} 
+                        className="group cursor-pointer"
+                        data-testid={`row-agent-${agent.id}`}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                              isIncoming ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 
+                              'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
+                            }`}>
+                              {isIncoming ? <Sparkles className="h-4 w-4" /> : <GitBranch className="h-4 w-4" />}
+                            </div>
+                            <div>
+                              <div className="font-medium flex items-center gap-2">
+                                {agent.name}
+                                {agent.isFromTemplate && (
+                                  <span className="text-xs text-muted-foreground">(from template)</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="secondary" 
+                            className={`font-normal ${
+                              isIncoming ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 
+                              'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+                            }`}
+                          >
+                            {isIncoming ? 'Single Prompt' : 'Conversation Flow'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs bg-primary/10">
+                                {voiceName.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span>{voiceName} ({languageCode})</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-muted-foreground">-</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-muted-foreground">{formattedDate}</span>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                                data-testid="button-agent-actions"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(agent)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDeletingAgent(agent)} className="text-destructive">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </ScrollArea>
+          
+          {/* Pagination */}
+          {filteredAgents.length > 0 && (
+            <div className="border-t p-4">
+              <DataPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                onItemsPerPageChange={handleItemsPerPageChange}
+                itemsPerPageOptions={[10, 25, 50]}
+                data-testid="agents-pagination"
+              />
+            </div>
+          )}
+        </div>
+      </div>
       <Dialog open={createDialogOpen || !!editingAgent} onOpenChange={(open) => {
         if (!open) {
           setCreateDialogOpen(false);

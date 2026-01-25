@@ -411,16 +411,27 @@ export default function KnowledgeBase() {
 
   if (userError) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('knowledgeBase.title')}</h1>
+      <div className="flex h-full">
+        {/* Left Sidebar */}
+        <div className="w-[200px] border-r flex-shrink-0 bg-white dark:bg-background">
+          <div className="p-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <FileStack className="h-4 w-4 text-foreground" />
+              <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
+            </div>
+          </div>
+          {/* Divider */}
+          <div className="mx-3 border-t border-border" />
         </div>
-        <Card className="p-8 text-center">
-          <h2 className="text-xl font-semibold mb-2">{t('knowledgeBase.unableToLoad')}</h2>
-          <p className="text-muted-foreground">
-            {t('knowledgeBase.unableToLoadDesc')}
-          </p>
-        </Card>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-background">
+          <Card className="p-8 text-center max-w-md">
+            <h2 className="text-xl font-semibold mb-2">{t('knowledgeBase.unableToLoad')}</h2>
+            <p className="text-muted-foreground">
+              {t('knowledgeBase.unableToLoadDesc')}
+            </p>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -429,13 +440,21 @@ export default function KnowledgeBase() {
 
   if (isFreeUser) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t('knowledgeBase.title')}</h1>
+      <div className="flex h-full">
+        {/* Left Sidebar */}
+        <div className="w-[200px] border-r flex-shrink-0 bg-white dark:bg-background">
+          <div className="p-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <FileStack className="h-4 w-4 text-foreground" />
+              <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
+            </div>
+          </div>
+          {/* Divider */}
+          <div className="mx-3 border-t border-border" />
         </div>
-
-        <div className="p-8 text-center border rounded-lg">
-          <div className="max-w-2xl mx-auto space-y-6">
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-background p-8">
+          <div className="max-w-2xl mx-auto space-y-6 text-center">
             <div className="flex justify-center">
               <div className="relative">
                 <BookOpen className="w-20 h-20 text-muted-foreground/30" />

@@ -144,16 +144,59 @@ async function seedAgentTemplates() {
   const existing = await db.select().from(promptTemplates);
   const agentPresets = existing.filter(t => t.category === "agent_preset" && t.isSystemTemplate);
   
-  if (agentPresets.length > 0) {
-    console.log(`   ⚠️  Found ${agentPresets.length} existing agent preset templates. Skipping.`);
-    return;
+  // Separate core presets (with multilingual names) from other presets
+  const corePresets = AGENT_TEMPLATES_SEED_DATA.filter(t => t.tags.includes("core"));
+  const otherPresets = AGENT_TEMPLATES_SEED_DATA.filter(t => !t.tags.includes("core"));
+  
+  // Check if core presets already exist (by checking for 'core' tag)
+  const existingCorePresets = agentPresets.filter(t => t.tags?.includes("core"));
+  
+  // Insert core presets if they don't exist
+  if (existingCorePresets.length < corePresets.length) {
+    console.log(`   📦 Inserting ${corePresets.length} core agent presets with multilingual names...`);
+    
+    // Only insert core presets that don't already exist
+    for (const preset of corePresets) {
+      const exists = existingCorePresets.some(e => {
+        // Check if the preset name matches (comparing JSON strings)
+        try {
+          const existingNames = JSON.parse(e.name);
+          const newNames = JSON.parse(preset.name);
+          return existingNames.en === newNames.en;
+        } catch {
+          return e.name === preset.name;
+        }
+      });
+      
+      if (!exists) {
+        await db.insert(promptTemplates).values(preset);
+        try {
+          const names = JSON.parse(preset.name);
+          console.log(`      ✅ Inserted: ${names.en} (5 languages)`);
+        } catch {
+          console.log(`      ✅ Inserted: ${preset.name}`);
+        }
+      }
+    }
+  } else {
+    console.log(`   ⚠️  Found ${existingCorePresets.length} existing core presets. Skipping core preset seed.`);
   }
-
-  await db.insert(promptTemplates).values(AGENT_TEMPLATES_SEED_DATA);
-  console.log(`   ✅ Inserted ${AGENT_TEMPLATES_SEED_DATA.length} agent preset templates`);
-  AGENT_TEMPLATES_SEED_DATA.forEach(template => {
-    console.log(`      - ${template.name}`);
-  });
+  
+  // Check if other presets already exist
+  const existingOtherPresets = agentPresets.filter(t => !t.tags?.includes("core"));
+  
+  if (existingOtherPresets.length === 0 && otherPresets.length > 0) {
+    console.log(`   📦 Inserting ${otherPresets.length} specialized agent templates...`);
+    await db.insert(promptTemplates).values(otherPresets);
+    
+    otherPresets.forEach(template => {
+      console.log(`      ✅ Inserted: ${template.name}`);
+    });
+  } else if (existingOtherPresets.length > 0) {
+    console.log(`   ⚠️  Found ${existingOtherPresets.length} existing specialized templates. Skipping.`);
+  }
+  
+  console.log("   ✅ Agent Templates seed complete!");
 }
 
 async function seedGlobalSettings() {

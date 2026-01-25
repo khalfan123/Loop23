@@ -15,6 +15,7 @@
  * ============================================================
  */
 import { useState } from "react";
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -50,6 +51,31 @@ import {
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
+
+// Multilingual name type definition
+interface MultilingualName {
+  en?: string;
+  ar?: string;
+  fr?: string;
+  es?: string;
+  hi?: string;
+  [key: string]: string | undefined;
+}
+
+// Helper function to parse multilingual names and return the appropriate language
+function getLocalizedName(name: string, language: string): string {
+  // Try to parse as JSON (multilingual name)
+  try {
+    const parsed = JSON.parse(name) as MultilingualName;
+    // Normalize language code to base (e.g., 'en-US' -> 'en', 'ar-SA' -> 'ar')
+    const baseLanguage = language.split('-')[0].toLowerCase();
+    // Return the name in the current language, fallback to English, then to any available
+    return parsed[baseLanguage] || parsed.en || Object.values(parsed).find(v => v) || name;
+  } catch {
+    // If not valid JSON, return the original name
+    return name;
+  }
+}
 
 interface PromptTemplate {
   id: string;
@@ -108,6 +134,8 @@ const ITEMS_PER_PAGE = 6;
 
 export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'browse' }: PromptTemplatesLibraryProps) {
   const { toast } = useToast();
+  const { i18n } = useTranslation();
+  const currentLanguage = i18n.language || 'en';
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -224,7 +252,9 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
 
   const filteredTemplates = templates.filter(t => {
     const searchLower = searchQuery.toLowerCase();
+    const localizedName = getLocalizedName(t.name, currentLanguage);
     const matchesSearch = !searchQuery || 
+      localizedName.toLowerCase().includes(searchLower) ||
       t.name.toLowerCase().includes(searchLower) ||
       t.description?.toLowerCase().includes(searchLower) ||
       t.tags?.some(tag => tag.toLowerCase().includes(searchLower));
@@ -374,7 +404,7 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
                   <CardHeader className="p-3 pb-2">
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle className="text-sm font-semibold leading-tight truncate flex-1">
-                        {template.name}
+                        {getLocalizedName(template.name, currentLanguage)}
                       </CardTitle>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <Badge 

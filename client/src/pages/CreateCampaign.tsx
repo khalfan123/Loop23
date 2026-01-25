@@ -519,7 +519,7 @@ export default function CreateCampaign() {
                     onClick={() => setFormData({ ...formData, scheduleEnabled: true })}
                     data-testid="button-schedule"
                   >
-                    {t('campaigns.schedule', 'Schedule')}
+                    Schedule
                     {formData.scheduleEnabled && <div className="h-1.5 w-1.5 rounded-full bg-primary-foreground ml-2" />}
                   </Button>
                 </div>
@@ -545,7 +545,7 @@ export default function CreateCampaign() {
                   <div className="space-y-3 p-3 border rounded-lg bg-muted/20 mt-2">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-xs">{t("campaigns.schedule.startTime")}</Label>
+                        <Label className="text-xs">Start Time</Label>
                         <Input
                           type="time"
                           value={formData.scheduleTimeStart}
@@ -555,7 +555,7 @@ export default function CreateCampaign() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">{t("campaigns.schedule.endTime")}</Label>
+                        <Label className="text-xs">End Time</Label>
                         <Input
                           type="time"
                           value={formData.scheduleTimeEnd}
@@ -567,7 +567,7 @@ export default function CreateCampaign() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs">{t("campaigns.schedule.daysOfWeek")}</Label>
+                      <Label className="text-xs">Days of Week</Label>
                       <div className="grid grid-cols-2 gap-1.5">
                         {dayKeys.map((day) => (
                           <div key={day} className="flex items-center gap-1.5">
@@ -585,7 +585,7 @@ export default function CreateCampaign() {
                               data-testid={`checkbox-day-${day}`}
                             />
                             <Label htmlFor={`day-${day}`} className="text-xs font-normal cursor-pointer">
-                              {t(`campaigns.schedule.days.${day}`)}
+                              {day.charAt(0).toUpperCase() + day.slice(1)}
                             </Label>
                           </div>
                         ))}
@@ -593,7 +593,7 @@ export default function CreateCampaign() {
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">{t("campaigns.schedule.timezone")}</Label>
+                      <Label className="text-xs">Timezone</Label>
                       <Select 
                         value={formData.scheduleTimezone} 
                         onValueChange={(value) => setFormData({ ...formData, scheduleTimezone: value })}

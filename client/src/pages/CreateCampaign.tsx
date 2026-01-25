@@ -366,9 +366,9 @@ export default function CreateCampaign() {
         onSuccess={handleTimezoneSet}
       />
 
-      <div className="flex h-full">
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] -m-4 lg:-m-6">
         {/* Left Form Column */}
-        <div className="w-[320px] flex-shrink-0 border-r bg-white dark:bg-card flex flex-col">
+        <div className="w-full lg:w-[320px] flex-shrink-0 border-b lg:border-b-0 lg:border-r bg-white dark:bg-card flex flex-col">
           {/* Header */}
           <div className="p-4 border-b">
             <div className="flex items-center gap-2">
@@ -383,7 +383,7 @@ export default function CreateCampaign() {
           </div>
 
           {/* Form Content */}
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 max-h-[50vh] lg:max-h-none">
             <div className="p-4 space-y-5">
               {/* Batch Call Name */}
               <div className="space-y-1.5">
@@ -702,11 +702,11 @@ export default function CreateCampaign() {
         </div>
 
         {/* Right Recipients Column */}
-        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-muted/20">
+        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-muted/20 min-h-[300px] lg:min-h-0">
           <div className="p-4 border-b bg-white dark:bg-card">
             <h3 className="font-semibold text-sm">{t('campaigns.recipients', 'Recipients')}</h3>
           </div>
-          <div className="flex-1 flex items-center justify-center p-6">
+          <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
             {parsedContacts.length === 0 ? (
               <div className="text-center text-muted-foreground">
                 <p className="text-sm">{t('campaigns.pleaseUploadRecipients', 'Please upload recipients first')}</p>

@@ -1176,8 +1176,9 @@ export default function Agents() {
                     return (
                       <TableRow 
                         key={agent.id} 
-                        className={`group cursor-pointer ${draggedAgentId === agent.id ? 'opacity-50' : ''}`}
+                        className={`group cursor-pointer hover:bg-muted/50 ${draggedAgentId === agent.id ? 'opacity-50' : ''}`}
                         data-testid={`row-agent-${agent.id}`}
+                        onClick={() => handleEdit(agent)}
                         draggable
                         onDragStart={(e) => {
                           setDraggedAgentId(agent.id);
@@ -1241,7 +1242,7 @@ export default function Agents() {
                         <TableCell>
                           <span className="text-muted-foreground">{formattedDate}</span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button 
@@ -1254,26 +1255,6 @@ export default function Agents() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEdit(agent)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleReplicateLanguages(agent)}
-                                disabled={replicatingAgentId === agent.id}
-                              >
-                                {replicatingAgentId === agent.id ? (
-                                  <>
-                                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                                    Creating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Globe className="h-4 w-4 mr-2" />
-                                    Replicate Languages
-                                  </>
-                                )}
-                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setDeletingAgent(agent)} className="text-destructive">
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete

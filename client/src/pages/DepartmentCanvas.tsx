@@ -833,7 +833,7 @@ function IVRConfigPanel({
 const PhoneNodeComponent = ({ data }: { data: any }) => {
   return (
     <div className="bg-white dark:bg-gray-800 border-2 border-green-400 rounded-lg p-3 min-w-[160px] shadow-md">
-      <Handle type="source" position={Position.Right} className="!bg-green-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Bottom} className="!bg-green-500 !w-3 !h-3" />
       <div className="flex items-center gap-2">
         <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
           <Phone className="h-4 w-4 text-green-600" />
@@ -849,22 +849,22 @@ const PhoneNodeComponent = ({ data }: { data: any }) => {
 
 const IVRNodeComponent = ({ data, selected }: { data: any; selected: boolean }) => {
   return (
-    <div className={`bg-amber-50 dark:bg-amber-900/20 border-2 ${selected ? 'border-amber-600' : 'border-amber-400'} rounded-xl p-4 min-w-[180px] shadow-lg`}>
-      <Handle type="target" position={Position.Left} className="!bg-amber-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Right} className="!bg-amber-500 !w-3 !h-3" />
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-amber-200 dark:bg-amber-800 rounded-lg">
-          <GitBranch className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+    <div className={`bg-amber-50 dark:bg-amber-900/20 border-2 ${selected ? 'border-amber-600' : 'border-amber-400'} rounded-xl p-4 min-w-[200px] shadow-lg`}>
+      <Handle type="target" position={Position.Top} className="!bg-amber-500 !w-3 !h-3" />
+      <Handle type="source" position={Position.Bottom} className="!bg-amber-500 !w-3 !h-3" />
+      <div className="flex items-center justify-center gap-3">
+        <div className="p-3 bg-amber-200 dark:bg-amber-800 rounded-lg">
+          <GitBranch className="h-6 w-6 text-amber-700 dark:text-amber-300" />
         </div>
-        <div>
-          <div className="font-semibold">IVR Router</div>
+        <div className="text-center">
+          <div className="font-semibold text-lg">IVR Router</div>
           <Badge variant="outline" className="mt-1 text-xs bg-green-100 text-green-700 border-green-300">
             Active
           </Badge>
         </div>
       </div>
-      <div className="mt-3 text-xs text-muted-foreground">
-        {data.inputCount || 0} inputs
+      <div className="mt-3 text-xs text-muted-foreground text-center">
+        {data.inputCount || 0} phone lines connected
       </div>
     </div>
   );
@@ -885,31 +885,48 @@ const DepartmentNodeComponent = ({ data, selected }: { data: any; selected: bool
   };
   const Icon = icons[data.type] || Building2;
   const colorClass = colors[data.type] || colors.custom;
+  const languageAgents = data.languageAgents || [];
 
   return (
-    <div className={`bg-white dark:bg-gray-800 border-2 ${selected ? 'border-primary' : colorClass.split(' ').pop()} rounded-lg p-3 min-w-[180px] shadow-md`}>
-      <Handle type="target" position={Position.Left} className="!bg-primary !w-3 !h-3" />
+    <div className={`bg-white dark:bg-gray-800 border-2 ${selected ? 'border-primary' : colorClass.split(' ').pop()} rounded-lg p-3 min-w-[200px] max-w-[240px] shadow-md`}>
+      <Handle type="target" position={Position.Top} className="!bg-primary !w-3 !h-3" />
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg ${colorClass.split(' ').slice(0, 2).join(' ')}`}>
-          <Icon className={`h-4 w-4 ${colorClass.split(' ')[2]}`} />
+          <Icon className={`h-5 w-5 ${colorClass.split(' ')[2]}`} />
         </div>
-        <div className="flex-1">
-          <div className="font-medium text-sm">{data.name}</div>
-          <div className="text-xs text-muted-foreground truncate max-w-[120px]">
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-sm truncate">{data.name}</div>
+          <div className="text-xs text-muted-foreground truncate">
             {data.description}
           </div>
         </div>
       </div>
-      {data.agentName && (
-        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-          <Mic className="h-3 w-3" />
-          <span className="truncate">{data.agentName}</span>
+      
+      {languageAgents.length > 0 && (
+        <div className="mt-3 pt-2 border-t border-dashed space-y-1.5">
+          {languageAgents.slice(0, 3).map((la: any) => (
+            <div key={la.id} className="flex items-center gap-2 text-xs">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono shrink-0">
+                {la.language.toUpperCase()}
+              </Badge>
+              <div className="flex items-center gap-1 text-muted-foreground truncate">
+                <Mic className="h-3 w-3 shrink-0" />
+                <span className="truncate">{la.agentName || "No agent"}</span>
+              </div>
+            </div>
+          ))}
+          {languageAgents.length > 3 && (
+            <div className="text-[10px] text-muted-foreground">
+              +{languageAgents.length - 3} more languages
+            </div>
+          )}
         </div>
       )}
-      {data.dialKey && (
-        <Badge variant="secondary" className="mt-2 text-xs">
-          Press {data.dialKey}
-        </Badge>
+      
+      {languageAgents.length === 0 && (
+        <div className="mt-2 text-xs text-muted-foreground italic">
+          No agents configured
+        </div>
       )}
     </div>
   );
@@ -969,7 +986,7 @@ function DepartmentCanvasContent() {
     const ivrNode: Node = {
       id: "ivr-main",
       type: "ivr",
-      position: { x: 400, y: 250 },
+      position: { x: 350, y: 200 },
       data: { inputCount: 0 },
     };
     setNodes([ivrNode]);
@@ -1017,10 +1034,11 @@ function DepartmentCanvasContent() {
 
   const addPhoneToCanvas = (phone: PhoneNumber) => {
     const phoneCount = nodes.filter((n) => n.type === "phone").length;
+    const xOffset = 200 + phoneCount * 200;
     const newNode: Node = {
       id: `phone-${phone.id}`,
       type: "phone",
-      position: { x: 100, y: 150 + phoneCount * 100 },
+      position: { x: xOffset, y: 50 },
       data: {
         phoneNumber: phone.phoneNumber,
         friendlyName: phone.friendlyName,
@@ -1068,10 +1086,11 @@ function DepartmentCanvasContent() {
       enableLanguageDetection: false,
     };
 
+    const xOffset = 100 + deptCount * 260;
     const newNode: Node = {
       id: newDept.id,
       type: "department",
-      position: { x: 650, y: 100 + deptCount * 130 },
+      position: { x: xOffset, y: 380 },
       data: {
         ...newDept,
         dialKey,
@@ -1087,8 +1106,8 @@ function DepartmentCanvasContent() {
       style: { stroke: "#f59e0b", strokeWidth: 2 },
       markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b" },
       label: `Press ${dialKey}`,
-      labelStyle: { fontSize: 10, fontWeight: 500 },
-      labelBgStyle: { fill: "#fef3c7", fillOpacity: 0.9 },
+      labelStyle: { fontSize: 11, fontWeight: 600 },
+      labelBgStyle: { fill: "#fef3c7", fillOpacity: 0.95 },
     };
 
     setNodes((nds) => [...nds, newNode]);

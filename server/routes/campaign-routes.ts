@@ -130,35 +130,13 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: "Cannot use both visual flow and custom script. Please choose one." });
       }
 
-      // Handle preset flow templates - clone them into user's flows
-      let resolvedFlowId = flowId || null;
+      // Validate preset template exists if one is selected (before other validations)
+      let presetTemplate = null;
       if (flowId && flowId.startsWith('template-')) {
-        const template = flowTemplates.find((t) => t.id === flowId);
-        if (!template) {
+        presetTemplate = flowTemplates.find((t) => t.id === flowId);
+        if (!presetTemplate) {
           return res.status(404).json({ error: "Flow template not found" });
         }
-        
-        // Clone the template into user's flows
-        const newFlowId = nanoid();
-        const now = new Date();
-        const [clonedFlow] = await db
-          .insert(flows)
-          .values({
-            id: newFlowId,
-            userId: req.userId!,
-            name: `${template.name} (Campaign: ${name})`,
-            description: template.description || null,
-            nodes: template.nodes,
-            edges: template.edges,
-            isActive: true,
-            isTemplate: false,
-            createdAt: now,
-            updatedAt: now,
-          } as typeof flows.$inferInsert)
-          .returning();
-        
-        resolvedFlowId = clonedFlow.id;
-        console.log(`[Campaign] Cloned preset template "${template.name}" to flow ${resolvedFlowId} for campaign "${name}"`);
       }
 
       const user = await storage.getUser(req.userId!);
@@ -251,6 +229,31 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
             message: `The selected SIP phone number uses ${sipPhoneNumber.engine} engine but the agent uses ${agent.telephonyProvider}. Please select a compatible phone number.`
           });
         }
+      }
+
+      // Clone preset template after all validations pass (to avoid orphan flows)
+      let resolvedFlowId = flowId || null;
+      if (presetTemplate) {
+        const newFlowId = nanoid();
+        const now = new Date();
+        const [clonedFlow] = await db
+          .insert(flows)
+          .values({
+            id: newFlowId,
+            userId: req.userId!,
+            name: `${presetTemplate.name} (Campaign: ${name})`,
+            description: presetTemplate.description || null,
+            nodes: presetTemplate.nodes,
+            edges: presetTemplate.edges,
+            isActive: true,
+            isTemplate: false,
+            createdAt: now,
+            updatedAt: now,
+          } as typeof flows.$inferInsert)
+          .returning();
+        
+        resolvedFlowId = clonedFlow.id;
+        console.log(`[Campaign] Cloned preset template "${presetTemplate.name}" to flow ${resolvedFlowId} for campaign "${name}"`);
       }
 
       const campaign = await storage.createCampaign({

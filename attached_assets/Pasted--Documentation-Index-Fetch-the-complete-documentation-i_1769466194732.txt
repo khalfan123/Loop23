@@ -1,0 +1,29 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.retellai.com/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# AI Quality Assurance
+
+> Analyze AI calls with structured insights across audio, language, and performance.
+
+## What is AI QA?
+
+AI QA (Quality Assurance) automatically evaluates a sampled set of calls using configurable rules and metrics. It surfaces high-level trends (scores, resolution rate, latency) and deep, call-level diagnostics (hallucinations, KB accuracy, interruptions, sentiment, and tool usage).
+
+## Use AI QA to:
+
+* Track call quality and resolution over time
+* Identify failure patterns and root causes
+* Review individual calls with transcript-level evidence
+
+<Frame caption="">
+  <img height="700" src="https://mintcdn.com/retellai/6wkwFDKypdjHQ-22/ai-qa/images/template.png?fit=max&auto=format&n=6wkwFDKypdjHQ-22&q=85&s=6734875f09f5ea8461668b42fd663055" alt="advanced_qa.png" data-og-width="1483" data-og-height="1168" data-path="ai-qa/images/template.png" data-optimize="true" data-opv="3" srcset="https://mintcdn.com/retellai/6wkwFDKypdjHQ-22/ai-qa/images/template.png?w=280&fit=max&auto=format&n=6wkwFDKypdjHQ-22&q=85&s=435220067512c61b06ff58af40aab0d8 280w, https://mintcdn.com/retellai/6wkwFDKypdjHQ-22/ai-qa/images/template.png?w=560&fit=max&auto=format&n=6wkwFDKypdjHQ-22&q=85&s=0cfdabb205964dc1bcc9e0d1b1607c2c 560w, https://mintcdn.com/retellai/6wkwFDKypdjHQ-22/ai-qa/images/template.png?w=840&fit=max&auto=format&n=6wkwFDKypdjHQ-22&q=85&s=5b0beebeaf9bbed316f2ae263ec991f8 840w, https://mintcdn.com/retellai/6wkwFDKypdjHQ-22/ai-qa/images/template.png?w=1100&fit=max&auto=format&n=6wkwFDKypdjHQ-22&q=85&s=ab362b1a7fb6102bc077ca891d9df042 1100w, https://mintcdn.com/retellai/6wkwFDKypdjHQ-22/ai-qa/images/template.png?w=1650&fit=max&auto=format&n=6wkwFDKypdjHQ-22&q=85&s=460e7f811f445be50d481fe5d997d0bc 1650w, https://mintcdn.com/retellai/6wkwFDKypdjHQ-22/ai-qa/images/template.png?w=2500&fit=max&auto=format&n=6wkwFDKypdjHQ-22&q=85&s=5ad2b703a22045ede702e87ab4b1eb49 2500w" />
+</Frame>
+
+## Pricing
+
+<Tip>
+  For each workspace, AI QA is free for the first 100 minutes of usage.
+</Tip>
+
+After the free usage, AI QA is priced at \$0.10 per minute of analyzed call time.

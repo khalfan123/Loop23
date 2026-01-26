@@ -334,10 +334,12 @@ export class CampaignExecutor {
         const preCreatedCalls = callResult.results;
         
         // Create flow execution records for flow-based agents using batch insert
-        if (agent.flowId && preCreatedCalls.length > 0) {
+        // Use campaign.flowId if set, otherwise fall back to agent.flowId
+        const effectiveFlowId = campaign.flowId || agent.flowId;
+        if (effectiveFlowId && preCreatedCalls.length > 0) {
           const flowExecInserts: FlowExecutionInsert[] = preCreatedCalls.map(callRecord => ({
             callId: callRecord.id,
-            flowId: agent.flowId!,
+            flowId: effectiveFlowId,
             campaignId: campaign.id,
             campaignName: campaign.name,
             contactPhone: callRecord.phoneNumber || '',
@@ -472,10 +474,12 @@ export class CampaignExecutor {
         const preCreatedCalls = callResultTwilioOpenAI.results;
         
         // Create flow execution records for flow-based agents using batch insert
-        if (agent.flowId && preCreatedCalls.length > 0) {
+        // Use campaign.flowId if set, otherwise fall back to agent.flowId
+        const effectiveFlowIdTwilioOpenAI = campaign.flowId || agent.flowId;
+        if (effectiveFlowIdTwilioOpenAI && preCreatedCalls.length > 0) {
           const flowExecInsertsTwilioOpenAI: FlowExecutionInsert[] = preCreatedCalls.map(callRecord => ({
             callId: callRecord.id,
-            flowId: agent.flowId!,
+            flowId: effectiveFlowIdTwilioOpenAI,
             campaignId: campaign.id,
             campaignName: campaign.name,
             contactPhone: callRecord.phoneNumber || '',
@@ -754,10 +758,12 @@ export class CampaignExecutor {
       const preCreatedCalls = callResultElevenLabs.results;
 
       // Create flow execution records for flow-based agents using batch insert
-      if (agent.flowId && preCreatedCalls.length > 0) {
+      // Use campaign.flowId if set, otherwise fall back to agent.flowId
+      const effectiveFlowIdElevenLabs = campaign.flowId || agent.flowId;
+      if (effectiveFlowIdElevenLabs && preCreatedCalls.length > 0) {
         const flowExecInsertsElevenLabs: FlowExecutionInsert[] = preCreatedCalls.map(callRecord => ({
           callId: callRecord.id,
-          flowId: agent.flowId!,
+          flowId: effectiveFlowIdElevenLabs,
           campaignId: campaign.id,
           campaignName: campaign.name,
           contactPhone: callRecord.phoneNumber || '',

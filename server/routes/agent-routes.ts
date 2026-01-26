@@ -901,7 +901,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         const credential = await ElevenLabsPoolService.getUserCredential(req.userId!);
         if (credential) {
           const voiceElevenLabsService = new ElevenLabsService(credential.apiKey);
-          const voicesResult = await voiceElevenLabsService.getVoices();
+          const voicesResult = await voiceElevenLabsService.listVoices();
           availableVoices = voicesResult.voices || [];
           console.log(`🎤 Fetched ${availableVoices.length} ElevenLabs voices for language mapping`);
         }
@@ -960,6 +960,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             knowledgeBaseIds: agent.knowledgeBaseIds || undefined,
             transferEnabled: agent.transferEnabled ?? undefined,
             transferPhoneNumber: agent.transferPhoneNumber || undefined,
+            transferMessage: (agent as any).transferMessage || undefined,
             detectLanguageEnabled: agent.detectLanguageEnabled ?? undefined,
             endConversationEnabled: agent.endConversationEnabled ?? undefined,
             appointmentBookingEnabled: agent.appointmentBookingEnabled ?? undefined,
@@ -968,6 +969,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             voiceSpeed: agent.voiceSpeed ?? undefined,
             specialist: agent.specialist || undefined,
             tags: agent.tags || undefined,
+            flowId: agent.flowId || undefined,
+            maxDurationSeconds: agent.maxDurationSeconds || undefined,
+            config: agent.config || undefined,
+            sipPhoneNumberId: (agent as any).sipPhoneNumberId || undefined,
           },
           variant
         );
@@ -980,7 +985,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           voiceTone: variantData.voiceTone || null,
           personality: variantData.personality || null,
           systemPrompt: variantData.systemPrompt,
-          config: null,
+          config: variantData.config || null,
           elevenLabsAgentId: null,
           elevenLabsCredentialId: null,
           elevenLabsVoiceId: variantData.elevenLabsVoiceId || null,
@@ -994,8 +999,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           detectLanguageEnabled: variantData.detectLanguageEnabled || false,
           endConversationEnabled: variantData.endConversationEnabled || false,
           appointmentBookingEnabled: variantData.appointmentBookingEnabled || false,
-          flowId: null,
-          maxDurationSeconds: null,
+          flowId: variantData.flowId || null,
+          maxDurationSeconds: variantData.maxDurationSeconds || null,
           voiceStability: variantData.voiceStability ?? 0.55,
           voiceSimilarityBoost: variantData.voiceSimilarityBoost ?? 0.85,
           voiceSpeed: variantData.voiceSpeed ?? 1.0,
@@ -1037,6 +1042,175 @@ export function createAgentRoutes(ctx: RouteContext): Router {
     } catch (error: any) {
       console.error("Get languages error:", error);
       res.status(500).json({ error: "Failed to get available languages" });
+    }
+  });
+
+  // Batch replicate all English agents to 5 languages
+  router.post("/api/agents/batch-replicate-languages", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { languageReplicationService, TARGET_LANGUAGES } = await import("../services/language-replication");
+      
+      // Get all user's agents that are in English (or don't have language set)
+      const allAgents = await storage.getUserAgents(req.userId!);
+      const englishAgents = allAgents.filter(a => !a.language || a.language === 'en');
+      
+      if (englishAgents.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: "No English agents found to replicate",
+          totalCreated: 0 
+        });
+      }
+
+      console.log(`🌍 Batch replicating ${englishAgents.length} English agents to 5 languages`);
+      
+      // Fetch available ElevenLabs voices once for all agents
+      let availableVoices: Array<{ voice_id: string; name: string; labels?: Record<string, string> }> = [];
+      try {
+        const credential = await ElevenLabsPoolService.getUserCredential(req.userId!);
+        if (credential) {
+          const voiceElevenLabsService = new ElevenLabsService(credential.apiKey);
+          const voicesResult = await voiceElevenLabsService.listVoices();
+          availableVoices = voicesResult.voices || [];
+          console.log(`🎤 Fetched ${availableVoices.length} ElevenLabs voices for language mapping`);
+        }
+      } catch (voiceError) {
+        console.warn('Could not fetch ElevenLabs voices for language mapping:', voiceError);
+      }
+
+      const allCreatedAgents = [];
+      const errors: string[] = [];
+
+      for (const agent of englishAgents) {
+        try {
+          console.log(`\n🌐 Processing agent: "${agent.name}" (${agent.id})`);
+          
+          const variants = await languageReplicationService.generateLanguageVariants({
+            id: agent.id,
+            name: agent.name,
+            systemPrompt: agent.systemPrompt || '',
+            firstMessage: agent.firstMessage || 'Hello! How can I help you today?',
+            language: agent.language || 'en',
+            type: agent.type,
+            voiceTone: agent.voiceTone || undefined,
+            personality: agent.personality || undefined,
+            elevenLabsVoiceId: agent.elevenLabsVoiceId || undefined,
+            openaiVoice: agent.openaiVoice || undefined,
+            telephonyProvider: agent.telephonyProvider || undefined,
+            llmModel: agent.llmModel || undefined,
+            temperature: agent.temperature ?? undefined,
+            knowledgeBaseIds: agent.knowledgeBaseIds || undefined,
+            transferEnabled: agent.transferEnabled ?? undefined,
+            transferPhoneNumber: agent.transferPhoneNumber || undefined,
+            detectLanguageEnabled: agent.detectLanguageEnabled ?? undefined,
+            endConversationEnabled: agent.endConversationEnabled ?? undefined,
+            appointmentBookingEnabled: agent.appointmentBookingEnabled ?? undefined,
+            voiceStability: agent.voiceStability ?? undefined,
+            voiceSimilarityBoost: agent.voiceSimilarityBoost ?? undefined,
+            voiceSpeed: agent.voiceSpeed ?? undefined,
+            specialist: agent.specialist || undefined,
+            tags: agent.tags || undefined,
+          }, availableVoices);
+
+          for (const variant of variants) {
+            const variantData = languageReplicationService.createVariantAgentData(
+              {
+                id: agent.id,
+                name: agent.name,
+                systemPrompt: agent.systemPrompt || '',
+                firstMessage: agent.firstMessage || '',
+                language: agent.language || 'en',
+                type: agent.type,
+                voiceTone: agent.voiceTone || undefined,
+                personality: agent.personality || undefined,
+                elevenLabsVoiceId: agent.elevenLabsVoiceId || undefined,
+                openaiVoice: agent.openaiVoice || undefined,
+                telephonyProvider: agent.telephonyProvider || undefined,
+                llmModel: agent.llmModel || undefined,
+                temperature: agent.temperature ?? undefined,
+                knowledgeBaseIds: agent.knowledgeBaseIds || undefined,
+                transferEnabled: agent.transferEnabled ?? undefined,
+                transferPhoneNumber: agent.transferPhoneNumber || undefined,
+                transferMessage: (agent as any).transferMessage || undefined,
+                detectLanguageEnabled: agent.detectLanguageEnabled ?? undefined,
+                endConversationEnabled: agent.endConversationEnabled ?? undefined,
+                appointmentBookingEnabled: agent.appointmentBookingEnabled ?? undefined,
+                voiceStability: agent.voiceStability ?? undefined,
+                voiceSimilarityBoost: agent.voiceSimilarityBoost ?? undefined,
+                voiceSpeed: agent.voiceSpeed ?? undefined,
+                specialist: agent.specialist || undefined,
+                tags: agent.tags || undefined,
+                flowId: agent.flowId || undefined,
+                maxDurationSeconds: agent.maxDurationSeconds || undefined,
+                config: agent.config || undefined,
+                sipPhoneNumberId: (agent as any).sipPhoneNumberId || undefined,
+              },
+              variant
+            );
+
+            const newAgent = await storage.createAgent({
+              userId: req.userId!,
+              type: variantData.type as 'incoming' | 'flow',
+              name: variantData.name,
+              voiceTone: variantData.voiceTone || null,
+              personality: variantData.personality || null,
+              systemPrompt: variantData.systemPrompt,
+              config: variantData.config || null,
+              elevenLabsAgentId: null,
+              elevenLabsCredentialId: null,
+              elevenLabsVoiceId: variantData.elevenLabsVoiceId || null,
+              firstMessage: variantData.firstMessage,
+              language: variantData.language,
+              llmModel: variantData.llmModel || null,
+              temperature: variantData.temperature ?? null,
+              knowledgeBaseIds: variantData.knowledgeBaseIds || null,
+              transferEnabled: variantData.transferEnabled || false,
+              transferPhoneNumber: variantData.transferPhoneNumber || null,
+              detectLanguageEnabled: variantData.detectLanguageEnabled || false,
+              endConversationEnabled: variantData.endConversationEnabled || false,
+              appointmentBookingEnabled: variantData.appointmentBookingEnabled || false,
+              flowId: variantData.flowId || null,
+              maxDurationSeconds: variantData.maxDurationSeconds || null,
+              voiceStability: variantData.voiceStability ?? 0.55,
+              voiceSimilarityBoost: variantData.voiceSimilarityBoost ?? 0.85,
+              voiceSpeed: variantData.voiceSpeed ?? 1.0,
+              telephonyProvider: variantData.telephonyProvider || 'twilio',
+              openaiVoice: variantData.openaiVoice || 'alloy',
+              sourceTemplateId: agent.sourceTemplateId,
+              isFromTemplate: agent.isFromTemplate,
+              tags: variantData.tags || null,
+              specialist: variantData.specialist || null,
+              avatarUrl: agent.avatarUrl || null,
+            });
+
+            allCreatedAgents.push({
+              id: newAgent.id,
+              name: newAgent.name,
+              language: variant.languageCode,
+              languageName: variant.languageName,
+              originalAgentId: agent.id,
+              originalAgentName: agent.name,
+            });
+
+            console.log(`  ✅ Created ${variant.languageName}: ${newAgent.name}`);
+          }
+        } catch (agentError: any) {
+          console.error(`  ❌ Error replicating agent "${agent.name}":`, agentError.message);
+          errors.push(`${agent.name}: ${agentError.message}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Successfully created ${allCreatedAgents.length} language variants from ${englishAgents.length} English agents`,
+        totalOriginalAgents: englishAgents.length,
+        totalCreated: allCreatedAgents.length,
+        createdAgents: allCreatedAgents,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error: any) {
+      console.error("Batch language replication error:", error);
+      res.status(500).json({ error: "Failed to batch replicate agents: " + error.message });
     }
   });
 

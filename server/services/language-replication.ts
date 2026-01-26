@@ -51,6 +51,7 @@ interface AgentData {
   knowledgeBaseIds?: string[];
   transferEnabled?: boolean;
   transferPhoneNumber?: string;
+  transferMessage?: string;
   detectLanguageEnabled?: boolean;
   endConversationEnabled?: boolean;
   appointmentBookingEnabled?: boolean;
@@ -59,6 +60,11 @@ interface AgentData {
   voiceSpeed?: number;
   specialist?: string;
   tags?: string[];
+  // Flow agent fields
+  flowId?: string;
+  maxDurationSeconds?: number;
+  config?: any;
+  sipPhoneNumberId?: string;
 }
 
 interface TranslatedContent {
@@ -218,6 +224,7 @@ Only respond with the JSON object, no additional text.`
       knowledgeBaseIds: originalAgent.knowledgeBaseIds,
       transferEnabled: originalAgent.transferEnabled,
       transferPhoneNumber: originalAgent.transferPhoneNumber,
+      transferMessage: originalAgent.transferMessage,
       detectLanguageEnabled: originalAgent.detectLanguageEnabled,
       endConversationEnabled: originalAgent.endConversationEnabled,
       appointmentBookingEnabled: originalAgent.appointmentBookingEnabled,
@@ -226,6 +233,11 @@ Only respond with the JSON object, no additional text.`
       voiceSpeed: originalAgent.voiceSpeed,
       specialist: originalAgent.specialist,
       tags: [...(originalAgent.tags || []), variant.languageName.toLowerCase()],
+      // Flow agent fields
+      flowId: originalAgent.flowId,
+      maxDurationSeconds: originalAgent.maxDurationSeconds,
+      config: originalAgent.config,
+      sipPhoneNumberId: originalAgent.sipPhoneNumberId,
     };
   }
 }

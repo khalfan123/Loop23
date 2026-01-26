@@ -240,6 +240,8 @@ export default function Agents() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'incoming' | 'flow'>('all');
   const [selectedFolder, setSelectedFolder] = useState<'all' | 'template'>('all');
   const [engineFilter, setEngineFilter] = useState<'all' | 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip'>('all');
+  const [languageFilter, setLanguageFilter] = useState<string>('all');
+  const [tagsFilter, setTagsFilter] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [knowledgeUploadOpen, setKnowledgeUploadOpen] = useState(false);
@@ -534,6 +536,36 @@ export default function Agents() {
     replicateLanguagesMutation.mutate(agent.id);
   };
 
+  const [isBatchReplicating, setIsBatchReplicating] = useState(false);
+  
+  const batchReplicateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/agents/batch-replicate-languages");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      setIsBatchReplicating(false);
+      toast({ 
+        title: "Language Replication Complete",
+        description: `Created ${data.totalCreated || 0} language variants from ${data.totalOriginalAgents || 0} English agents.`,
+      });
+    },
+    onError: (error: any) => {
+      setIsBatchReplicating(false);
+      toast({
+        title: "Replication Failed",
+        description: error.message || "Failed to replicate agents. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBatchReplicate = () => {
+    setIsBatchReplicating(true);
+    batchReplicateMutation.mutate();
+  };
+
   const resetForm = () => {
     setFormData({
       type: "incoming" as 'incoming' | 'flow',
@@ -739,6 +771,20 @@ export default function Agents() {
           return false;
         }
       }
+      // Filter by language
+      if (languageFilter !== 'all') {
+        const agentLang = agent.language || 'en';
+        if (agentLang !== languageFilter) {
+          return false;
+        }
+      }
+      // Filter by tags
+      if (tagsFilter !== 'all') {
+        const agentTags = agent.tags || [];
+        if (!agentTags.includes(tagsFilter)) {
+          return false;
+        }
+      }
       // Filter by search query
       return agent.name.toLowerCase().includes(searchQuery.toLowerCase());
     })
@@ -779,6 +825,34 @@ export default function Agents() {
 
   const incomingCount = agents.filter(a => a.type === 'incoming').length;
   const flowCount = agents.filter(a => a.type === 'flow').length;
+
+  // Get unique languages from agents for filter
+  const availableLanguages = useMemo(() => {
+    const langs = new Set(agents.map(a => a.language || 'en'));
+    const langNames: Record<string, string> = {
+      'en': 'English',
+      'zh': 'Chinese (中文)',
+      'hi': 'Hindi (हिन्दी)',
+      'es': 'Spanish (Español)',
+      'fr': 'French (Français)',
+      'ar': 'Arabic (العربية)',
+    };
+    return Array.from(langs).map(code => ({
+      code,
+      name: langNames[code] || code.toUpperCase()
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [agents]);
+
+  // Get unique tags from agents for filter
+  const availableTags = useMemo(() => {
+    const tags = new Set<string>();
+    agents.forEach(a => {
+      if (a.tags && Array.isArray(a.tags)) {
+        a.tags.forEach(tag => tags.add(tag));
+      }
+    });
+    return Array.from(tags).sort();
+  }, [agents]);
 
   return (
     <div className="space-y-6">
@@ -947,13 +1021,55 @@ export default function Agents() {
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-64"
+                  className="pl-9 w-48"
                   data-testid="input-search-agents"
                 />
               </div>
-              {/* Import Button */}
-              <Button variant="outline" data-testid="button-import-agent">
-                Import
+              {/* Language Filter */}
+              <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                <SelectTrigger className="w-40" data-testid="filter-language">
+                  <Globe className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Languages</SelectItem>
+                  {availableLanguages.map(lang => (
+                    <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Tags Filter */}
+              {availableTags.length > 0 && (
+                <Select value={tagsFilter} onValueChange={setTagsFilter}>
+                  <SelectTrigger className="w-36" data-testid="filter-tags">
+                    <SelectValue placeholder="Tags" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tags</SelectItem>
+                    {availableTags.map(tag => (
+                      <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {/* Replicate All Languages Button */}
+              <Button 
+                variant="outline" 
+                onClick={handleBatchReplicate}
+                disabled={isBatchReplicating}
+                data-testid="button-replicate-all-languages"
+              >
+                {isBatchReplicating ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Replicating...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="h-4 w-4 mr-2" />
+                    Replicate All Languages
+                  </>
+                )}
               </Button>
               {/* Create Agent Dropdown */}
               <DropdownMenu>

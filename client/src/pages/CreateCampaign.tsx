@@ -81,6 +81,15 @@ interface Flow {
   isActive: boolean;
 }
 
+interface FlowTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  isTemplate: boolean;
+  nodeCount: number;
+  preview: string[];
+}
+
 export default function CreateCampaign() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -151,6 +160,10 @@ export default function CreateCampaign() {
 
   const { data: flows = [] } = useQuery<Flow[]>({
     queryKey: ["/api/flow-automation/flows"],
+  });
+
+  const { data: flowTemplates = [] } = useQuery<FlowTemplate[]>({
+    queryKey: ["/api/flow-automation/flow-templates"],
   });
 
   const activeFlows = flows.filter(flow => flow.isActive);
@@ -438,15 +451,34 @@ export default function CreateCampaign() {
                   onValueChange={(value) => setFormData({ ...formData, flowId: value === "none" ? "" : value })}
                 >
                   <SelectTrigger className="h-9" data-testid="select-flow-template">
-                    <SelectValue placeholder={activeFlows.length === 0 ? "No flows available" : "Select a flow template"} />
+                    <SelectValue placeholder={(activeFlows.length === 0 && flowTemplates.length === 0) ? "No flows available" : "Select a flow template"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None (use agent script)</SelectItem>
-                    {activeFlows.map((flow) => (
-                      <SelectItem key={flow.id} value={flow.id}>
-                        {flow.name}
-                      </SelectItem>
-                    ))}
+                    {flowTemplates.length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                          Preset Templates
+                        </div>
+                        {flowTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                    {activeFlows.length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                          Your Flows
+                        </div>
+                        {activeFlows.map((flow) => (
+                          <SelectItem key={flow.id} value={flow.id}>
+                            {flow.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

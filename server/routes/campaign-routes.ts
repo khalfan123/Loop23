@@ -20,8 +20,10 @@ import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import { eq } from "drizzle-orm";
 import { 
-  campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers 
+  campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows 
 } from "@shared/schema";
+import { flowTemplates } from "../services/flow-templates";
+import { nanoid } from "nanoid";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { BatchCallingService } from "../services/batch-calling";
@@ -128,6 +130,37 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: "Cannot use both visual flow and custom script. Please choose one." });
       }
 
+      // Handle preset flow templates - clone them into user's flows
+      let resolvedFlowId = flowId || null;
+      if (flowId && flowId.startsWith('template-')) {
+        const template = flowTemplates.find((t) => t.id === flowId);
+        if (!template) {
+          return res.status(404).json({ error: "Flow template not found" });
+        }
+        
+        // Clone the template into user's flows
+        const newFlowId = nanoid();
+        const now = new Date();
+        const [clonedFlow] = await db
+          .insert(flows)
+          .values({
+            id: newFlowId,
+            userId: req.userId!,
+            name: `${template.name} (Campaign: ${name})`,
+            description: template.description || null,
+            nodes: template.nodes,
+            edges: template.edges,
+            isActive: true,
+            isTemplate: false,
+            createdAt: now,
+            updatedAt: now,
+          } as typeof flows.$inferInsert)
+          .returning();
+        
+        resolvedFlowId = clonedFlow.id;
+        console.log(`[Campaign] Cloned preset template "${template.name}" to flow ${resolvedFlowId} for campaign "${name}"`);
+      }
+
       const user = await storage.getUser(req.userId!);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -226,7 +259,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         voiceId: voiceId || null,
         phoneNumberId: phoneNumberId || null,
         sipPhoneNumberId: sipPhoneNumberId || null,
-        flowId: flowId || null,
+        flowId: resolvedFlowId,
         name,
         type,
         goal: goal || null,

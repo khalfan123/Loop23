@@ -130,6 +130,19 @@ The application serves on port 5000 with both frontend and backend.
     - `gpt-4o`: Complex reasoning tasks (Sales, Technical Support, Lead Qualification, Real Estate)
     - `gpt-4o-mini`: Cost-effective consistent responses (Appointments, Surveys, Receptionist)
   - Enhanced behavioral prompts with frameworks, objection handling, and conversation techniques
+- 2026-01-26: **Knowledge Base Dashboard Enhancement**:
+  - Added `knowledgeFolders` table for organizing knowledge base items by category
+  - Extended `knowledgeBase` table with `folderId` field for folder assignment
+  - Backend API routes for folder CRUD operations, stats aggregation, and item-to-folder assignment
+  - Redesigned Knowledge Base page with two-panel layout:
+    - Left sidebar with Dashboard button and folder list
+    - Header with resource/chunk counts and action buttons (URL, Files, Text, AI Articles)
+    - Dashboard view with 3 stat cards: Usage donut chart, Top Categories, Recent Items
+    - Folder view for filtering items by specific folders
+  - Custom donut chart component for visualizing content type distribution
+  - Folder creation/editing/deletion dialogs with color customization
+  - Items can be assigned to folders via dropdown or during creation
+  - Folder deletion properly reassigns items to uncategorized before removal
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

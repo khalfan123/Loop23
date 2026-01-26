@@ -130,28 +130,18 @@ export function detectGender(name: string): 'male' | 'female' | 'neutral' {
 
 /**
  * ElevenLabs voice IDs organized by gender
+ * These are the conversational voices available in the current account
  */
 export const ELEVENLABS_VOICES = {
   female: [
-    { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
     { id: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica' },
-    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella' },
-    { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli' },
-    { id: 'jBpfuIE2acCO8z3wKNLl', name: 'Gigi' },
-    { id: 'jsCqWAovK2LkecY7zXl4', name: 'Freya' },
   ],
   male: [
-    { id: 'CYw3kZ02Hs0563khs1Fj', name: 'Dave' },
     { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger' },
     { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie' },
     { id: 'bIHbv24MWmeRgasZH58o', name: 'Will' },
     { id: 'cjVigY5qzO86Huf0OWal', name: 'Eric' },
     { id: 'iP95p4xoKVk53GoZ742B', name: 'Chris' },
-    { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni' },
-    { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh' },
-    { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold' },
-    { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },
-    { id: 'yoZ06aMxZJJ28mfd3POQ', name: 'Sam' },
   ],
   neutral: [
     { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River' },

@@ -384,63 +384,6 @@ export default function DepartmentManagement() {
         </TabsList>
 
         <TabsContent value="org-map" className="space-y-6 mt-6">
-          <div className="flex flex-wrap justify-center gap-4">
-            {activePhoneNumber && (
-              <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-6 py-3 rounded-full flex items-center gap-3" data-testid="inbound-number">
-                <PhoneIncoming className="h-5 w-5" />
-                <div>
-                  <div className="text-xs opacity-80">Assigned Number</div>
-                  <div className="font-semibold">{activePhoneNumber.phoneNumber}</div>
-                </div>
-              </div>
-            )}
-            
-            {unassignedPhones.length > 0 && (
-              <Card className="border-dashed border-orange-300 bg-orange-50/50 dark:bg-orange-900/10" data-testid="unassigned-numbers-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Phone className="h-4 w-4 text-orange-500" />
-                    <span className="font-medium text-sm">Unassigned Numbers</span>
-                    <Badge variant="outline" className="text-orange-600 border-orange-300">{unassignedPhones.length}</Badge>
-                  </div>
-                  <div className="space-y-2">
-                    {unassignedPhones.slice(0, 3).map((phone) => (
-                      <div key={phone.id} className="flex items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-lg p-2 border">
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-sm font-mono">{phone.phoneNumber}</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowIvrSettingsDialog(true)}
-                          data-testid={`button-assign-${phone.id}`}
-                        >
-                          Assign
-                        </Button>
-                      </div>
-                    ))}
-                    {unassignedPhones.length > 3 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        +{unassignedPhones.length - 3} more unassigned
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            {!activePhoneNumber && unassignedPhones.length === 0 && (
-              <Card className="border-dashed border-red-300 bg-red-50/50 dark:bg-red-900/10" data-testid="no-numbers-card">
-                <CardContent className="p-4 text-center">
-                  <Phone className="h-6 w-6 text-red-400 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-red-600">No Phone Numbers</p>
-                  <p className="text-xs text-muted-foreground">Purchase phone numbers to get started</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
           <Card data-testid="call-center-org-card">
             <CardHeader className="flex flex-row items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -461,6 +404,40 @@ export default function DepartmentManagement() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
+              {unassignedPhones.length > 0 && (
+                <div className="p-4 rounded-lg border-2 border-dashed border-orange-300 bg-orange-50/50 dark:bg-orange-900/10" data-testid="unassigned-numbers-box">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Phone className="h-4 w-4 text-orange-500" />
+                    <span className="font-medium text-sm">Unassigned Numbers</span>
+                    <Badge variant="outline" className="text-orange-600 border-orange-300">{unassignedPhones.length}</Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {unassignedPhones.map((phone) => (
+                      <div key={phone.id} className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg px-3 py-2 border">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-sm font-mono">{phone.phoneNumber}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowIvrSettingsDialog(true)}
+                          data-testid={`button-assign-${phone.id}`}
+                        >
+                          Assign
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {!activePhoneNumber && unassignedPhones.length === 0 && (
+                <div className="p-4 rounded-lg border-2 border-dashed border-red-300 bg-red-50/50 dark:bg-red-900/10 text-center" data-testid="no-numbers-box">
+                  <Phone className="h-6 w-6 text-red-400 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-red-600">No Phone Numbers</p>
+                  <p className="text-xs text-muted-foreground">Purchase phone numbers to get started</p>
+                </div>
+              )}
+              
               <div className="flex flex-col items-center gap-4 py-4">
                 {activePhoneNumber && (
                   <>

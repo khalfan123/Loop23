@@ -194,6 +194,7 @@ export const agents = pgTable("agents", {
   isFromTemplate: boolean("is_from_template").default(false),
   tags: text("tags").array(), // Searchable tags for categorization
   specialist: text("specialist"), // Agent specialty e.g. "Debt Collection Agent", "Insurance Quote Agent"
+  avatarUrl: text("avatar_url"), // URL/path to agent avatar image
   
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

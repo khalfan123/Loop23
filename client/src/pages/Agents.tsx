@@ -125,6 +125,7 @@ interface Agent {
   isFromTemplate: boolean | null;
   tags: string[] | null;
   specialist: string | null;
+  avatarUrl: string | null;
   createdAt: string;
 }
 
@@ -900,12 +901,20 @@ export default function Agents() {
                       >
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
-                              isIncoming ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 
-                              'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
-                            }`}>
-                              {isIncoming ? <Sparkles className="h-4 w-4" /> : <GitBranch className="h-4 w-4" />}
-                            </div>
+                            {agent.avatarUrl ? (
+                              <img 
+                                src={agent.avatarUrl} 
+                                alt={agent.name}
+                                className="h-10 w-10 rounded-full object-cover border-2 border-background shadow-sm"
+                              />
+                            ) : (
+                              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                                isIncoming ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 
+                                'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
+                              }`}>
+                                {isIncoming ? <Sparkles className="h-5 w-5" /> : <GitBranch className="h-5 w-5" />}
+                              </div>
+                            )}
                             <div>
                               <div className="font-medium">{agent.name}</div>
                               {agent.specialist && (

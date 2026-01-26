@@ -420,7 +420,11 @@ export default function DepartmentManagement() {
                   </>
                 )}
                 
-                <Card className="w-64 border-dashed border-orange-300" data-testid="unassigned-numbers-panel">
+                <Card 
+                  className="w-64 border-dashed border-orange-300 cursor-pointer hover-elevate transition-all"
+                  onClick={() => setShowIvrSettingsDialog(true)}
+                  data-testid="unassigned-numbers-panel"
+                >
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -432,32 +436,29 @@ export default function DepartmentManagement() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-2 pt-0">
+                  <CardContent className="space-y-1 pt-0">
                     {unassignedPhones.length > 0 ? (
                       <>
-                        {unassignedPhones.slice(0, 2).map((phone) => (
-                          <div key={phone.id} className="flex items-center justify-between gap-2">
+                        {unassignedPhones.slice(0, 3).map((phone) => (
+                          <div 
+                            key={phone.id} 
+                            className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 transition-colors"
+                            data-testid={`phone-item-${phone.id}`}
+                          >
+                            <Phone className="h-3 w-3 text-muted-foreground" />
                             <span className="text-xs font-mono truncate">{phone.phoneNumber}</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 text-xs px-2"
-                              onClick={() => setShowIvrSettingsDialog(true)}
-                              data-testid={`button-assign-${phone.id}`}
-                            >
-                              Assign
-                            </Button>
                           </div>
                         ))}
-                        {unassignedPhones.length > 2 && (
-                          <p className="text-xs text-muted-foreground text-center">
-                            +{unassignedPhones.length - 2} more
+                        {unassignedPhones.length > 3 && (
+                          <p className="text-xs text-muted-foreground text-center pt-1">
+                            +{unassignedPhones.length - 3} more
                           </p>
                         )}
                       </>
                     ) : (
                       <p className="text-xs text-muted-foreground">All numbers assigned</p>
                     )}
+                    <p className="text-xs text-blue-500 text-center pt-2">Click to assign</p>
                   </CardContent>
                 </Card>
                 

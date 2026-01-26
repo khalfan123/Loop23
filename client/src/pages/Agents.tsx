@@ -238,7 +238,7 @@ export default function Agents() {
   const [activeTab, setActiveTab] = useState<'agents' | 'templates' | 'voices'>('agents');
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<'all' | 'incoming' | 'flow'>('all');
-  const [selectedFolder, setSelectedFolder] = useState<'all' | 'template' | 'transfer'>('all');
+  const [selectedFolder, setSelectedFolder] = useState<'all' | 'template'>('all');
   const [engineFilter, setEngineFilter] = useState<'all' | 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip'>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -665,9 +665,6 @@ export default function Agents() {
       if (selectedFolder === 'template' && !agent.isFromTemplate) {
         return false;
       }
-      if (selectedFolder === 'transfer' && !agent.transferEnabled) {
-        return false;
-      }
       // Filter by type
       if (typeFilter !== 'all' && agent.type !== typeFilter) {
         return false;
@@ -752,7 +749,13 @@ export default function Agents() {
               <div className="mt-4">
                 <div className="flex items-center justify-between px-3 py-1">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Folders</span>
-                  <Button variant="ghost" size="icon" className="h-5 w-5">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-5 w-5"
+                    onClick={() => toast({ title: "Coming Soon", description: "Custom folder creation will be available in a future update." })}
+                    data-testid="button-add-folder"
+                  >
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
@@ -770,24 +773,6 @@ export default function Agents() {
                 </button>
               </div>
               
-              {/* Transfer Agents Section */}
-              <div className="mt-4">
-                <div className="px-3 py-1">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transfer Staff</span>
-                </div>
-                <button
-                  onClick={() => { setSelectedFolder('transfer'); setTypeFilter('all'); }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                    selectedFolder === 'transfer' 
-                      ? 'bg-primary/10 text-primary font-medium' 
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                  data-testid="folder-transfer-agents"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Transfer Screening Staff
-                </button>
-              </div>
             </div>
           </ScrollArea>
         </div>
@@ -797,9 +782,7 @@ export default function Agents() {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-lg font-semibold">
-              {selectedFolder === 'all' ? 'Staff AI' : 
-               selectedFolder === 'template' ? 'Template Staff' : 
-               'Transfer Screening Staff'}
+              {selectedFolder === 'all' ? 'Staff AI' : 'Template Staff'}
             </h2>
             <div className="flex items-center gap-3">
               {/* Search */}

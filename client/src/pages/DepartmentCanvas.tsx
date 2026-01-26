@@ -1210,7 +1210,7 @@ function DepartmentCanvasContent() {
     const newNode: Node = {
       id: newDept.id,
       type: "department",
-      position: { x: xOffset, y: 190 },
+      position: { x: xOffset, y: 250 },
       data: {
         ...newDept,
         dialKey,

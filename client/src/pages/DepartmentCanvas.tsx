@@ -163,6 +163,8 @@ interface CanvasDepartment {
   type: "sales" | "support" | "scheduling" | "custom";
   name: string;
   description: string;
+  assignedPhoneId?: string;
+  assignedPhoneNumber?: string;
   languageAgents?: LanguageAgent[];
   enableTransfer?: boolean;
   transferNumber?: string;
@@ -208,11 +210,12 @@ const departmentTemplates = [
 interface DepartmentConfigPanelProps {
   selectedNode: Node;
   agents: Agent[];
+  availablePhones: PhoneNumber[];
   updateDepartmentConfig: (nodeId: string, config: Partial<CanvasDepartment>) => void;
   deleteNode: (nodeId: string) => void;
 }
 
-function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, deleteNode }: DepartmentConfigPanelProps) {
+function DepartmentConfigPanel({ selectedNode, agents, availablePhones, updateDepartmentConfig, deleteNode }: DepartmentConfigPanelProps) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -318,6 +321,54 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
           data-testid="input-dept-name"
         />
       </div>
+      
+      <Card className={`p-3 ${nodeData.assignedPhoneId ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' : 'border-red-300 bg-red-50/50 dark:bg-red-900/10'}`}>
+        <div className="flex items-center gap-2 mb-2">
+          <Phone className={`h-4 w-4 ${nodeData.assignedPhoneId ? 'text-green-600' : 'text-red-500'}`} />
+          <Label className="text-sm font-medium">Assigned Phone Number</Label>
+          {!nodeData.assignedPhoneId && (
+            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Required</Badge>
+          )}
+        </div>
+        <Select
+          value={nodeData.assignedPhoneId || ""}
+          onValueChange={(val) => {
+            const phone = availablePhones.find(p => p.id === val);
+            updateDepartmentConfig(selectedNode.id, { 
+              assignedPhoneId: val || undefined,
+              assignedPhoneNumber: phone?.phoneNumber || undefined
+            });
+          }}
+        >
+          <SelectTrigger data-testid="select-dept-phone">
+            <SelectValue placeholder="Select a phone number..." />
+          </SelectTrigger>
+          <SelectContent>
+            {availablePhones.length === 0 ? (
+              <div className="py-4 px-3 text-sm text-muted-foreground text-center">
+                No phone numbers available
+              </div>
+            ) : (
+              availablePhones.map((phone) => (
+                <SelectItem key={phone.id} value={phone.id}>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-3 w-3 text-green-600" />
+                    <span>{phone.phoneNumber}</span>
+                    {phone.friendlyName && (
+                      <span className="text-muted-foreground text-xs">({phone.friendlyName})</span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        {nodeData.assignedPhoneNumber && (
+          <p className="text-xs text-green-600 mt-1.5">
+            Calls to this department will use {nodeData.assignedPhoneNumber}
+          </p>
+        )}
+      </Card>
       
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -1009,9 +1060,10 @@ const DepartmentNodeComponent = ({ data, selected }: { data: any; selected: bool
   const Icon = icons[data.type] || Building2;
   const colorClass = colors[data.type] || colors.custom;
   const languageAgents = data.languageAgents || [];
+  const hasPhone = !!data.assignedPhoneNumber;
 
   return (
-    <div className={`bg-white dark:bg-gray-800 border ${selected ? 'border-primary' : colorClass.split(' ').pop()} rounded p-1.5 min-w-[100px] max-w-[120px] shadow-sm`}>
+    <div className={`bg-white dark:bg-gray-800 border ${selected ? 'border-primary' : colorClass.split(' ').pop()} rounded p-1.5 min-w-[100px] max-w-[130px] shadow-sm`}>
       <Handle type="target" position={Position.Top} className="!bg-primary !w-2 !h-2" />
       <div className="flex items-center gap-1.5">
         <div className={`p-1 rounded ${colorClass.split(' ').slice(0, 2).join(' ')}`}>
@@ -1023,6 +1075,15 @@ const DepartmentNodeComponent = ({ data, selected }: { data: any; selected: bool
             {data.description}
           </div>
         </div>
+      </div>
+      
+      <div className={`mt-1 pt-1 border-t border-dashed flex items-center gap-1 ${hasPhone ? '' : 'cursor-pointer'}`}>
+        <Phone className={`h-2.5 w-2.5 shrink-0 ${hasPhone ? 'text-green-500' : 'text-red-400'}`} />
+        {hasPhone ? (
+          <span className="text-[8px] text-green-600 truncate">{data.assignedPhoneNumber}</span>
+        ) : (
+          <span className="text-[8px] text-red-500 italic">No number assigned</span>
+        )}
       </div>
       
       {languageAgents.length > 0 && (
@@ -1571,6 +1632,7 @@ function DepartmentCanvasContent() {
               <DepartmentConfigPanel
                 selectedNode={selectedNode}
                 agents={agents}
+                availablePhones={phoneNumbers}
                 updateDepartmentConfig={updateDepartmentConfig}
                 deleteNode={deleteNode}
               />

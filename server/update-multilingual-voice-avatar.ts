@@ -1,11 +1,13 @@
 /**
  * Update Multilingual Agents with Voice and Avatar
  * Copies voice settings and avatars from English agents to their translations
+ * Uses gender-based voice selection for agents without voice assignments
  */
 
 import { db } from "./db";
 import { agents } from "@shared/schema";
 import { eq, and, ne } from "drizzle-orm";
+import { getElevenLabsVoiceForAgent, detectGender } from "./services/avatar-generator";
 
 interface EnglishAgentVoice {
   name: string;
@@ -97,15 +99,22 @@ async function updateMultilingualVoicesAndAvatars() {
     ));
 
   if (remaining.length > 0) {
-    console.log(`\nAgents still without voice (setting default 'alloy'):`);
+    console.log(`\nAgents still without voice (using gender-based selection):`);
     for (const agent of remaining) {
+      const gender = detectGender(agent.name);
+      const elevenLabsVoice = getElevenLabsVoiceForAgent(agent.name);
+      // Select appropriate OpenAI voice based on gender
+      // shimmer = female, alloy = neutral, ash = male
+      const openaiVoice = gender === 'female' ? 'shimmer' : 
+                          gender === 'male' ? 'ash' : 'alloy';
+      
       await db.update(agents)
         .set({
-          openaiVoice: "alloy",
-          elevenLabsVoiceId: "CwhRBWXzGAHq8TQ4Fs17",
+          openaiVoice,
+          elevenLabsVoiceId: elevenLabsVoice,
         })
         .where(eq(agents.id, agent.id));
-      console.log(`  Set default for: ${agent.name} (${agent.language})`);
+      console.log(`  Set voice for ${agent.name} (${agent.language}): gender=${gender}, openai=${openaiVoice}, elevenlabs=${elevenLabsVoice}`);
     }
   }
 

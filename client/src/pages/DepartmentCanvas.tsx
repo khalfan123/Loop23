@@ -930,8 +930,14 @@ function DepartmentCanvasContent() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [configPanelOpen, setConfigPanelOpen] = useState(false);
+  
+  // Derive selectedNode from nodes to always get the latest data
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return nodes.find((n) => n.id === selectedNodeId) || null;
+  }, [nodes, selectedNodeId]);
   const [customDeptName, setCustomDeptName] = useState("");
   const [ivrEnabled, setIvrEnabled] = useState(true);
   const [multiLangEnabled, setMultiLangEnabled] = useState(false);
@@ -1004,7 +1010,7 @@ function DepartmentCanvasContent() {
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     if (node.type === "ivr" || node.type === "department") {
-      setSelectedNode(node);
+      setSelectedNodeId(node.id);
       setConfigPanelOpen(true);
     }
   }, []);
@@ -1121,7 +1127,7 @@ function DepartmentCanvasContent() {
     }
 
     setConfigPanelOpen(false);
-    setSelectedNode(null);
+    setSelectedNodeId(null);
   };
 
   const saveMutation = useMutation({

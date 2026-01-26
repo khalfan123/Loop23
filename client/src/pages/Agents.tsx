@@ -27,7 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Globe } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -503,6 +503,36 @@ export default function Agents() {
       });
     },
   });
+
+  const [replicatingAgentId, setReplicatingAgentId] = useState<string | null>(null);
+  
+  const replicateLanguagesMutation = useMutation({
+    mutationFn: async (agentId: string) => {
+      const res = await apiRequest("POST", `/api/agents/${agentId}/replicate-languages`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      setReplicatingAgentId(null);
+      toast({ 
+        title: "Language Variants Created",
+        description: `Created ${data.createdAgents?.length || 0} language variants successfully.`,
+      });
+    },
+    onError: (error: any) => {
+      setReplicatingAgentId(null);
+      toast({
+        title: "Replication Failed",
+        description: error.message || "Failed to create language variants. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleReplicateLanguages = (agent: Agent) => {
+    setReplicatingAgentId(agent.id);
+    replicateLanguagesMutation.mutate(agent.id);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -1130,6 +1160,22 @@ export default function Agents() {
                               <DropdownMenuItem onClick={() => handleEdit(agent)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleReplicateLanguages(agent)}
+                                disabled={replicatingAgentId === agent.id}
+                              >
+                                {replicatingAgentId === agent.id ? (
+                                  <>
+                                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                    Creating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Globe className="h-4 w-4 mr-2" />
+                                    Replicate Languages
+                                  </>
+                                )}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setDeletingAgent(agent)} className="text-destructive">
                                 <Trash2 className="h-4 w-4 mr-2" />

@@ -404,14 +404,6 @@ export default function DepartmentManagement() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
-              {!activePhoneNumber && unassignedPhones.length === 0 && (
-                <div className="p-4 rounded-lg border-2 border-dashed border-red-300 bg-red-50/50 dark:bg-red-900/10 text-center" data-testid="no-numbers-box">
-                  <Phone className="h-6 w-6 text-red-400 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-red-600">No Phone Numbers</p>
-                  <p className="text-xs text-muted-foreground">Purchase phone numbers to get started</p>
-                </div>
-              )}
-              
               <div className="flex flex-col items-center gap-4 py-4">
                 {activePhoneNumber && (
                   <>
@@ -428,90 +420,86 @@ export default function DepartmentManagement() {
                   </>
                 )}
                 
-                <div className="flex items-start justify-center gap-8 w-full">
-                  <Card className="w-64" data-testid="ivr-panel">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <GitBranch className="h-4 w-4" />
-                          <CardTitle className="text-sm">Auto Distribution</CardTitle>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {ivrConfigurations.filter(i => i.isActive).length} Active
-                        </Badge>
+                <Card className="w-64 border-dashed border-orange-300" data-testid="unassigned-numbers-panel">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-orange-500" />
+                        <CardTitle className="text-sm">Unassigned</CardTitle>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2 pt-0">
-                      {activePhoneNumber && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs">{activePhoneNumber.phoneNumber}</span>
-                          <Badge className="bg-green-500 text-xs">On</Badge>
-                        </div>
-                      )}
-                      <div className="flex flex-wrap gap-1">
-                        {departments.slice(0, 2).map((dept, idx) => (
-                          <Badge 
-                            key={dept.id} 
-                            variant="outline" 
-                            className="text-xs"
-                            style={{ borderColor: dept.color }}
-                            data-testid={`dept-badge-${dept.id}`}
-                          >
-                            {dept.name}
-                          </Badge>
+                      <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+                        {unassignedPhones.length}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2 pt-0">
+                    {unassignedPhones.length > 0 ? (
+                      <>
+                        {unassignedPhones.slice(0, 2).map((phone) => (
+                          <div key={phone.id} className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-mono truncate">{phone.phoneNumber}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-xs px-2"
+                              onClick={() => setShowIvrSettingsDialog(true)}
+                              data-testid={`button-assign-${phone.id}`}
+                            >
+                              Assign
+                            </Button>
+                          </div>
                         ))}
-                        {departments.length > 2 && (
-                          <Badge variant="outline" className="text-xs">+{departments.length - 2}</Badge>
+                        {unassignedPhones.length > 2 && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            +{unassignedPhones.length - 2} more
+                          </p>
                         )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">All numbers assigned</p>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <div className="h-6 w-px bg-border" />
+                
+                <Card className="w-64" data-testid="ivr-panel">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <GitBranch className="h-4 w-4" />
+                        <CardTitle className="text-sm">Auto Distribution</CardTitle>
                       </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <div className="flex items-center self-center">
-                    <div className="w-12 border-t-2 border-dashed border-muted-foreground/30" />
-                  </div>
-                  
-                  <Card className="w-64 border-dashed border-orange-300" data-testid="unassigned-numbers-panel">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-orange-500" />
-                          <CardTitle className="text-sm">Unassigned</CardTitle>
-                        </div>
-                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
-                          {unassignedPhones.length}
+                      <Badge variant="outline" className="text-xs">
+                        {ivrConfigurations.filter(i => i.isActive).length} Active
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2 pt-0">
+                    {activePhoneNumber && (
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs">{activePhoneNumber.phoneNumber}</span>
+                        <Badge className="bg-green-500 text-xs">On</Badge>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {departments.slice(0, 2).map((dept, idx) => (
+                        <Badge 
+                          key={dept.id} 
+                          variant="outline" 
+                          className="text-xs"
+                          style={{ borderColor: dept.color }}
+                          data-testid={`dept-badge-${dept.id}`}
+                        >
+                          {dept.name}
                         </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2 pt-0">
-                      {unassignedPhones.length > 0 ? (
-                        <>
-                          {unassignedPhones.slice(0, 2).map((phone) => (
-                            <div key={phone.id} className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-mono truncate">{phone.phoneNumber}</span>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 text-xs px-2"
-                                onClick={() => setShowIvrSettingsDialog(true)}
-                                data-testid={`button-assign-${phone.id}`}
-                              >
-                                Assign
-                              </Button>
-                            </div>
-                          ))}
-                          {unassignedPhones.length > 2 && (
-                            <p className="text-xs text-muted-foreground text-center">
-                              +{unassignedPhones.length - 2} more
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">All numbers assigned</p>
+                      ))}
+                      {departments.length > 2 && (
+                        <Badge variant="outline" className="text-xs">+{departments.length - 2}</Badge>
                       )}
-                    </CardContent>
-                  </Card>
-                </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               <div className="text-center text-sm text-muted-foreground">

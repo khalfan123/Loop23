@@ -60,6 +60,8 @@ import {
   Mic,
   Globe,
   Check,
+  Volume2,
+  Square,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -75,7 +77,27 @@ interface Agent {
   type: string;
   language: string | null;
   voiceName: string | null;
+  openaiVoice: string | null;
 }
+
+const SUPPORTED_LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
+  { code: "de", label: "German" },
+  { code: "pt", label: "Portuguese" },
+];
+
+const OPENAI_VOICE_PREVIEWS: Record<string, string> = {
+  alloy: "https://cdn.openai.com/API/docs/audio/alloy.wav",
+  echo: "https://cdn.openai.com/API/docs/audio/echo.wav",
+  shimmer: "https://cdn.openai.com/API/docs/audio/shimmer.wav",
+  ash: "https://cdn.openai.com/API/docs/audio/ash.wav",
+  ballad: "https://cdn.openai.com/API/docs/audio/ballad.wav",
+  coral: "https://cdn.openai.com/API/docs/audio/coral.wav",
+  sage: "https://cdn.openai.com/API/docs/audio/sage.wav",
+  verse: "https://cdn.openai.com/API/docs/audio/verse.wav",
+};
 
 interface CanvasPhoneNode {
   id: string;
@@ -125,6 +147,222 @@ const departmentTemplates = [
     defaultPrompt: "You are an appointment scheduling assistant. Help callers book, reschedule, or cancel appointments efficiently.",
   },
 ];
+
+interface DepartmentConfigPanelProps {
+  selectedNode: Node;
+  agents: Agent[];
+  updateDepartmentConfig: (nodeId: string, config: Partial<CanvasDepartment>) => void;
+  deleteNode: (nodeId: string) => void;
+}
+
+function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, deleteNode }: DepartmentConfigPanelProps) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const nodeData = selectedNode.data as unknown as CanvasDepartment;
+  const selectedLanguage = nodeData.language || "en";
+  
+  const filteredAgents = useMemo(() => {
+    return agents.filter((agent) => {
+      const agentLang = (agent.language || "en").toLowerCase();
+      const targetLang = selectedLanguage.toLowerCase();
+      return agentLang === targetLang;
+    });
+  }, [agents, selectedLanguage]);
+  
+  const selectedAgent = useMemo(() => {
+    return agents.find((a) => a.id === nodeData.agentId);
+  }, [agents, nodeData.agentId]);
+  
+  const voicePreviewUrl = useMemo(() => {
+    if (!selectedAgent?.openaiVoice) return null;
+    return OPENAI_VOICE_PREVIEWS[selectedAgent.openaiVoice] || null;
+  }, [selectedAgent]);
+  
+  const handlePlayVoice = () => {
+    if (!voicePreviewUrl) return;
+    
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlaying(false);
+      return;
+    }
+    
+    if (audioRef.current) {
+      audioRef.current.src = voicePreviewUrl;
+      audioRef.current.play();
+      setIsPlaying(true);
+      
+      audioRef.current.onended = () => setIsPlaying(false);
+      audioRef.current.onerror = () => setIsPlaying(false);
+    }
+  };
+  
+  useEffect(() => {
+    audioRef.current = new Audio();
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+  
+  return (
+    <div className="mt-6 space-y-4">
+      <div>
+        <Label>Department Name</Label>
+        <Input
+          value={nodeData.name || ""}
+          onChange={(e) => updateDepartmentConfig(selectedNode.id, { name: e.target.value })}
+          className="mt-1.5"
+          data-testid="input-dept-name"
+        />
+      </div>
+      
+      <div>
+        <Label>Language</Label>
+        <Select
+          value={selectedLanguage}
+          onValueChange={(val) => {
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+              setIsPlaying(false);
+            }
+            updateDepartmentConfig(selectedNode.id, { 
+              language: val,
+              agentId: undefined,
+              agentName: undefined,
+              voiceName: undefined,
+              voiceProvider: undefined,
+            });
+          }}
+        >
+          <SelectTrigger className="mt-1.5" data-testid="select-dept-language">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SUPPORTED_LANGUAGES.map((lang) => (
+              <SelectItem key={lang.code} value={lang.code}>
+                {lang.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div>
+        <Label>Assign AI Agent</Label>
+        {filteredAgents.length === 0 ? (
+          <p className="text-sm text-muted-foreground mt-1.5">
+            No agents available for {SUPPORTED_LANGUAGES.find((l) => l.code === selectedLanguage)?.label}
+          </p>
+        ) : (
+          <Select
+            value={nodeData.agentId || ""}
+            onValueChange={(val) => {
+              const agent = agents.find((a) => a.id === val);
+              updateDepartmentConfig(selectedNode.id, {
+                agentId: val,
+                agentName: agent?.name,
+                voiceName: agent?.openaiVoice || agent?.voiceName || undefined,
+              });
+            }}
+          >
+            <SelectTrigger className="mt-1.5" data-testid="select-dept-agent">
+              <SelectValue placeholder="Select an agent..." />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredAgents.map((agent) => (
+                <SelectItem key={agent.id} value={agent.id}>
+                  {agent.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+      
+      {selectedAgent && (
+        <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-xs text-muted-foreground">Agent Voice</Label>
+              <p className="text-sm font-medium capitalize">
+                {selectedAgent.openaiVoice || selectedAgent.voiceName || "Default"}
+              </p>
+            </div>
+            {voicePreviewUrl && (
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={handlePlayVoice}
+                data-testid="button-voice-preview"
+              >
+                {isPlaying ? (
+                  <Square className="h-4 w-4" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+      
+      <div>
+        <Label>System Prompt</Label>
+        <Textarea
+          value={nodeData.systemPrompt || ""}
+          onChange={(e) => updateDepartmentConfig(selectedNode.id, { systemPrompt: e.target.value })}
+          rows={5}
+          className="mt-1.5"
+          placeholder="Instructions for the AI agent..."
+          data-testid="input-dept-prompt"
+        />
+      </div>
+      
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Call Transfer</Label>
+            <p className="text-xs text-muted-foreground">Allow transfer to human</p>
+          </div>
+          <Switch
+            checked={nodeData.enableTransfer}
+            onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableTransfer: val })}
+            data-testid="switch-dept-transfer"
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Call Recording</Label>
+            <p className="text-xs text-muted-foreground">Record all calls</p>
+          </div>
+          <Switch
+            checked={nodeData.enableRecording}
+            onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableRecording: val })}
+            data-testid="switch-dept-recording"
+          />
+        </div>
+      </div>
+      
+      <div className="pt-4">
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => deleteNode(selectedNode.id)}
+          data-testid="button-delete-dept"
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Remove Department
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 const PhoneNodeComponent = ({ data }: { data: any }) => {
   return (
@@ -730,104 +968,12 @@ function DepartmentCanvasContent() {
           )}
 
           {selectedNode?.type === "department" && (
-            <div className="mt-6 space-y-4">
-              <div>
-                <Label>Department Name</Label>
-                <Input
-                  value={(selectedNode.data as any).name || ""}
-                  onChange={(e) => updateDepartmentConfig(selectedNode.id, { name: e.target.value })}
-                  className="mt-1.5"
-                  data-testid="input-dept-name"
-                />
-              </div>
-              <div>
-                <Label>Assign AI Agent</Label>
-                <Select
-                  value={(selectedNode.data as any).agentId || ""}
-                  onValueChange={(val) => {
-                    const agent = agents.find((a) => a.id === val);
-                    updateDepartmentConfig(selectedNode.id, {
-                      agentId: val,
-                      agentName: agent?.name,
-                    });
-                  }}
-                >
-                  <SelectTrigger className="mt-1.5" data-testid="select-dept-agent">
-                    <SelectValue placeholder="Select an agent..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Language</Label>
-                <Select
-                  value={(selectedNode.data as any).language || "en"}
-                  onValueChange={(val) => updateDepartmentConfig(selectedNode.id, { language: val })}
-                >
-                  <SelectTrigger className="mt-1.5" data-testid="select-dept-language">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="de">German</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>System Prompt</Label>
-                <Textarea
-                  value={(selectedNode.data as any).systemPrompt || ""}
-                  onChange={(e) => updateDepartmentConfig(selectedNode.id, { systemPrompt: e.target.value })}
-                  rows={4}
-                  className="mt-1.5"
-                  placeholder="Instructions for the AI agent..."
-                  data-testid="input-dept-prompt"
-                />
-              </div>
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Call Transfer</Label>
-                    <p className="text-xs text-muted-foreground">Allow transfer to human</p>
-                  </div>
-                  <Switch
-                    checked={(selectedNode.data as any).enableTransfer}
-                    onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableTransfer: val })}
-                    data-testid="switch-dept-transfer"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Call Recording</Label>
-                    <p className="text-xs text-muted-foreground">Record all calls</p>
-                  </div>
-                  <Switch
-                    checked={(selectedNode.data as any).enableRecording}
-                    onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableRecording: val })}
-                    data-testid="switch-dept-recording"
-                  />
-                </div>
-              </div>
-              <div className="pt-4">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => deleteNode(selectedNode.id)}
-                  data-testid="button-delete-dept"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Remove Department
-                </Button>
-              </div>
-            </div>
+            <DepartmentConfigPanel
+              selectedNode={selectedNode}
+              agents={agents}
+              updateDepartmentConfig={updateDepartmentConfig}
+              deleteNode={deleteNode}
+            />
           )}
         </SheetContent>
       </Sheet>

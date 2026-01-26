@@ -156,6 +156,15 @@ The application serves on port 5000 with both frontend and backend.
     - Add agent to department with language selection
     - Action buttons: Flow, Edit, Delete for each department
   - Multi-tenant security enforced on all department-related routes
+- 2026-01-26: **Department Canvas (Visual Call Flow Builder)**:
+  - New page at `/app/departments/canvas` using React Flow for drag-and-drop visual design
+  - Canvas elements: Phone nodes, IVR Router node, Department nodes (Sales, Support, Scheduling, Custom)
+  - Left sidebar with available phone numbers and department templates
+  - Click-to-add: phone numbers and departments auto-connect to IVR
+  - Configuration panels: IVR (greeting, language), Department (name, agent, prompt, settings)
+  - Canvas stats showing phone count, department count, connections
+  - Zoom controls, minimap, and Save & Deploy functionality
+  - Save creates departments, assigns agents, and configures IVR with correct routing
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

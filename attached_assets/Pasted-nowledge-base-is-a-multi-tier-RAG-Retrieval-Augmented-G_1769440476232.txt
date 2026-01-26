@@ -1,0 +1,103 @@
+nowledge base is a multi-tier RAG (Retrieval-Augmented Generation) system designed for enterprise use. It combines vector embeddings, semantic search, multi-tier confidence scoring, and LLM generation to answer questions from ingested content.
+
+Core Components
+1. Data Ingestion Service (knowledge-ingestion.service.ts)
+Handles multiple source types:
+
+URL ingestion: Multi-page web crawler (up to 20 pages per website)
+Document ingestion: PDF, DOCX, TXT, CSV, HTML, Markdown
+Manual content: User-typed text with titles and tags
+Conversation learning: Auto-ingest call transcripts for future reference
+Key Features:
+
+Content hashing to detect duplicates
+Automatic chunking with configurable overlap (2000 chars per chunk, 200 char overlap)
+Real-time processing queue with status tracking (pending → processing → completed/failed)
+Per-tenant source limits based on subscription tier
+2. Vector Store & Embeddings (rag-knowledge.ts)
+Two embedding providers with automatic fallback:
+
+Primary: AWS Bedrock Titan (1024 dimensions)
+Fallback: OpenAI text-embedding-3-small (1536 dimensions)
+Features:
+
+Cosine similarity for semantic matching
+In-memory vector store with per-tenant isolation
+Automatic dimension detection and compatibility checking
+Storage limits per user (default 20MB)
+3. Multi-Tier Search (multi-tier-knowledge.service.ts)
+Four-tier search hierarchy:
+
+Tier 1 - FAQ Cache: In-memory cache for fast responses (<10ms)
+Tier 2 - Standard KB Search: RAG with vector embeddings
+Tier 3 - Deep Search: Synonym expansion + broader matching
+Tier 4 - Human Escalation: When no confident answer exists
+Confidence Scoring:
+
+High: 0.8+ → Direct answer
+Medium: 0.4-0.8 → Answer with uncertainty statement
+Low: <0.4 → Escalation suggested
+4. Knowledge Orchestrator (knowledge-orchestrator.service.ts)
+The brain that coordinates everything:
+
+Semantic caching: Stores successful answers for similar future queries
+Query understanding: Analyzes intent and enhances search queries
+Dual-path search: Searches both intelligence records AND content simultaneously
+Escalation detection: Identifies when queries need human handling
+LLM generation: Uses AWS Bedrock Nova for natural language answers
+5. Intelligence Layer
+Extracted structured data from content:
+
+Products: Name, description, features, benefits
+Pricing: Plans, costs, billing cycles
+FAQs: Question patterns, related questions
+Value Propositions: Headlines with supporting evidence
+Use Cases: Industry, customer type, outcomes
+Edge Cases: Scenarios requiring special handling with escalation triggers
+Database Schema (Key Tables)
+-- Main knowledge base entries
+knowledge_base: id, userId, type, title, content, url, fileUrl, storageSize, ragStatus, chunkCount
+-- Vector chunks with embeddings
+knowledge_chunks: id, knowledgeBaseId, userId, chunkIndex, chunkText, embedding, tokenCount, metadata
+-- Processing queue
+knowledge_processing_queue: id, knowledgeBaseId, userId, status, totalChunks, processedChunks, errorMessage
+-- User storage limits
+user_knowledge_storage_limits: userId, maxStorageBytes, usedStorageBytes
+-- Intelligence tables
+website_intelligence, intelligence_faqs, intelligence_edge_cases, intelligence_products, intelligence_pricing, intelligence_value_props, intelligence_use_cases
+Tenant/User Tiers
+Feature	Basic	Pro	Advanced
+Max Sources	30	100	1000
+Max Chunks	2000	15000	150000
+Storage	100MB	750MB	10GB
+Semantic Search	✓	✓	✓
+Live URL Search	✗	✓	✓
+LLM Generation	✓	✓	✓
+Conversation Learning	✗	✓	✓
+API Endpoints
+GET    /api/knowledge-base/profile         - Get tenant profile
+PUT    /api/knowledge-base/profile         - Update profile
+GET    /api/knowledge-base/sources         - List all sources
+POST   /api/knowledge-base/sources/url     - Ingest URL
+POST   /api/knowledge-base/sources/document - Upload document
+POST   /api/knowledge-base/sources/manual  - Add manual text
+DELETE /api/knowledge-base/sources/:id     - Delete source
+POST   /api/knowledge-base/search          - Semantic search
+POST   /api/knowledge-base/answer          - Get AI-generated answer
+POST   /api/knowledge-base/learning/ingest-call - Ingest call transcript
+GET    /api/rag-knowledge/storage          - Get storage usage
+Key Implementation Patterns
+Chunking Algorithm: Split at sentence boundaries, 2000 chars max, 200 char overlap
+Confidence Admission: AI admits uncertainty for medium/low confidence answers
+Source Citations: Answers include references to source documents
+Knowledge Gap Tracking: Unanswered queries are logged for content improvement
+Semantic Caching: Successful answers cached for similar future queries
+Query Enhancement: NLP processing to improve search accuracy
+Environment Variables Needed
+OPENAI_API_KEY - For embeddings fallback and LLM
+AWS_ACCESS_KEY_ID - For Bedrock embeddings
+AWS_SECRET_ACCESS_KEY - For Bedrock
+AWS_REGION - Default us-east-1
+DATABASE_URL - PostgreSQL with pgvector extension
+Would you like me to export any specific files or provide more details on any particular component?
+

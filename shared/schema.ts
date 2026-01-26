@@ -193,6 +193,7 @@ export const agents = pgTable("agents", {
   sourceTemplateId: varchar("source_template_id"), // References prompt_templates.id
   isFromTemplate: boolean("is_from_template").default(false),
   tags: text("tags").array(), // Searchable tags for categorization
+  specialist: text("specialist"), // Agent specialty e.g. "Debt Collection Agent", "Insurance Quote Agent"
   
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

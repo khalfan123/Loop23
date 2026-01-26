@@ -124,6 +124,7 @@ interface Agent {
   sourceTemplateId: string | null;
   isFromTemplate: boolean | null;
   tags: string[] | null;
+  specialist: string | null;
   createdAt: string;
 }
 
@@ -909,6 +910,9 @@ export default function Agents() {
                                   <span className="text-xs text-muted-foreground">(from template)</span>
                                 )}
                               </div>
+                              {agent.specialist && (
+                                <div className="text-xs text-muted-foreground">{agent.specialist}</div>
+                              )}
                             </div>
                           </div>
                         </TableCell>

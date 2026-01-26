@@ -955,15 +955,15 @@ function IVRConfigPanel({
 
 const PhoneNodeComponent = ({ data }: { data: any }) => {
   return (
-    <div className="bg-white dark:bg-gray-800 border-2 border-green-400 rounded-lg p-3 min-w-[160px] shadow-md">
-      <Handle type="source" position={Position.Bottom} className="!bg-green-500 !w-3 !h-3" />
-      <div className="flex items-center gap-2">
-        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-          <Phone className="h-4 w-4 text-green-600" />
+    <div className="bg-white dark:bg-gray-800 border border-green-400 rounded p-1.5 min-w-[80px] shadow-sm">
+      <Handle type="source" position={Position.Bottom} className="!bg-green-500 !w-2 !h-2" />
+      <div className="flex items-center gap-1.5">
+        <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded">
+          <Phone className="h-3 w-3 text-green-600" />
         </div>
         <div>
-          <div className="font-medium text-sm">{data.phoneNumber}</div>
-          <div className="text-xs text-muted-foreground">{data.provider}</div>
+          <div className="font-medium text-[10px] leading-tight">{data.phoneNumber}</div>
+          <div className="text-[8px] text-muted-foreground">{data.provider}</div>
         </div>
       </div>
     </div>
@@ -972,22 +972,22 @@ const PhoneNodeComponent = ({ data }: { data: any }) => {
 
 const IVRNodeComponent = ({ data, selected }: { data: any; selected: boolean }) => {
   return (
-    <div className={`bg-amber-50 dark:bg-amber-900/20 border-2 ${selected ? 'border-amber-600' : 'border-amber-400'} rounded-xl p-4 min-w-[200px] shadow-lg`}>
-      <Handle type="target" position={Position.Top} className="!bg-amber-500 !w-3 !h-3" />
-      <Handle type="source" position={Position.Bottom} className="!bg-amber-500 !w-3 !h-3" />
-      <div className="flex items-center justify-center gap-3">
-        <div className="p-3 bg-amber-200 dark:bg-amber-800 rounded-lg">
-          <GitBranch className="h-6 w-6 text-amber-700 dark:text-amber-300" />
+    <div className={`bg-amber-50 dark:bg-amber-900/20 border ${selected ? 'border-amber-600' : 'border-amber-400'} rounded-lg p-2 min-w-[100px] shadow-sm`}>
+      <Handle type="target" position={Position.Top} className="!bg-amber-500 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!bg-amber-500 !w-2 !h-2" />
+      <div className="flex items-center justify-center gap-1.5">
+        <div className="p-1.5 bg-amber-200 dark:bg-amber-800 rounded">
+          <GitBranch className="h-3 w-3 text-amber-700 dark:text-amber-300" />
         </div>
         <div className="text-center">
-          <div className="font-semibold text-lg">IVR Router</div>
-          <Badge variant="outline" className="mt-1 text-xs bg-green-100 text-green-700 border-green-300">
+          <div className="font-semibold text-xs">IVR Router</div>
+          <Badge variant="outline" className="text-[8px] px-1 py-0 bg-green-100 text-green-700 border-green-300">
             Active
           </Badge>
         </div>
       </div>
-      <div className="mt-3 text-xs text-muted-foreground text-center">
-        {data.inputCount || 0} phone lines connected
+      <div className="mt-1.5 text-[8px] text-muted-foreground text-center">
+        {data.inputCount || 0} lines
       </div>
     </div>
   );
@@ -1011,44 +1011,41 @@ const DepartmentNodeComponent = ({ data, selected }: { data: any; selected: bool
   const languageAgents = data.languageAgents || [];
 
   return (
-    <div className={`bg-white dark:bg-gray-800 border-2 ${selected ? 'border-primary' : colorClass.split(' ').pop()} rounded-lg p-3 min-w-[200px] max-w-[240px] shadow-md`}>
-      <Handle type="target" position={Position.Top} className="!bg-primary !w-3 !h-3" />
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${colorClass.split(' ').slice(0, 2).join(' ')}`}>
-          <Icon className={`h-5 w-5 ${colorClass.split(' ')[2]}`} />
+    <div className={`bg-white dark:bg-gray-800 border ${selected ? 'border-primary' : colorClass.split(' ').pop()} rounded p-1.5 min-w-[100px] max-w-[120px] shadow-sm`}>
+      <Handle type="target" position={Position.Top} className="!bg-primary !w-2 !h-2" />
+      <div className="flex items-center gap-1.5">
+        <div className={`p-1 rounded ${colorClass.split(' ').slice(0, 2).join(' ')}`}>
+          <Icon className={`h-3 w-3 ${colorClass.split(' ')[2]}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm truncate">{data.name}</div>
-          <div className="text-xs text-muted-foreground truncate">
+          <div className="font-semibold text-[10px] truncate leading-tight">{data.name}</div>
+          <div className="text-[8px] text-muted-foreground truncate">
             {data.description}
           </div>
         </div>
       </div>
       
       {languageAgents.length > 0 && (
-        <div className="mt-3 pt-2 border-t border-dashed space-y-1.5">
-          {languageAgents.slice(0, 3).map((la: any) => (
-            <div key={la.id} className="flex items-center gap-2 text-xs">
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono shrink-0">
+        <div className="mt-1 pt-1 border-t border-dashed space-y-0.5">
+          {languageAgents.slice(0, 2).map((la: any) => (
+            <div key={la.id} className="flex items-center gap-1 text-[8px]">
+              <Badge variant="outline" className="text-[7px] px-1 py-0 font-mono shrink-0">
                 {la.language.toUpperCase()}
               </Badge>
-              <div className="flex items-center gap-1 text-muted-foreground truncate">
-                <Mic className="h-3 w-3 shrink-0" />
-                <span className="truncate">{la.agentName || "No agent"}</span>
-              </div>
+              <span className="text-muted-foreground truncate">{la.agentName || "-"}</span>
             </div>
           ))}
-          {languageAgents.length > 3 && (
-            <div className="text-[10px] text-muted-foreground">
-              +{languageAgents.length - 3} more languages
+          {languageAgents.length > 2 && (
+            <div className="text-[7px] text-muted-foreground">
+              +{languageAgents.length - 2} more
             </div>
           )}
         </div>
       )}
       
       {languageAgents.length === 0 && (
-        <div className="mt-2 text-xs text-muted-foreground italic">
-          No agents configured
+        <div className="mt-1 text-[8px] text-muted-foreground italic">
+          No agents
         </div>
       )}
     </div>
@@ -1109,7 +1106,7 @@ function DepartmentCanvasContent() {
     const ivrNode: Node = {
       id: "ivr-main",
       type: "ivr",
-      position: { x: 350, y: 200 },
+      position: { x: 175, y: 100 },
       data: { inputCount: 0 },
     };
     setNodes([ivrNode]);
@@ -1157,7 +1154,7 @@ function DepartmentCanvasContent() {
 
   const addPhoneToCanvas = (phone: PhoneNumber) => {
     const phoneCount = nodes.filter((n) => n.type === "phone").length;
-    const xOffset = 200 + phoneCount * 200;
+    const xOffset = 100 + phoneCount * 110;
     const newNode: Node = {
       id: `phone-${phone.id}`,
       type: "phone",
@@ -1209,11 +1206,11 @@ function DepartmentCanvasContent() {
       enableLanguageDetection: false,
     };
 
-    const xOffset = 100 + deptCount * 260;
+    const xOffset = 50 + deptCount * 130;
     const newNode: Node = {
       id: newDept.id,
       type: "department",
-      position: { x: xOffset, y: 380 },
+      position: { x: xOffset, y: 190 },
       data: {
         ...newDept,
         dialKey,

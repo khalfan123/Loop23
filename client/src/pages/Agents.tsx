@@ -27,7 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, FolderOpen, ChevronRight, RefreshCw, Phone } from "lucide-react";
+import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -759,18 +759,47 @@ export default function Agents() {
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
-                <button
-                  onClick={() => { setSelectedFolder('template'); setTypeFilter('all'); }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                    selectedFolder === 'template' 
-                      ? 'bg-primary/10 text-primary font-medium' 
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                  data-testid="folder-template-agents"
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  Template Staff
-                </button>
+                <div className="group relative">
+                  <button
+                    onClick={() => { setSelectedFolder('template'); setTypeFilter('all'); }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                      selectedFolder === 'template' 
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                    data-testid="folder-template-agents"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    <span className="flex-1 text-left">Template Staff</span>
+                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        data-testid="button-folder-options"
+                      >
+                        <MoreHorizontal className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        onClick={() => toast({ title: "Coming Soon", description: "Folder editing will be available in a future update." })}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit Folder
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => toast({ title: "Coming Soon", description: "Folder removal will be available in a future update." })}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Remove Folder
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
               
             </div>

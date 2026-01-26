@@ -26,6 +26,7 @@ import { OpenAIPoolService } from "../engines/plivo/services/openai-pool.service
 import { IncomingAgentService } from "../services/incoming-agent";
 import { FlowAgentService } from "../services/flow-agent";
 import { setupRAGToolForAgent, isRAGEnabled } from "../services/rag-elevenlabs-tool";
+import { generateAgentAvatar } from "../services/avatar-generator";
 
 export function createAgentRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -80,7 +81,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         // Template tracking fields
         sourceTemplateId,
         isFromTemplate,
-        tags
+        tags,
+        specialist,
+        avatarUrl
       } = req.body;
 
       if (!type || (type !== 'incoming' && type !== 'flow')) {
@@ -395,6 +398,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         sourceTemplateId: sourceTemplateId || null,
         isFromTemplate: isFromTemplate || false,
         tags: tags || null,
+        specialist: specialist || null,
+        avatarUrl: avatarUrl || null,
       });
 
       if (usedCredentialId) {
@@ -530,6 +535,22 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             }
           } catch (syncError) {
             console.warn(`⚠️ Async voice sync failed:`, syncError);
+          }
+        });
+      }
+      
+      // Generate avatar asynchronously if not provided
+      if (!avatarUrl && name) {
+        setImmediate(async () => {
+          try {
+            console.log(`🎨 [Agent Create] Generating avatar for agent "${name}"`);
+            const generatedAvatarUrl = await generateAgentAvatar(name, specialist);
+            if (generatedAvatarUrl) {
+              await storage.updateAgent(agent.id, { avatarUrl: generatedAvatarUrl });
+              console.log(`✅ [Agent Create] Avatar generated and saved: ${generatedAvatarUrl}`);
+            }
+          } catch (avatarError) {
+            console.warn(`⚠️ Avatar generation failed (non-fatal):`, avatarError);
           }
         });
       }

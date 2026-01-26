@@ -46,3 +46,6 @@ JWT_SECRET = "agentlabs-development-jwt-secret-key-2025"
 APP_DOMAIN = "https://workspace.replit.dev"
 APP_URL = "https://workspace.replit.dev"
 NODE_ENV = "development"
+
+[agent]
+integrations = ["javascript_openai_ai_integrations:2.0.0"]

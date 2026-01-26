@@ -162,6 +162,8 @@ interface CanvasDepartment {
   enableTransfer?: boolean;
   enableRecording?: boolean;
   enableLanguageDetection?: boolean;
+  enableEndConversation?: boolean;
+  enableAppointmentBooking?: boolean;
   knowledgeBaseIds?: string[];
 }
 
@@ -489,8 +491,8 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
         <div className="space-y-3 mt-2">
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-sm">Call Transfer</Label>
-              <p className="text-xs text-muted-foreground">Transfer to human agents</p>
+              <Label className="text-sm">Enable Call Transfer</Label>
+              <p className="text-xs text-muted-foreground">Agent can transfer calls to human operators when requested</p>
             </div>
             <Switch
               checked={nodeData.enableTransfer}
@@ -500,8 +502,8 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-sm">Language Detection</Label>
-              <p className="text-xs text-muted-foreground">Auto-detect caller language</p>
+              <Label className="text-sm">Enable Language Detection</Label>
+              <p className="text-xs text-muted-foreground">Automatically detect and respond in caller's language (99 languages)</p>
             </div>
             <Switch
               checked={nodeData.enableLanguageDetection}
@@ -511,8 +513,30 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-sm">Call Recording</Label>
-              <p className="text-xs text-muted-foreground">Record conversations</p>
+              <Label className="text-sm">Enable End Conversation</Label>
+              <p className="text-xs text-muted-foreground">Let agent intelligently end conversation when appropriate</p>
+            </div>
+            <Switch
+              checked={nodeData.enableEndConversation}
+              onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableEndConversation: val })}
+              data-testid="switch-end-conversation"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm">Enable Appointment Booking</Label>
+              <p className="text-xs text-muted-foreground">Let agent book appointments during calls</p>
+            </div>
+            <Switch
+              checked={nodeData.enableAppointmentBooking}
+              onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableAppointmentBooking: val })}
+              data-testid="switch-appointment"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm">Enable Call Recording</Label>
+              <p className="text-xs text-muted-foreground">Record conversations for quality and training</p>
             </div>
             <Switch
               checked={nodeData.enableRecording}
@@ -1379,32 +1403,34 @@ function DepartmentCanvasContent() {
       </div>
 
       <Sheet open={configPanelOpen} onOpenChange={setConfigPanelOpen}>
-        <SheetContent className="w-[400px] sm:w-[540px]">
-          <SheetHeader>
+        <SheetContent className="w-[400px] sm:w-[540px] flex flex-col p-0">
+          <SheetHeader className="px-6 pt-6 pb-2">
             <SheetTitle>
               {selectedNode?.type === "ivr" ? "IVR Configuration" : "Department Configuration"}
             </SheetTitle>
           </SheetHeader>
 
-          {selectedNode?.type === "ivr" && (
-            <IVRConfigPanel
-              ivrEnabled={ivrEnabled}
-              setIvrEnabled={setIvrEnabled}
-              multiLangEnabled={multiLangEnabled}
-              setMultiLangEnabled={setMultiLangEnabled}
-              languageOptions={languageOptions}
-              setLanguageOptions={setLanguageOptions}
-            />
-          )}
+          <ScrollArea className="flex-1 px-6 pb-6">
+            {selectedNode?.type === "ivr" && (
+              <IVRConfigPanel
+                ivrEnabled={ivrEnabled}
+                setIvrEnabled={setIvrEnabled}
+                multiLangEnabled={multiLangEnabled}
+                setMultiLangEnabled={setMultiLangEnabled}
+                languageOptions={languageOptions}
+                setLanguageOptions={setLanguageOptions}
+              />
+            )}
 
-          {selectedNode?.type === "department" && (
-            <DepartmentConfigPanel
-              selectedNode={selectedNode}
-              agents={agents}
-              updateDepartmentConfig={updateDepartmentConfig}
-              deleteNode={deleteNode}
-            />
-          )}
+            {selectedNode?.type === "department" && (
+              <DepartmentConfigPanel
+                selectedNode={selectedNode}
+                agents={agents}
+                updateDepartmentConfig={updateDepartmentConfig}
+                deleteNode={deleteNode}
+              />
+            )}
+          </ScrollArea>
         </SheetContent>
       </Sheet>
     </div>

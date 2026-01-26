@@ -45,10 +45,13 @@ import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
   Phone,
+  PhoneForwarded,
+  PhoneOff,
   Building2,
   Headphones,
   ShoppingCart,
   Calendar,
+  CalendarCheck,
   Settings,
   Plus,
   ZoomIn,
@@ -59,9 +62,11 @@ import {
   GitBranch,
   Mic,
   Globe,
+  Languages,
   Check,
   Volume2,
   Square,
+  Circle,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -160,10 +165,16 @@ interface CanvasDepartment {
   description: string;
   languageAgents?: LanguageAgent[];
   enableTransfer?: boolean;
+  transferNumber?: string;
+  transferMessage?: string;
   enableRecording?: boolean;
   enableLanguageDetection?: boolean;
+  detectedLanguages?: string[];
   enableEndConversation?: boolean;
+  endConversationPhrases?: string[];
   enableAppointmentBooking?: boolean;
+  calendarUrl?: string;
+  bookingInstructions?: string;
   knowledgeBaseIds?: string[];
 }
 
@@ -488,62 +499,174 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
       
       <div className="pt-2">
         <Label className="text-sm font-medium">Agent Features</Label>
-        <div className="space-y-3 mt-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm">Enable Call Transfer</Label>
-              <p className="text-xs text-muted-foreground">Agent can transfer calls to human operators when requested</p>
+        <div className="space-y-4 mt-3">
+          <Card className="p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PhoneForwarded className="h-4 w-4 text-blue-500" />
+                <div>
+                  <Label className="text-sm">Enable Call Transfer</Label>
+                  <p className="text-xs text-muted-foreground">Transfer to human operators</p>
+                </div>
+              </div>
+              <Switch
+                checked={nodeData.enableTransfer}
+                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableTransfer: val })}
+                data-testid="switch-dept-transfer"
+              />
             </div>
-            <Switch
-              checked={nodeData.enableTransfer}
-              onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableTransfer: val })}
-              data-testid="switch-dept-transfer"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm">Enable Language Detection</Label>
-              <p className="text-xs text-muted-foreground">Automatically detect and respond in caller's language (99 languages)</p>
+            {nodeData.enableTransfer && (
+              <div className="space-y-2 pl-6 border-l-2 border-blue-200">
+                <div>
+                  <Label className="text-xs">Transfer Number</Label>
+                  <Input
+                    value={nodeData.transferNumber || ""}
+                    onChange={(e) => updateDepartmentConfig(selectedNode.id, { transferNumber: e.target.value })}
+                    placeholder="+1 (555) 123-4567"
+                    className="mt-1"
+                    data-testid="input-transfer-number"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Transfer Message</Label>
+                  <Input
+                    value={nodeData.transferMessage || ""}
+                    onChange={(e) => updateDepartmentConfig(selectedNode.id, { transferMessage: e.target.value })}
+                    placeholder="Please hold while I transfer you..."
+                    className="mt-1"
+                    data-testid="input-transfer-message"
+                  />
+                </div>
+              </div>
+            )}
+          </Card>
+          
+          <Card className="p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Languages className="h-4 w-4 text-green-500" />
+                <div>
+                  <Label className="text-sm">Enable Language Detection</Label>
+                  <p className="text-xs text-muted-foreground">Auto-detect caller's language (99 languages)</p>
+                </div>
+              </div>
+              <Switch
+                checked={nodeData.enableLanguageDetection}
+                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableLanguageDetection: val })}
+                data-testid="switch-lang-detection"
+              />
             </div>
-            <Switch
-              checked={nodeData.enableLanguageDetection}
-              onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableLanguageDetection: val })}
-              data-testid="switch-lang-detection"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm">Enable End Conversation</Label>
-              <p className="text-xs text-muted-foreground">Let agent intelligently end conversation when appropriate</p>
+            {nodeData.enableLanguageDetection && (
+              <div className="pl-6 border-l-2 border-green-200">
+                <p className="text-xs text-muted-foreground">
+                  AI will automatically detect the caller's language and respond accordingly. 
+                  Supports 99 languages including English, Spanish, French, German, Chinese, Japanese, Arabic, Hindi, and more.
+                </p>
+              </div>
+            )}
+          </Card>
+          
+          <Card className="p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PhoneOff className="h-4 w-4 text-orange-500" />
+                <div>
+                  <Label className="text-sm">Enable End Conversation</Label>
+                  <p className="text-xs text-muted-foreground">Intelligently end calls when appropriate</p>
+                </div>
+              </div>
+              <Switch
+                checked={nodeData.enableEndConversation}
+                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableEndConversation: val })}
+                data-testid="switch-end-conversation"
+              />
             </div>
-            <Switch
-              checked={nodeData.enableEndConversation}
-              onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableEndConversation: val })}
-              data-testid="switch-end-conversation"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm">Enable Appointment Booking</Label>
-              <p className="text-xs text-muted-foreground">Let agent book appointments during calls</p>
+            {nodeData.enableEndConversation && (
+              <div className="pl-6 border-l-2 border-orange-200">
+                <Label className="text-xs">End Conversation Triggers</Label>
+                <Textarea
+                  value={(nodeData.endConversationPhrases || ["goodbye", "thank you for calling", "have a nice day"]).join("\n")}
+                  onChange={(e) => updateDepartmentConfig(selectedNode.id, { 
+                    endConversationPhrases: e.target.value.split("\n").filter(p => p.trim()) 
+                  })}
+                  placeholder="goodbye&#10;thank you&#10;have a nice day"
+                  rows={3}
+                  className="mt-1 text-xs"
+                  data-testid="input-end-phrases"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">One phrase per line</p>
+              </div>
+            )}
+          </Card>
+          
+          <Card className="p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CalendarCheck className="h-4 w-4 text-purple-500" />
+                <div>
+                  <Label className="text-sm">Enable Appointment Booking</Label>
+                  <p className="text-xs text-muted-foreground">Book appointments during calls</p>
+                </div>
+              </div>
+              <Switch
+                checked={nodeData.enableAppointmentBooking}
+                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableAppointmentBooking: val })}
+                data-testid="switch-appointment"
+              />
             </div>
-            <Switch
-              checked={nodeData.enableAppointmentBooking}
-              onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableAppointmentBooking: val })}
-              data-testid="switch-appointment"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-sm">Enable Call Recording</Label>
-              <p className="text-xs text-muted-foreground">Record conversations for quality and training</p>
+            {nodeData.enableAppointmentBooking && (
+              <div className="space-y-2 pl-6 border-l-2 border-purple-200">
+                <div>
+                  <Label className="text-xs">Calendar/Booking URL</Label>
+                  <Input
+                    value={nodeData.calendarUrl || ""}
+                    onChange={(e) => updateDepartmentConfig(selectedNode.id, { calendarUrl: e.target.value })}
+                    placeholder="https://calendly.com/your-calendar"
+                    className="mt-1"
+                    data-testid="input-calendar-url"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Booking Instructions</Label>
+                  <Textarea
+                    value={nodeData.bookingInstructions || ""}
+                    onChange={(e) => updateDepartmentConfig(selectedNode.id, { bookingInstructions: e.target.value })}
+                    placeholder="Collect name, email, preferred date/time, and reason for appointment..."
+                    rows={2}
+                    className="mt-1 text-xs"
+                    data-testid="input-booking-instructions"
+                  />
+                </div>
+              </div>
+            )}
+          </Card>
+          
+          <Card className="p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Circle className="h-4 w-4 text-red-500" />
+                <div>
+                  <Label className="text-sm">Enable Call Recording</Label>
+                  <p className="text-xs text-muted-foreground">Record for quality and training</p>
+                </div>
+              </div>
+              <Switch
+                checked={nodeData.enableRecording}
+                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableRecording: val })}
+                data-testid="switch-dept-recording"
+              />
             </div>
-            <Switch
-              checked={nodeData.enableRecording}
-              onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableRecording: val })}
-              data-testid="switch-dept-recording"
-            />
-          </div>
+            {nodeData.enableRecording && (
+              <div className="pl-6 border-l-2 border-red-200">
+                <p className="text-xs text-muted-foreground">
+                  Calls will be recorded and stored securely. A disclosure message will be played at the start of each call.
+                </p>
+                <Badge variant="outline" className="mt-2 text-[10px]">
+                  Recording disclosure enabled
+                </Badge>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
       

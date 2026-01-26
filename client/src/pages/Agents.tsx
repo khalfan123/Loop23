@@ -246,7 +246,10 @@ export default function Agents() {
   const [draggedAgentId, setDraggedAgentId] = useState<string | null>(null);
   const [dropTargetFolder, setDropTargetFolder] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState<string | null>(null);
-  const [folderNames, setFolderNames] = useState<Record<string, string>>({ template: 'Template Staff' });
+  const [folderNames, setFolderNames] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('staffFolderNames');
+    return saved ? JSON.parse(saved) : { template: 'Template Staff' };
+  });
   const [showDeleteFolderConfirm, setShowDeleteFolderConfirm] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'type' | 'voice' | 'phone' | 'editedBy'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -297,6 +300,11 @@ export default function Agents() {
   
   // Animation state for success/failure feedback
   const [animationState, setAnimationState] = useState<'idle' | 'success' | 'error'>('idle');
+
+  // Persist folder names to localStorage
+  useEffect(() => {
+    localStorage.setItem('staffFolderNames', JSON.stringify(folderNames));
+  }, [folderNames]);
 
   const { data: agents = [], isLoading: agentsLoading } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
@@ -716,8 +724,8 @@ export default function Agents() {
           const voiceB = b.openaiVoice || b.elevenLabsVoiceId || '';
           return direction * voiceA.localeCompare(voiceB);
         case 'phone':
-          const phoneA = a.phoneNumber || '';
-          const phoneB = b.phoneNumber || '';
+          const phoneA = (a as any).phoneNumber || '';
+          const phoneB = (b as any).phoneNumber || '';
           return direction * phoneA.localeCompare(phoneB);
         case 'editedBy':
           const dateA = new Date(a.createdAt).getTime();

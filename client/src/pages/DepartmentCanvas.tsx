@@ -955,6 +955,38 @@ function IVRConfigPanel({
   );
 }
 
+const PhoneContainerNode = ({ data }: { data: any }) => {
+  const phones = data.phones || [];
+  const hasPhones = phones.length > 0;
+  
+  return (
+    <div className={`border-2 border-dashed ${hasPhones ? 'border-green-400 bg-green-50/50 dark:bg-green-900/10' : 'border-red-400 bg-red-50/50 dark:bg-red-900/10'} rounded-lg p-2 min-w-[140px] shadow-sm`}>
+      <Handle type="source" position={Position.Bottom} className="!bg-green-500 !w-2 !h-2" />
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Phone className={`h-3 w-3 ${hasPhones ? 'text-green-600' : 'text-red-500'}`} />
+        <span className="font-semibold text-[10px]">Inbound Numbers</span>
+      </div>
+      {hasPhones ? (
+        <div className="space-y-1">
+          {phones.slice(0, 3).map((phone: any) => (
+            <div key={phone.id} className="flex items-center gap-1 text-[9px] bg-white dark:bg-gray-800 rounded px-1.5 py-0.5">
+              <Phone className="h-2.5 w-2.5 text-green-500" />
+              <span className="truncate">{phone.phoneNumber}</span>
+            </div>
+          ))}
+          {phones.length > 3 && (
+            <div className="text-[8px] text-muted-foreground">+{phones.length - 3} more</div>
+          )}
+        </div>
+      ) : (
+        <div className="text-[9px] text-red-500 italic text-center py-1">
+          No numbers assigned
+        </div>
+      )}
+    </div>
+  );
+};
+
 const PhoneNodeComponent = ({ data }: { data: any }) => {
   return (
     <div className="bg-white dark:bg-gray-800 border border-green-400 rounded p-1.5 min-w-[80px] shadow-sm">
@@ -1055,6 +1087,7 @@ const DepartmentNodeComponent = ({ data, selected }: { data: any; selected: bool
 };
 
 const nodeTypes: NodeTypes = {
+  phoneContainer: PhoneContainerNode,
   phone: PhoneNodeComponent,
   ivr: IVRNodeComponent,
   department: DepartmentNodeComponent,
@@ -1105,29 +1138,49 @@ function DepartmentCanvasContent() {
   }, [phoneNumbers, canvasPhones]);
 
   useEffect(() => {
+    const phoneContainerNode: Node = {
+      id: "phone-container",
+      type: "phoneContainer",
+      position: { x: 140, y: 20 },
+      data: { phones: [] },
+      draggable: false,
+    };
     const ivrNode: Node = {
       id: "ivr-main",
       type: "ivr",
-      position: { x: 175, y: 100 },
+      position: { x: 175, y: 130 },
       data: { inputCount: 0 },
     };
-    setNodes([ivrNode]);
+    const containerToIvrEdge: Edge = {
+      id: "edge-container-ivr",
+      source: "phone-container",
+      target: "ivr-main",
+      type: "smoothstep",
+      animated: true,
+      style: { stroke: "#22c55e", strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#22c55e" },
+    };
+    setNodes([phoneContainerNode, ivrNode]);
+    setEdges([containerToIvrEdge]);
   }, []);
 
-  const phoneNodeCount = useMemo(() => {
-    return nodes.filter((n) => n.type === "phone").length;
-  }, [nodes]);
+  const assignedPhones = useMemo(() => {
+    return phoneNumbers.filter((p) => canvasPhones.includes(p.id));
+  }, [phoneNumbers, canvasPhones]);
 
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) => {
-        if (node.id === "ivr-main" && (node.data as any).inputCount !== phoneNodeCount) {
-          return { ...node, data: { ...node.data, inputCount: phoneNodeCount } };
+        if (node.id === "phone-container") {
+          return { ...node, data: { ...node.data, phones: assignedPhones } };
+        }
+        if (node.id === "ivr-main") {
+          return { ...node, data: { ...node.data, inputCount: assignedPhones.length } };
         }
         return node;
       })
     );
-  }, [phoneNodeCount, setNodes]);
+  }, [assignedPhones, setNodes]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -1148,40 +1201,22 @@ function DepartmentCanvasContent() {
   );
 
   const onNodeClick = useCallback((_: any, node: Node) => {
-    if (node.type === "ivr" || node.type === "department") {
+    if (node.type === "ivr" || node.type === "department" || node.type === "phoneContainer") {
       setSelectedNodeId(node.id);
       setConfigPanelOpen(true);
     }
   }, []);
 
   const addPhoneToCanvas = (phone: PhoneNumber) => {
-    const phoneCount = nodes.filter((n) => n.type === "phone").length;
-    const xOffset = 100 + phoneCount * 110;
-    const newNode: Node = {
-      id: `phone-${phone.id}`,
-      type: "phone",
-      position: { x: xOffset, y: 50 },
-      data: {
-        phoneNumber: phone.phoneNumber,
-        friendlyName: phone.friendlyName,
-        provider: phone.provider,
-        phoneId: phone.id,
-      },
-    };
-
-    const newEdge: Edge = {
-      id: `edge-phone-${phone.id}-ivr`,
-      source: `phone-${phone.id}`,
-      target: "ivr-main",
-      type: "smoothstep",
-      animated: true,
-      style: { stroke: "#22c55e", strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#22c55e" },
-    };
-
-    setNodes((nds) => [...nds, newNode]);
-    setEdges((eds) => [...eds, newEdge]);
     setCanvasPhones((prev) => [...prev, phone.id]);
+    toast({
+      title: "Phone Added",
+      description: `${phone.phoneNumber} assigned to inbound numbers`,
+    });
+  };
+  
+  const removePhoneFromCanvas = (phoneId: string) => {
+    setCanvasPhones((prev) => prev.filter((id) => id !== phoneId));
   };
 
   const addDepartmentToCanvas = (template: typeof departmentTemplates[0] | { type: "custom"; name: string }) => {
@@ -1212,7 +1247,7 @@ function DepartmentCanvasContent() {
     const newNode: Node = {
       id: newDept.id,
       type: "department",
-      position: { x: xOffset, y: 250 },
+      position: { x: xOffset, y: 270 },
       data: {
         ...newDept,
         dialKey,
@@ -1260,10 +1295,7 @@ function DepartmentCanvasContent() {
     setNodes((nds) => nds.filter((n) => n.id !== nodeId));
     setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
 
-    if (nodeId.startsWith("phone-")) {
-      const phoneId = nodeId.replace("phone-", "");
-      setCanvasPhones((prev) => prev.filter((id) => id !== phoneId));
-    } else if (nodeId.startsWith("dept-")) {
+    if (nodeId.startsWith("dept-")) {
       setCanvasDepartments((prev) => prev.filter((d) => d.id !== nodeId));
     }
 
@@ -1553,11 +1585,82 @@ function DepartmentCanvasContent() {
         <SheetContent className="w-[400px] sm:w-[540px] flex flex-col p-0">
           <SheetHeader className="px-6 pt-6 pb-2">
             <SheetTitle>
-              {selectedNode?.type === "ivr" ? "IVR Configuration" : "Department Configuration"}
+              {selectedNode?.type === "phoneContainer" && "Inbound Phone Numbers"}
+              {selectedNode?.type === "ivr" && "IVR Configuration"}
+              {selectedNode?.type === "department" && "Department Configuration"}
             </SheetTitle>
           </SheetHeader>
 
           <ScrollArea className="flex-1 px-6 pb-6">
+            {selectedNode?.type === "phoneContainer" && (
+              <div className="mt-4 space-y-4">
+                <div className={`p-4 rounded-lg border-2 border-dashed ${assignedPhones.length > 0 ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50'}`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Phone className={`h-5 w-5 ${assignedPhones.length > 0 ? 'text-green-600' : 'text-red-500'}`} />
+                    <span className="font-medium">
+                      {assignedPhones.length > 0 ? `${assignedPhones.length} number(s) assigned` : 'No numbers assigned'}
+                    </span>
+                  </div>
+                  
+                  {assignedPhones.length > 0 && (
+                    <div className="space-y-2 mb-4">
+                      {assignedPhones.map((phone) => (
+                        <div key={phone.id} className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-2 border">
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-green-600" />
+                            <div>
+                              <div className="font-medium text-sm">{phone.phoneNumber}</div>
+                              {phone.friendlyName && (
+                                <div className="text-xs text-muted-foreground">{phone.friendlyName}</div>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removePhoneFromCanvas(phone.id)}
+                            data-testid={`button-remove-phone-${phone.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {availablePhones.length > 0 && (
+                    <div>
+                      <Label className="text-sm mb-2 block">Add Phone Number</Label>
+                      <Select onValueChange={(val) => {
+                        const phone = availablePhones.find(p => p.id === val);
+                        if (phone) addPhoneToCanvas(phone);
+                      }}>
+                        <SelectTrigger data-testid="select-add-phone">
+                          <SelectValue placeholder="Select a phone number..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availablePhones.map((phone) => (
+                            <SelectItem key={phone.id} value={phone.id}>
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-3 w-3 text-green-600" />
+                                <span>{phone.phoneNumber}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  {availablePhones.length === 0 && assignedPhones.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No phone numbers available. Purchase phone numbers first.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {selectedNode?.type === "ivr" && (
               <IVRConfigPanel
                 ivrEnabled={ivrEnabled}

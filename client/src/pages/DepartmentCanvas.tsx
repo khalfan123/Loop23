@@ -99,6 +99,40 @@ const OPENAI_VOICE_PREVIEWS: Record<string, string> = {
   verse: "https://cdn.openai.com/API/docs/audio/verse.wav",
 };
 
+const OPENAI_VOICES = [
+  { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced" },
+  { id: "echo", name: "Echo (OpenAI)", gender: "male", style: "warm" },
+  { id: "shimmer", name: "Shimmer (OpenAI)", gender: "female", style: "friendly" },
+  { id: "ash", name: "Ash (OpenAI)", gender: "male", style: "professional" },
+  { id: "coral", name: "Coral (OpenAI)", gender: "female", style: "warm" },
+  { id: "sage", name: "Sage (OpenAI)", gender: "neutral", style: "calm" },
+  { id: "verse", name: "Verse (OpenAI)", gender: "male", style: "expressive" },
+  { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm" },
+];
+
+const DEFAULT_GREETINGS: Record<string, string> = {
+  en: "Thank you for calling. How may I assist you today?",
+  es: "Gracias por llamar. ¿Cómo puedo ayudarle hoy?",
+  fr: "Merci d'avoir appelé. Comment puis-je vous aider aujourd'hui?",
+  de: "Vielen Dank für Ihren Anruf. Wie kann ich Ihnen heute helfen?",
+  pt: "Obrigado por ligar. Como posso ajudá-lo hoje?",
+};
+
+const LANGUAGE_SELECTION_PROMPTS: Record<string, string> = {
+  en: "For English",
+  es: "Para español",
+  fr: "Pour le français",
+  de: "Für Deutsch",
+  pt: "Para português",
+};
+
+interface LanguageOption {
+  id: string;
+  language: string;
+  voiceId: string;
+  greeting: string;
+}
+
 interface CanvasPhoneNode {
   id: string;
   phoneNumber: PhoneNumber;
@@ -364,6 +398,274 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
   );
 }
 
+interface IVRConfigPanelProps {
+  ivrEnabled: boolean;
+  setIvrEnabled: (val: boolean) => void;
+  multiLangEnabled: boolean;
+  setMultiLangEnabled: (val: boolean) => void;
+  languageOptions: LanguageOption[];
+  setLanguageOptions: (opts: LanguageOption[]) => void;
+}
+
+function IVRConfigPanel({
+  ivrEnabled,
+  setIvrEnabled,
+  multiLangEnabled,
+  setMultiLangEnabled,
+  languageOptions,
+  setLanguageOptions,
+}: IVRConfigPanelProps) {
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    audioRef.current = new Audio();
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+  
+  const languageSelectionGreeting = useMemo(() => {
+    if (languageOptions.length === 0) return "No languages configured";
+    return languageOptions
+      .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
+      .join(" ");
+  }, [languageOptions]);
+  
+  const addLanguageOption = () => {
+    const usedLangs = languageOptions.map((o) => o.language);
+    const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
+    if (!availableLang) return;
+    
+    const newOption: LanguageOption = {
+      id: `lang-${Date.now()}`,
+      language: availableLang.code,
+      voiceId: "nova",
+      greeting: DEFAULT_GREETINGS[availableLang.code] || DEFAULT_GREETINGS.en,
+    };
+    setLanguageOptions([...languageOptions, newOption]);
+  };
+  
+  const updateLanguageOption = (id: string, updates: Partial<LanguageOption>) => {
+    setLanguageOptions(
+      languageOptions.map((opt) => {
+        if (opt.id === id) {
+          const updated = { ...opt, ...updates };
+          if (updates.language && updates.language !== opt.language) {
+            updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
+          }
+          return updated;
+        }
+        return opt;
+      })
+    );
+  };
+  
+  const removeLanguageOption = (id: string) => {
+    setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
+  };
+  
+  const handlePlayVoice = (voiceId: string) => {
+    const previewUrl = OPENAI_VOICE_PREVIEWS[voiceId];
+    if (!previewUrl || !audioRef.current) return;
+    
+    if (playingVoiceId === voiceId) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setPlayingVoiceId(null);
+      return;
+    }
+    
+    audioRef.current.src = previewUrl;
+    audioRef.current.play();
+    setPlayingVoiceId(voiceId);
+    audioRef.current.onended = () => setPlayingVoiceId(null);
+    audioRef.current.onerror = () => setPlayingVoiceId(null);
+  };
+  
+  return (
+    <div className="mt-6 space-y-5">
+      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+        <div>
+          <Label className="font-medium">Enable IVR</Label>
+          <p className="text-xs text-muted-foreground">Play menu when calls connect</p>
+        </div>
+        <Switch
+          checked={ivrEnabled}
+          onCheckedChange={setIvrEnabled}
+          data-testid="switch-ivr-enabled"
+        />
+      </div>
+      
+      {ivrEnabled && (
+        <>
+          <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" />
+              <div>
+                <Label className="font-medium">Multi-Language Support</Label>
+                <p className="text-xs text-muted-foreground">Let callers choose their language</p>
+              </div>
+            </div>
+            <Switch
+              checked={multiLangEnabled}
+              onCheckedChange={setMultiLangEnabled}
+              data-testid="switch-ivr-multilang"
+            />
+          </div>
+          
+          {multiLangEnabled && (
+            <>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Language Selection Greeting</Label>
+                  <Badge variant="secondary" className="text-xs">Auto-generated</Badge>
+                </div>
+                <div className="p-3 bg-muted/30 rounded-lg text-sm border">
+                  {languageSelectionGreeting}
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Language Options</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addLanguageOption}
+                    disabled={languageOptions.length >= SUPPORTED_LANGUAGES.length}
+                    data-testid="button-add-language"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add
+                  </Button>
+                </div>
+                
+                {languageOptions.map((opt, idx) => (
+                  <Card key={opt.id} className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="font-mono">Press {idx + 1}</Badge>
+                        <Select
+                          value={opt.language}
+                          onValueChange={(val) => updateLanguageOption(opt.id, { language: val })}
+                        >
+                          <SelectTrigger className="w-32" data-testid={`select-lang-option-${idx}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SUPPORTED_LANGUAGES.map((lang) => (
+                              <SelectItem
+                                key={lang.code}
+                                value={lang.code}
+                                disabled={languageOptions.some((o) => o.id !== opt.id && o.language === lang.code)}
+                              >
+                                {lang.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeLanguageOption(opt.id)}
+                        data-testid={`button-remove-lang-${idx}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Voice</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Select
+                            value={opt.voiceId}
+                            onValueChange={(val) => updateLanguageOption(opt.id, { voiceId: val })}
+                          >
+                            <SelectTrigger className="flex-1" data-testid={`select-voice-${idx}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {OPENAI_VOICES.map((voice) => (
+                                <SelectItem key={voice.id} value={voice.id}>
+                                  {voice.name} - {voice.gender}, {voice.style}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handlePlayVoice(opt.voiceId)}
+                            data-testid={`button-preview-voice-${idx}`}
+                          >
+                            {playingVoiceId === opt.voiceId ? (
+                              <Square className="h-4 w-4" />
+                            ) : (
+                              <Volume2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Greeting Message</Label>
+                        <Textarea
+                          value={opt.greeting}
+                          onChange={(e) => updateLanguageOption(opt.id, { greeting: e.target.value })}
+                          rows={2}
+                          className="mt-1"
+                          data-testid={`input-greeting-${idx}`}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                
+                {languageOptions.length === 0 && (
+                  <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+                    Click "Add" to configure language options
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          
+          {!multiLangEnabled && (
+            <div>
+              <Label>Default Greeting Message</Label>
+              <Textarea
+                value={languageOptions[0]?.greeting || DEFAULT_GREETINGS.en}
+                onChange={(e) => {
+                  if (languageOptions.length === 0) {
+                    setLanguageOptions([{
+                      id: "default",
+                      language: "en",
+                      voiceId: "nova",
+                      greeting: e.target.value,
+                    }]);
+                  } else {
+                    updateLanguageOption(languageOptions[0].id, { greeting: e.target.value });
+                  }
+                }}
+                rows={3}
+                className="mt-1.5"
+                placeholder="Thank you for calling..."
+                data-testid="input-ivr-greeting"
+              />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 const PhoneNodeComponent = ({ data }: { data: any }) => {
   return (
     <div className="bg-white dark:bg-gray-800 border-2 border-green-400 rounded-lg p-3 min-w-[160px] shadow-md">
@@ -467,8 +769,11 @@ function DepartmentCanvasContent() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [configPanelOpen, setConfigPanelOpen] = useState(false);
   const [customDeptName, setCustomDeptName] = useState("");
-  const [ivrGreeting, setIvrGreeting] = useState("Thank you for calling. Please listen to the following options.");
-  const [ivrLanguage, setIvrLanguage] = useState("en");
+  const [ivrEnabled, setIvrEnabled] = useState(true);
+  const [multiLangEnabled, setMultiLangEnabled] = useState(false);
+  const [languageOptions, setLanguageOptions] = useState<LanguageOption[]>([
+    { id: "default", language: "en", voiceId: "nova", greeting: DEFAULT_GREETINGS.en }
+  ]);
   const [saving, setSaving] = useState(false);
 
   const [canvasPhones, setCanvasPhones] = useState<string[]>([]);
@@ -684,12 +989,17 @@ function DepartmentCanvasContent() {
           departmentId: canvasToDbIdMap.get(node.id) || node.id,
         }));
 
+        const greetingMessage = multiLangEnabled && languageOptions.length > 0
+          ? languageOptions.map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`).join(" ")
+          : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
+        
         await apiRequest("POST", "/api/departments/ivr", {
           phoneNumberId: (phoneNodes[0].data as any).phoneId,
           name: "Auto Distribution",
-          isActive: true,
-          greetingMessage: ivrGreeting,
+          isActive: ivrEnabled,
+          greetingMessage,
           menuOptions,
+          languageOptions: multiLangEnabled ? languageOptions : undefined,
         });
       }
 
@@ -925,46 +1235,14 @@ function DepartmentCanvasContent() {
           </SheetHeader>
 
           {selectedNode?.type === "ivr" && (
-            <div className="mt-6 space-y-4">
-              <div>
-                <Label>Greeting Message</Label>
-                <Textarea
-                  value={ivrGreeting}
-                  onChange={(e) => setIvrGreeting(e.target.value)}
-                  placeholder="Thank you for calling..."
-                  rows={3}
-                  className="mt-1.5"
-                  data-testid="input-ivr-greeting"
-                />
-              </div>
-              <div>
-                <Label>Language</Label>
-                <Select value={ivrLanguage} onValueChange={setIvrLanguage}>
-                  <SelectTrigger className="mt-1.5" data-testid="select-ivr-language">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="de">German</SelectItem>
-                    <SelectItem value="pt">Portuguese</SelectItem>
-                    <SelectItem value="it">Italian</SelectItem>
-                    <SelectItem value="ja">Japanese</SelectItem>
-                    <SelectItem value="zh">Chinese</SelectItem>
-                    <SelectItem value="ko">Korean</SelectItem>
-                    <SelectItem value="ar">Arabic</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Multi-language Support</Label>
-                  <p className="text-xs text-muted-foreground">Auto-detect caller language</p>
-                </div>
-                <Switch data-testid="switch-ivr-multilang" />
-              </div>
-            </div>
+            <IVRConfigPanel
+              ivrEnabled={ivrEnabled}
+              setIvrEnabled={setIvrEnabled}
+              multiLangEnabled={multiLangEnabled}
+              setMultiLangEnabled={setMultiLangEnabled}
+              languageOptions={languageOptions}
+              setLanguageOptions={setLanguageOptions}
+            />
           )}
 
           {selectedNode?.type === "department" && (

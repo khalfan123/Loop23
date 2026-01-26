@@ -45,6 +45,7 @@ import PaymentResult from "@/pages/PaymentResult";
 import Upgrade from "@/pages/Upgrade";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import Agents from "@/pages/Agents";
+import AgentEditor from "@/pages/AgentEditor";
 import Voices from "@/pages/Voices";
 import PhoneNumbers from "@/pages/PhoneNumbers";
 import AllContacts from "@/pages/AllContacts";
@@ -255,6 +256,8 @@ function UserRouter() {
                 </Route>
                 <Route path="/app/upgrade" component={Upgrade} />
                 <Route path="/app/knowledge-base" component={KnowledgeBase} />
+                <Route path="/app/agents/new" component={AgentEditor} />
+                <Route path="/app/agents/:id/edit" component={AgentEditor} />
                 <Route path="/app/agents" component={Agents} />
                 <Route path="/app/prompt-templates" component={PromptTemplates} />
                 <Route path="/app/incoming-connections" component={IncomingConnections} />
@@ -339,6 +342,8 @@ function TeamMemberRouter() {
                   <Redirect to="/app/billing?tab=credits" />
                 </Route>
                 <Route path="/app/knowledge-base" component={KnowledgeBase} />
+                <Route path="/app/agents/new" component={AgentEditor} />
+                <Route path="/app/agents/:id/edit" component={AgentEditor} />
                 <Route path="/app/agents" component={Agents} />
                 <Route path="/app/prompt-templates" component={PromptTemplates} />
                 <Route path="/app/incoming-connections" component={IncomingConnections} />

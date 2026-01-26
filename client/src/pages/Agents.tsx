@@ -16,6 +16,7 @@
  */
 import { useState, useMemo } from "react";
 import { useTranslation } from 'react-i18next';
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -233,6 +234,7 @@ function EstimatedCost({ model }: { model: string }) {
 export default function Agents() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<'agents' | 'templates' | 'voices'>('agents');
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<'all' | 'incoming' | 'flow'>('all');
@@ -600,6 +602,9 @@ export default function Agents() {
   };
 
   const handleEdit = (agent: Agent) => {
+    setLocation(`/app/agents/${agent.id}/edit`);
+    return;
+    // Legacy dialog-based edit (kept for reference)
     setEditingAgent(agent);
     setFormData({
       type: agent.type || "incoming",
@@ -821,11 +826,11 @@ export default function Agents() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setCreateDialogOpen(true)}>
+                  <DropdownMenuItem onClick={() => setLocation('/app/agents/new?type=incoming')}>
                     <Sparkles className="h-4 w-4 mr-2" />
                     Single Prompt Agent
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { setFormData(prev => ({ ...prev, type: 'flow' })); setCreateDialogOpen(true); }}>
+                  <DropdownMenuItem onClick={() => setLocation('/app/agents/new?type=flow')}>
                     <GitBranch className="h-4 w-4 mr-2" />
                     Conversation Flow Agent
                   </DropdownMenuItem>
@@ -857,7 +862,7 @@ export default function Agents() {
                   {searchQuery ? t('agents.noMatchingSearch') : t('agents.getStarted')}
                 </p>
                 {!searchQuery && (
-                  <Button onClick={() => setCreateDialogOpen(true)}>
+                  <Button onClick={() => setLocation('/app/agents/new')}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create your first agent
                   </Button>

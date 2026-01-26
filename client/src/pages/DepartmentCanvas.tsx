@@ -1220,12 +1220,10 @@ function DepartmentCanvasContent() {
   };
 
   const addDepartmentToCanvas = (template: typeof departmentTemplates[0] | { type: "custom"; name: string }) => {
-    const deptCount = nodes.filter((n) => n.type === "department").length;
-    const dialKey = String(deptCount + 1);
-
     const defaultPrompt = template.type !== "custom" ? (template as any).defaultPrompt : "";
+    const newDeptId = `dept-${Date.now()}`;
     const newDept: CanvasDepartment = {
-      id: `dept-${Date.now()}`,
+      id: newDeptId,
       type: template.type,
       name: template.name,
       description: template.type === "custom" ? "Custom department" : (template as any).description || "",
@@ -1243,33 +1241,50 @@ function DepartmentCanvasContent() {
       enableLanguageDetection: false,
     };
 
-    const xOffset = 50 + deptCount * 130;
-    const newNode: Node = {
-      id: newDept.id,
-      type: "department",
-      position: { x: xOffset, y: 270 },
-      data: {
-        ...newDept,
-        dialKey,
-      },
-    };
-
-    const newEdge: Edge = {
-      id: `edge-ivr-${newDept.id}`,
-      source: "ivr-main",
-      target: newDept.id,
-      type: "smoothstep",
-      animated: true,
-      style: { stroke: "#f59e0b", strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b" },
-      label: `Press ${dialKey}`,
-      labelStyle: { fontSize: 11, fontWeight: 600 },
-      labelBgStyle: { fill: "#fef3c7", fillOpacity: 0.95 },
-    };
-
-    setNodes((nds) => [...nds, newNode]);
-    setEdges((eds) => [...eds, newEdge]);
+    setNodes((nds) => {
+      const deptCount = nds.filter((n) => n.type === "department").length;
+      const dialKey = String(deptCount + 1);
+      const xOffset = 50 + deptCount * 130;
+      
+      const newNode: Node = {
+        id: newDeptId,
+        type: "department",
+        position: { x: xOffset, y: 270 },
+        data: {
+          ...newDept,
+          dialKey,
+        },
+      };
+      
+      return [...nds, newNode];
+    });
+    
+    setEdges((eds) => {
+      const deptCount = eds.filter((e) => e.source === "ivr-main" && e.target.startsWith("dept-")).length;
+      const dialKey = String(deptCount + 1);
+      
+      const newEdge: Edge = {
+        id: `edge-ivr-${newDeptId}`,
+        source: "ivr-main",
+        target: newDeptId,
+        type: "smoothstep",
+        animated: true,
+        style: { stroke: "#f59e0b", strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b" },
+        label: `Press ${dialKey}`,
+        labelStyle: { fontSize: 11, fontWeight: 600 },
+        labelBgStyle: { fill: "#fef3c7", fillOpacity: 0.95 },
+      };
+      
+      return [...eds, newEdge];
+    });
+    
     setCanvasDepartments((prev) => [...prev, newDept]);
+    
+    toast({
+      title: "Department Added",
+      description: `${template.name} department created`,
+    });
   };
 
   const updateDepartmentConfig = (nodeId: string, updates: Partial<CanvasDepartment>) => {
@@ -1297,6 +1312,10 @@ function DepartmentCanvasContent() {
 
     if (nodeId.startsWith("dept-")) {
       setCanvasDepartments((prev) => prev.filter((d) => d.id !== nodeId));
+      toast({
+        title: "Department Removed",
+        description: "Department has been deleted from canvas",
+      });
     }
 
     setConfigPanelOpen(false);

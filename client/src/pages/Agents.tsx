@@ -1052,25 +1052,6 @@ export default function Agents() {
                   </SelectContent>
                 </Select>
               )}
-              {/* Replicate All Languages Button */}
-              <Button 
-                variant="outline" 
-                onClick={handleBatchReplicate}
-                disabled={isBatchReplicating}
-                data-testid="button-replicate-all-languages"
-              >
-                {isBatchReplicating ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Replicating...
-                  </>
-                ) : (
-                  <>
-                    <Globe className="h-4 w-4 mr-2" />
-                    Replicate All Languages
-                  </>
-                )}
-              </Button>
               {/* Create Agent Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -520,6 +520,7 @@ export default function Agents() {
       sourceTemplateId: "",
       isFromTemplate: false,
       tags: [],
+      specialist: "",
     });
   };
 
@@ -632,6 +633,7 @@ export default function Agents() {
       sourceTemplateId: agent.sourceTemplateId || "",
       isFromTemplate: agent.isFromTemplate ?? false,
       tags: agent.tags || [],
+      specialist: agent.specialist || "",
     });
   };
 
@@ -905,12 +907,7 @@ export default function Agents() {
                               {isIncoming ? <Sparkles className="h-4 w-4" /> : <GitBranch className="h-4 w-4" />}
                             </div>
                             <div>
-                              <div className="font-medium flex items-center gap-2">
-                                {agent.name}
-                                {agent.isFromTemplate && (
-                                  <span className="text-xs text-muted-foreground">(from template)</span>
-                                )}
-                              </div>
+                              <div className="font-medium">{agent.name}</div>
                               {agent.specialist && (
                                 <div className="text-xs text-muted-foreground">{agent.specialist}</div>
                               )}

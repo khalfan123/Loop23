@@ -734,7 +734,7 @@ export default function Agents() {
         <div className="w-64 border-r bg-muted/30 flex flex-col">
           <ScrollArea className="flex-1">
             <div className="p-3">
-              {/* All Agents */}
+              {/* Staff AI */}
               <button
                 onClick={() => { setSelectedFolder('all'); setTypeFilter('all'); }}
                 className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -745,7 +745,7 @@ export default function Agents() {
                 data-testid="folder-all-agents"
               >
                 <Bot className="h-4 w-4" />
-                All Agents
+                Staff AI
               </button>
               
               {/* Folders Section */}
@@ -797,7 +797,7 @@ export default function Agents() {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-lg font-semibold">
-              {selectedFolder === 'all' ? 'All Agents' : 
+              {selectedFolder === 'all' ? 'Staff AI' : 
                selectedFolder === 'template' ? 'Template Agents' : 
                'Transfer Screening Agents'}
             </h2>

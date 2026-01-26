@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";

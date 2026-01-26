@@ -200,9 +200,21 @@ export const agents = pgTable("agents", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const knowledgeFolders = pgTable("knowledge_folders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  icon: text("icon").default("folder"),
+  color: text("color"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const knowledgeBase = pgTable("knowledge_base", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  folderId: varchar("folder_id").references(() => knowledgeFolders.id, { onDelete: "set null" }),
   type: text("type").notNull(),
   title: text("title").notNull(),
   content: text("content"),
@@ -1010,12 +1022,20 @@ export const insertKnowledgeProcessingQueueSchema = createInsertSchema(knowledge
   updatedAt: true,
 });
 
+export const insertKnowledgeFolderSchema = createInsertSchema(knowledgeFolders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type UserKnowledgeStorageLimit = typeof userKnowledgeStorageLimits.$inferSelect;
 export type InsertUserKnowledgeStorageLimit = z.infer<typeof insertUserKnowledgeStorageLimitSchema>;
 export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
 export type InsertKnowledgeChunk = z.infer<typeof insertKnowledgeChunkSchema>;
 export type KnowledgeProcessingQueue = typeof knowledgeProcessingQueue.$inferSelect;
 export type InsertKnowledgeProcessingQueue = z.infer<typeof insertKnowledgeProcessingQueueSchema>;
+export type KnowledgeFolder = typeof knowledgeFolders.$inferSelect;
+export type InsertKnowledgeFolder = z.infer<typeof insertKnowledgeFolderSchema>;
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;

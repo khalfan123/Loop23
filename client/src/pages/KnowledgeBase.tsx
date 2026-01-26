@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -22,8 +22,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Link, FileText, Type, Search, ChevronDown, FileStack, Trash2, Upload, Globe, FileType, Crown, Zap, Lock, BookOpen, Loader2, CheckCircle2, AlertCircle, Brain, RefreshCw, Plus } from "lucide-react";
+import { 
+  Link, 
+  FileText, 
+  Type, 
+  Search, 
+  ChevronDown, 
+  Trash2, 
+  Upload, 
+  Globe, 
+  FileType, 
+  Crown, 
+  Zap, 
+  Lock, 
+  BookOpen, 
+  Loader2, 
+  CheckCircle2, 
+  AlertCircle, 
+  Brain, 
+  RefreshCw, 
+  Plus, 
+  Folder,
+  FolderPlus,
+  LayoutDashboard,
+  Sparkles,
+  ChevronRight,
+  MoreHorizontal,
+  Pencil
+} from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import {
   Dialog,
@@ -48,6 +74,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Table,
@@ -62,8 +89,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -76,6 +110,7 @@ interface KnowledgeBaseItem {
   content?: string;
   url?: string;
   fileUrl?: string;
+  folderId?: string | null;
   storageSize: number;
   createdAt: string;
   ragStatus?: 'pending' | 'processing' | 'completed' | 'failed';
@@ -84,11 +119,32 @@ interface KnowledgeBaseItem {
   isRAGEnabled?: boolean;
 }
 
+interface KnowledgeFolder {
+  id: string;
+  name: string;
+  icon: string;
+  color?: string;
+  sortOrder: number;
+}
+
 interface StorageUsage {
   maxStorageBytes: number;
   usedStorageBytes: number;
   remainingBytes: number;
   usagePercent: number;
+}
+
+interface DashboardStats {
+  totalResources: number;
+  totalChunks: number;
+  totalSize: number;
+  typeDistribution: Record<string, number>;
+  recentItems: KnowledgeBaseItem[];
+}
+
+interface FolderStats {
+  folders: Record<string, number>;
+  uncategorized: number;
 }
 
 interface User {
@@ -99,27 +155,131 @@ interface User {
   credits: number;
 }
 
+const FOLDER_COLORS = [
+  { name: "Blue", value: "#3b82f6" },
+  { name: "Green", value: "#22c55e" },
+  { name: "Yellow", value: "#eab308" },
+  { name: "Orange", value: "#f97316" },
+  { name: "Red", value: "#ef4444" },
+  { name: "Purple", value: "#a855f7" },
+  { name: "Pink", value: "#ec4899" },
+];
+
+function DonutChart({ urlCount, textCount, fileCount }: { urlCount: number; textCount: number; fileCount: number }) {
+  const total = urlCount + textCount + fileCount;
+  if (total === 0) {
+    return (
+      <div className="relative w-32 h-32 flex items-center justify-center">
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <circle
+            cx="50"
+            cy="50"
+            r="40"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="20"
+            className="text-muted/30"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-bold">0</span>
+          <span className="text-xs text-muted-foreground">items</span>
+        </div>
+      </div>
+    );
+  }
+
+  const urlPercent = (urlCount / total) * 100;
+  const textPercent = (textCount / total) * 100;
+  const filePercent = (fileCount / total) * 100;
+  
+  const circumference = 2 * Math.PI * 40;
+  const urlDash = (urlPercent / 100) * circumference;
+  const textDash = (textPercent / 100) * circumference;
+  const fileDash = (filePercent / 100) * circumference;
+  
+  let offset = 0;
+
+  return (
+    <div className="relative w-32 h-32 flex items-center justify-center">
+      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+        {urlCount > 0 && (
+          <circle
+            cx="50"
+            cy="50"
+            r="40"
+            fill="none"
+            stroke="#f97316"
+            strokeWidth="20"
+            strokeDasharray={`${urlDash} ${circumference}`}
+            strokeDashoffset={-offset}
+          />
+        )}
+        {(() => { offset += urlDash; return null; })()}
+        {textCount > 0 && (
+          <circle
+            cx="50"
+            cy="50"
+            r="40"
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth="20"
+            strokeDasharray={`${textDash} ${circumference}`}
+            strokeDashoffset={-offset}
+          />
+        )}
+        {(() => { offset += textDash; return null; })()}
+        {fileCount > 0 && (
+          <circle
+            cx="50"
+            cy="50"
+            r="40"
+            fill="none"
+            stroke="#22c55e"
+            strokeWidth="20"
+            strokeDasharray={`${fileDash} ${circumference}`}
+            strokeDashoffset={-offset}
+          />
+        )}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold">{total}</span>
+        <span className="text-xs text-muted-foreground">items</span>
+      </div>
+    </div>
+  );
+}
+
 export default function KnowledgeBase() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [urlName, setUrlName] = useState("");
+  const [urlFolderId, setUrlFolderId] = useState<string>("");
   
   const [textDialogOpen, setTextDialogOpen] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [textName, setTextName] = useState("");
+  const [textFolderId, setTextFolderId] = useState<string>("");
   
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
+  const [fileFolderId, setFileFolderId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [deletingItem, setDeletingItem] = useState<KnowledgeBaseItem | null>(null);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
+  const [folderName, setFolderName] = useState("");
+  const [folderColor, setFolderColor] = useState("#3b82f6");
+  const [editingFolder, setEditingFolder] = useState<KnowledgeFolder | null>(null);
+  const [deletingFolder, setDeletingFolder] = useState<KnowledgeFolder | null>(null);
   
   const { toast } = useToast();
 
@@ -142,12 +302,30 @@ export default function KnowledgeBase() {
     },
   });
 
+  const { data: folders = [] } = useQuery<KnowledgeFolder[]>({
+    queryKey: ["/api/rag-knowledge/folders"],
+    enabled: user?.planType !== 'free',
+  });
+
+  const { data: folderStats } = useQuery<FolderStats>({
+    queryKey: ["/api/rag-knowledge/folders/stats"],
+    enabled: user?.planType !== 'free',
+  });
+
+  const { data: dashboardStats } = useQuery<DashboardStats>({
+    queryKey: ["/api/rag-knowledge/stats"],
+    enabled: user?.planType !== 'free',
+  });
+
   const uploadFileMutation = useMutation({
-    mutationFn: async (data: { file: File; name?: string }) => {
+    mutationFn: async (data: { file: File; name?: string; folderId?: string }) => {
       const formData = new FormData();
       formData.append('file', data.file);
       if (data.name) {
         formData.append('name', data.name);
+      }
+      if (data.folderId) {
+        formData.append('folderId', data.folderId);
       }
       
       const headers: Record<string, string> = {};
@@ -173,9 +351,12 @@ export default function KnowledgeBase() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
       setFileDialogOpen(false);
       setSelectedFile(null);
       setFileName('');
+      setFileFolderId('');
       toast({
         title: t('knowledgeBase.toast.fileUploaded'),
         description: t('knowledgeBase.toast.fileUploadedDesc'),
@@ -191,16 +372,19 @@ export default function KnowledgeBase() {
   });
 
   const addUrlMutation = useMutation({
-    mutationFn: async (data: { url: string; name?: string }) => {
+    mutationFn: async (data: { url: string; name?: string; folderId?: string }) => {
       const res = await apiRequest('POST', '/api/rag-knowledge/url', data);
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
       setUrlDialogOpen(false);
       setUrlInput('');
       setUrlName('');
+      setUrlFolderId('');
       toast({
         title: t('knowledgeBase.toast.urlAdded'),
         description: t('knowledgeBase.toast.urlAddedDesc'),
@@ -216,16 +400,19 @@ export default function KnowledgeBase() {
   });
 
   const addTextMutation = useMutation({
-    mutationFn: async (data: { text: string; name: string }) => {
+    mutationFn: async (data: { text: string; name: string; folderId?: string }) => {
       const res = await apiRequest('POST', '/api/rag-knowledge/text', data);
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
       setTextDialogOpen(false);
       setTextInput('');
       setTextName('');
+      setTextFolderId('');
       toast({
         title: t('knowledgeBase.toast.textAdded'),
         description: t('knowledgeBase.toast.textAddedDesc'),
@@ -248,6 +435,8 @@ export default function KnowledgeBase() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
       setDeletingItem(null);
       toast({
         title: t('common.delete'),
@@ -258,6 +447,107 @@ export default function KnowledgeBase() {
       toast({
         title: t('common.error'),
         description: t('knowledgeBase.toast.deleteFailed'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createFolderMutation = useMutation({
+    mutationFn: async (data: { name: string; color?: string }) => {
+      const res = await apiRequest('POST', '/api/rag-knowledge/folders', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      setFolderDialogOpen(false);
+      setFolderName('');
+      setFolderColor('#3b82f6');
+      setEditingFolder(null);
+      toast({
+        title: "Folder Created",
+        description: "Your new folder has been created successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || "Failed to create folder",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateFolderMutation = useMutation({
+    mutationFn: async (data: { id: string; name: string; color?: string }) => {
+      const res = await apiRequest('PATCH', `/api/rag-knowledge/folders/${data.id}`, { name: data.name, color: data.color });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders'] });
+      setFolderDialogOpen(false);
+      setFolderName('');
+      setFolderColor('#3b82f6');
+      setEditingFolder(null);
+      toast({
+        title: "Folder Updated",
+        description: "Your folder has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || "Failed to update folder",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteFolderMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/rag-knowledge/folders/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
+      setDeletingFolder(null);
+      if (selectedFolderId === deletingFolder?.id) {
+        setSelectedFolderId(null);
+        setViewMode("dashboard");
+      }
+      toast({
+        title: "Folder Deleted",
+        description: "The folder has been deleted. Items moved to uncategorized.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || "Failed to delete folder",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const assignFolderMutation = useMutation({
+    mutationFn: async (data: { id: string; folderId: string | null }) => {
+      const res = await apiRequest('PATCH', `/api/rag-knowledge/${data.id}/folder`, { folderId: data.folderId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      toast({
+        title: "Item Moved",
+        description: "Item has been moved to the selected folder.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || "Failed to move item",
         variant: "destructive",
       });
     },
@@ -290,7 +580,11 @@ export default function KnowledgeBase() {
       });
       return;
     }
-    uploadFileMutation.mutate({ file: selectedFile, name: fileName || selectedFile.name });
+    uploadFileMutation.mutate({ 
+      file: selectedFile, 
+      name: fileName || selectedFile.name,
+      folderId: fileFolderId || undefined,
+    });
   };
 
   const handleAddUrl = () => {
@@ -302,7 +596,11 @@ export default function KnowledgeBase() {
       });
       return;
     }
-    addUrlMutation.mutate({ url: urlInput, name: urlName || urlInput });
+    addUrlMutation.mutate({ 
+      url: urlInput, 
+      name: urlName || urlInput,
+      folderId: urlFolderId || undefined,
+    });
   };
 
   const handleAddText = () => {
@@ -322,14 +620,37 @@ export default function KnowledgeBase() {
       });
       return;
     }
-    addTextMutation.mutate({ text: textInput, name: textName });
+    addTextMutation.mutate({ 
+      text: textInput, 
+      name: textName,
+      folderId: textFolderId || undefined,
+    });
   };
 
-  const filteredItems = knowledgeBase.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = !typeFilter || item.type === typeFilter;
-    return matchesSearch && matchesType;
-  });
+  const handleSaveFolder = () => {
+    if (!folderName.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter a folder name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (editingFolder) {
+      updateFolderMutation.mutate({ id: editingFolder.id, name: folderName, color: folderColor });
+    } else {
+      createFolderMutation.mutate({ name: folderName, color: folderColor });
+    }
+  };
+
+  const filteredItems = useMemo(() => {
+    return knowledgeBase.filter(item => {
+      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFolder = viewMode === "dashboard" || 
+        (selectedFolderId === null ? !item.folderId : item.folderId === selectedFolderId);
+      return matchesSearch && matchesFolder;
+    });
+  }, [knowledgeBase, searchQuery, viewMode, selectedFolderId]);
 
   const {
     currentPage,
@@ -341,7 +662,6 @@ export default function KnowledgeBase() {
     handleItemsPerPageChange,
   } = usePagination(filteredItems, 10);
 
-  const totalSize = knowledgeBase.reduce((sum, item) => sum + item.storageSize, 0);
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -353,11 +673,11 @@ export default function KnowledgeBase() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'url':
-        return <Globe className="h-4 w-4" />;
+        return <Globe className="h-4 w-4 text-orange-500" />;
       case 'file':
-        return <FileText className="h-4 w-4" />;
+        return <FileText className="h-4 w-4 text-green-500" />;
       case 'text':
-        return <Type className="h-4 w-4" />;
+        return <Type className="h-4 w-4 text-blue-500" />;
       default:
         return <FileType className="h-4 w-4" />;
     }
@@ -389,23 +709,21 @@ export default function KnowledgeBase() {
     }
   };
 
-  const getStatusText = (status: string | undefined) => {
-    switch (status) {
-      case 'processing':
-        return t('knowledgeBase.status.processing');
-      case 'completed':
-        return t('knowledgeBase.status.ready');
-      case 'failed':
-        return t('knowledgeBase.status.failed');
-      default:
-        return t('knowledgeBase.status.pending');
-    }
-  };
+  const topCategories = useMemo(() => {
+    if (!folders || !folderStats) return [];
+    return folders
+      .map(folder => ({
+        ...folder,
+        count: folderStats.folders[folder.id] || 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [folders, folderStats]);
 
   if (userLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-muted-foreground">{t('common.loading')}</p>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -413,34 +731,13 @@ export default function KnowledgeBase() {
   if (userError) {
     return (
       <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
-        {/* Left Sidebar */}
-        <div className="w-64 border-r bg-muted/30 flex flex-col">
-          <ScrollArea className="flex-1">
-            <div className="p-3">
-              <button
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary"
-                data-testid="folder-all-knowledge"
-              >
-                <FileStack className="h-4 w-4" />
-                {t('knowledgeBase.title')}
-              </button>
-            </div>
-          </ScrollArea>
-        </div>
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-lg font-semibold">{t('knowledgeBase.title')}</h2>
-          </div>
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <Card className="p-8 text-center max-w-md">
-              <h2 className="text-xl font-semibold mb-2">{t('knowledgeBase.unableToLoad')}</h2>
-              <p className="text-muted-foreground">
-                {t('knowledgeBase.unableToLoadDesc')}
-              </p>
-            </Card>
-          </div>
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <Card className="p-8 text-center max-w-md">
+            <h2 className="text-xl font-semibold mb-2">{t('knowledgeBase.unableToLoad')}</h2>
+            <p className="text-muted-foreground">
+              {t('knowledgeBase.unableToLoadDesc')}
+            </p>
+          </Card>
         </div>
       </div>
     );
@@ -451,97 +748,59 @@ export default function KnowledgeBase() {
   if (isFreeUser) {
     return (
       <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
-        {/* Left Sidebar */}
-        <div className="w-64 border-r bg-muted/30 flex flex-col">
-          <ScrollArea className="flex-1">
-            <div className="p-3">
-              <button
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary"
-                data-testid="folder-all-knowledge"
-              >
-                <FileStack className="h-4 w-4" />
-                {t('knowledgeBase.title')}
-              </button>
+        <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-auto">
+          <div className="max-w-2xl mx-auto space-y-6 text-center">
+            <div className="flex justify-center">
+              <div className="relative">
+                <BookOpen className="w-20 h-20 text-muted-foreground/30" />
+                <Lock className="w-8 h-8 text-primary absolute -bottom-1 -right-1 bg-background rounded-full p-1" />
+              </div>
             </div>
-          </ScrollArea>
-        </div>
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-lg font-semibold">{t('knowledgeBase.title')}</h2>
-          </div>
-          <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-auto">
-            <div className="max-w-2xl mx-auto space-y-6 text-center">
-              <div className="flex justify-center">
-                <div className="relative">
-                  <BookOpen className="w-20 h-20 text-muted-foreground/30" />
-                  <Lock className="w-8 h-8 text-primary absolute -bottom-1 -right-1 bg-background rounded-full p-1" />
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <h2 className="text-2xl font-bold">{t('knowledgeBase.unlock.title')}</h2>
-                <p className="text-muted-foreground text-lg">
-                  {t('knowledgeBase.unlock.description')}
-                </p>
-              </div>
+            
+            <div className="space-y-3">
+              <h2 className="text-2xl font-bold">{t('knowledgeBase.unlock.title')}</h2>
+              <p className="text-muted-foreground text-lg">
+                {t('knowledgeBase.unlock.description')}
+              </p>
+            </div>
 
-              <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-                <h3 className="font-semibold text-lg mb-4">{t('knowledgeBase.unlock.proFeatures')}</h3>
-                <div className="grid gap-3 text-left">
-                  <div className="flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">{t('knowledgeBase.unlock.uploadDocs')}</p>
-                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.uploadDocsDesc')}</p>
-                    </div>
+            <div className="bg-muted/50 rounded-lg p-6 space-y-4">
+              <h3 className="font-semibold text-lg mb-4">{t('knowledgeBase.unlock.proFeatures')}</h3>
+              <div className="grid gap-3 text-left">
+                <div className="flex items-start gap-3">
+                  <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">{t('knowledgeBase.unlock.uploadDocs')}</p>
+                    <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.uploadDocsDesc')}</p>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">{t('knowledgeBase.unlock.addWebContent')}</p>
-                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.addWebContentDesc')}</p>
-                    </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">{t('knowledgeBase.unlock.addWebContent')}</p>
+                    <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.addWebContentDesc')}</p>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">{t('knowledgeBase.unlock.customText')}</p>
-                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.customTextDesc')}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Brain className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">{t('knowledgeBase.unlock.aiSearch')}</p>
-                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.aiSearchDesc')}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">{t('knowledgeBase.unlock.storage')}</p>
-                      <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.storageDesc')}</p>
-                    </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Brain className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">{t('knowledgeBase.unlock.aiSearch')}</p>
+                    <p className="text-sm text-muted-foreground">{t('knowledgeBase.unlock.aiSearchDesc')}</p>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="pt-4">
-                <Button 
-                  size="lg" 
-                  className="gap-2"
-                  onClick={() => setLocation('/app/upgrade')}
-                  data-testid="button-upgrade-to-pro"
-                >
-                  <Crown className="w-5 h-5" />
-                  {t('knowledgeBase.unlock.upgradeButton')}
-                </Button>
-                <p className="text-sm text-muted-foreground mt-3">
-                  {t('knowledgeBase.unlock.upgradeDesc')}
-                </p>
-              </div>
+            <div className="pt-4">
+              <Button 
+                size="lg" 
+                className="gap-2"
+                onClick={() => setLocation('/app/upgrade')}
+                data-testid="button-upgrade-to-pro"
+              >
+                <Crown className="w-5 h-5" />
+                {t('knowledgeBase.unlock.upgradeButton')}
+              </Button>
             </div>
           </div>
         </div>
@@ -549,203 +808,596 @@ export default function KnowledgeBase() {
     );
   }
 
+  const urlCount = dashboardStats?.typeDistribution?.url || 0;
+  const textCount = dashboardStats?.typeDistribution?.text || 0;
+  const fileCount = dashboardStats?.typeDistribution?.file || 0;
+
   const processingCount = knowledgeBase.filter(item => item.ragStatus === 'processing').length;
 
   return (
     <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
       {/* Left Sidebar */}
-      <div className="w-[200px] border-r flex-shrink-0 bg-white dark:bg-background">
-        <div className="p-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <FileStack className="h-4 w-4 text-foreground" />
-            <span className="font-medium text-sm">{t('knowledgeBase.title')}</span>
-          </div>
-          <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                size="icon"
-                data-testid="button-add-knowledge"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setUrlDialogOpen(true); }}>
-                <Link className="mr-2 h-4 w-4" />
-                {t('knowledgeBase.actions.addUrl')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setFileDialogOpen(true); }}>
-                <FileText className="mr-2 h-4 w-4" />
-                {t('knowledgeBase.actions.addFiles')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setAddMenuOpen(false); setTextDialogOpen(true); }}>
-                <Type className="mr-2 h-4 w-4" />
-                {t('knowledgeBase.actions.createText')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      <div className="w-[220px] border-r flex-shrink-0 bg-muted/30 flex flex-col">
+        {/* Dashboard Button */}
+        <div className="p-3">
+          <button
+            onClick={() => {
+              setViewMode("dashboard");
+              setSelectedFolderId(null);
+            }}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              viewMode === "dashboard" 
+                ? "bg-primary text-primary-foreground" 
+                : "hover-elevate"
+            }`}
+            data-testid="button-dashboard"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </button>
         </div>
-        
-        {/* Divider */}
-        <div className="mx-3 border-t border-border" />
-        
-        {/* Knowledge base items list in sidebar */}
+
+        {/* Folders Section */}
+        <div className="px-3 py-2">
+          <div className="flex items-center justify-between text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            <span>Folders</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={() => {
+                setEditingFolder(null);
+                setFolderName('');
+                setFolderColor('#3b82f6');
+                setFolderDialogOpen(true);
+              }}
+              data-testid="button-new-folder"
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
         <ScrollArea className="flex-1">
-          <div className="p-2">
-            {knowledgeBase.length > 0 && (
-              <div className="space-y-1">
-                {knowledgeBase.map((item) => (
-                  <button
-                    key={item.id}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-left rounded hover-elevate"
-                    data-testid={`sidebar-kb-item-${item.id}`}
-                  >
-                    {getTypeIcon(item.type)}
-                    <span className="truncate flex-1">{item.title}</span>
-                    {item.ragStatus === 'processing' && (
-                      <Loader2 className="h-3 w-3 animate-spin text-blue-500 flex-shrink-0" />
-                    )}
+          <div className="px-3 space-y-1">
+            {folders.map((folder) => (
+              <div key={folder.id} className="group relative">
+                <button
+                  onClick={() => {
+                    setViewMode("folder");
+                    setSelectedFolderId(folder.id);
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                    selectedFolderId === folder.id && viewMode === "folder"
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "hover-elevate"
+                  }`}
+                  data-testid={`folder-${folder.id}`}
+                >
+                  <Folder 
+                    className="h-4 w-4 flex-shrink-0" 
+                    style={{ color: folder.color || '#3b82f6' }}
+                  />
+                  <span className="truncate flex-1 text-left">{folder.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {folderStats?.folders[folder.id] || 0}
+                  </span>
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 absolute right-1 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <MoreHorizontal className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => {
+                      setEditingFolder(folder);
+                      setFolderName(folder.name);
+                      setFolderColor(folder.color || '#3b82f6');
+                      setFolderDialogOpen(true);
+                    }}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="text-destructive"
+                      onClick={() => setDeletingFolder(folder)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ))}
+
+            {/* Uncategorized */}
+            {folderStats && folderStats.uncategorized > 0 && (
+              <button
+                onClick={() => {
+                  setViewMode("folder");
+                  setSelectedFolderId(null);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  selectedFolderId === null && viewMode === "folder"
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "hover-elevate"
+                }`}
+                data-testid="folder-uncategorized"
+              >
+                <Folder className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                <span className="truncate flex-1 text-left">Uncategorized</span>
+                <span className="text-xs text-muted-foreground">
+                  {folderStats.uncategorized}
+                </span>
+              </button>
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Storage Usage */}
+        {storageUsage && (
+          <div className="p-3 border-t">
+            <div className="text-xs text-muted-foreground mb-1">
+              Storage: {formatBytes(storageUsage.usedStorageBytes)} / {formatBytes(storageUsage.maxStorageBytes)}
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all" 
+                style={{ width: `${Math.min(storageUsage.usagePercent, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col bg-background overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Brain className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold">Knowledge Base</h1>
+              <p className="text-xs text-muted-foreground">
+                {dashboardStats?.totalResources || 0} resources · {dashboardStats?.totalChunks || 0} chunks
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              className="gap-1.5"
+              onClick={() => setUrlDialogOpen(true)}
+              data-testid="button-add-url"
+            >
+              <Link className="h-4 w-4" />
+              URL
+              <ChevronDown className="h-3 w-3 opacity-50" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
+              onClick={() => setFileDialogOpen(true)}
+              data-testid="button-add-files"
+            >
+              <FileText className="h-4 w-4" />
+              Files
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
+              onClick={() => setTextDialogOpen(true)}
+              data-testid="button-add-text"
+            >
+              <Type className="h-4 w-4" />
+              Text
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
+              data-testid="button-ai-articles"
+            >
+              <Sparkles className="h-4 w-4" />
+              AI Articles
+            </Button>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="p-4 border-b">
+          <div className="relative max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search knowledge base..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search"
+            />
+          </div>
+        </div>
+
+        {/* Content */}
+        <ScrollArea className="flex-1">
+          <div className="p-4">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : viewMode === "dashboard" ? (
+              /* Dashboard View */
+              <div className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Your Usage Card */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <div className="h-5 w-5 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                          <div className="h-2 w-2 rounded-full bg-blue-500" />
+                        </div>
+                        Your Usage
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground">Content types distribution</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <DonutChart urlCount={urlCount} textCount={textCount} fileCount={fileCount} />
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="h-3 w-3 rounded-full bg-orange-500" />
+                            <span>URLs</span>
+                            <span className="font-medium ml-auto">{urlCount}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="h-3 w-3 rounded-full bg-blue-500" />
+                            <span>Text</span>
+                            <span className="font-medium ml-auto">{textCount}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="h-3 w-3 rounded-full bg-green-500" />
+                            <span>Files</span>
+                            <span className="font-medium ml-auto">{fileCount}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-3 border-t text-sm text-muted-foreground">
+                        Total Size: {formatBytes(dashboardStats?.totalSize || 0)}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Top Categories Card */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <div className="h-5 w-5 rounded bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                          <Folder className="h-3 w-3 text-purple-500" />
+                        </div>
+                        Top Categories
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground">Folders by item count</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {topCategories.length > 0 ? (
+                          topCategories.map((folder, index) => (
+                            <button
+                              key={folder.id}
+                              onClick={() => {
+                                setViewMode("folder");
+                                setSelectedFolderId(folder.id);
+                              }}
+                              className="w-full flex items-center gap-3 p-2 rounded-md hover-elevate transition-colors text-left"
+                            >
+                              <span className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                                {index + 1}
+                              </span>
+                              <Folder className="h-4 w-4" style={{ color: folder.color || '#3b82f6' }} />
+                              <span className="flex-1 text-sm truncate">{folder.name}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {folder.count} articles
+                              </Badge>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="text-sm text-muted-foreground py-4 text-center">
+                            No folders yet. Create one to organize your content.
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Recent Items Card */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <div className="h-5 w-5 rounded bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                          <RefreshCw className="h-3 w-3 text-green-500" />
+                        </div>
+                        Recent Items
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground">Latest additions</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {dashboardStats?.recentItems && dashboardStats.recentItems.length > 0 ? (
+                          dashboardStats.recentItems.map((item) => (
+                            <div key={item.id} className="flex items-center gap-3 p-2 rounded-md">
+                              {getTypeIcon(item.type)}
+                              <span className="flex-1 text-sm truncate">{item.title}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(item.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-muted-foreground py-4 text-center">
+                            No items yet. Add your first content.
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Processing indicator */}
+                {processingCount > 0 && (
+                  <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 flex items-center gap-3 border border-blue-200 dark:border-blue-800">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                    <span className="text-sm text-blue-700 dark:text-blue-300">
+                      Processing {processingCount} item(s)...
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="ml-auto h-7 text-blue-600"
+                      onClick={() => refetch()}
+                      data-testid="button-refresh-status"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Refresh
+                    </Button>
+                  </div>
+                )}
+
+                {/* All Items Table */}
+                {knowledgeBase.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">All Items</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Folder</TableHead>
+                            <TableHead className="hidden md:table-cell">Status</TableHead>
+                            <TableHead className="hidden lg:table-cell">Created</TableHead>
+                            <TableHead className="w-[100px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedItems.map((item) => (
+                            <TableRow key={item.id} data-testid={`row-kb-item-${item.id}`}>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  {getTypeIcon(item.type)}
+                                  <span className="truncate max-w-[200px]">{item.title}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={getTypeBadgeVariant(item.type)}>
+                                  {item.type}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={item.folderId || "uncategorized"}
+                                  onValueChange={(value) => {
+                                    assignFolderMutation.mutate({
+                                      id: item.id,
+                                      folderId: value === "uncategorized" ? null : value,
+                                    });
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 w-[140px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                                    {folders.map((folder) => (
+                                      <SelectItem key={folder.id} value={folder.id}>
+                                        {folder.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                <div className="flex items-center gap-2">
+                                  {getStatusIcon(item.ragStatus)}
+                                  <span className="text-sm text-muted-foreground">
+                                    {item.ragStatus === 'completed' ? 'Ready' : 
+                                     item.ragStatus === 'processing' ? 'Processing' : 
+                                     item.ragStatus === 'failed' ? 'Failed' : 'Pending'}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground hidden lg:table-cell">
+                                {new Date(item.createdAt).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeletingItem(item)}
+                                  data-testid={`button-delete-${item.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {knowledgeBase.length === 0 && (
+                  <Card className="p-12">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                        <Brain className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">No content yet</h3>
+                      <p className="text-muted-foreground mb-6 max-w-md">
+                        Add URLs, upload files, or create text content to build your knowledge base.
+                      </p>
+                      <div className="flex gap-3">
+                        <Button onClick={() => setUrlDialogOpen(true)}>
+                          <Link className="h-4 w-4 mr-2" />
+                          Add URL
+                        </Button>
+                        <Button variant="outline" onClick={() => setFileDialogOpen(true)}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload File
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {totalPages > 1 && (
+                  <DataPagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={handlePageChange}
+                    onItemsPerPageChange={handleItemsPerPageChange}
+                  />
+                )}
+              </div>
+            ) : (
+              /* Folder View */
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                  <button onClick={() => setViewMode("dashboard")} className="hover:text-foreground">
+                    Dashboard
                   </button>
-                ))}
+                  <ChevronRight className="h-4 w-4" />
+                  <span className="text-foreground font-medium">
+                    {selectedFolderId 
+                      ? folders.find(f => f.id === selectedFolderId)?.name || "Folder"
+                      : "Uncategorized"}
+                  </span>
+                </div>
+
+                {filteredItems.length === 0 ? (
+                  <Card className="p-12">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                        <Folder className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">No items in this folder</h3>
+                      <p className="text-muted-foreground mb-6">
+                        Add content and assign it to this folder.
+                      </p>
+                    </div>
+                  </Card>
+                ) : (
+                  <>
+                    <Card>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead className="hidden md:table-cell">Status</TableHead>
+                              <TableHead className="hidden sm:table-cell">Size</TableHead>
+                              <TableHead className="hidden lg:table-cell">Created</TableHead>
+                              <TableHead className="w-[100px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedItems.map((item) => (
+                              <TableRow key={item.id} data-testid={`row-kb-item-${item.id}`}>
+                                <TableCell className="font-medium">
+                                  <div className="flex items-center gap-2">
+                                    {getTypeIcon(item.type)}
+                                    <span className="truncate max-w-[200px]">{item.title}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={getTypeBadgeVariant(item.type)}>
+                                    {item.type}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="hidden md:table-cell">
+                                  <div className="flex items-center gap-2">
+                                    {getStatusIcon(item.ragStatus)}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground hidden sm:table-cell">
+                                  {formatBytes(item.storageSize)}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground hidden lg:table-cell">
+                                  {new Date(item.createdAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setDeletingItem(item)}
+                                    data-testid={`button-delete-${item.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                    {totalPages > 1 && (
+                      <DataPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={handlePageChange}
+                        onItemsPerPageChange={handleItemsPerPageChange}
+                      />
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
         </ScrollArea>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-background">
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : knowledgeBase.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md border bg-background">
-              <FileStack className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">{t('knowledgeBase.empty.title')}</p>
-          </div>
-        ) : (
-          <div className="flex-1 p-4 space-y-4 overflow-auto">
-            {/* Processing indicator */}
-            {processingCount > 0 && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 flex items-center gap-3 border border-blue-200 dark:border-blue-800">
-                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                <span className="text-sm text-blue-700 dark:text-blue-300">
-                  {t('knowledgeBase.processing.message', { count: processingCount })}
-                </span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="ml-auto h-7 text-blue-600"
-                  onClick={() => refetch()}
-                  data-testid="button-refresh-status"
-                >
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                  {t('common.refresh')}
-                </Button>
-              </div>
-            )}
-
-            {/* Table */}
-            {filteredItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md border bg-background">
-                  <FileStack className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {searchQuery || typeFilter ? t('knowledgeBase.empty.adjustFilters') : t('knowledgeBase.empty.uploadFirst')}
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('knowledgeBase.table.name')}</TableHead>
-                        <TableHead>{t('common.type')}</TableHead>
-                        <TableHead>{t('knowledgeBase.table.aiStatus')}</TableHead>
-                        <TableHead className="hidden md:table-cell">{t('knowledgeBase.table.chunks')}</TableHead>
-                        <TableHead className="hidden sm:table-cell">{t('knowledgeBase.table.size')}</TableHead>
-                        <TableHead className="hidden lg:table-cell">{t('knowledgeBase.table.created')}</TableHead>
-                        <TableHead className="w-[100px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedItems.map((item) => (
-                        <TableRow key={item.id} data-testid={`row-kb-item-${item.id}`}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              {getTypeIcon(item.type)}
-                              <span className="truncate max-w-[200px]">{item.title}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getTypeBadgeVariant(item.type)}>
-                              {item.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2">
-                                  {getStatusIcon(item.ragStatus)}
-                                  <span className="text-sm text-muted-foreground">
-                                    {getStatusText(item.ragStatus)}
-                                  </span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {item.ragStatus === 'completed' 
-                                  ? t('knowledgeBase.tooltips.indexed')
-                                  : item.ragStatus === 'processing'
-                                  ? t('knowledgeBase.tooltips.generating')
-                                  : item.ragStatus === 'failed'
-                                  ? t('knowledgeBase.tooltips.failed')
-                                  : t('knowledgeBase.tooltips.waiting')}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground hidden md:table-cell">
-                            {item.chunkCount || 0}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground hidden sm:table-cell">
-                            {formatBytes(item.storageSize)}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground hidden lg:table-cell">
-                            {new Date(item.createdAt).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeletingItem(item)}
-                              data-testid={`button-delete-${item.id}`}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                <DataPagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  totalItems={totalItems}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={handlePageChange}
-                  onItemsPerPageChange={handleItemsPerPageChange}
-                />
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
+      {/* URL Dialog */}
       <Dialog open={urlDialogOpen} onOpenChange={setUrlDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -775,6 +1427,22 @@ export default function KnowledgeBase() {
                 data-testid="input-url-name"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="url-folder">Folder (Optional)</Label>
+              <Select value={urlFolderId} onValueChange={setUrlFolderId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select folder" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Folder</SelectItem>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUrlDialogOpen(false)}>
@@ -791,6 +1459,7 @@ export default function KnowledgeBase() {
         </DialogContent>
       </Dialog>
 
+      {/* File Dialog */}
       <Dialog open={fileDialogOpen} onOpenChange={setFileDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -832,12 +1501,29 @@ export default function KnowledgeBase() {
                 data-testid="input-file-name"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="file-folder">Folder (Optional)</Label>
+              <Select value={fileFolderId} onValueChange={setFileFolderId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select folder" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Folder</SelectItem>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setFileDialogOpen(false);
               setSelectedFile(null);
               setFileName('');
+              setFileFolderId('');
             }}>
               {t('common.cancel')}
             </Button>
@@ -852,6 +1538,7 @@ export default function KnowledgeBase() {
         </DialogContent>
       </Dialog>
 
+      {/* Text Dialog */}
       <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -870,6 +1557,22 @@ export default function KnowledgeBase() {
                 onChange={(e) => setTextName(e.target.value)}
                 data-testid="input-text-name"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="text-folder">Folder (Optional)</Label>
+              <Select value={textFolderId} onValueChange={setTextFolderId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select folder" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Folder</SelectItem>
+                  {folders.map((folder) => (
+                    <SelectItem key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="text-content">{t('knowledgeBase.labels.content')}</Label>
@@ -902,6 +1605,66 @@ export default function KnowledgeBase() {
         </DialogContent>
       </Dialog>
 
+      {/* Folder Dialog */}
+      <Dialog open={folderDialogOpen} onOpenChange={(open) => {
+        setFolderDialogOpen(open);
+        if (!open) {
+          setEditingFolder(null);
+          setFolderName('');
+          setFolderColor('#3b82f6');
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingFolder ? "Edit Folder" : "Create New Folder"}</DialogTitle>
+            <DialogDescription>
+              {editingFolder ? "Update the folder name and color." : "Create a new folder to organize your knowledge base items."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="folder-name">Folder Name</Label>
+              <Input
+                id="folder-name"
+                placeholder="Enter folder name..."
+                value={folderName}
+                onChange={(e) => setFolderName(e.target.value)}
+                data-testid="input-folder-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex gap-2 flex-wrap">
+                {FOLDER_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={() => setFolderColor(color.value)}
+                    className={`h-8 w-8 rounded-full border-2 transition-all ${
+                      folderColor === color.value ? 'border-foreground scale-110' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: color.value }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFolderDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button 
+              onClick={handleSaveFolder}
+              disabled={createFolderMutation.isPending || updateFolderMutation.isPending}
+              data-testid="button-save-folder"
+            >
+              {(createFolderMutation.isPending || updateFolderMutation.isPending) ? "Saving..." : (editingFolder ? "Update" : "Create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Item Dialog */}
       <AlertDialog open={!!deletingItem} onOpenChange={() => setDeletingItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -919,6 +1682,28 @@ export default function KnowledgeBase() {
               data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? t('common.deleting') : t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Folder Dialog */}
+      <AlertDialog open={!!deletingFolder} onOpenChange={() => setDeletingFolder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deletingFolder?.name}"? Items in this folder will be moved to uncategorized.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingFolder && deleteFolderMutation.mutate(deletingFolder.id)}
+              disabled={deleteFolderMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteFolderMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

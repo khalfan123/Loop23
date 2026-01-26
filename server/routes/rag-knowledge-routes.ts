@@ -28,8 +28,8 @@ import multer from "multer";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
 import { storage } from "../storage";
 import { db } from "../db";
-import { knowledgeBase, knowledgeChunks } from "@shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { knowledgeBase, knowledgeChunks, knowledgeFolders } from "@shared/schema";
+import { eq, and, sql, desc, asc, count } from "drizzle-orm";
 
 // Extend Request to include userId
 interface AuthRequest extends Request {
@@ -580,6 +580,255 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
     } catch (error: any) {
       console.error("[RAG Routes] Search error:", error);
       res.status(500).json({ error: "Failed to search knowledge base" });
+    }
+  });
+
+  // ============================================
+  // FOLDER MANAGEMENT ROUTES
+  // ============================================
+
+  /**
+   * Get all folders for user
+   */
+  router.get("/folders", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const folders = await db
+        .select()
+        .from(knowledgeFolders)
+        .where(eq(knowledgeFolders.userId, req.userId!))
+        .orderBy(asc(knowledgeFolders.sortOrder), asc(knowledgeFolders.name));
+
+      res.json(folders);
+    } catch (error: any) {
+      console.error("[RAG Routes] Get folders error:", error);
+      res.status(500).json({ error: "Failed to fetch folders" });
+    }
+  });
+
+  /**
+   * Get folder stats (item counts per folder)
+   */
+  router.get("/folders/stats", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const folderStats = await db
+        .select({
+          folderId: knowledgeBase.folderId,
+          count: count(),
+        })
+        .from(knowledgeBase)
+        .where(eq(knowledgeBase.userId, req.userId!))
+        .groupBy(knowledgeBase.folderId);
+
+      const statsMap: Record<string, number> = {};
+      let uncategorizedCount = 0;
+      
+      for (const stat of folderStats) {
+        if (stat.folderId) {
+          statsMap[stat.folderId] = stat.count;
+        } else {
+          uncategorizedCount = stat.count;
+        }
+      }
+
+      res.json({ folders: statsMap, uncategorized: uncategorizedCount });
+    } catch (error: any) {
+      console.error("[RAG Routes] Get folder stats error:", error);
+      res.status(500).json({ error: "Failed to fetch folder stats" });
+    }
+  });
+
+  /**
+   * Create a new folder
+   */
+  router.post("/folders", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { name, icon, color } = req.body;
+
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ error: "Folder name is required" });
+      }
+
+      const existingFolders = await db
+        .select({ sortOrder: knowledgeFolders.sortOrder })
+        .from(knowledgeFolders)
+        .where(eq(knowledgeFolders.userId, req.userId!))
+        .orderBy(desc(knowledgeFolders.sortOrder))
+        .limit(1);
+
+      const maxSortOrder = existingFolders.length > 0 ? existingFolders[0].sortOrder : 0;
+
+      const [folder] = await db
+        .insert(knowledgeFolders)
+        .values({
+          userId: req.userId!,
+          name: name.trim(),
+          icon: icon || "folder",
+          color: color || null,
+          sortOrder: maxSortOrder + 1,
+        })
+        .returning();
+
+      res.json(folder);
+    } catch (error: any) {
+      console.error("[RAG Routes] Create folder error:", error);
+      res.status(500).json({ error: "Failed to create folder" });
+    }
+  });
+
+  /**
+   * Update a folder
+   */
+  router.patch("/folders/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { name, icon, color, sortOrder } = req.body;
+
+      const existingFolder = await db
+        .select()
+        .from(knowledgeFolders)
+        .where(and(eq(knowledgeFolders.id, id), eq(knowledgeFolders.userId, req.userId!)))
+        .limit(1);
+
+      if (existingFolder.length === 0) {
+        return res.status(404).json({ error: "Folder not found" });
+      }
+
+      const updateData: any = { updatedAt: new Date() };
+      if (name !== undefined) updateData.name = name.trim();
+      if (icon !== undefined) updateData.icon = icon;
+      if (color !== undefined) updateData.color = color;
+      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
+      const [folder] = await db
+        .update(knowledgeFolders)
+        .set(updateData)
+        .where(and(eq(knowledgeFolders.id, id), eq(knowledgeFolders.userId, req.userId!)))
+        .returning();
+
+      res.json(folder);
+    } catch (error: any) {
+      console.error("[RAG Routes] Update folder error:", error);
+      res.status(500).json({ error: "Failed to update folder" });
+    }
+  });
+
+  /**
+   * Delete a folder (items become uncategorized)
+   */
+  router.delete("/folders/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const existingFolder = await db
+        .select()
+        .from(knowledgeFolders)
+        .where(and(eq(knowledgeFolders.id, id), eq(knowledgeFolders.userId, req.userId!)))
+        .limit(1);
+
+      if (existingFolder.length === 0) {
+        return res.status(404).json({ error: "Folder not found" });
+      }
+
+      // Move items from this folder to uncategorized before deleting
+      await db
+        .update(knowledgeBase)
+        .set({ folderId: null })
+        .where(and(eq(knowledgeBase.folderId, id), eq(knowledgeBase.userId, req.userId!)));
+
+      await db
+        .delete(knowledgeFolders)
+        .where(and(eq(knowledgeFolders.id, id), eq(knowledgeFolders.userId, req.userId!)));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[RAG Routes] Delete folder error:", error);
+      res.status(500).json({ error: "Failed to delete folder" });
+    }
+  });
+
+  /**
+   * Assign item to folder
+   */
+  router.patch("/:id/folder", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { folderId } = req.body;
+
+      const existingItem = await db
+        .select()
+        .from(knowledgeBase)
+        .where(and(eq(knowledgeBase.id, id), eq(knowledgeBase.userId, req.userId!)))
+        .limit(1);
+
+      if (existingItem.length === 0) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+
+      if (folderId) {
+        const existingFolder = await db
+          .select()
+          .from(knowledgeFolders)
+          .where(and(eq(knowledgeFolders.id, folderId), eq(knowledgeFolders.userId, req.userId!)))
+          .limit(1);
+
+        if (existingFolder.length === 0) {
+          return res.status(404).json({ error: "Folder not found" });
+        }
+      }
+
+      const [item] = await db
+        .update(knowledgeBase)
+        .set({ folderId: folderId || null })
+        .where(and(eq(knowledgeBase.id, id), eq(knowledgeBase.userId, req.userId!)))
+        .returning();
+
+      res.json(item);
+    } catch (error: any) {
+      console.error("[RAG Routes] Assign folder error:", error);
+      res.status(500).json({ error: "Failed to assign folder" });
+    }
+  });
+
+  /**
+   * Get dashboard stats
+   */
+  router.get("/stats", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const items = await db
+        .select()
+        .from(knowledgeBase)
+        .where(eq(knowledgeBase.userId, req.userId!));
+
+      const chunks = await db
+        .select({ count: count() })
+        .from(knowledgeChunks)
+        .where(eq(knowledgeChunks.userId, req.userId!));
+
+      const typeDistribution: Record<string, number> = {};
+      let totalSize = 0;
+
+      for (const item of items) {
+        typeDistribution[item.type] = (typeDistribution[item.type] || 0) + 1;
+        totalSize += item.storageSize || 0;
+      }
+
+      const recentItems = await db
+        .select()
+        .from(knowledgeBase)
+        .where(eq(knowledgeBase.userId, req.userId!))
+        .orderBy(desc(knowledgeBase.createdAt))
+        .limit(5);
+
+      res.json({
+        totalResources: items.length,
+        totalChunks: chunks[0]?.count || 0,
+        totalSize,
+        typeDistribution,
+        recentItems,
+      });
+    } catch (error: any) {
+      console.error("[RAG Routes] Get stats error:", error);
+      res.status(500).json({ error: "Failed to fetch stats" });
     }
   });
 

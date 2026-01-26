@@ -27,7 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone } from "lucide-react";
+import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone, GripVertical } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -243,6 +243,8 @@ export default function Agents() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [knowledgeUploadOpen, setKnowledgeUploadOpen] = useState(false);
+  const [draggedAgentId, setDraggedAgentId] = useState<string | null>(null);
+  const [dropTargetFolder, setDropTargetFolder] = useState<string | null>(null);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<Agent | null>(null);
   const [formData, setFormData] = useState({
@@ -759,7 +761,32 @@ export default function Agents() {
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
-                <div className="group relative">
+                <div 
+                  className={`group relative transition-all duration-200 ${
+                    dropTargetFolder === 'template' 
+                      ? 'ring-2 ring-primary ring-offset-2 rounded-md bg-primary/10' 
+                      : ''
+                  }`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDropTargetFolder('template');
+                  }}
+                  onDragLeave={() => setDropTargetFolder(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDropTargetFolder(null);
+                    if (draggedAgentId) {
+                      const agent = agents.find(a => a.id === draggedAgentId);
+                      if (agent) {
+                        toast({ 
+                          title: "Coming Soon", 
+                          description: `Moving "${agent.name}" to Template Staff folder will be available in a future update.`
+                        });
+                      }
+                    }
+                    setDraggedAgentId(null);
+                  }}
+                >
                   <button
                     onClick={() => { setSelectedFolder('template'); setTypeFilter('all'); }}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
@@ -913,11 +940,22 @@ export default function Agents() {
                     return (
                       <TableRow 
                         key={agent.id} 
-                        className="group cursor-pointer"
+                        className={`group cursor-pointer ${draggedAgentId === agent.id ? 'opacity-50' : ''}`}
                         data-testid={`row-agent-${agent.id}`}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedAgentId(agent.id);
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', agent.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedAgentId(null);
+                          setDropTargetFolder(null);
+                        }}
                       >
                         <TableCell>
                           <div className="flex items-center gap-3">
+                            <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab" />
                             {agent.avatarUrl ? (
                               <img 
                                 src={agent.avatarUrl} 

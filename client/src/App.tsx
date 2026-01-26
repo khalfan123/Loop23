@@ -50,7 +50,6 @@ import PhoneNumbers from "@/pages/PhoneNumbers";
 import AllContacts from "@/pages/AllContacts";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
-import LandingPage from "@/pages/LandingPage";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminCampaignDetail from "@/pages/AdminCampaignDetail";
 import PrivacyPolicy from "@/pages/policies/PrivacyPolicy";
@@ -70,16 +69,9 @@ import FlowTemplatesPage from "@/pages/FlowTemplatesPage";
 import IncomingConnections from "@/pages/IncomingConnections";
 import PromptTemplates from "@/pages/PromptTemplates";
 import TransactionHistory from "@/pages/TransactionHistory";
-import Blog from "@/pages/Blog";
-import BlogPost from "@/pages/BlogPost";
-import Contact from "@/pages/Contact";
 import LoginPage from "@/pages/LoginPage";
 import TeamMemberLogin from "@/pages/TeamMemberLogin";
 import AdminTeamLogin from "@/pages/AdminTeamLogin";
-import FeaturesPage from "@/pages/FeaturesPage";
-import PricingPage from "@/pages/PricingPage";
-import UseCasesPage from "@/pages/UseCasesPage";
-import IntegrationsPage from "@/pages/IntegrationsPage";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { NotificationBell } from "@/components/NotificationBell";
 import { HeaderBannerNotifications } from "@/components/HeaderBannerNotifications";
@@ -132,22 +124,19 @@ function PublicRouter() {
     <>
       <ScrollToTop />
       <Switch>
-        <Route path="/" component={LandingPage} />
+        <Route path="/">
+          <Redirect to="/login" />
+        </Route>
         <Route path="/login" component={LoginPage} />
         <Route path="/register" component={LoginPage} />
         <Route path="/team/login" component={TeamMemberLogin} />
         <Route path="/admin/team/login" component={AdminTeamLogin} />
-        <Route path="/features" component={FeaturesPage} />
-        <Route path="/pricing" component={PricingPage} />
-        <Route path="/use-cases" component={UseCasesPage} />
-        <Route path="/integrations" component={IntegrationsPage} />
-        <Route path="/contact" component={Contact} />
-        <Route path="/blog/:slug" component={BlogPost} />
-        <Route path="/blog" component={Blog} />
         <Route path="/privacy" component={PrivacyPolicy} />
         <Route path="/terms" component={TermsOfService} />
         <Route path="/cookies" component={CookiePolicy} />
-        <Route component={LandingPage} />
+        <Route>
+          <Redirect to="/login" />
+        </Route>
       </Switch>
     </>
   );

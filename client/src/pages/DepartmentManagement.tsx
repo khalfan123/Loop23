@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from 'react-i18next';
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -454,11 +454,18 @@ export default function DepartmentManagement() {
                             +{unassignedPhones.length - 3} more
                           </p>
                         )}
+                        <p className="text-xs text-blue-500 text-center pt-2">Click to assign</p>
                       </>
-                    ) : (
+                    ) : phoneNumbers && phoneNumbers.length > 0 ? (
                       <p className="text-xs text-muted-foreground">All numbers assigned</p>
+                    ) : (
+                      <Link href="/app/phone-numbers">
+                        <Button variant="outline" size="sm" className="w-full text-xs" data-testid="button-buy-number">
+                          <Plus className="h-3 w-3 mr-1" />
+                          Buy Number
+                        </Button>
+                      </Link>
                     )}
-                    <p className="text-xs text-blue-500 text-center pt-2">Click to assign</p>
                   </CardContent>
                 </Card>
                 

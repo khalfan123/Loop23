@@ -143,6 +143,19 @@ The application serves on port 5000 with both frontend and backend.
   - Folder creation/editing/deletion dialogs with color customization
   - Items can be assigned to folders via dropdown or during creation
   - Folder deletion properly reassigns items to uncategorized before removal
+- 2026-01-26: **Department Management System**:
+  - New tables: `departments`, `department_agents`, `ivr_configurations`, `department_knowledge_bases`
+  - Full CRUD API routes for departments with proper multi-tenant security
+  - Agent assignment to departments with language-specific configuration
+  - IVR Auto Distribution configuration for incoming call routing
+  - Department Management page at `/app/departments` with:
+    - Two-tab layout: Org Map (visual call flow) and Departments (list view)
+    - Visual call flow diagram: Inbound Number → IVR → Departments
+    - Department cards with badges, agent counts, and language indicators
+    - Create/Edit department dialogs with icon and color customization
+    - Add agent to department with language selection
+    - Action buttons: Flow, Edit, Delete for each department
+  - Multi-tenant security enforced on all department-related routes
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

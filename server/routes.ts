@@ -93,6 +93,7 @@ import invoiceRouter from "./routes/invoice-routes";
 import emailSettingsRouter from "./routes/email-settings-routes";
 import audioRoutes from "./routes/audio-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
+import { createDepartmentRoutes } from "./routes/department-routes";
 import { createNotificationRoutes } from "./routes/notification-routes";
 import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
 import { createTemplateRoutes } from "./routes/template-routes";
@@ -1482,6 +1483,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set USE_RAG_KNOWLEDGE=true to enable this system
   const ragKnowledgeRoutes = createRAGKnowledgeRoutes(routeContext.authenticateHybrid);
   app.use("/api/rag-knowledge", ragKnowledgeRoutes);
+
+  // Department Management routes
+  const departmentRoutes = createDepartmentRoutes(routeContext.authenticateHybrid);
+  app.use("/api/departments", departmentRoutes);
 
   // This must be registered on the httpServer to properly handle Twilio WebSocket streams
   httpServer.on('upgrade', (request, socket, head) => {

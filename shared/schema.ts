@@ -226,6 +226,70 @@ export const knowledgeBase = pgTable("knowledge_base", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Departments - For organizing AI agents into specialized teams
+export const departments = pgTable("departments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  icon: text("icon").default("building-2"), // Lucide icon name
+  color: text("color").default("#3b82f6"), // Hex color for visual identification
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Department Agents - Links agents to departments with language-specific configuration
+export const departmentAgents = pgTable("department_agents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  departmentId: varchar("department_id").notNull().references(() => departments.id, { onDelete: "cascade" }),
+  agentId: varchar("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  language: text("language").notNull().default("en"), // ISO language code
+  isPrimary: boolean("is_primary").notNull().default(false), // Primary agent for the department
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// IVR Configuration - Auto distribution settings for incoming calls
+export const ivrConfigurations = pgTable("ivr_configurations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  phoneNumberId: varchar("phone_number_id").references(() => phoneNumbers.id, { onDelete: "set null" }),
+  name: text("name").notNull().default("Auto Distribution"),
+  isActive: boolean("is_active").notNull().default(true),
+  greetingMessage: text("greeting_message"), // Initial IVR greeting
+  voiceId: text("voice_id"), // Voice for IVR prompts
+  voiceName: text("voice_name"), // Display name of the voice
+  menuOptions: jsonb("menu_options").$type<{
+    key: string;
+    label: string;
+    departmentId: string;
+  }[]>(), // IVR menu options mapping to departments
+  fallbackDepartmentId: varchar("fallback_department_id").references(() => departments.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Department Knowledge Base - Links knowledge bases to specific departments for scope restriction
+export const departmentKnowledgeBases = pgTable("department_knowledge_bases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  departmentId: varchar("department_id").notNull().references(() => departments.id, { onDelete: "cascade" }),
+  knowledgeBaseId: varchar("knowledge_base_id").notNull().references(() => knowledgeBase.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertDepartmentSchema = createInsertSchema(departments).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
+export type Department = typeof departments.$inferSelect;
+
+export const insertDepartmentAgentSchema = createInsertSchema(departmentAgents).omit({ id: true, createdAt: true });
+export type InsertDepartmentAgent = z.infer<typeof insertDepartmentAgentSchema>;
+export type DepartmentAgent = typeof departmentAgents.$inferSelect;
+
+export const insertIvrConfigurationSchema = createInsertSchema(ivrConfigurations).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertIvrConfiguration = z.infer<typeof insertIvrConfigurationSchema>;
+export type IvrConfiguration = typeof ivrConfigurations.$inferSelect;
+
 // Incoming Agents - Completely isolated from campaign agents
 // Used for receiving calls on purchased phone numbers with call transfer capability
 export const incomingAgents = pgTable("incoming_agents", {

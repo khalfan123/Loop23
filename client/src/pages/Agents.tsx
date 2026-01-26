@@ -766,14 +766,14 @@ export default function Agents() {
                   data-testid="folder-template-agents"
                 >
                   <FolderOpen className="h-4 w-4" />
-                  Template Agents
+                  Template Staff
                 </button>
               </div>
               
               {/* Transfer Agents Section */}
               <div className="mt-4">
                 <div className="px-3 py-1">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transfer Agents</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transfer Staff</span>
                 </div>
                 <button
                   onClick={() => { setSelectedFolder('transfer'); setTypeFilter('all'); }}
@@ -785,7 +785,7 @@ export default function Agents() {
                   data-testid="folder-transfer-agents"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Transfer Screening Agents
+                  Transfer Screening Staff
                 </button>
               </div>
             </div>
@@ -798,8 +798,8 @@ export default function Agents() {
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-lg font-semibold">
               {selectedFolder === 'all' ? 'Staff AI' : 
-               selectedFolder === 'template' ? 'Template Agents' : 
-               'Transfer Screening Agents'}
+               selectedFolder === 'template' ? 'Template Staff' : 
+               'Transfer Screening Staff'}
             </h2>
             <div className="flex items-center gap-3">
               {/* Search */}
@@ -821,18 +821,18 @@ export default function Agents() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button className="bg-primary text-primary-foreground" data-testid="button-create-agent">
-                    Create an Agent
+                    Create Staff AI
                     <ChevronRight className="h-4 w-4 ml-1 rotate-90" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setLocation('/app/agents/new?type=incoming')}>
                     <Sparkles className="h-4 w-4 mr-2" />
-                    Single Prompt Agent
+                    Single Prompt Staff
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setLocation('/app/agents/new?type=flow')}>
                     <GitBranch className="h-4 w-4 mr-2" />
-                    Conversation Flow Agent
+                    Conversation Flow Staff
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setWizardOpen(true)}>
                     <Wand2 className="h-4 w-4 mr-2" />
@@ -872,8 +872,8 @@ export default function Agents() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[300px]">Agent Name</TableHead>
-                    <TableHead>Agent Type</TableHead>
+                    <TableHead className="w-[300px]">Staff Name</TableHead>
+                    <TableHead>Staff Type</TableHead>
                     <TableHead>Voice</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Edited by</TableHead>

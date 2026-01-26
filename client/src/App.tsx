@@ -45,6 +45,7 @@ import PaymentResult from "@/pages/PaymentResult";
 import Upgrade from "@/pages/Upgrade";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import DepartmentManagement from "@/pages/DepartmentManagement";
+import DepartmentCanvas from "@/pages/DepartmentCanvas";
 import Agents from "@/pages/Agents";
 import AgentEditor from "@/pages/AgentEditor";
 import Voices from "@/pages/Voices";
@@ -258,6 +259,7 @@ function UserRouter() {
                 <Route path="/app/upgrade" component={Upgrade} />
                 <Route path="/app/knowledge-base" component={KnowledgeBase} />
                 <Route path="/app/departments" component={DepartmentManagement} />
+                <Route path="/app/departments/canvas" component={DepartmentCanvas} />
                 <Route path="/app/agents/new" component={AgentEditor} />
                 <Route path="/app/agents/:id/edit" component={AgentEditor} />
                 <Route path="/app/agents" component={Agents} />
@@ -345,6 +347,7 @@ function TeamMemberRouter() {
                 </Route>
                 <Route path="/app/knowledge-base" component={KnowledgeBase} />
                 <Route path="/app/departments" component={DepartmentManagement} />
+                <Route path="/app/departments/canvas" component={DepartmentCanvas} />
                 <Route path="/app/agents/new" component={AgentEditor} />
                 <Route path="/app/agents/:id/edit" component={AgentEditor} />
                 <Route path="/app/agents" component={Agents} />

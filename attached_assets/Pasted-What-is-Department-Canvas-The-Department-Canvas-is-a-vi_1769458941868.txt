@@ -1,0 +1,53 @@
+What is Department Canvas?
+The Department Canvas is a visual drag-and-drop interface that allows you to design your call routing system. Think of it as a flowchart builder where you can:
+
+Connect phone numbers to an IVR (Interactive Voice Response) system
+Route calls from the IVR to different departments
+Configure AI agents for each department
+See the entire call flow visually
+Canvas Elements
+The canvas has 3 types of nodes you can work with:
+
+Node Type	Description
+Phone Node	Your phone numbers that receive incoming calls
+IVR Node	The main routing hub with greeting messages and menu options
+Department Node	Individual departments (Sales, Support, Scheduling, Custom)
+How to Set Up a New Department (Step-by-Step)
+Step 1: Open the Department Wizard
+Navigate to the Department Wizard page in your app.
+
+Step 2: Add Phone Numbers to Canvas
+Select from your available phone numbers (Twilio or TCXC)
+Drag them onto the canvas
+They automatically connect to the IVR node
+Step 3: Configure the IVR
+Set a greeting message (e.g., "Thank you for calling. Press 1 for Sales, 2 for Support")
+Enable multi-language support if needed
+The system supports 20+ languages with auto-generated greetings
+Step 4: Add Departments
+Choose from pre-built types:
+
+Sales - Handle sales calls, qualify leads, schedule demos
+Support - Resolve customer issues, answer FAQs, create tickets
+Scheduling - Book appointments, send reminders
+Custom - Create your own with custom settings
+Step 5: Configure Each Department's AI Agent
+For each department, configure:
+
+Agent Name - Give your AI agent a name
+Voice & Tone - Choose voice provider (ElevenLabs/OpenAI), voice style
+Language - Set primary language
+System Prompt - Instructions for how the AI should behave (pre-filled templates available)
+Features - Enable/disable call transfer, call recording, language detection, end conversation capability
+Knowledge Base - Attach relevant knowledge bases
+Step 6: Connect Everything
+Draw connections from IVR to departments
+The system automatically assigns dial options (Press 1 for Sales, Press 2 for Support, etc.)
+Step 7: Save & Deploy
+Click Save to create all departments, agents, and routing configurations at once.
+
+Canvas Controls
+Zoom In/Out - Adjust view size
+Pan - Click and drag on empty canvas to move around
+Drag Nodes - Reposition elements as needed
+Click Node - Opens configuration panel

@@ -342,6 +342,14 @@ export default function DepartmentManagement() {
             Delete All
           </Button>
           <Button 
+            variant="outline"
+            onClick={() => setLocation("/app/departments/canvas")}
+            data-testid="button-open-canvas"
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            Design Canvas
+          </Button>
+          <Button 
             onClick={() => {
               setSelectedDepartment(null);
               setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });

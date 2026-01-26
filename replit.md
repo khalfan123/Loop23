@@ -111,6 +111,25 @@ The application serves on port 5000 with both frontend and backend.
   - PromptTemplatesLibrary passes template metadata (id, tags, isSystemTemplate) during selection
   - Server routes updated to persist template tracking information
   - Up to 3 tags displayed per agent card with "+N" overflow indicator
+- 2026-01-26: **Optimized AI Agent Templates**:
+  - Added `suggestedTemperature`, `suggestedLlmModel`, `suggestedVoice` fields to prompt_templates schema
+  - 14 agent templates with optimized AI configurations:
+    - **Core Agents (5)**: Sales, Support, Appointment, Survey, General (with multilingual names)
+    - **Specialized Agents (9)**: Virtual Receptionist, Appointment Setter, Lead Qualification, Survey & Feedback, Technical Support, Outbound Sales, Debt Collection, Event Registration, Real Estate Lead
+  - Temperature optimization by use case:
+    - Low (0.2-0.3): Technical Support, Survey agents for consistency
+    - Medium (0.4-0.5): Appointment, Receptionist, General for balanced interactions
+    - High (0.6-0.7): Sales, Lead Qualification, Real Estate for creative/persuasive conversations
+  - Voice mapping:
+    - `coral`: Sales, Lead Qualification, Outbound Sales, Real Estate (persuasive)
+    - `sage`: Support, Technical Support (calm, reassuring)
+    - `alloy`: Appointment, Receptionist, General (professional, neutral)
+    - `shimmer`: Survey, Event Registration (friendly, approachable)
+    - `ash`: Debt Collection (authoritative, firm but fair)
+  - LLM model selection:
+    - `gpt-4o`: Complex reasoning tasks (Sales, Technical Support, Lead Qualification, Real Estate)
+    - `gpt-4o-mini`: Cost-effective consistent responses (Appointments, Surveys, Receptionist)
+  - Enhanced behavioral prompts with frameworks, objection handling, and conversation techniques
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

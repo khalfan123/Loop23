@@ -15,7 +15,7 @@
  * ============================================================
  */
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, jsonb, decimal, doublePrecision, serial, date, time, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, jsonb, decimal, doublePrecision, serial, date, time, unique, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -681,6 +681,9 @@ export const promptTemplates = pgTable("prompt_templates", {
   variables: text("variables").array(), // Available variables: ['company', 'product', 'customerName', etc.]
   suggestedVoiceTone: text("suggested_voice_tone"), // Recommended voice settings
   suggestedPersonality: text("suggested_personality"),
+  suggestedTemperature: real("suggested_temperature"), // AI model temperature (0.0-1.0)
+  suggestedLlmModel: text("suggested_llm_model"), // Recommended LLM model (gpt-4o, gpt-4o-mini, etc.)
+  suggestedVoice: text("suggested_voice"), // Recommended voice (alloy, coral, sage, shimmer, ash, echo)
   isSystemTemplate: boolean("is_system_template").notNull().default(false), // System-provided templates (Staff Picks)
   isPublic: boolean("is_public").notNull().default(false), // Can be used by other users
   usageCount: integer("usage_count").notNull().default(0), // Track popularity

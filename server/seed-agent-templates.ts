@@ -16,6 +16,7 @@
  */
 import { db } from "./db";
 import { promptTemplates } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Multilingual agent preset names for the 5 core agent types
 // Format: { en: English, ar: Arabic, fr: French, es: Spanish, hi: Hindi }
@@ -739,49 +740,80 @@ async function seedAgentTemplates() {
     // Check if core presets already exist (by checking for 'core' tag)
     const existingCorePresets = agentPresets.filter(t => t.tags?.includes("core"));
     
-    // Insert core presets if they don't exist
-    if (existingCorePresets.length < corePresets.length) {
-      console.log(`📦 Inserting ${corePresets.length} core agent presets with multilingual names...`);
+    // Insert or update core presets
+    console.log(`📦 Processing ${corePresets.length} core agent presets...`);
+    
+    for (const preset of corePresets) {
+      const existingPreset = existingCorePresets.find(e => {
+        try {
+          const existingNames = JSON.parse(e.name);
+          const newNames = JSON.parse(preset.name);
+          return existingNames.en === newNames.en;
+        } catch {
+          return e.name === preset.name;
+        }
+      });
       
-      // Only insert core presets that don't already exist
-      for (const preset of corePresets) {
-        const exists = existingCorePresets.some(e => {
-          // Check if the preset name matches (comparing JSON strings)
-          try {
-            const existingNames = JSON.parse(e.name);
-            const newNames = JSON.parse(preset.name);
-            return existingNames.en === newNames.en;
-          } catch {
-            return e.name === preset.name;
-          }
-        });
-        
-        if (!exists) {
-          await db.insert(promptTemplates).values(preset);
-          try {
-            const names = JSON.parse(preset.name);
-            console.log(`   ✅ Inserted: ${names.en} (5 languages)`);
-          } catch {
-            console.log(`   ✅ Inserted: ${preset.name}`);
-          }
+      if (existingPreset) {
+        // Update existing preset with new optimized settings
+        await db.update(promptTemplates)
+          .set({
+            systemPrompt: preset.systemPrompt,
+            firstMessage: preset.firstMessage,
+            suggestedVoiceTone: preset.suggestedVoiceTone,
+            suggestedPersonality: preset.suggestedPersonality,
+            suggestedTemperature: preset.suggestedTemperature,
+            suggestedLlmModel: preset.suggestedLlmModel,
+            suggestedVoice: preset.suggestedVoice,
+            tags: preset.tags,
+            updatedAt: new Date(),
+          })
+          .where(eq(promptTemplates.id, existingPreset.id));
+        try {
+          const names = JSON.parse(preset.name);
+          console.log(`   🔄 Updated: ${names.en}`);
+        } catch {
+          console.log(`   🔄 Updated: ${preset.name}`);
+        }
+      } else {
+        await db.insert(promptTemplates).values(preset);
+        try {
+          const names = JSON.parse(preset.name);
+          console.log(`   ✅ Inserted: ${names.en} (5 languages)`);
+        } catch {
+          console.log(`   ✅ Inserted: ${preset.name}`);
         }
       }
-    } else {
-      console.log(`⚠️  Found ${existingCorePresets.length} existing core presets. Skipping core preset seed.`);
     }
     
     // Check if other presets already exist
     const existingOtherPresets = agentPresets.filter(t => !t.tags?.includes("core"));
     
-    if (existingOtherPresets.length === 0 && otherPresets.length > 0) {
-      console.log(`📦 Inserting ${otherPresets.length} specialized agent templates...`);
-      await db.insert(promptTemplates).values(otherPresets);
+    console.log(`📦 Processing ${otherPresets.length} specialized agent templates...`);
+    
+    for (const preset of otherPresets) {
+      const existingPreset = existingOtherPresets.find(e => e.name === preset.name);
       
-      otherPresets.forEach(template => {
-        console.log(`   ✅ Inserted: ${template.name}`);
-      });
-    } else if (existingOtherPresets.length > 0) {
-      console.log(`⚠️  Found ${existingOtherPresets.length} existing specialized templates. Skipping.`);
+      if (existingPreset) {
+        // Update existing preset with new optimized settings
+        await db.update(promptTemplates)
+          .set({
+            systemPrompt: preset.systemPrompt,
+            firstMessage: preset.firstMessage,
+            suggestedVoiceTone: preset.suggestedVoiceTone,
+            suggestedPersonality: preset.suggestedPersonality,
+            suggestedTemperature: preset.suggestedTemperature,
+            suggestedLlmModel: preset.suggestedLlmModel,
+            suggestedVoice: preset.suggestedVoice,
+            tags: preset.tags,
+            updatedAt: new Date(),
+          })
+          .where(eq(promptTemplates.id, existingPreset.id));
+        console.log(`   🔄 Updated: ${preset.name}`);
+      } else {
+        await db.insert(promptTemplates).values(preset);
+        console.log(`   ✅ Inserted: ${preset.name}`);
+      }
     }
     
     console.log("✅ Agent Templates seed complete!");

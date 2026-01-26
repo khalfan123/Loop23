@@ -245,6 +245,9 @@ export default function Agents() {
   const [knowledgeUploadOpen, setKnowledgeUploadOpen] = useState(false);
   const [draggedAgentId, setDraggedAgentId] = useState<string | null>(null);
   const [dropTargetFolder, setDropTargetFolder] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState<string | null>(null);
+  const [folderNames, setFolderNames] = useState<Record<string, string>>({ template: 'Template Staff' });
+  const [showDeleteFolderConfirm, setShowDeleteFolderConfirm] = useState<string | null>(null);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<Agent | null>(null);
   const [formData, setFormData] = useState({
@@ -787,18 +790,47 @@ export default function Agents() {
                     setDraggedAgentId(null);
                   }}
                 >
-                  <button
-                    onClick={() => { setSelectedFolder('template'); setTypeFilter('all'); }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                      selectedFolder === 'template' 
-                        ? 'bg-primary/10 text-primary font-medium' 
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                    data-testid="folder-template-agents"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                    <span className="flex-1 text-left">Template Staff</span>
-                  </button>
+                  {editingFolderName === 'template' ? (
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      <FolderOpen className="h-4 w-4 text-primary" />
+                      <Input
+                        autoFocus
+                        className="h-6 text-sm flex-1"
+                        defaultValue={folderNames.template}
+                        onBlur={(e) => {
+                          if (e.target.value.trim()) {
+                            setFolderNames(prev => ({ ...prev, template: e.target.value.trim() }));
+                          }
+                          setEditingFolderName(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const target = e.target as HTMLInputElement;
+                            if (target.value.trim()) {
+                              setFolderNames(prev => ({ ...prev, template: target.value.trim() }));
+                            }
+                            setEditingFolderName(null);
+                          } else if (e.key === 'Escape') {
+                            setEditingFolderName(null);
+                          }
+                        }}
+                        data-testid="input-folder-name"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setSelectedFolder('template'); setTypeFilter('all'); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                        selectedFolder === 'template' 
+                          ? 'bg-primary/10 text-primary font-medium' 
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                      data-testid="folder-template-agents"
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      <span className="flex-1 text-left">{folderNames.template}</span>
+                    </button>
+                  )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button 
@@ -812,13 +844,13 @@ export default function Agents() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
-                        onClick={() => toast({ title: "Coming Soon", description: "Folder editing will be available in a future update." })}
+                        onClick={() => setEditingFolderName('template')}
                       >
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit Folder
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={() => toast({ title: "Coming Soon", description: "Folder removal will be available in a future update." })}
+                        onClick={() => setShowDeleteFolderConfirm('template')}
                         className="text-destructive"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
@@ -838,7 +870,7 @@ export default function Agents() {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-lg font-semibold">
-              {selectedFolder === 'all' ? 'Staff AI' : 'Template Staff'}
+              {selectedFolder === 'all' ? 'Staff AI' : folderNames.template}
             </h2>
             <div className="flex items-center gap-3">
               {/* Search */}
@@ -2579,6 +2611,34 @@ export default function Agents() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Folder Delete Confirmation */}
+      <AlertDialog open={!!showDeleteFolderConfirm} onOpenChange={() => setShowDeleteFolderConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove the "{showDeleteFolderConfirm && folderNames[showDeleteFolderConfirm]}" folder? 
+              The staff members inside will be moved back to Staff AI.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (showDeleteFolderConfirm) {
+                  setSelectedFolder('all');
+                  toast({ title: "Folder Removed", description: `"${folderNames[showDeleteFolderConfirm]}" has been removed.` });
+                }
+                setShowDeleteFolderConfirm(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

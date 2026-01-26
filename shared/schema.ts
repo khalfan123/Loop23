@@ -456,6 +456,58 @@ export const calls = pgTable("calls", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// AI Quality Assurance Analysis
+export const callQaAnalyses = pgTable("call_qa_analyses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  callId: varchar("call_id").notNull().references(() => calls.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Overall Quality Scores (0-100)
+  overallScore: integer("overall_score"), // Weighted average of all scores
+  audioQualityScore: integer("audio_quality_score"), // Audio clarity, noise, volume
+  languageScore: integer("language_score"), // Grammar, vocabulary, professionalism
+  complianceScore: integer("compliance_score"), // Script adherence, required disclosures
+  performanceScore: integer("performance_score"), // Goal achievement, efficiency
+  
+  // Resolution Tracking
+  resolutionStatus: text("resolution_status"), // 'resolved', 'unresolved', 'partial', 'transferred'
+  resolutionNotes: text("resolution_notes"),
+  
+  // Latency Metrics
+  avgResponseLatency: integer("avg_response_latency"), // Average AI response time in ms
+  maxResponseLatency: integer("max_response_latency"), // Maximum response time in ms
+  
+  // Issue Flags
+  hasHallucinations: boolean("has_hallucinations").default(false),
+  hasInterruptions: boolean("has_interruptions").default(false),
+  hasNegativeSentiment: boolean("has_negative_sentiment").default(false),
+  hasComplianceIssues: boolean("has_compliance_issues").default(false),
+  hasKbInaccuracies: boolean("has_kb_inaccuracies").default(false), // Knowledge base accuracy issues
+  
+  // Detailed Diagnostics (JSON for flexibility)
+  diagnostics: jsonb("diagnostics"), // { hallucinations: [], interruptions: [], sentimentBreakdown: {}, etc. }
+  
+  // Key Moments (timestamps of important events in the call)
+  keyMoments: jsonb("key_moments"), // [{ timestamp: number, type: string, description: string }]
+  
+  // Transcript-level Evidence
+  evidence: jsonb("evidence"), // [{ transcriptIndex: number, issue: string, severity: string }]
+  
+  // Analysis metadata
+  analysisModel: text("analysis_model"), // e.g., 'gpt-4o', 'gpt-4o-mini'
+  analysisVersion: text("analysis_version").default("1.0"),
+  analyzedAt: timestamp("analyzed_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCallQaAnalysisSchema = createInsertSchema(callQaAnalyses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCallQaAnalysis = z.infer<typeof insertCallQaAnalysisSchema>;
+export type CallQaAnalysis = typeof callQaAnalyses.$inferSelect;
+
 export const creditTransactions = pgTable("credit_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

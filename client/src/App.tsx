@@ -40,6 +40,7 @@ import CampaignDetail from "@/pages/CampaignDetail";
 import Calls from "@/pages/Calls";
 import CallDetail from "@/pages/CallDetail";
 import Analytics from "@/pages/Analytics";
+import QualityAssurance from "@/pages/QualityAssurance";
 import Billing from "@/pages/Billing";
 import PaymentResult from "@/pages/PaymentResult";
 import Upgrade from "@/pages/Upgrade";
@@ -249,6 +250,7 @@ function UserRouter() {
                 <Route path="/app/calls" component={Calls} />
                 <Route path="/app/contacts" component={AllContacts} />
                 <Route path="/app/analytics" component={Analytics} />
+                <Route path="/app/quality-assurance" component={QualityAssurance} />
                 <Route path="/app/crm" component={CRMPage} />
                 <Route path="/app/tools/widgets" component={WidgetsPage} />
                 <Route path="/app/billing" component={Billing} />
@@ -339,6 +341,7 @@ function TeamMemberRouter() {
                 <Route path="/app/calls" component={Calls} />
                 <Route path="/app/contacts" component={AllContacts} />
                 <Route path="/app/analytics" component={Analytics} />
+                <Route path="/app/quality-assurance" component={QualityAssurance} />
                 <Route path="/app/crm" component={CRMPage} />
                 <Route path="/app/tools/widgets" component={WidgetsPage} />
                 <Route path="/app/billing" component={Billing} />

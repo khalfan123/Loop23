@@ -59,6 +59,7 @@ import { createPublicRoutes } from "./routes/public-routes";
 import { createAuthRoutes } from "./routes/auth-routes";
 import { createAgentRoutes } from "./routes/agent-routes";
 import { createCampaignRoutes } from "./routes/campaign-routes";
+import { createQaRoutes } from "./routes/qa-routes";
 import { createPhoneRoutes } from "./routes/phone-routes";
 import { createUserAddressRoutes } from "./routes/user-address-routes";
 import { createAnalyticsRoutes } from "./routes/analytics-routes";
@@ -184,6 +185,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register analytics routes (dashboard, analytics, calls)
   const analyticsRoutes = createAnalyticsRoutes(routeContext);
   app.use(analyticsRoutes);
+
+  // Register QA routes (AI quality assurance analysis)
+  const qaRoutes = createQaRoutes(routeContext);
+  app.use(qaRoutes);
 
   // Register notification routes
   const notificationRoutes = createNotificationRoutes(routeContext);

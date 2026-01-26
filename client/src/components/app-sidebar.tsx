@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { Users, BookOpen, Mic, Link as LinkIcon, Phone, Settings, ChevronsUpDown, Plus, BarChart3, Home, Target, LogOut, Coins, Shield, CreditCard, TrendingUp, UserCheck, Workflow, Webhook, ClipboardList, Calendar, Layout, FileText, Wrench, Globe, Bot, ContactRound, Building2 } from "lucide-react";
+import { Users, BookOpen, Mic, Link as LinkIcon, Phone, Settings, ChevronsUpDown, Plus, BarChart3, Home, Target, LogOut, Coins, Shield, CreditCard, TrendingUp, UserCheck, Workflow, Webhook, ClipboardList, Calendar, Layout, FileText, Wrench, Globe, Bot, ContactRound, Building2, ShieldCheck } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -81,6 +81,7 @@ export function AppSidebar() {
     { title: t('nav.calls'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500" },
     { title: t('nav.crm'), url: "/app/crm", icon: ContactRound, iconColor: "text-cyan-500" },
     { title: t('nav.analytics'), url: "/app/analytics", icon: BarChart3, iconColor: "text-purple-500" },
+    { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500" },
   ];
 
   const telephonyItems = [

@@ -27,7 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone, GripVertical } from "lucide-react";
+import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -248,6 +248,8 @@ export default function Agents() {
   const [editingFolderName, setEditingFolderName] = useState<string | null>(null);
   const [folderNames, setFolderNames] = useState<Record<string, string>>({ template: 'Template Staff' });
   const [showDeleteFolderConfirm, setShowDeleteFolderConfirm] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'name' | 'type' | 'voice' | 'phone' | 'editedBy'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<Agent | null>(null);
   const [formData, setFormData] = useState({
@@ -664,6 +666,24 @@ export default function Agents() {
     updateMutation.mutate({ id: editingAgent.id, data: formData });
   };
 
+  // Sort handler
+  const handleSort = (column: 'name' | 'type' | 'voice' | 'phone' | 'editedBy') => {
+    if (sortBy === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sort icon for column
+  const getSortIcon = (column: 'name' | 'type' | 'voice' | 'phone' | 'editedBy') => {
+    if (sortBy !== column) return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1" /> 
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
   const filteredAgents = agents
     .filter((agent) => {
       // Filter by folder
@@ -683,6 +703,29 @@ export default function Agents() {
       }
       // Filter by search query
       return agent.name.toLowerCase().includes(searchQuery.toLowerCase());
+    })
+    .sort((a, b) => {
+      const direction = sortDirection === 'asc' ? 1 : -1;
+      switch (sortBy) {
+        case 'name':
+          return direction * a.name.localeCompare(b.name);
+        case 'type':
+          return direction * (a.type || '').localeCompare(b.type || '');
+        case 'voice':
+          const voiceA = a.openaiVoice || a.elevenLabsVoiceId || '';
+          const voiceB = b.openaiVoice || b.elevenLabsVoiceId || '';
+          return direction * voiceA.localeCompare(voiceB);
+        case 'phone':
+          const phoneA = a.phoneNumber || '';
+          const phoneB = b.phoneNumber || '';
+          return direction * phoneA.localeCompare(phoneB);
+        case 'editedBy':
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          return direction * (dateA - dateB);
+        default:
+          return 0;
+      }
     });
 
   // Pagination for agents grid
@@ -943,11 +986,51 @@ export default function Agents() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[300px]">Staff Name</TableHead>
-                    <TableHead>Staff Type</TableHead>
-                    <TableHead>Voice</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Edited by</TableHead>
+                    <TableHead className="w-[300px]">
+                      <button 
+                        onClick={() => handleSort('name')} 
+                        className="flex items-center hover:text-foreground transition-colors"
+                        data-testid="sort-name"
+                      >
+                        Staff Name {getSortIcon('name')}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button 
+                        onClick={() => handleSort('type')} 
+                        className="flex items-center hover:text-foreground transition-colors"
+                        data-testid="sort-type"
+                      >
+                        Staff Type {getSortIcon('type')}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button 
+                        onClick={() => handleSort('voice')} 
+                        className="flex items-center hover:text-foreground transition-colors"
+                        data-testid="sort-voice"
+                      >
+                        Voice {getSortIcon('voice')}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button 
+                        onClick={() => handleSort('phone')} 
+                        className="flex items-center hover:text-foreground transition-colors"
+                        data-testid="sort-phone"
+                      >
+                        Phone {getSortIcon('phone')}
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button 
+                        onClick={() => handleSort('editedBy')} 
+                        className="flex items-center hover:text-foreground transition-colors"
+                        data-testid="sort-edited"
+                      >
+                        Edited by {getSortIcon('editedBy')}
+                      </button>
+                    </TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>

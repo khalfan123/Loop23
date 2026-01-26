@@ -87,6 +87,13 @@ The application serves on port 5000 with both frontend and backend.
 - Background schedulers handle campaign execution, billing, and cleanup tasks
 - Plugin system available in `server/modules/plugins/`
 
+## Deployment Checklist
+Before every deployment, ensure the following steps are completed:
+1. **Restart the workflow** - Run `npm run dev` or restart the "Start application" workflow to apply all code changes
+2. **Clear browser cache** - Hard refresh (Ctrl+Shift+R or Cmd+Shift+R) to ensure frontend changes are visible
+3. **Verify build** - Check that Vite rebuilds the frontend assets without errors
+4. **Test UI changes** - Confirm all UI modifications appear correctly after restart
+
 ## Recent Changes
 - 2026-01-21: Initial installation from CodeCanyon package
 - Downgraded Express from 5.x to 4.21.2 for compatibility with wildcard routes

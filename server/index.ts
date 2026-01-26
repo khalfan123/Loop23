@@ -92,6 +92,9 @@ app.use('/images', express.static(path.join(process.cwd(), 'client', 'public', '
 // Serve audio files from public/audio folder (for flow automation play_audio nodes)
 app.use('/audio', express.static(path.join(process.cwd(), 'public', 'audio'), staticCacheOptions));
 
+// Serve avatar images from public/avatars folder (for agent profile pictures)
+app.use('/avatars', express.static(path.join(process.cwd(), 'public', 'avatars'), staticCacheOptions));
+
 // Serve widget files from public/widget folder (for embeddable voice widgets)
 // CORS enabled for cross-origin embedding on external websites
 app.use('/widget', (req, res, next) => {

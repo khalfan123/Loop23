@@ -277,6 +277,7 @@ export default function Agents() {
     sourceTemplateId: "" as string,
     isFromTemplate: false,
     tags: [] as string[],
+    specialist: "",
   });
   const [knowledgeData, setKnowledgeData] = useState({
     title: "",

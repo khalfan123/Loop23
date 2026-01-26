@@ -1244,7 +1244,7 @@ function DepartmentCanvasContent() {
     setNodes((nds) => {
       const deptCount = nds.filter((n) => n.type === "department").length;
       const dialKey = String(deptCount + 1);
-      const xOffset = 50 + deptCount * 130;
+      const xOffset = 50 + deptCount * 180;
       
       const newNode: Node = {
         id: newDeptId,
@@ -1280,6 +1280,12 @@ function DepartmentCanvasContent() {
     });
     
     setCanvasDepartments((prev) => [...prev, newDept]);
+    
+    setTimeout(() => {
+      if (reactFlowInstance) {
+        reactFlowInstance.fitView({ padding: 0.3, duration: 300 });
+      }
+    }, 50);
     
     toast({
       title: "Department Added",

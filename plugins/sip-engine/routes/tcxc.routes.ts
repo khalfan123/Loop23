@@ -307,6 +307,17 @@ export function setupTcxcRoutes(
     }
   });
 
+  // Get routes/destinations from TCXC (for GCC and other regions)
+  app.get('/api/tcxc/routes', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const routes = await TcxcApiService.getRoutes();
+      res.json(routes);
+    } catch (error: any) {
+      console.error('[TCXC Routes] Get routes error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Provider Caller IDs - Get user's added provider caller IDs
   app.get('/api/tcxc/provider-caller-ids', sessionAuth, async (req: Request, res: Response) => {
     try {

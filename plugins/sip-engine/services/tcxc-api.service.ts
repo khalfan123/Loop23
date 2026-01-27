@@ -494,4 +494,104 @@ export class TcxcApiService {
       return [];
     }
   }
+
+  static async getRoutes(): Promise<Array<{
+    destination: string;
+    prefix: string;
+    country: string;
+    seller: string;
+    sellerId: number;
+    ratePerMinute: number;
+    currency: string;
+    quality: string;
+    routeType: string;
+  }>> {
+    try {
+      // Try to get top routes which shows available destinations
+      const response = await this.makeRequest('/sellers/toproutes?type=CLI&number=100&period=today', 'GET');
+      
+      if (response && Array.isArray(response.routes)) {
+        return response.routes.map((route: any) => ({
+          destination: route.destination || route.country_name || '',
+          prefix: route.prefix || route.destination_code || '',
+          country: route.country_code || route.country || '',
+          seller: route.seller_name || route.vendor_name || '',
+          sellerId: route.i_vendor || route.seller_id || 0,
+          ratePerMinute: parseFloat(route.rate || route.price_1 || '0'),
+          currency: route.currency || 'USD',
+          quality: route.quality || route.asr || 'unknown',
+          routeType: route.route_type || 'CLI',
+        }));
+      }
+      
+      // If no routes from toproutes, return configured interconnections as routes
+      const credentials = await this.getAllCredentials();
+      const routes: Array<{
+        destination: string;
+        prefix: string;
+        country: string;
+        seller: string;
+        sellerId: number;
+        ratePerMinute: number;
+        currency: string;
+        quality: string;
+        routeType: string;
+      }> = [];
+      
+      for (const cred of credentials.filter(c => c.isActive)) {
+        if (cred.techPrefixes && cred.techPrefixes.length > 0) {
+          for (const prefix of cred.techPrefixes) {
+            routes.push({
+              destination: cred.name,
+              prefix: prefix,
+              country: '',
+              seller: cred.name,
+              sellerId: 0,
+              ratePerMinute: 0,
+              currency: 'USD',
+              quality: cred.healthStatus || 'unknown',
+              routeType: cred.connectionType || 'tcxc',
+            });
+          }
+        }
+      }
+      
+      return routes;
+    } catch (error: any) {
+      console.error('[TCXC] Get routes error:', error.message);
+      // Return configured interconnections as fallback
+      const credentials = await this.getAllCredentials();
+      const routes: Array<{
+        destination: string;
+        prefix: string;
+        country: string;
+        seller: string;
+        sellerId: number;
+        ratePerMinute: number;
+        currency: string;
+        quality: string;
+        routeType: string;
+      }> = [];
+      
+      for (const cred of credentials.filter(c => c.isActive)) {
+        if (cred.techPrefixes && cred.techPrefixes.length > 0) {
+          for (const prefix of cred.techPrefixes) {
+            routes.push({
+              destination: cred.name,
+              prefix: prefix,
+              country: '',
+              seller: cred.name,
+              sellerId: 0,
+              ratePerMinute: 0,
+              currency: 'USD',
+              quality: cred.healthStatus || 'unknown',
+              routeType: cred.connectionType || 'tcxc',
+            });
+          }
+        }
+      }
+      
+      return routes;
+    }
+  }
 }

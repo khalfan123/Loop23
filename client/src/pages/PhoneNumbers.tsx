@@ -1829,11 +1829,18 @@ export default function PhoneNumbers() {
               <div className="text-center py-8 text-muted-foreground mt-6">
                 <Phone className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">No Numbers Found</p>
-                <p className="text-sm">
+                <p className="text-sm max-w-md mx-auto">
                   Select a country and click "Search Marketplace" to find available phone numbers.
-                  <br />
-                  The TCXC marketplace availability varies by region - try different countries.
                 </p>
+                <div className="mt-4 p-3 bg-muted/50 rounded-lg inline-block text-left">
+                  <p className="text-xs font-medium mb-2">Tip: Countries with available inventory:</p>
+                  <ul className="text-xs space-y-1">
+                    <li>United Kingdom (+44) - London landlines from Nexmo/Vonage</li>
+                    <li>Germany (+49) - National numbers</li>
+                    <li>France (+33) - Geographic numbers</li>
+                  </ul>
+                  <p className="text-xs mt-2 text-muted-foreground">GCC regions may have limited availability.</p>
+                </div>
               </div>
             )}
 

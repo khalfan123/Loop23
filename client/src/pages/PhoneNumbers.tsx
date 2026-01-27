@@ -1080,16 +1080,186 @@ export default function PhoneNumbers() {
               ))}
             </div>
           ) : ownedNumbers.length === 0 ? (
-            <Card className="p-8 sm:p-16 text-center">
-              <Phone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">{t('phoneNumbers.empty.title')}</h3>
-              <p className="text-muted-foreground mb-4">
-                {t('phoneNumbers.empty.description')}
-              </p>
-              <Button onClick={() => handleBuyClick('twilio')}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t('phoneNumbers.empty.buyFirst')}
-              </Button>
+            <Card className="p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <Phone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">{t('phoneNumbers.empty.title')}</h3>
+                <p className="text-muted-foreground">
+                  {t('phoneNumbers.empty.description')}
+                </p>
+              </div>
+
+              {twilioKycRequired && !canPurchaseTwilio ? (
+                <div className="text-center py-8">
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-6 max-w-md mx-auto">
+                    <Shield className="h-10 w-10 mx-auto mb-4 text-amber-500" />
+                    <h4 className="font-semibold mb-2">{t('phoneNumbers.kyc.requiredTitle', { defaultValue: 'KYC Verification Required' })}</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {t('phoneNumbers.kyc.requiredDescription', { defaultValue: 'You need to complete identity verification before purchasing phone numbers.' })}
+                    </p>
+                    <Button onClick={() => setKycRequiredDialogOpen(true)} data-testid="button-complete-kyc-inline">
+                      <Shield className="h-4 w-4 mr-2" />
+                      {t('phoneNumbers.kyc.completeVerification', { defaultValue: 'Complete KYC Verification' })}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-accent/50 border border-accent rounded-lg p-4 flex items-start gap-3 mb-6">
+                    <CreditCard className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-sm mb-1">{t('phoneNumbers.dialog.monthlyBilling')}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {t('phoneNumbers.dialog.monthlyBillingDesc', { credits: MONTHLY_CREDITS })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 max-w-xl mx-auto">
+                <div className="space-y-3">
+                  <Label>{t('phoneNumbers.labels.country')}</Label>
+                  <Select value={searchCountry} onValueChange={setSearchCountry} disabled={countriesLoading}>
+                    <SelectTrigger data-testid="select-country-inline">
+                      <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <SelectValue placeholder={countriesLoading ? t('phoneNumbers.placeholders.loadingCountries') : t('phoneNumbers.placeholders.selectCountry')} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {countries.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.name} ({country.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="search-contains-inline">Search by digits (optional)</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="search-contains-inline"
+                      placeholder="e.g. 2200, 555"
+                      value={searchContains}
+                      onChange={(e) => setSearchContains(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      className="pl-10"
+                      data-testid="input-search-contains-inline"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Filter numbers containing specific digits (leave empty to see all available)
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setHasSearched(true);
+                      searchNumbers();
+                    }}
+                    disabled={!canSearch() || searchLoading}
+                    className="flex-1"
+                    data-testid="button-search-numbers-inline"
+                  >
+                    {searchLoading ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                        {t('phoneNumbers.actions.searching')}
+                      </>
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4 mr-2" />
+                        {t('phoneNumbers.actions.searchNumbers')}
+                      </>
+                    )}
+                  </Button>
+                  {hasSearched && (
+                    <Button
+                      variant="outline"
+                      onClick={() => searchNumbers()}
+                      disabled={!canSearch() || searchLoading}
+                      data-testid="button-refresh-numbers-inline"
+                      title="Load different numbers"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${searchLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                  )}
+                </div>
+
+                {!searchLoading && hasSearched && availableNumbers.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    {t('phoneNumbers.search.noResults')}
+                  </div>
+                )}
+
+                {availableNumbers.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>{t('phoneNumbers.labels.availableNumbers')}</Label>
+                    <div className="border rounded-md divide-y max-h-96 overflow-y-auto">
+                      {availableNumbers.map((number) => (
+                        <div
+                          key={number.phoneNumber}
+                          className={`p-4 hover-elevate cursor-pointer ${
+                            selectedNumber?.phoneNumber === number.phoneNumber ? "bg-accent" : ""
+                          }`}
+                          onClick={() => setSelectedNumber(number)}
+                          data-testid={`available-number-inline-${number.phoneNumber}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="font-mono font-semibold">
+                                {formatPhoneNumber(number.phoneNumber)}
+                              </div>
+                              {number.locality && number.region && (
+                                <div className="text-sm text-muted-foreground">
+                                  {number.locality}, {number.region}
+                                </div>
+                              )}
+                            </div>
+                            {selectedNumber?.phoneNumber === number.phoneNumber && (
+                              <Check className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedNumber && (
+                  <div className="space-y-2">
+                    <Label htmlFor="friendly-name-inline">{t('phoneNumbers.labels.friendlyName')}</Label>
+                    <Input
+                      id="friendly-name-inline"
+                      placeholder={t('phoneNumbers.placeholders.friendlyName')}
+                      value={friendlyName}
+                      onChange={(e) => setFriendlyName(e.target.value)}
+                      data-testid="input-friendly-name-inline"
+                    />
+                  </div>
+                )}
+
+                {selectedNumber && (
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={handleBuyNumber}
+                      disabled={!selectedNumber || buyMutation.isPending}
+                      data-testid="button-confirm-purchase-inline"
+                    >
+                      {buyMutation.isPending ? (
+                        t('phoneNumbers.actions.purchasing')
+                      ) : (
+                        <>
+                          <ShoppingCart className="h-4 w-4 mr-2" />
+                          {t('phoneNumbers.actions.purchaseFor', { credits: MONTHLY_CREDITS })}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+                </>
+              )}
             </Card>
           ) : (
             <div className="space-y-4">

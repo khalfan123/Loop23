@@ -1728,8 +1728,9 @@ export default function PhoneNumbers() {
               <div className="flex gap-2">
                 <Button 
                   onClick={() => {
-                    // Search with optional seller filter - searches all marketplace DIDs if no carrier selected
-                    searchMarketplaceDids(selectedCarrier?.sellerId, marketplaceSearchPrefix || undefined);
+                    // Search TCXC marketplace by country prefix only (seller IDs are not reliable)
+                    // The marketplace has its own seller names that don't match our carrier names
+                    searchMarketplaceDids(undefined, marketplaceSearchPrefix || undefined);
                   }}
                   disabled={isSearchingMarketplace}
                   data-testid="button-search-outbound"
@@ -1739,7 +1740,7 @@ export default function PhoneNumbers() {
                   ) : (
                     <Search className="h-4 w-4 mr-1" />
                   )}
-                  Search {selectedCarrier ? selectedCarrier.name : 'All'}
+                  Search Marketplace
                 </Button>
                 <Button 
                   variant="outline" 

@@ -459,14 +459,16 @@ export default function PhoneNumbers() {
   });
 
   // Search marketplace DIDs from providers
-  const searchMarketplaceDids = async (seller: string, prefix?: string) => {
+  // Note: seller parameter is optional - if empty, searches all sellers on TCXC marketplace
+  const searchMarketplaceDids = async (seller?: string, prefix?: string) => {
     setIsSearchingMarketplace(true);
     try {
       const response = await apiRequest("POST", "/api/tcxc/marketplace/search", {
-        seller,
+        // Only include seller if it's a valid non-empty string
+        ...(seller && seller.trim() ? { seller: seller.trim() } : {}),
         prefix: prefix || undefined,
         voice: true,
-        limit: 20,
+        limit: 50,
       });
       const data = response as unknown as MarketplaceDid[];
       setMarketplaceSearchResults(Array.isArray(data) ? data : []);
@@ -1726,11 +1728,10 @@ export default function PhoneNumbers() {
               <div className="flex gap-2">
                 <Button 
                   onClick={() => {
-                    if (selectedCarrier) {
-                      searchMarketplaceDids(selectedCarrier.sellerId, marketplaceSearchPrefix || undefined);
-                    }
+                    // Search with optional seller filter - searches all marketplace DIDs if no carrier selected
+                    searchMarketplaceDids(selectedCarrier?.sellerId, marketplaceSearchPrefix || undefined);
                   }}
-                  disabled={!selectedCarrier || isSearchingMarketplace}
+                  disabled={isSearchingMarketplace}
                   data-testid="button-search-outbound"
                 >
                   {isSearchingMarketplace ? (
@@ -1738,7 +1739,7 @@ export default function PhoneNumbers() {
                   ) : (
                     <Search className="h-4 w-4 mr-1" />
                   )}
-                  Search
+                  Search {selectedCarrier ? selectedCarrier.name : 'All'}
                 </Button>
                 <Button 
                   variant="outline" 

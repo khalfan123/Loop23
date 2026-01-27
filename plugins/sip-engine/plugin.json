@@ -1,0 +1,55 @@
+{
+  "name": "sip-engine",
+  "displayName": "SIP Engine",
+  "version": "1.0.0",
+  "description": "SIP trunk integration for ElevenLabs Conversational AI - supports TelecomXchange (TCXC), Twilio SIP, Telnyx, Vonage, and generic SIP providers",
+  "author": "AgentLabs",
+  "license": "Proprietary",
+  "compatibility": {
+    "agentlabs": ">=1.0.0"
+  },
+  "entryPoint": "index.ts",
+  "registerFunction": "registerSipEnginePlugin",
+  "database": {
+    "tables": ["sip_trunks", "sip_phone_numbers", "sip_calls"]
+  },
+  "routes": {
+    "api": [
+      { "path": "/api/sip/trunks", "description": "SIP trunk management" },
+      { "path": "/api/sip/phone-numbers", "description": "SIP phone number management" },
+      { "path": "/api/sip/calls", "description": "SIP call operations" },
+      { "path": "/api/sip/webhooks", "description": "ElevenLabs SIP webhooks" }
+    ]
+  },
+  "ui": {
+    "adminSettings": {
+      "tab": "sip",
+      "label": "SIP Trunks",
+      "component": "SipTrunkSettings",
+      "menu": "sip-trunks",
+      "icon": "Phone"
+    }
+  },
+  "features": [
+    "elevenlabs-sip",
+    "tcxc-support",
+    "sip-trunk-management",
+    "did-management",
+    "outbound-calling",
+    "inbound-routing"
+  ],
+  "settings": {
+    "default_engine": {
+      "type": "string",
+      "default": "elevenlabs-sip",
+      "label": "Default SIP Engine",
+      "description": "Default engine for new SIP trunks"
+    },
+    "tcxc_api_enabled": {
+      "type": "boolean",
+      "default": true,
+      "label": "TelecomXchange API Enabled",
+      "description": "Enable TelecomXchange DID provisioning API"
+    }
+  }
+}

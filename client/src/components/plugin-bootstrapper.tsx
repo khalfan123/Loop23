@@ -16,6 +16,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { usePluginRegistry, exposePluginRegistry } from '@/contexts/plugin-registry';
 import { AuthStorage } from '@/lib/auth-storage';
+import { useBuiltinPlugins } from '@/hooks/use-builtin-plugins';
 
 interface PluginCapabilities {
   capabilities: Record<string, boolean>;
@@ -42,6 +43,8 @@ export function PluginBootstrapper({ children }: { children: React.ReactNode }) 
     failed: [],
     errors: {},
   });
+  
+  useBuiltinPlugins();
   const hasLoadedOnceRef = useRef(false);
   const intervalRef = useRef<number | undefined>(undefined);
   const retryCountRef = useRef(0);

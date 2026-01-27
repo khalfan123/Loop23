@@ -392,22 +392,36 @@ export class TcxcApiService {
   }>> {
     try {
       // Call TCXC API to get purchased interconnections/routes
-      // Try the buyer/purchased_routes endpoint first
-      let response;
-      try {
-        response = await this.makeRequest('/buyer/purchased_routes', 'GET');
-      } catch (e: any) {
-        // Fallback to alternative endpoints
-        console.log('[TCXC] /buyer/purchased_routes failed, trying /buyers/routes...');
+      // Try POST /interconnections/list as primary endpoint per TCXC API docs
+      let response: any = null;
+      const endpointsToTry = [
+        { endpoint: '/interconnections/list', method: 'POST', body: { list: '1' } },
+        { endpoint: '/buyers/interconnect', method: 'POST', body: { list: '1' } },
+        { endpoint: '/buyers/interconnections', method: 'GET', body: null },
+        { endpoint: '/buyers/routes', method: 'GET', body: null },
+        { endpoint: '/interconnect/list', method: 'POST', body: {} },
+      ];
+      
+      for (const { endpoint, method, body } of endpointsToTry) {
         try {
-          response = await this.makeRequest('/buyers/routes', 'GET');
-        } catch (e2: any) {
-          console.log('[TCXC] /buyers/routes failed, trying /interconnect/list...');
-          response = await this.makeRequest('/interconnect/list', 'GET');
+          console.log(`[TCXC] Trying ${method} ${endpoint}...`);
+          response = await this.makeRequest(endpoint, method, body);
+          console.log(`[TCXC] ${endpoint} response:`, JSON.stringify(response).substring(0, 500));
+          
+          // Check if we got a valid response (not HTML login page)
+          if (response && typeof response === 'object' && !response.toString().includes('<!DOCTYPE')) {
+            break;
+          }
+        } catch (e: any) {
+          console.log(`[TCXC] ${endpoint} failed:`, e.message?.substring(0, 100));
+          continue;
         }
       }
       
-      console.log('[TCXC] Purchased routes response:', JSON.stringify(response).substring(0, 500));
+      if (!response) {
+        console.log('[TCXC] All endpoints failed to return purchased routes');
+        return [];
+      }
       
       const routes: Array<{
         connectionName: string;
@@ -424,8 +438,10 @@ export class TcxcApiService {
         ratePerMinute: number;
       }> = [];
 
-      // Parse the purchased_routes array from response
-      const purchasedRoutes = response?.purchased_routes || response?.routes || response?.data || response || [];
+      // Parse the purchased_routes array from response - try multiple response formats
+      const purchasedRoutes = response?.interconnections || response?.purchased_routes || 
+        response?.routes || response?.connections || response?.data || 
+        (Array.isArray(response) ? response : []);
       
       if (Array.isArray(purchasedRoutes)) {
         for (const route of purchasedRoutes) {

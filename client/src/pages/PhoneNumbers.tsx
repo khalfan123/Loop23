@@ -1765,41 +1765,84 @@ export default function PhoneNumbers() {
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-medium">Available Numbers ({marketplaceSearchResults.length})</h4>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid gap-4">
                   {marketplaceSearchResults.map((did, index) => (
                     <div 
                       key={`${did.did}-${index}`}
-                      className="p-3 rounded-lg border hover-elevate"
+                      className="p-4 rounded-lg border hover-elevate"
                       data-testid={`outbound-result-${index}`}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="font-mono text-sm font-medium">{did.did}</p>
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <span className="text-xs text-muted-foreground">{did.country}</span>
-                            {did.voice && <Badge variant="secondary" className="text-xs">Voice</Badge>}
-                            {did.sms && <Badge variant="secondary" className="text-xs">SMS</Badge>}
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                          <h3 className="text-xl font-semibold font-mono">{did.did}</h3>
+                          <p className="text-muted-foreground mt-1">
+                            {did.country}{did.description ? ` - ${did.description}` : ''}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Seller: {did.seller || 'Unknown'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            {did.voice && <Badge variant="secondary">Voice</Badge>}
+                            {did.sms && <Badge variant="secondary">SMS</Badge>}
+                            {did.fax && <Badge variant="secondary">Fax</Badge>}
+                            {did.video && <Badge variant="secondary">Video</Badge>}
+                            {did.did_type && did.did_type !== 'any' && (
+                              <Badge variant="outline">{did.did_type}</Badge>
+                            )}
+                            {did.capacity && (
+                              <Badge variant="outline">Capacity: {did.capacity}</Badge>
+                            )}
                           </div>
-                          {did.monthly_fee > 0 && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              ${did.monthly_fee.toFixed(2)}/mo
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                          <p className="text-lg font-bold">
+                            ${(did.monthly_fee || 0).toFixed(2)}/month
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Setup: ${(did.setup_fee || 0).toFixed(2)}
+                          </p>
+                          {did.price_per_minute > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              ${did.price_per_minute.toFixed(4)}/min
                             </p>
                           )}
+                          <Button 
+                            className="mt-2"
+                            onClick={() => {
+                              setSelectedMarketplaceDid(did);
+                              setRentDialogOpen(true);
+                            }}
+                            data-testid={`button-rent-outbound-${index}`}
+                          >
+                            Purchase & Use
+                          </Button>
                         </div>
-                        <Button 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedMarketplaceDid(did);
-                            setRentDialogOpen(true);
-                          }}
-                          data-testid={`button-rent-outbound-${index}`}
-                        >
-                          Rent
-                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Empty State for Search */}
+            {marketplaceSearchResults.length === 0 && !isSearchingMarketplace && (
+              <div className="text-center py-8 text-muted-foreground mt-6">
+                <Phone className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                <p className="font-medium">No Numbers Found</p>
+                <p className="text-sm">
+                  Select a country and click "Search Marketplace" to find available phone numbers.
+                  <br />
+                  The TCXC marketplace availability varies by region - try different countries.
+                </p>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {isSearchingMarketplace && (
+              <div className="text-center py-8 text-muted-foreground mt-6">
+                <Loader2 className="h-10 w-10 mx-auto mb-3 animate-spin" />
+                <p className="font-medium">Searching Marketplace...</p>
+                <p className="text-sm">Finding available phone numbers from TCXC providers</p>
               </div>
             )}
 

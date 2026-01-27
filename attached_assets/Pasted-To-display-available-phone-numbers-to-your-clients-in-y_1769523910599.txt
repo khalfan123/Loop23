@@ -1,0 +1,323 @@
+To display available phone numbers to your clients in your Replit project and use them in your AI agent conversational flow, here's the complete solution:
+
+API Endpoint to Search Available DIDs
+POST https://apiv2.telecomsxchange.com/number/market
+
+Authentication
+javascript
+// Digest Authentication
+Username: myb24
+API Key: 2H6cq3HpDuTs
+Request Parameters
+json
+{
+  "prefix": "1",           // Country prefix (e.g., "1" for US/Canada, "965" for Kuwait)
+  "country": "United States",  // Country name
+  "description": "",       // Network description (e.g., "Mobile", "MTN")
+  "seller": "",           // Specific seller name
+  "voice": 1,             // 1 = voice capable, 0 = no voice
+  "sms": 0,               // 1 = SMS capable
+  "fax": 0,               // 1 = Fax capable
+  "video": 0,             // 1 = Video capable
+  "did_type": "any",      // "any", "national", "mobile", "tollfree"
+  "pager": 5              // Results per page (5-100)
+}
+Example Response
+json
+{
+  "status": "success",
+  "dids": [
+    {
+      "i_did": "4",
+      "number": "441869520000",
+      "price_1": "0.0011",     // Monthly recurring fee
+      "price_n": "0.0011",     
+      "interval_1": "60",      // Billing interval
+      "interval_n": "60",
+      "setup_fee": "0.5000",   // One-time setup fee
+      "i_customer": "123",
+      "capacity": "unlimited",
+      "country": "United Kingdom",
+      "description": "Mobile - O2",
+      "seller": "Nexmo"
+    }
+  ]
+}
+Implementation in Your Replit Project
+1. Create API Service (app/services/tcxc-api.js)
+javascript
+import crypto from 'crypto';
+
+export class TCXCService {
+  constructor() {
+    this.baseUrl = 'https://apiv2.telecomsxchange.com';
+    this.username = 'myb24';
+    this.apiKey = '2H6cq3HpDuTs';
+  }
+
+  // Generate Digest Auth
+  generateDigestAuth(uri, method = 'POST') {
+    // Implement digest authentication
+    const realm = 'TelecomsXChange (TCXC)';
+    const nc = '00000001';
+    const cnonce = crypto.randomBytes(16).toString('hex');
+    
+    const ha1 = crypto.createHash('md5')
+      .update(`${this.username}:${realm}:${this.apiKey}`)
+      .digest('hex');
+    
+    const ha2 = crypto.createHash('md5')
+      .update(`${method}:${uri}`)
+      .digest('hex');
+    
+    const response = crypto.createHash('md5')
+      .update(`${ha1}:${nc}:${cnonce}:auth:${ha2}`)
+      .digest('hex');
+    
+    return `Digest username="${this.username}", realm="${realm}", ` +
+           `nonce="${nc}", uri="${uri}", response="${response}"`;
+  }
+
+  // Search available DIDs
+  async searchAvailableNumbers(filters = {}) {
+    const endpoint = '/number/market';
+    
+    const payload = {
+      prefix: filters.prefix || '',
+      country: filters.country || '',
+      description: filters.description || '',
+      voice: 1,  // Always require voice for your use case
+      sms: filters.sms || 0,
+      pager: filters.limit || 20
+    };
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': this.generateDigestAuth(endpoint)
+      },
+      body: new URLSearchParams(payload)
+    });
+
+    return await response.json();
+  }
+
+  // Purchase a DID
+  async purchaseDID(didId) {
+    const endpoint = '/number/purchase';
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': this.generateDigestAuth(endpoint)
+      },
+      body: new URLSearchParams({ i_did: didId })
+    });
+
+    return await response.json();
+  }
+
+  // List purchased DIDs
+  async listPurchasedNumbers() {
+    const endpoint = '/number/list';
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': this.generateDigestAuth(endpoint)
+      }
+    });
+
+    return await response.json();
+  }
+}
+2. Create Phone Numbers API Endpoint (app/api/phone-numbers/route.js)
+javascript
+import { TCXCService } from '@/services/tcxc-api';
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const country = searchParams.get('country');
+  const prefix = searchParams.get('prefix');
+  
+  const tcxc = new TCXCService();
+  
+  try {
+    const numbers = await tcxc.searchAvailableNumbers({
+      country,
+      prefix,
+      limit: 50
+    });
+    
+    return Response.json({
+      success: true,
+      numbers: numbers.dids || []
+    });
+  } catch (error) {
+    return Response.json({
+      success: false,
+      error: error.message
+    }, { status: 500 });
+  }
+}
+
+export async function POST(request) {
+  const { didId } = await request.json();
+  const tcxc = new TCXCService();
+  
+  try {
+    const result = await tcxc.purchaseDID(didId);
+    return Response.json(result);
+  } catch (error) {
+    return Response.json({
+      success: false,
+      error: error.message
+    }, { status: 500 });
+  }
+}
+3. Create Frontend Component (app/phone-numbers/page.jsx)
+jsx
+'use client';
+import { useState, useEffect } from 'react';
+
+export default function PhoneNumbersMarketplace() {
+  const [numbers, setNumbers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    country: 'United States',
+    prefix: '1'
+  });
+
+  const fetchNumbers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `/api/phone-numbers?country=${filters.country}&prefix=${filters.prefix}`
+      );
+      const data = await response.json();
+      setNumbers(data.numbers);
+    } catch (error) {
+      console.error('Error fetching numbers:', error);
+    }
+    setLoading(false);
+  };
+
+  const handlePurchase = async (did) => {
+    try {
+      const response = await fetch('/api/phone-numbers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ didId: did.i_did })
+      });
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        alert(`Successfully purchased ${did.number}`);
+        // Use this number in your AI agent flow
+        await assignNumberToFlow(did.number);
+      }
+    } catch (error) {
+      console.error('Purchase error:', error);
+    }
+  };
+
+  const assignNumberToFlow = async (number) => {
+    // Assign the purchased number to your AI agent
+    await fetch('/api/ai-agent/assign-number', {
+      method: 'POST',
+      body: JSON.stringify({ phoneNumber: number })
+    });
+  };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Phone Numbers Marketplace</h1>
+      
+      {/* Filters */}
+      <div className="mb-6 flex gap-4">
+        <input
+          type="text"
+          placeholder="Country"
+          value={filters.country}
+          onChange={(e) => setFilters({...filters, country: e.target.value})}
+          className="px-4 py-2 border rounded"
+        />
+        <input
+          type="text"
+          placeholder="Prefix"
+          value={filters.prefix}
+          onChange={(e) => setFilters({...filters, prefix: e.target.value})}
+          className="px-4 py-2 border rounded"
+        />
+        <button
+          onClick={fetchNumbers}
+          className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Search Numbers
+        </button>
+      </div>
+
+      {/* Numbers List */}
+      {loading ? (
+        <div>Loading available numbers...</div>
+      ) : (
+        <div className="grid gap-4">
+          {numbers.map((did) => (
+            <div key={did.i_did} className="border p-4 rounded shadow">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-xl font-semibold">{did.number}</h3>
+                  <p className="text-gray-600">{did.country} - {did.description}</p>
+                  <p className="text-sm text-gray-500">Seller: {did.seller}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold">${did.price_1}/month</p>
+                  <p className="text-sm text-gray-500">Setup: ${did.setup_fee}</p>
+                  <button
+                    onClick={() => handlePurchase(did)}
+                    className="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  >
+                    Purchase & Use
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+4. Integration with Your AI Agent Flow
+Once a client selects a number, configure your AI agent to use it:
+
+javascript
+// app/api/ai-agent/assign-number/route.js
+export async function POST(request) {
+  const { phoneNumber } = await request.json();
+  
+  // Configure the phone number for outbound calling
+  const config = {
+    callerNumber: phoneNumber,
+    techPrefix: '74778#', // Tonerro prefix
+    sipAccount: 'B24',
+    accountId: '2574'
+  };
+  
+  // Store in your database for the AI agent to use
+  await db.aiAgentConfig.create({
+    data: config
+  });
+  
+  return Response.json({ success: true, config });
+}
+Key Points
+No numbers available yet: You haven't purchased any DIDs, so API will return empty until you buy numbers
+
+Tech Prefix Required: When making outbound calls, prepend the tech prefix (73297#, 76091#, or 74778#) to route through the correct interconnection
+
+Balance: Your current balance is $47.75 USD - enough to purchase several numbers
+
+Digest Authentication: The API uses Digest Auth with your myb24/2H6cq3HpDuTs credentials
+
+This creates a complete marketplace where clients can browse and select numbers, which are then automatically configured for your AI agent's outbound calling flow.

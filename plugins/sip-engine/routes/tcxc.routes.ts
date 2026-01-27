@@ -321,10 +321,37 @@ export function setupTcxcRoutes(
   });
 
   // Get routes/destinations from TCXC (for GCC and other regions)
+  // This combines data from top routes (if available) and purchased routes
   app.get('/api/tcxc/routes', sessionAuth, async (req: Request, res: Response) => {
     try {
-      const routes = await TcxcApiService.getRoutes();
-      res.json(routes);
+      // Try to get routes from both sources
+      const [topRoutes, purchasedRoutes] = await Promise.all([
+        TcxcApiService.getRoutes().catch(() => []),
+        TcxcApiService.getPurchasedRoutes().catch(() => []),
+      ]);
+      
+      // Transform purchased routes to match the expected format
+      const formattedPurchasedRoutes = purchasedRoutes.map(route => ({
+        destination: route.destination || route.connectionName,
+        prefix: route.techPrefix,
+        country: route.destination,
+        seller: route.vendorName || route.accountName,
+        sellerId: route.vendorId,
+        ratePerMinute: route.ratePerMinute,
+        currency: 'USD',
+        quality: route.status,
+        routeType: route.routeType,
+        connectionName: route.connectionName,
+        techPrefix: route.techPrefix,
+        tariffId: route.tariffId,
+        connectionId: route.connectionId,
+      }));
+      
+      // Combine and dedupe
+      const allRoutes = [...topRoutes, ...formattedPurchasedRoutes];
+      console.log('[TCXC Routes] Combined routes: top=', topRoutes.length, ', purchased=', purchasedRoutes.length);
+      
+      res.json(allRoutes);
     } catch (error: any) {
       console.error('[TCXC Routes] Get routes error:', error);
       res.status(500).json({ error: error.message });

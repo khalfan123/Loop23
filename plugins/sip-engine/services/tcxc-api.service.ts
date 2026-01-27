@@ -374,7 +374,7 @@ export class TcxcApiService {
 
   /**
    * Get purchased outbound routes from TCXC
-   * Calls POST /interconnections/list to fetch all purchased routes with tech prefixes
+   * Calls GET /buyer/purchased_routes to fetch all purchased routes with tech prefixes
    */
   static async getPurchasedRoutes(): Promise<Array<{
     connectionName: string;
@@ -392,11 +392,21 @@ export class TcxcApiService {
   }>> {
     try {
       // Call TCXC API to get purchased interconnections/routes
-      const formData: Record<string, string> = {
-        type: 'all', // Get all route types
-      };
+      // Try the buyer/purchased_routes endpoint first
+      let response;
+      try {
+        response = await this.makeRequest('/buyer/purchased_routes', 'GET');
+      } catch (e: any) {
+        // Fallback to alternative endpoints
+        console.log('[TCXC] /buyer/purchased_routes failed, trying /buyers/routes...');
+        try {
+          response = await this.makeRequest('/buyers/routes', 'GET');
+        } catch (e2: any) {
+          console.log('[TCXC] /buyers/routes failed, trying /interconnect/list...');
+          response = await this.makeRequest('/interconnect/list', 'GET');
+        }
+      }
       
-      const response = await this.makeRequest('/interconnections/list', 'POST', formData);
       console.log('[TCXC] Purchased routes response:', JSON.stringify(response).substring(0, 500));
       
       const routes: Array<{
@@ -415,22 +425,22 @@ export class TcxcApiService {
       }> = [];
 
       // Parse the purchased_routes array from response
-      const purchasedRoutes = response?.purchased_routes || response?.routes || response?.data || [];
+      const purchasedRoutes = response?.purchased_routes || response?.routes || response?.data || response || [];
       
       if (Array.isArray(purchasedRoutes)) {
         for (const route of purchasedRoutes) {
           routes.push({
-            connectionName: route.connection_name || route.name || route.account_name || '',
+            connectionName: route.connection_name || route.carrier_name || route.name || route.account_name || '',
             techPrefix: route.tech_prefix || route.techprefix || route.prefix || '',
-            accountName: route.account_name || route.vendor_name || route.seller_name || '',
-            tariffId: route.i_tariff || route.tariff_id || 0,
-            connectionId: route.i_connection || route.connection_id || 0,
+            accountName: route.account_name || route.carrier_name || route.vendor_name || route.seller_name || '',
+            tariffId: route.i_tariff || route.tariff_id || route.i_rate || 0,
+            connectionId: route.i_connection || route.connection_id || route.i_purchased_route || 0,
             vendorId: route.i_vendor || route.vendor_id || 0,
-            vendorName: route.vendor_name || route.seller_name || route.account_name || '',
+            vendorName: route.vendor_name || route.carrier_name || route.seller_name || route.account_name || '',
             blocked: route.blocked === 1 || route.blocked === true || route.status === 'blocked',
             status: route.blocked ? 'blocked' : 'active',
             routeType: route.route_type || route.type || 'CLI',
-            destination: route.destination || route.country_name || '',
+            destination: route.destination || route.country_name || route.billing_prefix || '',
             ratePerMinute: parseFloat(route.price || route.rate || route.price_1 || '0'),
           });
         }

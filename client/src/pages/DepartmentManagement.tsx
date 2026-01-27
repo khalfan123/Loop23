@@ -192,6 +192,7 @@ export default function DepartmentManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       setShowCreateDialog(false);
       setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
       toast({ title: "Department created successfully" });
@@ -207,6 +208,7 @@ export default function DepartmentManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       setShowCreateDialog(false);
       setSelectedDepartment(null);
       toast({ title: "Department updated successfully" });
@@ -222,6 +224,7 @@ export default function DepartmentManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       setShowDeleteDialog(false);
       setSelectedDepartment(null);
       toast({ title: "Department deleted successfully" });
@@ -237,6 +240,7 @@ export default function DepartmentManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       setShowDeleteAllDialog(false);
       toast({ title: "All departments deleted successfully" });
     },
@@ -251,6 +255,7 @@ export default function DepartmentManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       refetchDepartmentAgents();
       setShowAddAgentDialog(false);
       setSelectedAgent({ agentId: "", language: "en" });
@@ -267,6 +272,7 @@ export default function DepartmentManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       refetchDepartmentAgents();
       toast({ title: "Agent removed from department" });
     },

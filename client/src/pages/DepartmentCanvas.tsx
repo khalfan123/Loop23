@@ -1387,6 +1387,7 @@ function DepartmentCanvasContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       toast({
         title: "Canvas Saved",
         description: "All departments and routing have been created successfully.",

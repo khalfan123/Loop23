@@ -355,8 +355,11 @@ export default function PhoneNumbers() {
   });
 
   // Derive carrier providers from interconnections' tech prefixes
+  // If no tech prefixes are configured, provide default known carriers using first available interconnection
   const carrierProviders = useMemo(() => {
     const providers: CarrierProvider[] = [];
+    
+    // First try to derive from configured tech prefixes
     tcxcInterconnections.forEach(interconnection => {
       interconnection.techPrefixes.forEach(prefix => {
         const carrier = TECH_PREFIX_TO_CARRIER[prefix];
@@ -371,6 +374,21 @@ export default function PhoneNumbers() {
         }
       });
     });
+    
+    // If no carriers found from tech prefixes, provide default carriers using first interconnection
+    if (providers.length === 0 && tcxcInterconnections.length > 0) {
+      const defaultInterconnection = tcxcInterconnections[0];
+      Object.entries(TECH_PREFIX_TO_CARRIER).forEach(([prefix, carrier]) => {
+        providers.push({
+          id: `${defaultInterconnection.id}-${prefix}`,
+          name: carrier.name,
+          techPrefix: prefix,
+          sellerId: carrier.sellerId,
+          interconnectionId: defaultInterconnection.id,
+        });
+      });
+    }
+    
     return providers;
   }, [tcxcInterconnections]);
 

@@ -198,22 +198,27 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         }
       }
       
-      const effectiveLimits = await storage.getUserEffectiveLimits(req.userId!);
-      const currentPhoneCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(phoneNumbers)
-        .where(eq(phoneNumbers.userId, req.userId!));
+      // Admin users have unlimited phone numbers
+      const isAdmin = user.role === 'admin' || user.role === 'superadmin';
       
-      const phoneCount = Number(currentPhoneCount[0]?.count || 0);
-      const maxPhoneNumbers = typeof effectiveLimits.maxPhoneNumbers === 'number' ? effectiveLimits.maxPhoneNumbers : 0;
-      // Skip limit check if explicitly unlimited (999 or -1)
-      if (maxPhoneNumbers !== 999 && maxPhoneNumbers !== -1 && phoneCount >= maxPhoneNumbers) {
-        return res.status(403).json({ 
-          error: "Phone number limit reached", 
-          message: `You have reached your maximum of ${maxPhoneNumbers} phone numbers. Please upgrade your plan or release existing numbers.`,
-          limit: maxPhoneNumbers,
-          current: phoneCount
-        });
+      if (!isAdmin) {
+        const effectiveLimits = await storage.getUserEffectiveLimits(req.userId!);
+        const currentPhoneCount = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(phoneNumbers)
+          .where(eq(phoneNumbers.userId, req.userId!));
+        
+        const phoneCount = Number(currentPhoneCount[0]?.count || 0);
+        const maxPhoneNumbers = typeof effectiveLimits.maxPhoneNumbers === 'number' ? effectiveLimits.maxPhoneNumbers : 0;
+        // Skip limit check if explicitly unlimited (999 or -1)
+        if (maxPhoneNumbers !== 999 && maxPhoneNumbers !== -1 && phoneCount >= maxPhoneNumbers) {
+          return res.status(403).json({ 
+            error: "Phone number limit reached", 
+            message: `You have reached your maximum of ${maxPhoneNumbers} phone numbers. Please upgrade your plan or release existing numbers.`,
+            limit: maxPhoneNumbers,
+            current: phoneCount
+          });
+        }
       }
 
       const phoneNumberCostSetting = await storage.getGlobalSetting('phone_number_monthly_credits');

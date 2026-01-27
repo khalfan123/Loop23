@@ -59,6 +59,10 @@ const GCC_COUNTRIES = [
   { code: 'QA', name: 'Qatar', prefix: '974' },
   { code: 'BH', name: 'Bahrain', prefix: '973' },
   { code: 'OM', name: 'Oman', prefix: '968' },
+  { code: 'GB', name: 'United Kingdom', prefix: '44' },
+  { code: 'SE', name: 'Sweden', prefix: '46' },
+  { code: 'PL', name: 'Poland', prefix: '48' },
+  { code: 'NZ', name: 'New Zealand', prefix: '64' },
 ];
 
 // Map country codes to phone prefixes for API calls
@@ -75,6 +79,9 @@ const COUNTRY_CODE_TO_PREFIX: Record<string, string> = {
   'FR': '33',
   'AU': '61',
   'CA': '1',
+  'SE': '46',
+  'PL': '48',
+  'NZ': '64',
 };
 
 export class TcxcApiService {

@@ -86,10 +86,7 @@ export function SipTrunkSettings() {
 
   const createTrunkMutation = useMutation({
     mutationFn: async (data: typeof newTrunk) => {
-      return apiRequest("/api/sip/trunks", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/sip/trunks", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sip/trunks"] });
@@ -113,7 +110,7 @@ export function SipTrunkSettings() {
 
   const deleteTrunkMutation = useMutation({
     mutationFn: async (trunkId: string) => {
-      return apiRequest(`/api/sip/trunks/${trunkId}`, { method: "DELETE" });
+      return apiRequest("DELETE", `/api/sip/trunks/${trunkId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sip/trunks"] });
@@ -126,7 +123,7 @@ export function SipTrunkSettings() {
 
   const healthCheckMutation = useMutation({
     mutationFn: async (trunkId: string) => {
-      return apiRequest(`/api/sip/trunks/${trunkId}/health-check`, { method: "POST" });
+      return apiRequest("POST", `/api/sip/trunks/${trunkId}/health-check`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sip/trunks"] });
@@ -136,10 +133,7 @@ export function SipTrunkSettings() {
 
   const addPhoneNumberMutation = useMutation({
     mutationFn: async (data: { sipTrunkId: string; phoneNumber: string; label?: string }) => {
-      return apiRequest("/api/sip/phone-numbers", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", "/api/sip/phone-numbers", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sip/phone-numbers"] });
@@ -154,7 +148,7 @@ export function SipTrunkSettings() {
 
   const deletePhoneNumberMutation = useMutation({
     mutationFn: async (phoneNumberId: string) => {
-      return apiRequest(`/api/sip/phone-numbers/${phoneNumberId}`, { method: "DELETE" });
+      return apiRequest("DELETE", `/api/sip/phone-numbers/${phoneNumberId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sip/phone-numbers"] });

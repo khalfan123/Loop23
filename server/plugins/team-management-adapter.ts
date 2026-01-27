@@ -14,9 +14,18 @@ import * as path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import type { Request, Response, NextFunction } from 'express';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PLUGIN_DIR = path.resolve(__dirname, '..', '..', 'plugins', 'team-management');
+// Handle both ESM (development) and CJS (production bundle) contexts
+const getDirname = () => {
+  try {
+    if (typeof import.meta?.url === 'string') {
+      return path.dirname(fileURLToPath(import.meta.url));
+    }
+  } catch {}
+  return __dirname ?? process.cwd();
+};
+
+const currentDir = getDirname();
+const PLUGIN_DIR = path.resolve(currentDir, '..', '..', 'plugins', 'team-management');
 
 export interface TeamMemberContext {
   memberId: string;

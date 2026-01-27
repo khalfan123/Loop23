@@ -20,8 +20,26 @@ import { db } from '../db';
 import { globalSettings } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Handle both ESM (development) and CJS (production bundle) contexts
+const getFilename = () => {
+  try {
+    if (typeof import.meta?.url === 'string') {
+      return fileURLToPath(import.meta.url);
+    }
+  } catch {}
+  return __filename ?? '';
+};
+
+const getDirname = () => {
+  try {
+    if (typeof import.meta?.url === 'string') {
+      return path.dirname(fileURLToPath(import.meta.url));
+    }
+  } catch {}
+  return __dirname ?? process.cwd();
+};
+
+const currentDir = getDirname();
 
 export interface PluginManifest {
   name: string;
@@ -121,7 +139,7 @@ async function isPluginEnabled(pluginName: string): Promise<boolean> {
  * Discover all plugins in the plugins directory
  */
 export function discoverPlugins(): PluginManifest[] {
-  const pluginsDir = path.resolve(__dirname, '../../plugins');
+  const pluginsDir = path.resolve(currentDir, '../../plugins');
   const plugins: PluginManifest[] = [];
   
   if (!fs.existsSync(pluginsDir)) {
@@ -157,7 +175,7 @@ export function discoverPlugins(): PluginManifest[] {
  * Load and register all enabled plugins
  */
 export async function loadPlugins(app: Express, options: PluginLoaderOptions): Promise<LoadedPlugin[]> {
-  const pluginsDir = path.resolve(__dirname, '../../plugins');
+  const pluginsDir = path.resolve(currentDir, '../../plugins');
   const manifests = discoverPlugins();
   const results: LoadedPlugin[] = [];
   

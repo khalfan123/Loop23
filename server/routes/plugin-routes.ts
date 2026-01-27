@@ -20,9 +20,18 @@ import {
 } from '../plugins/loader';
 import { getUserPlanCapabilities } from '../services/membership-service';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const pluginsDir = path.resolve(__dirname, '../../plugins');
+// Handle both ESM (development) and CJS (production bundle) contexts
+const getDirname = () => {
+  try {
+    if (typeof import.meta?.url === 'string') {
+      return path.dirname(fileURLToPath(import.meta.url));
+    }
+  } catch {}
+  return __dirname ?? process.cwd();
+};
+
+const currentDir = getDirname();
+const pluginsDir = path.resolve(currentDir, '../../plugins');
 
 const router = Router();
 

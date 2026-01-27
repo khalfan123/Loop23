@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -225,6 +225,20 @@ interface GccCountry {
   name: string;
 }
 
+interface CarrierProvider {
+  id: string;
+  name: string;
+  techPrefix: string;
+  sellerId: string;
+  interconnectionId: string;
+}
+
+const TECH_PREFIX_TO_CARRIER: Record<string, { name: string; sellerId: string }> = {
+  "73297#": { name: "AirTel", sellerId: "airtel" },
+  "76091#": { name: "Mobily", sellerId: "mobily" },
+  "74778#": { name: "Tonerro", sellerId: "tonerro" },
+};
+
 export default function PhoneNumbers() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -265,6 +279,7 @@ export default function PhoneNumbers() {
   // Provider Numbers Lookup state
   const [providerLookupDialogOpen, setProviderLookupDialogOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<TcxcInterconnection | null>(null);
+  const [selectedCarrier, setSelectedCarrier] = useState<CarrierProvider | null>(null);
   const [providerNumberSearch, setProviderNumberSearch] = useState("");
   const [newCallerIdNumber, setNewCallerIdNumber] = useState("");
   const [newCallerIdCountry, setNewCallerIdCountry] = useState("");
@@ -338,6 +353,26 @@ export default function PhoneNumbers() {
   const { data: gccCountries = [] } = useQuery<GccCountry[]>({
     queryKey: ["/api/tcxc/countries/gcc"],
   });
+
+  // Derive carrier providers from interconnections' tech prefixes
+  const carrierProviders = useMemo(() => {
+    const providers: CarrierProvider[] = [];
+    tcxcInterconnections.forEach(interconnection => {
+      interconnection.techPrefixes.forEach(prefix => {
+        const carrier = TECH_PREFIX_TO_CARRIER[prefix];
+        if (carrier) {
+          providers.push({
+            id: `${interconnection.id}-${prefix}`,
+            name: carrier.name,
+            techPrefix: prefix,
+            sellerId: carrier.sellerId,
+            interconnectionId: interconnection.id,
+          });
+        }
+      });
+    });
+    return providers;
+  }, [tcxcInterconnections]);
 
   // TCXC my DIDs query
   const { data: tcxcMyDids = [], isLoading: tcxcMyDidsLoading, refetch: refetchTcxcMyDids } = useQuery<TcxcDid[]>({
@@ -1620,19 +1655,22 @@ export default function PhoneNumbers() {
               <div className="space-y-2">
                 <Label>Provider</Label>
                 <Select 
-                  value={selectedProvider?.id || ""} 
+                  value={selectedCarrier?.id || ""} 
                   onValueChange={(value) => {
-                    const provider = tcxcInterconnections.find(p => p.id === value);
-                    setSelectedProvider(provider || null);
+                    const carrier = carrierProviders.find(p => p.id === value);
+                    setSelectedCarrier(carrier || null);
                   }}
                 >
                   <SelectTrigger data-testid="select-outbound-provider">
                     <SelectValue placeholder="Select provider" />
                   </SelectTrigger>
                   <SelectContent>
-                    {tcxcInterconnections.map((interconnection) => (
-                      <SelectItem key={interconnection.id} value={interconnection.id}>
-                        {interconnection.name}
+                    {carrierProviders.map((carrier) => (
+                      <SelectItem key={carrier.id} value={carrier.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{carrier.name}</span>
+                          <span className="font-mono text-xs text-muted-foreground">({carrier.techPrefix})</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1643,7 +1681,7 @@ export default function PhoneNumbers() {
                 <Select 
                   value={marketplaceSearchPrefix} 
                   onValueChange={setMarketplaceSearchPrefix}
-                  disabled={!selectedProvider}
+                  disabled={!selectedCarrier}
                 >
                   <SelectTrigger data-testid="select-outbound-country">
                     <SelectValue placeholder="Select country" />
@@ -1669,11 +1707,11 @@ export default function PhoneNumbers() {
               <div className="flex gap-2">
                 <Button 
                   onClick={() => {
-                    if (selectedProvider) {
-                      searchMarketplaceDids(selectedProvider.name, marketplaceSearchPrefix || undefined);
+                    if (selectedCarrier) {
+                      searchMarketplaceDids(selectedCarrier.sellerId, marketplaceSearchPrefix || undefined);
                     }
                   }}
-                  disabled={!selectedProvider || isSearchingMarketplace}
+                  disabled={!selectedCarrier || isSearchingMarketplace}
                   data-testid="button-search-outbound"
                 >
                   {isSearchingMarketplace ? (
@@ -1687,7 +1725,7 @@ export default function PhoneNumbers() {
                   variant="outline" 
                   size="icon"
                   onClick={() => {
-                    setSelectedProvider(null);
+                    setSelectedCarrier(null);
                     setMarketplaceSearchPrefix('');
                     setMarketplaceSearchResults([]);
                   }}
@@ -1743,11 +1781,11 @@ export default function PhoneNumbers() {
             )}
 
             {/* Empty State */}
-            {tcxcInterconnections.length === 0 && (
+            {carrierProviders.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <Network className="h-10 w-10 mx-auto mb-3" />
-                <p className="font-medium">No carrier interconnections configured</p>
-                <p className="text-sm">Configure your provider interconnections in the TCXC tab first.</p>
+                <p className="font-medium">No carrier providers configured</p>
+                <p className="text-sm">Configure your provider interconnections with tech prefixes in the TCXC tab first.</p>
               </div>
             )}
           </Card>
@@ -2133,19 +2171,21 @@ export default function PhoneNumbers() {
             <AlertDialogCancel data-testid="button-cancel-rent">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={() => {
-                if (selectedMarketplaceDid && selectedProvider) {
+                if (selectedMarketplaceDid && (selectedCarrier || selectedProvider)) {
+                  const carrier = selectedCarrier;
+                  const provider = selectedProvider;
                   rentMarketplaceDidMutation.mutate({
                     iDid: selectedMarketplaceDid.i_did,
                     did: selectedMarketplaceDid.did,
-                    seller: selectedMarketplaceDid.seller || selectedProvider.name,
+                    seller: selectedMarketplaceDid.seller || carrier?.name || provider?.name || '',
                     country: selectedMarketplaceDid.country,
                     monthlyFee: selectedMarketplaceDid.monthly_fee,
-                    credentialId: selectedProvider.id,
-                    techPrefix: selectedProvider.techPrefixes[0] || '',
+                    credentialId: carrier?.interconnectionId || provider?.id || '',
+                    techPrefix: carrier?.techPrefix || provider?.techPrefixes[0] || '',
                   });
                 }
               }}
-              disabled={rentMarketplaceDidMutation.isPending || !selectedProvider}
+              disabled={rentMarketplaceDidMutation.isPending || (!selectedCarrier && !selectedProvider)}
               data-testid="button-confirm-rent"
             >
               {rentMarketplaceDidMutation.isPending ? (

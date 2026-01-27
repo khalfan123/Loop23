@@ -421,11 +421,32 @@ export class TcxcApiService {
       const response = await this.makeRequest('/number/market', 'POST', formData);
       console.log('[TCXC] Marketplace search response:', JSON.stringify(response).substring(0, 500));
       
+      // Normalize the response to match our interface
+      const normalizeDid = (raw: any): TcxcMarketplaceDid => ({
+        i_did: raw.i_did || 0,
+        did: raw.number || raw.msisdn || raw.did || '',
+        description: raw.description || raw.type || '',
+        country: raw.country || '',
+        country_code: raw.country_code || raw.country || '',
+        seller: raw.vendor_name || raw.seller || 'Unknown',
+        seller_id: raw.i_vendor || raw.seller_id || 0,
+        price_per_minute: parseFloat(raw.price_1) || parseFloat(raw.price_per_minute) || 0,
+        monthly_fee: parseFloat(raw.monthly_fee) || 0,
+        setup_fee: parseFloat(raw.setup_fee) || 0,
+        currency: raw.currency || 'USD',
+        voice: raw.voice === 1 || raw.voice === true,
+        sms: raw.sms === 1 || raw.sms === true,
+        fax: raw.fax === 1 || raw.fax === true,
+        video: raw.video === 1 || raw.video === true,
+        did_type: raw.did_type || raw.type || 'national',
+        capacity: raw.capacity || 0,
+      });
+      
       if (response && Array.isArray(response.dids)) {
-        return response.dids;
+        return response.dids.map(normalizeDid);
       }
       if (response && Array.isArray(response)) {
-        return response;
+        return response.map(normalizeDid);
       }
       return [];
     } catch (error: any) {

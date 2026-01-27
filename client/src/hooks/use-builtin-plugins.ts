@@ -5,13 +5,15 @@ import { SipTrunkSettings } from '@/components/admin/SipTrunkSettings';
 
 export function useBuiltinPlugins() {
   const registry = usePluginRegistry();
-  const { isSipPluginEnabled, isLoading } = usePluginStatus();
+  const { isPluginEnabled, isLoading } = usePluginStatus();
   const registeredRef = useRef(false);
+  
+  const sipPluginLoaded = isPluginEnabled('sip-engine');
   
   useEffect(() => {
     if (isLoading || registeredRef.current) return;
     
-    if (isSipPluginEnabled && !registry.isPluginLoaded('sip-engine-builtin')) {
+    if (sipPluginLoaded && !registry.isPluginLoaded('sip-engine-builtin')) {
       console.log('[BuiltinPlugins] Registering SIP Engine settings tab');
       
       registry.registerAdminSettingsTab({
@@ -28,5 +30,5 @@ export function useBuiltinPlugins() {
       
       console.log('[BuiltinPlugins] SIP Engine settings tab registered');
     }
-  }, [isSipPluginEnabled, isLoading, registry]);
+  }, [sipPluginLoaded, isLoading, registry]);
 }

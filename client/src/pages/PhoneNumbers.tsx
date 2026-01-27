@@ -1698,16 +1698,16 @@ export default function PhoneNumbers() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Country</Label>
+                <Label>Country (optional)</Label>
                 <Select 
                   value={marketplaceSearchPrefix} 
                   onValueChange={setMarketplaceSearchPrefix}
-                  disabled={!selectedCarrier}
                 >
                   <SelectTrigger data-testid="select-outbound-country">
-                    <SelectValue placeholder="Select country" />
+                    <SelectValue placeholder="All countries" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Countries</SelectItem>
                     {gccCountries.length > 0 && (
                       <>
                         {gccCountries.map((country) => (
@@ -1728,9 +1728,11 @@ export default function PhoneNumbers() {
               <div className="flex gap-2">
                 <Button 
                   onClick={() => {
-                    // Search TCXC marketplace by country prefix only (seller IDs are not reliable)
-                    // The marketplace has its own seller names that don't match our carrier names
-                    searchMarketplaceDids(undefined, marketplaceSearchPrefix || undefined);
+                    // Search TCXC marketplace - "all" or empty means no country filter
+                    const prefix = marketplaceSearchPrefix === 'all' || !marketplaceSearchPrefix 
+                      ? undefined 
+                      : marketplaceSearchPrefix;
+                    searchMarketplaceDids(undefined, prefix);
                   }}
                   disabled={isSearchingMarketplace}
                   data-testid="button-search-outbound"

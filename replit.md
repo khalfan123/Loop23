@@ -180,6 +180,18 @@ Before every deployment, ensure the following steps are completed:
   - Added Outbound tab for configuring outbound calling with all available numbers (Twilio, Plivo, TCXC)
   - New `/api/tcxc/status` endpoint with sessionAuth for user-facing TCXC configuration check
   - Fixed nested Card components - replaced with bordered divs per design guidelines
+- 2026-01-27: **Provider Caller IDs for Outbound Calling**:
+  - New `provider_caller_ids` database table for storing outbound caller IDs from carrier providers
+  - Provider Numbers Lookup section in Outbound tab showing carrier interconnections (AirTel, Mobily, Tonerro)
+  - Provider cards display name, tech prefix, and connection status
+  - Provider Numbers Lookup dialog for adding caller IDs from selected providers:
+    - Provider selection dropdown with tech prefix display
+    - Form to add phone number + country
+    - List of existing caller IDs with delete option
+  - Provider caller IDs appear in Outbound Caller ID section with Active badge
+  - Provider caller IDs added to Default Caller ID dropdown for campaign settings
+  - API endpoints: GET/POST/DELETE `/api/tcxc/provider-caller-ids` with sessionAuth
+  - Tech prefix routing: calls routed via carrier's tech prefix (e.g., 73297#, 76091#, 74778#)
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

@@ -3,6 +3,9 @@
 import type { Express, Request, Response, RequestHandler } from 'express';
 import { z } from 'zod';
 import { TcxcApiService } from '../services/tcxc-api.service';
+import { db } from '../../../server/db';
+import { providerCallerIds } from '../../../shared/schema';
+import { eq, and } from 'drizzle-orm';
 
 const createCredentialSchema = z.object({
   name: z.string().min(1),
@@ -200,6 +203,95 @@ export function setupTcxcRoutes(
 
   app.get('/api/tcxc/countries/gcc', (req: Request, res: Response) => {
     res.json(TcxcApiService.getGccCountries());
+  });
+
+  // Provider Caller IDs - Get user's added provider caller IDs
+  app.get('/api/tcxc/provider-caller-ids', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const callerIds = await db.select().from(providerCallerIds).where(eq(providerCallerIds.userId, user.id));
+      res.json(callerIds);
+    } catch (error: any) {
+      console.error('[TCXC Routes] Get provider caller IDs error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add a new provider caller ID
+  app.post('/api/tcxc/provider-caller-ids', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      const schema = z.object({
+        credentialId: z.string().min(1),
+        phoneNumber: z.string().min(1),
+        providerName: z.string().min(1),
+        techPrefix: z.string().min(1),
+        country: z.string().optional(),
+        countryCode: z.string().optional(),
+        numberType: z.enum(['voice', 'sms', 'both']).optional(),
+        isDefault: z.boolean().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // If setting as default, unset other defaults first
+      if (data.isDefault) {
+        await db.update(providerCallerIds)
+          .set({ isDefault: false })
+          .where(eq(providerCallerIds.userId, user.id));
+      }
+      
+      const [callerId] = await db.insert(providerCallerIds).values({
+        userId: user.id,
+        credentialId: data.credentialId,
+        phoneNumber: data.phoneNumber,
+        providerName: data.providerName,
+        techPrefix: data.techPrefix,
+        country: data.country || 'Unknown',
+        countryCode: data.countryCode,
+        numberType: data.numberType || 'voice',
+        isDefault: data.isDefault || false,
+      }).returning();
+      
+      res.json(callerId);
+    } catch (error: any) {
+      console.error('[TCXC Routes] Add provider caller ID error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a provider caller ID
+  app.delete('/api/tcxc/provider-caller-ids/:id', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      const { id } = req.params;
+      const conditions = and(
+        eq(providerCallerIds.id, id),
+        eq(providerCallerIds.userId, user.id)
+      );
+      if (conditions) {
+        await db.delete(providerCallerIds).where(conditions);
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[TCXC Routes] Delete provider caller ID error:', error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   console.log('[SIP Engine] TCXC routes registered');

@@ -2996,6 +2996,31 @@ export const insertTcxcCredentialSchema = createInsertSchema(tcxcCredentials).om
 export type InsertTcxcCredential = z.infer<typeof insertTcxcCredentialSchema>;
 export type TcxcCredential = typeof tcxcCredentials.$inferSelect;
 
+// Provider Caller IDs - Outbound caller IDs from carrier providers
+export const providerCallerIds = pgTable("provider_caller_ids", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  credentialId: varchar("credential_id").notNull().references(() => tcxcCredentials.id, { onDelete: "cascade" }),
+  phoneNumber: text("phone_number").notNull(),
+  providerName: text("provider_name").notNull(), // e.g., "AirTel", "Mobily", "Tonerro"
+  techPrefix: text("tech_prefix").notNull(), // e.g., "73297#"
+  country: text("country").notNull().default("Unknown"),
+  countryCode: text("country_code"), // e.g., "SA", "AE", "US"
+  numberType: text("number_type").default("voice"), // 'voice' | 'sms' | 'both'
+  status: text("status").notNull().default("active"), // 'active' | 'inactive'
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertProviderCallerIdSchema = createInsertSchema(providerCallerIds).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertProviderCallerId = z.infer<typeof insertProviderCallerIdSchema>;
+export type ProviderCallerId = typeof providerCallerIds.$inferSelect;
+
 // SIP Trunks - User's SIP trunk configurations
 export const sipTrunks = pgTable("sip_trunks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

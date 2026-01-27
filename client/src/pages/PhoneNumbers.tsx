@@ -184,6 +184,22 @@ interface TcxcInterconnection {
   isActive: boolean;
 }
 
+interface ProviderCallerId {
+  id: string;
+  userId: string;
+  credentialId: string;
+  phoneNumber: string;
+  providerName: string;
+  techPrefix: string;
+  country: string;
+  countryCode: string | null;
+  numberType: string;
+  status: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface GccCountry {
   code: string;
   name: string;
@@ -225,6 +241,13 @@ export default function PhoneNumbers() {
   const [tcxcSearchType, setTcxcSearchType] = useState<"local" | "tollfree" | "mobile">("local");
   const [selectedTcxcDid, setSelectedTcxcDid] = useState<TcxcDid | null>(null);
   const [tcxcBuyDialogOpen, setTcxcBuyDialogOpen] = useState(false);
+
+  // Provider Numbers Lookup state
+  const [providerLookupDialogOpen, setProviderLookupDialogOpen] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<TcxcInterconnection | null>(null);
+  const [providerNumberSearch, setProviderNumberSearch] = useState("");
+  const [newCallerIdNumber, setNewCallerIdNumber] = useState("");
+  const [newCallerIdCountry, setNewCallerIdCountry] = useState("");
 
   // Fetch user addresses for address requirement check
   interface UserAddress {
@@ -295,6 +318,65 @@ export default function PhoneNumbers() {
   const { data: tcxcMyDids = [], isLoading: tcxcMyDidsLoading, refetch: refetchTcxcMyDids } = useQuery<TcxcDid[]>({
     queryKey: ["/api/tcxc/dids/my"],
     enabled: tcxcConfigured,
+  });
+
+  // Provider caller IDs query
+  const { data: providerCallerIds = [], refetch: refetchProviderCallerIds } = useQuery<ProviderCallerId[]>({
+    queryKey: ["/api/tcxc/provider-caller-ids"],
+    enabled: tcxcConfigured,
+  });
+
+  // Add provider caller ID mutation
+  const addProviderCallerIdMutation = useMutation({
+    mutationFn: async (data: { 
+      credentialId: string; 
+      phoneNumber: string; 
+      providerName: string; 
+      techPrefix: string; 
+      country: string; 
+    }) => {
+      const response = await apiRequest("POST", "/api/tcxc/provider-caller-ids", data);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tcxc/provider-caller-ids"] });
+      toast({
+        title: "Caller ID Added",
+        description: "Number added to your outbound caller ID pool.",
+      });
+      setNewCallerIdNumber("");
+      setNewCallerIdCountry("");
+      setProviderLookupDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add caller ID",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete provider caller ID mutation
+  const deleteProviderCallerIdMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/tcxc/provider-caller-ids/${id}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tcxc/provider-caller-ids"] });
+      toast({
+        title: "Caller ID Removed",
+        description: "Number removed from your outbound caller ID pool.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove caller ID",
+        variant: "destructive",
+      });
+    },
   });
 
   // TCXC available DIDs search
@@ -1417,7 +1499,7 @@ export default function PhoneNumbers() {
                   {tcxcMyDids.map((did) => (
                     <div 
                       key={did.id} 
-                      className="flex items-center justify-between p-3 rounded-lg border"
+                      className="flex items-center justify-between gap-2 p-3 rounded-lg border"
                       data-testid={`outbound-tcxc-${did.id}`}
                     >
                       <div>
@@ -1427,12 +1509,112 @@ export default function PhoneNumbers() {
                       <Badge variant="outline">Available</Badge>
                     </div>
                   ))}
+                  {providerCallerIds.map((callerId) => (
+                    <div 
+                      key={callerId.id} 
+                      className="flex items-center justify-between gap-2 p-3 rounded-lg border"
+                      data-testid={`outbound-provider-${callerId.id}`}
+                    >
+                      <div>
+                        <p className="font-mono text-sm">{callerId.phoneNumber}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs text-muted-foreground">{callerId.country} - {callerId.providerName}</p>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {callerId.techPrefix}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="bg-green-600 dark:bg-green-700">Active</Badge>
+                        <Button 
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => deleteProviderCallerIdMutation.mutate(callerId.id)}
+                          disabled={deleteProviderCallerIdMutation.isPending}
+                          data-testid={`button-remove-outbound-${callerId.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                {(ownedNumbers.length === 0 && plivoNumbers.length === 0 && tcxcMyDids.length === 0) && (
+                {(ownedNumbers.length === 0 && plivoNumbers.length === 0 && tcxcMyDids.length === 0 && providerCallerIds.length === 0) && (
                   <div className="text-center py-6 text-muted-foreground">
                     <Phone className="h-8 w-8 mx-auto mb-2" />
                     <p>No phone numbers available for outbound calling.</p>
-                    <p className="text-sm">Purchase phone numbers from Twilio, Plivo, or TCXC to enable outbound calls.</p>
+                    <p className="text-sm">Purchase phone numbers or add provider caller IDs to enable outbound calls.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="font-medium">Provider Numbers Lookup</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Browse and select caller ID numbers from your carrier providers
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setProviderLookupDialogOpen(true)}
+                    disabled={tcxcInterconnections.length === 0}
+                    data-testid="button-lookup-provider-numbers"
+                  >
+                    <Search className="h-4 w-4 mr-1" />
+                    Lookup Numbers
+                  </Button>
+                </div>
+
+                {tcxcInterconnections.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Network className="h-8 w-8 mx-auto mb-2" />
+                    <p>No carrier interconnections configured.</p>
+                    <p className="text-sm">Configure your provider interconnections in the TCXC tab first.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {tcxcInterconnections.map((interconnection) => (
+                      <div 
+                        key={interconnection.id}
+                        className="p-3 rounded-lg border hover-elevate cursor-pointer"
+                        onClick={() => {
+                          setSelectedProvider(interconnection);
+                          setProviderLookupDialogOpen(true);
+                        }}
+                        data-testid={`provider-card-${interconnection.id}`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
+                              <Globe className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <span className="font-medium">{interconnection.name}</span>
+                          </div>
+                          <Badge 
+                            variant={interconnection.healthStatus === 'healthy' ? 'default' : 'secondary'}
+                            className={interconnection.healthStatus === 'healthy' ? 'bg-green-600 dark:bg-green-700' : ''}
+                          >
+                            {interconnection.healthStatus === 'healthy' ? 'Active' : 'Unknown'}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {interconnection.techPrefixes.slice(0, 2).map((prefix, idx) => (
+                            <Badge key={idx} variant="outline" className="font-mono text-xs">
+                              {prefix}
+                            </Badge>
+                          ))}
+                          {interconnection.techPrefixes.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{interconnection.techPrefixes.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">Click to lookup numbers</p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1463,6 +1645,11 @@ export default function PhoneNumbers() {
                         {tcxcMyDids.map((did) => (
                           <SelectItem key={did.id} value={did.id}>
                             {did.phoneNumber} (TCXC)
+                          </SelectItem>
+                        ))}
+                        {providerCallerIds.map((callerId) => (
+                          <SelectItem key={callerId.id} value={callerId.id}>
+                            {callerId.phoneNumber} ({callerId.providerName})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1497,6 +1684,168 @@ export default function PhoneNumbers() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Provider Numbers Lookup Dialog */}
+      <Dialog open={providerLookupDialogOpen} onOpenChange={setProviderLookupDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Provider Numbers Lookup
+            </DialogTitle>
+            <DialogDescription>
+              {selectedProvider 
+                ? `Browse available numbers from ${selectedProvider.name}`
+                : 'Select a provider to browse available caller ID numbers'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Provider</Label>
+              <Select 
+                value={selectedProvider?.id || ""} 
+                onValueChange={(value) => {
+                  const provider = tcxcInterconnections.find(p => p.id === value);
+                  setSelectedProvider(provider || null);
+                }}
+              >
+                <SelectTrigger data-testid="select-provider-lookup">
+                  <SelectValue placeholder="Choose a provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tcxcInterconnections.map((interconnection) => (
+                    <SelectItem key={interconnection.id} value={interconnection.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{interconnection.name}</span>
+                        {interconnection.techPrefixes[0] && (
+                          <span className="font-mono text-xs text-muted-foreground">
+                            ({interconnection.techPrefixes[0]})
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedProvider && (
+              <>
+                <div className="rounded-lg border p-3 bg-muted/30">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium">{selectedProvider.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedProvider.connectionType === 'softswitch' ? 'Softswitch Connection' : 'TCXC API'}
+                      </p>
+                    </div>
+                    <Badge 
+                      variant={selectedProvider.healthStatus === 'healthy' ? 'default' : 'secondary'}
+                      className={selectedProvider.healthStatus === 'healthy' ? 'bg-green-600 dark:bg-green-700' : ''}
+                    >
+                      {selectedProvider.healthStatus === 'healthy' ? 'Active' : 'Unknown'}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {selectedProvider.techPrefixes.map((prefix, idx) => (
+                      <Badge key={idx} variant="outline" className="font-mono text-xs">
+                        {prefix}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Add Caller ID Number</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Phone Number</Label>
+                      <Input
+                        placeholder="+966 5X XXX XXXX"
+                        value={newCallerIdNumber}
+                        onChange={(e) => setNewCallerIdNumber(e.target.value)}
+                        data-testid="input-new-caller-id-number"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Country</Label>
+                      <Input
+                        placeholder="Saudi Arabia"
+                        value={newCallerIdCountry}
+                        onChange={(e) => setNewCallerIdCountry(e.target.value)}
+                        data-testid="input-new-caller-id-country"
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full"
+                    disabled={!newCallerIdNumber || addProviderCallerIdMutation.isPending}
+                    onClick={() => {
+                      if (!newCallerIdNumber || !selectedProvider) return;
+                      addProviderCallerIdMutation.mutate({
+                        credentialId: selectedProvider.id,
+                        phoneNumber: newCallerIdNumber,
+                        providerName: selectedProvider.name,
+                        techPrefix: selectedProvider.techPrefixes[0] || '',
+                        country: newCallerIdCountry || 'Unknown',
+                      });
+                    }}
+                    data-testid="button-add-caller-id"
+                  >
+                    {addProviderCallerIdMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-1" />
+                    )}
+                    Add Caller ID
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border p-4">
+                  <h4 className="text-sm font-medium mb-3">Your Caller IDs from {selectedProvider.name}</h4>
+                  <div className="space-y-2">
+                    {providerCallerIds
+                      .filter(c => c.credentialId === selectedProvider.id)
+                      .map((callerId) => (
+                        <div 
+                          key={callerId.id} 
+                          className="p-3 rounded-lg border flex items-center justify-between gap-2"
+                          data-testid={`caller-id-${callerId.id}`}
+                        >
+                          <div>
+                            <p className="font-mono text-sm">{callerId.phoneNumber}</p>
+                            <p className="text-xs text-muted-foreground">{callerId.country} via {callerId.providerName}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {callerId.techPrefix}
+                            </Badge>
+                            <Button 
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => deleteProviderCallerIdMutation.mutate(callerId.id)}
+                              disabled={deleteProviderCallerIdMutation.isPending}
+                              data-testid={`button-delete-caller-id-${callerId.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    {providerCallerIds.filter(c => c.credentialId === selectedProvider.id).length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">
+                        No caller IDs added yet for this provider. Add a number above to use it for outbound calls.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* TCXC Purchase Confirmation Dialog */}
       <AlertDialog open={tcxcBuyDialogOpen} onOpenChange={setTcxcBuyDialogOpen}>

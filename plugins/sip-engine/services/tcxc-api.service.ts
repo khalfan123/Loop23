@@ -32,6 +32,26 @@ interface TcxcInterconnection {
   port: number;
 }
 
+interface TcxcMarketplaceDid {
+  i_did: number;
+  did: string;
+  description: string;
+  country: string;
+  country_code: string;
+  seller: string;
+  seller_id: number;
+  price_per_minute: number;
+  monthly_fee: number;
+  setup_fee: number;
+  currency: string;
+  voice: boolean;
+  sms: boolean;
+  fax: boolean;
+  video: boolean;
+  did_type: string;
+  capacity: number;
+}
+
 const GCC_COUNTRIES = [
   { code: 'SA', name: 'Saudi Arabia' },
   { code: 'AE', name: 'United Arab Emirates' },
@@ -347,5 +367,83 @@ export class TcxcApiService {
 
   static getGccCountries() {
     return GCC_COUNTRIES;
+  }
+
+  static async searchMarketplaceDids(options: {
+    prefix?: string;
+    country?: string;
+    seller?: string;
+    voice?: boolean;
+    sms?: boolean;
+    didType?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<TcxcMarketplaceDid[]> {
+    try {
+      const formData: Record<string, string> = {};
+      if (options.prefix) formData.prefix = options.prefix;
+      if (options.country) formData.country = options.country;
+      if (options.seller) formData.seller = options.seller;
+      formData.voice = options.voice !== false ? '1' : '0';
+      formData.sms = options.sms ? '1' : '0';
+      formData.fax = '0';
+      formData.video = '0';
+      formData.did_type = options.didType || 'any';
+      formData.pager = String(options.limit || 20);
+      formData.off = String(options.offset || 1);
+
+      const response = await this.makeRequest('/number/market', 'POST', formData);
+      
+      if (response && Array.isArray(response.dids)) {
+        return response.dids;
+      }
+      if (response && Array.isArray(response)) {
+        return response;
+      }
+      return [];
+    } catch (error: any) {
+      console.error('[TCXC] Search marketplace DIDs error:', error.message);
+      return [];
+    }
+  }
+
+  static async rentMarketplaceDid(
+    iDid: number,
+    billingAccountId: number,
+    sipContact: string
+  ): Promise<{ success: boolean; did?: string; error?: string }> {
+    try {
+      const formData = {
+        i_did: String(iDid),
+        billing_i_account: String(billingAccountId),
+        contact: sipContact,
+      };
+
+      const response = await this.makeRequest('/number/purchase', 'POST', formData);
+      
+      if (response && response.did) {
+        return { success: true, did: response.did };
+      }
+      if (response && response.success) {
+        return { success: true };
+      }
+      return { success: false, error: 'Unknown response from TCXC API' };
+    } catch (error: any) {
+      console.error('[TCXC] Rent marketplace DID error:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getSellerList(): Promise<Array<{ id: number; name: string }>> {
+    try {
+      const response = await this.makeRequest('/sellers/list', 'GET');
+      if (response && Array.isArray(response.sellers)) {
+        return response.sellers;
+      }
+      return [];
+    } catch (error: any) {
+      console.error('[TCXC] Get seller list error:', error.message);
+      return [];
+    }
   }
 }

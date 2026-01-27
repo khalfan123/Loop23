@@ -173,6 +173,26 @@ interface TcxcStatus {
   credentialCount: number;
 }
 
+interface MarketplaceDid {
+  i_did: number;
+  did: string;
+  description: string;
+  country: string;
+  country_code: string;
+  seller: string;
+  seller_id: number;
+  price_per_minute: number;
+  monthly_fee: number;
+  setup_fee: number;
+  currency: string;
+  voice: boolean;
+  sms: boolean;
+  fax: boolean;
+  video: boolean;
+  did_type: string;
+  capacity: number;
+}
+
 interface TcxcInterconnection {
   id: string;
   name: string;
@@ -248,6 +268,11 @@ export default function PhoneNumbers() {
   const [providerNumberSearch, setProviderNumberSearch] = useState("");
   const [newCallerIdNumber, setNewCallerIdNumber] = useState("");
   const [newCallerIdCountry, setNewCallerIdCountry] = useState("");
+  const [marketplaceSearchPrefix, setMarketplaceSearchPrefix] = useState("");
+  const [marketplaceSearchResults, setMarketplaceSearchResults] = useState<MarketplaceDid[]>([]);
+  const [isSearchingMarketplace, setIsSearchingMarketplace] = useState(false);
+  const [selectedMarketplaceDid, setSelectedMarketplaceDid] = useState<MarketplaceDid | null>(null);
+  const [rentDialogOpen, setRentDialogOpen] = useState(false);
 
   // Fetch user addresses for address requirement check
   interface UserAddress {
@@ -374,6 +399,65 @@ export default function PhoneNumbers() {
       toast({
         title: "Error",
         description: error.message || "Failed to remove caller ID",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Search marketplace DIDs from providers
+  const searchMarketplaceDids = async (seller: string, prefix?: string) => {
+    setIsSearchingMarketplace(true);
+    try {
+      const response = await apiRequest("POST", "/api/tcxc/marketplace/search", {
+        seller,
+        prefix: prefix || undefined,
+        voice: true,
+        limit: 20,
+      });
+      const data = response as unknown as MarketplaceDid[];
+      setMarketplaceSearchResults(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      console.error("Marketplace search error:", error);
+      toast({
+        title: "Search Failed",
+        description: error.message || "Failed to search marketplace",
+        variant: "destructive",
+      });
+      setMarketplaceSearchResults([]);
+    } finally {
+      setIsSearchingMarketplace(false);
+    }
+  };
+
+  // Rent marketplace DID mutation
+  const rentMarketplaceDidMutation = useMutation({
+    mutationFn: async (data: { 
+      iDid: number; 
+      did: string;
+      seller: string;
+      country: string;
+      monthlyFee: number;
+      credentialId: string;
+      techPrefix: string;
+    }) => {
+      const response = await apiRequest("POST", "/api/tcxc/marketplace/rent", data);
+      return { response, did: data.did };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tcxc/dids/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tcxc/provider-caller-ids"] });
+      toast({
+        title: "Number Rented Successfully",
+        description: `${data.did} is now available for outbound calls.`,
+      });
+      setRentDialogOpen(false);
+      setSelectedMarketplaceDid(null);
+      setMarketplaceSearchResults([]);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Rental Failed",
+        description: error.message || "Failed to rent number",
         variant: "destructive",
       });
     },
@@ -1738,7 +1822,7 @@ export default function PhoneNumbers() {
                     <div>
                       <p className="font-medium">{selectedProvider.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {selectedProvider.connectionType === 'softswitch' ? 'Softswitch Connection' : 'TCXC API'}
+                        {selectedProvider.connectionType === 'softswitch' ? 'Softswitch Connection' : 'TCXC Marketplace'}
                       </p>
                     </div>
                     <Badge 
@@ -1758,53 +1842,76 @@ export default function PhoneNumbers() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Add Caller ID Number</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Phone Number</Label>
-                      <Input
-                        placeholder="+966 5X XXX XXXX"
-                        value={newCallerIdNumber}
-                        onChange={(e) => setNewCallerIdNumber(e.target.value)}
-                        data-testid="input-new-caller-id-number"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Country</Label>
-                      <Input
-                        placeholder="Saudi Arabia"
-                        value={newCallerIdCountry}
-                        onChange={(e) => setNewCallerIdCountry(e.target.value)}
-                        data-testid="input-new-caller-id-country"
-                      />
-                    </div>
+                  <Label>Search Available Numbers</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Country code prefix (e.g., 971, 966)"
+                      value={marketplaceSearchPrefix}
+                      onChange={(e) => setMarketplaceSearchPrefix(e.target.value)}
+                      data-testid="input-marketplace-search-prefix"
+                    />
+                    <Button 
+                      onClick={() => searchMarketplaceDids(selectedProvider.name, marketplaceSearchPrefix)}
+                      disabled={isSearchingMarketplace}
+                      data-testid="button-search-marketplace"
+                    >
+                      {isSearchingMarketplace ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
-                  <Button 
-                    className="w-full"
-                    disabled={!newCallerIdNumber || addProviderCallerIdMutation.isPending}
-                    onClick={() => {
-                      if (!newCallerIdNumber || !selectedProvider) return;
-                      addProviderCallerIdMutation.mutate({
-                        credentialId: selectedProvider.id,
-                        phoneNumber: newCallerIdNumber,
-                        providerName: selectedProvider.name,
-                        techPrefix: selectedProvider.techPrefixes[0] || '',
-                        country: newCallerIdCountry || 'Unknown',
-                      });
-                    }}
-                    data-testid="button-add-caller-id"
-                  >
-                    {addProviderCallerIdMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4 mr-1" />
-                    )}
-                    Add Caller ID
-                  </Button>
+                  
+                  {marketplaceSearchResults.length > 0 && (
+                    <div className="rounded-lg border max-h-64 overflow-y-auto">
+                      {marketplaceSearchResults.map((did) => (
+                        <div 
+                          key={did.i_did}
+                          className="p-3 border-b last:border-b-0 flex items-center justify-between gap-2 hover-elevate"
+                          data-testid={`marketplace-did-${did.i_did}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-mono text-sm truncate">{did.did}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs text-muted-foreground">{did.country}</span>
+                              <Badge variant="outline" className="text-xs">{did.did_type}</Badge>
+                              {did.voice && <Badge variant="secondary" className="text-xs">Voice</Badge>}
+                              {did.sms && <Badge variant="secondary" className="text-xs">SMS</Badge>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="text-right">
+                              <p className="text-sm font-medium">${did.monthly_fee}/mo</p>
+                              <p className="text-xs text-muted-foreground">${did.price_per_minute}/min</p>
+                            </div>
+                            <Button 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedMarketplaceDid(did);
+                                setRentDialogOpen(true);
+                              }}
+                              data-testid={`button-rent-did-${did.i_did}`}
+                            >
+                              Rent
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {marketplaceSearchResults.length === 0 && !isSearchingMarketplace && (
+                    <div className="text-center py-6 text-muted-foreground border rounded-lg">
+                      <Search className="h-8 w-8 mx-auto mb-2" />
+                      <p className="text-sm">Search for available numbers from {selectedProvider.name}</p>
+                      <p className="text-xs">Enter a country code prefix and click search</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-lg border p-4">
-                  <h4 className="text-sm font-medium mb-3">Your Caller IDs from {selectedProvider.name}</h4>
+                  <h4 className="text-sm font-medium mb-3">Your Rented Numbers from {selectedProvider.name}</h4>
                   <div className="space-y-2">
                     {providerCallerIds
                       .filter(c => c.credentialId === selectedProvider.id)
@@ -1836,7 +1943,7 @@ export default function PhoneNumbers() {
                       ))}
                     {providerCallerIds.filter(c => c.credentialId === selectedProvider.id).length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-4">
-                        No caller IDs added yet for this provider. Add a number above to use it for outbound calls.
+                        No numbers rented yet from this provider.
                       </p>
                     )}
                   </div>
@@ -1846,6 +1953,78 @@ export default function PhoneNumbers() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Marketplace DID Rent Confirmation Dialog */}
+      <AlertDialog open={rentDialogOpen} onOpenChange={setRentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rent Phone Number</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedMarketplaceDid && (
+                <div className="space-y-2 mt-2">
+                  <p>You are about to rent:</p>
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="font-mono font-semibold text-lg">{selectedMarketplaceDid.did}</p>
+                    <p className="text-sm text-muted-foreground">{selectedMarketplaceDid.country}</p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      <Badge variant="outline">{selectedMarketplaceDid.did_type}</Badge>
+                      {selectedMarketplaceDid.voice && <Badge variant="secondary">Voice</Badge>}
+                      {selectedMarketplaceDid.sms && <Badge variant="secondary">SMS</Badge>}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-3 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Monthly Fee:</span>
+                      <span className="font-medium">${selectedMarketplaceDid.monthly_fee}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Setup Fee:</span>
+                      <span className="font-medium">${selectedMarketplaceDid.setup_fee}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Rate:</span>
+                      <span className="font-medium">${selectedMarketplaceDid.price_per_minute}/min</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Seller:</span>
+                      <span className="font-medium">{selectedMarketplaceDid.seller}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-rent">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (selectedMarketplaceDid && selectedProvider) {
+                  rentMarketplaceDidMutation.mutate({
+                    iDid: selectedMarketplaceDid.i_did,
+                    did: selectedMarketplaceDid.did,
+                    seller: selectedMarketplaceDid.seller || selectedProvider.name,
+                    country: selectedMarketplaceDid.country,
+                    monthlyFee: selectedMarketplaceDid.monthly_fee,
+                    credentialId: selectedProvider.id,
+                    techPrefix: selectedProvider.techPrefixes[0] || '',
+                  });
+                }
+              }}
+              disabled={rentMarketplaceDidMutation.isPending || !selectedProvider}
+              data-testid="button-confirm-rent"
+            >
+              {rentMarketplaceDidMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Renting...
+                </>
+              ) : (
+                'Rent Number'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* TCXC Purchase Confirmation Dialog */}
       <AlertDialog open={tcxcBuyDialogOpen} onOpenChange={setTcxcBuyDialogOpen}>

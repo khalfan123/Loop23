@@ -180,17 +180,21 @@ Before every deployment, ensure the following steps are completed:
   - Added Outbound tab for configuring outbound calling with all available numbers (Twilio, Plivo, TCXC)
   - New `/api/tcxc/status` endpoint with sessionAuth for user-facing TCXC configuration check
   - Fixed nested Card components - replaced with bordered divs per design guidelines
-- 2026-01-27: **Provider Caller IDs for Outbound Calling**:
-  - New `provider_caller_ids` database table for storing outbound caller IDs from carrier providers
-  - Provider Numbers Lookup section in Outbound tab showing carrier interconnections (AirTel, Mobily, Tonerro)
-  - Provider cards display name, tech prefix, and connection status
-  - Provider Numbers Lookup dialog for adding caller IDs from selected providers:
-    - Provider selection dropdown with tech prefix display
-    - Form to add phone number + country
-    - List of existing caller IDs with delete option
-  - Provider caller IDs appear in Outbound Caller ID section with Active badge
-  - Provider caller IDs added to Default Caller ID dropdown for campaign settings
-  - API endpoints: GET/POST/DELETE `/api/tcxc/provider-caller-ids` with sessionAuth
+- 2026-01-27: **Provider DID Marketplace & Rental**:
+  - TCXC Marketplace search integration for browsing DIDs from carrier providers (AirTel, Mobily, Tonerro)
+  - New API endpoints:
+    - `POST /api/tcxc/marketplace/search` - Search DIDs by seller, prefix, voice/SMS capabilities
+    - `POST /api/tcxc/marketplace/rent` - Rent/purchase DID from marketplace
+    - `GET /api/tcxc/marketplace/sellers` - Get list of sellers on marketplace
+  - Provider Numbers Lookup dialog in Outbound tab with:
+    - Provider selection dropdown
+    - Marketplace search with country code prefix filter
+    - Search results showing DID, country, type, voice/SMS badges, pricing
+    - "Rent" button for each available number with confirmation dialog
+    - Rented numbers section showing user's numbers from each provider
+  - Rent confirmation dialog with pricing breakdown (monthly fee, setup fee, per-minute rate)
+  - `provider_caller_ids` table for storing rented caller IDs
+  - Provider caller IDs integrated into Default Caller ID dropdown
   - Tech prefix routing: calls routed via carrier's tech prefix (e.g., 73297#, 76091#, 74778#)
 
 ## Troubleshooting

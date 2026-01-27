@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { TcxcApiService } from '../services/tcxc-api.service';
 import { db } from '../../../server/db';
 import { providerCallerIds } from '../../../shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 const createCredentialSchema = z.object({
   name: z.string().min(1),
@@ -205,6 +205,108 @@ export function setupTcxcRoutes(
     res.json(TcxcApiService.getGccCountries());
   });
 
+  // Search marketplace DIDs from sellers (providers like AirTel, Mobily, Tonerro)
+  app.post('/api/tcxc/marketplace/search', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const schema = z.object({
+        prefix: z.string().optional(),
+        country: z.string().optional(),
+        seller: z.string().optional(),
+        voice: z.boolean().optional(),
+        sms: z.boolean().optional(),
+        didType: z.enum(['any', 'mobile', 'landline']).optional(),
+        limit: z.number().optional(),
+        offset: z.number().optional(),
+      });
+      
+      const data = schema.parse(req.body);
+      const dids = await TcxcApiService.searchMarketplaceDids(data);
+      res.json(dids);
+    } catch (error: any) {
+      console.error('[TCXC Routes] Search marketplace DIDs error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Rent a DID from marketplace
+  app.post('/api/tcxc/marketplace/rent', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const schema = z.object({
+        iDid: z.number(),
+        did: z.string().min(1),
+        seller: z.string().min(1),
+        country: z.string().optional(),
+        monthlyFee: z.number().optional(),
+        credentialId: z.string().min(1),
+        techPrefix: z.string().min(1),
+      });
+      
+      const data = schema.parse(req.body);
+      
+      // Get the credential to find the billing account info
+      const credential = await TcxcApiService.getCredentialById(data.credentialId);
+      if (!credential) {
+        return res.status(400).json({ error: 'Invalid credential' });
+      }
+      
+      // Construct SIP contact from server config
+      const sipServer = credential.sipServer || 'sip01.telecomsxchange.com';
+      const sipPort = credential.sipPort || 5060;
+      const sipContact = `sip:${data.did}@${sipServer}:${sipPort}`;
+      
+      // Call the TCXC API to rent the DID
+      // Note: billingAccountId would come from credential config in production
+      const result = await TcxcApiService.rentMarketplaceDid(
+        data.iDid,
+        1, // Default billing account - should be configured per credential
+        sipContact
+      );
+      
+      if (result.success) {
+        // Persist the rented DID to provider_caller_ids
+        const [callerId] = await db.insert(providerCallerIds).values({
+          userId: user.id,
+          credentialId: data.credentialId,
+          phoneNumber: data.did,
+          providerName: data.seller,
+          techPrefix: data.techPrefix,
+          country: data.country || 'Unknown',
+          numberType: 'voice',
+          status: 'active',
+        }).returning();
+        
+        res.json({ ...result, callerId });
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error: any) {
+      console.error('[TCXC Routes] Rent marketplace DID error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get list of sellers on the marketplace
+  app.get('/api/tcxc/marketplace/sellers', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const sellers = await TcxcApiService.getSellerList();
+      res.json(sellers);
+    } catch (error: any) {
+      console.error('[TCXC Routes] Get seller list error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Provider Caller IDs - Get user's added provider caller IDs
   app.get('/api/tcxc/provider-caller-ids', sessionAuth, async (req: Request, res: Response) => {
     try {
@@ -278,14 +380,19 @@ export function setupTcxcRoutes(
         return res.status(401).json({ error: 'Unauthorized' });
       }
       
-      const { id } = req.params;
-      const conditions = and(
-        eq(providerCallerIds.id, id),
-        eq(providerCallerIds.userId, user.id)
-      );
-      if (conditions) {
-        await db.delete(providerCallerIds).where(conditions);
+      const callerIdId = req.params.id;
+      // First verify the caller ID belongs to the user
+      const existingRecords = await db.select()
+        .from(providerCallerIds)
+        .where(eq(providerCallerIds.userId, user.id));
+      
+      const existing = existingRecords.find(r => r.id === callerIdId);
+      if (!existing) {
+        return res.status(404).json({ error: 'Caller ID not found' });
       }
+      
+      // Use raw SQL for delete with id comparison
+      await db.execute(sql`DELETE FROM provider_caller_ids WHERE id = ${callerIdId} AND user_id = ${user.id}`);
       
       res.json({ success: true });
     } catch (error: any) {

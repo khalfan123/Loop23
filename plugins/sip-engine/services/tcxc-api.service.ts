@@ -53,13 +53,29 @@ interface TcxcMarketplaceDid {
 }
 
 const GCC_COUNTRIES = [
-  { code: 'SA', name: 'Saudi Arabia' },
-  { code: 'AE', name: 'United Arab Emirates' },
-  { code: 'KW', name: 'Kuwait' },
-  { code: 'QA', name: 'Qatar' },
-  { code: 'BH', name: 'Bahrain' },
-  { code: 'OM', name: 'Oman' },
+  { code: 'SA', name: 'Saudi Arabia', prefix: '966' },
+  { code: 'AE', name: 'United Arab Emirates', prefix: '971' },
+  { code: 'KW', name: 'Kuwait', prefix: '965' },
+  { code: 'QA', name: 'Qatar', prefix: '974' },
+  { code: 'BH', name: 'Bahrain', prefix: '973' },
+  { code: 'OM', name: 'Oman', prefix: '968' },
 ];
+
+// Map country codes to phone prefixes for API calls
+const COUNTRY_CODE_TO_PREFIX: Record<string, string> = {
+  'SA': '966',
+  'AE': '971',
+  'KW': '965',
+  'QA': '974',
+  'BH': '973',
+  'OM': '968',
+  'US': '1',
+  'GB': '44',
+  'DE': '49',
+  'FR': '33',
+  'AU': '61',
+  'CA': '1',
+};
 
 export class TcxcApiService {
   private static async getActiveCredential(): Promise<TcxcCredential | null> {
@@ -381,18 +397,29 @@ export class TcxcApiService {
   }): Promise<TcxcMarketplaceDid[]> {
     try {
       const formData: Record<string, string> = {};
-      if (options.prefix) formData.prefix = options.prefix;
-      if (options.country) formData.country = options.country;
+      
+      // Convert country code to phone prefix if it's a 2-letter ISO code
+      // The TCXC API expects 'prefix' to be the phone number prefix (e.g., 971 for UAE)
+      let phonePrefix = options.prefix;
+      if (options.prefix && options.prefix.length <= 3 && /^[A-Z]{2}$/.test(options.prefix.toUpperCase())) {
+        // It's a 2-letter country code, convert to phone prefix
+        phonePrefix = COUNTRY_CODE_TO_PREFIX[options.prefix.toUpperCase()] || options.prefix;
+      }
+      
+      if (phonePrefix) formData.prefix = phonePrefix;
+      // Don't send country as a separate param - the API uses prefix for filtering
       if (options.seller) formData.seller = options.seller;
       formData.voice = options.voice !== false ? '1' : '0';
       formData.sms = options.sms ? '1' : '0';
       formData.fax = '0';
       formData.video = '0';
       formData.did_type = options.didType || 'any';
-      formData.pager = String(options.limit || 20);
+      formData.pager = String(options.limit || 50);
       formData.off = String(options.offset || 1);
 
+      console.log('[TCXC] Marketplace search params:', formData);
       const response = await this.makeRequest('/number/market', 'POST', formData);
+      console.log('[TCXC] Marketplace search response:', JSON.stringify(response).substring(0, 500));
       
       if (response && Array.isArray(response.dids)) {
         return response.dids;

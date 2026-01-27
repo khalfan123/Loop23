@@ -223,6 +223,7 @@ interface ProviderCallerId {
 interface GccCountry {
   code: string;
   name: string;
+  prefix: string;
 }
 
 interface CarrierProvider {
@@ -1708,17 +1709,17 @@ export default function PhoneNumbers() {
                     {gccCountries.length > 0 && (
                       <>
                         {gccCountries.map((country) => (
-                          <SelectItem key={country.code} value={country.code}>
-                            {country.name}
+                          <SelectItem key={country.code} value={country.prefix}>
+                            {country.name} (+{country.prefix})
                           </SelectItem>
                         ))}
                       </>
                     )}
-                    <SelectItem value="1">United States</SelectItem>
-                    <SelectItem value="44">United Kingdom</SelectItem>
-                    <SelectItem value="49">Germany</SelectItem>
-                    <SelectItem value="33">France</SelectItem>
-                    <SelectItem value="61">Australia</SelectItem>
+                    <SelectItem value="1">United States (+1)</SelectItem>
+                    <SelectItem value="44">United Kingdom (+44)</SelectItem>
+                    <SelectItem value="49">Germany (+49)</SelectItem>
+                    <SelectItem value="33">France (+33)</SelectItem>
+                    <SelectItem value="61">Australia (+61)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

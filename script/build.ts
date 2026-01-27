@@ -32,6 +32,15 @@ const allowlist = [
   "zod-validation-error",
 ];
 
+// Packages that should always be external (never bundled)
+// These are development-only packages that cause issues in production
+const forceExternals = [
+  "@replit/vite-plugin-runtime-error-modal",
+  "@replit/vite-plugin-cartographer", 
+  "@replit/vite-plugin-dev-banner",
+  "vite",
+];
+
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
@@ -44,7 +53,10 @@ async function buildAll() {
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.devDependencies || {}),
   ];
-  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+  const externals = [
+    ...allDeps.filter((dep) => !allowlist.includes(dep)),
+    ...forceExternals,
+  ];
 
   await esbuild({
     entryPoints: ["server/index.ts"],

@@ -289,6 +289,31 @@ export default function PhoneNumbers() {
   const [isSearchingMarketplace, setIsSearchingMarketplace] = useState(false);
   const [selectedMarketplaceDid, setSelectedMarketplaceDid] = useState<MarketplaceDid | null>(null);
   const [rentDialogOpen, setRentDialogOpen] = useState(false);
+  
+  // HLR Lookup state for outbound calling
+  const [hlrLookupNumber, setHlrLookupNumber] = useState("");
+  const [hlrLookupResult, setHlrLookupResult] = useState<{
+    internationalFormat: string;
+    nationalFormat: string;
+    countryCode: string;
+    countryName: string;
+    countryPrefix: string;
+    currentCarrier: {
+      networkCode: string;
+      name: string;
+      country: string;
+      networkType: string;
+    };
+    originalCarrier: {
+      networkCode: string;
+      name: string;
+      country: string;
+      networkType: string;
+    };
+    ported: string;
+    roaming: { status: string };
+  } | null>(null);
+  const [isLookingUpHlr, setIsLookingUpHlr] = useState(false);
 
   // Fetch user addresses for address requirement check
   interface UserAddress {
@@ -512,6 +537,41 @@ export default function PhoneNumbers() {
       setMarketplaceSearchResults([]);
     } finally {
       setIsSearchingMarketplace(false);
+    }
+  };
+
+  // HLR Lookup for outbound number validation
+  const performHlrLookup = async () => {
+    if (!hlrLookupNumber.trim()) {
+      toast({
+        title: "Phone Number Required",
+        description: "Please enter a phone number to lookup",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLookingUpHlr(true);
+    setHlrLookupResult(null);
+    try {
+      const response = await apiRequest("POST", "/api/tcxc/hlr/lookup", {
+        phoneNumber: hlrLookupNumber.trim(),
+      });
+      const data = await response.json();
+      setHlrLookupResult(data);
+      toast({
+        title: "Lookup Complete",
+        description: `Number validated: ${data.internationalFormat}`,
+      });
+    } catch (error: any) {
+      console.error("HLR Lookup error:", error);
+      toast({
+        title: "Lookup Failed",
+        description: error.message || "Failed to lookup phone number",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLookingUpHlr(false);
     }
   };
 
@@ -1976,6 +2036,104 @@ export default function PhoneNumbers() {
                 <Phone className="h-10 w-10 mx-auto mb-3" />
                 <p className="font-medium">No phone numbers available</p>
                 <p className="text-sm">Purchase phone numbers or search provider DIDs above to add caller IDs.</p>
+              </div>
+            )}
+          </Card>
+
+          {/* HLR Lookup - Validate destination numbers */}
+          <Card className="p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">HLR Number Lookup</h3>
+              <p className="text-sm text-muted-foreground">Validate destination phone numbers before making outbound calls</p>
+            </div>
+            
+            <div className="flex gap-4 items-end">
+              <div className="flex-1 space-y-2">
+                <Label>Destination Number</Label>
+                <Input
+                  placeholder="Enter phone number (e.g., 19542405411)"
+                  value={hlrLookupNumber}
+                  onChange={(e) => setHlrLookupNumber(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performHlrLookup()}
+                  data-testid="input-hlr-lookup"
+                />
+              </div>
+              <Button 
+                onClick={performHlrLookup} 
+                disabled={isLookingUpHlr || !hlrLookupNumber.trim()}
+                data-testid="button-hlr-lookup"
+              >
+                {isLookingUpHlr ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Search className="h-4 w-4 mr-2" />
+                )}
+                Lookup
+              </Button>
+            </div>
+
+            {/* HLR Lookup Results */}
+            {hlrLookupResult && (
+              <div className="mt-6 border rounded-lg p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Check className="h-5 w-5 text-green-500" />
+                  <span className="font-semibold">Number Validated</span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">International Format</p>
+                      <p className="font-mono text-lg">{hlrLookupResult.internationalFormat}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">National Format</p>
+                      <p className="font-mono">{hlrLookupResult.nationalFormat}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Country</p>
+                      <p>{hlrLookupResult.countryName} ({hlrLookupResult.countryCode})</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Ported Status</p>
+                      <Badge variant={hlrLookupResult.ported === 'ported' ? 'secondary' : 'outline'}>
+                        {hlrLookupResult.ported === 'ported' ? 'Ported' : 'Not Ported'}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground mb-1">Current Carrier</p>
+                      <p className="font-medium">{hlrLookupResult.currentCarrier.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {hlrLookupResult.currentCarrier.networkType} - {hlrLookupResult.currentCarrier.country}
+                      </p>
+                      {hlrLookupResult.currentCarrier.networkCode && (
+                        <p className="text-xs font-mono text-muted-foreground mt-1">
+                          MCC/MNC: {hlrLookupResult.currentCarrier.networkCode}
+                        </p>
+                      )}
+                    </div>
+                    
+                    {hlrLookupResult.ported === 'ported' && hlrLookupResult.originalCarrier.name !== 'Unknown' && (
+                      <div className="p-3 rounded-lg bg-muted/30">
+                        <p className="text-xs text-muted-foreground mb-1">Original Carrier</p>
+                        <p className="font-medium">{hlrLookupResult.originalCarrier.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {hlrLookupResult.originalCarrier.networkType}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {hlrLookupResult.roaming.status !== 'unknown' && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Roaming</p>
+                        <Badge variant="outline">{hlrLookupResult.roaming.status}</Badge>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </Card>

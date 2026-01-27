@@ -1,0 +1,94 @@
+
+POST
+Lookup Number
+https://apiv2.telecomsxchange.com/sellers/hlr/lookup/19542405411
+Lookup a single number data using HLR usinhg your TCXC Seller Account.
+
+AUTHORIZATION
+Digest Auth
+This request is using Digest Auth from collectionTelecomsXChange (TCXC)
+Example Request
+Lookup Number - HLR Response
+View More
+curl
+curl --location 'https://apiv2.telecomsxchange.com/sellers/hlr/lookup/19542405411'
+200 OK
+Example Response
+Body
+Headers (9)
+View More
+json
+{
+  "status": "success",
+  "response": {
+    "status": 0,
+    "status_message": "Success",
+    "request_id": "6d21408b-6fc5-45b7-a05b-415f299b4f4d",
+    "international_format_number": "19542405411",
+    "national_format_number": "(954) 240-5411",
+    "country_code": "US",
+    "country_code_iso3": "USA",
+    "country_name": "United States of America",
+    "country_prefix": "1",
+    "current_carrier": {
+      "network_code": "310260",
+      "name": "T-mobile USA, Inc.",
+      "country": "US",
+      "network_type": "mobile"
+    },
+    "original_carrier": {
+      "network_code": "310090",
+      "name": "AT&T Mobility",
+      "country": "US",
+      "network_type": "mobile"
+    },
+    "ported": "ported",
+    "roaming": {
+      "status": "unknown"
+    }
+  }
+}
+IoT
+All Internet of Things (IoT) apis go here.
+
+AUTHORIZATION
+Digest Auth
+This folder is using Digest Auth from collectionTelecomsXChange (TCXC)
+POST
+Buyer IoT History
+https://apiv2.telecomsxchange.com/buyers/iothistory
+Endpoint: POST /buyers/iothistory
+Description
+The POST /buyers/iothistory endpoint from the TelecomsXchange API allows users to fetch the history of their Internet of Things (IoT) events. The user can filter the history based on a range of dates, allowing a better analysis of specific time periods.
+
+Request
+The API expects a POST request at the https://apiv2.telecomsxchange.com/buyers/iothistory URL.
+
+Headers:
+Content-Type: This should be application/x-www-form-urlencoded.
+Parameters:
+date_from (required): The beginning date and time of the period you want to analyze. This should be in the format YYYY-MM-DD HH:MM:SS.
+date_to (required): The ending date and time of the period you want to analyze. This should be in the format YYYY-MM-DD HH:MM:SS.
+Response
+The API will return a JSON object containing a list of all IoT events within the specified date range. Each object will contain detailed information about the event, such as the device used, the time, the type of event, etc.
+
+Success Response Code: 200 OK
+Note: Please refer to the API's error handling documentation for information on how the API behaves when an error occurs or if incorrect data is submitted.
+
+Rate Limiting
+Please refer to the documentation of the TelecomsXchange API for details on rate limiting.
+
+AUTHORIZATION
+Digest Auth
+This request is using Digest Auth from collectionTelecomsXChange (TCXC)
+Body
+urlencoded
+date_from
+2021-01-01 00:00:00
+
+From Date YYYY-MM-DD hh:mm:ss
+
+date_to
+2023-06-15 00:00:00
+
+To Date YYYY-MM-DD hh:mm:ss

@@ -794,4 +794,78 @@ export class TcxcApiService {
       return routes;
     }
   }
+
+  /**
+   * HLR Lookup - Validate and get information about a phone number
+   * Used to verify destination numbers before making outbound calls
+   */
+  static async hlrLookup(phoneNumber: string): Promise<{
+    success: boolean;
+    data?: {
+      internationalFormat: string;
+      nationalFormat: string;
+      countryCode: string;
+      countryName: string;
+      countryPrefix: string;
+      currentCarrier: {
+        networkCode: string;
+        name: string;
+        country: string;
+        networkType: string;
+      };
+      originalCarrier: {
+        networkCode: string;
+        name: string;
+        country: string;
+        networkType: string;
+      };
+      ported: string;
+      roaming: {
+        status: string;
+      };
+    };
+    error?: string;
+  }> {
+    try {
+      const cleanNumber = phoneNumber.replace(/[^0-9]/g, '');
+      console.log('[TCXC] HLR Lookup for:', cleanNumber);
+      
+      const response = await this.makeRequest(`/sellers/hlr/lookup/${cleanNumber}`, 'POST');
+      
+      if (response?.status === 'success' && response.response) {
+        const r = response.response;
+        return {
+          success: true,
+          data: {
+            internationalFormat: r.international_format_number || cleanNumber,
+            nationalFormat: r.national_format_number || '',
+            countryCode: r.country_code || '',
+            countryName: r.country_name || '',
+            countryPrefix: r.country_prefix || '',
+            currentCarrier: {
+              networkCode: r.current_carrier?.network_code || '',
+              name: r.current_carrier?.name || 'Unknown',
+              country: r.current_carrier?.country || '',
+              networkType: r.current_carrier?.network_type || '',
+            },
+            originalCarrier: {
+              networkCode: r.original_carrier?.network_code || '',
+              name: r.original_carrier?.name || 'Unknown',
+              country: r.original_carrier?.country || '',
+              networkType: r.original_carrier?.network_type || '',
+            },
+            ported: r.ported || 'unknown',
+            roaming: {
+              status: r.roaming?.status || 'unknown',
+            },
+          },
+        };
+      }
+      
+      return { success: false, error: response?.message || 'HLR lookup failed' };
+    } catch (error: any) {
+      console.error('[TCXC] HLR Lookup error:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
 }

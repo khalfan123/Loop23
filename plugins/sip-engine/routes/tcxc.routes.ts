@@ -320,6 +320,31 @@ export function setupTcxcRoutes(
     }
   });
 
+  // HLR Lookup - Validate phone number for outbound calling
+  app.post('/api/tcxc/hlr/lookup', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const schema = z.object({
+        phoneNumber: z.string().min(5, 'Phone number is required'),
+      });
+
+      const result = schema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error.errors[0].message });
+      }
+
+      const hlrResult = await TcxcApiService.hlrLookup(result.data.phoneNumber);
+      
+      if (hlrResult.success) {
+        res.json(hlrResult.data);
+      } else {
+        res.status(400).json({ error: hlrResult.error });
+      }
+    } catch (error: any) {
+      console.error('[TCXC Routes] HLR Lookup error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get routes/destinations from TCXC (for GCC and other regions)
   // This combines data from top routes (if available) and purchased routes
   app.get('/api/tcxc/routes', sessionAuth, async (req: Request, res: Response) => {

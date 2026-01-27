@@ -163,6 +163,9 @@ export default function DepartmentManagement() {
     agentId: "",
     language: "en",
   });
+  
+  const [selectedPhoneForIvr, setSelectedPhoneForIvr] = useState<string>("");
+  const [ivrName, setIvrName] = useState<string>("Auto Distribution");
 
   const { data: statsData, isLoading: statsLoading } = useQuery<{
     departments: Department[];
@@ -278,6 +281,35 @@ export default function DepartmentManagement() {
     },
     onError: () => {
       toast({ title: "Failed to remove agent", variant: "destructive" });
+    },
+  });
+
+  const createIvrMutation = useMutation({
+    mutationFn: async (data: { phoneNumberId: string; name: string }) => {
+      const departments = statsData?.departments || [];
+      const menuOptions = departments.map((dept, idx) => ({
+        key: String(idx + 1),
+        label: dept.name,
+        departmentId: dept.id,
+      }));
+      return apiRequest("POST", "/api/departments/ivr", {
+        phoneNumberId: data.phoneNumberId,
+        name: data.name,
+        isActive: true,
+        menuOptions,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers"] });
+      setShowIvrSettingsDialog(false);
+      setSelectedPhoneForIvr("");
+      setIvrName("Auto Distribution");
+      toast({ title: "Phone number assigned successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to assign phone number", variant: "destructive" });
     },
   });
 
@@ -813,16 +845,75 @@ export default function DepartmentManagement() {
       <Dialog open={showIvrSettingsDialog} onOpenChange={setShowIvrSettingsDialog}>
         <DialogContent className="max-w-2xl" data-testid="dialog-ivr-settings">
           <DialogHeader>
-            <DialogTitle>IVR Settings</DialogTitle>
+            <DialogTitle>Assign Phone Number</DialogTitle>
             <DialogDescription>
-              Configure Auto Distribution for incoming calls
+              Assign a phone number to your call center departments
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-muted-foreground text-center py-8">
-              IVR configuration settings coming soon. Configure your phone number routing, greeting messages, and department menu options.
-            </p>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Select Phone Number</Label>
+              <Select 
+                value={selectedPhoneForIvr} 
+                onValueChange={setSelectedPhoneForIvr}
+              >
+                <SelectTrigger data-testid="select-phone-for-ivr">
+                  <SelectValue placeholder="Choose a phone number..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {unassignedPhones.map((phone) => (
+                    <SelectItem key={phone.id} value={phone.id}>
+                      {phone.phoneNumber} {phone.friendlyName && `(${phone.friendlyName})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {unassignedPhones.length === 0 && (
+                <p className="text-sm text-muted-foreground">No unassigned phone numbers available</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Configuration Name</Label>
+              <Input
+                value={ivrName}
+                onChange={(e) => setIvrName(e.target.value)}
+                placeholder="Auto Distribution"
+                data-testid="input-ivr-name"
+              />
+            </div>
+            {departments.length > 0 && (
+              <div className="space-y-2">
+                <Label>Departments to Route To</Label>
+                <div className="flex flex-wrap gap-2">
+                  {departments.map((dept, idx) => (
+                    <Badge key={dept.id} variant="outline" style={{ borderColor: dept.color }}>
+                      Press {idx + 1}: {dept.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowIvrSettingsDialog(false)} data-testid="button-cancel-ivr">
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (selectedPhoneForIvr) {
+                  createIvrMutation.mutate({
+                    phoneNumberId: selectedPhoneForIvr,
+                    name: ivrName,
+                  });
+                }
+              }}
+              disabled={!selectedPhoneForIvr || createIvrMutation.isPending}
+              data-testid="button-assign-phone"
+            >
+              {createIvrMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Assign Number
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

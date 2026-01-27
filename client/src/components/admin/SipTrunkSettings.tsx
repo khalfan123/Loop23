@@ -96,7 +96,7 @@ export function SipTrunkSettings() {
     name: "",
     apiLogin: "",
     apiKey: "",
-    apiEndpoint: "https://api.telecomxchange.com",
+    apiEndpoint: "https://apiv2.telecomsxchange.com",
     isPrimary: true,
   });
 
@@ -217,7 +217,7 @@ export function SipTrunkSettings() {
         name: "",
         apiLogin: "",
         apiKey: "",
-        apiEndpoint: "https://api.telecomxchange.com",
+        apiEndpoint: "https://apiv2.telecomsxchange.com",
         isPrimary: true,
       });
       toast({ title: "TCXC credentials saved successfully" });
@@ -834,7 +834,7 @@ export function SipTrunkSettings() {
                           <Input
                             value={newTcxcCredential.apiEndpoint}
                             onChange={(e) => setNewTcxcCredential({ ...newTcxcCredential, apiEndpoint: e.target.value })}
-                            placeholder="https://api.telecomxchange.com"
+                            placeholder="https://apiv2.telecomsxchange.com"
                             data-testid="input-tcxc-endpoint"
                           />
                         </div>

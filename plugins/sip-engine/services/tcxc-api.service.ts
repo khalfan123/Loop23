@@ -3,6 +3,7 @@
 import { db } from '../../../server/db';
 import { tcxcCredentials } from '../../../shared/schema';
 import { eq, and } from 'drizzle-orm';
+import crypto from 'crypto';
 
 type TcxcCredential = typeof tcxcCredentials.$inferSelect;
 
@@ -59,6 +60,24 @@ export class TcxcApiService {
     return anyActive || null;
   }
 
+  private static generateDigestAuth(
+    username: string,
+    password: string,
+    method: string,
+    uri: string,
+    realm: string,
+    nonce: string,
+    nc: string,
+    cnonce: string,
+    qop: string
+  ): string {
+    const ha1 = crypto.createHash('md5').update(`${username}:${realm}:${password}`).digest('hex');
+    const ha2 = crypto.createHash('md5').update(`${method}:${uri}`).digest('hex');
+    const response = crypto.createHash('md5').update(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`).digest('hex');
+    
+    return `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", qop=${qop}, nc=${nc}, cnonce="${cnonce}", response="${response}"`;
+  }
+
   private static async makeRequest(
     endpoint: string,
     method: string = 'GET',
@@ -69,27 +88,69 @@ export class TcxcApiService {
       throw new Error('No TCXC credentials configured');
     }
 
-    const baseUrl = credential.apiEndpoint || 'https://api.telecomxchange.com';
+    const baseUrl = credential.apiEndpoint || 'https://apiv2.telecomsxchange.com';
     const url = `${baseUrl}${endpoint}`;
+    const uri = endpoint;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'X-API-Login': credential.apiLogin,
-      'X-API-Key': credential.apiKey,
-    };
+    // First request to get the WWW-Authenticate header (Digest challenge)
+    const initialResponse = await fetch(url, { method });
+    
+    if (initialResponse.status === 401) {
+      const authHeader = initialResponse.headers.get('www-authenticate');
+      if (!authHeader || !authHeader.toLowerCase().startsWith('digest')) {
+        throw new Error('TCXC API requires Digest Authentication but did not return proper challenge');
+      }
 
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+      // Parse the Digest challenge
+      const realmMatch = authHeader.match(/realm="([^"]+)"/);
+      const nonceMatch = authHeader.match(/nonce="([^"]+)"/);
+      const qopMatch = authHeader.match(/qop="([^"]+)"/);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`TCXC API error: ${response.status} - ${errorText}`);
+      const realm = realmMatch ? realmMatch[1] : '';
+      const nonce = nonceMatch ? nonceMatch[1] : '';
+      const qop = qopMatch ? qopMatch[1].split(',')[0].trim() : 'auth';
+
+      const nc = '00000001';
+      const cnonce = crypto.randomBytes(8).toString('hex');
+
+      const authValue = this.generateDigestAuth(
+        credential.apiLogin,
+        credential.apiKey,
+        method,
+        uri,
+        realm,
+        nonce,
+        nc,
+        cnonce,
+        qop
+      );
+
+      const headers: Record<string, string> = {
+        'Authorization': authValue,
+        'Content-Type': body ? 'application/x-www-form-urlencoded' : 'application/json',
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers,
+        body: body ? new URLSearchParams(body).toString() : undefined,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`TCXC API error: ${response.status} - ${errorText}`);
+      }
+
+      return response.json();
     }
 
-    return response.json();
+    // If we got a successful response without auth challenge
+    if (!initialResponse.ok) {
+      const errorText = await initialResponse.text();
+      throw new Error(`TCXC API error: ${initialResponse.status} - ${errorText}`);
+    }
+
+    return initialResponse.json();
   }
 
   static async getAllCredentials(): Promise<TcxcCredential[]> {
@@ -125,7 +186,7 @@ export class TcxcApiService {
         name: params.name,
         apiLogin: params.apiLogin,
         apiKey: params.apiKey,
-        apiEndpoint: params.apiEndpoint || 'https://api.telecomxchange.com',
+        apiEndpoint: params.apiEndpoint || 'https://apiv2.telecomsxchange.com',
         isPrimary: params.isPrimary ?? false,
         isActive: true,
       })
@@ -175,7 +236,8 @@ export class TcxcApiService {
         return { success: false, message: 'No TCXC credentials configured' };
       }
 
-      await this.makeRequest('/v1/account/balance');
+      // Use the top destinations endpoint as a test - it's available to all users
+      await this.makeRequest('/sellers/toproutes?type=CLI&number=1&period=today', 'GET');
       
       await db
         .update(tcxcCredentials)
@@ -186,7 +248,7 @@ export class TcxcApiService {
         })
         .where(eq(tcxcCredentials.id, credential.id));
 
-      return { success: true, message: 'Connection successful' };
+      return { success: true, message: 'Connection successful - TCXC API verified' };
     } catch (error: any) {
       const credential = await this.getActiveCredential();
       if (credential) {

@@ -495,6 +495,101 @@ export class TcxcApiService {
     }
   }
 
+  /**
+   * Search Market View for voice termination rates
+   * This searches available rates from all sellers for a specific destination prefix
+   */
+  static async searchMarketRates(params: {
+    prefix: string;
+    routeType?: 'CLI' | 'NCLI' | 'TDM' | 'any';
+    seller?: string;
+    limit?: number;
+  }): Promise<Array<{
+    prefix: string;
+    vendorName: string;
+    connectionName: string;
+    tariffId: number;
+    connectionId: number;
+    vendorId: number;
+    price: number;
+    priceN: number;
+    interval1: number;
+    intervalN: number;
+    dailyAsr: number;
+    weeklyAsr: number;
+    dailyAcd: number;
+    weeklyAcd: number;
+    dailyMinutes: number;
+    weeklyMinutes: number;
+    routeType: string;
+    countryCode: string;
+    countryName: string;
+    description: string;
+    capacity: number;
+    sellerRating: number;
+    sellerReviews: number;
+  }>> {
+    try {
+      // Build form data object for makeRequest
+      const formBody: Record<string, string> = {
+        prefix: params.prefix,
+        searchform: '1',
+        type: params.routeType || 'any',
+        pager: String(params.limit || 50),
+        off: '0',
+      };
+      if (params.seller) {
+        formBody.seller = params.seller;
+      }
+
+      console.log('[TCXC] Market View search params:', {
+        prefix: params.prefix,
+        type: params.routeType || 'any',
+        seller: params.seller,
+        limit: params.limit || 50
+      });
+
+      // Use existing makeRequest with POST and form body (it handles Digest Auth)
+      const response = await this.makeRequest('/marketview/search', 'POST', formBody);
+      
+      console.log('[TCXC] Market View response status:', response?.status);
+
+      if (response?.status === 'success' && Array.isArray(response.rates)) {
+        console.log('[TCXC] Market View found', response.rates.length, 'rates');
+        return response.rates.map((rate: any) => ({
+          prefix: rate.prefix || '',
+          vendorName: rate.vendor_name || '',
+          connectionName: rate.connection_name || '',
+          tariffId: parseInt(rate.i_tariff) || 0,
+          connectionId: parseInt(rate.i_connection) || 0,
+          vendorId: parseInt(rate.i_vendor) || 0,
+          price: parseFloat(rate.price_1) || 0,
+          priceN: parseFloat(rate.price_n) || 0,
+          interval1: parseInt(rate.interval_1) || 1,
+          intervalN: parseInt(rate.interval_n) || 1,
+          dailyAsr: parseFloat(rate.daily_asr) || 0,
+          weeklyAsr: parseFloat(rate.weekly_asr) || 0,
+          dailyAcd: parseFloat(rate.daily_acd) || 0,
+          weeklyAcd: parseFloat(rate.weekly_acd) || 0,
+          dailyMinutes: parseFloat(rate.daily_minutes) || 0,
+          weeklyMinutes: parseFloat(rate.weekly_minutes) || 0,
+          routeType: rate.route_type || 'CLI',
+          countryCode: rate.country_code || '',
+          countryName: rate.country_name || '',
+          description: rate.description || '',
+          capacity: parseInt(rate.capacity_limit) || 0,
+          sellerRating: parseFloat(rate.seller_avg_rating) || 0,
+          sellerReviews: parseInt(rate.seller_reviews) || 0,
+        }));
+      }
+
+      return [];
+    } catch (error: any) {
+      console.error('[TCXC] Market View search error:', error.message);
+      return [];
+    }
+  }
+
   static async getRoutes(): Promise<Array<{
     destination: string;
     prefix: string;

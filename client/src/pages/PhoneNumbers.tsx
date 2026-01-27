@@ -359,6 +359,25 @@ export default function PhoneNumbers() {
   // Log routes for debugging
   console.log('[TCXC Routes] Data:', tcxcRoutes, 'Loading:', isLoadingRoutes);
 
+  // Test market view search for UAE (971)
+  const testMarketView = async () => {
+    try {
+      console.log('[Market View Test] Searching for prefix 971...');
+      const response = await apiRequest('POST', '/api/tcxc/marketview/search', { prefix: '971', routeType: 'any', limit: 20 });
+      const data = await response.json();
+      console.log('[Market View Test] Results:', data);
+    } catch (error) {
+      console.error('[Market View Test] Error:', error);
+    }
+  };
+
+  // Auto-run test on mount (for debugging)
+  useEffect(() => {
+    if (tcxcConfigured) {
+      testMarketView();
+    }
+  }, [tcxcConfigured]);
+
   // TCXC GCC countries
   const { data: gccCountries = [] } = useQuery<GccCountry[]>({
     queryKey: ["/api/tcxc/countries/gcc"],

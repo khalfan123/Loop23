@@ -318,6 +318,31 @@ export function setupTcxcRoutes(
     }
   });
 
+  // Search Market View for voice termination rates
+  // This returns available rates from all sellers for a specific destination prefix
+  app.post('/api/tcxc/marketview/search', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const schema = z.object({
+        prefix: z.string().min(1, 'Prefix is required'),
+        routeType: z.enum(['CLI', 'NCLI', 'TDM', 'any']).optional(),
+        seller: z.string().optional(),
+        limit: z.number().optional(),
+      });
+
+      const result = schema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error.errors[0].message });
+      }
+
+      const rates = await TcxcApiService.searchMarketRates(result.data);
+      console.log('[TCXC Routes] Market View search for prefix', result.data.prefix, '- found', rates.length, 'rates');
+      res.json(rates);
+    } catch (error: any) {
+      console.error('[TCXC Routes] Market View search error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Provider Caller IDs - Get user's added provider caller IDs
   app.get('/api/tcxc/provider-caller-ids', sessionAuth, async (req: Request, res: Response) => {
     try {

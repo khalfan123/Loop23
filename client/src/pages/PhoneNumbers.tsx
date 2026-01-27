@@ -1382,112 +1382,201 @@ export default function PhoneNumbers() {
 
               {/* DID Search Section */}
               <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Browse TCXC DID Marketplace</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                  <div className="space-y-2">
-                    <Label>Country</Label>
-                    <Select value={tcxcSearchCountry} onValueChange={setTcxcSearchCountry}>
-                      <SelectTrigger data-testid="select-tcxc-country">
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {gccCountries.map((country) => (
-                          <SelectItem key={country.code} value={country.code}>
-                            {country.name}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="US">United States</SelectItem>
-                        <SelectItem value="GB">United Kingdom</SelectItem>
-                        <SelectItem value="CA">Canada</SelectItem>
-                        <SelectItem value="AU">Australia</SelectItem>
-                        <SelectItem value="DE">Germany</SelectItem>
-                        <SelectItem value="FR">France</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Browse TCXC DID Marketplace</h3>
+                    <p className="text-sm text-muted-foreground">Select a country to view available numbers</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Type</Label>
-                    <Select value={tcxcSearchType} onValueChange={(v) => setTcxcSearchType(v as "local" | "tollfree" | "mobile")}>
-                      <SelectTrigger data-testid="select-tcxc-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="local">Local</SelectItem>
-                        <SelectItem value="tollfree">Toll-Free</SelectItem>
-                        <SelectItem value="mobile">Mobile</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button 
-                    onClick={() => searchTcxcDids()} 
-                    disabled={!tcxcSearchCountry || tcxcSearchLoading}
-                    data-testid="button-search-tcxc"
-                  >
-                    {tcxcSearchLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
-                    Search DIDs
-                  </Button>
-                  <Button variant="outline" onClick={() => refetchTcxcMyDids()} data-testid="button-refresh-tcxc">
+                  <Button variant="outline" size="sm" onClick={() => refetchTcxcMyDids()} data-testid="button-refresh-tcxc">
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh My DIDs
                   </Button>
                 </div>
-              </Card>
 
-              {/* Search Results */}
-              {tcxcAvailableDids.length > 0 && (
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Available DIDs ({tcxcAvailableDids.length})</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {tcxcAvailableDids.map((did) => (
-                      <div 
-                        key={did.id} 
-                        className={`p-4 rounded-md border cursor-pointer hover-elevate ${selectedTcxcDid?.id === did.id ? 'ring-2 ring-primary' : ''}`}
-                        onClick={() => setSelectedTcxcDid(did)}
-                        data-testid={`card-tcxc-did-${did.id}`}
+                {/* Country Selection */}
+                <div className="mb-6">
+                  <Label className="text-sm font-medium mb-3 block">Select Country</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      // GCC Countries
+                      { code: 'SA', name: 'Saudi Arabia', dialCode: '+966' },
+                      { code: 'AE', name: 'UAE', dialCode: '+971' },
+                      { code: 'QA', name: 'Qatar', dialCode: '+974' },
+                      { code: 'KW', name: 'Kuwait', dialCode: '+965' },
+                      { code: 'BH', name: 'Bahrain', dialCode: '+973' },
+                      { code: 'OM', name: 'Oman', dialCode: '+968' },
+                      // Other Countries
+                      { code: 'US', name: 'USA', dialCode: '+1' },
+                      { code: 'GB', name: 'UK', dialCode: '+44' },
+                      { code: 'CA', name: 'Canada', dialCode: '+1' },
+                      { code: 'AU', name: 'Australia', dialCode: '+61' },
+                      { code: 'DE', name: 'Germany', dialCode: '+49' },
+                      { code: 'FR', name: 'France', dialCode: '+33' },
+                    ].map((country) => (
+                      <Button
+                        key={country.code}
+                        variant={tcxcSearchCountry === country.code ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setTcxcSearchCountry(country.code)}
+                        data-testid={`button-country-${country.code}`}
                       >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h4 className="font-mono font-semibold">{did.phoneNumber}</h4>
-                          <Badge variant="outline">{did.type}</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <div className="flex justify-between">
-                            <span>Country:</span>
-                            <span>{did.countryName}</span>
-                          </div>
-                          {did.city && (
-                            <div className="flex justify-between">
-                              <span>City:</span>
-                              <span>{did.city}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span>Monthly:</span>
-                            <span className="font-semibold text-foreground">{did.currency} {did.monthlyPrice}</span>
-                          </div>
-                          {did.setupPrice > 0 && (
-                            <div className="flex justify-between">
-                              <span>Setup:</span>
-                              <span>{did.currency} {did.setupPrice}</span>
-                            </div>
-                          )}
-                        </div>
-                        {selectedTcxcDid?.id === did.id && (
-                          <Button 
-                            className="w-full mt-3" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTcxcBuyDialogOpen(true);
-                            }}
-                            data-testid={`button-buy-tcxc-${did.id}`}
-                          >
-                            <ShoppingCart className="h-4 w-4 mr-2" />
-                            Purchase This DID
-                          </Button>
-                        )}
-                      </div>
+                        <Globe className="h-3 w-3 mr-1" />
+                        {country.name} ({country.dialCode})
+                      </Button>
                     ))}
                   </div>
+                </div>
+
+                {/* Type Filter and Search Button */}
+                {tcxcSearchCountry && (
+                  <div className="flex flex-wrap items-center gap-4 mb-4 p-3 rounded-lg bg-muted/50">
+                    <span className="text-sm font-medium">Filter by Type:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {['local', 'tollfree', 'mobile'].map((type) => (
+                        <Button
+                          key={type}
+                          variant={tcxcSearchType === type ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setTcxcSearchType(type as 'local' | 'tollfree' | 'mobile')}
+                          data-testid={`button-type-${type}`}
+                        >
+                          {type === 'local' && <MapPin className="h-3 w-3 mr-1" />}
+                          {type === 'tollfree' && <Phone className="h-3 w-3 mr-1" />}
+                          {type === 'mobile' && <Smartphone className="h-3 w-3 mr-1" />}
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button 
+                      onClick={() => searchTcxcDids()}
+                      disabled={tcxcSearchLoading}
+                      data-testid="button-search-tcxc"
+                    >
+                      {tcxcSearchLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+                      Search Numbers
+                    </Button>
+                  </div>
+                )}
+              </Card>
+
+              {/* Search Results - Organized by Type */}
+              {tcxcSearchCountry && (
+                <Card className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-semibold">
+                        Available DIDs in {
+                          [
+                            { code: 'SA', name: 'Saudi Arabia' },
+                            { code: 'AE', name: 'UAE' },
+                            { code: 'QA', name: 'Qatar' },
+                            { code: 'KW', name: 'Kuwait' },
+                            { code: 'BH', name: 'Bahrain' },
+                            { code: 'OM', name: 'Oman' },
+                            { code: 'US', name: 'USA' },
+                            { code: 'GB', name: 'UK' },
+                            { code: 'CA', name: 'Canada' },
+                            { code: 'AU', name: 'Australia' },
+                            { code: 'DE', name: 'Germany' },
+                            { code: 'FR', name: 'France' },
+                          ].find(c => c.code === tcxcSearchCountry)?.name || tcxcSearchCountry
+                        }
+                      </h3>
+                      {tcxcSearchLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    </div>
+                    <Badge variant="secondary">{tcxcAvailableDids.length} numbers found</Badge>
+                  </div>
+
+                  {tcxcSearchLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="p-4 rounded-md border animate-pulse">
+                          <div className="h-6 bg-muted rounded w-3/4 mb-2" />
+                          <div className="h-4 bg-muted rounded w-full mb-1" />
+                          <div className="h-4 bg-muted rounded w-2/3" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : tcxcAvailableDids.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Globe className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="font-medium">No DIDs available for {tcxcSearchCountry}</p>
+                      <p className="text-sm mt-1">Try selecting a different country or type</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Group by Type */}
+                      {['local', 'tollfree', 'mobile'].map((type) => {
+                        const didsOfType = tcxcAvailableDids.filter(d => d.type.toLowerCase() === type);
+                        if (didsOfType.length === 0) return null;
+                        
+                        return (
+                          <div key={type} className="mb-6 last:mb-0">
+                            <div className="flex items-center gap-2 mb-3">
+                              {type === 'local' && <MapPin className="h-4 w-4 text-blue-500" />}
+                              {type === 'tollfree' && <Phone className="h-4 w-4 text-green-500" />}
+                              {type === 'mobile' && <Smartphone className="h-4 w-4 text-purple-500" />}
+                              <h4 className="font-medium capitalize">{type} Numbers</h4>
+                              <Badge variant="outline" className="text-xs">{didsOfType.length}</Badge>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {didsOfType.map((did) => (
+                                <div 
+                                  key={did.id} 
+                                  className={`p-4 rounded-lg border cursor-pointer hover-elevate transition-all ${
+                                    selectedTcxcDid?.id === did.id 
+                                      ? 'ring-2 ring-primary border-primary bg-primary/5' 
+                                      : 'hover:border-primary/50'
+                                  }`}
+                                  onClick={() => setSelectedTcxcDid(did)}
+                                  data-testid={`card-tcxc-did-${did.id}`}
+                                >
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <h5 className="font-mono font-semibold text-lg">{did.phoneNumber}</h5>
+                                    {selectedTcxcDid?.id === did.id && (
+                                      <Check className="h-5 w-5 text-primary" />
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground space-y-1">
+                                    {did.city && (
+                                      <div className="flex items-center gap-1">
+                                        <MapPin className="h-3 w-3" />
+                                        <span>{did.city}, {did.region}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center justify-between pt-2 border-t mt-2">
+                                      <span className="text-xs">Monthly</span>
+                                      <span className="font-semibold text-foreground">{did.currency} {did.monthlyPrice}</span>
+                                    </div>
+                                    {did.setupPrice > 0 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs">Setup</span>
+                                        <span>{did.currency} {did.setupPrice}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {selectedTcxcDid?.id === did.id && (
+                                    <Button 
+                                      className="w-full mt-3" 
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setTcxcBuyDialogOpen(true);
+                                      }}
+                                      data-testid={`button-buy-tcxc-${did.id}`}
+                                    >
+                                      <ShoppingCart className="h-4 w-4 mr-2" />
+                                      Purchase This DID
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
                 </Card>
               )}
 

@@ -231,9 +231,27 @@ export async function applyPlanCredits(
  * Gets the plan capabilities for a user.
  * Returns features like canChooseLlm, canPurchaseNumbers, useSystemPool.
  * Checks subscription first, falls back to user's planType.
+ * Admin users always have full capabilities.
  */
 export async function getUserPlanCapabilities(userId: string): Promise<PlanCapabilities> {
   const now = new Date();
+  
+  // Check if user is an admin - admins have full capabilities
+  const user = await storage.getUser(userId);
+  if (user?.role === 'admin' || user?.role === 'superadmin') {
+    return {
+      canChooseLlm: true,
+      canPurchaseNumbers: true,
+      useSystemPool: false,
+      defaultLlmModel: null,
+      planName: 'admin',
+      planDisplayName: 'Admin',
+      features: {},
+      sipEnabled: true,
+      maxConcurrentSipCalls: 999,
+      sipEnginesAllowed: ['*'],
+    };
+  }
   
   // Default free plan capabilities
   const defaultCapabilities: PlanCapabilities = {
@@ -273,7 +291,7 @@ export async function getUserPlanCapabilities(userId: string): Promise<PlanCapab
   }
 
   // Fallback: check user's planType and fetch that plan
-  const user = await storage.getUser(userId);
+  // (user was already fetched above for admin check)
   if (user && user.planType && user.planType !== 'free') {
     const hasValidExpiry = user.planExpiresAt && new Date(user.planExpiresAt) > now;
     if (hasValidExpiry) {

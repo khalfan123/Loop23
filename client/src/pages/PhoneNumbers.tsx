@@ -350,6 +350,15 @@ export default function PhoneNumbers() {
     enabled: tcxcConfigured,
   });
 
+  // TCXC routes query
+  const { data: tcxcRoutes = [], isLoading: isLoadingRoutes } = useQuery<any[]>({
+    queryKey: ["/api/tcxc/routes"],
+    enabled: tcxcConfigured,
+  });
+
+  // Log routes for debugging
+  console.log('[TCXC Routes] Data:', tcxcRoutes, 'Loading:', isLoadingRoutes);
+
   // TCXC GCC countries
   const { data: gccCountries = [] } = useQuery<GccCountry[]>({
     queryKey: ["/api/tcxc/countries/gcc"],

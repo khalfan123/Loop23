@@ -2974,6 +2974,13 @@ export const tcxcCredentials = pgTable("tcxc_credentials", {
   isActive: boolean("is_active").notNull().default(true),
   healthStatus: text("health_status").notNull().default("unknown"),
   lastHealthCheck: timestamp("last_health_check"),
+  // Tech prefixes for interconnection routing (e.g., "73297#")
+  techPrefixes: text("tech_prefixes").array().default(sql`ARRAY[]::text[]`),
+  // Connection type: 'tcxc' for TCXC API, 'softswitch' for direct softswitch
+  connectionType: text("connection_type").default("tcxc"),
+  // SIP server details for direct softswitch connections
+  sipServer: text("sip_server"),
+  sipPort: integer("sip_port").default(5060),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

@@ -172,6 +172,10 @@ export class TcxcApiService {
     apiKey: string;
     apiEndpoint?: string;
     isPrimary?: boolean;
+    techPrefixes?: string[];
+    connectionType?: string;
+    sipServer?: string;
+    sipPort?: number;
   }): Promise<TcxcCredential> {
     if (params.isPrimary) {
       await db
@@ -189,6 +193,10 @@ export class TcxcApiService {
         apiEndpoint: params.apiEndpoint || 'https://apiv2.telecomsxchange.com',
         isPrimary: params.isPrimary ?? false,
         isActive: true,
+        techPrefixes: params.techPrefixes || [],
+        connectionType: params.connectionType || 'tcxc',
+        sipServer: params.sipServer,
+        sipPort: params.sipPort,
       })
       .returning();
 
@@ -204,6 +212,10 @@ export class TcxcApiService {
       apiEndpoint: string;
       isPrimary: boolean;
       isActive: boolean;
+      techPrefixes: string[];
+      connectionType: string;
+      sipServer: string;
+      sipPort: number;
     }>
   ): Promise<TcxcCredential | null> {
     if (updates.isPrimary) {

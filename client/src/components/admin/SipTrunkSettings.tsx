@@ -70,6 +70,10 @@ interface TcxcCredential {
   isActive: boolean;
   healthStatus: string;
   lastHealthCheck: string | null;
+  techPrefixes: string[] | null;
+  connectionType: string | null;
+  sipServer: string | null;
+  sipPort: number | null;
 }
 
 export function SipTrunkSettings() {
@@ -98,6 +102,10 @@ export function SipTrunkSettings() {
     apiKey: "",
     apiEndpoint: "https://apiv2.telecomsxchange.com",
     isPrimary: true,
+    techPrefixes: "",
+    connectionType: "tcxc",
+    sipServer: "",
+    sipPort: 5060,
   });
 
   const { data: providers = [] } = useQuery<SipProvider[]>({
@@ -208,7 +216,11 @@ export function SipTrunkSettings() {
 
   const createTcxcCredentialMutation = useMutation({
     mutationFn: async (data: typeof newTcxcCredential) => {
-      return apiRequest("POST", "/api/tcxc/credentials", data);
+      const payload = {
+        ...data,
+        techPrefixes: data.techPrefixes ? data.techPrefixes.split(',').map(p => p.trim()).filter(Boolean) : [],
+      };
+      return apiRequest("POST", "/api/tcxc/credentials", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tcxc/credentials"] });
@@ -219,6 +231,10 @@ export function SipTrunkSettings() {
         apiKey: "",
         apiEndpoint: "https://apiv2.telecomsxchange.com",
         isPrimary: true,
+        techPrefixes: "",
+        connectionType: "tcxc",
+        sipServer: "",
+        sipPort: 5060,
       });
       toast({ title: "TCXC credentials saved successfully" });
     },
@@ -838,6 +854,54 @@ export function SipTrunkSettings() {
                             data-testid="input-tcxc-endpoint"
                           />
                         </div>
+                        <div className="grid gap-2">
+                          <Label>Connection Type</Label>
+                          <Select 
+                            value={newTcxcCredential.connectionType} 
+                            onValueChange={(v) => setNewTcxcCredential({ ...newTcxcCredential, connectionType: v })}
+                          >
+                            <SelectTrigger data-testid="select-tcxc-connection-type">
+                              <SelectValue placeholder="Select connection type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="tcxc">TCXC API</SelectItem>
+                              <SelectItem value="softswitch">Softswitch</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Tech Prefixes</Label>
+                          <Input
+                            value={newTcxcCredential.techPrefixes}
+                            onChange={(e) => setNewTcxcCredential({ ...newTcxcCredential, techPrefixes: e.target.value })}
+                            placeholder="73297#, 73298#, 73299#"
+                            data-testid="input-tcxc-tech-prefixes"
+                          />
+                          <p className="text-xs text-muted-foreground">Comma-separated list of tech prefixes for routing (e.g., 73297#)</p>
+                        </div>
+                        {newTcxcCredential.connectionType === 'softswitch' && (
+                          <>
+                            <div className="grid gap-2">
+                              <Label>SIP Server</Label>
+                              <Input
+                                value={newTcxcCredential.sipServer}
+                                onChange={(e) => setNewTcxcCredential({ ...newTcxcCredential, sipServer: e.target.value })}
+                                placeholder="sip.yourserver.com"
+                                data-testid="input-tcxc-sip-server"
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label>SIP Port</Label>
+                              <Input
+                                type="number"
+                                value={newTcxcCredential.sipPort}
+                                onChange={(e) => setNewTcxcCredential({ ...newTcxcCredential, sipPort: parseInt(e.target.value) || 5060 })}
+                                placeholder="5060"
+                                data-testid="input-tcxc-sip-port"
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setIsAddTcxcCredentialOpen(false)} data-testid="button-cancel-tcxc-credential">Cancel</Button>
@@ -871,10 +935,30 @@ export function SipTrunkSettings() {
                             <Plug className={`w-5 h-5 ${cred.healthStatus === 'healthy' ? 'text-green-600' : 'text-muted-foreground'}`} />
                           </div>
                           <div>
-                            <p className="font-medium" data-testid={`text-cred-name-${cred.id}`}>{cred.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium" data-testid={`text-cred-name-${cred.id}`}>{cred.name}</p>
+                              <Badge variant="outline" data-testid={`badge-connection-type-${cred.id}`}>
+                                {cred.connectionType === 'softswitch' ? 'Softswitch' : 'TCXC'}
+                              </Badge>
+                            </div>
                             <p className="text-sm text-muted-foreground" data-testid={`text-cred-login-${cred.id}`}>
                               Login: {cred.apiLogin} | Key: {cred.apiKey}
                             </p>
+                            {cred.techPrefixes && cred.techPrefixes.length > 0 && (
+                              <div className="flex items-center gap-1 mt-1 flex-wrap" data-testid={`text-tech-prefixes-${cred.id}`}>
+                                <span className="text-xs text-muted-foreground">Tech Prefixes:</span>
+                                {cred.techPrefixes.map((prefix, idx) => (
+                                  <Badge key={idx} variant="secondary" className="text-xs font-mono">
+                                    {prefix}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                            {cred.connectionType === 'softswitch' && cred.sipServer && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                SIP: {cred.sipServer}:{cred.sipPort || 5060}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

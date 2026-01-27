@@ -21,7 +21,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, ShoppingCart, Check, Trash2, CreditCard, Link as LinkIcon, Smartphone, Globe, MapPin, Upload, FileText, AlertCircle, Shield, Server, Loader2, RefreshCw, PhoneOutgoing, PhoneIncoming } from "lucide-react";
+import { Plus, Search, Phone, ShoppingCart, Check, Trash2, CreditCard, Link as LinkIcon, Smartphone, Globe, MapPin, Upload, FileText, AlertCircle, Shield, Server, Loader2, RefreshCw, PhoneOutgoing, PhoneIncoming, Network, Bot } from "lucide-react";
 import { usePluginRegistry } from "@/contexts/plugin-registry";
 import { AuthStorage } from "@/lib/auth-storage";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
@@ -173,6 +173,17 @@ interface TcxcStatus {
   credentialCount: number;
 }
 
+interface TcxcInterconnection {
+  id: string;
+  name: string;
+  connectionType: string;
+  techPrefixes: string[];
+  sipServer: string | null;
+  sipPort: number | null;
+  healthStatus: string;
+  isActive: boolean;
+}
+
 interface GccCountry {
   code: string;
   name: string;
@@ -268,6 +279,12 @@ export default function PhoneNumbers() {
     queryKey: ["/api/tcxc/status"],
   });
   const tcxcConfigured = tcxcStatus?.configured ?? false;
+
+  // TCXC interconnections query (tech prefixes, routing)
+  const { data: tcxcInterconnections = [] } = useQuery<TcxcInterconnection[]>({
+    queryKey: ["/api/tcxc/interconnections"],
+    enabled: tcxcConfigured,
+  });
 
   // TCXC GCC countries
   const { data: gccCountries = [] } = useQuery<GccCountry[]>({
@@ -1068,6 +1085,135 @@ export default function PhoneNumbers() {
             </Card>
           ) : (
             <div className="space-y-6">
+              {/* My Interconnections Section */}
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Network className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">My Interconnections</h3>
+                    <p className="text-sm text-muted-foreground">Network topology and tech prefix routing</p>
+                  </div>
+                </div>
+
+                {tcxcInterconnections.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Network className="h-8 w-8 mx-auto mb-2" />
+                    <p>No interconnections configured yet.</p>
+                    <p className="text-sm">Add your tech prefixes in Admin Settings.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Network Topology Diagram */}
+                    <div className="rounded-lg border p-4 bg-muted/30">
+                      <h4 className="text-sm font-medium mb-3">Call Flow Topology</h4>
+                      <div className="flex items-center justify-center gap-2 flex-wrap py-4">
+                        <div className="flex flex-col items-center">
+                          <div className="h-16 w-16 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                            <Phone className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <span className="text-xs text-muted-foreground mt-1">Inbound Call</span>
+                        </div>
+                        <div className="text-2xl text-muted-foreground">→</div>
+                        <div className="flex flex-col items-center">
+                          <div className="h-16 w-20 rounded-lg bg-amber-100 dark:bg-amber-900 flex flex-col items-center justify-center px-2">
+                            <span className="text-xs font-mono font-bold text-amber-700 dark:text-amber-300">Tech Prefix</span>
+                            <div className="flex gap-1 mt-1 flex-wrap justify-center">
+                              {tcxcInterconnections.flatMap(i => i.techPrefixes).slice(0, 3).map((prefix, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-[10px] font-mono px-1">
+                                  {prefix}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <span className="text-xs text-muted-foreground mt-1">Routing</span>
+                        </div>
+                        <div className="text-2xl text-muted-foreground">→</div>
+                        <div className="flex gap-2">
+                          {tcxcInterconnections.map((interconnection) => (
+                            <div key={interconnection.id} className="flex flex-col items-center">
+                              <div className={`h-16 w-20 rounded-lg flex flex-col items-center justify-center px-2 ${
+                                interconnection.healthStatus === 'healthy' 
+                                  ? 'bg-green-100 dark:bg-green-900' 
+                                  : 'bg-muted'
+                              }`}>
+                                {interconnection.connectionType === 'softswitch' ? (
+                                  <Server className={`h-6 w-6 ${interconnection.healthStatus === 'healthy' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+                                ) : (
+                                  <Globe className={`h-6 w-6 ${interconnection.healthStatus === 'healthy' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+                                )}
+                                <span className="text-[10px] font-medium mt-1 text-center truncate max-w-full">
+                                  {interconnection.name}
+                                </span>
+                              </div>
+                              <span className="text-xs text-muted-foreground mt-1">
+                                {interconnection.connectionType === 'softswitch' ? 'Softswitch' : 'TCXC'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="text-2xl text-muted-foreground">→</div>
+                        <div className="flex flex-col items-center">
+                          <div className="h-16 w-16 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                            <Bot className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <span className="text-xs text-muted-foreground mt-1">AI Agent</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Interconnection Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {tcxcInterconnections.map((interconnection) => (
+                        <div key={interconnection.id} className="p-4 rounded-lg border" data-testid={`card-interconnection-${interconnection.id}`}>
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2">
+                              {interconnection.connectionType === 'softswitch' ? (
+                                <Server className="h-5 w-5 text-muted-foreground" />
+                              ) : (
+                                <Globe className="h-5 w-5 text-muted-foreground" />
+                              )}
+                              <h4 className="font-semibold">{interconnection.name}</h4>
+                            </div>
+                            <Badge 
+                              variant={interconnection.healthStatus === 'healthy' ? 'default' : 'secondary'}
+                              className={interconnection.healthStatus === 'healthy' ? 'bg-green-600 dark:bg-green-700' : ''}
+                            >
+                              {interconnection.healthStatus === 'healthy' ? 'Connected' : 'Unknown'}
+                            </Badge>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Type:</span>
+                              <span>{interconnection.connectionType === 'softswitch' ? 'Softswitch' : 'TCXC API'}</span>
+                            </div>
+                            {interconnection.techPrefixes && interconnection.techPrefixes.length > 0 && (
+                              <div>
+                                <span className="text-muted-foreground">Tech Prefixes:</span>
+                                <div className="flex gap-1 mt-1 flex-wrap">
+                                  {interconnection.techPrefixes.map((prefix, idx) => (
+                                    <Badge key={idx} variant="outline" className="font-mono text-xs">
+                                      {prefix}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {interconnection.connectionType === 'softswitch' && interconnection.sipServer && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">SIP Server:</span>
+                                <span className="font-mono text-xs">{interconnection.sipServer}:{interconnection.sipPort || 5060}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+
               {/* DID Search Section */}
               <Card className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Browse TCXC DID Marketplace</h3>

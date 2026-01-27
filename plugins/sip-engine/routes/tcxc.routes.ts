@@ -10,6 +10,10 @@ const createCredentialSchema = z.object({
   apiKey: z.string().min(1),
   apiEndpoint: z.string().url().optional(),
   isPrimary: z.boolean().optional(),
+  techPrefixes: z.array(z.string()).optional(),
+  connectionType: z.enum(['tcxc', 'softswitch']).optional(),
+  sipServer: z.string().optional(),
+  sipPort: z.number().optional(),
 });
 
 const updateCredentialSchema = z.object({
@@ -19,6 +23,10 @@ const updateCredentialSchema = z.object({
   apiEndpoint: z.string().url().optional(),
   isPrimary: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  techPrefixes: z.array(z.string()).optional(),
+  connectionType: z.enum(['tcxc', 'softswitch']).optional(),
+  sipServer: z.string().optional(),
+  sipPort: z.number().optional(),
 });
 
 export function setupTcxcRoutes(
@@ -57,6 +65,29 @@ export function setupTcxcRoutes(
     }
   });
 
+  // User-facing endpoint to get interconnections (tech prefixes, routing info) without exposing API keys
+  app.get('/api/tcxc/interconnections', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const credentials = await TcxcApiService.getAllCredentials();
+      const interconnections = credentials
+        .filter(c => c.isActive)
+        .map(c => ({
+          id: c.id,
+          name: c.name,
+          connectionType: c.connectionType || 'tcxc',
+          techPrefixes: c.techPrefixes || [],
+          sipServer: c.sipServer,
+          sipPort: c.sipPort,
+          healthStatus: c.healthStatus,
+          isActive: c.isActive,
+        }));
+      res.json(interconnections);
+    } catch (error: any) {
+      console.error('[TCXC Routes] Get interconnections error:', error);
+      res.status(500).json([]);
+    }
+  });
+
   app.post('/api/tcxc/credentials', adminAuth, async (req: Request, res: Response) => {
     try {
       const validation = createCredentialSchema.safeParse(req.body);
@@ -82,7 +113,7 @@ export function setupTcxcRoutes(
         return res.status(400).json({ error: 'Validation failed', details: validation.error.errors });
       }
 
-      const updated = await TcxcApiService.updateCredential(req.params.id, validation.data);
+      const updated = await TcxcApiService.updateCredential(req.params.id as string, validation.data);
       if (!updated) {
         return res.status(404).json({ error: 'Credential not found' });
       }
@@ -99,7 +130,7 @@ export function setupTcxcRoutes(
 
   app.delete('/api/tcxc/credentials/:id', adminAuth, async (req: Request, res: Response) => {
     try {
-      await TcxcApiService.deleteCredential(req.params.id);
+      await TcxcApiService.deleteCredential(req.params.id as string);
       res.json({ success: true });
     } catch (error: any) {
       console.error('[TCXC Routes] Delete credential error:', error);
@@ -149,16 +180,6 @@ export function setupTcxcRoutes(
       res.json(dids);
     } catch (error: any) {
       console.error('[TCXC Routes] Get my DIDs error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.get('/api/tcxc/interconnections', sessionAuth, async (req: Request, res: Response) => {
-    try {
-      const interconnections = await TcxcApiService.getInterconnections();
-      res.json(interconnections);
-    } catch (error: any) {
-      console.error('[TCXC Routes] Get interconnections error:', error);
       res.status(500).json({ error: error.message });
     }
   });

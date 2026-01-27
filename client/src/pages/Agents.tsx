@@ -858,18 +858,21 @@ export default function Agents() {
     <div className="space-y-6">
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'agents' | 'templates' | 'voices')} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3 mb-6">
-          <TabsTrigger value="agents" className="flex items-center gap-2" data-testid="tab-agents">
-            <Bot className="h-4 w-4" />
-            {t('nav.agents')}
+        <TabsList className="grid w-full max-w-md grid-cols-3 mb-4 md:mb-6">
+          <TabsTrigger value="agents" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="tab-agents">
+            <Bot className="h-3 w-3 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">{t('nav.agents')}</span>
+            <span className="sm:hidden">Agents</span>
           </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-2" data-testid="tab-templates">
-            <FileText className="h-4 w-4" />
-            {t('nav.promptTemplates')}
+          <TabsTrigger value="templates" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="tab-templates">
+            <FileText className="h-3 w-3 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">{t('nav.promptTemplates')}</span>
+            <span className="sm:hidden">Templates</span>
           </TabsTrigger>
-          <TabsTrigger value="voices" className="flex items-center gap-2" data-testid="tab-voices">
-            <Mic className="h-4 w-4" />
-            {t('nav.voices')}
+          <TabsTrigger value="voices" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="tab-voices">
+            <Mic className="h-3 w-3 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">{t('nav.voices')}</span>
+            <span className="sm:hidden">Voices</span>
           </TabsTrigger>
         </TabsList>
 
@@ -887,8 +890,8 @@ export default function Agents() {
         <TabsContent value="agents" className="mt-0">
       {/* New Sidebar + Table Layout */}
       <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
-        {/* Left Sidebar */}
-        <div className="w-64 border-r bg-muted/30 flex flex-col">
+        {/* Left Sidebar - Hidden on mobile */}
+        <div className="hidden md:flex w-64 border-r bg-muted/30 flex-col">
           <ScrollArea className="flex-1">
             <div className="p-3">
               {/* Folders Section */}
@@ -1007,57 +1010,20 @@ export default function Agents() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-lg font-semibold">
-              {selectedFolder === 'all' ? 'Staff AI' : folderNames.template}
-            </h2>
-            <div className="flex items-center gap-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-48"
-                  data-testid="input-search-agents"
-                />
-              </div>
-              {/* Language Filter */}
-              <Select value={languageFilter} onValueChange={setLanguageFilter}>
-                <SelectTrigger className="w-40" data-testid="filter-language">
-                  <Globe className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Languages</SelectItem>
-                  {availableLanguages.map(lang => (
-                    <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {/* Tags Filter */}
-              {availableTags.length > 0 && (
-                <Select value={tagsFilter} onValueChange={setTagsFilter}>
-                  <SelectTrigger className="w-36" data-testid="filter-tags">
-                    <SelectValue placeholder="Tags" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Tags</SelectItem>
-                    {availableTags.map(tag => (
-                      <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+          <div className="flex flex-col gap-3 p-3 md:p-4 border-b">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base md:text-lg font-semibold">
+                {selectedFolder === 'all' ? 'Staff AI' : folderNames.template}
+              </h2>
               {/* Create Agent Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button className="bg-primary text-primary-foreground" data-testid="button-create-agent">
-                    Create Staff AI
-                    <ChevronRight className="h-4 w-4 ml-1 rotate-90" />
+                  <Button className="bg-primary text-primary-foreground" size="sm" data-testid="button-create-agent" aria-label="Create Staff AI">
+                    <Plus className="h-4 w-4 md:mr-1" />
+                    <span className="hidden md:inline">Create Staff AI</span>
+                    <ChevronRight className="h-4 w-4 ml-1 rotate-90 hidden md:inline" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -1075,6 +1041,49 @@ export default function Agents() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            </div>
+            {/* Filters Row - Stacks on mobile */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+              {/* Search */}
+              <div className="relative flex-1 sm:flex-none">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-full sm:w-48"
+                  data-testid="input-search-agents"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Language Filter */}
+                <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                  <SelectTrigger className="w-full sm:w-40 flex-1 sm:flex-none" data-testid="filter-language">
+                    <Globe className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <SelectValue placeholder="Language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Languages</SelectItem>
+                    {availableLanguages.map(lang => (
+                      <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {/* Tags Filter */}
+                {availableTags.length > 0 && (
+                  <Select value={tagsFilter} onValueChange={setTagsFilter}>
+                    <SelectTrigger className="w-full sm:w-36 flex-1 sm:flex-none" data-testid="filter-tags">
+                      <SelectValue placeholder="Tags" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Tags</SelectItem>
+                      {availableTags.map(tag => (
+                        <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1104,175 +1113,190 @@ export default function Agents() {
                 )}
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[300px]">
-                      <button 
-                        onClick={() => handleSort('name')} 
-                        className="flex items-center hover:text-foreground transition-colors"
-                        data-testid="sort-name"
-                      >
-                        Staff Name {getSortIcon('name')}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button 
-                        onClick={() => handleSort('type')} 
-                        className="flex items-center hover:text-foreground transition-colors"
-                        data-testid="sort-type"
-                      >
-                        Staff Type {getSortIcon('type')}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button 
-                        onClick={() => handleSort('voice')} 
-                        className="flex items-center hover:text-foreground transition-colors"
-                        data-testid="sort-voice"
-                      >
-                        Voice {getSortIcon('voice')}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button 
-                        onClick={() => handleSort('phone')} 
-                        className="flex items-center hover:text-foreground transition-colors"
-                        data-testid="sort-phone"
-                      >
-                        Phone {getSortIcon('phone')}
-                      </button>
-                    </TableHead>
-                    <TableHead>
-                      <button 
-                        onClick={() => handleSort('editedBy')} 
-                        className="flex items-center hover:text-foreground transition-colors"
-                        data-testid="sort-edited"
-                      >
-                        Edited by {getSortIcon('editedBy')}
-                      </button>
-                    </TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedItems.map((agent) => {
-                    const isOpenAIProvider = agent.telephonyProvider === "plivo" || agent.telephonyProvider === "twilio_openai" || agent.telephonyProvider === "openai-sip";
-                    const voiceName = isOpenAIProvider 
-                      ? openaiVoices.find(v => v.value === agent.openaiVoice)?.label || 'Alloy'
-                      : getVoiceName(agent.elevenLabsVoiceId) || 'Not set';
-                    const languageCode = agent.language || 'en';
-                    const isIncoming = agent.type === 'incoming';
-                    const formattedDate = new Date(agent.createdAt).toLocaleDateString('en-US', {
-                      month: '2-digit',
-                      day: '2-digit',
-                      year: 'numeric',
-                    }) + ', ' + new Date(agent.createdAt).toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: false
-                    });
+              <div className="overflow-x-auto">
+                <Table className="min-w-[600px]">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-[200px] md:w-[300px]">
+                        <button 
+                          onClick={() => handleSort('name')} 
+                          className="flex items-center hover:text-foreground transition-colors"
+                          data-testid="sort-name"
+                        >
+                          Staff Name {getSortIcon('name')}
+                        </button>
+                      </TableHead>
+                      <TableHead className="hidden sm:table-cell">
+                        <button 
+                          onClick={() => handleSort('type')} 
+                          className="flex items-center hover:text-foreground transition-colors"
+                          data-testid="sort-type"
+                        >
+                          Staff Type {getSortIcon('type')}
+                        </button>
+                      </TableHead>
+                      <TableHead className="hidden md:table-cell">
+                        <button 
+                          onClick={() => handleSort('voice')} 
+                          className="flex items-center hover:text-foreground transition-colors"
+                          data-testid="sort-voice"
+                        >
+                          Voice {getSortIcon('voice')}
+                        </button>
+                      </TableHead>
+                      <TableHead className="hidden lg:table-cell">
+                        <button 
+                          onClick={() => handleSort('phone')} 
+                          className="flex items-center hover:text-foreground transition-colors"
+                          data-testid="sort-phone"
+                        >
+                          Phone {getSortIcon('phone')}
+                        </button>
+                      </TableHead>
+                      <TableHead className="hidden lg:table-cell">
+                        <button 
+                          onClick={() => handleSort('editedBy')} 
+                          className="flex items-center hover:text-foreground transition-colors"
+                          data-testid="sort-edited"
+                        >
+                          Edited by {getSortIcon('editedBy')}
+                        </button>
+                      </TableHead>
+                      <TableHead className="w-[50px] sticky right-0 bg-background"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedItems.map((agent) => {
+                      const isOpenAIProvider = agent.telephonyProvider === "plivo" || agent.telephonyProvider === "twilio_openai" || agent.telephonyProvider === "openai-sip";
+                      const voiceName = isOpenAIProvider 
+                        ? openaiVoices.find(v => v.value === agent.openaiVoice)?.label || 'Alloy'
+                        : getVoiceName(agent.elevenLabsVoiceId) || 'Not set';
+                      const languageCode = agent.language || 'en';
+                      const isIncoming = agent.type === 'incoming';
+                      const formattedDate = new Date(agent.createdAt).toLocaleDateString('en-US', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric',
+                      }) + ', ' + new Date(agent.createdAt).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                      });
 
-                    return (
-                      <TableRow 
-                        key={agent.id} 
-                        className={`group cursor-pointer hover:bg-muted/50 ${draggedAgentId === agent.id ? 'opacity-50' : ''}`}
-                        data-testid={`row-agent-${agent.id}`}
-                        onClick={() => handleEdit(agent)}
-                        draggable
-                        onDragStart={(e) => {
-                          setDraggedAgentId(agent.id);
-                          e.dataTransfer.effectAllowed = 'move';
-                          e.dataTransfer.setData('text/plain', agent.id);
-                        }}
-                        onDragEnd={() => {
-                          setDraggedAgentId(null);
-                          setDropTargetFolder(null);
-                        }}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab" />
-                            {agent.avatarUrl ? (
-                              <img 
-                                src={agent.avatarUrl} 
-                                alt={agent.name}
-                                className="h-10 w-10 rounded-full object-cover border-2 border-background shadow-sm"
-                              />
-                            ) : (
-                              <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                                isIncoming ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 
-                                'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
-                              }`}>
-                                {isIncoming ? <Sparkles className="h-5 w-5" /> : <GitBranch className="h-5 w-5" />}
-                              </div>
-                            )}
-                            <div>
-                              <div className="font-medium">{agent.name}</div>
-                              {agent.specialist && (
-                                <div className="text-xs text-muted-foreground">{agent.specialist}</div>
+                      return (
+                        <TableRow 
+                          key={agent.id} 
+                          className={`group cursor-pointer hover:bg-muted/50 ${draggedAgentId === agent.id ? 'opacity-50' : ''}`}
+                          data-testid={`row-agent-${agent.id}`}
+                          onClick={() => handleEdit(agent)}
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggedAgentId(agent.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', agent.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedAgentId(null);
+                            setDropTargetFolder(null);
+                          }}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2 md:gap-3">
+                              <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab hidden md:block" />
+                              {agent.avatarUrl ? (
+                                <img 
+                                  src={agent.avatarUrl} 
+                                  alt={agent.name}
+                                  className="h-8 w-8 md:h-10 md:w-10 rounded-full object-cover border-2 border-background shadow-sm flex-shrink-0"
+                                />
+                              ) : (
+                                <div className={`h-8 w-8 md:h-10 md:w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  isIncoming ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 
+                                  'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
+                                }`}>
+                                  {isIncoming ? <Sparkles className="h-4 w-4 md:h-5 md:w-5" /> : <GitBranch className="h-4 w-4 md:h-5 md:w-5" />}
+                                </div>
                               )}
+                              <div className="min-w-0">
+                                <div className="font-medium truncate">{agent.name}</div>
+                                {agent.specialist && (
+                                  <div className="text-xs text-muted-foreground truncate">{agent.specialist}</div>
+                                )}
+                                {/* Show type badge inline on mobile */}
+                                <div className="sm:hidden mt-1">
+                                  <Badge 
+                                    variant="secondary" 
+                                    className={`font-normal text-xs ${
+                                      isIncoming ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 
+                                      'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+                                    }`}
+                                  >
+                                    {isIncoming ? 'Single Prompt' : 'Flow'}
+                                  </Badge>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant="secondary" 
-                            className={`font-normal ${
-                              isIncoming ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 
-                              'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
-                            }`}
-                          >
-                            {isIncoming ? 'Single Prompt' : 'Conversation Flow'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-xs bg-primary/10">
-                                {voiceName.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span>{voiceName} ({languageCode})</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-muted-foreground">-</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-muted-foreground">{formattedDate}</span>
-                        </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                                data-testid="button-agent-actions"
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setDeletingAgent(agent)} className="text-destructive">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            <Badge 
+                              variant="secondary" 
+                              className={`font-normal ${
+                                isIncoming ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 
+                                'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+                              }`}
+                            >
+                              {isIncoming ? 'Single Prompt' : 'Conversation Flow'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-xs bg-primary/10">
+                                  {voiceName.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="truncate max-w-[120px]">{voiceName} ({languageCode})</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <span className="text-muted-foreground">-</span>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <span className="text-muted-foreground text-sm">{formattedDate}</span>
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()} className="sticky right-0 bg-background">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8"
+                                  data-testid="button-agent-actions"
+                                  aria-label="Agent actions"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setDeletingAgent(agent)} className="text-destructive">
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </ScrollArea>
           
           {/* Pagination */}
           {filteredAgents.length > 0 && (
-            <div className="border-t p-4">
+            <div className="border-t p-2 md:p-4">
               <DataPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -1294,16 +1318,16 @@ export default function Agents() {
           resetForm();
         }
       }}>
-        <DialogContent className={`max-w-2xl flex flex-col max-h-[85vh] p-0 gap-0 overflow-hidden ${animationState === 'error' ? 'animate-shake' : ''}`}>
+        <DialogContent className={`w-[95vw] max-w-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] p-0 gap-0 overflow-hidden ${animationState === 'error' ? 'animate-shake' : ''}`}>
           {/* Success Animation Overlay */}
           {animationState === 'success' && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/90 backdrop-blur-sm">
               <div className="flex flex-col items-center gap-4 animate-in zoom-in-50 fade-in duration-300">
-                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                  <CheckCircle2 className="h-10 w-10 text-white animate-in zoom-in-75 duration-300 delay-150" />
+                <div className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <CheckCircle2 className="h-8 w-8 md:h-10 md:w-10 text-white animate-in zoom-in-75 duration-300 delay-150" />
                 </div>
-                <div className="text-center">
-                  <p className="text-lg font-semibold text-foreground">
+                <div className="text-center px-4">
+                  <p className="text-base md:text-lg font-semibold text-foreground">
                     {editingAgent ? t('agents.create.agentUpdated') : t('agents.create.agentCreated')}
                   </p>
                   <p className="text-sm text-muted-foreground">{t('agents.create.readyToUse')}</p>
@@ -1313,20 +1337,20 @@ export default function Agents() {
           )}
           
           {/* Fixed Header */}
-          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-            <DialogTitle>{editingAgent ? t('agents.create.editTitle') : t('agents.create.title')}</DialogTitle>
-            <DialogDescription>
+          <DialogHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4 border-b flex-shrink-0">
+            <DialogTitle className="text-base md:text-lg">{editingAgent ? t('agents.create.editTitle') : t('agents.create.title')}</DialogTitle>
+            <DialogDescription className="text-sm">
               {t('agents.create.dialogDescription')}
             </DialogDescription>
           </DialogHeader>
 
           {/* Scrollable Form Content */}
-          <div className="flex-1 overflow-y-auto px-6">
+          <div className="flex-1 overflow-y-auto px-4 md:px-6">
           <div className="space-y-4 py-4">
             {/* Agent Type Selector */}
             <div className="space-y-3">
-              <Label className="text-base font-semibold">{t('agents.create.typeRequired')} <span className="text-destructive">*</span></Label>
-              <div className="grid grid-cols-2 gap-4">
+              <Label className="text-sm md:text-base font-semibold">{t('agents.create.typeRequired')} <span className="text-destructive">*</span></Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                 <div 
                   className={`relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${
                     formData.type === 'incoming' 
@@ -1416,10 +1440,10 @@ export default function Agents() {
                   <Label className="text-sm font-semibold text-blue-700 dark:text-blue-300">{t('agents.create.voicePersonality')}</Label>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center">
-                      <Label htmlFor="voice-tone">{t('agents.create.voiceTone')}</Label>
+                      <Label htmlFor="voice-tone" className="text-sm">{t('agents.create.voiceTone')}</Label>
                       <InfoTooltip content={t('agents.create.voiceToneTooltip')} />
                     </div>
                     <Select
@@ -1440,7 +1464,7 @@ export default function Agents() {
 
                   <div className="space-y-2">
                     <div className="flex items-center">
-                      <Label htmlFor="personality">{t('agents.create.personality')}</Label>
+                      <Label htmlFor="personality" className="text-sm">{t('agents.create.personality')}</Label>
                       <InfoTooltip content={t('agents.create.personalityTooltip')} />
                     </div>
                     <Select
@@ -2237,7 +2261,7 @@ export default function Agents() {
 
             {/* Note: SIP Phone Number selection is done at campaign level, not agent level */}
 
-            <div className="grid grid-cols-2 gap-4 overflow-visible">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 overflow-visible">
               <div className="space-y-2 relative z-20">
                 <div className="flex items-center">
                   <Label htmlFor="voice">

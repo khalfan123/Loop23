@@ -172,6 +172,14 @@ Before every deployment, ensure the following steps are completed:
   - Canvas stats showing phone count, department count, connections
   - Zoom controls, minimap, and Save & Deploy functionality
   - Save creates departments, assigns agents, and configures IVR with correct routing
+- 2026-01-27: **TCXC DID Marketplace & Outbound Calling**:
+  - Added TCXC DIDs tab to Phone Numbers page for browsing and purchasing DIDs from TelecomXchange marketplace
+  - DID search with country and type filtering (GCC countries supported + US, UK, CA, AU, DE, FR)
+  - Purchase workflow with confirmation dialog
+  - "My TCXC DIDs" section showing purchased DIDs
+  - Added Outbound tab for configuring outbound calling with all available numbers (Twilio, Plivo, TCXC)
+  - New `/api/tcxc/status` endpoint with sessionAuth for user-facing TCXC configuration check
+  - Fixed nested Card components - replaced with bordered divs per design guidelines
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

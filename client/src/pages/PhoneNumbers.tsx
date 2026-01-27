@@ -856,7 +856,6 @@ export default function PhoneNumbers() {
             </Button>
             <Button 
               onClick={() => plivoEnabled ? handleBuyClick('select') : handleBuyClick('twilio')} 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
               data-testid="button-buy-number"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -1382,81 +1381,64 @@ export default function PhoneNumbers() {
 
               {/* DID Search Section */}
               <Card className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">Browse TCXC DID Marketplace</h3>
-                    <p className="text-sm text-muted-foreground">Select a country to view available numbers</p>
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold">Browse TCXC DID Marketplace</h3>
+                  <p className="text-sm text-muted-foreground">Select a country and type to search available numbers</p>
+                </div>
+
+                {/* Search Form - Twilio Style */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Select value={tcxcSearchCountry} onValueChange={setTcxcSearchCountry}>
+                      <SelectTrigger data-testid="select-tcxc-country">
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {gccCountries.length > 0 && (
+                          <>
+                            {gccCountries.map((country) => (
+                              <SelectItem key={country.code} value={country.code}>
+                                {country.name}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        <SelectItem value="US">United States</SelectItem>
+                        <SelectItem value="GB">United Kingdom</SelectItem>
+                        <SelectItem value="CA">Canada</SelectItem>
+                        <SelectItem value="AU">Australia</SelectItem>
+                        <SelectItem value="DE">Germany</SelectItem>
+                        <SelectItem value="FR">France</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => refetchTcxcMyDids()} data-testid="button-refresh-tcxc">
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select value={tcxcSearchType} onValueChange={(v) => setTcxcSearchType(v as "local" | "tollfree" | "mobile")}>
+                      <SelectTrigger data-testid="select-tcxc-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="local">Local</SelectItem>
+                        <SelectItem value="tollfree">Toll-Free</SelectItem>
+                        <SelectItem value="mobile">Mobile</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    onClick={() => searchTcxcDids()} 
+                    disabled={!tcxcSearchCountry || tcxcSearchLoading}
+                    data-testid="button-search-tcxc"
+                  >
+                    {tcxcSearchLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+                    Search DIDs
+                  </Button>
+                  <Button variant="outline" onClick={() => refetchTcxcMyDids()} data-testid="button-refresh-my-tcxc">
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh My DIDs
                   </Button>
                 </div>
-
-                {/* Country Selection */}
-                <div className="mb-6">
-                  <Label className="text-sm font-medium mb-3 block">Select Country</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      // GCC Countries
-                      { code: 'SA', name: 'Saudi Arabia', dialCode: '+966' },
-                      { code: 'AE', name: 'UAE', dialCode: '+971' },
-                      { code: 'QA', name: 'Qatar', dialCode: '+974' },
-                      { code: 'KW', name: 'Kuwait', dialCode: '+965' },
-                      { code: 'BH', name: 'Bahrain', dialCode: '+973' },
-                      { code: 'OM', name: 'Oman', dialCode: '+968' },
-                      // Other Countries
-                      { code: 'US', name: 'USA', dialCode: '+1' },
-                      { code: 'GB', name: 'UK', dialCode: '+44' },
-                      { code: 'CA', name: 'Canada', dialCode: '+1' },
-                      { code: 'AU', name: 'Australia', dialCode: '+61' },
-                      { code: 'DE', name: 'Germany', dialCode: '+49' },
-                      { code: 'FR', name: 'France', dialCode: '+33' },
-                    ].map((country) => (
-                      <Button
-                        key={country.code}
-                        variant={tcxcSearchCountry === country.code ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setTcxcSearchCountry(country.code)}
-                        data-testid={`button-country-${country.code}`}
-                      >
-                        <Globe className="h-3 w-3 mr-1" />
-                        {country.name} ({country.dialCode})
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Type Filter and Search Button */}
-                {tcxcSearchCountry && (
-                  <div className="flex flex-wrap items-center gap-4 mb-4 p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm font-medium">Filter by Type:</span>
-                    <div className="flex flex-wrap gap-2">
-                      {['local', 'tollfree', 'mobile'].map((type) => (
-                        <Button
-                          key={type}
-                          variant={tcxcSearchType === type ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setTcxcSearchType(type as 'local' | 'tollfree' | 'mobile')}
-                          data-testid={`button-type-${type}`}
-                        >
-                          {type === 'local' && <MapPin className="h-3 w-3 mr-1" />}
-                          {type === 'tollfree' && <Phone className="h-3 w-3 mr-1" />}
-                          {type === 'mobile' && <Smartphone className="h-3 w-3 mr-1" />}
-                          {type.charAt(0).toUpperCase() + type.slice(1)}
-                        </Button>
-                      ))}
-                    </div>
-                    <Button 
-                      onClick={() => searchTcxcDids()}
-                      disabled={tcxcSearchLoading}
-                      data-testid="button-search-tcxc"
-                    >
-                      {tcxcSearchLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
-                      Search Numbers
-                    </Button>
-                  </div>
-                )}
               </Card>
 
               {/* Search Results - Organized by Type */}

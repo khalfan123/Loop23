@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Phone, Server, RefreshCw, CheckCircle2, XCircle, AlertCircle, Settings2, Bot, PhoneIncoming, PhoneOutgoing, Network, Copy, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Phone, Server, RefreshCw, CheckCircle2, XCircle, AlertCircle, Settings2, Bot, PhoneIncoming, PhoneOutgoing, Network, Copy, ExternalLink, Key, Plug } from "lucide-react";
 
 interface SipProvider {
   id: string;
@@ -60,6 +60,18 @@ interface Agent {
   type: string;
 }
 
+interface TcxcCredential {
+  id: string;
+  name: string;
+  apiLogin: string;
+  apiKey: string;
+  apiEndpoint: string | null;
+  isPrimary: boolean;
+  isActive: boolean;
+  healthStatus: string;
+  lastHealthCheck: string | null;
+}
+
 export function SipTrunkSettings() {
   const { toast } = useToast();
   const [isCreateTrunkOpen, setIsCreateTrunkOpen] = useState(false);
@@ -79,9 +91,21 @@ export function SipTrunkSettings() {
     phoneNumber: "",
     label: "",
   });
+  const [isAddTcxcCredentialOpen, setIsAddTcxcCredentialOpen] = useState(false);
+  const [newTcxcCredential, setNewTcxcCredential] = useState({
+    name: "",
+    apiLogin: "",
+    apiKey: "",
+    apiEndpoint: "https://api.telecomxchange.com",
+    isPrimary: true,
+  });
 
   const { data: providers = [] } = useQuery<SipProvider[]>({
     queryKey: ["/api/sip/providers"],
+  });
+
+  const { data: tcxcCredentials = [] } = useQuery<TcxcCredential[]>({
+    queryKey: ["/api/tcxc/credentials"],
   });
 
   const { data: trunks = [], isLoading: loadingTrunks } = useQuery<SipTrunk[]>({
@@ -179,6 +203,58 @@ export function SipTrunkSettings() {
     },
     onError: (error: any) => {
       toast({ title: "Failed to update phone number", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createTcxcCredentialMutation = useMutation({
+    mutationFn: async (data: typeof newTcxcCredential) => {
+      return apiRequest("POST", "/api/tcxc/credentials", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tcxc/credentials"] });
+      setIsAddTcxcCredentialOpen(false);
+      setNewTcxcCredential({
+        name: "",
+        apiLogin: "",
+        apiKey: "",
+        apiEndpoint: "https://api.telecomxchange.com",
+        isPrimary: true,
+      });
+      toast({ title: "TCXC credentials saved successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to save credentials", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteTcxcCredentialMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/tcxc/credentials/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tcxc/credentials"] });
+      toast({ title: "Credentials deleted" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete credentials", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const testTcxcConnectionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/tcxc/test-connection");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tcxc/credentials"] });
+      if (data.success) {
+        toast({ title: "Connection successful", description: data.message });
+      } else {
+        toast({ title: "Connection failed", description: data.message, variant: "destructive" });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Connection test failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -343,6 +419,10 @@ export function SipTrunkSettings() {
           <TabsTrigger value="interconnection" data-testid="tab-interconnection">
             <Network className="w-4 h-4 mr-2" />
             TCXC Interconnection
+          </TabsTrigger>
+          <TabsTrigger value="api-settings" data-testid="tab-api-settings">
+            <Key className="w-4 h-4 mr-2" />
+            API Settings
           </TabsTrigger>
         </TabsList>
 
@@ -687,6 +767,167 @@ export function SipTrunkSettings() {
                     </a>
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="api-settings" className="mt-4">
+          <div className="grid gap-6">
+            <Card data-testid="card-tcxc-credentials">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Key className="w-5 h-5" />
+                      TCXC API Credentials
+                    </CardTitle>
+                    <CardDescription>
+                      Configure your TelecomXchange API credentials to browse and import DIDs
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isAddTcxcCredentialOpen} onOpenChange={setIsAddTcxcCredentialOpen}>
+                    <DialogTrigger asChild>
+                      <Button data-testid="button-add-tcxc-credential">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Credentials
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add TCXC API Credentials</DialogTitle>
+                        <DialogDescription>
+                          Enter your TelecomXchange API login and key to connect your account
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label>Credential Name</Label>
+                          <Input
+                            value={newTcxcCredential.name}
+                            onChange={(e) => setNewTcxcCredential({ ...newTcxcCredential, name: e.target.value })}
+                            placeholder="My TCXC Account"
+                            data-testid="input-tcxc-name"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>API Login</Label>
+                          <Input
+                            value={newTcxcCredential.apiLogin}
+                            onChange={(e) => setNewTcxcCredential({ ...newTcxcCredential, apiLogin: e.target.value })}
+                            placeholder="your-api-login"
+                            data-testid="input-tcxc-login"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>API Key</Label>
+                          <Input
+                            type="password"
+                            value={newTcxcCredential.apiKey}
+                            onChange={(e) => setNewTcxcCredential({ ...newTcxcCredential, apiKey: e.target.value })}
+                            placeholder="your-api-key"
+                            data-testid="input-tcxc-key"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>API Endpoint (Optional)</Label>
+                          <Input
+                            value={newTcxcCredential.apiEndpoint}
+                            onChange={(e) => setNewTcxcCredential({ ...newTcxcCredential, apiEndpoint: e.target.value })}
+                            placeholder="https://api.telecomxchange.com"
+                            data-testid="input-tcxc-endpoint"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddTcxcCredentialOpen(false)} data-testid="button-cancel-tcxc-credential">Cancel</Button>
+                        <Button
+                          onClick={() => createTcxcCredentialMutation.mutate(newTcxcCredential)}
+                          disabled={!newTcxcCredential.name || !newTcxcCredential.apiLogin || !newTcxcCredential.apiKey || createTcxcCredentialMutation.isPending}
+                          data-testid="button-save-tcxc-credential"
+                        >
+                          {createTcxcCredentialMutation.isPending ? "Saving..." : "Save Credentials"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {tcxcCredentials.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Key className="w-12 h-12 mx-auto text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold" data-testid="text-no-credentials">No API Credentials</h3>
+                    <p className="text-muted-foreground" data-testid="text-credentials-help">
+                      Add your TCXC API credentials to browse and import phone numbers
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {tcxcCredentials.map(cred => (
+                      <div key={cred.id} className="flex items-center justify-between gap-4 flex-wrap p-4 rounded-lg border" data-testid={`card-credential-${cred.id}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${cred.healthStatus === 'healthy' ? 'bg-green-100 dark:bg-green-900' : 'bg-muted'}`}>
+                            <Plug className={`w-5 h-5 ${cred.healthStatus === 'healthy' ? 'text-green-600' : 'text-muted-foreground'}`} />
+                          </div>
+                          <div>
+                            <p className="font-medium" data-testid={`text-cred-name-${cred.id}`}>{cred.name}</p>
+                            <p className="text-sm text-muted-foreground" data-testid={`text-cred-login-${cred.id}`}>
+                              Login: {cred.apiLogin} | Key: {cred.apiKey}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {cred.healthStatus === 'healthy' ? (
+                            <Badge className="bg-green-500" data-testid={`badge-healthy-${cred.id}`}>Connected</Badge>
+                          ) : cred.healthStatus === 'unhealthy' ? (
+                            <Badge variant="destructive" data-testid={`badge-unhealthy-${cred.id}`}>Error</Badge>
+                          ) : (
+                            <Badge variant="secondary" data-testid={`badge-unknown-${cred.id}`}>Not Tested</Badge>
+                          )}
+                          {cred.isPrimary && <Badge variant="outline" data-testid={`badge-primary-${cred.id}`}>Primary</Badge>}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => testTcxcConnectionMutation.mutate()}
+                            disabled={testTcxcConnectionMutation.isPending}
+                            data-testid={`button-test-${cred.id}`}
+                          >
+                            <RefreshCw className={`w-4 h-4 mr-1 ${testTcxcConnectionMutation.isPending ? 'animate-spin' : ''}`} />
+                            Test
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              if (confirm("Delete these credentials?")) {
+                                deleteTcxcCredentialMutation.mutate(cred.id);
+                              }
+                            }}
+                            data-testid={`button-delete-cred-${cred.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-api-help">
+              <CardHeader>
+                <CardTitle>Where to Find Your API Credentials</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground" data-testid="list-api-steps">
+                  <li>Log into your TCXC dashboard at <a href="https://app.telecomxchange.com" target="_blank" rel="noopener noreferrer" className="text-foreground underline hover-elevate" data-testid="link-tcxc-dashboard">app.telecomxchange.com</a></li>
+                  <li>Navigate to <strong>Settings</strong> or <strong>Developer</strong> section</li>
+                  <li>Find <strong>API Keys</strong> or <strong>API Access</strong></li>
+                  <li>Generate a new API key if you don't have one</li>
+                  <li>Copy your <strong>API Login</strong> and <strong>API Key</strong> and enter them above</li>
+                </ol>
               </CardContent>
             </Card>
           </div>

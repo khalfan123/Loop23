@@ -5,6 +5,7 @@ import { setupSipTrunkRoutes } from './routes/sip-trunk.routes';
 import { setupSipPhoneRoutes } from './routes/sip-phone.routes';
 import { setupSipCallRoutes } from './routes/sip-call.routes';
 import { setupSipWebhookRoutes } from './routes/sip-webhook.routes';
+import { setupTcxcRoutes } from './routes/tcxc.routes';
 
 export interface SipEnginePluginOptions {
   sessionAuthMiddleware: RequestHandler;
@@ -21,10 +22,12 @@ export function registerSipEnginePlugin(
   setupSipPhoneRoutes(app, options.sessionAuthMiddleware);
   setupSipCallRoutes(app, options.sessionAuthMiddleware);
   setupSipWebhookRoutes(app);
+  setupTcxcRoutes(app, options.sessionAuthMiddleware, options.adminAuthMiddleware);
   
   console.log('[SIP Engine] SIP Engine plugin registered successfully');
   console.log('[SIP Engine] Supported providers: TCXC, Twilio SIP, Telnyx, Vonage, Exotel, Bandwidth, DIDWW, Generic');
 }
 
 export { ElevenLabsSipService } from './services/elevenlabs-sip.service';
+export { TcxcApiService } from './services/tcxc-api.service';
 export { SIP_PROVIDERS, getProviderDefaults, ELEVENLABS_SIP_CONFIG } from './config/sip-config';

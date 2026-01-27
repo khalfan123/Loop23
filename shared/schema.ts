@@ -2963,6 +2963,32 @@ export const insertFonosterCredentialSchema = createInsertSchema(fonosterCredent
 export type InsertFonosterCredential = z.infer<typeof insertFonosterCredentialSchema>;
 export type FonosterCredential = typeof fonosterCredentials.$inferSelect;
 
+// TCXC (TelecomXchange) Credentials - For DID marketplace and interconnection API access
+export const tcxcCredentials = pgTable("tcxc_credentials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  apiLogin: text("api_login").notNull(),
+  apiKey: text("api_key").notNull(),
+  apiEndpoint: text("api_endpoint").default("https://api.telecomxchange.com"),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  healthStatus: text("health_status").notNull().default("unknown"),
+  lastHealthCheck: timestamp("last_health_check"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertTcxcCredentialSchema = createInsertSchema(tcxcCredentials).omit({
+  id: true,
+  healthStatus: true,
+  lastHealthCheck: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertTcxcCredential = z.infer<typeof insertTcxcCredentialSchema>;
+export type TcxcCredential = typeof tcxcCredentials.$inferSelect;
+
 // SIP Trunks - User's SIP trunk configurations
 export const sipTrunks = pgTable("sip_trunks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

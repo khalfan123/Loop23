@@ -40,6 +40,23 @@ export function setupTcxcRoutes(
     }
   });
 
+  // User-facing endpoint to check if TCXC is configured (doesn't expose credentials)
+  app.get('/api/tcxc/status', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const credentials = await TcxcApiService.getAllCredentials();
+      const hasHealthyCredential = credentials.some(c => c.isActive && c.healthStatus === 'healthy');
+      const hasAnyCredential = credentials.some(c => c.isActive);
+      res.json({ 
+        configured: hasAnyCredential,
+        healthy: hasHealthyCredential,
+        credentialCount: credentials.filter(c => c.isActive).length
+      });
+    } catch (error: any) {
+      console.error('[TCXC Routes] Get status error:', error);
+      res.status(500).json({ configured: false, healthy: false, credentialCount: 0 });
+    }
+  });
+
   app.post('/api/tcxc/credentials', adminAuth, async (req: Request, res: Response) => {
     try {
       const validation = createCredentialSchema.safeParse(req.body);

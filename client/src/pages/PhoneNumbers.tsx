@@ -21,7 +21,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, ShoppingCart, Check, Trash2, CreditCard, Link as LinkIcon, Smartphone, Globe, MapPin, Upload, FileText, AlertCircle, Shield, Server, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Search, Phone, ShoppingCart, Check, Trash2, CreditCard, Link as LinkIcon, Smartphone, Globe, MapPin, Upload, FileText, AlertCircle, Shield, Server, Loader2, RefreshCw, PhoneOutgoing, PhoneIncoming } from "lucide-react";
 import { usePluginRegistry } from "@/contexts/plugin-registry";
 import { AuthStorage } from "@/lib/auth-storage";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
@@ -152,6 +152,32 @@ interface PlivoIncomingConnection {
   agent?: { id: string; name: string; type?: string; telephonyProvider?: string; } | null;
 }
 
+interface TcxcDid {
+  id: string;
+  phoneNumber: string;
+  countryCode: string;
+  countryName: string;
+  region: string;
+  city: string;
+  type: string;
+  capabilities: string[];
+  monthlyPrice: number;
+  setupPrice: number;
+  currency: string;
+  available: boolean;
+}
+
+interface TcxcStatus {
+  configured: boolean;
+  healthy: boolean;
+  credentialCount: number;
+}
+
+interface GccCountry {
+  code: string;
+  name: string;
+}
+
 export default function PhoneNumbers() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -182,6 +208,12 @@ export default function PhoneNumbers() {
 
   // Countries that require address verification for phone number purchases
   const ADDRESS_REQUIRED_COUNTRIES = ['AU', 'GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE', 'AT', 'CH', 'SE', 'NO', 'DK', 'FI', 'IE', 'NZ', 'JP', 'SG', 'HK'];
+
+  // TCXC state
+  const [tcxcSearchCountry, setTcxcSearchCountry] = useState("");
+  const [tcxcSearchType, setTcxcSearchType] = useState<"local" | "tollfree" | "mobile">("local");
+  const [selectedTcxcDid, setSelectedTcxcDid] = useState<TcxcDid | null>(null);
+  const [tcxcBuyDialogOpen, setTcxcBuyDialogOpen] = useState(false);
 
   // Fetch user addresses for address requirement check
   interface UserAddress {
@@ -230,6 +262,42 @@ export default function PhoneNumbers() {
 
   const canPurchaseTwilio = !twilioKycRequired || isKycApproved;
   const canPurchasePlivo = !plivoKycRequired || isKycApproved;
+
+  // TCXC credentials query - check if TCXC is configured
+  const { data: tcxcStatus } = useQuery<TcxcStatus>({
+    queryKey: ["/api/tcxc/status"],
+  });
+  const tcxcConfigured = tcxcStatus?.configured ?? false;
+
+  // TCXC GCC countries
+  const { data: gccCountries = [] } = useQuery<GccCountry[]>({
+    queryKey: ["/api/tcxc/countries/gcc"],
+  });
+
+  // TCXC my DIDs query
+  const { data: tcxcMyDids = [], isLoading: tcxcMyDidsLoading, refetch: refetchTcxcMyDids } = useQuery<TcxcDid[]>({
+    queryKey: ["/api/tcxc/dids/my"],
+    enabled: tcxcConfigured,
+  });
+
+  // TCXC available DIDs search
+  const { data: tcxcAvailableDids = [], isLoading: tcxcSearchLoading, refetch: searchTcxcDids } = useQuery<TcxcDid[]>({
+    queryKey: ["/api/tcxc/dids/available", tcxcSearchCountry, tcxcSearchType],
+    queryFn: async () => {
+      if (!tcxcSearchCountry) return [];
+      const params = new URLSearchParams();
+      params.append("countryCode", tcxcSearchCountry);
+      params.append("type", tcxcSearchType);
+      params.append("limit", "50");
+      const headers: Record<string, string> = {};
+      const authHeader = AuthStorage.getAuthHeader();
+      if (authHeader) headers["Authorization"] = authHeader;
+      const res = await fetch(`/api/tcxc/dids/available?${params.toString()}`, { headers });
+      if (!res.ok) throw new Error("Failed to search TCXC DIDs");
+      return res.json();
+    },
+    enabled: tcxcConfigured && !!tcxcSearchCountry,
+  });
 
   // Plivo phone numbers query
   const { data: plivoNumbers = [], isLoading: plivoNumbersLoading } = useQuery<PlivoPhoneNumber[]>({
@@ -426,6 +494,35 @@ export default function PhoneNumbers() {
     },
   });
 
+  // TCXC purchase mutation
+  const tcxcPurchaseMutation = useMutation({
+    mutationFn: async (didId: string) => {
+      const res = await apiRequest("POST", "/api/tcxc/dids/purchase", { didId });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tcxc/dids/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sip/phone-numbers"] });
+      setTcxcBuyDialogOpen(false);
+      setSelectedTcxcDid(null);
+      toast({ 
+        title: "DID Purchased Successfully", 
+        description: data.phoneNumber ? `${data.phoneNumber} has been added to your account.` : "Your new DID has been activated." 
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Purchase Failed",
+        description: error.message || "Failed to purchase DID. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleTcxcPurchase = () => {
+    if (!selectedTcxcDid) return;
+    tcxcPurchaseMutation.mutate(selectedTcxcDid.id);
+  };
 
   const handlePlivoBuy = () => {
     if (!selectedPlivoNumber) return;
@@ -627,6 +724,14 @@ export default function PhoneNumbers() {
               Plivo Numbers ({plivoNumbers.length})
             </TabsTrigger>
           )}
+          <TabsTrigger value="tcxc-dids" data-testid="tab-tcxc-dids">
+            <PhoneIncoming className="h-4 w-4 mr-1" />
+            TCXC DIDs ({tcxcMyDids.length})
+          </TabsTrigger>
+          <TabsTrigger value="outbound" data-testid="tab-outbound">
+            <PhoneOutgoing className="h-4 w-4 mr-1" />
+            Outbound
+          </TabsTrigger>
           {phoneNumbersTabs.map((tab) => (
             <TabsTrigger key={tab.id} value={tab.id} data-testid={`tab-${tab.id}`}>
               {tab.icon === 'Server' && <Server className="h-4 w-4 mr-1" />}
@@ -948,6 +1053,296 @@ export default function PhoneNumbers() {
           </TabsContent>
         )}
 
+        {/* TCXC DIDs Tab */}
+        <TabsContent value="tcxc-dids" className="space-y-4">
+          {!tcxcConfigured ? (
+            <Card className="p-8 sm:p-16 text-center">
+              <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">TCXC Not Configured</h3>
+              <p className="text-muted-foreground mb-4">
+                Configure your TelecomXchange API credentials to browse and purchase DIDs from the marketplace.
+              </p>
+              <Button onClick={() => setLocation("/admin/settings")} data-testid="button-configure-tcxc">
+                Configure TCXC API
+              </Button>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {/* DID Search Section */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Browse TCXC DID Marketplace</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Select value={tcxcSearchCountry} onValueChange={setTcxcSearchCountry}>
+                      <SelectTrigger data-testid="select-tcxc-country">
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {gccCountries.map((country) => (
+                          <SelectItem key={country.code} value={country.code}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="US">United States</SelectItem>
+                        <SelectItem value="GB">United Kingdom</SelectItem>
+                        <SelectItem value="CA">Canada</SelectItem>
+                        <SelectItem value="AU">Australia</SelectItem>
+                        <SelectItem value="DE">Germany</SelectItem>
+                        <SelectItem value="FR">France</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select value={tcxcSearchType} onValueChange={(v) => setTcxcSearchType(v as "local" | "tollfree" | "mobile")}>
+                      <SelectTrigger data-testid="select-tcxc-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="local">Local</SelectItem>
+                        <SelectItem value="tollfree">Toll-Free</SelectItem>
+                        <SelectItem value="mobile">Mobile</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    onClick={() => searchTcxcDids()} 
+                    disabled={!tcxcSearchCountry || tcxcSearchLoading}
+                    data-testid="button-search-tcxc"
+                  >
+                    {tcxcSearchLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+                    Search DIDs
+                  </Button>
+                  <Button variant="outline" onClick={() => refetchTcxcMyDids()} data-testid="button-refresh-tcxc">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh My DIDs
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Search Results */}
+              {tcxcAvailableDids.length > 0 && (
+                <Card className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">Available DIDs ({tcxcAvailableDids.length})</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {tcxcAvailableDids.map((did) => (
+                      <div 
+                        key={did.id} 
+                        className={`p-4 rounded-md border cursor-pointer hover-elevate ${selectedTcxcDid?.id === did.id ? 'ring-2 ring-primary' : ''}`}
+                        onClick={() => setSelectedTcxcDid(did)}
+                        data-testid={`card-tcxc-did-${did.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="font-mono font-semibold">{did.phoneNumber}</h4>
+                          <Badge variant="outline">{did.type}</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div className="flex justify-between">
+                            <span>Country:</span>
+                            <span>{did.countryName}</span>
+                          </div>
+                          {did.city && (
+                            <div className="flex justify-between">
+                              <span>City:</span>
+                              <span>{did.city}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span>Monthly:</span>
+                            <span className="font-semibold text-foreground">{did.currency} {did.monthlyPrice}</span>
+                          </div>
+                          {did.setupPrice > 0 && (
+                            <div className="flex justify-between">
+                              <span>Setup:</span>
+                              <span>{did.currency} {did.setupPrice}</span>
+                            </div>
+                          )}
+                        </div>
+                        {selectedTcxcDid?.id === did.id && (
+                          <Button 
+                            className="w-full mt-3" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTcxcBuyDialogOpen(true);
+                            }}
+                            data-testid={`button-buy-tcxc-${did.id}`}
+                          >
+                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            Purchase This DID
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* My DIDs */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">My TCXC DIDs ({tcxcMyDids.length})</h3>
+                {tcxcMyDidsLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-4 rounded-md border animate-pulse">
+                        <div className="h-6 bg-muted rounded w-3/4 mb-2" />
+                        <div className="h-4 bg-muted rounded w-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : tcxcMyDids.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Phone className="h-8 w-8 mx-auto mb-2" />
+                    <p>No DIDs purchased yet. Search above to find and purchase DIDs.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {tcxcMyDids.map((did) => (
+                      <div key={did.id} className="p-4 rounded-md border" data-testid={`card-my-tcxc-${did.id}`}>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="font-mono font-semibold">{did.phoneNumber}</h4>
+                          <Badge>{did.available ? 'Active' : 'Inactive'}</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          <div className="flex justify-between">
+                            <span>Country:</span>
+                            <span>{did.countryName}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Type:</span>
+                            <span>{did.type}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Outbound Tab */}
+        <TabsContent value="outbound" className="space-y-4">
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <PhoneOutgoing className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Outbound Calling</h3>
+                <p className="text-sm text-muted-foreground">Configure outbound calling for your AI agents</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4">
+                <h4 className="font-medium mb-2">Outbound Caller ID</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Select which phone numbers can be used as caller ID for outbound calls
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {ownedNumbers.filter(n => n.status === 'active').map((number) => (
+                    <div 
+                      key={number.id} 
+                      className="flex items-center justify-between p-3 rounded-lg border"
+                      data-testid={`outbound-number-${number.id}`}
+                    >
+                      <div>
+                        <p className="font-mono text-sm">{formatPhoneNumber(number.phoneNumber)}</p>
+                        <p className="text-xs text-muted-foreground">{number.country} - Twilio</p>
+                      </div>
+                      <Badge variant="outline">Available</Badge>
+                    </div>
+                  ))}
+                  {plivoNumbers.filter(n => n.status === 'active').map((number) => (
+                    <div 
+                      key={number.id} 
+                      className="flex items-center justify-between p-3 rounded-lg border"
+                      data-testid={`outbound-plivo-${number.id}`}
+                    >
+                      <div>
+                        <p className="font-mono text-sm">{formatPhoneNumber(number.phoneNumber)}</p>
+                        <p className="text-xs text-muted-foreground">{number.country} - Plivo</p>
+                      </div>
+                      <Badge variant="outline">Available</Badge>
+                    </div>
+                  ))}
+                  {tcxcMyDids.map((did) => (
+                    <div 
+                      key={did.id} 
+                      className="flex items-center justify-between p-3 rounded-lg border"
+                      data-testid={`outbound-tcxc-${did.id}`}
+                    >
+                      <div>
+                        <p className="font-mono text-sm">{did.phoneNumber}</p>
+                        <p className="text-xs text-muted-foreground">{did.countryName} - TCXC</p>
+                      </div>
+                      <Badge variant="outline">Available</Badge>
+                    </div>
+                  ))}
+                </div>
+                {(ownedNumbers.length === 0 && plivoNumbers.length === 0 && tcxcMyDids.length === 0) && (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Phone className="h-8 w-8 mx-auto mb-2" />
+                    <p>No phone numbers available for outbound calling.</p>
+                    <p className="text-sm">Purchase phone numbers from Twilio, Plivo, or TCXC to enable outbound calls.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <h4 className="font-medium mb-2">Outbound Campaign Settings</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Configure default settings for outbound calling campaigns
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Default Caller ID</Label>
+                    <Select>
+                      <SelectTrigger data-testid="select-default-caller-id">
+                        <SelectValue placeholder="Select default caller ID" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ownedNumbers.filter(n => n.status === 'active').map((number) => (
+                          <SelectItem key={number.id} value={number.id}>
+                            {formatPhoneNumber(number.phoneNumber)} (Twilio)
+                          </SelectItem>
+                        ))}
+                        {plivoNumbers.filter(n => n.status === 'active').map((number) => (
+                          <SelectItem key={number.id} value={number.id}>
+                            {formatPhoneNumber(number.phoneNumber)} (Plivo)
+                          </SelectItem>
+                        ))}
+                        {tcxcMyDids.map((did) => (
+                          <SelectItem key={did.id} value={did.id}>
+                            {did.phoneNumber} (TCXC)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max Concurrent Calls</Label>
+                    <Select defaultValue="5">
+                      <SelectTrigger data-testid="select-max-concurrent">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 call</SelectItem>
+                        <SelectItem value="3">3 calls</SelectItem>
+                        <SelectItem value="5">5 calls</SelectItem>
+                        <SelectItem value="10">10 calls</SelectItem>
+                        <SelectItem value="20">20 calls</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
         {phoneNumbersTabs.map((tab) => (
           <TabsContent key={tab.id} value={tab.id} className="space-y-4">
             <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>}>
@@ -956,6 +1351,42 @@ export default function PhoneNumbers() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* TCXC Purchase Confirmation Dialog */}
+      <AlertDialog open={tcxcBuyDialogOpen} onOpenChange={setTcxcBuyDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm DID Purchase</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedTcxcDid && (
+                <div className="space-y-2 mt-2">
+                  <p>You are about to purchase:</p>
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="font-mono font-semibold text-lg">{selectedTcxcDid.phoneNumber}</p>
+                    <p className="text-sm">{selectedTcxcDid.countryName} - {selectedTcxcDid.type}</p>
+                    <p className="text-sm mt-2">
+                      Monthly: <span className="font-semibold">{selectedTcxcDid.currency} {selectedTcxcDid.monthlyPrice}</span>
+                      {selectedTcxcDid.setupPrice > 0 && (
+                        <span> | Setup: {selectedTcxcDid.currency} {selectedTcxcDid.setupPrice}</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-tcxc-purchase">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleTcxcPurchase}
+              disabled={tcxcPurchaseMutation.isPending}
+              data-testid="button-confirm-tcxc-purchase"
+            >
+              {tcxcPurchaseMutation.isPending ? "Purchasing..." : "Confirm Purchase"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={buyDialogOpen} onOpenChange={setBuyDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">

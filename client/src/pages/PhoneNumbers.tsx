@@ -462,6 +462,7 @@ export default function PhoneNumbers() {
   // Note: seller parameter is optional - if empty, searches all sellers on TCXC marketplace
   const searchMarketplaceDids = async (seller?: string, prefix?: string) => {
     setIsSearchingMarketplace(true);
+    console.log('[Marketplace] Searching with prefix:', prefix, 'seller:', seller);
     try {
       const response = await apiRequest("POST", "/api/tcxc/marketplace/search", {
         // Only include seller if it's a valid non-empty string
@@ -470,7 +471,9 @@ export default function PhoneNumbers() {
         voice: true,
         limit: 50,
       });
+      console.log('[Marketplace] Response received:', response);
       const data = response as unknown as MarketplaceDid[];
+      console.log('[Marketplace] Setting results, count:', Array.isArray(data) ? data.length : 0);
       setMarketplaceSearchResults(Array.isArray(data) ? data : []);
     } catch (error: any) {
       console.error("Marketplace search error:", error);

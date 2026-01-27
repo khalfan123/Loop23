@@ -1608,224 +1608,288 @@ export default function PhoneNumbers() {
 
         {/* Outbound Tab */}
         <TabsContent value="outbound" className="space-y-4">
+          {/* Browse Provider Numbers - Same UI as TCXC DID Marketplace */}
           <Card className="p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <PhoneOutgoing className="h-5 w-5 text-primary" />
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold">Browse Provider Numbers</h3>
+              <p className="text-sm text-muted-foreground">Select a provider and country to search available caller IDs</p>
+            </div>
+
+            {/* Search Form - Same style as TCXC DIDs */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div className="space-y-2">
+                <Label>Provider</Label>
+                <Select 
+                  value={selectedProvider?.id || ""} 
+                  onValueChange={(value) => {
+                    const provider = tcxcInterconnections.find(p => p.id === value);
+                    setSelectedProvider(provider || null);
+                  }}
+                >
+                  <SelectTrigger data-testid="select-outbound-provider">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tcxcInterconnections.map((interconnection) => (
+                      <SelectItem key={interconnection.id} value={interconnection.id}>
+                        {interconnection.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold">Outbound Calling</h3>
-                <p className="text-sm text-muted-foreground">Configure outbound calling for your AI agents</p>
+              <div className="space-y-2">
+                <Label>Country</Label>
+                <Select 
+                  value={marketplaceSearchPrefix} 
+                  onValueChange={setMarketplaceSearchPrefix}
+                  disabled={!selectedProvider}
+                >
+                  <SelectTrigger data-testid="select-outbound-country">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gccCountries.length > 0 && (
+                      <>
+                        {gccCountries.map((country) => (
+                          <SelectItem key={country.code} value={country.code}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                    <SelectItem value="1">United States</SelectItem>
+                    <SelectItem value="44">United Kingdom</SelectItem>
+                    <SelectItem value="49">Germany</SelectItem>
+                    <SelectItem value="33">France</SelectItem>
+                    <SelectItem value="61">Australia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => {
+                    if (selectedProvider) {
+                      searchMarketplaceDids(selectedProvider.name, marketplaceSearchPrefix || undefined);
+                    }
+                  }}
+                  disabled={!selectedProvider || isSearchingMarketplace}
+                  data-testid="button-search-outbound"
+                >
+                  {isSearchingMarketplace ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Search className="h-4 w-4 mr-1" />
+                  )}
+                  Search
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => {
+                    setSelectedProvider(null);
+                    setMarketplaceSearchPrefix('');
+                    setMarketplaceSearchResults([]);
+                  }}
+                  data-testid="button-reset-outbound-search"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
               </div>
             </div>
-            <div className="space-y-4">
-              <div className="rounded-lg border p-4">
-                <h4 className="font-medium mb-2">Outbound Caller ID</h4>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Select which phone numbers can be used as caller ID for outbound calls
-                </p>
+
+            {/* Search Results */}
+            {marketplaceSearchResults.length > 0 && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium">Available Numbers ({marketplaceSearchResults.length})</h4>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {ownedNumbers.filter(n => n.status === 'active').map((number) => (
+                  {marketplaceSearchResults.map((did, index) => (
                     <div 
-                      key={number.id} 
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                      data-testid={`outbound-number-${number.id}`}
+                      key={`${did.did}-${index}`}
+                      className="p-3 rounded-lg border hover-elevate"
+                      data-testid={`outbound-result-${index}`}
                     >
-                      <div>
-                        <p className="font-mono text-sm">{formatPhoneNumber(number.phoneNumber)}</p>
-                        <p className="text-xs text-muted-foreground">{number.country} - Twilio</p>
-                      </div>
-                      <Badge variant="outline">Available</Badge>
-                    </div>
-                  ))}
-                  {plivoNumbers.filter(n => n.status === 'active').map((number) => (
-                    <div 
-                      key={number.id} 
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                      data-testid={`outbound-plivo-${number.id}`}
-                    >
-                      <div>
-                        <p className="font-mono text-sm">{formatPhoneNumber(number.phoneNumber)}</p>
-                        <p className="text-xs text-muted-foreground">{number.country} - Plivo</p>
-                      </div>
-                      <Badge variant="outline">Available</Badge>
-                    </div>
-                  ))}
-                  {tcxcMyDids.map((did) => (
-                    <div 
-                      key={did.id} 
-                      className="flex items-center justify-between gap-2 p-3 rounded-lg border"
-                      data-testid={`outbound-tcxc-${did.id}`}
-                    >
-                      <div>
-                        <p className="font-mono text-sm">{did.phoneNumber}</p>
-                        <p className="text-xs text-muted-foreground">{did.countryName} - TCXC</p>
-                      </div>
-                      <Badge variant="outline">Available</Badge>
-                    </div>
-                  ))}
-                  {providerCallerIds.map((callerId) => (
-                    <div 
-                      key={callerId.id} 
-                      className="flex items-center justify-between gap-2 p-3 rounded-lg border"
-                      data-testid={`outbound-provider-${callerId.id}`}
-                    >
-                      <div>
-                        <p className="font-mono text-sm">{callerId.phoneNumber}</p>
-                        <div className="flex items-center gap-1">
-                          <p className="text-xs text-muted-foreground">{callerId.country} - {callerId.providerName}</p>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {callerId.techPrefix}
-                          </Badge>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-mono text-sm font-medium">{did.did}</p>
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            <span className="text-xs text-muted-foreground">{did.country}</span>
+                            {did.voice && <Badge variant="secondary" className="text-xs">Voice</Badge>}
+                            {did.sms && <Badge variant="secondary" className="text-xs">SMS</Badge>}
+                          </div>
+                          {did.monthly_fee > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              ${did.monthly_fee.toFixed(2)}/mo
+                            </p>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="default" className="bg-green-600 dark:bg-green-700">Active</Badge>
                         <Button 
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => deleteProviderCallerIdMutation.mutate(callerId.id)}
-                          disabled={deleteProviderCallerIdMutation.isPending}
-                          data-testid={`button-remove-outbound-${callerId.id}`}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedMarketplaceDid(did);
+                            setRentDialogOpen(true);
+                          }}
+                          data-testid={`button-rent-outbound-${index}`}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          Rent
                         </Button>
                       </div>
                     </div>
                   ))}
                 </div>
-                {(ownedNumbers.length === 0 && plivoNumbers.length === 0 && tcxcMyDids.length === 0 && providerCallerIds.length === 0) && (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <Phone className="h-8 w-8 mx-auto mb-2" />
-                    <p>No phone numbers available for outbound calling.</p>
-                    <p className="text-sm">Purchase phone numbers or add provider caller IDs to enable outbound calls.</p>
-                  </div>
-                )}
               </div>
+            )}
 
-              <div className="rounded-lg border p-4">
-                <div className="flex items-center justify-between mb-3">
+            {/* Empty State */}
+            {tcxcInterconnections.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Network className="h-10 w-10 mx-auto mb-3" />
+                <p className="font-medium">No carrier interconnections configured</p>
+                <p className="text-sm">Configure your provider interconnections in the TCXC tab first.</p>
+              </div>
+            )}
+          </Card>
+
+          {/* My Outbound Caller IDs */}
+          <Card className="p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">My Outbound Caller IDs</h3>
+              <p className="text-sm text-muted-foreground">Phone numbers available for outbound calling</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {ownedNumbers.filter(n => n.status === 'active').map((number) => (
+                <div 
+                  key={number.id} 
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                  data-testid={`outbound-number-${number.id}`}
+                >
                   <div>
-                    <h4 className="font-medium">Provider Numbers Lookup</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Browse and select caller ID numbers from your carrier providers
-                    </p>
+                    <p className="font-mono text-sm">{formatPhoneNumber(number.phoneNumber)}</p>
+                    <p className="text-xs text-muted-foreground">{number.country} - Twilio</p>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setProviderLookupDialogOpen(true)}
-                    disabled={tcxcInterconnections.length === 0}
-                    data-testid="button-lookup-provider-numbers"
-                  >
-                    <Search className="h-4 w-4 mr-1" />
-                    Lookup Numbers
-                  </Button>
+                  <Badge variant="outline">Available</Badge>
                 </div>
+              ))}
+              {plivoNumbers.filter(n => n.status === 'active').map((number) => (
+                <div 
+                  key={number.id} 
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                  data-testid={`outbound-plivo-${number.id}`}
+                >
+                  <div>
+                    <p className="font-mono text-sm">{formatPhoneNumber(number.phoneNumber)}</p>
+                    <p className="text-xs text-muted-foreground">{number.country} - Plivo</p>
+                  </div>
+                  <Badge variant="outline">Available</Badge>
+                </div>
+              ))}
+              {tcxcMyDids.map((did) => (
+                <div 
+                  key={did.id} 
+                  className="flex items-center justify-between gap-2 p-3 rounded-lg border"
+                  data-testid={`outbound-tcxc-${did.id}`}
+                >
+                  <div>
+                    <p className="font-mono text-sm">{did.phoneNumber}</p>
+                    <p className="text-xs text-muted-foreground">{did.countryName} - TCXC</p>
+                  </div>
+                  <Badge variant="outline">Available</Badge>
+                </div>
+              ))}
+              {providerCallerIds.map((callerId) => (
+                <div 
+                  key={callerId.id} 
+                  className="flex items-center justify-between gap-2 p-3 rounded-lg border"
+                  data-testid={`outbound-provider-${callerId.id}`}
+                >
+                  <div>
+                    <p className="font-mono text-sm">{callerId.phoneNumber}</p>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <p className="text-xs text-muted-foreground">{callerId.country} - {callerId.providerName}</p>
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {callerId.techPrefix}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="bg-green-600 dark:bg-green-700">Active</Badge>
+                    <Button 
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => deleteProviderCallerIdMutation.mutate(callerId.id)}
+                      disabled={deleteProviderCallerIdMutation.isPending}
+                      data-testid={`button-remove-outbound-${callerId.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-                {tcxcInterconnections.length === 0 ? (
-                  <div className="text-center py-6 text-muted-foreground">
-                    <Network className="h-8 w-8 mx-auto mb-2" />
-                    <p>No carrier interconnections configured.</p>
-                    <p className="text-sm">Configure your provider interconnections in the TCXC tab first.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {tcxcInterconnections.map((interconnection) => (
-                      <div 
-                        key={interconnection.id}
-                        className="p-3 rounded-lg border hover-elevate cursor-pointer"
-                        onClick={() => {
-                          setSelectedProvider(interconnection);
-                          setProviderLookupDialogOpen(true);
-                        }}
-                        data-testid={`provider-card-${interconnection.id}`}
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                              <Globe className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                            <span className="font-medium">{interconnection.name}</span>
-                          </div>
-                          <Badge 
-                            variant={interconnection.healthStatus === 'healthy' ? 'default' : 'secondary'}
-                            className={interconnection.healthStatus === 'healthy' ? 'bg-green-600 dark:bg-green-700' : ''}
-                          >
-                            {interconnection.healthStatus === 'healthy' ? 'Active' : 'Unknown'}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {interconnection.techPrefixes.slice(0, 2).map((prefix, idx) => (
-                            <Badge key={idx} variant="outline" className="font-mono text-xs">
-                              {prefix}
-                            </Badge>
-                          ))}
-                          {interconnection.techPrefixes.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{interconnection.techPrefixes.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">Click to lookup numbers</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {(ownedNumbers.length === 0 && plivoNumbers.length === 0 && tcxcMyDids.length === 0 && providerCallerIds.length === 0) && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Phone className="h-10 w-10 mx-auto mb-3" />
+                <p className="font-medium">No phone numbers available</p>
+                <p className="text-sm">Purchase phone numbers or search provider DIDs above to add caller IDs.</p>
               </div>
+            )}
+          </Card>
 
-              <div className="rounded-lg border p-4">
-                <h4 className="font-medium mb-2">Outbound Campaign Settings</h4>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Configure default settings for outbound calling campaigns
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Default Caller ID</Label>
-                    <Select>
-                      <SelectTrigger data-testid="select-default-caller-id">
-                        <SelectValue placeholder="Select default caller ID" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ownedNumbers.filter(n => n.status === 'active').map((number) => (
-                          <SelectItem key={number.id} value={number.id}>
-                            {formatPhoneNumber(number.phoneNumber)} (Twilio)
-                          </SelectItem>
-                        ))}
-                        {plivoNumbers.filter(n => n.status === 'active').map((number) => (
-                          <SelectItem key={number.id} value={number.id}>
-                            {formatPhoneNumber(number.phoneNumber)} (Plivo)
-                          </SelectItem>
-                        ))}
-                        {tcxcMyDids.map((did) => (
-                          <SelectItem key={did.id} value={did.id}>
-                            {did.phoneNumber} (TCXC)
-                          </SelectItem>
-                        ))}
-                        {providerCallerIds.map((callerId) => (
-                          <SelectItem key={callerId.id} value={callerId.id}>
-                            {callerId.phoneNumber} ({callerId.providerName})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Max Concurrent Calls</Label>
-                    <Select defaultValue="5">
-                      <SelectTrigger data-testid="select-max-concurrent">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 call</SelectItem>
-                        <SelectItem value="3">3 calls</SelectItem>
-                        <SelectItem value="5">5 calls</SelectItem>
-                        <SelectItem value="10">10 calls</SelectItem>
-                        <SelectItem value="20">20 calls</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+          {/* Campaign Settings */}
+          <Card className="p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">Outbound Campaign Settings</h3>
+              <p className="text-sm text-muted-foreground">Configure default settings for outbound calling campaigns</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Default Caller ID</Label>
+                <Select>
+                  <SelectTrigger data-testid="select-default-caller-id">
+                    <SelectValue placeholder="Select default caller ID" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ownedNumbers.filter(n => n.status === 'active').map((number) => (
+                      <SelectItem key={number.id} value={number.id}>
+                        {formatPhoneNumber(number.phoneNumber)} (Twilio)
+                      </SelectItem>
+                    ))}
+                    {plivoNumbers.filter(n => n.status === 'active').map((number) => (
+                      <SelectItem key={number.id} value={number.id}>
+                        {formatPhoneNumber(number.phoneNumber)} (Plivo)
+                      </SelectItem>
+                    ))}
+                    {tcxcMyDids.map((did) => (
+                      <SelectItem key={did.id} value={did.id}>
+                        {did.phoneNumber} (TCXC)
+                      </SelectItem>
+                    ))}
+                    {providerCallerIds.map((callerId) => (
+                      <SelectItem key={callerId.id} value={callerId.id}>
+                        {callerId.phoneNumber} ({callerId.providerName})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Max Concurrent Calls</Label>
+                <Select defaultValue="5">
+                  <SelectTrigger data-testid="select-max-concurrent">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 call</SelectItem>
+                    <SelectItem value="3">3 calls</SelectItem>
+                    <SelectItem value="5">5 calls</SelectItem>
+                    <SelectItem value="10">10 calls</SelectItem>
+                    <SelectItem value="20">20 calls</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </Card>

@@ -91,6 +91,19 @@ export function setupTcxcRoutes(
     }
   });
 
+  // Get purchased outbound routes from TCXC API
+  // Calls POST /interconnections/list to fetch routes with tech prefixes
+  app.get('/api/tcxc/purchased-routes', sessionAuth, async (req: Request, res: Response) => {
+    try {
+      const routes = await TcxcApiService.getPurchasedRoutes();
+      console.log('[TCXC Routes] Fetched', routes.length, 'purchased routes from TCXC');
+      res.json(routes);
+    } catch (error: any) {
+      console.error('[TCXC Routes] Get purchased routes error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post('/api/tcxc/credentials', adminAuth, async (req: Request, res: Response) => {
     try {
       const validation = createCredentialSchema.safeParse(req.body);

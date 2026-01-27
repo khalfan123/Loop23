@@ -372,6 +372,78 @@ export class TcxcApiService {
     }
   }
 
+  /**
+   * Get purchased outbound routes from TCXC
+   * Calls POST /interconnections/list to fetch all purchased routes with tech prefixes
+   */
+  static async getPurchasedRoutes(): Promise<Array<{
+    connectionName: string;
+    techPrefix: string;
+    accountName: string;
+    tariffId: number;
+    connectionId: number;
+    vendorId: number;
+    vendorName: string;
+    blocked: boolean;
+    status: string;
+    routeType: string;
+    destination: string;
+    ratePerMinute: number;
+  }>> {
+    try {
+      // Call TCXC API to get purchased interconnections/routes
+      const formData: Record<string, string> = {
+        type: 'all', // Get all route types
+      };
+      
+      const response = await this.makeRequest('/interconnections/list', 'POST', formData);
+      console.log('[TCXC] Purchased routes response:', JSON.stringify(response).substring(0, 500));
+      
+      const routes: Array<{
+        connectionName: string;
+        techPrefix: string;
+        accountName: string;
+        tariffId: number;
+        connectionId: number;
+        vendorId: number;
+        vendorName: string;
+        blocked: boolean;
+        status: string;
+        routeType: string;
+        destination: string;
+        ratePerMinute: number;
+      }> = [];
+
+      // Parse the purchased_routes array from response
+      const purchasedRoutes = response?.purchased_routes || response?.routes || response?.data || [];
+      
+      if (Array.isArray(purchasedRoutes)) {
+        for (const route of purchasedRoutes) {
+          routes.push({
+            connectionName: route.connection_name || route.name || route.account_name || '',
+            techPrefix: route.tech_prefix || route.techprefix || route.prefix || '',
+            accountName: route.account_name || route.vendor_name || route.seller_name || '',
+            tariffId: route.i_tariff || route.tariff_id || 0,
+            connectionId: route.i_connection || route.connection_id || 0,
+            vendorId: route.i_vendor || route.vendor_id || 0,
+            vendorName: route.vendor_name || route.seller_name || route.account_name || '',
+            blocked: route.blocked === 1 || route.blocked === true || route.status === 'blocked',
+            status: route.blocked ? 'blocked' : 'active',
+            routeType: route.route_type || route.type || 'CLI',
+            destination: route.destination || route.country_name || '',
+            ratePerMinute: parseFloat(route.price || route.rate || route.price_1 || '0'),
+          });
+        }
+      }
+
+      console.log('[TCXC] Parsed purchased routes:', routes.length);
+      return routes;
+    } catch (error: any) {
+      console.error('[TCXC] Get purchased routes error:', error.message);
+      return [];
+    }
+  }
+
   static async purchaseDid(didId: string): Promise<{ success: boolean; phoneNumber?: string; error?: string }> {
     try {
       const response = await this.makeRequest('/v1/dids/purchase', 'POST', { did_id: didId });

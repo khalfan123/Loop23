@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Phone, Server, RefreshCw, CheckCircle2, XCircle, AlertCircle, Settings2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Trash2, Phone, Server, RefreshCw, CheckCircle2, XCircle, AlertCircle, Settings2, Bot, PhoneIncoming, PhoneOutgoing, Network, Copy, ExternalLink } from "lucide-react";
 
 interface SipProvider {
   id: string;
@@ -50,6 +51,13 @@ interface SipPhoneNumber {
   outboundEnabled: boolean;
   isActive: boolean;
   createdAt: string;
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  elevenLabsAgentId: string | null;
+  type: string;
 }
 
 export function SipTrunkSettings() {
@@ -153,6 +161,24 @@ export function SipTrunkSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sip/phone-numbers"] });
       toast({ title: "Phone number removed" });
+    },
+  });
+
+  const { data: agents = [] } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
+  });
+
+  const updatePhoneNumberMutation = useMutation({
+    mutationFn: async (data: { id: string; agentId?: string | null; inboundEnabled?: boolean; outboundEnabled?: boolean }) => {
+      const { id, ...updateData } = data;
+      return apiRequest("PATCH", `/api/sip/phone-numbers/${id}`, updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sip/phone-numbers"] });
+      toast({ title: "Phone number updated" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update phone number", description: error.message, variant: "destructive" });
     },
   });
 
@@ -314,6 +340,10 @@ export function SipTrunkSettings() {
             <Phone className="w-4 h-4 mr-2" />
             Phone Numbers ({phoneNumbers.length})
           </TabsTrigger>
+          <TabsTrigger value="interconnection" data-testid="tab-interconnection">
+            <Network className="w-4 h-4 mr-2" />
+            TCXC Interconnection
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="trunks" className="mt-4">
@@ -419,51 +449,247 @@ export function SipTrunkSettings() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {phoneNumbers.map(phone => (
-                    <TableRow key={phone.id} data-testid={`row-phone-${phone.id}`}>
-                      <TableCell className="font-mono" data-testid={`text-phone-number-${phone.id}`}>{phone.phoneNumber}</TableCell>
-                      <TableCell data-testid={`text-phone-label-${phone.id}`}>{phone.label || "-"}</TableCell>
-                      <TableCell>
-                        {phone.inboundEnabled ? (
-                          <Badge className="bg-green-500" data-testid={`badge-inbound-enabled-${phone.id}`}>Enabled</Badge>
-                        ) : (
-                          <Badge variant="secondary" data-testid={`badge-inbound-disabled-${phone.id}`}>Disabled</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {phone.outboundEnabled ? (
-                          <Badge className="bg-green-500" data-testid={`badge-outbound-enabled-${phone.id}`}>Enabled</Badge>
-                        ) : (
-                          <Badge variant="secondary" data-testid={`badge-outbound-disabled-${phone.id}`}>Disabled</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {phone.agentId ? (
-                          <Badge variant="outline" data-testid={`badge-agent-assigned-${phone.id}`}>Assigned</Badge>
-                        ) : (
-                          <span className="text-muted-foreground" data-testid={`text-agent-unassigned-${phone.id}`}>Not assigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            if (confirm("Remove this phone number?")) {
-                              deletePhoneNumberMutation.mutate(phone.id);
-                            }
-                          }}
-                          data-testid={`button-delete-phone-${phone.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {phoneNumbers.map(phone => {
+                    const assignedAgent = agents.find(a => a.id === phone.agentId);
+                    return (
+                      <TableRow key={phone.id} data-testid={`row-phone-${phone.id}`}>
+                        <TableCell className="font-mono" data-testid={`text-phone-number-${phone.id}`}>{phone.phoneNumber}</TableCell>
+                        <TableCell data-testid={`text-phone-label-${phone.id}`}>{phone.label || "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={phone.inboundEnabled}
+                              onCheckedChange={(checked) => {
+                                updatePhoneNumberMutation.mutate({ id: phone.id, inboundEnabled: checked });
+                              }}
+                              data-testid={`switch-inbound-${phone.id}`}
+                            />
+                            <PhoneIncoming className={`w-4 h-4 ${phone.inboundEnabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={phone.outboundEnabled}
+                              onCheckedChange={(checked) => {
+                                updatePhoneNumberMutation.mutate({ id: phone.id, outboundEnabled: checked });
+                              }}
+                              data-testid={`switch-outbound-${phone.id}`}
+                            />
+                            <PhoneOutgoing className={`w-4 h-4 ${phone.outboundEnabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={phone.agentId || "none"}
+                            onValueChange={(value) => {
+                              updatePhoneNumberMutation.mutate({ 
+                                id: phone.id, 
+                                agentId: value === "none" ? null : value 
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="w-[180px]" data-testid={`select-agent-${phone.id}`}>
+                              <SelectValue>
+                                {assignedAgent ? (
+                                  <div className="flex items-center gap-2">
+                                    <Bot className="w-4 h-4" />
+                                    <span className="truncate">{assignedAgent.name}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Select agent</span>
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">
+                                <span className="text-muted-foreground">No agent</span>
+                              </SelectItem>
+                              {agents.filter(a => a.type === 'incoming').map(agent => (
+                                <SelectItem key={agent.id} value={agent.id}>
+                                  <div className="flex items-center gap-2">
+                                    <Bot className="w-4 h-4" />
+                                    <span>{agent.name}</span>
+                                    {agent.elevenLabsAgentId && (
+                                      <Badge variant="outline" className="text-xs ml-1">EL</Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              if (confirm("Remove this phone number?")) {
+                                deletePhoneNumberMutation.mutate(phone.id);
+                              }
+                            }}
+                            data-testid={`button-delete-phone-${phone.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="interconnection" className="mt-4">
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Network className="w-5 h-5" />
+                  ElevenLabs SIP Endpoint Configuration
+                </CardTitle>
+                <CardDescription>
+                  Use these details to configure your TCXC Interconnection / Network Topology for inbound call routing
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="rounded-lg border bg-muted/50 p-4 space-y-4" data-testid="card-sip-endpoint-config">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">SIP Server Hostname</Label>
+                      <p className="text-lg font-mono mt-1" data-testid="text-sip-hostname">sip.elevenlabs.io</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText("sip.elevenlabs.io");
+                        toast({ title: "Copied to clipboard" });
+                      }}
+                      data-testid="button-copy-sip-host"
+                    >
+                      <Copy className="w-4 h-4 mr-1" />
+                      Copy
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">SIP Server IP Address</Label>
+                      <p className="text-lg font-mono mt-1" data-testid="text-sip-ip">Resolve via DNS: sip.elevenlabs.io</p>
+                      <p className="text-xs text-muted-foreground mt-1">Use nslookup or dig to get current IP. IP may change; hostname is recommended.</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText("nslookup sip.elevenlabs.io");
+                        toast({ title: "Command copied - run in terminal" });
+                      }}
+                      data-testid="button-copy-dns-command"
+                    >
+                      <Copy className="w-4 h-4 mr-1" />
+                      Copy CMD
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">Inbound Transport</Label>
+                      <p className="text-lg font-mono mt-1" data-testid="text-transport-tcp">TCP / Port 5060</p>
+                    </div>
+                    <Badge variant="outline">Recommended</Badge>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">TLS Transport (Secure)</Label>
+                      <p className="text-lg font-mono mt-1" data-testid="text-transport-tls">TLS / Port 5061</p>
+                    </div>
+                    <Badge className="bg-green-500">Most Secure</Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div>
+                      <Label className="text-sm font-medium">Authentication</Label>
+                      <p className="text-sm mt-1" data-testid="text-auth-info">IP-based authentication (no username/password required for inbound)</p>
+                      <p className="text-xs text-muted-foreground mt-1">ElevenLabs accepts inbound calls based on registered SIP trunk configuration</p>
+                    </div>
+                    <Badge variant="secondary">IP Auth</Badge>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4" data-testid="card-tcxc-instructions">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <Settings2 className="w-4 h-4" />
+                    TCXC Setup Instructions
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground" data-testid="list-tcxc-steps">
+                    <li data-testid="step-1">Go to <strong>My TCXC Interconnections</strong> in your TCXC dashboard</li>
+                    <li data-testid="step-2">Create a new <strong>Network Topology</strong> for inbound routing</li>
+                    <li data-testid="step-3">Set the destination to <code className="bg-muted px-1 rounded">sip.elevenlabs.io</code></li>
+                    <li data-testid="step-4">Configure transport as <strong>TCP:5060</strong> or <strong>TLS:5061</strong></li>
+                    <li data-testid="step-5">Purchase DIDs from the TCXC DID Marketplace</li>
+                    <li data-testid="step-6">Route the purchased DIDs through your created interconnection</li>
+                    <li data-testid="step-7">Add the DIDs to your SIP trunk in this platform and assign AI agents</li>
+                  </ol>
+                </div>
+
+                <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-900 p-4" data-testid="card-inbound-flow">
+                  <h4 className="font-semibold mb-2 flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                    <PhoneIncoming className="w-4 h-4" />
+                    Inbound Call Flow
+                  </h4>
+                  <p className="text-sm text-blue-600 dark:text-blue-400" data-testid="text-inbound-flow">
+                    Caller → TCXC DID → Your Interconnection → ElevenLabs SIP → AI Agent
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-900 p-4" data-testid="card-outbound-flow">
+                  <h4 className="font-semibold mb-2 flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                    <PhoneOutgoing className="w-4 h-4" />
+                    Outbound Call Flow
+                  </h4>
+                  <p className="text-sm text-amber-600 dark:text-amber-400" data-testid="text-outbound-flow">
+                    AI Agent → ElevenLabs SIP → TCXC Trunk → Carrier → Called Party
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2" data-testid="text-outbound-note">
+                    For outbound, configure your SIP trunk with TCXC credentials in the "SIP Trunks" tab
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-did-marketplace">
+              <CardHeader>
+                <CardTitle data-testid="text-marketplace-title">DID Marketplace</CardTitle>
+                <CardDescription data-testid="text-marketplace-description">
+                  Purchase phone numbers from TCXC DID Marketplace for inbound and outbound calling
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between p-4 rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Phone className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">TCXC DID Marketplace</p>
+                      <p className="text-sm text-muted-foreground">Browse and purchase DIDs from 160+ countries</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" asChild>
+                    <a href="https://app.telecomxchange.com/marketplace" target="_blank" rel="noopener noreferrer" data-testid="link-tcxc-marketplace">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Open Marketplace
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

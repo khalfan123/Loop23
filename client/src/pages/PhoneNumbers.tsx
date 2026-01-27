@@ -471,9 +471,8 @@ export default function PhoneNumbers() {
         voice: true,
         limit: 50,
       });
-      console.log('[Marketplace] Response received:', response);
-      const data = response as unknown as MarketplaceDid[];
-      console.log('[Marketplace] Setting results, count:', Array.isArray(data) ? data.length : 0);
+      const data = await response.json() as MarketplaceDid[];
+      console.log('[Marketplace] Response received, count:', Array.isArray(data) ? data.length : 0);
       setMarketplaceSearchResults(Array.isArray(data) ? data : []);
     } catch (error: any) {
       console.error("Marketplace search error:", error);

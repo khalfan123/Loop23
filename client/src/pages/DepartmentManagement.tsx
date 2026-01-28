@@ -443,18 +443,38 @@ export default function DepartmentManagement() {
       icon: dept.icon,
       color: dept.color,
     });
-    setLanguageAgents([{
-      id: `la-${Date.now()}`,
-      language: "en",
-      agentId: null,
-      agentName: null,
-      systemPrompt: null,
-      voiceId: null,
-      voiceTone: null,
-    }]);
     setActiveTabIdx(0);
     setShowConfigSheet(true);
   };
+  
+  useEffect(() => {
+    if (showConfigSheet && departmentAgents && departmentAgents.length > 0) {
+      const loadedAgents: LanguageAgentConfig[] = departmentAgents.map((da) => {
+        const agentDetails = agents?.find(a => a.id === da.agentId);
+        return {
+          id: da.id,
+          language: da.language || "en",
+          agentId: da.agentId,
+          agentName: da.agent?.name || null,
+          systemPrompt: agentDetails?.systemPrompt || null,
+          voiceId: agentDetails?.openaiVoice || agentDetails?.voiceName || null,
+          voiceTone: agentDetails?.voiceTone || null,
+        };
+      });
+      setLanguageAgents(loadedAgents);
+      setActiveTabIdx(0);
+    } else if (showConfigSheet && (!departmentAgents || departmentAgents.length === 0)) {
+      setLanguageAgents([{
+        id: `la-${Date.now()}`,
+        language: "en",
+        agentId: null,
+        agentName: null,
+        systemPrompt: null,
+        voiceId: null,
+        voiceTone: null,
+      }]);
+    }
+  }, [showConfigSheet, departmentAgents, agents]);
   
   const getAgentsForLanguage = (langCode: string) => {
     return (agents || []).filter((agent) => {

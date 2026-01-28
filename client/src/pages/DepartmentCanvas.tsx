@@ -850,12 +850,7 @@ function IVRConfigPanel({
     if (text) {
       try {
         setPlayingVoiceId(voiceId);
-        const response = await fetch("/api/departments/voice-preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ voiceId, text }),
-        });
+        const response = await apiRequest("POST", "/api/departments/voice-preview", { voiceId, text });
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));

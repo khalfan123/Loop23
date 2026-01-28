@@ -617,12 +617,7 @@ export default function DepartmentManagement() {
     
     try {
       setIvrPlayingVoiceId(voiceId);
-      const response = await fetch("/api/departments/voice-preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ voiceId, text: greetingText }),
-      });
+      const response = await apiRequest("POST", "/api/departments/voice-preview", { voiceId, text: greetingText });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -795,12 +790,7 @@ export default function DepartmentManagement() {
     if (text) {
       try {
         setPlayingVoiceId(voiceId);
-        const response = await fetch("/api/departments/voice-preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ voiceId, text }),
-        });
+        const response = await apiRequest("POST", "/api/departments/voice-preview", { voiceId, text });
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));

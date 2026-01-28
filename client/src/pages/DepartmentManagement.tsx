@@ -1023,6 +1023,27 @@ export default function DepartmentManagement() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Voice Tone</Label>
+              <Select
+                value={selectedAgent.voiceTone}
+                onValueChange={(v) => setSelectedAgent({ ...selectedAgent, voiceTone: v })}
+              >
+                <SelectTrigger data-testid="select-voice-tone">
+                  <SelectValue placeholder="Select tone..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="professional">Professional</SelectItem>
+                  <SelectItem value="friendly">Friendly</SelectItem>
+                  <SelectItem value="warm">Warm</SelectItem>
+                  <SelectItem value="calm">Calm</SelectItem>
+                  <SelectItem value="balanced">Balanced</SelectItem>
+                  <SelectItem value="expressive">Expressive</SelectItem>
+                  <SelectItem value="authoritative">Authoritative</SelectItem>
+                  <SelectItem value="empathetic">Empathetic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>System Prompt</Label>
                 <Button

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { 
   Plus, 
   Trash2, 
@@ -27,7 +28,14 @@ import {
   Network,
   Power,
   Headphones,
-  LayoutGrid
+  LayoutGrid,
+  PhoneForwarded,
+  PhoneOff,
+  Languages,
+  CalendarCheck,
+  Circle,
+  Volume2,
+  Square,
 } from "lucide-react";
 import {
   Dialog,
@@ -112,7 +120,52 @@ interface Agent {
   name: string;
   type: string;
   language: string | null;
+  voiceName: string | null;
+  openaiVoice: string | null;
+  systemPrompt: string | null;
+  voiceTone: string | null;
 }
+
+interface LanguageAgentConfig {
+  id: string;
+  language: string;
+  agentId: string | null;
+  agentName: string | null;
+  systemPrompt: string | null;
+  voiceId: string | null;
+  voiceTone: string | null;
+}
+
+const SUPPORTED_LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "fr", label: "French" },
+  { code: "it", label: "Italian" },
+  { code: "zh", label: "Chinese" },
+  { code: "hi", label: "Hindi" },
+  { code: "ar", label: "Arabic" },
+];
+
+const OPENAI_VOICE_PREVIEWS: Record<string, string> = {
+  alloy: "https://cdn.openai.com/API/docs/audio/alloy.wav",
+  echo: "https://cdn.openai.com/API/docs/audio/echo.wav",
+  shimmer: "https://cdn.openai.com/API/docs/audio/shimmer.wav",
+  ash: "https://cdn.openai.com/API/docs/audio/ash.wav",
+  ballad: "https://cdn.openai.com/API/docs/audio/ballad.wav",
+  coral: "https://cdn.openai.com/API/docs/audio/coral.wav",
+  sage: "https://cdn.openai.com/API/docs/audio/sage.wav",
+  verse: "https://cdn.openai.com/API/docs/audio/verse.wav",
+};
+
+const OPENAI_VOICES = [
+  { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced" },
+  { id: "echo", name: "Echo (OpenAI)", gender: "male", style: "warm" },
+  { id: "shimmer", name: "Shimmer (OpenAI)", gender: "female", style: "friendly" },
+  { id: "ash", name: "Ash (OpenAI)", gender: "male", style: "professional" },
+  { id: "coral", name: "Coral (OpenAI)", gender: "female", style: "warm" },
+  { id: "sage", name: "Sage (OpenAI)", gender: "neutral", style: "calm" },
+  { id: "verse", name: "Verse (OpenAI)", gender: "male", style: "expressive" },
+  { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm" },
+];
 
 const departmentIcons = [
   { value: "phone", label: "Phone", icon: Phone },
@@ -173,6 +226,34 @@ export default function DepartmentManagement() {
   
   const [selectedPhoneForIvr, setSelectedPhoneForIvr] = useState<string>("");
   const [ivrName, setIvrName] = useState<string>("Auto Distribution");
+  
+  const [languageAgents, setLanguageAgents] = useState<LanguageAgentConfig[]>([]);
+  const [activeTabIdx, setActiveTabIdx] = useState(0);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const [deptFeatures, setDeptFeatures] = useState({
+    enableTransfer: false,
+    transferNumber: "",
+    transferMessage: "",
+    enableLanguageDetection: false,
+    enableEndConversation: false,
+    endConversationPhrases: ["goodbye", "thank you for calling", "have a nice day"],
+    enableAppointmentBooking: false,
+    calendarUrl: "",
+    bookingInstructions: "",
+    enableRecording: false,
+  });
+  
+  useEffect(() => {
+    audioRef.current = new Audio();
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const { data: statsData, isLoading: statsLoading } = useQuery<{
     departments: Department[];
@@ -362,8 +443,93 @@ export default function DepartmentManagement() {
       icon: dept.icon,
       color: dept.color,
     });
+    setLanguageAgents([{
+      id: `la-${Date.now()}`,
+      language: "en",
+      agentId: null,
+      agentName: null,
+      systemPrompt: null,
+      voiceId: null,
+      voiceTone: null,
+    }]);
+    setActiveTabIdx(0);
     setShowConfigSheet(true);
   };
+  
+  const getAgentsForLanguage = (langCode: string) => {
+    return (agents || []).filter((agent) => {
+      const agentLang = (agent.language || "en").toLowerCase();
+      return agentLang === langCode.toLowerCase();
+    });
+  };
+  
+  const addLanguageAgent = () => {
+    const usedLangs = languageAgents.map((la) => la.language);
+    const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
+    if (!availableLang) return;
+    
+    const newLangAgent: LanguageAgentConfig = {
+      id: `la-${Date.now()}`,
+      language: availableLang.code,
+      agentId: null,
+      agentName: null,
+      systemPrompt: null,
+      voiceId: null,
+      voiceTone: null,
+    };
+    
+    setLanguageAgents([...languageAgents, newLangAgent]);
+    setActiveTabIdx(languageAgents.length);
+  };
+  
+  const removeLanguageAgent = (id: string) => {
+    const newList = languageAgents.filter((la) => la.id !== id);
+    setLanguageAgents(newList);
+    if (activeTabIdx >= newList.length) {
+      setActiveTabIdx(Math.max(0, newList.length - 1));
+    }
+  };
+  
+  const updateLanguageAgent = (id: string, updates: Partial<LanguageAgentConfig>) => {
+    const newList = languageAgents.map((la) => 
+      la.id === id ? { ...la, ...updates } : la
+    );
+    setLanguageAgents(newList);
+  };
+  
+  const handleSelectAgentForLang = (langAgentId: string, agentId: string) => {
+    const agent = agents?.find((a) => a.id === agentId);
+    if (agent) {
+      updateLanguageAgent(langAgentId, {
+        agentId: agent.id,
+        agentName: agent.name,
+        systemPrompt: agent.systemPrompt || null,
+        voiceId: agent.openaiVoice || agent.voiceName || null,
+        voiceTone: agent.voiceTone || null,
+      });
+    }
+  };
+  
+  const handlePlayVoice = (voiceId: string) => {
+    const previewUrl = OPENAI_VOICE_PREVIEWS[voiceId];
+    if (!previewUrl || !audioRef.current) return;
+    
+    if (playingVoiceId === voiceId) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setPlayingVoiceId(null);
+      return;
+    }
+    
+    audioRef.current.src = previewUrl;
+    audioRef.current.play();
+    setPlayingVoiceId(voiceId);
+    audioRef.current.onended = () => setPlayingVoiceId(null);
+    audioRef.current.onerror = () => setPlayingVoiceId(null);
+  };
+  
+  const activeLangAgent = languageAgents[activeTabIdx];
+  const availableAgentsForActive = activeLangAgent ? getAgentsForLanguage(activeLangAgent.language) : [];
 
   const departments = statsData?.departments || [];
   const ivrConfigurations = statsData?.ivrConfigurations || [];
@@ -936,138 +1102,317 @@ export default function DepartmentManagement() {
       </Dialog>
 
       <Sheet open={showConfigSheet} onOpenChange={setShowConfigSheet}>
-        <SheetContent className="w-[400px] sm:w-[500px]" data-testid="sheet-department-config">
+        <SheetContent className="w-[450px] sm:w-[550px]" data-testid="sheet-department-config">
           <SheetHeader>
             <SheetTitle>Department Configuration</SheetTitle>
           </SheetHeader>
           
           {selectedDepartment && (
-            <ScrollArea className="h-[calc(100vh-120px)] pr-4 mt-4">
-              <div className="space-y-6">
-                <div className="space-y-2">
+            <ScrollArea className="h-[calc(100vh-100px)] pr-4 mt-4">
+              <div className="space-y-4">
+                <div>
                   <Label>Department Name</Label>
                   <Input
                     value={newDepartment.name}
                     onChange={(e) => setNewDepartment({ ...newDepartment, name: e.target.value })}
+                    className="mt-1.5"
                     data-testid="input-config-dept-name"
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea
-                    value={newDepartment.description}
-                    onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
-                    placeholder="What does this department handle?"
-                    data-testid="input-config-dept-description"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Icon</Label>
-                    <Select 
-                      value={newDepartment.icon} 
-                      onValueChange={(v) => setNewDepartment({ ...newDepartment, icon: v })}
-                    >
-                      <SelectTrigger data-testid="select-config-icon">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departmentIcons.map((icon) => (
-                          <SelectItem key={icon.value} value={icon.value}>
-                            <div className="flex items-center gap-2">
-                              <icon.icon className="h-4 w-4" />
-                              {icon.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Color</Label>
-                    <Select 
-                      value={newDepartment.color} 
-                      onValueChange={(v) => setNewDepartment({ ...newDepartment, color: v })}
-                    >
-                      <SelectTrigger data-testid="select-config-color">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departmentColors.map((color) => (
-                          <SelectItem key={color.value} value={color.value}>
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-4 h-4 rounded-full" 
-                                style={{ backgroundColor: color.value }}
-                              />
-                              {color.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
                     <Label>Language Agents</Label>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setSelectedAgent({ agentId: "", language: "en" });
-                        setShowAddAgentDialog(true);
-                      }}
-                      data-testid="button-add-language-agent"
+                      onClick={addLanguageAgent}
+                      disabled={languageAgents.length >= SUPPORTED_LANGUAGES.length}
+                      data-testid="button-add-language"
                     >
                       <Plus className="h-3.5 w-3.5 mr-1" />
-                      Add Agent
+                      Add Language
                     </Button>
                   </div>
                   
-                  {departmentAgents && departmentAgents.length > 0 ? (
-                    <div className="space-y-2">
-                      {departmentAgents.map((da) => (
-                        <div 
-                          key={da.id} 
-                          className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
-                          data-testid={`agent-row-${da.id}`}
+                  {languageAgents.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {languageAgents.map((la, idx) => (
+                        <Badge
+                          key={la.id}
+                          variant={idx === activeTabIdx ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => setActiveTabIdx(idx)}
+                          data-testid={`badge-lang-${la.language}`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-primary" />
-                            <div>
-                              <div className="font-medium text-sm">{da.agent.name}</div>
-                              <div className="text-xs text-muted-foreground capitalize">
-                                {languages.find(l => l.value === da.language)?.label || da.language}
-                                {da.isPrimary && <Badge variant="secondary" className="ml-2 text-xs">Primary</Badge>}
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeAgentMutation.mutate({ 
-                              departmentId: selectedDepartment.id, 
-                              agentId: da.agentId 
-                            })}
-                            data-testid={`button-remove-agent-${da.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                          {SUPPORTED_LANGUAGES.find((l) => l.code === la.language)?.label || la.language}
+                        </Badge>
                       ))}
                     </div>
-                  ) : (
+                  )}
+                  
+                  {languageAgents.length === 0 && (
                     <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-                      No agents assigned. Click "Add Agent" to configure.
+                      Click "Add Language" to configure agents
                     </div>
                   )}
                 </div>
                 
-                <div className="flex gap-2 pt-4 border-t">
+                {activeLangAgent && (
+                  <Card className="p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Select
+                        value={activeLangAgent.language}
+                        onValueChange={(val) => {
+                          updateLanguageAgent(activeLangAgent.id, { 
+                            language: val,
+                            agentId: null,
+                            agentName: null,
+                            systemPrompt: null,
+                            voiceId: null,
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="w-32" data-testid="select-lang-tab">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_LANGUAGES.map((lang) => (
+                            <SelectItem
+                              key={lang.code}
+                              value={lang.code}
+                              disabled={languageAgents.some((la) => la.id !== activeLangAgent.id && la.language === lang.code)}
+                            >
+                              {lang.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeLanguageAgent(activeLangAgent.id)}
+                        data-testid="button-remove-lang-agent"
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                    
+                    <div>
+                      <Label>Agent Name</Label>
+                      {availableAgentsForActive.length === 0 ? (
+                        <p className="text-sm text-muted-foreground mt-1.5">
+                          No agents configured for {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
+                        </p>
+                      ) : (
+                        <Select
+                          value={activeLangAgent.agentId || ""}
+                          onValueChange={(val) => handleSelectAgentForLang(activeLangAgent.id, val)}
+                        >
+                          <SelectTrigger className="mt-1.5" data-testid="select-agent-name">
+                            <SelectValue placeholder="Select an agent..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableAgentsForActive.map((agent) => (
+                              <SelectItem key={agent.id} value={agent.id}>
+                                {agent.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <Label>System Prompt</Label>
+                      <Textarea
+                        value={activeLangAgent.systemPrompt || ""}
+                        onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}
+                        rows={4}
+                        className="mt-1.5"
+                        placeholder="Instructions for the AI agent..."
+                        data-testid="input-agent-prompt"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Voice</Label>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Select
+                          value={activeLangAgent.voiceId || ""}
+                          onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceId: val })}
+                        >
+                          <SelectTrigger className="flex-1" data-testid="select-voice">
+                            <SelectValue placeholder="Select a voice..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {OPENAI_VOICES.map((voice) => (
+                              <SelectItem key={voice.id} value={voice.id}>
+                                {voice.name} - {voice.gender}, {voice.style}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {activeLangAgent.voiceId && OPENAI_VOICE_PREVIEWS[activeLangAgent.voiceId] && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handlePlayVoice(activeLangAgent.voiceId!)}
+                            data-testid="button-preview-voice"
+                          >
+                            {playingVoiceId === activeLangAgent.voiceId ? (
+                              <Square className="h-4 w-4" />
+                            ) : (
+                              <Volume2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Voice Tone</Label>
+                        <Select
+                          value={activeLangAgent.voiceTone || ""}
+                          onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceTone: val })}
+                        >
+                          <SelectTrigger className="mt-1.5" data-testid="select-voice-tone">
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="professional">Professional</SelectItem>
+                            <SelectItem value="friendly">Friendly</SelectItem>
+                            <SelectItem value="casual">Casual</SelectItem>
+                            <SelectItem value="formal">Formal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Language</Label>
+                        <div className="mt-1.5 p-2 bg-muted rounded text-sm">
+                          {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+                
+                <div className="pt-2">
+                  <Label className="text-sm font-medium">Agent Features</Label>
+                  <div className="space-y-4 mt-3">
+                    <Card className="p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <PhoneForwarded className="h-4 w-4 text-blue-500" />
+                          <div>
+                            <Label className="text-sm">Enable Call Transfer</Label>
+                            <p className="text-xs text-muted-foreground">Transfer to human operators</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={deptFeatures.enableTransfer}
+                          onCheckedChange={(val) => setDeptFeatures({ ...deptFeatures, enableTransfer: val })}
+                          data-testid="switch-dept-transfer"
+                        />
+                      </div>
+                      {deptFeatures.enableTransfer && (
+                        <div className="space-y-2 pl-6 border-l-2 border-blue-200">
+                          <div>
+                            <Label className="text-xs">Transfer Number</Label>
+                            <Input
+                              value={deptFeatures.transferNumber}
+                              onChange={(e) => setDeptFeatures({ ...deptFeatures, transferNumber: e.target.value })}
+                              placeholder="+1 (555) 123-4567"
+                              className="mt-1"
+                              data-testid="input-transfer-number"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Transfer Message</Label>
+                            <Input
+                              value={deptFeatures.transferMessage}
+                              onChange={(e) => setDeptFeatures({ ...deptFeatures, transferMessage: e.target.value })}
+                              placeholder="Please hold while I transfer you..."
+                              className="mt-1"
+                              data-testid="input-transfer-message"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                    
+                    <Card className="p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Languages className="h-4 w-4 text-green-500" />
+                          <div>
+                            <Label className="text-sm">Enable Language Detection</Label>
+                            <p className="text-xs text-muted-foreground">Auto-detect caller's language (99 languages)</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={deptFeatures.enableLanguageDetection}
+                          onCheckedChange={(val) => setDeptFeatures({ ...deptFeatures, enableLanguageDetection: val })}
+                          data-testid="switch-lang-detection"
+                        />
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <PhoneOff className="h-4 w-4 text-orange-500" />
+                          <div>
+                            <Label className="text-sm">Enable End Conversation</Label>
+                            <p className="text-xs text-muted-foreground">Intelligently end calls when appropriate</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={deptFeatures.enableEndConversation}
+                          onCheckedChange={(val) => setDeptFeatures({ ...deptFeatures, enableEndConversation: val })}
+                          data-testid="switch-end-conversation"
+                        />
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CalendarCheck className="h-4 w-4 text-purple-500" />
+                          <div>
+                            <Label className="text-sm">Enable Appointment Booking</Label>
+                            <p className="text-xs text-muted-foreground">Book appointments during calls</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={deptFeatures.enableAppointmentBooking}
+                          onCheckedChange={(val) => setDeptFeatures({ ...deptFeatures, enableAppointmentBooking: val })}
+                          data-testid="switch-appointment"
+                        />
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Circle className="h-4 w-4 text-red-500" />
+                          <div>
+                            <Label className="text-sm">Enable Call Recording</Label>
+                            <p className="text-xs text-muted-foreground">Record for quality and training</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={deptFeatures.enableRecording}
+                          onCheckedChange={(val) => setDeptFeatures({ ...deptFeatures, enableRecording: val })}
+                          data-testid="switch-dept-recording"
+                        />
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-background pb-4">
                   <Button
                     className="flex-1"
                     onClick={() => {

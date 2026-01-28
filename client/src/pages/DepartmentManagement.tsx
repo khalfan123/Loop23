@@ -1659,13 +1659,17 @@ function DepartmentCard({
         
         {isExpanded && (
           <div className="space-y-2 pt-2 border-t" data-testid={`agent-list-${department.id}`}>
-            {(department.languages || ["en"]).map((lang) => (
-              <div key={lang} className="flex items-center gap-2 text-sm">
-                <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="capitalize">{languages.find(l => l.value === lang)?.label || lang}</span>
-                <span className="text-muted-foreground">- AI Agent</span>
-              </div>
-            ))}
+            {(department.assignedAgents || []).length > 0 ? (
+              (department.assignedAgents || []).map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
+                <div key={agent.id} className="flex items-center gap-2 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  <span className="capitalize">{languages.find(l => l.value === agent.language)?.label || agent.language}</span>
+                  <span className="text-muted-foreground">- {agent.agentName}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">No agents assigned</div>
+            )}
             <Button 
               variant="ghost" 
               size="sm" 

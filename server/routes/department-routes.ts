@@ -467,15 +467,25 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
 
       const deptStats = await Promise.all(
         userDepartments.map(async (dept) => {
-          const agentCount = await db
-            .select()
+          const deptAgentData = await db
+            .select({
+              departmentAgent: departmentAgents,
+              agent: agents,
+            })
             .from(departmentAgents)
+            .innerJoin(agents, eq(departmentAgents.agentId, agents.id))
             .where(eq(departmentAgents.departmentId, dept.id));
 
           return {
             ...dept,
-            agentCount: agentCount.length,
-            languages: [...new Set(agentCount.map(a => a.language))],
+            agentCount: deptAgentData.length,
+            languages: [...new Set(deptAgentData.map(a => a.departmentAgent.language))],
+            assignedAgents: deptAgentData.map(da => ({
+              id: da.departmentAgent.id,
+              agentId: da.departmentAgent.agentId,
+              agentName: da.agent.name,
+              language: da.departmentAgent.language,
+            })),
           };
         })
       );

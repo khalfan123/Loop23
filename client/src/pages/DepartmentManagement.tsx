@@ -160,15 +160,44 @@ const OPENAI_VOICE_PREVIEWS: Record<string, string> = {
 };
 
 const OPENAI_VOICES = [
-  { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced" },
-  { id: "echo", name: "Echo (OpenAI)", gender: "male", style: "warm" },
-  { id: "shimmer", name: "Shimmer (OpenAI)", gender: "female", style: "friendly" },
-  { id: "ash", name: "Ash (OpenAI)", gender: "male", style: "professional" },
-  { id: "coral", name: "Coral (OpenAI)", gender: "female", style: "warm" },
-  { id: "sage", name: "Sage (OpenAI)", gender: "neutral", style: "calm" },
-  { id: "verse", name: "Verse (OpenAI)", gender: "male", style: "expressive" },
-  { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm" },
+  { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "echo", name: "Echo (OpenAI)", gender: "male", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "shimmer", name: "Shimmer (OpenAI)", gender: "female", style: "friendly", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "ash", name: "Ash (OpenAI)", gender: "male", style: "professional", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "coral", name: "Coral (OpenAI)", gender: "female", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "sage", name: "Sage (OpenAI)", gender: "neutral", style: "calm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "verse", name: "Verse (OpenAI)", gender: "male", style: "expressive", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
 ];
+
+const ELEVENLABS_VOICES = [
+  { id: "el_rachel", name: "Rachel (ElevenLabs)", gender: "female", style: "warm", languages: ["en"] },
+  { id: "el_domi", name: "Domi (ElevenLabs)", gender: "female", style: "strong", languages: ["en"] },
+  { id: "el_bella", name: "Bella (ElevenLabs)", gender: "female", style: "soft", languages: ["en"] },
+  { id: "el_antoni", name: "Antoni (ElevenLabs)", gender: "male", style: "well-rounded", languages: ["en"] },
+  { id: "el_elli", name: "Elli (ElevenLabs)", gender: "female", style: "young", languages: ["en"] },
+  { id: "el_josh", name: "Josh (ElevenLabs)", gender: "male", style: "deep", languages: ["en"] },
+  { id: "el_arnold", name: "Arnold (ElevenLabs)", gender: "male", style: "crisp", languages: ["en"] },
+  { id: "el_adam", name: "Adam (ElevenLabs)", gender: "male", style: "deep", languages: ["en"] },
+  { id: "el_sam", name: "Sam (ElevenLabs)", gender: "male", style: "raspy", languages: ["en"] },
+  { id: "el_nicole", name: "Nicole (ElevenLabs)", gender: "female", style: "whisper", languages: ["en"] },
+  { id: "el_marie", name: "Marie (ElevenLabs)", gender: "female", style: "soft", languages: ["fr"] },
+  { id: "el_pierre", name: "Pierre (ElevenLabs)", gender: "male", style: "warm", languages: ["fr"] },
+  { id: "el_giulia", name: "Giulia (ElevenLabs)", gender: "female", style: "expressive", languages: ["it"] },
+  { id: "el_marco", name: "Marco (ElevenLabs)", gender: "male", style: "warm", languages: ["it"] },
+  { id: "el_xiaoli", name: "Xiaoli (ElevenLabs)", gender: "female", style: "clear", languages: ["zh"] },
+  { id: "el_wei", name: "Wei (ElevenLabs)", gender: "male", style: "professional", languages: ["zh"] },
+  { id: "el_priya", name: "Priya (ElevenLabs)", gender: "female", style: "warm", languages: ["hi"] },
+  { id: "el_raj", name: "Raj (ElevenLabs)", gender: "male", style: "deep", languages: ["hi"] },
+  { id: "el_fatima", name: "Fatima (ElevenLabs)", gender: "female", style: "warm", languages: ["ar"] },
+  { id: "el_omar", name: "Omar (ElevenLabs)", gender: "male", style: "deep", languages: ["ar"] },
+];
+
+const ALL_IVR_VOICES = [...OPENAI_VOICES, ...ELEVENLABS_VOICES];
+
+const getVoicesForLanguage = (languageCode: string) => {
+  return ALL_IVR_VOICES.filter(voice => voice.languages.includes(languageCode));
+};
 
 const DEFAULT_GREETINGS: Record<string, string> = {
   en: "Thank you for calling. How may I assist you today?",
@@ -500,6 +529,13 @@ export default function DepartmentManagement() {
       .join(" ");
   }, [languageOptions]);
 
+  const getDefaultVoiceForLanguage = (langCode: string) => {
+    const voices = getVoicesForLanguage(langCode);
+    const elevenLabsVoice = voices.find(v => v.id.startsWith("el_"));
+    if (elevenLabsVoice) return elevenLabsVoice.id;
+    return voices[0]?.id || "nova";
+  };
+
   const addLanguageOption = () => {
     const usedLangs = languageOptions.map((o) => o.language);
     const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
@@ -508,7 +544,7 @@ export default function DepartmentManagement() {
     const newOption: LanguageOption = {
       id: `lang-${Date.now()}`,
       language: availableLang.code,
-      voiceId: "nova",
+      voiceId: getDefaultVoiceForLanguage(availableLang.code),
       greeting: DEFAULT_GREETINGS[availableLang.code] || DEFAULT_GREETINGS.en,
     };
     setLanguageOptions([...languageOptions, newOption]);
@@ -521,6 +557,7 @@ export default function DepartmentManagement() {
           const updated = { ...opt, ...updates };
           if (updates.language && updates.language !== opt.language) {
             updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
+            updated.voiceId = getDefaultVoiceForLanguage(updates.language);
           }
           return updated;
         }
@@ -1883,20 +1920,38 @@ export default function DepartmentManagement() {
                                     onValueChange={(val) => updateLanguageOption(opt.id, { voiceId: val })}
                                   >
                                     <SelectTrigger className="flex-1" data-testid={`select-voice-${idx}`}>
-                                      <SelectValue />
+                                      <SelectValue placeholder="Select a voice..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {OPENAI_VOICES.map((voice) => (
-                                        <SelectItem key={voice.id} value={voice.id}>
-                                          {voice.name} - {voice.gender}, {voice.style}
-                                        </SelectItem>
-                                      ))}
+                                      {getVoicesForLanguage(opt.language).length > 0 ? (
+                                        <>
+                                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">OpenAI Voices</div>
+                                          {getVoicesForLanguage(opt.language)
+                                            .filter(v => v.id.startsWith("el_") === false)
+                                            .map((voice) => (
+                                              <SelectItem key={voice.id} value={voice.id}>
+                                                {voice.name} - {voice.gender}, {voice.style}
+                                              </SelectItem>
+                                            ))}
+                                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-2">ElevenLabs Voices</div>
+                                          {getVoicesForLanguage(opt.language)
+                                            .filter(v => v.id.startsWith("el_"))
+                                            .map((voice) => (
+                                              <SelectItem key={voice.id} value={voice.id}>
+                                                {voice.name} - {voice.gender}, {voice.style}
+                                              </SelectItem>
+                                            ))}
+                                        </>
+                                      ) : (
+                                        <div className="px-2 py-2 text-sm text-muted-foreground">No voices available for this language</div>
+                                      )}
                                     </SelectContent>
                                   </Select>
                                   <Button
                                     variant="outline"
                                     size="icon"
                                     onClick={() => handleIvrVoicePreview(opt.voiceId)}
+                                    disabled={!OPENAI_VOICE_PREVIEWS[opt.voiceId]}
                                     data-testid={`button-preview-voice-${idx}`}
                                   >
                                     {ivrPlayingVoiceId === opt.voiceId ? (

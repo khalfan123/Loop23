@@ -34,6 +34,7 @@ import {
   Languages,
   CalendarCheck,
   Circle,
+  Check,
   Volume2,
   Square,
   Sparkles,
@@ -230,6 +231,8 @@ export default function DepartmentManagement() {
   
   const [selectedPhoneForIvr, setSelectedPhoneForIvr] = useState<string>("");
   const [ivrName, setIvrName] = useState<string>("Auto Distribution");
+  const [editingIvrName, setEditingIvrName] = useState<string | null>(null);
+  const [editIvrNameValue, setEditIvrNameValue] = useState<string>("");
   
   const [languageAgents, setLanguageAgents] = useState<LanguageAgentConfig[]>([]);
   const [activeTabIdx, setActiveTabIdx] = useState(0);
@@ -402,6 +405,21 @@ export default function DepartmentManagement() {
     },
     onError: () => {
       toast({ title: "Failed to assign phone number", variant: "destructive" });
+    },
+  });
+
+  const updateIvrMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      return apiRequest("PATCH", `/api/departments/ivr/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
+      setEditingIvrName(null);
+      setEditIvrNameValue("");
+      toast({ title: "IVR configuration updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update IVR configuration", variant: "destructive" });
     },
   });
 
@@ -720,11 +738,55 @@ export default function DepartmentManagement() {
                 <Card className="w-64" data-testid="ivr-panel">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <GitBranch className="h-4 w-4" />
-                        <CardTitle className="text-sm">Auto Distribution</CardTitle>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <GitBranch className="h-4 w-4 shrink-0" />
+                        {editingIvrName && ivrConfigurations.length > 0 ? (
+                          <div className="flex items-center gap-1 flex-1">
+                            <Input
+                              value={editIvrNameValue}
+                              onChange={(e) => setEditIvrNameValue(e.target.value)}
+                              className="h-6 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && editIvrNameValue.trim()) {
+                                  updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
+                                } else if (e.key === "Escape") {
+                                  setEditingIvrName(null);
+                                  setEditIvrNameValue("");
+                                }
+                              }}
+                              data-testid="input-edit-ivr-name"
+                            />
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-6 w-6"
+                              onClick={() => {
+                                if (editIvrNameValue.trim()) {
+                                  updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
+                                }
+                              }}
+                            >
+                              <Check className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <CardTitle 
+                            className="text-sm cursor-pointer hover:text-primary truncate"
+                            onClick={() => {
+                              const activeIvr = ivrConfigurations.find(i => i.isActive);
+                              if (activeIvr) {
+                                setEditingIvrName(activeIvr.id);
+                                setEditIvrNameValue(activeIvr.name || "Auto Distribution");
+                              }
+                            }}
+                            data-testid="ivr-name-editable"
+                          >
+                            {ivrConfigurations.find(i => i.isActive)?.name || "Auto Distribution"}
+                          </CardTitle>
+                        )}
                       </div>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs shrink-0">
                         {ivrConfigurations.filter(i => i.isActive).length} Active
                       </Badge>
                     </div>

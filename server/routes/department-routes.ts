@@ -437,6 +437,37 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
   });
 
   /**
+   * Update IVR configuration
+   */
+  router.patch("/ivr/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { name, isActive, greetingMessage, voiceId } = req.body;
+
+      const updateData: Record<string, any> = { updatedAt: new Date() };
+      if (name !== undefined) updateData.name = name;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (greetingMessage !== undefined) updateData.greetingMessage = greetingMessage;
+      if (voiceId !== undefined) updateData.voiceId = voiceId;
+
+      const updated = await db
+        .update(ivrConfigurations)
+        .set(updateData)
+        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!)))
+        .returning();
+
+      if (updated.length === 0) {
+        return res.status(404).json({ error: "IVR configuration not found" });
+      }
+
+      res.json(updated[0]);
+    } catch (error: any) {
+      console.error("[Departments] Update IVR config error:", error);
+      res.status(500).json({ error: "Failed to update IVR configuration" });
+    }
+  });
+
+  /**
    * Delete IVR configuration
    */
   router.delete("/ivr/:id", authenticateToken, async (req: AuthRequest, res: Response) => {

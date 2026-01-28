@@ -87,7 +87,7 @@ export function AppSidebar() {
   const telephonyItems = [
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500" },
     { title: t('nav.incomingConnections'), url: "/app/incoming-connections", icon: LinkIcon, iconColor: "text-amber-500" },
-    { title: t('nav.departments') || 'Departments', url: "/app/departments", icon: Building2, iconColor: "text-sky-500" },
+    { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500" },
   ];
 
   const flowAutomationItems = [

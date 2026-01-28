@@ -125,6 +125,7 @@
     "analytics": "Analytics",
     "phoneNumbers": "Phone Numbers",
     "incomingConnections": "Incoming Connections",
+    "departments": "Departments",
     "flowBuilder": "Flow Builder",
     "executionLogs": "Execution Logs",
     "webhooks": "Webhooks",

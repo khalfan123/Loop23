@@ -106,7 +106,7 @@ const SUPPORTED_LANGUAGES = [
   { code: "ar", label: "Arabic" },
 ];
 
-const OPENAI_VOICE_PREVIEWS: Record<string, string> = {
+const VOICE_PREVIEWS: Record<string, string> = {
   alloy: "https://cdn.openai.com/API/docs/audio/alloy.wav",
   echo: "https://cdn.openai.com/API/docs/audio/echo.wav",
   shimmer: "https://cdn.openai.com/API/docs/audio/shimmer.wav",
@@ -115,7 +115,10 @@ const OPENAI_VOICE_PREVIEWS: Record<string, string> = {
   coral: "https://cdn.openai.com/API/docs/audio/coral.wav",
   sage: "https://cdn.openai.com/API/docs/audio/sage.wav",
   verse: "https://cdn.openai.com/API/docs/audio/verse.wav",
+  nova: "https://cdn.openai.com/API/docs/audio/nova.wav",
 };
+
+const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_");
 
 const OPENAI_VOICES = [
   { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
@@ -352,9 +355,8 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
     }
   };
   
-  const handlePlayVoice = (voiceId: string) => {
-    const previewUrl = OPENAI_VOICE_PREVIEWS[voiceId];
-    if (!previewUrl || !audioRef.current) return;
+  const handlePlayVoice = async (voiceId: string) => {
+    if (!audioRef.current) return;
     
     if (playingVoiceId === voiceId) {
       audioRef.current.pause();
@@ -362,6 +364,14 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
       setPlayingVoiceId(null);
       return;
     }
+    
+    if (isElevenLabsVoice(voiceId)) {
+      setPlayingVoiceId(voiceId);
+      return;
+    }
+    
+    const previewUrl = VOICE_PREVIEWS[voiceId];
+    if (!previewUrl) return;
     
     audioRef.current.src = previewUrl;
     audioRef.current.play();
@@ -518,7 +528,7 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
                   ))}
                 </SelectContent>
               </Select>
-              {activeLangAgent.voiceId && OPENAI_VOICE_PREVIEWS[activeLangAgent.voiceId] && (
+              {activeLangAgent.voiceId && (
                 <Button
                   variant="outline"
                   size="icon"
@@ -827,14 +837,47 @@ function IVRConfigPanel({
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
   
-  const handlePlayVoice = (voiceId: string) => {
-    const previewUrl = OPENAI_VOICE_PREVIEWS[voiceId];
-    if (!previewUrl || !audioRef.current) return;
+  const handlePlayVoice = async (voiceId: string) => {
+    if (!audioRef.current) return;
     
     if (playingVoiceId === voiceId) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       setPlayingVoiceId(null);
+      return;
+    }
+    
+    if (isElevenLabsVoice(voiceId)) {
+      try {
+        setPlayingVoiceId(voiceId);
+        const response = await fetch(`/api/elevenlabs/preview/${voiceId.replace("el_", "")}`);
+        if (!response.ok) {
+          toast({ title: "Preview not available", description: "ElevenLabs voice preview requires API configuration", variant: "destructive" });
+          setPlayingVoiceId(null);
+          return;
+        }
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        audioRef.current.src = audioUrl;
+        audioRef.current.play();
+        audioRef.current.onended = () => {
+          setPlayingVoiceId(null);
+          URL.revokeObjectURL(audioUrl);
+        };
+        audioRef.current.onerror = () => {
+          setPlayingVoiceId(null);
+          URL.revokeObjectURL(audioUrl);
+        };
+      } catch {
+        toast({ title: "Preview not available", description: "ElevenLabs voice preview requires API configuration", variant: "destructive" });
+        setPlayingVoiceId(null);
+      }
+      return;
+    }
+    
+    const previewUrl = VOICE_PREVIEWS[voiceId];
+    if (!previewUrl) {
+      toast({ title: "Preview not available", description: "No preview available for this voice", variant: "destructive" });
       return;
     }
     
@@ -978,7 +1021,6 @@ function IVRConfigPanel({
                             variant="outline"
                             size="icon"
                             onClick={() => handlePlayVoice(opt.voiceId)}
-                            disabled={!OPENAI_VOICE_PREVIEWS[opt.voiceId]}
                             data-testid={`button-preview-voice-${idx}`}
                           >
                             {playingVoiceId === opt.voiceId ? (

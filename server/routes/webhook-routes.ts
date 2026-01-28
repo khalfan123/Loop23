@@ -17,7 +17,7 @@
  */
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { calls, campaigns, users, creditTransactions, contacts, globalSettings, phoneNumbers, incomingAgents, incomingConnections, agents, knowledgeBase, appointments, appointmentSettings, flows, sipCalls, elevenLabsCredentials } from '../../shared/schema';
+import { calls, campaigns, users, creditTransactions, contacts, globalSettings, phoneNumbers, incomingAgents, incomingConnections, agents, knowledgeBase, appointments, appointmentSettings, flows, sipCalls, elevenLabsCredentials, ivrConfigurations, departments, departmentAgents } from '../../shared/schema';
 import { nanoid } from 'nanoid';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import WebSocket from 'ws';
@@ -724,6 +724,208 @@ async function initializeElevenLabsConnection(
   return elevenLabsWs;
 }
 
+// Handle IVR calls (department routing)
+async function handleIvrCall(
+  req: Request,
+  res: Response,
+  phone: { id: string; userId: string | null; phoneNumber: string },
+  ivrConfig: any,
+  callerNumber: string,
+  callSid: string
+) {
+  try {
+    console.log(`📞 [IVR Call] Processing IVR for phone ${phone.phoneNumber}`);
+    console.log(`   IVR Config: ${ivrConfig.name}`);
+    console.log(`   Menu Options: ${JSON.stringify(ivrConfig.menuOptions)}`);
+
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    
+    const menuOptions = ivrConfig.menuOptions || [];
+    
+    if (menuOptions.length === 0) {
+      console.log(`⚠️ [IVR Call] No menu options configured`);
+      response.say({ voice: 'Polly.Joanna' }, 'Thank you for calling. Our system is currently being configured. Please try again later.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+
+    // Build greeting message
+    const greetingMessage = ivrConfig.greetingMessage || 
+      `Thank you for calling. ${menuOptions.map((opt: any) => `Press ${opt.key} for ${opt.label}.`).join(' ')}`;
+
+    // Create Gather to collect DTMF digits
+    const gather = response.gather({
+      numDigits: 1,
+      action: `/api/webhooks/ivr/handle-selection?ivrId=${ivrConfig.id}&callSid=${callSid}&caller=${encodeURIComponent(callerNumber)}`,
+      method: 'POST',
+      timeout: 10,
+    });
+    
+    gather.say({ voice: 'Polly.Joanna' }, greetingMessage);
+
+    // If no input, repeat the menu
+    response.say({ voice: 'Polly.Joanna' }, 'We did not receive your selection.');
+    response.redirect(`/api/webhooks/twilio/incoming`);
+
+    res.type('text/xml');
+    console.log(`📞 [IVR Call] Sending TwiML response`);
+    return res.send(response.toString());
+  } catch (error) {
+    console.error(`❌ [IVR Call] Error:`, error);
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    response.say('An error occurred. Please try again later.');
+    response.hangup();
+    res.type('text/xml');
+    return res.send(response.toString());
+  }
+}
+
+// Handle IVR menu selection
+export async function handleIvrSelection(req: Request, res: Response) {
+  try {
+    const { ivrId, callSid, caller } = req.query;
+    const { Digits, To } = req.body;
+    
+    console.log(`📞 [IVR Selection] Received digit: ${Digits} for IVR: ${ivrId}, To: ${To}`);
+    
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    
+    // Get IVR config with ownership validation
+    const ivrConfig = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.id, ivrId as string),
+        eq(ivrConfigurations.isActive, true)
+      ))
+      .limit(1);
+    
+    if (!ivrConfig.length) {
+      console.error(`❌ [IVR Selection] IVR config not found or inactive: ${ivrId}`);
+      response.say({ voice: 'Polly.Joanna' }, 'Sorry, an error occurred. Please try again.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+    
+    // Validate that the IVR config's phone number matches the called number (security check)
+    if (ivrConfig[0].phoneNumberId) {
+      const phoneCheck = await db
+        .select({ phoneNumber: phoneNumbers.phoneNumber })
+        .from(phoneNumbers)
+        .where(eq(phoneNumbers.id, ivrConfig[0].phoneNumberId))
+        .limit(1);
+      
+      if (phoneCheck.length > 0 && To && phoneCheck[0].phoneNumber !== To) {
+        console.error(`❌ [IVR Selection] Phone number mismatch - IVR phone: ${phoneCheck[0].phoneNumber}, Called: ${To}`);
+        response.say({ voice: 'Polly.Joanna' }, 'Sorry, an error occurred. Please try again.');
+        response.hangup();
+        res.type('text/xml');
+        return res.send(response.toString());
+      }
+    }
+    
+    const menuOptions = ivrConfig[0].menuOptions || [];
+    const selectedOption = menuOptions.find((opt: any) => opt.key === Digits);
+    
+    if (!selectedOption) {
+      console.log(`⚠️ [IVR Selection] Invalid digit: ${Digits}`);
+      response.say({ voice: 'Polly.Joanna' }, 'Invalid selection.');
+      // Rebuild the menu for this IVR
+      const greetingMessage = ivrConfig[0].greetingMessage || 
+        `Please try again. ${menuOptions.map((opt: any) => `Press ${opt.key} for ${opt.label}.`).join(' ')}`;
+      const gather = response.gather({
+        numDigits: 1,
+        action: `/api/webhooks/ivr/handle-selection?ivrId=${ivrId}&callSid=${callSid}&caller=${encodeURIComponent(caller as string || '')}`,
+        method: 'POST',
+        timeout: 10,
+      });
+      gather.say({ voice: 'Polly.Joanna' }, greetingMessage);
+      response.say({ voice: 'Polly.Joanna' }, 'Goodbye.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+    
+    console.log(`📞 [IVR Selection] Selected department: ${selectedOption.label} (${selectedOption.departmentId})`);
+    
+    // Get department and its agents
+    const dept = await db
+      .select()
+      .from(departments)
+      .where(eq(departments.id, selectedOption.departmentId))
+      .limit(1);
+    
+    if (!dept.length) {
+      response.say({ voice: 'Polly.Joanna' }, 'Sorry, that department is not available. Please try again.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+    
+    // Get agents assigned to this department
+    const deptAgentsList = await db
+      .select({
+        agentId: departmentAgents.agentId,
+        agent: agents,
+      })
+      .from(departmentAgents)
+      .leftJoin(agents, eq(departmentAgents.agentId, agents.id))
+      .where(eq(departmentAgents.departmentId, selectedOption.departmentId));
+    
+    if (deptAgentsList.length === 0 || !deptAgentsList[0].agent) {
+      response.say({ voice: 'Polly.Joanna' }, `You have selected ${selectedOption.label}. Unfortunately, no agents are currently available. Please try again later.`);
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+    
+    // Get first available agent with ElevenLabs configuration
+    const availableAgent = deptAgentsList.find(da => da.agent?.elevenLabsAgentId);
+    
+    if (!availableAgent || !availableAgent.agent) {
+      response.say({ voice: 'Polly.Joanna' }, `You have selected ${selectedOption.label}. Please hold while we connect you.`);
+      // If no ElevenLabs agent, try to transfer to the department's first agent
+      const firstAgent = deptAgentsList[0].agent;
+      if (firstAgent?.transferPhoneNumber) {
+        response.dial().number(firstAgent.transferPhoneNumber);
+      } else {
+        response.say({ voice: 'Polly.Joanna' }, 'We were unable to connect you. Please try again later.');
+        response.hangup();
+      }
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+    
+    const selectedAgent = availableAgent.agent;
+    console.log(`📞 [IVR Selection] Connecting to agent: ${selectedAgent.name} (${selectedAgent.id})`);
+    
+    response.say({ voice: 'Polly.Joanna' }, `You have selected ${selectedOption.label}. Please hold while we connect you to an agent.`);
+    
+    // Redirect to ElevenLabs for the AI conversation
+    const domain = getDomain();
+    const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${selectedAgent.elevenLabsAgentId}`;
+    
+    console.log(`📞 [IVR Selection] Redirecting to ElevenLabs: ${elevenLabsUrl}`);
+    response.redirect(elevenLabsUrl);
+    
+    res.type('text/xml');
+    return res.send(response.toString());
+  } catch (error) {
+    console.error(`❌ [IVR Selection] Error:`, error);
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    response.say('An error occurred. Please try again later.');
+    response.hangup();
+    res.type('text/xml');
+    return res.send(response.toString());
+  }
+}
+
 // Handle incoming calls to Twilio numbers (for incoming agents)
 export async function handleIncomingCallWebhook(req: Request, res: Response) {
   try {
@@ -763,7 +965,22 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
     const phone = phoneNumber[0];
 
-    // Look up the incoming connection for this phone number
+    // Check for IVR configuration FIRST (department routing takes priority)
+    const ivrConfig = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.phoneNumberId, phone.id),
+        eq(ivrConfigurations.isActive, true)
+      ))
+      .limit(1);
+
+    if (ivrConfig && ivrConfig.length > 0) {
+      console.log(`📞 [Incoming Call] Found IVR configuration for ${To} - routing to IVR menu`);
+      return handleIvrCall(req, res, phone, ivrConfig[0], From, CallSid);
+    }
+
+    // Look up the incoming connection for this phone number (fallback if no IVR)
     const connection = await db
       .select({
         id: incomingConnections.id,
@@ -774,7 +991,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
       .limit(1);
 
     if (!connection || connection.length === 0) {
-      console.error(`❌ [Incoming Call] REJECTED - Phone number ${To} has no incoming connection configured`);
+      console.error(`❌ [Incoming Call] REJECTED - Phone number ${To} has no incoming connection or IVR configured`);
       console.error(`   🚨 [Security Audit] Incoming call to unconfigured number: From=${From}, To=${To}, CallSid=${CallSid}`);
       const VoiceResponse = twilio.twiml.VoiceResponse;
       const response = new VoiceResponse();

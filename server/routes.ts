@@ -36,6 +36,7 @@ import { BatchCallingService } from "./services/batch-calling";
 import { 
   handleTwilioVoiceWebhook,
   handleIncomingCallWebhook,
+  handleIvrSelection,
   handleTwilioStatusWebhook, 
   handleTwilioRecordingWebhook, 
   handleTwilioStreamWebSocket,
@@ -1349,6 +1350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Twilio webhook endpoints (validated with Twilio signature verification)
   app.post("/api/webhooks/twilio/voice", validateTwilioWebhook, handleTwilioVoiceWebhook); // Outbound campaign calls
   app.post("/api/webhooks/twilio/incoming", validateTwilioWebhook, handleIncomingCallWebhook); // Incoming calls to purchased numbers
+  app.post("/api/webhooks/ivr/handle-selection", validateTwilioWebhook, handleIvrSelection); // IVR department selection
   app.post("/api/webhooks/twilio/status", validateTwilioWebhook, handleTwilioStatusWebhook);
   app.post("/api/webhooks/twilio/recording", validateTwilioWebhook, handleTwilioRecordingWebhook);
   

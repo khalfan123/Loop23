@@ -56,6 +56,12 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface Department {
   id: string;
@@ -149,6 +155,7 @@ export default function DepartmentManagement() {
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [showIvrSettingsDialog, setShowIvrSettingsDialog] = useState(false);
   const [showAddAgentDialog, setShowAddAgentDialog] = useState(false);
+  const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set());
   
@@ -345,6 +352,17 @@ export default function DepartmentManagement() {
       color: dept.color,
     });
     setShowCreateDialog(true);
+  };
+
+  const openConfigSheet = (dept: Department) => {
+    setSelectedDepartment(dept);
+    setNewDepartment({
+      name: dept.name,
+      description: dept.description || "",
+      icon: dept.icon,
+      color: dept.color,
+    });
+    setShowConfigSheet(true);
   };
 
   const departments = statsData?.departments || [];
@@ -561,7 +579,7 @@ export default function DepartmentManagement() {
                     index={idx + 1}
                     isExpanded={expandedDepartments.has(dept.id)}
                     onToggleExpand={() => toggleDepartmentExpanded(dept.id)}
-                    onEdit={() => openEditDialog(dept)}
+                    onEdit={() => openConfigSheet(dept)}
                     onDelete={() => {
                       setSelectedDepartment(dept);
                       setShowDeleteDialog(true);
@@ -600,7 +618,7 @@ export default function DepartmentManagement() {
                 index={idx + 1}
                 isExpanded={expandedDepartments.has(dept.id)}
                 onToggleExpand={() => toggleDepartmentExpanded(dept.id)}
-                onEdit={() => openEditDialog(dept)}
+                onEdit={() => openConfigSheet(dept)}
                 onDelete={() => {
                   setSelectedDepartment(dept);
                   setShowDeleteDialog(true);
@@ -916,6 +934,168 @@ export default function DepartmentManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Sheet open={showConfigSheet} onOpenChange={setShowConfigSheet}>
+        <SheetContent className="w-[400px] sm:w-[500px]" data-testid="sheet-department-config">
+          <SheetHeader>
+            <SheetTitle>Department Configuration</SheetTitle>
+          </SheetHeader>
+          
+          {selectedDepartment && (
+            <ScrollArea className="h-[calc(100vh-120px)] pr-4 mt-4">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Department Name</Label>
+                  <Input
+                    value={newDepartment.name}
+                    onChange={(e) => setNewDepartment({ ...newDepartment, name: e.target.value })}
+                    data-testid="input-config-dept-name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={newDepartment.description}
+                    onChange={(e) => setNewDepartment({ ...newDepartment, description: e.target.value })}
+                    placeholder="What does this department handle?"
+                    data-testid="input-config-dept-description"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Icon</Label>
+                    <Select 
+                      value={newDepartment.icon} 
+                      onValueChange={(v) => setNewDepartment({ ...newDepartment, icon: v })}
+                    >
+                      <SelectTrigger data-testid="select-config-icon">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departmentIcons.map((icon) => (
+                          <SelectItem key={icon.value} value={icon.value}>
+                            <div className="flex items-center gap-2">
+                              <icon.icon className="h-4 w-4" />
+                              {icon.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Color</Label>
+                    <Select 
+                      value={newDepartment.color} 
+                      onValueChange={(v) => setNewDepartment({ ...newDepartment, color: v })}
+                    >
+                      <SelectTrigger data-testid="select-config-color">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departmentColors.map((color) => (
+                          <SelectItem key={color.value} value={color.value}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-4 h-4 rounded-full" 
+                                style={{ backgroundColor: color.value }}
+                              />
+                              {color.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Language Agents</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedAgent({ agentId: "", language: "en" });
+                        setShowAddAgentDialog(true);
+                      }}
+                      data-testid="button-add-language-agent"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Add Agent
+                    </Button>
+                  </div>
+                  
+                  {departmentAgents && departmentAgents.length > 0 ? (
+                    <div className="space-y-2">
+                      {departmentAgents.map((da) => (
+                        <div 
+                          key={da.id} 
+                          className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
+                          data-testid={`agent-row-${da.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-primary" />
+                            <div>
+                              <div className="font-medium text-sm">{da.agent.name}</div>
+                              <div className="text-xs text-muted-foreground capitalize">
+                                {languages.find(l => l.value === da.language)?.label || da.language}
+                                {da.isPrimary && <Badge variant="secondary" className="ml-2 text-xs">Primary</Badge>}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAgentMutation.mutate({ 
+                              departmentId: selectedDepartment.id, 
+                              agentId: da.agentId 
+                            })}
+                            data-testid={`button-remove-agent-${da.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+                      No agents assigned. Click "Add Agent" to configure.
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      updateDepartmentMutation.mutate({
+                        id: selectedDepartment.id,
+                        data: newDepartment,
+                      });
+                      setShowConfigSheet(false);
+                    }}
+                    disabled={updateDepartmentMutation.isPending}
+                    data-testid="button-save-config"
+                  >
+                    {updateDepartmentMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Save Changes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowConfigSheet(false)}
+                    data-testid="button-cancel-config"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

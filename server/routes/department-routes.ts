@@ -311,7 +311,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
    */
   router.post("/ivr", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { id, phoneNumberId, name, isActive, greetingMessage, voiceId, voiceName, menuOptions, fallbackDepartmentId } = req.body;
+      const { id, phoneNumberId, name, isActive, greetingMessage, voiceId, voiceName, menuOptions, languageOptions, fallbackDepartmentId } = req.body;
 
       // Validate phone number ownership if provided
       if (phoneNumberId) {
@@ -364,6 +364,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
             voiceId,
             voiceName,
             menuOptions,
+            languageOptions,
             fallbackDepartmentId,
             updatedAt: new Date(),
           })
@@ -402,6 +403,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
             voiceId,
             voiceName,
             menuOptions: finalMenuOptions,
+            languageOptions,
             fallbackDepartmentId,
           })
           .returning();

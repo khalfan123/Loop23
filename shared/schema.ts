@@ -267,6 +267,12 @@ export const ivrConfigurations = pgTable("ivr_configurations", {
     label: string;
     departmentId: string;
   }[]>(), // IVR menu options mapping to departments
+  languageOptions: jsonb("language_options").$type<{
+    id: string;
+    language: string;
+    voiceId: string;
+    greeting: string;
+  }[]>(), // Multi-language IVR options
   fallbackDepartmentId: varchar("fallback_department_id").references(() => departments.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

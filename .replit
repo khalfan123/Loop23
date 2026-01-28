@@ -43,9 +43,10 @@ waitForPort = 5000
 
 [userenv.shared]
 JWT_SECRET = "agentlabs-development-jwt-secret-key-2025"
-APP_DOMAIN = "https://workspace.replit.dev"
+APP_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
 APP_URL = "https://workspace.replit.dev"
 NODE_ENV = "development"
+DEV_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
 
 [agent]
 integrations = ["javascript_openai_ai_integrations:2.0.0"]

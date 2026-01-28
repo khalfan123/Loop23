@@ -38,6 +38,7 @@ import {
   Volume2,
   Square,
   Sparkles,
+  Globe,
 } from "lucide-react";
 import {
   Dialog,
@@ -169,6 +170,31 @@ const OPENAI_VOICES = [
   { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm" },
 ];
 
+const DEFAULT_GREETINGS: Record<string, string> = {
+  en: "Thank you for calling. How may I assist you today?",
+  fr: "Merci d'avoir appelé. Comment puis-je vous aider aujourd'hui?",
+  it: "Grazie per aver chiamato. Come posso aiutarla oggi?",
+  zh: "感谢您的来电。今天我能为您做些什么？",
+  hi: "कॉल करने के लिए धन्यवाद। आज मैं आपकी कैसे मदद कर सकता हूं?",
+  ar: "شكرا على اتصالك. كيف يمكنني مساعدتك اليوم؟",
+};
+
+const LANGUAGE_SELECTION_PROMPTS: Record<string, string> = {
+  en: "For English",
+  fr: "Pour le français",
+  it: "Per l'italiano",
+  zh: "中文请按",
+  hi: "हिंदी के लिए",
+  ar: "للعربية",
+};
+
+interface LanguageOption {
+  id: string;
+  language: string;
+  voiceId: string;
+  greeting: string;
+}
+
 const departmentIcons = [
   { value: "phone", label: "Phone", icon: Phone },
   { value: "building-2", label: "Building", icon: Building2 },
@@ -233,6 +259,15 @@ export default function DepartmentManagement() {
   const [ivrName, setIvrName] = useState<string>("Auto Distribution");
   const [editingIvrName, setEditingIvrName] = useState<string | null>(null);
   const [editIvrNameValue, setEditIvrNameValue] = useState<string>("");
+  
+  const [ivrConfigOpen, setIvrConfigOpen] = useState(false);
+  const [ivrEnabled, setIvrEnabled] = useState(true);
+  const [multiLangEnabled, setMultiLangEnabled] = useState(false);
+  const [languageOptions, setLanguageOptions] = useState<LanguageOption[]>([
+    { id: "default", language: "en", voiceId: "nova", greeting: DEFAULT_GREETINGS.en }
+  ]);
+  const ivrAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [ivrPlayingVoiceId, setIvrPlayingVoiceId] = useState<string | null>(null);
   
   const [languageAgents, setLanguageAgents] = useState<LanguageAgentConfig[]>([]);
   const [activeTabIdx, setActiveTabIdx] = useState(0);
@@ -422,6 +457,99 @@ export default function DepartmentManagement() {
       toast({ title: "Failed to update IVR configuration", variant: "destructive" });
     },
   });
+
+  const saveIvrConfigMutation = useMutation({
+    mutationFn: async () => {
+      const activeIvr = ivrConfigurations.find(i => i.isActive);
+      if (!activeIvr) return;
+      
+      const greetingMessage = multiLangEnabled && languageOptions.length > 0
+        ? languageOptions.map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`).join(" ")
+        : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
+      
+      return apiRequest("PATCH", `/api/departments/ivr/${activeIvr.id}`, {
+        isActive: ivrEnabled,
+        greetingMessage,
+        languageOptions: multiLangEnabled ? languageOptions : undefined,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
+      setIvrConfigOpen(false);
+      toast({ title: "IVR configuration saved" });
+    },
+    onError: () => {
+      toast({ title: "Failed to save IVR configuration", variant: "destructive" });
+    },
+  });
+
+  useEffect(() => {
+    ivrAudioRef.current = new Audio();
+    return () => {
+      if (ivrAudioRef.current) {
+        ivrAudioRef.current.pause();
+        ivrAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  const languageSelectionGreeting = useMemo(() => {
+    if (languageOptions.length === 0) return "No languages configured";
+    return languageOptions
+      .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
+      .join(" ");
+  }, [languageOptions]);
+
+  const addLanguageOption = () => {
+    const usedLangs = languageOptions.map((o) => o.language);
+    const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
+    if (!availableLang) return;
+    
+    const newOption: LanguageOption = {
+      id: `lang-${Date.now()}`,
+      language: availableLang.code,
+      voiceId: "nova",
+      greeting: DEFAULT_GREETINGS[availableLang.code] || DEFAULT_GREETINGS.en,
+    };
+    setLanguageOptions([...languageOptions, newOption]);
+  };
+
+  const updateLanguageOption = (id: string, updates: Partial<LanguageOption>) => {
+    setLanguageOptions(
+      languageOptions.map((opt) => {
+        if (opt.id === id) {
+          const updated = { ...opt, ...updates };
+          if (updates.language && updates.language !== opt.language) {
+            updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
+          }
+          return updated;
+        }
+        return opt;
+      })
+    );
+  };
+
+  const removeLanguageOption = (id: string) => {
+    setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
+  };
+
+  const handleIvrVoicePreview = (voiceId: string) => {
+    const previewUrl = OPENAI_VOICE_PREVIEWS[voiceId];
+    if (!previewUrl || !ivrAudioRef.current) return;
+    
+    if (ivrPlayingVoiceId === voiceId) {
+      ivrAudioRef.current.pause();
+      ivrAudioRef.current.currentTime = 0;
+      setIvrPlayingVoiceId(null);
+      return;
+    }
+    
+    ivrAudioRef.current.src = previewUrl;
+    ivrAudioRef.current.play();
+    setIvrPlayingVoiceId(voiceId);
+    ivrAudioRef.current.onended = () => setIvrPlayingVoiceId(null);
+    ivrAudioRef.current.onerror = () => setIvrPlayingVoiceId(null);
+  };
 
   const toggleDepartmentExpanded = (id: string) => {
     setExpandedDepartments(prev => {
@@ -814,6 +942,16 @@ export default function DepartmentManagement() {
                         <Badge variant="outline" className="text-xs">+{departments.length - 2}</Badge>
                       )}
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs mt-2"
+                      onClick={() => setIvrConfigOpen(true)}
+                      data-testid="button-configure-ivr"
+                    >
+                      <Settings className="h-3 w-3 mr-1" />
+                      Configure IVR
+                    </Button>
                   </CardContent>
                 </Card>
               </div>
@@ -1616,6 +1754,211 @@ export default function DepartmentManagement() {
               </div>
             </ScrollArea>
           )}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={ivrConfigOpen} onOpenChange={setIvrConfigOpen}>
+        <SheetContent className="w-[450px] sm:w-[550px]" data-testid="sheet-ivr-config">
+          <SheetHeader>
+            <SheetTitle>IVR Configuration</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-120px)] mt-4 pr-4">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div>
+                  <Label className="font-medium">Enable IVR</Label>
+                  <p className="text-xs text-muted-foreground">Play menu when calls connect</p>
+                </div>
+                <Switch
+                  checked={ivrEnabled}
+                  onCheckedChange={setIvrEnabled}
+                  data-testid="switch-ivr-enabled"
+                />
+              </div>
+              
+              {ivrEnabled && (
+                <>
+                  <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      <div>
+                        <Label className="font-medium">Multi-Language Support</Label>
+                        <p className="text-xs text-muted-foreground">Let callers choose their language</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={multiLangEnabled}
+                      onCheckedChange={setMultiLangEnabled}
+                      data-testid="switch-ivr-multilang"
+                    />
+                  </div>
+                  
+                  {multiLangEnabled && (
+                    <>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Language Selection Greeting</Label>
+                          <Badge variant="secondary" className="text-xs">Auto-generated</Badge>
+                        </div>
+                        <div className="p-3 bg-muted/30 rounded-lg text-sm border">
+                          {languageSelectionGreeting}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label>Language Options</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={addLanguageOption}
+                            disabled={languageOptions.length >= SUPPORTED_LANGUAGES.length}
+                            data-testid="button-add-language"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            Add
+                          </Button>
+                        </div>
+                        
+                        {languageOptions.map((opt, idx) => (
+                          <Card key={opt.id} className="p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="font-mono">Press {idx + 1}</Badge>
+                                <Select
+                                  value={opt.language}
+                                  onValueChange={(val) => updateLanguageOption(opt.id, { language: val })}
+                                >
+                                  <SelectTrigger className="w-32" data-testid={`select-lang-option-${idx}`}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {SUPPORTED_LANGUAGES.map((lang) => (
+                                      <SelectItem
+                                        key={lang.code}
+                                        value={lang.code}
+                                        disabled={languageOptions.some((o) => o.id !== opt.id && o.language === lang.code)}
+                                      >
+                                        {lang.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeLanguageOption(opt.id)}
+                                data-testid={`button-remove-lang-${idx}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Voice</Label>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Select
+                                    value={opt.voiceId}
+                                    onValueChange={(val) => updateLanguageOption(opt.id, { voiceId: val })}
+                                  >
+                                    <SelectTrigger className="flex-1" data-testid={`select-voice-${idx}`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {OPENAI_VOICES.map((voice) => (
+                                        <SelectItem key={voice.id} value={voice.id}>
+                                          {voice.name} - {voice.gender}, {voice.style}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => handleIvrVoicePreview(opt.voiceId)}
+                                    data-testid={`button-preview-voice-${idx}`}
+                                  >
+                                    {ivrPlayingVoiceId === opt.voiceId ? (
+                                      <Square className="h-4 w-4" />
+                                    ) : (
+                                      <Volume2 className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Greeting Message</Label>
+                                <Textarea
+                                  value={opt.greeting}
+                                  onChange={(e) => updateLanguageOption(opt.id, { greeting: e.target.value })}
+                                  rows={2}
+                                  className="mt-1 text-sm"
+                                  placeholder="Enter greeting message..."
+                                  data-testid={`textarea-greeting-${idx}`}
+                                />
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                        
+                        {languageOptions.length === 0 && (
+                          <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+                            Click "Add" to configure language options
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  
+                  {!multiLangEnabled && (
+                    <div>
+                      <Label>Default Greeting Message</Label>
+                      <Textarea
+                        value={languageOptions[0]?.greeting || DEFAULT_GREETINGS.en}
+                        onChange={(e) => {
+                          if (languageOptions.length === 0) {
+                            setLanguageOptions([{
+                              id: "default",
+                              language: "en",
+                              voiceId: "nova",
+                              greeting: e.target.value,
+                            }]);
+                          } else {
+                            updateLanguageOption(languageOptions[0].id, { greeting: e.target.value });
+                          }
+                        }}
+                        rows={3}
+                        className="mt-1.5"
+                        placeholder="Thank you for calling..."
+                        data-testid="textarea-default-greeting"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setIvrConfigOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => saveIvrConfigMutation.mutate()}
+                  disabled={saveIvrConfigMutation.isPending}
+                >
+                  {saveIvrConfigMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Save Configuration
+                </Button>
+              </div>
+            </div>
+          </ScrollArea>
         </SheetContent>
       </Sheet>
     </div>

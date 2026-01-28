@@ -442,13 +442,14 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
   router.patch("/ivr/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const { name, isActive, greetingMessage, voiceId } = req.body;
+      const { name, isActive, greetingMessage, voiceId, languageOptions } = req.body;
 
       const updateData: Record<string, any> = { updatedAt: new Date() };
       if (name !== undefined) updateData.name = name;
       if (isActive !== undefined) updateData.isActive = isActive;
       if (greetingMessage !== undefined) updateData.greetingMessage = greetingMessage;
       if (voiceId !== undefined) updateData.voiceId = voiceId;
+      if (languageOptions !== undefined) updateData.languageOptions = languageOptions;
 
       const updated = await db
         .update(ivrConfigurations)

@@ -620,6 +620,7 @@ export default function DepartmentManagement() {
       const response = await fetch("/api/departments/voice-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ voiceId, text: greetingText }),
       });
       
@@ -797,6 +798,7 @@ export default function DepartmentManagement() {
         const response = await fetch("/api/departments/voice-preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ voiceId, text }),
         });
         

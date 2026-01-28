@@ -853,6 +853,7 @@ function IVRConfigPanel({
         const response = await fetch("/api/departments/voice-preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ voiceId, text }),
         });
         

@@ -3,6 +3,8 @@ import { db } from "../db";
 import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers } from "@shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/schema";
+import { twilioService } from "../services/twilio";
+import { getDomain } from "../utils/domain";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -382,6 +384,28 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
             fallbackDepartmentId,
           })
           .returning();
+
+        // Configure Twilio webhook for the phone number if active
+        if (phoneNumberId && (isActive ?? true)) {
+          try {
+            const phoneRecord = await db
+              .select()
+              .from(phoneNumbers)
+              .where(eq(phoneNumbers.id, phoneNumberId))
+              .limit(1);
+            
+            if (phoneRecord.length > 0 && phoneRecord[0].twilioSid) {
+              const domain = getDomain();
+              const webhookUrl = `${domain}/api/webhooks/twilio/incoming`;
+              console.log(`[IVR] Configuring Twilio webhook for phone ${phoneRecord[0].phoneNumber}: ${webhookUrl}`);
+              await twilioService.updatePhoneNumber(phoneRecord[0].twilioSid, { voiceUrl: webhookUrl });
+              console.log(`[IVR] Twilio webhook configured successfully`);
+            }
+          } catch (twilioError: any) {
+            console.error("[IVR] Failed to configure Twilio webhook:", twilioError.message);
+            // Don't fail the request - IVR is created, webhook can be retried
+          }
+        }
 
         res.status(201).json(newIvr[0]);
       }

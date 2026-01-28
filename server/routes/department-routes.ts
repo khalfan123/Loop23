@@ -370,6 +370,25 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
 
         res.json(updated[0]);
       } else {
+        // Auto-populate menu options from existing departments if not provided
+        let finalMenuOptions = menuOptions;
+        if (!menuOptions || menuOptions.length === 0) {
+          const userDepartments = await db
+            .select()
+            .from(departments)
+            .where(eq(departments.userId, req.userId!))
+            .orderBy(asc(departments.sortOrder));
+          
+          if (userDepartments.length > 0) {
+            finalMenuOptions = userDepartments.map((dept, idx) => ({
+              key: String(idx + 1),
+              label: dept.name,
+              departmentId: dept.id,
+            }));
+            console.log(`[IVR] Auto-populated ${finalMenuOptions.length} departments into menu options`);
+          }
+        }
+
         const newIvr = await db
           .insert(ivrConfigurations)
           .values({
@@ -380,7 +399,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
             greetingMessage,
             voiceId,
             voiceName,
-            menuOptions,
+            menuOptions: finalMenuOptions,
             fallbackDepartmentId,
           })
           .returning();

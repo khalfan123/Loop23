@@ -946,7 +946,26 @@ export default function DepartmentManagement() {
                       variant="outline"
                       size="sm"
                       className="w-full text-xs mt-2"
-                      onClick={() => setIvrConfigOpen(true)}
+                      onClick={() => {
+                        const activeIvr = ivrConfigurations.find(i => i.isActive);
+                        if (activeIvr) {
+                          setIvrEnabled(activeIvr.isActive);
+                          const savedLangOptions = activeIvr.languageOptions as LanguageOption[] | null;
+                          if (savedLangOptions && savedLangOptions.length > 0) {
+                            setMultiLangEnabled(savedLangOptions.length > 1);
+                            setLanguageOptions(savedLangOptions);
+                          } else {
+                            setMultiLangEnabled(false);
+                            setLanguageOptions([{
+                              id: "default",
+                              language: "en",
+                              voiceId: "nova",
+                              greeting: activeIvr.greetingMessage || DEFAULT_GREETINGS.en,
+                            }]);
+                          }
+                        }
+                        setIvrConfigOpen(true);
+                      }}
                       data-testid="button-configure-ivr"
                     >
                       <Settings className="h-3 w-3 mr-1" />

@@ -837,7 +837,7 @@ function IVRConfigPanel({
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
   
-  const handlePlayVoice = async (voiceId: string) => {
+  const handlePlayVoice = async (voiceId: string, text?: string) => {
     if (!audioRef.current) return;
     
     if (playingVoiceId === voiceId) {
@@ -847,15 +847,26 @@ function IVRConfigPanel({
       return;
     }
     
-    if (isElevenLabsVoice(voiceId)) {
+    if (text) {
       try {
         setPlayingVoiceId(voiceId);
-        const response = await fetch(`/api/elevenlabs/preview/${voiceId.replace("el_", "")}`);
+        const response = await fetch("/api/departments/voice-preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ voiceId, text }),
+        });
+        
         if (!response.ok) {
-          toast({ title: "Preview not available", description: "ElevenLabs voice preview requires API configuration", variant: "destructive" });
+          const errorData = await response.json().catch(() => ({}));
+          toast({ 
+            title: "Preview not available", 
+            description: errorData.error || "Failed to generate voice preview", 
+            variant: "destructive" 
+          });
           setPlayingVoiceId(null);
           return;
         }
+        
         const blob = await response.blob();
         const audioUrl = URL.createObjectURL(blob);
         audioRef.current.src = audioUrl;
@@ -869,7 +880,7 @@ function IVRConfigPanel({
           URL.revokeObjectURL(audioUrl);
         };
       } catch {
-        toast({ title: "Preview not available", description: "ElevenLabs voice preview requires API configuration", variant: "destructive" });
+        toast({ title: "Preview not available", description: "Failed to generate voice preview", variant: "destructive" });
         setPlayingVoiceId(null);
       }
       return;
@@ -1020,7 +1031,7 @@ function IVRConfigPanel({
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => handlePlayVoice(opt.voiceId)}
+                            onClick={() => handlePlayVoice(opt.voiceId, opt.greeting)}
                             data-testid={`button-preview-voice-${idx}`}
                           >
                             {playingVoiceId === opt.voiceId ? (

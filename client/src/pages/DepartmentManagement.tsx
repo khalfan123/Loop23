@@ -605,7 +605,7 @@ export default function DepartmentManagement() {
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
 
-  const handleIvrVoicePreview = async (voiceId: string) => {
+  const handleIvrVoicePreview = async (voiceId: string, greetingText: string) => {
     if (!ivrAudioRef.current) return;
     
     if (ivrPlayingVoiceId === voiceId) {
@@ -615,45 +615,41 @@ export default function DepartmentManagement() {
       return;
     }
     
-    if (isElevenLabsVoice(voiceId)) {
-      try {
-        setIvrPlayingVoiceId(voiceId);
-        const response = await fetch(`/api/elevenlabs/preview/${voiceId.replace("el_", "")}`);
-        if (!response.ok) {
-          toast({ title: "Preview not available", description: "ElevenLabs voice preview requires API configuration", variant: "destructive" });
-          setIvrPlayingVoiceId(null);
-          return;
-        }
-        const blob = await response.blob();
-        const audioUrl = URL.createObjectURL(blob);
-        ivrAudioRef.current.src = audioUrl;
-        ivrAudioRef.current.play();
-        ivrAudioRef.current.onended = () => {
-          setIvrPlayingVoiceId(null);
-          URL.revokeObjectURL(audioUrl);
-        };
-        ivrAudioRef.current.onerror = () => {
-          setIvrPlayingVoiceId(null);
-          URL.revokeObjectURL(audioUrl);
-        };
-      } catch {
-        toast({ title: "Preview not available", description: "ElevenLabs voice preview requires API configuration", variant: "destructive" });
+    try {
+      setIvrPlayingVoiceId(voiceId);
+      const response = await fetch("/api/departments/voice-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voiceId, text: greetingText }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        toast({ 
+          title: "Preview not available", 
+          description: errorData.error || "Failed to generate voice preview", 
+          variant: "destructive" 
+        });
         setIvrPlayingVoiceId(null);
+        return;
       }
-      return;
+      
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      ivrAudioRef.current.src = audioUrl;
+      ivrAudioRef.current.play();
+      ivrAudioRef.current.onended = () => {
+        setIvrPlayingVoiceId(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+      ivrAudioRef.current.onerror = () => {
+        setIvrPlayingVoiceId(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+    } catch {
+      toast({ title: "Preview not available", description: "Failed to generate voice preview", variant: "destructive" });
+      setIvrPlayingVoiceId(null);
     }
-    
-    const previewUrl = VOICE_PREVIEWS[voiceId];
-    if (!previewUrl) {
-      toast({ title: "Preview not available", description: "No preview available for this voice", variant: "destructive" });
-      return;
-    }
-    
-    ivrAudioRef.current.src = previewUrl;
-    ivrAudioRef.current.play();
-    setIvrPlayingVoiceId(voiceId);
-    ivrAudioRef.current.onended = () => setIvrPlayingVoiceId(null);
-    ivrAudioRef.current.onerror = () => setIvrPlayingVoiceId(null);
   };
 
   const toggleDepartmentExpanded = (id: string) => {
@@ -785,7 +781,7 @@ export default function DepartmentManagement() {
     }
   };
   
-  const handlePlayVoice = async (voiceId: string) => {
+  const handlePlayVoice = async (voiceId: string, text?: string) => {
     if (!audioRef.current) return;
     
     if (playingVoiceId === voiceId) {
@@ -795,15 +791,26 @@ export default function DepartmentManagement() {
       return;
     }
     
-    if (isElevenLabsVoice(voiceId)) {
+    if (text) {
       try {
         setPlayingVoiceId(voiceId);
-        const response = await fetch(`/api/elevenlabs/preview/${voiceId.replace("el_", "")}`);
+        const response = await fetch("/api/departments/voice-preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ voiceId, text }),
+        });
+        
         if (!response.ok) {
-          toast({ title: "Preview not available", description: "ElevenLabs voice preview requires API configuration", variant: "destructive" });
+          const errorData = await response.json().catch(() => ({}));
+          toast({ 
+            title: "Preview not available", 
+            description: errorData.error || "Failed to generate voice preview", 
+            variant: "destructive" 
+          });
           setPlayingVoiceId(null);
           return;
         }
+        
         const blob = await response.blob();
         const audioUrl = URL.createObjectURL(blob);
         audioRef.current.src = audioUrl;
@@ -817,7 +824,7 @@ export default function DepartmentManagement() {
           URL.revokeObjectURL(audioUrl);
         };
       } catch {
-        toast({ title: "Preview not available", description: "ElevenLabs voice preview requires API configuration", variant: "destructive" });
+        toast({ title: "Preview not available", description: "Failed to generate voice preview", variant: "destructive" });
         setPlayingVoiceId(null);
       }
       return;
@@ -2051,7 +2058,7 @@ export default function DepartmentManagement() {
                                   <Button
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => handleIvrVoicePreview(opt.voiceId)}
+                                    onClick={() => handleIvrVoicePreview(opt.voiceId, opt.greeting)}
                                     data-testid={`button-preview-voice-${idx}`}
                                   >
                                     {ivrPlayingVoiceId === opt.voiceId ? (

@@ -5,6 +5,8 @@ import { eq, and, desc, asc } from "drizzle-orm";
 import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/schema";
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
+import { textToSpeech } from "../replit_integrations/audio/client";
+import { ElevenLabsService } from "../services/elevenlabs";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -563,5 +565,84 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
     }
   });
 
+  /**
+   * Voice preview - Generate TTS audio from greeting text
+   * Supports both OpenAI and ElevenLabs voices
+   */
+  router.post("/voice-preview", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { voiceId, text } = req.body;
+      
+      if (!voiceId || !text) {
+        return res.status(400).json({ error: "voiceId and text are required" });
+      }
+      
+      const isElevenLabsVoice = voiceId.startsWith("el_");
+      
+      if (isElevenLabsVoice) {
+        const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+        if (!elevenLabsApiKey) {
+          return res.status(400).json({ error: "ElevenLabs API key not configured" });
+        }
+        
+        const elevenLabsVoiceId = getElevenLabsVoiceId(voiceId);
+        if (!elevenLabsVoiceId) {
+          return res.status(400).json({ error: "Invalid ElevenLabs voice ID" });
+        }
+        
+        const elevenLabsService = new ElevenLabsService(elevenLabsApiKey);
+        const audioBuffer = await elevenLabsService.generateVoicePreview({
+          voiceId: elevenLabsVoiceId,
+          text,
+        });
+        
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Content-Disposition", "inline; filename=preview.mp3");
+        res.send(audioBuffer);
+      } else {
+        const validOpenAIVoices = ["alloy", "echo", "shimmer", "ash", "coral", "sage", "verse", "nova", "fable", "onyx"];
+        const voice = validOpenAIVoices.includes(voiceId) ? voiceId : "nova";
+        
+        const audioBuffer = await textToSpeech(text, voice as any, "mp3");
+        
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Content-Disposition", "inline; filename=preview.mp3");
+        res.send(audioBuffer);
+      }
+    } catch (error: any) {
+      console.error("[Departments] Voice preview error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate voice preview" });
+    }
+  });
+
   return router;
+}
+
+/**
+ * Map internal ElevenLabs voice IDs to actual ElevenLabs voice IDs
+ */
+function getElevenLabsVoiceId(internalId: string): string | null {
+  const voiceMap: Record<string, string> = {
+    el_rachel: "21m00Tcm4TlvDq8ikWAM",
+    el_domi: "AZnzlk1XvdvUeBnXmlld",
+    el_bella: "EXAVITQu4vr4xnSDxMaL",
+    el_antoni: "ErXwobaYiN019PkySvjV",
+    el_elli: "MF3mGyEYCl7XYWbV9V6O",
+    el_josh: "TxGEqnHWrfWFTfGW9XjX",
+    el_arnold: "VR6AewLTigWG4xSOukaG",
+    el_adam: "pNInz6obpgDQGcFmaJgB",
+    el_sam: "yoZ06aMxZJJ28mfd3POQ",
+    el_nicole: "piTKgcLEGmPE4e6mEKli",
+    el_marie: "pFZP5JQG7iQjIQuC4Bku",
+    el_pierre: "SOYHLrjzK2X1ezoPC6cr",
+    el_giulia: "EjuNy5oPkPf7PD43DRZE",
+    el_marco: "ODq5zmih8GrVes37Dizd",
+    el_xiaoli: "ODq5zmih8GrVes37Dizd",
+    el_wei: "ODq5zmih8GrVes37Dizd",
+    el_priya: "ODq5zmih8GrVes37Dizd",
+    el_raj: "ODq5zmih8GrVes37Dizd",
+    el_fatima: "ODq5zmih8GrVes37Dizd",
+    el_omar: "ODq5zmih8GrVes37Dizd",
+  };
+  return voiceMap[internalId] || null;
 }

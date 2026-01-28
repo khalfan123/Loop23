@@ -964,22 +964,22 @@ export default function DepartmentManagement() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Select Agent</Label>
-              <Select 
-                value={selectedAgent.agentId} 
-                onValueChange={(v) => setSelectedAgent({ ...selectedAgent, agentId: v })}
-              >
-                <SelectTrigger data-testid="select-agent">
-                  <SelectValue placeholder="Choose an agent..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {agents?.filter((agent) => agent.language === selectedAgent.language).map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>{agents?.find(a => a.id === selectedAgent.agentId)?.name || "Select Agent"}</Label>
+              <div className="border rounded-md max-h-32 overflow-y-auto">
+                {agents?.filter((agent) => agent.language === selectedAgent.language).map((agent) => (
+                  <div 
+                    key={agent.id}
+                    className={`px-3 py-2 cursor-pointer hover-elevate ${selectedAgent.agentId === agent.id ? 'bg-primary/10' : ''}`}
+                    onClick={() => setSelectedAgent({ ...selectedAgent, agentId: agent.id })}
+                    data-testid={`agent-option-${agent.id}`}
+                  >
+                    {agent.name}
+                  </div>
+                ))}
+                {agents?.filter((agent) => agent.language === selectedAgent.language).length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">No agents available for this language</div>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Voice</Label>

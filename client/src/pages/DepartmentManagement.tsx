@@ -569,11 +569,15 @@ export default function DepartmentManagement() {
     const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
     if (!availableLang) return;
     
+    const allDeptIds = departments.map(d => d.id);
+    const allDeptNames = departments.map(d => d.name);
+    
     const newOption: LanguageOption = {
       id: `lang-${Date.now()}`,
       language: availableLang.code,
       voiceId: getDefaultVoiceForLanguage(availableLang.code),
-      greeting: DEFAULT_GREETINGS[availableLang.code] || DEFAULT_GREETINGS.en,
+      greeting: generateDeptGreeting(allDeptNames, availableLang.code),
+      selectedDepartments: allDeptIds,
     };
     setLanguageOptions([...languageOptions, newOption]);
   };

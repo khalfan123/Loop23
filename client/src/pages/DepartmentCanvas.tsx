@@ -793,11 +793,16 @@ function IVRConfigPanel({
     const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
     if (!availableLang) return;
     
+    const departmentNodes = nodes.filter((n) => n.type === "department");
+    const allDeptIds = departmentNodes.map(n => n.id);
+    const allDeptNames = departmentNodes.map(n => (n.data as any).name || "Department");
+    
     const newOption: LanguageOption = {
       id: `lang-${Date.now()}`,
       language: availableLang.code,
       voiceId: getDefaultVoiceForLanguage(availableLang.code),
-      greeting: DEFAULT_GREETINGS[availableLang.code] || DEFAULT_GREETINGS.en,
+      greeting: generateDeptGreeting(allDeptNames, availableLang.code),
+      selectedDepartments: allDeptIds,
     };
     setLanguageOptions([...languageOptions, newOption]);
   };

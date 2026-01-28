@@ -458,54 +458,54 @@ export default function DepartmentManagement() {
                   </>
                 )}
                 
-                <Card 
-                  className="w-64 border-dashed border-orange-300 cursor-pointer hover-elevate transition-all"
-                  onClick={() => setShowIvrSettingsDialog(true)}
-                  data-testid="unassigned-numbers-panel"
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-orange-500" />
-                        <CardTitle className="text-sm">Unassigned</CardTitle>
+                {(unassignedPhones.length > 0 || !phoneNumbers || phoneNumbers.length === 0) && (
+                  <Card 
+                    className="w-64 border-dashed border-orange-300 cursor-pointer hover-elevate transition-all"
+                    onClick={() => setShowIvrSettingsDialog(true)}
+                    data-testid="unassigned-numbers-panel"
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-orange-500" />
+                          <CardTitle className="text-sm">Unassigned</CardTitle>
+                        </div>
+                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+                          {unassignedPhones.length}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
-                        {unassignedPhones.length}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1 pt-0">
-                    {unassignedPhones.length > 0 ? (
-                      <>
-                        {unassignedPhones.slice(0, 3).map((phone) => (
-                          <div 
-                            key={phone.id} 
-                            className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 transition-colors"
-                            data-testid={`phone-item-${phone.id}`}
-                          >
-                            <Phone className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs font-mono truncate">{phone.phoneNumber}</span>
-                          </div>
-                        ))}
-                        {unassignedPhones.length > 3 && (
-                          <p className="text-xs text-muted-foreground text-center pt-1">
-                            +{unassignedPhones.length - 3} more
-                          </p>
-                        )}
-                        <p className="text-xs text-blue-500 text-center pt-2">Click to assign</p>
-                      </>
-                    ) : phoneNumbers && phoneNumbers.length > 0 ? (
-                      <p className="text-xs text-muted-foreground">All numbers assigned</p>
-                    ) : (
-                      <Link href="/app/phone-numbers">
-                        <Button variant="outline" size="sm" className="w-full text-xs" data-testid="button-buy-number">
-                          <Plus className="h-3 w-3 mr-1" />
-                          Buy Number
-                        </Button>
-                      </Link>
-                    )}
-                  </CardContent>
-                </Card>
+                    </CardHeader>
+                    <CardContent className="space-y-1 pt-0">
+                      {unassignedPhones.length > 0 ? (
+                        <>
+                          {unassignedPhones.slice(0, 3).map((phone) => (
+                            <div 
+                              key={phone.id} 
+                              className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 transition-colors"
+                              data-testid={`phone-item-${phone.id}`}
+                            >
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs font-mono truncate">{phone.phoneNumber}</span>
+                            </div>
+                          ))}
+                          {unassignedPhones.length > 3 && (
+                            <p className="text-xs text-muted-foreground text-center pt-1">
+                              +{unassignedPhones.length - 3} more
+                            </p>
+                          )}
+                          <p className="text-xs text-blue-500 text-center pt-2">Click to assign</p>
+                        </>
+                      ) : (
+                        <Link href="/app/phone-numbers">
+                          <Button variant="outline" size="sm" className="w-full text-xs" data-testid="button-buy-number">
+                            <Plus className="h-3 w-3 mr-1" />
+                            Buy Number
+                          </Button>
+                        </Link>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
                 
                 <div className="h-6 w-px bg-border" />
                 

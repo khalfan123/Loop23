@@ -1331,7 +1331,6 @@ function DepartmentCanvasContent() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const departmentNodes = nodes.filter((n) => n.type === "department");
-      const phoneNodes = nodes.filter((n) => n.type === "phone");
 
       const canvasToDbIdMap = new Map<string, string>();
 
@@ -1362,7 +1361,7 @@ function DepartmentCanvasContent() {
         }
       }
 
-      if (phoneNodes.length > 0 && departmentNodes.length > 0) {
+      if (assignedPhones.length > 0 && departmentNodes.length > 0) {
         const menuOptions = departmentNodes.map((node, idx) => ({
           key: String(idx + 1),
           label: (node.data as any).name,
@@ -1373,14 +1372,16 @@ function DepartmentCanvasContent() {
           ? languageOptions.map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`).join(" ")
           : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
         
-        await apiRequest("POST", "/api/departments/ivr", {
-          phoneNumberId: (phoneNodes[0].data as any).phoneId,
-          name: "Auto Distribution",
-          isActive: ivrEnabled,
-          greetingMessage,
-          menuOptions,
-          languageOptions: multiLangEnabled ? languageOptions : undefined,
-        });
+        for (const phone of assignedPhones) {
+          await apiRequest("POST", "/api/departments/ivr", {
+            phoneNumberId: phone.id,
+            name: "Auto Distribution",
+            isActive: ivrEnabled,
+            greetingMessage,
+            menuOptions,
+            languageOptions: multiLangEnabled ? languageOptions : undefined,
+          });
+        }
       }
 
       return true;
@@ -1417,7 +1418,7 @@ function DepartmentCanvasContent() {
     saveMutation.mutate();
   };
 
-  const phoneCount = nodes.filter((n) => n.type === "phone").length;
+  const phoneCount = assignedPhones.length;
   const deptCount = nodes.filter((n) => n.type === "department").length;
   const connectionCount = edges.length;
 

@@ -272,6 +272,7 @@ export const ivrConfigurations = pgTable("ivr_configurations", {
     language: string;
     voiceId: string;
     greeting: string;
+    selectedDepartments?: string[];
   }[]>(), // Multi-language IVR options
   fallbackDepartmentId: varchar("fallback_department_id").references(() => departments.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),

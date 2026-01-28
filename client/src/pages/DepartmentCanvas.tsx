@@ -182,11 +182,39 @@ const LANGUAGE_SELECTION_PROMPTS: Record<string, string> = {
   ar: "للعربية",
 };
 
+const DEPT_MENU_TEMPLATES: Record<string, { prefix: string; pressKey: string; separator: string }> = {
+  en: { prefix: "For", pressKey: "press", separator: ", " },
+  fr: { prefix: "Pour", pressKey: "appuyez sur", separator: ", " },
+  it: { prefix: "Per", pressKey: "premere", separator: ", " },
+  zh: { prefix: "如需", pressKey: "请按", separator: "，" },
+  hi: { prefix: "के लिए", pressKey: "दबाएं", separator: ", " },
+  ar: { prefix: "من أجل", pressKey: "اضغط", separator: "، " },
+};
+
+const generateDeptGreeting = (deptNames: string[], langCode: string): string => {
+  const template = DEPT_MENU_TEMPLATES[langCode] || DEPT_MENU_TEMPLATES.en;
+  if (deptNames.length === 0) return DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
+  
+  const menuItems = deptNames.map((name, idx) => {
+    if (langCode === "ar") {
+      return `${template.prefix} ${name} ${template.pressKey} ${idx + 1}`;
+    } else if (langCode === "zh") {
+      return `${template.prefix}${name}${template.pressKey}${idx + 1}`;
+    } else if (langCode === "hi") {
+      return `${name} ${template.prefix} ${idx + 1} ${template.pressKey}`;
+    }
+    return `${template.prefix} ${name} ${template.pressKey} ${idx + 1}`;
+  });
+  
+  return menuItems.join(template.separator) + ".";
+};
+
 interface LanguageOption {
   id: string;
   language: string;
   voiceId: string;
   greeting: string;
+  selectedDepartments?: string[];
 }
 
 interface CanvasPhoneNode {

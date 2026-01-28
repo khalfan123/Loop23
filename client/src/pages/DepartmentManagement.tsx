@@ -217,11 +217,39 @@ const LANGUAGE_SELECTION_PROMPTS: Record<string, string> = {
   ar: "للعربية",
 };
 
+const DEPT_MENU_TEMPLATES: Record<string, { prefix: string; pressKey: string; separator: string }> = {
+  en: { prefix: "For", pressKey: "press", separator: ", " },
+  fr: { prefix: "Pour", pressKey: "appuyez sur", separator: ", " },
+  it: { prefix: "Per", pressKey: "premere", separator: ", " },
+  zh: { prefix: "如需", pressKey: "请按", separator: "，" },
+  hi: { prefix: "के लिए", pressKey: "दबाएं", separator: ", " },
+  ar: { prefix: "من أجل", pressKey: "اضغط", separator: "، " },
+};
+
+const generateDeptGreeting = (deptNames: string[], langCode: string): string => {
+  const template = DEPT_MENU_TEMPLATES[langCode] || DEPT_MENU_TEMPLATES.en;
+  if (deptNames.length === 0) return DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
+  
+  const menuItems = deptNames.map((name, idx) => {
+    if (langCode === "ar") {
+      return `${template.prefix} ${name} ${template.pressKey} ${idx + 1}`;
+    } else if (langCode === "zh") {
+      return `${template.prefix}${name}${template.pressKey}${idx + 1}`;
+    } else if (langCode === "hi") {
+      return `${name} ${template.prefix} ${idx + 1} ${template.pressKey}`;
+    }
+    return `${template.prefix} ${name} ${template.pressKey} ${idx + 1}`;
+  });
+  
+  return menuItems.join(template.separator) + ".";
+};
+
 interface LanguageOption {
   id: string;
   language: string;
   voiceId: string;
   greeting: string;
+  selectedDepartments?: string[];
 }
 
 const departmentIcons = [
@@ -1964,15 +1992,53 @@ export default function DepartmentManagement() {
                               </div>
                               
                               <div>
-                                <Label className="text-xs text-muted-foreground">Greeting Message</Label>
-                                <Textarea
-                                  value={opt.greeting}
-                                  onChange={(e) => updateLanguageOption(opt.id, { greeting: e.target.value })}
-                                  rows={2}
-                                  className="mt-1 text-sm"
-                                  placeholder="Enter greeting message..."
-                                  data-testid={`textarea-greeting-${idx}`}
-                                />
+                                <Label className="text-xs text-muted-foreground">Menu Departments</Label>
+                                <div className="mt-1 space-y-1">
+                                  {departments.map((dept, deptIdx) => (
+                                    <div 
+                                      key={dept.id} 
+                                      className="flex items-center gap-2 p-2 rounded border hover:bg-muted/50 cursor-pointer"
+                                      onClick={() => {
+                                        const currentDepts = opt.selectedDepartments || [];
+                                        const newDepts = currentDepts.includes(dept.id)
+                                          ? currentDepts.filter(d => d !== dept.id)
+                                          : [...currentDepts, dept.id];
+                                        const deptNames = newDepts.map(id => departments.find(d => d.id === id)?.name || "").filter(Boolean);
+                                        updateLanguageOption(opt.id, { 
+                                          selectedDepartments: newDepts,
+                                          greeting: generateDeptGreeting(deptNames, opt.language)
+                                        });
+                                      }}
+                                      data-testid={`dept-select-${idx}-${deptIdx}`}
+                                    >
+                                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${(opt.selectedDepartments || []).includes(dept.id) ? 'bg-primary border-primary' : 'border-muted-foreground'}`}>
+                                        {(opt.selectedDepartments || []).includes(dept.id) && <Check className="h-3 w-3 text-primary-foreground" />}
+                                      </div>
+                                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dept.color }} />
+                                      <span className="text-sm flex-1">{dept.name}</span>
+                                      {(opt.selectedDepartments || []).includes(dept.id) && (
+                                        <Badge variant="outline" className="text-xs font-mono">
+                                          {(opt.selectedDepartments || []).indexOf(dept.id) + 1}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {departments.length === 0 && (
+                                    <div className="text-xs text-muted-foreground p-2 text-center border rounded">
+                                      No departments available
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-xs text-muted-foreground">Generated Greeting</Label>
+                                  <Badge variant="secondary" className="text-xs">Auto-translated</Badge>
+                                </div>
+                                <div className="mt-1 p-2 bg-muted/30 rounded text-sm border min-h-[60px]">
+                                  {opt.greeting || <span className="text-muted-foreground italic">Select departments above to generate greeting</span>}
+                                </div>
                               </div>
                             </div>
                           </Card>

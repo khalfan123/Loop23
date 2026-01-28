@@ -36,6 +36,7 @@ import {
   Circle,
   Volume2,
   Square,
+  Sparkles,
 } from "lucide-react";
 import {
   Dialog,
@@ -219,11 +220,12 @@ export default function DepartmentManagement() {
     color: "#3b82f6",
   });
   
-  const [selectedAgent, setSelectedAgent] = useState<{ agentId: string; language: string; systemPrompt: string; voiceTone: string }>({
+  const [selectedAgent, setSelectedAgent] = useState<{ agentId: string; language: string; systemPrompt: string; voiceTone: string; voiceId: string }>({
     agentId: "",
     language: "en",
     systemPrompt: "",
     voiceTone: "",
+    voiceId: "",
   });
   
   const [selectedPhoneForIvr, setSelectedPhoneForIvr] = useState<string>("");
@@ -351,7 +353,7 @@ export default function DepartmentManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       refetchDepartmentAgents();
       setShowAddAgentDialog(false);
-      setSelectedAgent({ agentId: "", language: "en", systemPrompt: "", voiceTone: "" });
+      setSelectedAgent({ agentId: "", language: "en", systemPrompt: "", voiceTone: "", voiceId: "" });
       toast({ title: "Agent added to department" });
     },
     onError: () => {
@@ -980,16 +982,65 @@ export default function DepartmentManagement() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Voice Tone</Label>
-              <Input
-                placeholder="e.g., Professional, Friendly, Calm..."
-                value={selectedAgent.voiceTone}
-                onChange={(e) => setSelectedAgent({ ...selectedAgent, voiceTone: e.target.value })}
-                data-testid="input-voice-tone"
-              />
+              <Label>Voice</Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={selectedAgent.voiceId}
+                  onValueChange={(v) => {
+                    const voice = OPENAI_VOICES.find(voice => voice.id === v);
+                    setSelectedAgent({ 
+                      ...selectedAgent, 
+                      voiceId: v,
+                      voiceTone: voice?.style || ""
+                    });
+                  }}
+                >
+                  <SelectTrigger className="flex-1" data-testid="select-voice">
+                    <SelectValue placeholder="Select a voice..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OPENAI_VOICES.map((voice) => (
+                      <SelectItem key={voice.id} value={voice.id}>
+                        {voice.name} - {voice.gender}, {voice.style}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedAgent.voiceId && OPENAI_VOICE_PREVIEWS[selectedAgent.voiceId] && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handlePlayVoice(selectedAgent.voiceId)}
+                    data-testid="button-preview-agent-voice"
+                  >
+                    {playingVoiceId === selectedAgent.voiceId ? (
+                      <Square className="h-4 w-4" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>System Prompt</Label>
+              <div className="flex items-center justify-between">
+                <Label>System Prompt</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const lang = languages.find(l => l.value === selectedAgent.language)?.label || "English";
+                    const voice = OPENAI_VOICES.find(v => v.id === selectedAgent.voiceId);
+                    const voiceStyle = voice?.style || "professional";
+                    const autoPrompt = `You are a ${voiceStyle} AI assistant for the ${selectedDepartment?.name || "department"}. You speak ${lang} fluently and help callers with their inquiries. Be helpful, clear, and efficient in your responses. Always maintain a ${voiceStyle} tone throughout the conversation.`;
+                    setSelectedAgent({ ...selectedAgent, systemPrompt: autoPrompt });
+                  }}
+                  data-testid="button-auto-prompt"
+                >
+                  <Sparkles className="h-4 w-4 mr-1" />
+                  Auto Prompt
+                </Button>
+              </div>
               <Textarea
                 placeholder="Enter instructions for the AI agent..."
                 value={selectedAgent.systemPrompt}

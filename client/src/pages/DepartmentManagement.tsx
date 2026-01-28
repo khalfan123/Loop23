@@ -944,6 +944,24 @@ export default function DepartmentManagement() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label>Language</Label>
+              <Select 
+                value={selectedAgent.language} 
+                onValueChange={(v) => setSelectedAgent({ ...selectedAgent, language: v, agentId: "" })}
+              >
+                <SelectTrigger data-testid="select-language">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {languages.map((lang) => (
+                    <SelectItem key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Select Agent</Label>
               <Select 
                 value={selectedAgent.agentId} 
@@ -953,27 +971,9 @@ export default function DepartmentManagement() {
                   <SelectValue placeholder="Choose an agent..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {agents?.map((agent) => (
+                  {agents?.filter((agent) => agent.language === selectedAgent.language).map((agent) => (
                     <SelectItem key={agent.id} value={agent.id}>
                       {agent.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Language</Label>
-              <Select 
-                value={selectedAgent.language} 
-                onValueChange={(v) => setSelectedAgent({ ...selectedAgent, language: v })}
-              >
-                <SelectTrigger data-testid="select-language">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {languages.map((lang) => (
-                    <SelectItem key={lang.value} value={lang.value}>
-                      {lang.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

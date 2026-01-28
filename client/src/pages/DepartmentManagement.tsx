@@ -219,9 +219,11 @@ export default function DepartmentManagement() {
     color: "#3b82f6",
   });
   
-  const [selectedAgent, setSelectedAgent] = useState<{ agentId: string; language: string }>({
+  const [selectedAgent, setSelectedAgent] = useState<{ agentId: string; language: string; systemPrompt: string; voiceTone: string }>({
     agentId: "",
     language: "en",
+    systemPrompt: "",
+    voiceTone: "",
   });
   
   const [selectedPhoneForIvr, setSelectedPhoneForIvr] = useState<string>("");
@@ -341,15 +343,15 @@ export default function DepartmentManagement() {
   });
 
   const addAgentMutation = useMutation({
-    mutationFn: async ({ departmentId, agentId, language }: { departmentId: string; agentId: string; language: string }) => {
-      return apiRequest("POST", `/api/departments/${departmentId}/agents`, { agentId, language });
+    mutationFn: async ({ departmentId, agentId, language, systemPrompt, voiceTone }: { departmentId: string; agentId: string; language: string; systemPrompt?: string; voiceTone?: string }) => {
+      return apiRequest("POST", `/api/departments/${departmentId}/agents`, { agentId, language, systemPrompt, voiceTone });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       refetchDepartmentAgents();
       setShowAddAgentDialog(false);
-      setSelectedAgent({ agentId: "", language: "en" });
+      setSelectedAgent({ agentId: "", language: "en", systemPrompt: "", voiceTone: "" });
       toast({ title: "Agent added to department" });
     },
     onError: () => {
@@ -977,6 +979,25 @@ export default function DepartmentManagement() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Voice Tone</Label>
+              <Input
+                placeholder="e.g., Professional, Friendly, Calm..."
+                value={selectedAgent.voiceTone}
+                onChange={(e) => setSelectedAgent({ ...selectedAgent, voiceTone: e.target.value })}
+                data-testid="input-voice-tone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>System Prompt</Label>
+              <Textarea
+                placeholder="Enter instructions for the AI agent..."
+                value={selectedAgent.systemPrompt}
+                onChange={(e) => setSelectedAgent({ ...selectedAgent, systemPrompt: e.target.value })}
+                rows={4}
+                data-testid="textarea-system-prompt"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddAgentDialog(false)} data-testid="button-cancel-agent">
@@ -989,6 +1010,8 @@ export default function DepartmentManagement() {
                     departmentId: selectedDepartment.id,
                     agentId: selectedAgent.agentId,
                     language: selectedAgent.language,
+                    systemPrompt: selectedAgent.systemPrompt || undefined,
+                    voiceTone: selectedAgent.voiceTone || undefined,
                   });
                 }
               }}

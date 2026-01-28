@@ -173,7 +173,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
   router.post("/:id/agents", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const { agentId, language, isPrimary } = req.body;
+      const { agentId, language, isPrimary, systemPrompt, voiceTone } = req.body;
 
       if (!agentId) {
         return res.status(400).json({ error: "agentId is required" });
@@ -208,6 +208,8 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
           agentId,
           language: language || "en",
           isPrimary: isPrimary || false,
+          systemPrompt: systemPrompt || null,
+          voiceTone: voiceTone || null,
         })
         .returning();
 

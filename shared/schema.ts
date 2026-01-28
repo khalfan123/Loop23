@@ -247,6 +247,8 @@ export const departmentAgents = pgTable("department_agents", {
   agentId: varchar("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
   language: text("language").notNull().default("en"), // ISO language code
   isPrimary: boolean("is_primary").notNull().default(false), // Primary agent for the department
+  systemPrompt: text("system_prompt"), // Override system prompt for this department
+  voiceTone: text("voice_tone"), // Override voice tone for this department
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

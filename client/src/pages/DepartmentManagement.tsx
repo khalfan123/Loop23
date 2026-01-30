@@ -560,6 +560,24 @@ export default function DepartmentManagement() {
       .join(" ");
   }, [languageOptions]);
 
+  useEffect(() => {
+    if (departments.length > 0 && languageOptions.length > 0) {
+      setLanguageOptions(prevOptions => 
+        prevOptions.map(opt => {
+          const selectedDepts = opt.selectedDepartments || departments.map(d => d.id);
+          const deptNames = selectedDepts
+            .map(id => departments.find(d => d.id === id)?.name)
+            .filter(Boolean) as string[];
+          return {
+            ...opt,
+            greeting: generateDeptGreeting(deptNames.length > 0 ? deptNames : departments.map(d => d.name), opt.language),
+            selectedDepartments: selectedDepts.filter(id => departments.some(d => d.id === id)),
+          };
+        })
+      );
+    }
+  }, [departments]);
+
   const getDefaultVoiceForLanguage = (langCode: string) => {
     const voices = getVoicesForLanguage(langCode);
     const elevenLabsVoice = voices.find(v => v.id.startsWith("el_"));
@@ -936,16 +954,57 @@ export default function DepartmentManagement() {
               <div className="flex flex-col items-center gap-4 py-4">
                 {activePhoneNumber && (
                   <>
-                    <div className="bg-emerald-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      {activePhoneNumber.phoneNumber}
+                    <div className="relative">
+                      <div className="bg-emerald-500 text-white px-6 py-3 rounded-xl flex items-center gap-3 shadow-lg">
+                        <Phone className="h-5 w-5" />
+                        <div>
+                          <div className="font-semibold">{activePhoneNumber.phoneNumber}</div>
+                          <div className="text-xs text-emerald-100">Inbound Number</div>
+                        </div>
+                      </div>
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-emerald-500 rotate-45" />
                     </div>
-                    <div className="w-px h-8 bg-border" />
-                    <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
-                      <PhoneIncoming className="h-3 w-3 mr-1" />
-                      Incoming Calls
+                    <div className="w-px h-6 bg-gradient-to-b from-emerald-500 to-blue-500" />
+                    <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-4 py-2">
+                      <PhoneIncoming className="h-4 w-4 mr-2" />
+                      Caller Dials
                     </Badge>
-                    <div className="w-px h-8 bg-border" />
+                    <div className="w-px h-6 bg-gradient-to-b from-blue-500 to-amber-500" />
+                    
+                    {multiLangEnabled && languageOptions.length > 1 ? (
+                      <Card className="border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 min-w-[300px]">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Globe className="h-5 w-5 text-amber-600" />
+                          <span className="font-semibold text-amber-700 dark:text-amber-300">Language Selection</span>
+                        </div>
+                        <div className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 rounded p-2 mb-3 italic">
+                          "{languageSelectionGreeting}"
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {languageOptions.map((opt, idx) => (
+                            <Badge 
+                              key={opt.id} 
+                              variant="outline" 
+                              className="border-amber-400 bg-white dark:bg-gray-800"
+                            >
+                              <span className="font-mono text-amber-600 mr-1">{idx + 1}</span>
+                              {SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label}
+                            </Badge>
+                          ))}
+                        </div>
+                      </Card>
+                    ) : (
+                      <Card className="border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 min-w-[280px]">
+                        <div className="flex items-center gap-2 mb-2">
+                          <GitBranch className="h-5 w-5 text-amber-600" />
+                          <span className="font-semibold text-amber-700 dark:text-amber-300">IVR Menu</span>
+                        </div>
+                        <div className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 rounded p-2 italic">
+                          "{languageOptions[0]?.greeting || DEFAULT_GREETINGS.en}"
+                        </div>
+                      </Card>
+                    )}
+                    <div className="w-px h-6 bg-gradient-to-b from-amber-500 to-border" />
                   </>
                 )}
                 
@@ -1153,6 +1212,184 @@ export default function DepartmentManagement() {
               </div>
             </CardContent>
           </Card>
+          
+          {multiLangEnabled && languageOptions.length > 1 && departments.length > 0 && (
+            <Card data-testid="auto-greetings-table">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Languages className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg">Auto-Generated Department Greetings</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Greetings are automatically translated when you add a language
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium">Language</th>
+                          <th className="px-4 py-3 text-left font-medium">Generated Greeting</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {languageOptions.map((opt) => {
+                          const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label || opt.language;
+                          return (
+                            <tr key={opt.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline">{langLabel}</Badge>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="text-muted-foreground italic">"{opt.greeting}"</div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {activePhoneNumber && departments.length > 0 && (
+            <Card data-testid="call-flow-preview">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <GitBranch className="h-5 w-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-lg">Call Flow Preview</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Complete caller journey through your IVR system
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-emerald-600 font-semibold text-sm">1</span>
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <p className="font-medium">Caller dials {activePhoneNumber.phoneNumber}</p>
+                      <p className="text-sm text-muted-foreground">Call connects to your IVR system</p>
+                    </div>
+                  </div>
+                  
+                  {multiLangEnabled && languageOptions.length > 1 && (
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                        <span className="text-amber-600 font-semibold text-sm">2</span>
+                      </div>
+                      <div className="flex-1 pt-1">
+                        <p className="font-medium">Language Selection Plays</p>
+                        <div className="text-sm text-muted-foreground bg-muted/50 rounded p-2 mt-1 italic">
+                          "{languageSelectionGreeting}"
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {languageOptions.map((opt, idx) => (
+                            <Badge key={opt.id} variant="secondary" className="text-xs">
+                              Press {idx + 1}: {SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-semibold text-sm">{multiLangEnabled && languageOptions.length > 1 ? "3" : "2"}</span>
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <p className="font-medium">Department Menu Plays</p>
+                      {multiLangEnabled && languageOptions.length > 1 ? (
+                        <div className="space-y-2 mt-2">
+                          {languageOptions.map((opt) => {
+                            const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
+                            return (
+                              <div key={opt.id} className="bg-muted/50 rounded p-2">
+                                <Badge variant="outline" className="mb-1 text-xs">{langLabel}</Badge>
+                                <div className="text-sm text-muted-foreground italic">"{opt.greeting}"</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground bg-muted/50 rounded p-2 mt-1 italic">
+                          "{languageOptions[0]?.greeting || generateDeptGreeting(departments.map(d => d.name), "en")}"
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {departments.map((dept, idx) => (
+                          <Badge 
+                            key={dept.id} 
+                            variant="outline" 
+                            className="text-xs"
+                            style={{ borderColor: dept.color, color: dept.color }}
+                          >
+                            Press {idx + 1}: {dept.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+                      <span className="text-purple-600 font-semibold text-sm">{multiLangEnabled && languageOptions.length > 1 ? "4" : "3"}</span>
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <p className="font-medium">Connected to AI Agent</p>
+                      <p className="text-sm text-muted-foreground">
+                        Caller is connected to the department's AI agent in their selected language
+                      </p>
+                      {multiLangEnabled && languageOptions.length > 1 && departments.length > 0 && (
+                        <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                              AI Agents Created (Sample Preview)
+                            </p>
+                            <Badge variant="secondary" className="text-xs">
+                              {departments.length * languageOptions.length} total
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {departments.slice(0, 2).flatMap(dept => 
+                              languageOptions.slice(0, 2).map(opt => (
+                                <Badge 
+                                  key={`${dept.id}-${opt.language}`} 
+                                  variant="outline" 
+                                  className="text-xs justify-start"
+                                >
+                                  <Mic className="h-3 w-3 mr-1" />
+                                  {dept.name} ({SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label})
+                                </Badge>
+                              ))
+                            )}
+                            {(departments.length * languageOptions.length) > 4 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{(departments.length * languageOptions.length) - 4} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="departments" className="mt-6">

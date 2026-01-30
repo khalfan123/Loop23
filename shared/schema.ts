@@ -236,6 +236,7 @@ export const departments = pgTable("departments", {
   color: text("color").default("#3b82f6"), // Hex color for visual identification
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  flowId: varchar("flow_id"), // Reference to auto-generated flow for this department
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

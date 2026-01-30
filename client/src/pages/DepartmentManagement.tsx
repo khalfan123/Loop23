@@ -82,6 +82,7 @@ interface Department {
   color: string;
   sortOrder: number;
   isActive: boolean;
+  flowId?: string | null;
   agentCount?: number;
   languages?: string[];
   createdAt: string;
@@ -542,6 +543,31 @@ export default function DepartmentManagement() {
       toast({ title: "Failed to save IVR configuration", variant: "destructive" });
     },
   });
+
+  const generateFlowMutation = useMutation({
+    mutationFn: async (departmentId: string) => {
+      const response = await apiRequest("POST", `/api/departments/${departmentId}/generate-flow`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      if (data.flowId || data.department?.flowId) {
+        const flowId = data.flowId || data.department?.flowId;
+        setLocation(`/app/flows/${flowId}`);
+      }
+    },
+    onError: () => {
+      toast({ title: "Failed to generate flow", variant: "destructive" });
+    },
+  });
+
+  const handleFlowClick = (dept: Department) => {
+    if (dept.flowId) {
+      setLocation(`/app/flows/${dept.flowId}`);
+    } else {
+      generateFlowMutation.mutate(dept.id);
+    }
+  };
 
   useEffect(() => {
     ivrAudioRef.current = new Audio();
@@ -1189,7 +1215,7 @@ export default function DepartmentManagement() {
                       setSelectedDepartment(dept);
                       setShowDeleteDialog(true);
                     }}
-                    onFlow={() => setLocation(`/app/flows/${dept.id}`)}
+                    onFlow={() => handleFlowClick(dept)}
                     onAddAgent={() => {
                       setSelectedDepartment(dept);
                       setShowAddAgentDialog(true);
@@ -1406,7 +1432,7 @@ export default function DepartmentManagement() {
                   setSelectedDepartment(dept);
                   setShowDeleteDialog(true);
                 }}
-                onFlow={() => setLocation(`/app/flows/${dept.id}`)}
+                onFlow={() => handleFlowClick(dept)}
                 onAddAgent={() => {
                   setSelectedDepartment(dept);
                   setShowAddAgentDialog(true);

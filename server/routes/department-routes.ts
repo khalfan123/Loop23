@@ -1,15 +1,144 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers } from "@shared/schema";
+import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows } from "@shared/schema";
+import type { FlowNode, FlowEdge } from "@shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/schema";
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
 import { textToSpeech } from "../replit_integrations/audio/client";
 import { ElevenLabsService } from "../services/elevenlabs";
+import { nanoid } from "nanoid";
 
 interface AuthRequest extends Request {
   userId?: string;
+}
+
+function getDepartmentType(name: string): "sales" | "support" | "scheduling" | "custom" {
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes("sales") || lowerName.includes("vente")) return "sales";
+  if (lowerName.includes("support") || lowerName.includes("help") || lowerName.includes("assistance")) return "support";
+  if (lowerName.includes("schedule") || lowerName.includes("appointment") || lowerName.includes("booking") || lowerName.includes("rendez-vous")) return "scheduling";
+  return "custom";
+}
+
+function generateDefaultFlowNodes(departmentName: string, agentName: string = "your AI assistant"): { nodes: FlowNode[], edges: FlowEdge[] } {
+  const deptType = getDepartmentType(departmentName);
+  
+  const greetingMessages: Record<string, string> = {
+    sales: `Hello! I'm ${agentName}. Thank you for calling our sales department. How can I help you today?`,
+    support: `Hello! I'm ${agentName}. Thank you for reaching our support team. How may I assist you?`,
+    scheduling: `Hello! I'm ${agentName}. Thank you for calling. I can help you schedule an appointment. What day works best for you?`,
+    custom: `Hello! Thank you for calling ${departmentName}. I'm ${agentName}. How can I assist you today?`,
+  };
+
+  const nodes: FlowNode[] = [
+    {
+      id: "greeting",
+      type: "message",
+      position: { x: 250, y: 50 },
+      data: {
+        label: "Greeting",
+        config: {
+          type: "message",
+          message: greetingMessages[deptType],
+          waitForResponse: false,
+        },
+      },
+    },
+    {
+      id: "knowledge_base",
+      type: "question",
+      position: { x: 250, y: 180 },
+      data: {
+        label: "Knowledge Base",
+        config: {
+          type: "question",
+          question: "Let me check that for you. What would you like to know?",
+          variableName: "user_question",
+          expectedResponseType: "text",
+          waitForResponse: true,
+        },
+      },
+    },
+    {
+      id: "follow_up",
+      type: "question",
+      position: { x: 250, y: 310 },
+      data: {
+        label: "Follow Up Question",
+        config: {
+          type: "question",
+          question: "Is there anything else I can help you with, or would you like to speak with a team member?",
+          variableName: "wants_more_help",
+          expectedResponseType: "yes_no",
+          waitForResponse: true,
+        },
+      },
+    },
+    {
+      id: "condition",
+      type: "condition",
+      position: { x: 250, y: 440 },
+      data: {
+        label: "Check Response",
+        config: {
+          type: "condition",
+          conditions: [
+            {
+              type: "keyword",
+              value: "transfer,human,agent,person,team,speak,talk",
+              targetNodeId: "transfer",
+              label: "Wants Transfer",
+            },
+            {
+              type: "yes_no",
+              value: "no",
+              targetNodeId: "end",
+              label: "No More Help",
+            },
+          ],
+          defaultTargetNodeId: "knowledge_base",
+        },
+      },
+    },
+    {
+      id: "transfer",
+      type: "transfer",
+      position: { x: 100, y: 570 },
+      data: {
+        label: "Transfer Call",
+        config: {
+          type: "transfer",
+          transferNumber: "",
+          message: "I'll transfer you now. Please hold.",
+        },
+      },
+    },
+    {
+      id: "end",
+      type: "end",
+      position: { x: 400, y: 570 },
+      data: {
+        label: "End Call",
+        config: {
+          type: "end",
+          message: "Thank you for calling. Have a great day!",
+        },
+      },
+    },
+  ];
+
+  const edges: FlowEdge[] = [
+    { id: "e-greeting-kb", source: "greeting", target: "knowledge_base" },
+    { id: "e-kb-followup", source: "knowledge_base", target: "follow_up" },
+    { id: "e-followup-condition", source: "follow_up", target: "condition" },
+    { id: "e-condition-transfer", source: "condition", target: "transfer", label: "Transfer", sourceHandle: "transfer" },
+    { id: "e-condition-end", source: "condition", target: "end", label: "End", sourceHandle: "end" },
+    { id: "e-condition-kb", source: "condition", target: "knowledge_base", label: "More Help", sourceHandle: "default" },
+  ];
+
+  return { nodes, edges };
 }
 
 export function createDepartmentRoutes(authenticateToken: (req: Request, res: Response, next: Function) => void) {
@@ -87,15 +216,39 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         .from(departments)
         .where(eq(departments.userId, req.userId!));
 
-      const newDepartment = await db
-        .insert(departments)
-        .values({
-          ...validatedData,
-          sortOrder: existingCount.length,
-        })
-        .returning();
+      const flowId = nanoid();
+      const { nodes, edges } = generateDefaultFlowNodes(validatedData.name);
 
-      res.status(201).json(newDepartment[0]);
+      const result = await db.transaction(async (tx) => {
+        const [newFlow] = await tx
+          .insert(flows)
+          .values({
+            id: flowId,
+            userId: req.userId!,
+            name: `${validatedData.name} Flow`,
+            description: `Auto-generated conversation flow for ${validatedData.name} department`,
+            nodes,
+            edges,
+            isActive: true,
+            isTemplate: false,
+          } as typeof flows.$inferInsert)
+          .returning();
+
+        console.log(`[Departments] Created flow "${newFlow.name}" (${flowId}) for department "${validatedData.name}"`);
+
+        const [newDepartment] = await tx
+          .insert(departments)
+          .values({
+            ...validatedData,
+            sortOrder: existingCount.length,
+            flowId: flowId,
+          })
+          .returning();
+
+        return { department: newDepartment, flow: newFlow };
+      });
+
+      res.status(201).json({ ...result.department, flow: result.flow });
     } catch (error: any) {
       console.error("[Departments] Create error:", error);
       res.status(500).json({ error: "Failed to create department" });
@@ -138,6 +291,62 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
     } catch (error: any) {
       console.error("[Departments] Update error:", error);
       res.status(500).json({ error: "Failed to update department" });
+    }
+  });
+
+  /**
+   * Generate flow for existing department without one
+   */
+  router.post("/:id/generate-flow", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const [existingDept] = await db
+        .select()
+        .from(departments)
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .limit(1);
+
+      if (!existingDept) {
+        return res.status(404).json({ error: "Department not found" });
+      }
+
+      if (existingDept.flowId) {
+        return res.json({ flowId: existingDept.flowId, message: "Flow already exists" });
+      }
+
+      const flowId = nanoid();
+      const { nodes, edges } = generateDefaultFlowNodes(existingDept.name);
+
+      const result = await db.transaction(async (tx) => {
+        const [newFlow] = await tx
+          .insert(flows)
+          .values({
+            id: flowId,
+            userId: req.userId!,
+            name: `${existingDept.name} Flow`,
+            description: `Auto-generated conversation flow for ${existingDept.name} department`,
+            nodes,
+            edges,
+            isActive: true,
+            isTemplate: false,
+          } as typeof flows.$inferInsert)
+          .returning();
+
+        const [updatedDept] = await tx
+          .update(departments)
+          .set({ flowId: flowId, updatedAt: new Date() })
+          .where(eq(departments.id, id))
+          .returning();
+
+        return { department: updatedDept, flow: newFlow };
+      });
+
+      console.log(`[Departments] Generated flow for existing department "${existingDept.name}" (${flowId})`);
+      res.json(result);
+    } catch (error: any) {
+      console.error("[Departments] Generate flow error:", error);
+      res.status(500).json({ error: "Failed to generate flow" });
     }
   });
 

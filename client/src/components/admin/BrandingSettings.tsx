@@ -76,6 +76,7 @@ export default function BrandingSettings() {
       return apiRequest("PATCH", "/api/admin/branding", data);
     },
     onSuccess: () => {
+      localStorage.removeItem("agentlabs-branding:v1");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       toast({ title: t("admin.branding.updateSuccess") });
@@ -95,6 +96,7 @@ export default function BrandingSettings() {
       return apiRequest("DELETE", "/api/admin/branding/logo-light");
     },
     onSuccess: () => {
+      localStorage.removeItem("agentlabs-branding:v1");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       setLogoLightPreview(null);
@@ -107,6 +109,7 @@ export default function BrandingSettings() {
       return apiRequest("DELETE", "/api/admin/branding/logo-dark");
     },
     onSuccess: () => {
+      localStorage.removeItem("agentlabs-branding:v1");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       setLogoDarkPreview(null);
@@ -119,6 +122,7 @@ export default function BrandingSettings() {
       return apiRequest("DELETE", "/api/admin/branding/favicon");
     },
     onSuccess: () => {
+      localStorage.removeItem("agentlabs-branding:v1");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       setFaviconPreview(null);
@@ -184,6 +188,8 @@ export default function BrandingSettings() {
 
       const result = await response.json();
       setLogoLightPreview(result.logo_url_light || result.url);
+      // Clear localStorage cache to force refresh
+      localStorage.removeItem("agentlabs-branding:v1");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       toast({ title: t("admin.branding.logoUploaded") });
@@ -240,6 +246,7 @@ export default function BrandingSettings() {
 
       const result = await response.json();
       setLogoDarkPreview(result.logo_url_dark || result.url);
+      localStorage.removeItem("agentlabs-branding:v1");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       toast({ title: t("admin.branding.logoUploaded") });
@@ -296,6 +303,7 @@ export default function BrandingSettings() {
 
       const result = await response.json();
       setFaviconPreview(result.favicon_url || result.url);
+      localStorage.removeItem("agentlabs-branding:v1");
       queryClient.invalidateQueries({ queryKey: ["/api/admin/branding"] });
       queryClient.invalidateQueries({ queryKey: ["/api/branding"] });
       toast({ title: t("admin.branding.faviconUploaded") });

@@ -617,7 +617,13 @@ export default function DepartmentManagement() {
         if (opt.id === id) {
           const updated = { ...opt, ...updates };
           if (updates.language && updates.language !== opt.language) {
-            updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
+            const deptNames = (opt.selectedDepartments || [])
+              .map(deptId => departments.find(d => d.id === deptId)?.name)
+              .filter(Boolean) as string[];
+            updated.greeting = generateDeptGreeting(
+              deptNames.length > 0 ? deptNames : departments.map(d => d.name), 
+              updates.language
+            );
             updated.voiceId = getDefaultVoiceForLanguage(updates.language);
           }
           return updated;

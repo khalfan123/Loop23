@@ -586,24 +586,6 @@ export default function DepartmentManagement() {
       .join(" ");
   }, [languageOptions]);
 
-  useEffect(() => {
-    if (departments.length > 0 && languageOptions.length > 0) {
-      setLanguageOptions(prevOptions => 
-        prevOptions.map(opt => {
-          const selectedDepts = opt.selectedDepartments || departments.map(d => d.id);
-          const deptNames = selectedDepts
-            .map(id => departments.find(d => d.id === id)?.name)
-            .filter(Boolean) as string[];
-          return {
-            ...opt,
-            greeting: generateDeptGreeting(deptNames.length > 0 ? deptNames : departments.map(d => d.name), opt.language),
-            selectedDepartments: selectedDepts.filter(id => departments.some(d => d.id === id)),
-          };
-        })
-      );
-    }
-  }, [departments]);
-
   const getDefaultVoiceForLanguage = (langCode: string) => {
     const voices = getVoicesForLanguage(langCode);
     const elevenLabsVoice = voices.find(v => v.id.startsWith("el_"));
@@ -886,6 +868,24 @@ export default function DepartmentManagement() {
   const ivrConfigurations = statsData?.ivrConfigurations || [];
   const activeIvr = ivrConfigurations.find(ivr => ivr.isActive);
   const activePhoneNumber = phoneNumbers?.find(p => p.id === activeIvr?.phoneNumberId);
+
+  useEffect(() => {
+    if (departments.length > 0 && languageOptions.length > 0) {
+      setLanguageOptions(prevOptions => 
+        prevOptions.map(opt => {
+          const selectedDepts = opt.selectedDepartments || departments.map(d => d.id);
+          const deptNames = selectedDepts
+            .map(id => departments.find(d => d.id === id)?.name)
+            .filter(Boolean) as string[];
+          return {
+            ...opt,
+            greeting: generateDeptGreeting(deptNames.length > 0 ? deptNames : departments.map(d => d.name), opt.language),
+            selectedDepartments: selectedDepts.filter(id => departments.some(d => d.id === id)),
+          };
+        })
+      );
+    }
+  }, [departments]);
   
   const assignedPhoneIds = useMemo(() => {
     return new Set(ivrConfigurations.map(ivr => ivr.phoneNumberId).filter(Boolean));

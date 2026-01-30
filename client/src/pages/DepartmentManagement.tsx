@@ -227,7 +227,7 @@ const DEPT_MENU_TEMPLATES: Record<string, { prefix: string; pressKey: string; se
   it: { prefix: "Per", pressKey: "premere", separator: ", " },
   zh: { prefix: "如需", pressKey: "请按", separator: "，" },
   hi: { prefix: "के लिए", pressKey: "दबाएं", separator: ", " },
-  ar: { prefix: "من أجل", pressKey: "اضغط", separator: "، " },
+  ar: { prefix: "لـ", pressKey: "اضغط", separator: "، " },
 };
 
 const DEPT_NAME_TRANSLATIONS: Record<string, Record<string, string>> = {
@@ -278,7 +278,7 @@ const generateDeptGreeting = (deptNames: string[], langCode: string): string => 
   const menuItems = deptNames.map((name, idx) => {
     const translatedName = translateDeptName(name, langCode);
     if (langCode === "ar") {
-      return `${template.prefix} ${translatedName} ${template.pressKey} ${idx + 1}`;
+      return `لـ${translatedName} ${template.pressKey} ${idx + 1}`;
     } else if (langCode === "zh") {
       return `${template.prefix}${translatedName}${template.pressKey}${idx + 1}`;
     } else if (langCode === "hi") {
@@ -2415,12 +2415,17 @@ export default function DepartmentManagement() {
                               
                               <div>
                                 <div className="flex items-center justify-between">
-                                  <Label className="text-xs text-muted-foreground">Generated Greeting</Label>
-                                  <Badge variant="secondary" className="text-xs">Auto-translated</Badge>
+                                  <Label className="text-xs text-muted-foreground">Greeting Message</Label>
+                                  <Badge variant="secondary" className="text-xs">Editable</Badge>
                                 </div>
-                                <div className="mt-1 p-2 bg-muted/30 rounded text-sm border min-h-[60px]">
-                                  {opt.greeting || <span className="text-muted-foreground italic">Select departments above to generate greeting</span>}
-                                </div>
+                                <Textarea
+                                  value={opt.greeting}
+                                  onChange={(e) => updateLanguageOption(opt.id, { greeting: e.target.value })}
+                                  placeholder="Select departments above to generate greeting, or type your own..."
+                                  rows={3}
+                                  className="mt-1 text-sm"
+                                  data-testid={`textarea-greeting-${idx}`}
+                                />
                               </div>
                             </div>
                           </Card>

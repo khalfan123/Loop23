@@ -219,18 +219,20 @@ export function AdminTeamMemberSidebar() {
     <Sidebar collapsible="icon">
       {/* Header with responsive logo */}
       <SidebarHeader className="px-3 py-3 border-b border-sidebar-border">
-        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:hidden">
-          {showLogo && (
-            <img 
-              src={currentLogo!} 
-              alt={branding.app_name} 
-              className={`w-auto max-w-[140px] object-contain ${
-                branding.logo_size === 'small' ? 'h-6' : 
-                branding.logo_size === 'large' ? 'h-10' : 
-                branding.logo_size === 'xlarge' ? 'h-12' : 'h-8'
-              }`}
-            />
-          )}
+        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:hidden min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
+            {showLogo && (
+              <img 
+                src={currentLogo!} 
+                alt={branding.app_name} 
+                className={`w-auto object-contain ${
+                  branding.logo_size === 'small' ? 'h-6 max-w-[100px]' : 
+                  branding.logo_size === 'large' ? 'h-10 max-w-[160px]' : 
+                  branding.logo_size === 'xlarge' ? 'h-12 max-w-[180px]' : 'h-8 max-w-[140px]'
+                }`}
+              />
+            )}
+          </div>
           <SidebarTrigger 
             className="h-6 w-6 shrink-0" 
             data-testid="button-admin-sidebar-toggle" 

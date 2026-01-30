@@ -37,7 +37,7 @@ const upload = multer({
 export function registerBrandingRoutes(router: Router) {
   router.get('/branding', async (req: AdminRequest, res: Response) => {
     try {
-      const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'branding_updated_at'];
+      const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'logo_size', 'branding_updated_at'];
       const branding: Record<string, any> = {};
       
       for (const key of brandingKeys) {
@@ -56,7 +56,7 @@ export function registerBrandingRoutes(router: Router) {
 
   router.patch('/branding', async (req: AdminRequest, res: Response) => {
     try {
-      const { app_name, app_tagline, logo_url, logo_url_light, logo_url_dark, favicon_url } = req.body;
+      const { app_name, app_tagline, logo_url, logo_url_light, logo_url_dark, favicon_url, logo_size } = req.body;
       
       if (app_name !== undefined) await storage.updateGlobalSetting('app_name', app_name);
       if (app_tagline !== undefined) await storage.updateGlobalSetting('app_tagline', app_tagline);
@@ -64,6 +64,7 @@ export function registerBrandingRoutes(router: Router) {
       if (logo_url_light !== undefined) await storage.updateGlobalSetting('logo_url_light', logo_url_light);
       if (logo_url_dark !== undefined) await storage.updateGlobalSetting('logo_url_dark', logo_url_dark);
       if (favicon_url !== undefined) await storage.updateGlobalSetting('favicon_url', favicon_url);
+      if (logo_size !== undefined) await storage.updateGlobalSetting('logo_size', logo_size);
       
       await storage.updateGlobalSetting('branding_updated_at', new Date().toISOString());
       

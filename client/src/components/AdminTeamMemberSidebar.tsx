@@ -224,7 +224,11 @@ export function AdminTeamMemberSidebar() {
             <img 
               src={currentLogo!} 
               alt={branding.app_name} 
-              className="h-8 w-auto max-w-[140px] object-contain"
+              className={`w-auto max-w-[140px] object-contain ${
+                branding.logo_size === 'small' ? 'h-6' : 
+                branding.logo_size === 'large' ? 'h-10' : 
+                branding.logo_size === 'xlarge' ? 'h-12' : 'h-8'
+              }`}
             />
           )}
           <SidebarTrigger 

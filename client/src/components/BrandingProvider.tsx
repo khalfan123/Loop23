@@ -25,6 +25,7 @@ interface BrandingData {
   logo_url_light: string | null;
   logo_url_dark: string | null;
   favicon_url: string | null;
+  logo_size: string | null;
   social_twitter_url: string | null;
   social_linkedin_url: string | null;
   social_github_url: string | null;
@@ -58,6 +59,7 @@ const defaultBranding: BrandingData = {
   logo_url_light: null,
   logo_url_dark: null,
   favicon_url: null,
+  logo_size: "medium",
   social_twitter_url: null,
   social_linkedin_url: null,
   social_github_url: null
@@ -100,7 +102,8 @@ function getBrandingSignature(data: BrandingData): string {
     data.logo_url,
     data.logo_url_light,
     data.logo_url_dark,
-    data.favicon_url
+    data.favicon_url,
+    data.logo_size
   ].join("|");
 }
 
@@ -131,6 +134,7 @@ export function BrandingProvider({ children }: BrandingProviderProps) {
         logo_url_light: data.logo_url_light,
         logo_url_dark: data.logo_url_dark,
         favicon_url: data.favicon_url,
+        logo_size: data.logo_size || defaultBranding.logo_size,
         social_twitter_url: data.social_twitter_url,
         social_linkedin_url: data.social_linkedin_url,
         social_github_url: data.social_github_url

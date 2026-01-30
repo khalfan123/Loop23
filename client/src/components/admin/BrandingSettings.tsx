@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useRef } from "react";
 import { Settings, RefreshCw, Edit, Loader2, CheckCircle, Image, Globe, Type, Tag, X, Upload, Sun, Moon, Mail, Twitter, Linkedin, Github, Link } from "lucide-react";
@@ -38,6 +39,7 @@ interface BrandingData {
   logo_url_light: string | null;
   logo_url_dark: string | null;
   favicon_url: string | null;
+  logo_size: string | null;
   branding_updated_at: string | null;
   social_twitter_url: string | null;
   social_linkedin_url: string | null;
@@ -52,6 +54,7 @@ export default function BrandingSettings() {
     app_name: "",
     app_tagline: "",
     admin_email: "",
+    logo_size: "medium",
     social_twitter_url: "",
     social_linkedin_url: "",
     social_github_url: ""
@@ -72,7 +75,7 @@ export default function BrandingSettings() {
   });
 
   const updateBrandingMutation = useMutation({
-    mutationFn: async (data: { app_name: string; app_tagline: string; admin_email: string; social_twitter_url: string; social_linkedin_url: string; social_github_url: string }) => {
+    mutationFn: async (data: { app_name: string; app_tagline: string; admin_email: string; logo_size: string; social_twitter_url: string; social_linkedin_url: string; social_github_url: string }) => {
       return apiRequest("PATCH", "/api/admin/branding", data);
     },
     onSuccess: () => {
@@ -136,6 +139,7 @@ export default function BrandingSettings() {
         app_name: branding.app_name,
         app_tagline: branding.app_tagline || "",
         admin_email: branding.admin_email || "",
+        logo_size: branding.logo_size || "medium",
         social_twitter_url: branding.social_twitter_url || "",
         social_linkedin_url: branding.social_linkedin_url || "",
         social_github_url: branding.social_github_url || ""
@@ -761,6 +765,28 @@ export default function BrandingSettings() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Image className="h-4 w-4 text-primary" />
+                <Label>Logo Size</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">Choose how large the logo appears in the sidebar</p>
+              <Select
+                value={formData.logo_size}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, logo_size: value }))}
+              >
+                <SelectTrigger data-testid="select-logo-size">
+                  <SelectValue placeholder="Select logo size" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="small">Small (24px height)</SelectItem>
+                  <SelectItem value="medium">Medium (32px height)</SelectItem>
+                  <SelectItem value="large">Large (40px height)</SelectItem>
+                  <SelectItem value="xlarge">Extra Large (48px height)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

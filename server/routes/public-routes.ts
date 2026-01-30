@@ -629,7 +629,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
     try {
-      const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'branding_updated_at', 'admin_email', 'social_twitter_url', 'social_linkedin_url', 'social_github_url'];
+      const brandingKeys = ['app_name', 'app_tagline', 'logo_url', 'logo_url_light', 'logo_url_dark', 'favicon_url', 'logo_size', 'branding_updated_at', 'admin_email', 'social_twitter_url', 'social_linkedin_url', 'social_github_url'];
       const branding: Record<string, any> = {
         app_name: '',
         app_tagline: '',
@@ -637,6 +637,7 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         logo_url_light: null,
         logo_url_dark: null,
         favicon_url: null,
+        logo_size: 'medium',
         branding_updated_at: null,
         admin_email: null,
         social_twitter_url: null,

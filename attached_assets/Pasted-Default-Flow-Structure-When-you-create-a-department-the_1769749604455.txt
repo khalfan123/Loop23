@@ -1,0 +1,57 @@
+Default Flow Structure
+When you create a department, the system automatically generates a conversation flow with these 6 nodes:
+
+┌─────────────────┐
+│    Greeting     │  ← Welcomes the caller
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Knowledge Base  │  ← Answers questions using your KB
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│    Question     │  ← Asks if they need more help
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   Condition     │  ← Checks if they want a human
+└────────┬────────┘
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+┌───────┐ ┌───────┐
+│Transfer│ │  End  │
+└───────┘ └───────┘
+Node Details by Department Type
+1. Greeting Node
+Department	Message
+Sales	"Hello! Thank you for calling our sales department. How can I help you today?"
+Support	"Hello! Thank you for reaching our support team. How may I assist you?"
+Scheduling	"Hello! Thank you for calling. I can help you schedule an appointment. What day works best for you?"
+Custom	"Hello! Thank you for calling [Department Name]. How can I assist you today?"
+2. Knowledge Base Node
+Searches your attached knowledge bases to answer caller questions
+Has a fallback message: "I don't have specific information about that, but I can help you with other questions or connect you with a team member."
+3. Question Node
+Asks: "Is there anything else I can help you with, or would you like to speak with a team member?"
+Stores the caller's response
+4. Condition Node
+Checks if the caller wants to speak to a human or be transferred
+Routes to Transfer (if yes) or End (if no)
+5. Transfer Node
+Message: "I'll transfer you now. Please hold."
+You can configure the transfer phone number later
+6. End Node
+Message: "Thank you for calling. Have a great day!"
+Ends the conversation gracefully
+What You Can Do Next
+After the flow is created, you can:
+
+Edit the flow in the visual Flow Builder
+Add more nodes (additional questions, API calls, webhooks, delays)
+Customize messages to match your brand
+Attach knowledge bases for smarter responses
+Set transfer numbers for human escalation

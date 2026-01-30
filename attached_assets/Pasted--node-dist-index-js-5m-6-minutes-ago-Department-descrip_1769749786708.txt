@@ -1,0 +1,65 @@
+
+node dist/index.js
+5m
+ • 
+6 minutes ago
+Department description and details
+and what is out department descibe it in details
+
+what is Department Canvas
+setup new department descibe it ind details
+
+what are teh flow creating after create a department
+
+what happen when i add langauge in ivr
+
+Here's what happens when you add a language to the IVR:
+
+When You Add a Language to IVR
+1. Language Selection Menu is Created
+The system automatically generates a language selection greeting that plays first:
+
+"For English, press 1. Para Español, presione 2. Pour le Français, appuyez sur 3."
+Each language greeting is spoken in its native language so callers recognize their option.
+
+2. For Each Language, You Configure:
+Setting	Description
+Dial Digit	Which number to press (1, 2, 3, etc.) - auto-assigned
+Language	Choose from 20+ supported languages
+Voice	Select TTS voice (ElevenLabs or OpenAI)
+Greeting Message	Custom greeting in that language (auto-generated based on connected departments)
+3. Department Greetings Auto-Translate
+When you select a language, the system auto-generates department greetings in that language:
+
+Language	Generated Greeting
+English	"Thank you for calling. For Sales, press 1. For Support, press 2."
+Spanish	"Gracias por llamar. Para Ventas, presione 1. Para Soporte, presione 2."
+French	"Merci d'avoir appelé. Pour Ventes, appuyez sur 1. Pour Support, appuyez sur 2."
+Arabic	"شكرا لاتصالك. لـ المبيعات اضغط 1. لـ الدعم اضغط 2."
+Chinese	"感谢您的来电。销售请按1。支持请按2。"
+4. Multi-Language AI Agents Created
+When you connect a department to an IVR with multiple languages:
+
+One AI agent is created per language for each department
+Each agent gets:
+Language-specific system prompt
+Appropriate voice for that language
+Same knowledge base access
+Matching personality settings
+Example: If you have Sales + Support departments with English + Spanish:
+
+Sales Agent (English)
+Sales Agent (Spanish)
+Support Agent (English)
+Support Agent (Spanish)
+Call Flow with Multi-Language IVR
+Caller dials → Language Selection Greeting plays
+                     ↓
+            Caller presses 2 (Spanish)
+                     ↓
+            Spanish Department Menu plays
+            "Gracias por llamar. Para Ventas, presione 1..."
+                     ↓
+            Caller presses 1 (Sales)
+                     ↓
+            Connected to Spanish-speaking Sales AI Agent

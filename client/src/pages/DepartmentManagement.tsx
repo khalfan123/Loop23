@@ -230,19 +230,61 @@ const DEPT_MENU_TEMPLATES: Record<string, { prefix: string; pressKey: string; se
   ar: { prefix: "من أجل", pressKey: "اضغط", separator: "، " },
 };
 
+const DEPT_NAME_TRANSLATIONS: Record<string, Record<string, string>> = {
+  Sales: {
+    en: "Sales", fr: "Ventes", it: "Vendite", zh: "销售", hi: "बिक्री", ar: "المبيعات"
+  },
+  Support: {
+    en: "Support", fr: "Assistance", it: "Supporto", zh: "客服", hi: "सहायता", ar: "الدعم"
+  },
+  Scheduling: {
+    en: "Scheduling", fr: "Planification", it: "Programmazione", zh: "预约", hi: "शेड्यूलिंग", ar: "الجدولة"
+  },
+  Billing: {
+    en: "Billing", fr: "Facturation", it: "Fatturazione", zh: "账单", hi: "बिलिंग", ar: "الفواتير"
+  },
+  "Technical Support": {
+    en: "Technical Support", fr: "Support Technique", it: "Supporto Tecnico", zh: "技术支持", hi: "तकनीकी सहायता", ar: "الدعم الفني"
+  },
+  "Customer Service": {
+    en: "Customer Service", fr: "Service Client", it: "Servizio Clienti", zh: "客户服务", hi: "ग्राहक सेवा", ar: "خدمة العملاء"
+  },
+  Appointments: {
+    en: "Appointments", fr: "Rendez-vous", it: "Appuntamenti", zh: "预约", hi: "अपॉइंटमेंट", ar: "المواعيد"
+  },
+  General: {
+    en: "General", fr: "Général", it: "Generale", zh: "通用", hi: "सामान्य", ar: "عام"
+  },
+  Marketing: {
+    en: "Marketing", fr: "Marketing", it: "Marketing", zh: "市场营销", hi: "मार्केटिंग", ar: "التسويق"
+  },
+  "Human Resources": {
+    en: "Human Resources", fr: "Ressources Humaines", it: "Risorse Umane", zh: "人力资源", hi: "मानव संसाधन", ar: "الموارد البشرية"
+  },
+};
+
+const translateDeptName = (name: string, langCode: string): string => {
+  const translations = DEPT_NAME_TRANSLATIONS[name];
+  if (translations && translations[langCode]) {
+    return translations[langCode];
+  }
+  return name;
+};
+
 const generateDeptGreeting = (deptNames: string[], langCode: string): string => {
   const template = DEPT_MENU_TEMPLATES[langCode] || DEPT_MENU_TEMPLATES.en;
   if (deptNames.length === 0) return DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
   
   const menuItems = deptNames.map((name, idx) => {
+    const translatedName = translateDeptName(name, langCode);
     if (langCode === "ar") {
-      return `${template.prefix} ${name} ${template.pressKey} ${idx + 1}`;
+      return `${template.prefix} ${translatedName} ${template.pressKey} ${idx + 1}`;
     } else if (langCode === "zh") {
-      return `${template.prefix}${name}${template.pressKey}${idx + 1}`;
+      return `${template.prefix}${translatedName}${template.pressKey}${idx + 1}`;
     } else if (langCode === "hi") {
-      return `${name} ${template.prefix} ${idx + 1} ${template.pressKey}`;
+      return `${translatedName} ${template.prefix} ${idx + 1} ${template.pressKey}`;
     }
-    return `${template.prefix} ${name} ${template.pressKey} ${idx + 1}`;
+    return `${template.prefix} ${translatedName} ${template.pressKey} ${idx + 1}`;
   });
   
   return menuItems.join(template.separator) + ".";

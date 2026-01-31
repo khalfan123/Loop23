@@ -1,0 +1,93 @@
+flowchart TB
+  %% === Sources ===
+  subgraph S[Sources]
+    W[Public Website\n(Pages, Docs, Blog, FAQ)]
+    R[Robots.txt + Sitemap.xml]
+    E[External Signals\n(Optional: SERP keywords, competitor pages)]
+    C[Call Center Data\n(Transcripts, tickets, CRM notes)]
+  end
+
+  %% === Ingestion ===
+  subgraph I[Ingestion Layer]
+    F[URL Frontier\n(priority + dedupe)]
+    CR[Crawler/Fetcher\nHTTP + headless fallback]
+    RD[Robots/Rate Controller\npoliteness + quotas]
+    CH[Change Detector\nETag/Last-Modified + hash]
+  end
+
+  %% === Parsing & Normalization ===
+  subgraph P[Content Processing]
+    HP[HTML Parser\nDOM extraction]
+    BB[Boilerplate Removal\nnav/footer/ads]
+    SD[Structure Detection\nH1-H6, tables, lists, code]
+    CL[Cleaning\nnormalize, lang detect]
+    MD[Canonicalizer\nURLs + duplicates]
+  end
+
+  %% === NLP / Knowledge ===
+  subgraph N[NLP + Knowledge Layer]
+    EM[Embeddings\nchunk vectors]
+    IE[Info Extraction\nentities, features, FAQs]
+    TR[Taxonomy Builder\ntopics + clusters]
+    KG[Knowledge Graph\nnodes/edges + provenance]
+    QA[Claim Checker\nsource linking + uncertainty]
+  end
+
+  %% === Storage ===
+  subgraph D[Data Stores]
+    OB[Object Store\nraw HTML + snapshots]
+    DS[Document Store\nclean text + metadata]
+    VS[Vector DB\nembeddings]
+    GS[Graph DB\nknowledge graph]
+    AU[Audit Log\nprovenance + lineage]
+  end
+
+  %% === Content Engine ===
+  subgraph G[Generation + Editorial]
+    TD[Topic Discovery\ncoverage gaps + intent]
+    BR[Brief Generator\noutline + required sources]
+    LG[LLM Writer\narticle drafts]
+    ED[Editorial QA\nstyle, duplication, SEO, safety]
+    CI[Citation Injector\nlinks to source pages]
+  end
+
+  %% === Delivery ===
+  subgraph O[Outputs]
+    KB[Knowledge Base / Docs Site]
+    SE[Sales Enablement\nbattlecards, one-pagers]
+    CO[Compliance Pack\ncontrols, policies, evidence]
+    AT[Agent Assist\nRAG answers + playbooks]
+  end
+
+  %% === Observability ===
+  subgraph M[Monitoring & Governance]
+    ME[Metrics\ncrawl coverage, freshness, errors]
+    AL[Alerts\ncrawl failures, drift, policy violations]
+    AP[Access Policy\nPII controls, RBAC]
+  end
+
+  %% === Flows ===
+  R --> RD
+  W --> F --> CR --> HP
+  RD --> CR
+  CR --> CH --> OB
+  HP --> BB --> SD --> CL --> MD --> DS
+  DS --> EM --> VS
+  DS --> IE --> KG --> GS
+  KG --> TR --> TD
+  C --> IE
+  C --> EM
+  TD --> BR --> LG --> ED --> CI --> KB
+  CI --> SE
+  CI --> CO
+  VS --> AT
+  GS --> AT
+  AU --- HP
+  AU --- IE
+  AU --- CI
+  ME --- CR
+  ME --- ED
+  AL --- CR
+  AL --- QA
+  AP --- AT
+  AP --- CO

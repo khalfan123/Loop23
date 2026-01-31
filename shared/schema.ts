@@ -3163,3 +3163,298 @@ export const insertUserAddressSchema = createInsertSchema(userAddresses).omit({
 });
 export type InsertUserAddress = z.infer<typeof insertUserAddressSchema>;
 export type UserAddress = typeof userAddresses.$inferSelect;
+
+// ============================================================
+// KNOWLEDGE INTELLIGENCE SYSTEM - Enhanced Knowledge Base
+// ============================================================
+
+// Crawl Jobs - Web crawling operations for ingesting content from websites
+export const crawlJobs = pgTable("crawl_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  folderId: varchar("folder_id").references(() => knowledgeFolders.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  startUrl: text("start_url").notNull(),
+  crawlType: text("crawl_type").notNull().default("single"), // single, sitemap, recursive
+  maxPages: integer("max_pages").notNull().default(50),
+  maxDepth: integer("max_depth").notNull().default(3),
+  respectRobotsTxt: boolean("respect_robots_txt").notNull().default(true),
+  includePaths: text("include_paths").array(), // URL patterns to include
+  excludePaths: text("exclude_paths").array(), // URL patterns to exclude
+  status: text("status").notNull().default("pending"), // pending, running, completed, failed, paused
+  pagesDiscovered: integer("pages_discovered").notNull().default(0),
+  pagesCrawled: integer("pages_crawled").notNull().default(0),
+  pagesProcessed: integer("pages_processed").notNull().default(0),
+  errorMessage: text("error_message"),
+  scheduleEnabled: boolean("schedule_enabled").notNull().default(false),
+  scheduleInterval: text("schedule_interval"), // daily, weekly, monthly
+  lastCrawledAt: timestamp("last_crawled_at"),
+  nextCrawlAt: timestamp("next_crawl_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Crawl Pages - Individual pages crawled from a crawl job
+export const crawlPages = pgTable("crawl_pages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  crawlJobId: varchar("crawl_job_id").notNull().references(() => crawlJobs.id, { onDelete: "cascade" }),
+  knowledgeBaseId: varchar("knowledge_base_id").references(() => knowledgeBase.id, { onDelete: "set null" }),
+  url: text("url").notNull(),
+  canonicalUrl: text("canonical_url"),
+  title: text("title"),
+  depth: integer("depth").notNull().default(0),
+  status: text("status").notNull().default("pending"), // pending, fetched, processed, failed, skipped
+  httpStatus: integer("http_status"),
+  contentType: text("content_type"),
+  contentHash: text("content_hash"), // MD5 hash for change detection
+  etag: text("etag"), // HTTP ETag for change detection
+  lastModified: text("last_modified"), // HTTP Last-Modified header
+  rawHtml: text("raw_html"), // Original HTML content
+  cleanText: text("clean_text"), // Cleaned text after boilerplate removal
+  structureData: jsonb("structure_data").$type<{
+    headings: { level: number; text: string }[];
+    lists: { type: string; items: string[] }[];
+    tables: { headers: string[]; rows: string[][] }[];
+    codeBlocks: string[];
+    links: { text: string; href: string }[];
+  }>(),
+  language: text("language"),
+  wordCount: integer("word_count").default(0),
+  errorMessage: text("error_message"),
+  fetchedAt: timestamp("fetched_at"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Knowledge Entities - Extracted entities from content
+export const knowledgeEntities = pgTable("knowledge_entities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  knowledgeBaseId: varchar("knowledge_base_id").references(() => knowledgeBase.id, { onDelete: "cascade" }),
+  entityType: text("entity_type").notNull(), // person, organization, product, feature, concept, location, date
+  name: text("name").notNull(),
+  normalizedName: text("normalized_name").notNull(), // Lowercase, trimmed for deduplication
+  description: text("description"),
+  aliases: text("aliases").array(),
+  attributes: jsonb("attributes"), // Key-value pairs for entity attributes
+  confidence: doublePrecision("confidence").default(1.0),
+  sourceChunkIds: text("source_chunk_ids").array(), // References to chunks where entity was found
+  mentionCount: integer("mention_count").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Knowledge Topics - Topic/taxonomy clustering
+export const knowledgeTopics = pgTable("knowledge_topics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  description: text("description"),
+  parentTopicId: varchar("parent_topic_id").references((): any => knowledgeTopics.id, { onDelete: "set null" }),
+  level: integer("level").notNull().default(0), // Hierarchy level (0 = root)
+  keywords: text("keywords").array(),
+  embedding: jsonb("embedding"), // Topic centroid embedding
+  documentCount: integer("document_count").notNull().default(0),
+  isAutoGenerated: boolean("is_auto_generated").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Knowledge Topic Assignments - Links content to topics
+export const knowledgeTopicAssignments = pgTable("knowledge_topic_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  topicId: varchar("topic_id").notNull().references(() => knowledgeTopics.id, { onDelete: "cascade" }),
+  knowledgeBaseId: varchar("knowledge_base_id").notNull().references(() => knowledgeBase.id, { onDelete: "cascade" }),
+  relevanceScore: doublePrecision("relevance_score").default(1.0),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Knowledge FAQs - Detected question-answer pairs
+export const knowledgeFaqs = pgTable("knowledge_faqs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  knowledgeBaseId: varchar("knowledge_base_id").references(() => knowledgeBase.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  sourceUrl: text("source_url"),
+  sourceChunkId: varchar("source_chunk_id").references(() => knowledgeChunks.id, { onDelete: "set null" }),
+  confidence: doublePrecision("confidence").default(1.0),
+  isVerified: boolean("is_verified").notNull().default(false),
+  verifiedBy: varchar("verified_by").references(() => users.id, { onDelete: "set null" }),
+  usageCount: integer("usage_count").notNull().default(0),
+  embedding: jsonb("embedding"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Knowledge Graph Nodes - Entities and concepts as graph nodes
+export const knowledgeGraphNodes = pgTable("knowledge_graph_nodes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  entityId: varchar("entity_id").references(() => knowledgeEntities.id, { onDelete: "cascade" }),
+  nodeType: text("node_type").notNull(), // entity, concept, document, claim
+  label: text("label").notNull(),
+  properties: jsonb("properties"),
+  embedding: jsonb("embedding"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Knowledge Graph Edges - Relationships between nodes
+export const knowledgeGraphEdges = pgTable("knowledge_graph_edges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sourceNodeId: varchar("source_node_id").notNull().references(() => knowledgeGraphNodes.id, { onDelete: "cascade" }),
+  targetNodeId: varchar("target_node_id").notNull().references(() => knowledgeGraphNodes.id, { onDelete: "cascade" }),
+  relationshipType: text("relationship_type").notNull(), // is_a, has_part, related_to, mentions, supports, contradicts
+  label: text("label"),
+  weight: doublePrecision("weight").default(1.0),
+  properties: jsonb("properties"),
+  sourceChunkId: varchar("source_chunk_id").references(() => knowledgeChunks.id, { onDelete: "set null" }),
+  confidence: doublePrecision("confidence").default(1.0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Generated Articles - AI-generated content from the knowledge base
+export const generatedArticles = pgTable("generated_articles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  folderId: varchar("folder_id").references(() => knowledgeFolders.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  slug: text("slug").notNull(),
+  content: text("content").notNull(),
+  contentHtml: text("content_html"),
+  summary: text("summary"),
+  articleType: text("article_type").notNull().default("article"), // article, faq, battlecard, one_pager, compliance_doc
+  topicId: varchar("topic_id").references(() => knowledgeTopics.id, { onDelete: "set null" }),
+  sourceKnowledgeBaseIds: text("source_knowledge_base_ids").array(),
+  sourceChunkIds: text("source_chunk_ids").array(),
+  citations: jsonb("citations").$type<{
+    id: string;
+    text: string;
+    sourceUrl?: string;
+    sourceTitle?: string;
+    chunkId?: string;
+  }[]>(),
+  status: text("status").notNull().default("draft"), // draft, review, published, archived
+  seoScore: integer("seo_score"),
+  readabilityScore: integer("readability_score"),
+  llmModel: text("llm_model"),
+  generationPrompt: text("generation_prompt"),
+  editorialNotes: text("editorial_notes"),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Content Audit Log - Provenance and lineage tracking
+export const contentAuditLog = pgTable("content_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  actionType: text("action_type").notNull(), // crawl, parse, extract, generate, edit, publish, delete
+  resourceType: text("resource_type").notNull(), // crawl_job, crawl_page, knowledge_base, entity, article
+  resourceId: varchar("resource_id").notNull(),
+  details: jsonb("details"),
+  sourceResourceType: text("source_resource_type"),
+  sourceResourceId: varchar("source_resource_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Insert schemas and types for new tables
+export const insertCrawlJobSchema = createInsertSchema(crawlJobs).omit({
+  id: true,
+  pagesDiscovered: true,
+  pagesCrawled: true,
+  pagesProcessed: true,
+  status: true,
+  errorMessage: true,
+  lastCrawledAt: true,
+  nextCrawlAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCrawlJob = z.infer<typeof insertCrawlJobSchema>;
+export type CrawlJob = typeof crawlJobs.$inferSelect;
+
+export const insertCrawlPageSchema = createInsertSchema(crawlPages).omit({
+  id: true,
+  status: true,
+  httpStatus: true,
+  contentHash: true,
+  etag: true,
+  lastModified: true,
+  rawHtml: true,
+  cleanText: true,
+  structureData: true,
+  language: true,
+  wordCount: true,
+  errorMessage: true,
+  fetchedAt: true,
+  processedAt: true,
+  createdAt: true,
+});
+export type InsertCrawlPage = z.infer<typeof insertCrawlPageSchema>;
+export type CrawlPage = typeof crawlPages.$inferSelect;
+
+export const insertKnowledgeEntitySchema = createInsertSchema(knowledgeEntities).omit({
+  id: true,
+  mentionCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertKnowledgeEntity = z.infer<typeof insertKnowledgeEntitySchema>;
+export type KnowledgeEntity = typeof knowledgeEntities.$inferSelect;
+
+export const insertKnowledgeTopicSchema = createInsertSchema(knowledgeTopics).omit({
+  id: true,
+  documentCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertKnowledgeTopic = z.infer<typeof insertKnowledgeTopicSchema>;
+export type KnowledgeTopic = typeof knowledgeTopics.$inferSelect;
+
+export const insertKnowledgeFaqSchema = createInsertSchema(knowledgeFaqs).omit({
+  id: true,
+  usageCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertKnowledgeFaq = z.infer<typeof insertKnowledgeFaqSchema>;
+export type KnowledgeFaq = typeof knowledgeFaqs.$inferSelect;
+
+export const insertKnowledgeGraphNodeSchema = createInsertSchema(knowledgeGraphNodes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertKnowledgeGraphNode = z.infer<typeof insertKnowledgeGraphNodeSchema>;
+export type KnowledgeGraphNode = typeof knowledgeGraphNodes.$inferSelect;
+
+export const insertKnowledgeGraphEdgeSchema = createInsertSchema(knowledgeGraphEdges).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertKnowledgeGraphEdge = z.infer<typeof insertKnowledgeGraphEdgeSchema>;
+export type KnowledgeGraphEdge = typeof knowledgeGraphEdges.$inferSelect;
+
+export const insertGeneratedArticleSchema = createInsertSchema(generatedArticles).omit({
+  id: true,
+  status: true,
+  seoScore: true,
+  readabilityScore: true,
+  publishedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertGeneratedArticle = z.infer<typeof insertGeneratedArticleSchema>;
+export type GeneratedArticle = typeof generatedArticles.$inferSelect;
+
+export const insertContentAuditLogSchema = createInsertSchema(contentAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertContentAuditLog = z.infer<typeof insertContentAuditLogSchema>;
+export type ContentAuditLog = typeof contentAuditLog.$inferSelect;

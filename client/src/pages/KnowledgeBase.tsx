@@ -815,8 +815,20 @@ export default function KnowledgeBase() {
   const processingCount = knowledgeBase.filter(item => item.ragStatus === 'processing').length;
 
   return (
-    <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
-      {/* Left Sidebar */}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold" data-testid="heading-knowledge-base">Knowledge Base</h1>
+        <Button
+          onClick={() => setLocation('/app/knowledge-intelligence')}
+          className="gap-2"
+          data-testid="button-ai-intelligence"
+        >
+          <Brain className="h-4 w-4" />
+          AI Intelligence
+        </Button>
+      </div>
+      <div className="flex h-[calc(100vh-220px)] border rounded-lg bg-background overflow-hidden">
+        {/* Left Sidebar */}
       <div className="w-[220px] border-r flex-shrink-0 bg-muted/30 flex flex-col">
         {/* Dashboard Button */}
         <div className="p-3">
@@ -1708,6 +1720,7 @@ export default function KnowledgeBase() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 }

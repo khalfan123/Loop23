@@ -45,6 +45,7 @@ import Billing from "@/pages/Billing";
 import PaymentResult from "@/pages/PaymentResult";
 import Upgrade from "@/pages/Upgrade";
 import KnowledgeBase from "@/pages/KnowledgeBase";
+import KnowledgeIntelligencePage from "@/pages/KnowledgeIntelligencePage";
 import DepartmentManagement from "@/pages/DepartmentManagement";
 import DepartmentCanvas from "@/pages/DepartmentCanvas";
 import Agents from "@/pages/Agents";
@@ -260,6 +261,7 @@ function UserRouter() {
                 </Route>
                 <Route path="/app/upgrade" component={Upgrade} />
                 <Route path="/app/knowledge-base" component={KnowledgeBase} />
+                <Route path="/app/knowledge-intelligence" component={KnowledgeIntelligencePage} />
                 <Route path="/app/departments" component={DepartmentManagement} />
                 <Route path="/app/departments/canvas" component={DepartmentCanvas} />
                 <Route path="/app/agents/new" component={AgentEditor} />
@@ -349,6 +351,7 @@ function TeamMemberRouter() {
                   <Redirect to="/app/billing?tab=credits" />
                 </Route>
                 <Route path="/app/knowledge-base" component={KnowledgeBase} />
+                <Route path="/app/knowledge-intelligence" component={KnowledgeIntelligencePage} />
                 <Route path="/app/departments" component={DepartmentManagement} />
                 <Route path="/app/departments/canvas" component={DepartmentCanvas} />
                 <Route path="/app/agents/new" component={AgentEditor} />

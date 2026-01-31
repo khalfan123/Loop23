@@ -99,8 +99,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import KnowledgeIntelligence from "@/components/knowledge-intelligence";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
@@ -258,7 +256,6 @@ export default function KnowledgeBase() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"dashboard" | "folder">("dashboard");
-  const [mainTab, setMainTab] = useState<"resources" | "intelligence">("resources");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -818,27 +815,9 @@ export default function KnowledgeBase() {
   const processingCount = knowledgeBase.filter(item => item.ragStatus === 'processing').length;
 
   return (
-    <div className="space-y-4">
-      <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "resources" | "intelligence")} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="resources" data-testid="tab-resources">
-            <BookOpen className="h-4 w-4 mr-2" />
-            Resources
-          </TabsTrigger>
-          <TabsTrigger value="intelligence" data-testid="tab-intelligence">
-            <Brain className="h-4 w-4 mr-2" />
-            AI Intelligence
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="intelligence" className="mt-0">
-          <KnowledgeIntelligence />
-        </TabsContent>
-        
-        <TabsContent value="resources" className="mt-0">
-          <div className="flex h-[calc(100vh-240px)] border rounded-lg bg-background overflow-hidden">
-            {/* Left Sidebar */}
-            <div className="w-[220px] border-r flex-shrink-0 bg-muted/30 flex flex-col">
+    <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
+      {/* Left Sidebar */}
+      <div className="w-[220px] border-r flex-shrink-0 bg-muted/30 flex flex-col">
         {/* Dashboard Button */}
         <div className="p-3">
           <button
@@ -1416,9 +1395,7 @@ export default function KnowledgeBase() {
             )}
           </div>
         </ScrollArea>
-    </div>
-        </TabsContent>
-      </Tabs>
+      </div>
 
       {/* URL Dialog */}
       <Dialog open={urlDialogOpen} onOpenChange={setUrlDialogOpen}>

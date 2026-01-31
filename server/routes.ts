@@ -95,6 +95,7 @@ import invoiceRouter from "./routes/invoice-routes";
 import emailSettingsRouter from "./routes/email-settings-routes";
 import audioRoutes from "./routes/audio-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
+import { createKnowledgeIntelligenceRoutes } from "./routes/knowledge-intelligence-routes";
 import { createDepartmentRoutes } from "./routes/department-routes";
 import { createNotificationRoutes } from "./routes/notification-routes";
 import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
@@ -1490,6 +1491,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set USE_RAG_KNOWLEDGE=true to enable this system
   const ragKnowledgeRoutes = createRAGKnowledgeRoutes(routeContext.authenticateHybrid);
   app.use("/api/rag-knowledge", ragKnowledgeRoutes);
+
+  // Knowledge Intelligence routes (crawling, AI analysis, content generation)
+  const knowledgeIntelligenceRoutes = createKnowledgeIntelligenceRoutes();
+  app.use("/api/knowledge-intelligence", routeContext.authenticateHybrid, knowledgeIntelligenceRoutes);
 
   // Department Management routes
   const departmentRoutes = createDepartmentRoutes(routeContext.authenticateHybrid);

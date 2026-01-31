@@ -226,6 +226,26 @@ export default function KnowledgeIntelligence() {
     },
   });
 
+  const analyzeAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/knowledge-intelligence/analyze-all");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/entities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/topics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/faqs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/intelligence-stats"] });
+      toast({ 
+        title: "Analysis Complete", 
+        description: `Analyzed ${data.analyzed} of ${data.total} items` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Analysis Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleCreateCrawl = () => {
     if (!crawlName || !crawlUrl) return;
     createCrawlMutation.mutate({
@@ -418,6 +438,26 @@ export default function KnowledgeIntelligence() {
         </TabsContent>
 
         <TabsContent value="insights" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">AI-Powered Insights</h3>
+            <Button 
+              onClick={() => analyzeAllMutation.mutate()}
+              disabled={analyzeAllMutation.isPending}
+              data-testid="button-analyze-all"
+            >
+              {analyzeAllMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Brain className="h-4 w-4 mr-2" />
+                  Analyze All Content
+                </>
+              )}
+            </Button>
+          </div>
           <div className="grid md:grid-cols-2 gap-4">
             <Card data-testid="card-entities">
               <CardHeader>

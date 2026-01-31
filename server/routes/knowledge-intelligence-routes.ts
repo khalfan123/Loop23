@@ -242,6 +242,45 @@ router.post("/analyze/:knowledgeBaseId", async (req: AuthRequest, res: Response)
   }
 });
 
+router.post("/analyze-all", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const knowledgeItems = await db.select().from(ragKnowledge)
+      .where(eq(ragKnowledge.userId, req.userId))
+      .limit(20);
+
+    if (knowledgeItems.length === 0) {
+      return res.json({ message: "No content to analyze", analyzed: 0 });
+    }
+
+    const analyzer = createKnowledgeAIAnalyzer(req.userId);
+    let analyzed = 0;
+    const errors: string[] = [];
+
+    for (const item of knowledgeItems) {
+      try {
+        await analyzer.analyzeKnowledgeBaseItem(item.id);
+        analyzed++;
+      } catch (error) {
+        errors.push(`Failed to analyze ${item.title}: ${error}`);
+      }
+    }
+
+    res.json({
+      message: `Analysis complete`,
+      analyzed,
+      total: knowledgeItems.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error("Error in bulk analysis:", error);
+    res.status(500).json({ error: "Failed to analyze content" });
+  }
+});
+
 router.get("/entities", async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) {

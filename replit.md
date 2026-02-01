@@ -210,10 +210,11 @@ Before every deployment, ensure the following steps are completed:
   - Uses Anthropic Claude Sonnet-4-5 via Replit AI Integrations for complex reasoning
 - 2026-02-01: **Knowledge Base & AI Intelligence Unified Experience**:
   - Merged `/app/knowledge-intelligence` into `/app/knowledge-base` for a single unified page
-  - Added tabbed interface with "Resources" (original KB content) and "AI Intelligence" tabs
-  - Removed separate "AI Intelligence" sidebar navigation item
+  - **Folder-based navigation**: AI Insights and Content Studio appear as special folders in the left sidebar
+  - Removed tab-based interface in favor of sidebar folder navigation
+  - Extended viewMode to support "dashboard", "folder", "ai-insights", "content-studio"
+  - KnowledgeIntelligence component accepts `section` prop for rendering specific views
   - Added redirect from `/app/knowledge-intelligence` to `/app/knowledge-base` for backwards compatibility
-  - KnowledgeIntelligence component now embedded within KnowledgeBase page under intelligence tab
   - Added delete functionality for crawl jobs with confirmation dialog
   - Changed default crawl type to "comprehensive" for better coverage
 

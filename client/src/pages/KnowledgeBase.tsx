@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Link, 
   FileText, 
@@ -256,10 +255,9 @@ function DonutChart({ urlCount, textCount, fileCount }: { urlCount: number; text
 export default function KnowledgeBase() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<"resources" | "intelligence">("resources");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"dashboard" | "folder">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -824,20 +822,7 @@ export default function KnowledgeBase() {
         <h1 className="text-2xl font-bold" data-testid="heading-knowledge-base">Knowledge Base</h1>
       </div>
       
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "resources" | "intelligence")} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="resources" className="gap-2" data-testid="tab-resources">
-            <Database className="h-4 w-4" />
-            Resources
-          </TabsTrigger>
-          <TabsTrigger value="intelligence" className="gap-2" data-testid="tab-intelligence">
-            <Brain className="h-4 w-4" />
-            AI Intelligence
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="resources" className="mt-0">
-      <div className="flex h-[calc(100vh-280px)] border rounded-lg bg-background overflow-hidden">
+      <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
         {/* Left Sidebar */}
       <div className="w-[220px] border-r flex-shrink-0 bg-muted/30 flex flex-col">
         {/* Dashboard Button */}
@@ -962,6 +947,45 @@ export default function KnowledgeBase() {
           </div>
         </ScrollArea>
 
+        {/* AI Features Section */}
+        <div className="px-3 py-2 border-t">
+          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            AI Features
+          </div>
+          <div className="space-y-1">
+            <button
+              onClick={() => {
+                setViewMode("ai-insights");
+                setSelectedFolderId(null);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                viewMode === "ai-insights"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover-elevate"
+              }`}
+              data-testid="folder-ai-insights"
+            >
+              <Brain className="h-4 w-4 flex-shrink-0 text-purple-500" />
+              <span className="truncate flex-1 text-left">AI Insights</span>
+            </button>
+            <button
+              onClick={() => {
+                setViewMode("content-studio");
+                setSelectedFolderId(null);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                viewMode === "content-studio"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover-elevate"
+              }`}
+              data-testid="folder-content-studio"
+            >
+              <Sparkles className="h-4 w-4 flex-shrink-0 text-amber-500" />
+              <span className="truncate flex-1 text-left">Content Studio</span>
+            </button>
+          </div>
+        </div>
+
         {/* Storage Usage */}
         {storageUsage && (
           <div className="p-3 border-t">
@@ -1055,7 +1079,11 @@ export default function KnowledgeBase() {
         {/* Content */}
         <ScrollArea className="flex-1">
           <div className="p-4">
-            {isLoading ? (
+            {viewMode === "ai-insights" ? (
+              <KnowledgeIntelligence section="insights" />
+            ) : viewMode === "content-studio" ? (
+              <KnowledgeIntelligence section="content-studio" />
+            ) : isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
@@ -1418,6 +1446,7 @@ export default function KnowledgeBase() {
           </div>
         </ScrollArea>
       </div>
+      </div>
 
       {/* URL Dialog */}
       <Dialog open={urlDialogOpen} onOpenChange={setUrlDialogOpen}>
@@ -1730,13 +1759,6 @@ export default function KnowledgeBase() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
-        </TabsContent>
-        
-        <TabsContent value="intelligence" className="mt-0">
-          <KnowledgeIntelligence />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }

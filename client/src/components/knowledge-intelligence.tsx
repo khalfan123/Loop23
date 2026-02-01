@@ -46,6 +46,10 @@ import {
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+interface KnowledgeIntelligenceProps {
+  section?: "insights" | "content-studio" | "all";
+}
+
 interface CrawlJob {
   id: string;
   name: string;
@@ -129,7 +133,7 @@ interface PipelineJob {
   errorMessage?: string;
 }
 
-export default function KnowledgeIntelligence() {
+export default function KnowledgeIntelligence({ section = "all" }: KnowledgeIntelligenceProps) {
   const { toast } = useToast();
   const [crawlDialogOpen, setCrawlDialogOpen] = useState(false);
   const [crawlName, setCrawlName] = useState("");
@@ -653,22 +657,25 @@ export default function KnowledgeIntelligence() {
         </Card>
       ) : null}
 
-      <Tabs defaultValue="crawl" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="crawl" data-testid="tab-crawl">
-            <Globe className="h-4 w-4 mr-2" />
-            Web Crawler
-          </TabsTrigger>
-          <TabsTrigger value="insights" data-testid="tab-insights">
-            <Brain className="h-4 w-4 mr-2" />
-            AI Insights
-          </TabsTrigger>
-          <TabsTrigger value="generate" data-testid="tab-generate">
-            <Sparkles className="h-4 w-4 mr-2" />
-            Content Studio
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue={section === "content-studio" ? "generate" : section === "insights" ? "insights" : "crawl"} className="space-y-4">
+        {section === "all" && (
+          <TabsList>
+            <TabsTrigger value="crawl" data-testid="tab-crawl">
+              <Globe className="h-4 w-4 mr-2" />
+              Web Crawler
+            </TabsTrigger>
+            <TabsTrigger value="insights" data-testid="tab-insights">
+              <Brain className="h-4 w-4 mr-2" />
+              AI Insights
+            </TabsTrigger>
+            <TabsTrigger value="generate" data-testid="tab-generate">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Content Studio
+            </TabsTrigger>
+          </TabsList>
+        )}
 
+        {section === "all" && (
         <TabsContent value="crawl" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">Web Crawl Jobs</h3>
@@ -762,9 +769,9 @@ export default function KnowledgeIntelligence() {
               ))}
             </div>
           )}
-        </TabsContent>
+        </TabsContent>)}
 
-        <TabsContent value="insights" className="space-y-4">
+        {(section === "all" || section === "insights") && (<TabsContent value="insights" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">AI-Powered Insights</h3>
             <Button 
@@ -927,9 +934,9 @@ export default function KnowledgeIntelligence() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </TabsContent>)}
 
-        <TabsContent value="generate" className="space-y-4">
+        {(section === "all" || section === "content-studio") && (<TabsContent value="generate" className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="text-lg font-medium">AI Content Studio</h3>
             <div className="flex items-center gap-2">
@@ -1065,7 +1072,7 @@ export default function KnowledgeIntelligence() {
               </div>
             </>
           )}
-        </TabsContent>
+        </TabsContent>)}
       </Tabs>
 
       <Dialog open={crawlDialogOpen} onOpenChange={setCrawlDialogOpen}>

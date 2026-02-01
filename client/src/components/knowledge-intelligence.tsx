@@ -456,113 +456,111 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
         </Card>
       </div>
 
-      {/* Pipeline Progress Bar - Always visible when active */}
+      {/* Pipeline Progress Bar - Always visible when active (outside card) */}
       {activePipelineJob && ["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) && (
-        <Card className="border-primary/50 bg-primary/5" data-testid="card-pipeline-progress">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                </div>
-                <div>
-                  <h4 className="font-medium" data-testid="text-pipeline-name">{activePipelineJob.name}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {getStageLabel(activePipelineJob.currentStage)} • {formatTimeRemaining(activePipelineJob.estimatedTimeRemaining)}
-                  </p>
-                </div>
+        <div className="border border-primary/50 bg-primary/5 rounded-lg p-4" data-testid="card-pipeline-progress">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Loader2 className="h-5 w-5 text-primary animate-spin" />
               </div>
-              <Badge variant="secondary" data-testid="badge-pipeline-progress">
-                {activePipelineJob.overallProgress}%
-              </Badge>
+              <div>
+                <h4 className="font-medium" data-testid="text-pipeline-name">{activePipelineJob.name}</h4>
+                <p className="text-sm text-muted-foreground">
+                  {getStageLabel(activePipelineJob.currentStage)} • {formatTimeRemaining(activePipelineJob.estimatedTimeRemaining)}
+                </p>
+              </div>
+            </div>
+            <Badge variant="secondary" data-testid="badge-pipeline-progress">
+              {activePipelineJob.overallProgress}%
+            </Badge>
+          </div>
+          
+          {/* Main Progress Bar */}
+          <div className="space-y-2">
+            <div className="h-3 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500 ease-out rounded-full"
+                style={{ width: `${activePipelineJob.overallProgress}%` }}
+                data-testid="progress-bar-overall"
+              />
             </div>
             
-            {/* Main Progress Bar */}
-            <div className="space-y-2">
-              <div className="h-3 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-500 ease-out rounded-full"
-                  style={{ width: `${activePipelineJob.overallProgress}%` }}
-                  data-testid="progress-bar-overall"
-                />
+            {/* Stage Indicators */}
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "crawling" ? "text-primary font-medium" : activePipelineJob.stageDetails?.crawling?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
+                {activePipelineJob.stageDetails?.crawling?.completedAt ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : activePipelineJob.currentStage === "crawling" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <div className="h-3.5 w-3.5 rounded-full border border-current" />
+                )}
+                <span>Crawling</span>
+                {activePipelineJob.stageDetails?.crawling && (
+                  <span className="text-muted-foreground">
+                    ({activePipelineJob.stageDetails.crawling.pagesCrawled} pages)
+                  </span>
+                )}
               </div>
-              
-              {/* Stage Indicators */}
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "crawling" ? "text-primary font-medium" : activePipelineJob.stageDetails?.crawling?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
-                  {activePipelineJob.stageDetails?.crawling?.completedAt ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : activePipelineJob.currentStage === "crawling" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <div className="h-3.5 w-3.5 rounded-full border border-current" />
-                  )}
-                  <span>Crawling</span>
-                  {activePipelineJob.stageDetails?.crawling && (
-                    <span className="text-muted-foreground">
-                      ({activePipelineJob.stageDetails.crawling.pagesCrawled} pages)
-                    </span>
-                  )}
-                </div>
-                <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "analyzing" ? "text-primary font-medium" : activePipelineJob.stageDetails?.analyzing?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
-                  {activePipelineJob.stageDetails?.analyzing?.completedAt ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : activePipelineJob.currentStage === "analyzing" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <div className="h-3.5 w-3.5 rounded-full border border-current" />
-                  )}
-                  <span>AI Analysis</span>
-                  {activePipelineJob.stageDetails?.analyzing?.itemsProcessed !== undefined && activePipelineJob.stageDetails?.analyzing?.itemsProcessed > 0 && (
-                    <span className="text-muted-foreground">
-                      ({activePipelineJob.stageDetails.analyzing.entitiesFound} entities)
-                    </span>
-                  )}
-                </div>
-                <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "generating" ? "text-primary font-medium" : activePipelineJob.stageDetails?.generating?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
-                  {activePipelineJob.stageDetails?.generating?.completedAt ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : activePipelineJob.currentStage === "generating" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <div className="h-3.5 w-3.5 rounded-full border border-current" />
-                  )}
-                  <span>Content</span>
-                  {activePipelineJob.stageDetails?.generating?.articlesGenerated !== undefined && activePipelineJob.stageDetails?.generating?.articlesGenerated > 0 && (
-                    <span className="text-muted-foreground">
-                      ({activePipelineJob.stageDetails.generating.articlesGenerated} articles)
-                    </span>
-                  )}
-                </div>
+              <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "analyzing" ? "text-primary font-medium" : activePipelineJob.stageDetails?.analyzing?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
+                {activePipelineJob.stageDetails?.analyzing?.completedAt ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : activePipelineJob.currentStage === "analyzing" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <div className="h-3.5 w-3.5 rounded-full border border-current" />
+                )}
+                <span>AI Analysis</span>
+                {activePipelineJob.stageDetails?.analyzing?.itemsProcessed !== undefined && activePipelineJob.stageDetails?.analyzing?.itemsProcessed > 0 && (
+                  <span className="text-muted-foreground">
+                    ({activePipelineJob.stageDetails.analyzing.entitiesFound} entities)
+                  </span>
+                )}
               </div>
-              
-              {/* Topic Intelligence Progress (shown during generating stage) */}
-              {activePipelineJob.currentStage === "generating" && activePipelineJob.stageDetails?.topicMining && (
-                <div className="mt-3 pt-3 border-t">
-                  <div className="text-xs text-muted-foreground mb-2">Topic Intelligence</div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div>
-                      <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsDiscovered}</div>
-                      <div className="text-xs text-muted-foreground">Discovered</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsExpanded}</div>
-                      <div className="text-xs text-muted-foreground">Expanded</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsSelected}</div>
-                      <div className="text-xs text-muted-foreground">Selected</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.clusters}</div>
-                      <div className="text-xs text-muted-foreground">Clusters</div>
-                    </div>
+              <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "generating" ? "text-primary font-medium" : activePipelineJob.stageDetails?.generating?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
+                {activePipelineJob.stageDetails?.generating?.completedAt ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : activePipelineJob.currentStage === "generating" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <div className="h-3.5 w-3.5 rounded-full border border-current" />
+                )}
+                <span>Content</span>
+                {activePipelineJob.stageDetails?.generating?.articlesGenerated !== undefined && activePipelineJob.stageDetails?.generating?.articlesGenerated > 0 && (
+                  <span className="text-muted-foreground">
+                    ({activePipelineJob.stageDetails.generating.articlesGenerated} articles)
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* Topic Intelligence Progress (shown during generating stage) */}
+            {activePipelineJob.currentStage === "generating" && activePipelineJob.stageDetails?.topicMining && (
+              <div className="mt-3 pt-3 border-t">
+                <div className="text-xs text-muted-foreground mb-2">Topic Intelligence</div>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div>
+                    <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsDiscovered}</div>
+                    <div className="text-xs text-muted-foreground">Discovered</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsExpanded}</div>
+                    <div className="text-xs text-muted-foreground">Expanded</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsSelected}</div>
+                    <div className="text-xs text-muted-foreground">Selected</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.clusters}</div>
+                    <div className="text-xs text-muted-foreground">Clusters</div>
                   </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Completed Pipeline Notification */}
@@ -657,8 +655,8 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
         </Card>
       ) : null}
 
-      <Tabs defaultValue={section === "content-studio" ? "generate" : section === "insights" ? "insights" : "crawl"} className="space-y-4">
-        {section === "all" && (
+      {section === "all" ? (
+        <Tabs defaultValue="crawl" className="space-y-4">
           <TabsList>
             <TabsTrigger value="crawl" data-testid="tab-crawl">
               <Globe className="h-4 w-4 mr-2" />
@@ -673,9 +671,7 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               Content Studio
             </TabsTrigger>
           </TabsList>
-        )}
 
-        {section === "all" && (
         <TabsContent value="crawl" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">Web Crawl Jobs</h3>
@@ -769,9 +765,9 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               ))}
             </div>
           )}
-        </TabsContent>)}
+        </TabsContent>
 
-        {(section === "all" || section === "insights") && (<TabsContent value="insights" className="space-y-4">
+        <TabsContent value="insights" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium">AI-Powered Insights</h3>
             <Button 
@@ -934,9 +930,9 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               </CardContent>
             </Card>
           </div>
-        </TabsContent>)}
+        </TabsContent>
 
-        {(section === "all" || section === "content-studio") && (<TabsContent value="generate" className="space-y-4">
+        <TabsContent value="generate" className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="text-lg font-medium">AI Content Studio</h3>
             <div className="flex items-center gap-2">
@@ -1072,8 +1068,293 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               </div>
             </>
           )}
-        </TabsContent>)}
+        </TabsContent>
       </Tabs>
+      ) : section === "insights" ? (
+        /* Direct render of Insights when section="insights" */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">AI-Powered Insights</h3>
+            <Button 
+              onClick={() => analyzeAllMutation.mutate()}
+              disabled={analyzeAllMutation.isPending}
+              data-testid="button-analyze-all"
+            >
+              {analyzeAllMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Brain className="h-4 w-4 mr-2" />
+                  Analyze All Content
+                </>
+              )}
+            </Button>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card data-testid="card-entities">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Tags className="h-4 w-4" />
+                  Extracted Entities
+                </CardTitle>
+                <CardDescription>People, organizations, products, and concepts found in your content</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[200px]">
+                  {entities.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-entities">
+                      No entities extracted yet. Analyze your content to extract entities.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {entities.slice(0, 10).map((entity) => (
+                        <div key={entity.id} className="flex items-center justify-between py-1" data-testid={`row-entity-${entity.id}`}>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">{entity.entityType}</Badge>
+                            <span className="text-sm" data-testid={`text-entity-name-${entity.id}`}>{entity.name}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground" data-testid={`text-entity-mentions-${entity.id}`}>{entity.mentionCount} mentions</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+            <Card data-testid="card-topics">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Network className="h-4 w-4" />
+                  Topic Clusters
+                </CardTitle>
+                <CardDescription>Related content grouped by topic</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[200px]">
+                  {topics.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-topics">
+                      No topics detected yet. Analyze your content to discover topics.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {topics.slice(0, 10).map((topic) => (
+                        <div key={topic.id} className="p-2 rounded-lg bg-muted/50" data-testid={`row-topic-${topic.id}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-sm" data-testid={`text-topic-name-${topic.id}`}>{topic.name}</span>
+                            <Badge variant="secondary" className="text-xs" data-testid={`badge-topic-docs-${topic.id}`}>{topic.documentCount} docs</Badge>
+                          </div>
+                          {topic.keywords && topic.keywords.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {topic.keywords.slice(0, 3).map((keyword, i) => (
+                                <Badge key={i} variant="outline" className="text-xs">{keyword}</Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+          <Card data-testid="card-faqs">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <HelpCircle className="h-4 w-4" />
+                Detected FAQs
+              </CardTitle>
+              <CardDescription>Questions and answers automatically extracted from your content</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px]">
+                {faqs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-faqs">
+                    No FAQs detected yet. Analyze your content to extract Q&A pairs.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {faqs.map((faq) => (
+                      <div key={faq.id} className="p-3 rounded-lg border" data-testid={`row-faq-${faq.id}`}>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="font-medium text-sm" data-testid={`text-faq-question-${faq.id}`}>{faq.question}</h4>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {faq.isVerified && (
+                              <Badge variant="default" className="text-xs" data-testid={`badge-faq-verified-${faq.id}`}>
+                                <Check className="h-3 w-3 mr-1" />
+                                Verified
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-xs" data-testid={`badge-faq-confidence-${faq.id}`}>
+                              {Math.round(faq.confidence * 100)}%
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground" data-testid={`text-faq-answer-${faq.id}`}>{faq.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+          <Card data-testid="card-topic-gaps">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Lightbulb className="h-4 w-4" />
+                Content Gap Analysis
+              </CardTitle>
+              <CardDescription>Topics that could benefit from more content</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {topicGaps.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-gaps">
+                  Analyze your content to discover potential topic gaps.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {topicGaps.map((gap, i) => (
+                    <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-muted/50" data-testid={`row-gap-${i}`}>
+                      <div>
+                        <span className="font-medium text-sm" data-testid={`text-gap-topic-${i}`}>{gap.topic}</span>
+                        <p className="text-xs text-muted-foreground" data-testid={`text-gap-reason-${i}`}>{gap.suggestion}</p>
+                      </div>
+                      <Badge 
+                        variant={gap.priority === "high" ? "destructive" : gap.priority === "medium" ? "default" : "secondary"}
+                        className="text-xs"
+                        data-testid={`badge-gap-priority-${i}`}
+                      >
+                        {gap.priority}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : section === "content-studio" ? (
+        /* Direct render of Content Studio when section="content-studio" */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h3 className="text-lg font-medium">AI Content Studio</h3>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Search articles..."
+                value={articleSearch}
+                onChange={(e) => setArticleSearch(e.target.value)}
+                className="w-48"
+                data-testid="input-article-search"
+              />
+              <Select value={articleTypeFilter} onValueChange={setArticleTypeFilter}>
+                <SelectTrigger className="w-32" data-testid="select-article-type-filter">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="how-to">How-to</SelectItem>
+                  <SelectItem value="faq">FAQ</SelectItem>
+                  <SelectItem value="troubleshooting">Troubleshooting</SelectItem>
+                  <SelectItem value="overview">Overview</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={() => setGenerateDialogOpen(true)} data-testid="button-new-article">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Article
+              </Button>
+            </div>
+          </div>
+
+          {articles.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h4 className="font-medium mb-2" data-testid="text-no-articles-title">No Articles Yet</h4>
+                <p className="text-sm text-muted-foreground mb-4" data-testid="text-no-articles-desc">
+                  Generate AI-powered articles based on your knowledge base content.
+                </p>
+                <Button onClick={() => setGenerateDialogOpen(true)} data-testid="button-generate-first-article">
+                  Generate Your First Article
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {articles
+                  .filter(article => {
+                    const matchesSearch = !articleSearch || 
+                      article.title.toLowerCase().includes(articleSearch.toLowerCase());
+                    const matchesType = articleTypeFilter === "all" || 
+                      article.articleType === articleTypeFilter;
+                    return matchesSearch && matchesType;
+                  })
+                  .map((article) => (
+                    <Card 
+                      key={article.id} 
+                      className="hover-elevate cursor-pointer"
+                      onClick={() => {
+                        setSelectedArticle(article);
+                        setArticlePreviewOpen(true);
+                      }}
+                      data-testid={`card-article-${article.id}`}
+                    >
+                      <CardContent className="py-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-medium" data-testid={`text-article-title-${article.id}`}>{article.title}</h4>
+                              <Badge variant={
+                                article.status === "published" ? "default" :
+                                article.status === "review" ? "secondary" : "outline"
+                              } data-testid={`badge-article-status-${article.id}`}>
+                                {article.status}
+                              </Badge>
+                              <Badge variant="outline" className="capitalize">{article.articleType?.replace("-", " ") || "article"}</Badge>
+                            </div>
+                            <div className="flex gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+                              {article.seoScore && <span data-testid={`text-article-seo-${article.id}`}>SEO: {article.seoScore}/100</span>}
+                              {article.readabilityScore && <span data-testid={`text-article-readability-${article.id}`}>Readability: {article.readabilityScore}/100</span>}
+                              <span data-testid={`text-article-date-${article.id}`}>{new Date(article.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedArticle(article);
+                              setArticlePreviewOpen(true);
+                            }}
+                            data-testid={`button-view-article-${article.id}`}
+                          >
+                            Read
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                
+                {articles.filter(a => {
+                  const matchesSearch = !articleSearch || a.title.toLowerCase().includes(articleSearch.toLowerCase());
+                  const matchesType = articleTypeFilter === "all" || a.articleType === articleTypeFilter;
+                  return matchesSearch && matchesType;
+                }).length === 0 && (
+                  <Card>
+                    <CardContent className="py-8 text-center">
+                      <Search className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No articles match your filters</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
 
       <Dialog open={crawlDialogOpen} onOpenChange={setCrawlDialogOpen}>
         <DialogContent>

@@ -3362,6 +3362,29 @@ export const contentAuditLog = pgTable("content_audit_log", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Knowledge Pipeline Jobs - Track automated crawl -> analyze -> generate workflows
+export const knowledgePipelineJobs = pgTable("knowledge_pipeline_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  crawlJobId: varchar("crawl_job_id").references(() => crawlJobs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("pending"), // pending, crawling, analyzing, generating, completed, failed
+  currentStage: text("current_stage").notNull().default("crawling"), // crawling, analyzing, generating
+  overallProgress: integer("overall_progress").notNull().default(0), // 0-100
+  stageProgress: integer("stage_progress").notNull().default(0), // 0-100 for current stage
+  estimatedTimeRemaining: integer("estimated_time_remaining"), // seconds
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  errorMessage: text("error_message"),
+  stageDetails: jsonb("stage_details").$type<{
+    crawling: { pagesDiscovered: number; pagesCrawled: number; startedAt?: string; completedAt?: string };
+    analyzing: { itemsTotal: number; itemsProcessed: number; entitiesFound: number; topicsFound: number; faqsFound: number; startedAt?: string; completedAt?: string };
+    generating: { articlesPlanned: number; articlesGenerated: number; startedAt?: string; completedAt?: string };
+  }>(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Insert schemas and types for new tables
 export const insertCrawlJobSchema = createInsertSchema(crawlJobs).omit({
   id: true,
@@ -3458,3 +3481,20 @@ export const insertContentAuditLogSchema = createInsertSchema(contentAuditLog).o
 });
 export type InsertContentAuditLog = z.infer<typeof insertContentAuditLogSchema>;
 export type ContentAuditLog = typeof contentAuditLog.$inferSelect;
+
+export const insertKnowledgePipelineJobSchema = createInsertSchema(knowledgePipelineJobs).omit({
+  id: true,
+  status: true,
+  currentStage: true,
+  overallProgress: true,
+  stageProgress: true,
+  estimatedTimeRemaining: true,
+  startedAt: true,
+  completedAt: true,
+  errorMessage: true,
+  stageDetails: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertKnowledgePipelineJob = z.infer<typeof insertKnowledgePipelineJobSchema>;
+export type KnowledgePipelineJob = typeof knowledgePipelineJobs.$inferSelect;

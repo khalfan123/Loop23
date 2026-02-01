@@ -18,7 +18,8 @@ import {
   knowledgeGraphEdges,
   generatedArticles,
   contentAuditLog,
-  knowledgeBase
+  knowledgeBase,
+  knowledgePipelineJobs
 } from "@shared/schema";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { createCrawler } from "../services/knowledge-crawler";
@@ -556,6 +557,300 @@ router.delete("/articles/:id", async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error("Error deleting article:", error);
     res.status(500).json({ error: "Failed to delete article" });
+  }
+});
+
+// ============================================================
+// PIPELINE JOBS - Automated crawl -> analyze -> generate
+// ============================================================
+
+// Background pipeline runner - runs the full pipeline asynchronously
+async function runPipeline(pipelineJobId: string, userId: string) {
+  const updateProgress = async (
+    stage: string, 
+    stageProgress: number, 
+    overallProgress: number, 
+    estimatedTimeRemaining: number | null,
+    stageDetails?: any
+  ) => {
+    await db.update(knowledgePipelineJobs)
+      .set({ 
+        currentStage: stage, 
+        stageProgress, 
+        overallProgress, 
+        estimatedTimeRemaining,
+        stageDetails,
+        updatedAt: new Date()
+      })
+      .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+  };
+
+  try {
+    const [pipelineJob] = await db.select().from(knowledgePipelineJobs)
+      .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+    
+    if (!pipelineJob || !pipelineJob.crawlJobId) {
+      throw new Error("Pipeline job not found or missing crawl job");
+    }
+
+    // Update to running
+    await db.update(knowledgePipelineJobs)
+      .set({ status: "crawling", startedAt: new Date(), updatedAt: new Date() })
+      .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+
+    // ========== STAGE 1: CRAWLING ==========
+    const crawler = createCrawler(userId);
+    const crawlStartTime = Date.now();
+    let stageDetails: any = {
+      crawling: { pagesDiscovered: 0, pagesCrawled: 0, startedAt: new Date().toISOString() },
+      analyzing: { itemsTotal: 0, itemsProcessed: 0, entitiesFound: 0, topicsFound: 0, faqsFound: 0 },
+      generating: { articlesPlanned: 0, articlesGenerated: 0 }
+    };
+
+    await updateProgress("crawling", 0, 5, 120, stageDetails);
+
+    // Start the crawl
+    await crawler.startCrawl(pipelineJob.crawlJobId);
+
+    // Poll crawl status until complete
+    let crawlComplete = false;
+    while (!crawlComplete) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const [crawlJob] = await db.select().from(crawlJobs)
+        .where(eq(crawlJobs.id, pipelineJob.crawlJobId));
+      
+      if (!crawlJob) break;
+
+      const progress = crawlJob.maxPages > 0 
+        ? Math.min(95, Math.round((crawlJob.pagesCrawled / crawlJob.maxPages) * 100))
+        : 50;
+      
+      stageDetails.crawling.pagesDiscovered = crawlJob.pagesDiscovered;
+      stageDetails.crawling.pagesCrawled = crawlJob.pagesCrawled;
+      
+      const elapsed = (Date.now() - crawlStartTime) / 1000;
+      const estimatedTotal = progress > 0 ? (elapsed / progress) * 100 : 120;
+      const remaining = Math.max(0, Math.round(estimatedTotal - elapsed));
+      
+      await updateProgress("crawling", progress, Math.round(progress * 0.33), remaining + 60, stageDetails);
+
+      if (crawlJob.status === "completed" || crawlJob.status === "failed") {
+        crawlComplete = true;
+        stageDetails.crawling.completedAt = new Date().toISOString();
+      }
+    }
+
+    // Process crawled pages
+    const processor = createContentProcessor(userId);
+    await processor.processAllPages(pipelineJob.crawlJobId);
+
+    await updateProgress("crawling", 100, 33, 60, stageDetails);
+
+    // ========== STAGE 2: AI ANALYSIS ==========
+    await db.update(knowledgePipelineJobs)
+      .set({ status: "analyzing", updatedAt: new Date() })
+      .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+
+    stageDetails.analyzing.startedAt = new Date().toISOString();
+    await updateProgress("analyzing", 0, 35, 90, stageDetails);
+
+    const knowledgeItems = await db.select().from(knowledgeBase)
+      .where(eq(knowledgeBase.userId, userId))
+      .limit(20);
+
+    stageDetails.analyzing.itemsTotal = knowledgeItems.length;
+    
+    const analyzer = createKnowledgeAIAnalyzer(userId);
+    let analyzed = 0;
+
+    for (const item of knowledgeItems) {
+      try {
+        const result = await analyzer.analyzeKnowledgeBaseItem(item.id);
+        analyzed++;
+        stageDetails.analyzing.itemsProcessed = analyzed;
+        stageDetails.analyzing.entitiesFound += result?.entitiesExtracted || 0;
+        stageDetails.analyzing.topicsFound += result?.topicsAssigned || 0;
+        stageDetails.analyzing.faqsFound += result?.faqsDetected || 0;
+        
+        const progress = Math.round((analyzed / knowledgeItems.length) * 100);
+        const remaining = Math.max(0, Math.round((knowledgeItems.length - analyzed) * 3));
+        await updateProgress("analyzing", progress, 33 + Math.round(progress * 0.33), remaining + 30, stageDetails);
+      } catch (error) {
+        console.error(`Failed to analyze item ${item.id}:`, error);
+      }
+    }
+
+    stageDetails.analyzing.completedAt = new Date().toISOString();
+    await updateProgress("analyzing", 100, 66, 30, stageDetails);
+
+    // ========== STAGE 3: CONTENT GENERATION ==========
+    await db.update(knowledgePipelineJobs)
+      .set({ status: "generating", updatedAt: new Date() })
+      .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+
+    stageDetails.generating.startedAt = new Date().toISOString();
+    await updateProgress("generating", 0, 68, 30, stageDetails);
+
+    // Get topics for article generation
+    const topics = await db.select().from(knowledgeTopics)
+      .where(eq(knowledgeTopics.userId, userId))
+      .limit(3);
+
+    stageDetails.generating.articlesPlanned = topics.length;
+
+    const generator = createContentGenerator(userId);
+    let generated = 0;
+
+    for (const topic of topics) {
+      try {
+        const brief = await generator.generateBrief(topic.name, "guide");
+        await generator.generateArticle(brief, "guide");
+        generated++;
+        stageDetails.generating.articlesGenerated = generated;
+        
+        const progress = Math.round((generated / topics.length) * 100);
+        await updateProgress("generating", progress, 66 + Math.round(progress * 0.34), Math.max(0, (topics.length - generated) * 10), stageDetails);
+      } catch (error) {
+        console.error(`Failed to generate article for topic ${topic.name}:`, error);
+      }
+    }
+
+    stageDetails.generating.completedAt = new Date().toISOString();
+
+    // Complete the pipeline
+    await db.update(knowledgePipelineJobs)
+      .set({ 
+        status: "completed", 
+        currentStage: "generating",
+        overallProgress: 100,
+        stageProgress: 100,
+        estimatedTimeRemaining: 0,
+        stageDetails,
+        completedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+
+    console.log(`[Pipeline] Completed pipeline job ${pipelineJobId}`);
+
+  } catch (error) {
+    console.error(`[Pipeline] Error in pipeline ${pipelineJobId}:`, error);
+    await db.update(knowledgePipelineJobs)
+      .set({ 
+        status: "failed", 
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        updatedAt: new Date()
+      })
+      .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+  }
+}
+
+// Get all pipeline jobs for user
+router.get("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const jobs = await db.select().from(knowledgePipelineJobs)
+      .where(eq(knowledgePipelineJobs.userId, req.userId))
+      .orderBy(desc(knowledgePipelineJobs.createdAt));
+
+    res.json(jobs);
+  } catch (error) {
+    console.error("Error fetching pipeline jobs:", error);
+    res.status(500).json({ error: "Failed to fetch pipeline jobs" });
+  }
+});
+
+// Get active pipeline job (most recent running job)
+router.get("/pipeline-jobs/active", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const [activeJob] = await db.select().from(knowledgePipelineJobs)
+      .where(and(
+        eq(knowledgePipelineJobs.userId, req.userId),
+        sql`${knowledgePipelineJobs.status} IN ('pending', 'crawling', 'analyzing', 'generating')`
+      ))
+      .orderBy(desc(knowledgePipelineJobs.createdAt))
+      .limit(1);
+
+    res.json(activeJob || null);
+  } catch (error) {
+    console.error("Error fetching active pipeline job:", error);
+    res.status(500).json({ error: "Failed to fetch active pipeline job" });
+  }
+});
+
+// Get specific pipeline job
+router.get("/pipeline-jobs/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const [job] = await db.select().from(knowledgePipelineJobs)
+      .where(and(
+        eq(knowledgePipelineJobs.id, req.params.id),
+        eq(knowledgePipelineJobs.userId, req.userId)
+      ));
+
+    if (!job) {
+      return res.status(404).json({ error: "Pipeline job not found" });
+    }
+
+    res.json(job);
+  } catch (error) {
+    console.error("Error fetching pipeline job:", error);
+    res.status(500).json({ error: "Failed to fetch pipeline job" });
+  }
+});
+
+// Create and start a new pipeline job
+router.post("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { name, startUrl, crawlType = "sitemap", maxPages = 50 } = req.body;
+
+    if (!name || !startUrl) {
+      return res.status(400).json({ error: "Name and start URL are required" });
+    }
+
+    // Create the crawl job first
+    const [crawlJob] = await db.insert(crawlJobs).values({
+      userId: req.userId,
+      name: `${name} - Crawl`,
+      startUrl,
+      crawlType,
+      maxPages,
+      respectRobotsTxt: true,
+    }).returning();
+
+    // Create the pipeline job
+    const [pipelineJob] = await db.insert(knowledgePipelineJobs).values({
+      userId: req.userId,
+      crawlJobId: crawlJob.id,
+      name,
+    }).returning();
+
+    // Start the pipeline in the background (non-blocking)
+    setImmediate(() => {
+      runPipeline(pipelineJob.id, req.userId!).catch(err => {
+        console.error("[Pipeline] Background error:", err);
+      });
+    });
+
+    res.status(201).json(pipelineJob);
+  } catch (error) {
+    console.error("Error creating pipeline job:", error);
+    res.status(500).json({ error: "Failed to create pipeline job" });
   }
 });
 

@@ -1022,6 +1022,151 @@ router.post("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ============================================================
+// ML CONTENT ANALYSIS
+// ============================================================
+
+router.get("/content-analysis/:knowledgeBaseId", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { createMLContentAnalyzer } = await import("../services/ml-content-analyzer");
+    const analyzer = createMLContentAnalyzer(req.userId);
+
+    const [item] = await db.select().from(knowledgeBase)
+      .where(and(
+        eq(knowledgeBase.id, req.params.knowledgeBaseId),
+        eq(knowledgeBase.userId, req.userId)
+      ));
+
+    if (!item?.content) {
+      return res.status(404).json({ error: "Content not found" });
+    }
+
+    const analysis = analyzer.analyzeContent(item.content);
+    res.json(analysis);
+  } catch (error) {
+    console.error("Error analyzing content:", error);
+    res.status(500).json({ error: "Failed to analyze content" });
+  }
+});
+
+router.get("/similar-content/:knowledgeBaseId", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { createMLContentAnalyzer } = await import("../services/ml-content-analyzer");
+    const analyzer = createMLContentAnalyzer(req.userId);
+
+    const [item] = await db.select().from(knowledgeBase)
+      .where(and(
+        eq(knowledgeBase.id, req.params.knowledgeBaseId),
+        eq(knowledgeBase.userId, req.userId)
+      ));
+
+    if (!item?.content) {
+      return res.status(404).json({ error: "Content not found" });
+    }
+
+    const similar = await analyzer.findSimilarContent(item.content, item.id);
+    res.json(similar);
+  } catch (error) {
+    console.error("Error finding similar content:", error);
+    res.status(500).json({ error: "Failed to find similar content" });
+  }
+});
+
+router.get("/content-clusters", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { createMLContentAnalyzer } = await import("../services/ml-content-analyzer");
+    const analyzer = createMLContentAnalyzer(req.userId);
+
+    const clusters = await analyzer.detectContentClusters();
+    res.json(clusters);
+  } catch (error) {
+    console.error("Error detecting content clusters:", error);
+    res.status(500).json({ error: "Failed to detect content clusters" });
+  }
+});
+
+router.get("/stale-content", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { createPipelineOrchestrator } = await import("../services/pipeline-orchestrator");
+    const orchestrator = createPipelineOrchestrator(req.userId);
+
+    const days = Math.min(Math.max(parseInt(req.query.days as string) || 30, 1), 365);
+    const staleContent = await orchestrator.getStaleContent(days);
+    res.json(staleContent);
+  } catch (error) {
+    console.error("Error fetching stale content:", error);
+    res.status(500).json({ error: "Failed to fetch stale content" });
+  }
+});
+
+router.get("/pipeline-analytics", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { createPipelineOrchestrator } = await import("../services/pipeline-orchestrator");
+    const orchestrator = createPipelineOrchestrator(req.userId);
+
+    const analytics = await orchestrator.getPipelineAnalytics();
+    res.json(analytics);
+  } catch (error) {
+    console.error("Error fetching pipeline analytics:", error);
+    res.status(500).json({ error: "Failed to fetch pipeline analytics" });
+  }
+});
+
+router.get("/pipeline-history", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { createPipelineOrchestrator } = await import("../services/pipeline-orchestrator");
+    const orchestrator = createPipelineOrchestrator(req.userId);
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
+    const history = await orchestrator.getPipelineHistory(limit);
+    res.json(history);
+  } catch (error) {
+    console.error("Error fetching pipeline history:", error);
+    res.status(500).json({ error: "Failed to fetch pipeline history" });
+  }
+});
+
+router.post("/pipeline-jobs/:id/cancel", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { createPipelineOrchestrator } = await import("../services/pipeline-orchestrator");
+    const orchestrator = createPipelineOrchestrator(req.userId);
+
+    await orchestrator.cancelPipeline(req.params.id);
+    res.json({ message: "Pipeline cancelled" });
+  } catch (error) {
+    console.error("Error cancelling pipeline:", error);
+    res.status(500).json({ error: "Failed to cancel pipeline" });
+  }
+});
+
 export function createKnowledgeIntelligenceRoutes(): Router {
   return router;
 }

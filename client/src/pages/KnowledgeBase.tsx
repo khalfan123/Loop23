@@ -49,9 +49,11 @@ import {
   ChevronRight,
   MoreHorizontal,
   Pencil,
-  Database
+  Database,
+  BarChart3
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
+import MLDashboard from "@/components/ml-dashboard";
 import { AuthStorage } from "@/lib/auth-storage";
 import {
   Dialog,
@@ -257,7 +259,7 @@ export default function KnowledgeBase() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio" | "ml-dashboard">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -983,6 +985,21 @@ export default function KnowledgeBase() {
               <Sparkles className="h-4 w-4 flex-shrink-0 text-amber-500" />
               <span className="truncate flex-1 text-left">Content Studio</span>
             </button>
+            <button
+              onClick={() => {
+                setViewMode("ml-dashboard");
+                setSelectedFolderId(null);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                viewMode === "ml-dashboard"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover-elevate"
+              }`}
+              data-testid="folder-ml-dashboard"
+            >
+              <BarChart3 className="h-4 w-4 flex-shrink-0 text-cyan-500" />
+              <span className="truncate flex-1 text-left">ML Dashboard</span>
+            </button>
           </div>
         </div>
 
@@ -1083,6 +1100,8 @@ export default function KnowledgeBase() {
               <KnowledgeIntelligence section="insights" />
             ) : viewMode === "content-studio" ? (
               <KnowledgeIntelligence section="content-studio" />
+            ) : viewMode === "ml-dashboard" ? (
+              <MLDashboard />
             ) : isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

@@ -74,7 +74,6 @@ export function AppSidebar() {
     { title: t('nav.campaigns'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500" },
     { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500" },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500" },
-    { title: t('nav.aiIntelligence', 'AI Intelligence'), url: "/app/knowledge-intelligence", icon: Brain, iconColor: "text-pink-500" },
   ];
 
   const evaluateItems = [

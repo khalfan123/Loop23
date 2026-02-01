@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Link, 
   FileText, 
@@ -48,8 +49,10 @@ import {
   Sparkles,
   ChevronRight,
   MoreHorizontal,
-  Pencil
+  Pencil,
+  Database
 } from "lucide-react";
+import KnowledgeIntelligence from "@/components/knowledge-intelligence";
 import { AuthStorage } from "@/lib/auth-storage";
 import {
   Dialog,
@@ -253,6 +256,7 @@ function DonutChart({ urlCount, textCount, fileCount }: { urlCount: number; text
 export default function KnowledgeBase() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<"resources" | "intelligence">("resources");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"dashboard" | "folder">("dashboard");
@@ -818,16 +822,22 @@ export default function KnowledgeBase() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" data-testid="heading-knowledge-base">Knowledge Base</h1>
-        <Button
-          onClick={() => setLocation('/app/knowledge-intelligence')}
-          className="gap-2"
-          data-testid="button-ai-intelligence"
-        >
-          <Brain className="h-4 w-4" />
-          AI Intelligence
-        </Button>
       </div>
-      <div className="flex h-[calc(100vh-220px)] border rounded-lg bg-background overflow-hidden">
+      
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "resources" | "intelligence")} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="resources" className="gap-2" data-testid="tab-resources">
+            <Database className="h-4 w-4" />
+            Resources
+          </TabsTrigger>
+          <TabsTrigger value="intelligence" className="gap-2" data-testid="tab-intelligence">
+            <Brain className="h-4 w-4" />
+            AI Intelligence
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="resources" className="mt-0">
+      <div className="flex h-[calc(100vh-280px)] border rounded-lg bg-background overflow-hidden">
         {/* Left Sidebar */}
       <div className="w-[220px] border-r flex-shrink-0 bg-muted/30 flex flex-col">
         {/* Dashboard Button */}
@@ -1721,6 +1731,12 @@ export default function KnowledgeBase() {
         </AlertDialogContent>
       </AlertDialog>
       </div>
+        </TabsContent>
+        
+        <TabsContent value="intelligence" className="mt-0">
+          <KnowledgeIntelligence />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

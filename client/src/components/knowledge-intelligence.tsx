@@ -106,6 +106,24 @@ interface TopicGap {
   priority: string;
 }
 
+interface PipelineJob {
+  id: string;
+  name: string;
+  status: string;
+  currentStage: string;
+  overallProgress: number;
+  stageProgress: number;
+  estimatedTimeRemaining: number | null;
+  stageDetails?: {
+    crawling: { pagesDiscovered: number; pagesCrawled: number; startedAt?: string; completedAt?: string };
+    analyzing: { itemsTotal: number; itemsProcessed: number; entitiesFound: number; topicsFound: number; faqsFound: number; startedAt?: string; completedAt?: string };
+    generating: { articlesPlanned: number; articlesGenerated: number; startedAt?: string; completedAt?: string };
+  };
+  createdAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+}
+
 export default function KnowledgeIntelligence() {
   const { toast } = useToast();
   const [crawlDialogOpen, setCrawlDialogOpen] = useState(false);
@@ -119,8 +137,26 @@ export default function KnowledgeIntelligence() {
   const [generateType, setGenerateType] = useState("article");
   const [generatedBrief, setGeneratedBrief] = useState<any>(null);
 
+  const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
+  const [pipelineName, setPipelineName] = useState("");
+  const [pipelineUrl, setPipelineUrl] = useState("");
+  const [pipelineCrawlType, setPipelineCrawlType] = useState("sitemap");
+  const [pipelineMaxPages, setPipelineMaxPages] = useState("50");
+
   const { data: stats, isLoading: statsLoading } = useQuery<IntelligenceStats>({
     queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
+  });
+
+  // Poll for active pipeline job
+  const { data: activePipelineJob } = useQuery<PipelineJob | null>({
+    queryKey: ["/api/knowledge-intelligence/pipeline-jobs/active"],
+    refetchInterval: (data) => {
+      // Poll every 2 seconds while job is running, otherwise every 30 seconds
+      if (data && ["pending", "crawling", "analyzing", "generating"].includes(data.status)) {
+        return 2000;
+      }
+      return 30000;
+    },
   });
 
   const { data: crawlJobs = [], refetch: refetchCrawlJobs } = useQuery<CrawlJob[]>({
@@ -246,6 +282,56 @@ export default function KnowledgeIntelligence() {
     },
   });
 
+  const createPipelineMutation = useMutation({
+    mutationFn: async (data: { name: string; startUrl: string; crawlType: string; maxPages: number }) => {
+      const res = await apiRequest("POST", "/api/knowledge-intelligence/pipeline-jobs", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/pipeline-jobs/active"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/crawl-jobs"] });
+      setPipelineDialogOpen(false);
+      setPipelineName("");
+      setPipelineUrl("");
+      toast({ title: "Pipeline Started", description: "The automated pipeline is now running. You can close this page and the progress will be saved." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleStartPipeline = () => {
+    if (!pipelineName || !pipelineUrl) return;
+    createPipelineMutation.mutate({
+      name: pipelineName,
+      startUrl: pipelineUrl,
+      crawlType: pipelineCrawlType,
+      maxPages: parseInt(pipelineMaxPages) || 50,
+    });
+  };
+
+  // Format time remaining
+  const formatTimeRemaining = (seconds: number | null): string => {
+    if (!seconds || seconds <= 0) return "Finishing...";
+    if (seconds < 60) return `${seconds}s remaining`;
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (minutes < 60) return `${minutes}m ${secs}s remaining`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m remaining`;
+  };
+
+  // Get stage label
+  const getStageLabel = (stage: string): string => {
+    switch (stage) {
+      case "crawling": return "Crawling Website";
+      case "analyzing": return "AI Analysis";
+      case "generating": return "Content Generation";
+      default: return stage;
+    }
+  };
+
   const handleCreateCrawl = () => {
     if (!crawlName || !crawlUrl) return;
     createCrawlMutation.mutate({
@@ -338,6 +424,157 @@ export default function KnowledgeIntelligence() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pipeline Progress Bar - Always visible when active */}
+      {activePipelineJob && ["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) && (
+        <Card className="border-primary/50 bg-primary/5" data-testid="card-pipeline-progress">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                </div>
+                <div>
+                  <h4 className="font-medium" data-testid="text-pipeline-name">{activePipelineJob.name}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {getStageLabel(activePipelineJob.currentStage)} • {formatTimeRemaining(activePipelineJob.estimatedTimeRemaining)}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="secondary" data-testid="badge-pipeline-progress">
+                {activePipelineJob.overallProgress}%
+              </Badge>
+            </div>
+            
+            {/* Main Progress Bar */}
+            <div className="space-y-2">
+              <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-500 ease-out rounded-full"
+                  style={{ width: `${activePipelineJob.overallProgress}%` }}
+                  data-testid="progress-bar-overall"
+                />
+              </div>
+              
+              {/* Stage Indicators */}
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "crawling" ? "text-primary font-medium" : activePipelineJob.stageDetails?.crawling?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
+                  {activePipelineJob.stageDetails?.crawling?.completedAt ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : activePipelineJob.currentStage === "crawling" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <div className="h-3.5 w-3.5 rounded-full border border-current" />
+                  )}
+                  <span>Crawling</span>
+                  {activePipelineJob.stageDetails?.crawling && (
+                    <span className="text-muted-foreground">
+                      ({activePipelineJob.stageDetails.crawling.pagesCrawled} pages)
+                    </span>
+                  )}
+                </div>
+                <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "analyzing" ? "text-primary font-medium" : activePipelineJob.stageDetails?.analyzing?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
+                  {activePipelineJob.stageDetails?.analyzing?.completedAt ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : activePipelineJob.currentStage === "analyzing" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <div className="h-3.5 w-3.5 rounded-full border border-current" />
+                  )}
+                  <span>AI Analysis</span>
+                  {activePipelineJob.stageDetails?.analyzing?.itemsProcessed !== undefined && activePipelineJob.stageDetails?.analyzing?.itemsProcessed > 0 && (
+                    <span className="text-muted-foreground">
+                      ({activePipelineJob.stageDetails.analyzing.entitiesFound} entities)
+                    </span>
+                  )}
+                </div>
+                <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "generating" ? "text-primary font-medium" : activePipelineJob.stageDetails?.generating?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
+                  {activePipelineJob.stageDetails?.generating?.completedAt ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : activePipelineJob.currentStage === "generating" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <div className="h-3.5 w-3.5 rounded-full border border-current" />
+                  )}
+                  <span>Content</span>
+                  {activePipelineJob.stageDetails?.generating?.articlesGenerated !== undefined && activePipelineJob.stageDetails?.generating?.articlesGenerated > 0 && (
+                    <span className="text-muted-foreground">
+                      ({activePipelineJob.stageDetails.generating.articlesGenerated} articles)
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Completed Pipeline Notification */}
+      {activePipelineJob && activePipelineJob.status === "completed" && (
+        <Card className="border-green-500/50 bg-green-500/5" data-testid="card-pipeline-completed">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-green-500/10">
+                <Check className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-medium text-green-700">{activePipelineJob.name} - Complete!</h4>
+                <p className="text-sm text-muted-foreground">
+                  {activePipelineJob.stageDetails?.crawling?.pagesCrawled || 0} pages crawled • 
+                  {activePipelineJob.stageDetails?.analyzing?.entitiesFound || 0} entities • 
+                  {activePipelineJob.stageDetails?.generating?.articlesGenerated || 0} articles generated
+                </p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/pipeline-jobs/active"] })}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Failed Pipeline Notification */}
+      {activePipelineJob && activePipelineJob.status === "failed" && (
+        <Card className="border-destructive/50 bg-destructive/5" data-testid="card-pipeline-failed">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-medium text-destructive">{activePipelineJob.name} - Failed</h4>
+                <p className="text-sm text-muted-foreground">
+                  {activePipelineJob.errorMessage || "An error occurred during processing"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quick Start Pipeline Button */}
+      {!activePipelineJob || !["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) ? (
+        <Card className="border-dashed" data-testid="card-start-pipeline">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium">Automated Knowledge Pipeline</h4>
+                <p className="text-sm text-muted-foreground">
+                  Crawl a website, extract AI insights, and generate content - all automatically
+                </p>
+              </div>
+              <Button onClick={() => setPipelineDialogOpen(true)} data-testid="button-start-pipeline">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Start Pipeline
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Tabs defaultValue="crawl" className="space-y-4">
         <TabsList>
@@ -718,6 +955,78 @@ export default function KnowledgeIntelligence() {
               {createCrawlMutation.isPending ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>
               ) : "Create & Start"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pipeline Dialog */}
+      <Dialog open={pipelineDialogOpen} onOpenChange={setPipelineDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start Automated Pipeline</DialogTitle>
+            <DialogDescription>
+              This will crawl your website, extract AI insights (entities, topics, FAQs), 
+              and generate content - all automatically. Progress is saved so you can close this page.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="pipeline-name">Pipeline Name</Label>
+              <Input
+                id="pipeline-name"
+                placeholder="e.g., Company Knowledge Import"
+                value={pipelineName}
+                onChange={(e) => setPipelineName(e.target.value)}
+                data-testid="input-pipeline-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pipeline-url">Website URL</Label>
+              <Input
+                id="pipeline-url"
+                placeholder="https://example.com/docs"
+                value={pipelineUrl}
+                onChange={(e) => setPipelineUrl(e.target.value)}
+                data-testid="input-pipeline-url"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Crawl Type</Label>
+              <Select value={pipelineCrawlType} onValueChange={setPipelineCrawlType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sitemap">From Sitemap (Recommended)</SelectItem>
+                  <SelectItem value="single">Single Page</SelectItem>
+                  <SelectItem value="recursive">Recursive (Follow Links)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pipeline-max-pages">Max Pages</Label>
+              <Input
+                id="pipeline-max-pages"
+                type="number"
+                value={pipelineMaxPages}
+                onChange={(e) => setPipelineMaxPages(e.target.value)}
+                data-testid="input-pipeline-max-pages"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPipelineDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleStartPipeline}
+              disabled={createPipelineMutation.isPending || !pipelineName || !pipelineUrl}
+              data-testid="button-start-pipeline-confirm"
+            >
+              {createPipelineMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Starting...</>
+              ) : (
+                <><Sparkles className="h-4 w-4 mr-2" /> Start Pipeline</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

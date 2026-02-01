@@ -902,6 +902,126 @@ router.get("/intelligence-stats", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ============================================================
+// PIPELINE JOBS
+// ============================================================
+
+router.get("/pipeline-jobs/active", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const [job] = await db.select().from(knowledgePipelineJobs)
+      .where(and(
+        eq(knowledgePipelineJobs.userId, req.userId),
+        sql`${knowledgePipelineJobs.status} IN ('pending', 'crawling', 'analyzing', 'generating', 'completed', 'failed')`
+      ))
+      .orderBy(desc(knowledgePipelineJobs.createdAt))
+      .limit(1);
+
+    if (!job) {
+      return res.json(null);
+    }
+
+    res.json(job);
+  } catch (error) {
+    console.error("Error fetching active pipeline job:", error);
+    res.status(500).json({ error: "Failed to fetch active pipeline job" });
+  }
+});
+
+router.get("/pipeline-jobs/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const [job] = await db.select().from(knowledgePipelineJobs)
+      .where(and(
+        eq(knowledgePipelineJobs.id, req.params.id),
+        eq(knowledgePipelineJobs.userId, req.userId)
+      ));
+
+    if (!job) {
+      return res.status(404).json({ error: "Pipeline job not found" });
+    }
+
+    res.json(job);
+  } catch (error) {
+    console.error("Error fetching pipeline job:", error);
+    res.status(500).json({ error: "Failed to fetch pipeline job" });
+  }
+});
+
+router.post("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { name, startUrl, crawlType = "sitemap", maxPages = 50 } = req.body;
+
+    if (!name || !startUrl) {
+      return res.status(400).json({ error: "Name and start URL are required" });
+    }
+
+    const existingActive = await db.select().from(knowledgePipelineJobs)
+      .where(and(
+        eq(knowledgePipelineJobs.userId, req.userId),
+        sql`${knowledgePipelineJobs.status} IN ('pending', 'crawling', 'analyzing', 'generating')`
+      ))
+      .limit(1);
+
+    if (existingActive.length > 0) {
+      return res.status(400).json({ error: "A pipeline is already running. Please wait for it to complete." });
+    }
+
+    // First create the crawl job
+    const [crawlJob] = await db.insert(crawlJobs).values({
+      userId: req.userId,
+      name: `Pipeline: ${name}`,
+      startUrl,
+      crawlType,
+      maxPages,
+      status: "pending",
+      pagesDiscovered: 0,
+      pagesCrawled: 0
+    }).returning();
+
+    // Then create the pipeline job with the crawl job ID
+    const [job] = await db.insert(knowledgePipelineJobs).values({
+      userId: req.userId,
+      name,
+      startUrl,
+      crawlType,
+      maxPages,
+      crawlJobId: crawlJob.id,
+      status: "pending",
+      currentStage: "crawling",
+      overallProgress: 0,
+      stageProgress: 0,
+      stageDetails: {
+        crawling: { pagesDiscovered: 0, pagesCrawled: 0 },
+        analyzing: { itemsTotal: 0, itemsProcessed: 0, entitiesFound: 0, topicsFound: 0, faqsFound: 0 },
+        generating: { articlesPlanned: 0, articlesGenerated: 0 }
+      }
+    }).returning();
+
+    // Run pipeline asynchronously (non-blocking)
+    setImmediate(() => {
+      runPipeline(job.id, req.userId).catch(err => {
+        console.error(`Pipeline ${job.id} failed:`, err);
+      });
+    });
+
+    res.json(job);
+  } catch (error) {
+    console.error("Error creating pipeline job:", error);
+    res.status(500).json({ error: "Failed to create pipeline job" });
+  }
+});
+
 export function createKnowledgeIntelligenceRoutes(): Router {
   return router;
 }

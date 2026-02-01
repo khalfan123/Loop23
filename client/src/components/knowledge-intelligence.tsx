@@ -1273,14 +1273,15 @@ export default function KnowledgeIntelligence() {
               </div>
 
               <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setArticlePreviewOpen(false)}>
+                <Button variant="outline" onClick={() => setArticlePreviewOpen(false)} data-testid="button-close-preview">
                   Close
                 </Button>
                 <Button variant="outline" onClick={() => {
                   if (selectedArticle.content) {
                     navigator.clipboard.writeText(selectedArticle.content);
+                    toast({ title: "Copied!", description: "Article content copied to clipboard." });
                   }
-                }}>
+                }} data-testid="button-copy-content">
                   Copy Content
                 </Button>
               </DialogFooter>

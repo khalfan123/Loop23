@@ -39,7 +39,8 @@ import {
   Lightbulb,
   Check,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Search
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -86,6 +87,7 @@ interface Article {
   title: string;
   articleType: string;
   status: string;
+  content?: string;
   seoScore?: number;
   readabilityScore?: number;
   createdAt: string;
@@ -143,6 +145,12 @@ export default function KnowledgeIntelligence() {
   const [pipelineCrawlType, setPipelineCrawlType] = useState("sitemap");
   const [pipelineMaxPages, setPipelineMaxPages] = useState("50");
 
+  // Content Studio state
+  const [articleSearch, setArticleSearch] = useState("");
+  const [articleTypeFilter, setArticleTypeFilter] = useState("all");
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [articlePreviewOpen, setArticlePreviewOpen] = useState(false);
+
   const { data: stats, isLoading: statsLoading } = useQuery<IntelligenceStats>({
     queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
   });
@@ -150,8 +158,9 @@ export default function KnowledgeIntelligence() {
   // Poll for active pipeline job
   const { data: activePipelineJob } = useQuery<PipelineJob | null>({
     queryKey: ["/api/knowledge-intelligence/pipeline-jobs/active"],
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 2 seconds while job is running, otherwise every 30 seconds
+      const data = query.state.data;
       if (data && ["pending", "crawling", "analyzing", "generating"].includes(data.status)) {
         return 2000;
       }
@@ -840,12 +849,35 @@ export default function KnowledgeIntelligence() {
         </TabsContent>
 
         <TabsContent value="generate" className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <h3 className="text-lg font-medium">AI Content Studio</h3>
-            <Button onClick={() => setGenerateDialogOpen(true)} data-testid="button-generate-content">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Generate Content
-            </Button>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Search articles..."
+                value={articleSearch}
+                onChange={(e) => setArticleSearch(e.target.value)}
+                className="w-48"
+                data-testid="input-article-search"
+              />
+              <Select value={articleTypeFilter} onValueChange={setArticleTypeFilter}>
+                <SelectTrigger className="w-32" data-testid="select-article-type-filter">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="guide">Guides</SelectItem>
+                  <SelectItem value="how-to">How-To</SelectItem>
+                  <SelectItem value="tutorial">Tutorials</SelectItem>
+                  <SelectItem value="overview">Overviews</SelectItem>
+                  <SelectItem value="faq">FAQs</SelectItem>
+                  <SelectItem value="article">Articles</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={() => setGenerateDialogOpen(true)} data-testid="button-generate-content">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate
+              </Button>
+            </div>
           </div>
 
           {articles.length === 0 ? (
@@ -854,40 +886,103 @@ export default function KnowledgeIntelligence() {
                 <Sparkles className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h4 className="font-medium mb-2" data-testid="text-no-articles-title">No Generated Content Yet</h4>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Use AI to generate articles, FAQs, battlecards, and more from your knowledge base.
+                  Use AI to generate articles, FAQs, guides, and tutorials from your knowledge base.
                 </p>
                 <Button onClick={() => setGenerateDialogOpen(true)} data-testid="button-generate-first-article">Generate Your First Article</Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {articles.map((article) => (
-                <Card key={article.id} data-testid={`card-article-${article.id}`}>
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium truncate" data-testid={`text-article-title-${article.id}`}>{article.title}</h4>
-                          <Badge variant={
-                            article.status === "published" ? "default" :
-                            article.status === "review" ? "secondary" : "outline"
-                          } data-testid={`badge-article-status-${article.id}`}>
-                            {article.status}
-                          </Badge>
-                          <Badge variant="outline">{article.articleType}</Badge>
+            <>
+              {/* Article Type Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                {["guide", "how-to", "tutorial", "overview", "faq"].map((type) => {
+                  const count = articles.filter(a => a.articleType === type).length;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setArticleTypeFilter(type === articleTypeFilter ? "all" : type)}
+                      className={`p-3 rounded-md border text-left transition-colors ${
+                        articleTypeFilter === type ? "border-primary bg-primary/5" : "hover:bg-muted"
+                      }`}
+                      data-testid={`button-filter-${type}`}
+                    >
+                      <div className="text-2xl font-bold">{count}</div>
+                      <div className="text-xs text-muted-foreground capitalize">{type.replace("-", " ")}s</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Filtered Articles List */}
+              <div className="space-y-3">
+                {articles
+                  .filter(article => {
+                    const matchesSearch = !articleSearch || 
+                      article.title.toLowerCase().includes(articleSearch.toLowerCase());
+                    const matchesType = articleTypeFilter === "all" || 
+                      article.articleType === articleTypeFilter;
+                    return matchesSearch && matchesType;
+                  })
+                  .map((article) => (
+                    <Card 
+                      key={article.id} 
+                      className="hover-elevate cursor-pointer"
+                      onClick={() => {
+                        setSelectedArticle(article);
+                        setArticlePreviewOpen(true);
+                      }}
+                      data-testid={`card-article-${article.id}`}
+                    >
+                      <CardContent className="py-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-medium" data-testid={`text-article-title-${article.id}`}>{article.title}</h4>
+                              <Badge variant={
+                                article.status === "published" ? "default" :
+                                article.status === "review" ? "secondary" : "outline"
+                              } data-testid={`badge-article-status-${article.id}`}>
+                                {article.status}
+                              </Badge>
+                              <Badge variant="outline" className="capitalize">{article.articleType?.replace("-", " ") || "article"}</Badge>
+                            </div>
+                            <div className="flex gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+                              {article.seoScore && <span data-testid={`text-article-seo-${article.id}`}>SEO: {article.seoScore}/100</span>}
+                              {article.readabilityScore && <span data-testid={`text-article-readability-${article.id}`}>Readability: {article.readabilityScore}/100</span>}
+                              <span data-testid={`text-article-date-${article.id}`}>{new Date(article.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedArticle(article);
+                              setArticlePreviewOpen(true);
+                            }}
+                            data-testid={`button-view-article-${article.id}`}
+                          >
+                            Read
+                          </Button>
                         </div>
-                        <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-                          {article.seoScore && <span data-testid={`text-article-seo-${article.id}`}>SEO: {article.seoScore}/100</span>}
-                          {article.readabilityScore && <span data-testid={`text-article-readability-${article.id}`}>Readability: {article.readabilityScore}/100</span>}
-                          <span data-testid={`text-article-date-${article.id}`}>{new Date(article.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="outline" data-testid={`button-view-article-${article.id}`}>View</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                
+                {articles.filter(a => {
+                  const matchesSearch = !articleSearch || a.title.toLowerCase().includes(articleSearch.toLowerCase());
+                  const matchesType = articleTypeFilter === "all" || a.articleType === articleTypeFilter;
+                  return matchesSearch && matchesType;
+                }).length === 0 && (
+                  <Card>
+                    <CardContent className="py-8 text-center">
+                      <Search className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No articles match your filters</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>
@@ -1123,6 +1218,74 @@ export default function KnowledgeIntelligence() {
               </Button>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Article Preview Dialog */}
+      <Dialog open={articlePreviewOpen} onOpenChange={(open) => {
+        setArticlePreviewOpen(open);
+        if (!open) setSelectedArticle(null);
+      }}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          {selectedArticle && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={
+                    selectedArticle.status === "published" ? "default" :
+                    selectedArticle.status === "review" ? "secondary" : "outline"
+                  }>
+                    {selectedArticle.status}
+                  </Badge>
+                  <Badge variant="outline" className="capitalize">
+                    {selectedArticle.articleType?.replace("-", " ") || "article"}
+                  </Badge>
+                  {selectedArticle.seoScore && (
+                    <Badge variant="outline">SEO: {selectedArticle.seoScore}/100</Badge>
+                  )}
+                  {selectedArticle.readabilityScore && (
+                    <Badge variant="outline">Readability: {selectedArticle.readabilityScore}/100</Badge>
+                  )}
+                </div>
+                <DialogTitle className="text-xl mt-2">{selectedArticle.title}</DialogTitle>
+                <DialogDescription>
+                  Generated on {new Date(selectedArticle.createdAt).toLocaleDateString()}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-4">
+                <div 
+                  className="prose prose-sm dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ 
+                    __html: selectedArticle.content
+                      ?.replace(/\n\n/g, '</p><p>')
+                      .replace(/\n/g, '<br/>')
+                      .replace(/^/, '<p>')
+                      .replace(/$/, '</p>')
+                      .replace(/## (.*?)(<br\/>|<\/p>)/g, '</p><h3 class="text-lg font-semibold mt-4 mb-2">$1</h3><p>')
+                      .replace(/### (.*?)(<br\/>|<\/p>)/g, '</p><h4 class="font-medium mt-3 mb-1">$1</h4><p>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                      .replace(/- (.*?)(<br\/>|<\/p>)/g, '<li>$1</li>')
+                      || "No content available" 
+                  }}
+                />
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setArticlePreviewOpen(false)}>
+                  Close
+                </Button>
+                <Button variant="outline" onClick={() => {
+                  if (selectedArticle.content) {
+                    navigator.clipboard.writeText(selectedArticle.content);
+                  }
+                }}>
+                  Copy Content
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

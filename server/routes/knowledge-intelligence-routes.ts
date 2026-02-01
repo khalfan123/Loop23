@@ -690,29 +690,53 @@ async function runPipeline(pipelineJobId: string, userId: string) {
       .where(eq(knowledgePipelineJobs.id, pipelineJobId));
 
     stageDetails.generating.startedAt = new Date().toISOString();
-    await updateProgress("generating", 0, 68, 30, stageDetails);
+    await updateProgress("generating", 0, 68, 60, stageDetails);
 
-    // Get topics for article generation
+    // Get topics for article generation (up to 10)
     const topics = await db.select().from(knowledgeTopics)
       .where(eq(knowledgeTopics.userId, userId))
-      .limit(3);
+      .limit(10);
 
-    stageDetails.generating.articlesPlanned = topics.length;
+    // Get FAQs to create FAQ compilations
+    const faqs = await db.select().from(knowledgeFaqs)
+      .where(eq(knowledgeFaqs.userId, userId))
+      .limit(20);
+
+    // Article types to generate based on content
+    const articleTypes = ["guide", "how-to", "overview", "faq", "tutorial"];
+    
+    // Plan articles: mix of topics with different article types
+    const articlesToGenerate: { topic: string; type: string }[] = [];
+    
+    // Generate varied content types for each topic
+    for (let i = 0; i < topics.length; i++) {
+      const topic = topics[i];
+      const articleType = articleTypes[i % articleTypes.length];
+      articlesToGenerate.push({ topic: topic.name, type: articleType });
+    }
+    
+    // Add FAQ compilation if we have enough FAQs
+    if (faqs.length >= 5) {
+      articlesToGenerate.push({ topic: "Frequently Asked Questions", type: "faq" });
+    }
+
+    stageDetails.generating.articlesPlanned = articlesToGenerate.length;
 
     const generator = createContentGenerator(userId);
     let generated = 0;
 
-    for (const topic of topics) {
+    for (const articlePlan of articlesToGenerate) {
       try {
-        const brief = await generator.generateBrief(topic.name, "guide");
-        await generator.generateArticle(brief, "guide");
+        const brief = await generator.generateBrief(articlePlan.topic, articlePlan.type);
+        await generator.generateArticle(brief, articlePlan.type);
         generated++;
         stageDetails.generating.articlesGenerated = generated;
         
-        const progress = Math.round((generated / topics.length) * 100);
-        await updateProgress("generating", progress, 66 + Math.round(progress * 0.34), Math.max(0, (topics.length - generated) * 10), stageDetails);
+        const progress = Math.round((generated / articlesToGenerate.length) * 100);
+        const remaining = Math.max(0, (articlesToGenerate.length - generated) * 8);
+        await updateProgress("generating", progress, 66 + Math.round(progress * 0.34), remaining, stageDetails);
       } catch (error) {
-        console.error(`Failed to generate article for topic ${topic.name}:`, error);
+        console.error(`Failed to generate ${articlePlan.type} for topic ${articlePlan.topic}:`, error);
       }
     }
 

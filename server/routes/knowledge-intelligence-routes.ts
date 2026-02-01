@@ -248,8 +248,8 @@ router.post("/analyze-all", async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const knowledgeItems = await db.select().from(ragKnowledge)
-      .where(eq(ragKnowledge.userId, req.userId))
+    const knowledgeItems = await db.select().from(knowledgeBase)
+      .where(eq(knowledgeBase.userId, req.userId))
       .limit(20);
 
     if (knowledgeItems.length === 0) {

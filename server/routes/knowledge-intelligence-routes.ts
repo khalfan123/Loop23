@@ -26,6 +26,7 @@ import { createCrawler } from "../services/knowledge-crawler";
 import { createContentProcessor } from "../services/content-processor";
 import { createKnowledgeAIAnalyzer } from "../services/knowledge-ai-analyzer";
 import { createContentGenerator } from "../services/content-generator";
+import { createTopicIntelligence, type WebsiteNature, type TopicCluster } from "../services/topic-intelligence";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -684,59 +685,78 @@ async function runPipeline(pipelineJobId: string, userId: string) {
     stageDetails.analyzing.completedAt = new Date().toISOString();
     await updateProgress("analyzing", 100, 66, 30, stageDetails);
 
-    // ========== STAGE 3: CONTENT GENERATION ==========
+    // ========== STAGE 3: INTELLIGENT CONTENT GENERATION ==========
+    // Use Topic Intelligence to automatically mine topics, score them, and generate articles
     await db.update(knowledgePipelineJobs)
       .set({ status: "generating", updatedAt: new Date() })
       .where(eq(knowledgePipelineJobs.id, pipelineJobId));
 
     stageDetails.generating.startedAt = new Date().toISOString();
-    await updateProgress("generating", 0, 68, 60, stageDetails);
+    await updateProgress("generating", 0, 68, 120, stageDetails);
 
-    // Get topics for article generation (up to 10)
-    const topics = await db.select().from(knowledgeTopics)
-      .where(eq(knowledgeTopics.userId, userId))
-      .limit(10);
-
-    // Get FAQs to create FAQ compilations
-    const faqs = await db.select().from(knowledgeFaqs)
-      .where(eq(knowledgeFaqs.userId, userId))
-      .limit(20);
-
-    // Article types to generate based on content
-    const articleTypes = ["guide", "how-to", "overview", "faq", "tutorial"];
+    const topicIntelligence = createTopicIntelligence(userId);
     
-    // Plan articles: mix of topics with different article types
-    const articlesToGenerate: { topic: string; type: string }[] = [];
-    
-    // Generate varied content types for each topic
-    for (let i = 0; i < topics.length; i++) {
-      const topic = topics[i];
-      const articleType = articleTypes[i % articleTypes.length];
-      articlesToGenerate.push({ topic: topic.name, type: articleType });
-    }
-    
-    // Add FAQ compilation if we have enough FAQs
-    if (faqs.length >= 5) {
-      articlesToGenerate.push({ topic: "Frequently Asked Questions", type: "faq" });
-    }
+    try {
+      // Run the intelligent auto-generation pipeline
+      // This analyzes website nature, mines topics, expands them, scores them, and generates articles
+      const autoGenResult = await topicIntelligence.runAutoGeneration(
+        pipelineJobId,
+        pipelineJob.crawlJobId,
+        15 // Max articles to generate
+      );
 
-    stageDetails.generating.articlesPlanned = articlesToGenerate.length;
+      // Update stage details with topic intelligence results
+      stageDetails.websiteNature = {
+        industry: autoGenResult.websiteNature.industryDomain,
+        productCategory: autoGenResult.websiteNature.productCategory,
+        features: autoGenResult.websiteNature.productFeatures.length,
+        personas: autoGenResult.websiteNature.customerPersonas.length
+      };
+      stageDetails.topicMining = {
+        topicsDiscovered: autoGenResult.topicsDiscovered,
+        topicsExpanded: autoGenResult.topicsExpanded,
+        topicsSelected: autoGenResult.topicsSelected,
+        clusters: autoGenResult.clusters.length
+      };
+      stageDetails.generating.articlesPlanned = autoGenResult.topicsSelected;
+      stageDetails.generating.articlesGenerated = autoGenResult.articlesGenerated;
 
-    const generator = createContentGenerator(userId);
-    let generated = 0;
+      console.log(`[Pipeline] Topic Intelligence completed:`, {
+        websiteNature: autoGenResult.websiteNature.industryDomain,
+        topicsDiscovered: autoGenResult.topicsDiscovered,
+        topicsSelected: autoGenResult.topicsSelected,
+        articlesGenerated: autoGenResult.articlesGenerated
+      });
+    } catch (error) {
+      console.error("[Pipeline] Topic Intelligence failed, falling back to basic generation:", error);
+      
+      // Fallback to basic topic-based generation
+      const topics = await db.select().from(knowledgeTopics)
+        .where(eq(knowledgeTopics.userId, userId))
+        .limit(10);
 
-    for (const articlePlan of articlesToGenerate) {
-      try {
-        const brief = await generator.generateBrief(articlePlan.topic, articlePlan.type);
-        await generator.generateArticle(brief, articlePlan.type);
-        generated++;
-        stageDetails.generating.articlesGenerated = generated;
+      const articleTypes = ["guide", "how-to", "overview", "faq", "tutorial"];
+      const generator = createContentGenerator(userId);
+      let generated = 0;
+
+      stageDetails.generating.articlesPlanned = topics.length;
+
+      for (let i = 0; i < topics.length; i++) {
+        const topic = topics[i];
+        const articleType = articleTypes[i % articleTypes.length];
         
-        const progress = Math.round((generated / articlesToGenerate.length) * 100);
-        const remaining = Math.max(0, (articlesToGenerate.length - generated) * 8);
-        await updateProgress("generating", progress, 66 + Math.round(progress * 0.34), remaining, stageDetails);
-      } catch (error) {
-        console.error(`Failed to generate ${articlePlan.type} for topic ${articlePlan.topic}:`, error);
+        try {
+          const brief = await generator.generateBrief(topic.name, articleType);
+          await generator.generateArticle(brief, { articleType });
+          generated++;
+          stageDetails.generating.articlesGenerated = generated;
+          
+          const progress = Math.round((generated / topics.length) * 100);
+          await updateProgress("generating", progress, 66 + Math.round(progress * 0.34), 
+            Math.max(0, (topics.length - generated) * 8), stageDetails);
+        } catch (genError) {
+          console.error(`Failed to generate ${articleType} for topic ${topic.name}:`, genError);
+        }
       }
     }
 

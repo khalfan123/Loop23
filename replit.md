@@ -196,6 +196,18 @@ Before every deployment, ensure the following steps are completed:
   - `provider_caller_ids` table for storing rented caller IDs
   - Provider caller IDs integrated into Default Caller ID dropdown
   - Tech prefix routing: calls routed via carrier's tech prefix (e.g., 73297#, 76091#, 74778#)
+- 2026-02-01: **Topic Intelligence System for Knowledge Base**:
+  - New service: `server/services/topic-intelligence.ts` with comprehensive AI-powered topic analysis
+  - **Website Nature Analysis**: Detects industry domain, product category, customer personas, user intents from crawled content
+  - **Topic Mining**: Extracts features, problems, metrics, processes from source content (30-100 candidates per crawl)
+  - **Topic Expansion**: Generates 8 article angle types per topic (core, comparison, guide, troubleshooting, advanced, integration, roi, future)
+  - **Multi-Factor Scoring**: 5-factor model (relevance 0.25, coverage 0.20, uniqueness 0.20, value 0.20, freshness 0.15) with 0.65 threshold for selection
+  - **Cluster-Based Selection**: Groups related topics with pillar (1) and supporting (up to 8) topics per cluster, max 15-20 articles per pipeline
+  - **Intent-Based Templates**: 4 article types (informational, how-to, commercial, compliance) with required sections and forbidden claims
+  - Pipeline integration: Stage 3 now uses Topic Intelligence for automatic topic selection and generation
+  - Real-time UI progress: Shows topic mining stats (discovered, expanded, selected, clusters) during generation
+  - Completion summary: Displays industry detected, topics discovered/selected, and cluster count
+  - Uses Anthropic Claude Sonnet-4-5 via Replit AI Integrations for complex reasoning
 
 ## Troubleshooting
 - If integrations show as "not configured", add the required secrets

@@ -120,6 +120,8 @@ interface PipelineJob {
     crawling: { pagesDiscovered: number; pagesCrawled: number; startedAt?: string; completedAt?: string };
     analyzing: { itemsTotal: number; itemsProcessed: number; entitiesFound: number; topicsFound: number; faqsFound: number; startedAt?: string; completedAt?: string };
     generating: { articlesPlanned: number; articlesGenerated: number; startedAt?: string; completedAt?: string };
+    websiteNature?: { industry: string; productCategory: string; features: number; personas: number };
+    topicMining?: { topicsDiscovered: number; topicsExpanded: number; topicsSelected: number; clusters: number };
   };
   createdAt: string;
   completedAt?: string;
@@ -513,6 +515,31 @@ export default function KnowledgeIntelligence() {
                   )}
                 </div>
               </div>
+              
+              {/* Topic Intelligence Progress (shown during generating stage) */}
+              {activePipelineJob.currentStage === "generating" && activePipelineJob.stageDetails?.topicMining && (
+                <div className="mt-3 pt-3 border-t">
+                  <div className="text-xs text-muted-foreground mb-2">Topic Intelligence</div>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div>
+                      <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsDiscovered}</div>
+                      <div className="text-xs text-muted-foreground">Discovered</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsExpanded}</div>
+                      <div className="text-xs text-muted-foreground">Expanded</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.topicsSelected}</div>
+                      <div className="text-xs text-muted-foreground">Selected</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold">{activePipelineJob.stageDetails.topicMining.clusters}</div>
+                      <div className="text-xs text-muted-foreground">Clusters</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -521,7 +548,7 @@ export default function KnowledgeIntelligence() {
       {/* Completed Pipeline Notification */}
       {activePipelineJob && activePipelineJob.status === "completed" && (
         <Card className="border-green-500/50 bg-green-500/5" data-testid="card-pipeline-completed">
-          <CardContent className="py-4">
+          <CardContent className="py-4 space-y-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-full bg-green-500/10">
                 <Check className="h-5 w-5 text-green-600" />
@@ -538,10 +565,35 @@ export default function KnowledgeIntelligence() {
                 size="sm" 
                 variant="outline"
                 onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/pipeline-jobs/active"] })}
+                data-testid="button-dismiss-pipeline"
               >
                 Dismiss
               </Button>
             </div>
+            
+            {/* Website Nature & Topic Intelligence Summary */}
+            {activePipelineJob.stageDetails?.websiteNature && (
+              <div className="border-t pt-3 mt-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-2 bg-background rounded" data-testid="stat-industry">
+                    <div className="text-xs text-muted-foreground">Industry Detected</div>
+                    <div className="font-medium text-sm truncate">{activePipelineJob.stageDetails.websiteNature.industry}</div>
+                  </div>
+                  <div className="p-2 bg-background rounded" data-testid="stat-topics-discovered">
+                    <div className="text-xs text-muted-foreground">Topics Discovered</div>
+                    <div className="font-medium text-sm">{activePipelineJob.stageDetails.topicMining?.topicsDiscovered || 0}</div>
+                  </div>
+                  <div className="p-2 bg-background rounded" data-testid="stat-topics-selected">
+                    <div className="text-xs text-muted-foreground">Topics Selected</div>
+                    <div className="font-medium text-sm">{activePipelineJob.stageDetails.topicMining?.topicsSelected || 0}</div>
+                  </div>
+                  <div className="p-2 bg-background rounded" data-testid="stat-clusters">
+                    <div className="text-xs text-muted-foreground">Topic Clusters</div>
+                    <div className="font-medium text-sm">{activePipelineJob.stageDetails.topicMining?.clusters || 0}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

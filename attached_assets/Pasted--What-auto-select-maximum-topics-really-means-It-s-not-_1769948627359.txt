@@ -1,0 +1,265 @@
+) What “auto-select maximum topics” really means
+
+It’s not “generate infinite topics.” It’s:
+
+Extract all meaningful concepts from the website (features, problems, use cases, integrations, industries, workflows, KPIs).
+
+Expand them into topic clusters (pillar → supporting articles).
+
+Filter by relevance + uniqueness + publishability so you get the maximum set of high-quality topics without duplicates or fluff.
+
+2) End-to-end pipeline
+A) Crawl + normalize the site
+
+Discover URLs (sitemap.xml + internal links).
+
+Fetch pages (robots/rate limit).
+
+Remove boilerplate (nav/footer).
+
+Convert into structured docs:
+
+Title, headings, sections, FAQs, tables
+
+Chunk content by headings (for retrieval + citations).
+
+Output: chunks[] with metadata: {url, type, section_title, text, updated_at}
+
+B) Understand “website nature” (domain classifier)
+
+You automatically infer:
+
+Industry domain: (e.g., call center SaaS / fintech / ecommerce)
+
+Main product category: (e.g., “AI call routing”, “helpdesk”, “CRM”)
+
+Core customer personas: (agent, manager, IT, compliance, buyer)
+
+Typical intent types:
+
+Informational (what is X)
+
+How-to (setup, troubleshoot)
+
+Commercial (compare, pricing, ROI)
+
+Compliance (security, privacy, audit)
+
+How: use entity extraction + clustering across all pages.
+
+C) Topic mining (extract candidates)
+
+From chunks, extract:
+
+1) Entities
+
+features (speech analytics, routing, integrations)
+
+integrations (Salesforce, Zendesk, etc.)
+
+metrics (AHT, CSAT, FCR)
+
+compliance terms (PII, SOC 2, HIPAA)
+
+2) User problems
+
+“reduce transfers”
+
+“reduce hold time”
+
+“improve first call resolution”
+
+3) Processes
+
+onboarding flows, setup steps, playbooks
+
+This creates a large candidate set: topic_candidates[].
+
+D) Topic expansion to “maximum meaningful topics”
+
+For each candidate, generate “topic angles”:
+
+Example (candidate = “AI call routing”)
+
+What is AI call routing?
+
+AI call routing vs IVR routing
+
+How to implement AI call routing
+
+Failure modes (confidence, drift)
+
+KPIs to track
+
+Use case: reduce transfers
+
+Use case: prioritize VIP callers
+
+Compliance considerations
+
+This step explodes a small set into a large topic map.
+
+E) De-duplication + clustering (stop cannibalization)
+
+You must prevent 30 near-identical articles.
+
+Do:
+
+Embed each topic statement
+
+Cluster similar topics
+
+Keep one canonical version + subtopics
+
+Result: maximum topics with minimal overlap.
+
+3) Topic scoring: selecting the maximum publishable set
+
+You score each topic with a multi-factor model:
+
+Score components (practical)
+
+Relevance to site nature (0–1): does it map to product/industry/persona?
+
+Evidence coverage (0–1): do you have enough source chunks to write it without guessing?
+
+Uniqueness (0–1): not too similar to an existing/pending topic
+
+Business value (0–1): support deflection / sales enablement / onboarding impact
+
+Freshness (0–1): is the source content current?
+
+Final Score = weighted sum
+
+Then you choose:
+
+All topics above a threshold (e.g., >= 0.65)
+
+With caps per cluster (e.g., max 1 pillar + 8 supporting articles per cluster initially)
+
+And schedule the rest later
+
+That’s how you get the maximum number of high-quality topics, not junk.
+
+4) Auto-generate the article (grounded + structured)
+
+For each approved topic:
+
+A) Build a brief automatically
+
+Persona: who is it for?
+
+Intent: informational/how-to/commercial/compliance
+
+Required headings
+
+Required citations (must link to site pages)
+
+Forbidden claims (no “guarantees”, no invented stats)
+
+B) Retrieval (RAG)
+
+Retrieve top-k chunks that support the article sections.
+
+C) Write using templates
+
+Use templates depending on intent:
+
+Informational template
+
+Definition → architecture → benefits → risks → metrics → next steps
+
+How-to template
+
+prerequisites → steps → screenshots placeholders → pitfalls → troubleshooting
+
+Commercial template
+
+comparison matrix → decision framework → ROI model assumptions → FAQ
+
+Compliance template
+
+scope → data flows → controls → evidence → limitations
+
+D) QC gates (must pass)
+
+Every factual claim has a source chunk OR is labeled as inference.
+
+Duplication check vs existing articles.
+
+Style + readability checks.
+
+Brand voice policy.
+
+E) Publish
+
+Push to CMS/KB with:
+
+tags (cluster, persona, feature)
+
+canonical URL strategy
+
+internal links auto-generated (pillar ↔ subtopic)
+
+5) Minimal data structures (what you implement)
+
+Topic object
+
+topic_title
+
+cluster_id
+
+intent_type
+
+persona
+
+score
+
+supporting_sources[] (URLs + chunk IDs)
+
+status (queued/drafted/published)
+
+Article object
+
+title
+
+outline[]
+
+draft_md
+
+citations[]
+
+qa_report
+
+publish_target
+
+6) “Maximum topics” output you should expect
+
+A typical SaaS site yields:
+
+5–20 pillar topics
+
+50–200 supporting topics (how-to, comparisons, FAQs)
+
+20–60 sales enablement artifacts (objections, battlecards, industry pages)
+
+10–40 compliance/security pages (depending on domain)
+
+The limiting factor isn’t idea generation—it’s evidence coverage and duplication control.
+
+7) If you tell me just one thing, I can tailor the system
+
+Paste:
+
+your website URL (or just describe it: “AI call center SaaS for ____”)
+
+And I’ll produce:
+
+a topic map (clusters + 50–150 topics),
+
+plus 3 fully written sample articles in your preferred tone (technical vs sales vs support).
+
+
+
+
+ChatGPT can make mistakes. Check important info.

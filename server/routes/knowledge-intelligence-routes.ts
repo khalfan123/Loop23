@@ -854,50 +854,6 @@ router.get("/pipeline-jobs/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Create and start a new pipeline job
-router.post("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const { name, startUrl, crawlType = "sitemap", maxPages = 50 } = req.body;
-
-    if (!name || !startUrl) {
-      return res.status(400).json({ error: "Name and start URL are required" });
-    }
-
-    // Create the crawl job first
-    const [crawlJob] = await db.insert(crawlJobs).values({
-      userId: req.userId,
-      name: `${name} - Crawl`,
-      startUrl,
-      crawlType,
-      maxPages,
-      respectRobotsTxt: true,
-    }).returning();
-
-    // Create the pipeline job
-    const [pipelineJob] = await db.insert(knowledgePipelineJobs).values({
-      userId: req.userId,
-      crawlJobId: crawlJob.id,
-      name,
-    }).returning();
-
-    // Start the pipeline in the background (non-blocking)
-    setImmediate(() => {
-      runPipeline(pipelineJob.id, req.userId!).catch(err => {
-        console.error("[Pipeline] Background error:", err);
-      });
-    });
-
-    res.status(201).json(pipelineJob);
-  } catch (error) {
-    console.error("Error creating pipeline job:", error);
-    res.status(500).json({ error: "Failed to create pipeline job" });
-  }
-});
-
 // ============================================================
 // STATS & DASHBOARD
 // ============================================================

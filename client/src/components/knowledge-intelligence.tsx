@@ -40,7 +40,8 @@ import {
   Check,
   AlertTriangle,
   RefreshCw,
-  Search
+  Search,
+  Trash2
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -144,7 +145,7 @@ export default function KnowledgeIntelligence() {
   const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
   const [pipelineName, setPipelineName] = useState("");
   const [pipelineUrl, setPipelineUrl] = useState("");
-  const [pipelineCrawlType, setPipelineCrawlType] = useState("sitemap");
+  const [pipelineCrawlType, setPipelineCrawlType] = useState("comprehensive");
   const [pipelineMaxPages, setPipelineMaxPages] = useState("50");
 
   // Content Studio state
@@ -235,6 +236,21 @@ export default function KnowledgeIntelligence() {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/crawl-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rag-knowledge"] });
       toast({ title: "Processing Complete", description: `${data.pagesProcessed} pages processed` });
+    },
+  });
+
+  const deleteCrawlJobMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      const res = await apiRequest("DELETE", `/api/knowledge-intelligence/crawl-jobs/${jobId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/crawl-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/intelligence-stats"] });
+      toast({ title: "Crawl Job Deleted" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -726,6 +742,19 @@ export default function KnowledgeIntelligence() {
                             <Loader2 className="h-4 w-4 animate-spin" />
                           </Button>
                         )}
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          onClick={() => {
+                            if (confirm("Delete this crawl job and all associated data?")) {
+                              deleteCrawlJobMutation.mutate(job.id);
+                            }
+                          }}
+                          disabled={deleteCrawlJobMutation.isPending || job.status === "running"}
+                          data-testid={`button-delete-crawl-${job.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
                       </div>
                     </div>
                   </CardContent>

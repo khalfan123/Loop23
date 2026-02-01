@@ -644,7 +644,7 @@ async function runPipeline(pipelineJobId: string, userId: string) {
 
     // Process crawled pages
     const processor = createContentProcessor(userId);
-    await processor.processAllPages(pipelineJob.crawlJobId);
+    await processor.processJobPages(pipelineJob.crawlJobId);
 
     await updateProgress("crawling", 100, 33, 60, stageDetails);
 
@@ -670,9 +670,9 @@ async function runPipeline(pipelineJobId: string, userId: string) {
         const result = await analyzer.analyzeKnowledgeBaseItem(item.id);
         analyzed++;
         stageDetails.analyzing.itemsProcessed = analyzed;
-        stageDetails.analyzing.entitiesFound += result?.entitiesExtracted || 0;
-        stageDetails.analyzing.topicsFound += result?.topicsAssigned || 0;
-        stageDetails.analyzing.faqsFound += result?.faqsDetected || 0;
+        stageDetails.analyzing.entitiesFound += result?.entities || 0;
+        stageDetails.analyzing.topicsFound += result?.topics || 0;
+        stageDetails.analyzing.faqsFound += result?.faqs || 0;
         
         const progress = Math.round((analyzed / knowledgeItems.length) * 100);
         const remaining = Math.max(0, Math.round((knowledgeItems.length - analyzed) * 3));

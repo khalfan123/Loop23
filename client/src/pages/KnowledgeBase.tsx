@@ -1251,6 +1251,45 @@ export default function KnowledgeBase() {
             </Button>
           </div>
           </div>
+
+          {/* Intelligence Stats Bar */}
+          <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 overflow-x-auto">
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground">Crawl Jobs</span>
+              <span className="font-semibold">{intelligenceStats?.crawlJobs || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <Tags className="h-3.5 w-3.5 text-blue-500" />
+              <span className="text-muted-foreground">Entities</span>
+              <span className="font-semibold">{intelligenceStats?.entities || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <Layers className="h-3.5 w-3.5 text-green-500" />
+              <span className="text-muted-foreground">Topics</span>
+              <span className="font-semibold">{intelligenceStats?.topics || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <HelpCircle className="h-3.5 w-3.5 text-orange-500" />
+              <span className="text-muted-foreground">FAQs</span>
+              <span className="font-semibold">{intelligenceStats?.faqs || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <FileText className="h-3.5 w-3.5 text-purple-500" />
+              <span className="text-muted-foreground">Articles</span>
+              <span className="font-semibold">{intelligenceStats?.articles || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <Database className="h-3.5 w-3.5 text-cyan-500" />
+              <span className="text-muted-foreground">Graph Nodes</span>
+              <span className="font-semibold">{intelligenceStats?.graphNodes || 0}</span>
+            </div>
+          </div>
         </div>
 
         {/* Search Bar */}

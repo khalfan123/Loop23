@@ -41,7 +41,8 @@ import {
   AlertTriangle,
   RefreshCw,
   Search,
-  Trash2
+  Trash2,
+  ChevronRight
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -71,12 +72,20 @@ interface Entity {
   mentionCount: number;
 }
 
+interface TopicDocument {
+  id: string;
+  title: string;
+  type: string;
+  url?: string;
+}
+
 interface Topic {
   id: string;
   name: string;
   description?: string;
   documentCount: number;
   keywords?: string[];
+  documents?: TopicDocument[];
 }
 
 interface FAQ {
@@ -157,6 +166,9 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
   const [articleTypeFilter, setArticleTypeFilter] = useState("all");
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [articlePreviewOpen, setArticlePreviewOpen] = useState(false);
+  
+  // Topic expansion state
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
 
   const { data: stats, isLoading: statsLoading } = useQuery<IntelligenceStats>({
     queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
@@ -1365,16 +1377,60 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                   {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
                 </div>
               ) : topics.length > 0 ? (
-                <div className="space-y-3">
-                  {topics.map((topic) => (
-                    <div key={topic.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50" data-testid={`topic-${topic.id}`}>
-                      <div className="flex items-center gap-2">
-                        <Network className="h-4 w-4 text-green-500" />
-                        <span className="font-medium">{topic.name}</span>
+                <div className="space-y-2">
+                  {topics.map((topic) => {
+                    const isExpanded = expandedTopics.has(topic.id);
+                    return (
+                      <div key={topic.id} className="border rounded-lg overflow-hidden" data-testid={`topic-${topic.id}`}>
+                        <button
+                          onClick={() => {
+                            const newExpanded = new Set(expandedTopics);
+                            if (isExpanded) {
+                              newExpanded.delete(topic.id);
+                            } else {
+                              newExpanded.add(topic.id);
+                            }
+                            setExpandedTopics(newExpanded);
+                          }}
+                          className="w-full flex items-center justify-between p-3 hover-elevate text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            <Network className="h-4 w-4 text-green-500" />
+                            <span className="font-medium">{topic.name}</span>
+                          </div>
+                          <Badge variant="secondary">{topic.documentCount} items</Badge>
+                        </button>
+                        {isExpanded && (
+                          <div className="border-t bg-muted/30 p-3">
+                            {topic.keywords && topic.keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-3">
+                                {topic.keywords.map((keyword, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">{keyword}</Badge>
+                                ))}
+                              </div>
+                            )}
+                            {topic.documents && topic.documents.length > 0 ? (
+                              <div className="space-y-2">
+                                <p className="text-xs text-muted-foreground font-medium mb-2">Related Content:</p>
+                                {topic.documents.map((doc) => (
+                                  <div key={doc.id} className="flex items-center gap-2 p-2 rounded bg-background text-sm">
+                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="truncate flex-1">{doc.title}</span>
+                                    <Badge variant="outline" className="text-xs">{doc.type}</Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                {topic.description || `This topic contains ${topic.documentCount} related documents.`}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <Badge variant="secondary">{topic.documentCount} items</Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">

@@ -47,7 +47,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface KnowledgeIntelligenceProps {
-  section?: "insights" | "content-studio" | "all";
+  section?: "insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "all";
 }
 
 interface CrawlJob {
@@ -1353,6 +1353,215 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               </div>
             </>
           )}
+        </div>
+      ) : section === "entities" ? (
+        /* Direct render of Entities section */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Extracted Entities</h3>
+            <Button 
+              onClick={() => analyzeAllMutation.mutate()}
+              disabled={analyzeAllMutation.isPending}
+              size="sm"
+            >
+              {analyzeAllMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" /> Refresh Entities</>
+              )}
+            </Button>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Tags className="h-4 w-4" />
+                People, Organizations, Products & Concepts
+              </CardTitle>
+              <CardDescription>AI-extracted entities from your knowledge base content</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : entities.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {entities.map((entity) => (
+                    <Badge key={entity.id} variant="secondary" className="text-sm py-1 px-2" data-testid={`entity-${entity.id}`}>
+                      <span className="font-medium">{entity.name}</span>
+                      <span className="text-muted-foreground ml-1 text-xs">({entity.entityType})</span>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Tags className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No entities extracted yet</p>
+                  <p className="text-xs">Run AI analysis to extract entities from your content</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : section === "topic-clusters" ? (
+        /* Direct render of Topic Clusters section */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Topic Clusters</h3>
+            <Button 
+              onClick={() => analyzeAllMutation.mutate()}
+              disabled={analyzeAllMutation.isPending}
+              size="sm"
+            >
+              {analyzeAllMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" /> Refresh Clusters</>
+              )}
+            </Button>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Network className="h-4 w-4" />
+                Related Content Groups
+              </CardTitle>
+              <CardDescription>Topics discovered and grouped from your content</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : topics.length > 0 ? (
+                <div className="space-y-3">
+                  {topics.map((topic) => (
+                    <div key={topic.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50" data-testid={`topic-${topic.id}`}>
+                      <div className="flex items-center gap-2">
+                        <Network className="h-4 w-4 text-green-500" />
+                        <span className="font-medium">{topic.name}</span>
+                      </div>
+                      <Badge variant="secondary">{topic.documentCount} items</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Network className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No topic clusters detected yet</p>
+                  <p className="text-xs">Add more content and run AI analysis</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : section === "faqs" ? (
+        /* Direct render of FAQs section */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Detected FAQs</h3>
+            <Button 
+              onClick={() => analyzeAllMutation.mutate()}
+              disabled={analyzeAllMutation.isPending}
+              size="sm"
+            >
+              {analyzeAllMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" /> Refresh FAQs</>
+              )}
+            </Button>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <HelpCircle className="h-4 w-4" />
+                Question-Answer Pairs
+              </CardTitle>
+              <CardDescription>FAQs automatically extracted from your knowledge base</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+                </div>
+              ) : faqs.length > 0 ? (
+                <div className="space-y-3">
+                  {faqs.map((faq) => (
+                    <div key={faq.id} className="p-3 rounded-lg border" data-testid={`faq-${faq.id}`}>
+                      <div className="flex items-start gap-2">
+                        <HelpCircle className="h-4 w-4 text-orange-500 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-sm">{faq.question}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{faq.answer}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <HelpCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No FAQs detected yet</p>
+                  <p className="text-xs">Run AI analysis to auto-detect Q&A pairs</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : section === "content-gaps" ? (
+        /* Direct render of Content Gaps section */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Content Gap Analysis</h3>
+            <Button 
+              onClick={() => analyzeAllMutation.mutate()}
+              disabled={analyzeAllMutation.isPending}
+              size="sm"
+            >
+              {analyzeAllMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" /> Analyze Gaps</>
+              )}
+            </Button>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Lightbulb className="h-4 w-4" />
+                Topics Needing More Content
+              </CardTitle>
+              <CardDescription>AI-identified opportunities for additional content</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
+              ) : topicGaps.length > 0 ? (
+                <div className="space-y-3">
+                  {topicGaps.map((gap, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`gap-${index}`}>
+                      <div className="flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-yellow-500" />
+                        <span className="font-medium">{gap.topic}</span>
+                      </div>
+                      <Badge variant={gap.priority === 'high' ? 'destructive' : gap.priority === 'medium' ? 'default' : 'secondary'}>
+                        {gap.priority} priority
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No content gaps identified</p>
+                  <p className="text-xs">Run AI analysis to find content opportunities</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       ) : null}
 

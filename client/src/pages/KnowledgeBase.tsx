@@ -50,10 +50,13 @@ import {
   MoreHorizontal,
   Pencil,
   Database,
-  BarChart3
+  BarChart3,
+  Tags,
+  Layers,
+  HelpCircle,
+  Lightbulb
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
-import MLDashboard from "@/components/ml-dashboard";
 import { AuthStorage } from "@/lib/auth-storage";
 import {
   Dialog,
@@ -259,7 +262,7 @@ export default function KnowledgeBase() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio" | "ml-dashboard">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -987,18 +990,63 @@ export default function KnowledgeBase() {
             </button>
             <button
               onClick={() => {
-                setViewMode("ml-dashboard");
+                setViewMode("entities");
                 setSelectedFolderId(null);
               }}
               className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                viewMode === "ml-dashboard"
+                viewMode === "entities"
                   ? "bg-primary/10 text-primary font-medium"
                   : "hover-elevate"
               }`}
-              data-testid="folder-ml-dashboard"
+              data-testid="folder-entities"
             >
-              <BarChart3 className="h-4 w-4 flex-shrink-0 text-cyan-500" />
-              <span className="truncate flex-1 text-left">ML Dashboard</span>
+              <Tags className="h-4 w-4 flex-shrink-0 text-blue-500" />
+              <span className="truncate flex-1 text-left">Extracted Entities</span>
+            </button>
+            <button
+              onClick={() => {
+                setViewMode("topic-clusters");
+                setSelectedFolderId(null);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                viewMode === "topic-clusters"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover-elevate"
+              }`}
+              data-testid="folder-topic-clusters"
+            >
+              <Layers className="h-4 w-4 flex-shrink-0 text-green-500" />
+              <span className="truncate flex-1 text-left">Topic Clusters</span>
+            </button>
+            <button
+              onClick={() => {
+                setViewMode("faqs");
+                setSelectedFolderId(null);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                viewMode === "faqs"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover-elevate"
+              }`}
+              data-testid="folder-faqs"
+            >
+              <HelpCircle className="h-4 w-4 flex-shrink-0 text-orange-500" />
+              <span className="truncate flex-1 text-left">Detected FAQs</span>
+            </button>
+            <button
+              onClick={() => {
+                setViewMode("content-gaps");
+                setSelectedFolderId(null);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                viewMode === "content-gaps"
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "hover-elevate"
+              }`}
+              data-testid="folder-content-gaps"
+            >
+              <Lightbulb className="h-4 w-4 flex-shrink-0 text-yellow-500" />
+              <span className="truncate flex-1 text-left">Content Gap Analysis</span>
             </button>
           </div>
         </div>
@@ -1100,8 +1148,14 @@ export default function KnowledgeBase() {
               <KnowledgeIntelligence section="insights" />
             ) : viewMode === "content-studio" ? (
               <KnowledgeIntelligence section="content-studio" />
-            ) : viewMode === "ml-dashboard" ? (
-              <MLDashboard />
+            ) : viewMode === "entities" ? (
+              <KnowledgeIntelligence section="entities" />
+            ) : viewMode === "topic-clusters" ? (
+              <KnowledgeIntelligence section="topic-clusters" />
+            ) : viewMode === "faqs" ? (
+              <KnowledgeIntelligence section="faqs" />
+            ) : viewMode === "content-gaps" ? (
+              <KnowledgeIntelligence section="content-gaps" />
             ) : isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1243,6 +1297,68 @@ export default function KnowledgeBase() {
                     </Button>
                   </div>
                 )}
+
+                {/* AI Intelligence Quick Access */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <div className="h-5 w-5 rounded bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
+                        <Brain className="h-3 w-3 text-cyan-500" />
+                      </div>
+                      AI Intelligence
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">ML-powered content analysis</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <button
+                        onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }}
+                        className="p-3 rounded-lg border hover-elevate text-left"
+                        data-testid="quick-access-entities"
+                      >
+                        <Tags className="h-4 w-4 text-blue-500 mb-1" />
+                        <p className="text-xs text-muted-foreground">Entities</p>
+                        <p className="text-sm font-medium">View All</p>
+                      </button>
+                      <button
+                        onClick={() => { setViewMode("topic-clusters"); setSelectedFolderId(null); }}
+                        className="p-3 rounded-lg border hover-elevate text-left"
+                        data-testid="quick-access-clusters"
+                      >
+                        <Layers className="h-4 w-4 text-green-500 mb-1" />
+                        <p className="text-xs text-muted-foreground">Topic Clusters</p>
+                        <p className="text-sm font-medium">View All</p>
+                      </button>
+                      <button
+                        onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }}
+                        className="p-3 rounded-lg border hover-elevate text-left"
+                        data-testid="quick-access-faqs"
+                      >
+                        <HelpCircle className="h-4 w-4 text-orange-500 mb-1" />
+                        <p className="text-xs text-muted-foreground">Detected FAQs</p>
+                        <p className="text-sm font-medium">View All</p>
+                      </button>
+                      <button
+                        onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }}
+                        className="p-3 rounded-lg border hover-elevate text-left"
+                        data-testid="quick-access-gaps"
+                      >
+                        <Lightbulb className="h-4 w-4 text-yellow-500 mb-1" />
+                        <p className="text-xs text-muted-foreground">Content Gaps</p>
+                        <p className="text-sm font-medium">View All</p>
+                      </button>
+                      <button
+                        onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }}
+                        className="p-3 rounded-lg border hover-elevate text-left"
+                        data-testid="quick-access-content-studio"
+                      >
+                        <Sparkles className="h-4 w-4 text-amber-500 mb-1" />
+                        <p className="text-xs text-muted-foreground">Content Studio</p>
+                        <p className="text-sm font-medium">Generate</p>
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* All Items Table */}
                 {knowledgeBase.length > 0 && (

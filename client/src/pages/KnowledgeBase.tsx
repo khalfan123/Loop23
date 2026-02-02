@@ -54,7 +54,8 @@ import {
   Tags,
   Layers,
   HelpCircle,
-  Lightbulb
+  Lightbulb,
+  Square
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -497,6 +498,27 @@ export default function KnowledgeBase() {
       toast({
         title: t('common.error'),
         description: t('knowledgeBase.toast.deleteFailed'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelPipelineMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('POST', `/api/knowledge-intelligence/pipeline-jobs/${id}/cancel`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/pipeline-jobs/active'] });
+      toast({
+        title: "Pipeline Stopped",
+        description: "The pipeline job has been cancelled.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to stop the pipeline.",
         variant: "destructive",
       });
     },
@@ -1219,6 +1241,17 @@ export default function KnowledgeBase() {
                       style={{ width: `${activePipelineJob.overallProgress}%` }}
                     />
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => cancelPipelineMutation.mutate(activePipelineJob.id)}
+                    disabled={cancelPipelineMutation.isPending}
+                    title="Stop pipeline"
+                    data-testid="button-stop-pipeline"
+                  >
+                    <Square className="h-3 w-3 fill-current" />
+                  </Button>
                 </div>
               </>
             )}

@@ -865,14 +865,9 @@ export default function KnowledgeBase() {
   const processingCount = knowledgeBase.filter(item => item.ragStatus === 'processing').length;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold" data-testid="heading-knowledge-base">Knowledge Base</h1>
-      </div>
-      
-      <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
-        {/* Left Sidebar */}
-      <div className="w-[220px] border-r flex-shrink-0 bg-muted/30 flex flex-col">
+    <div className="flex h-screen w-full overflow-hidden">
+      {/* Left Sidebar */}
+      <div className="w-[260px] border-r flex-shrink-0 bg-muted/20 flex flex-col">
         {/* Dashboard Button */}
         <div className="p-3">
           <button
@@ -1683,7 +1678,6 @@ export default function KnowledgeBase() {
             )}
           </div>
         </ScrollArea>
-      </div>
       </div>
 
       {/* URL Dialog */}

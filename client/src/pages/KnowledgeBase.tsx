@@ -283,7 +283,6 @@ export default function KnowledgeBase() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [analyzeDialogOpen, setAnalyzeDialogOpen] = useState(false);
-  const [analyzeUrl, setAnalyzeUrl] = useState("");
   
   const [deletingItem, setDeletingItem] = useState<KnowledgeBaseItem | null>(null);
   
@@ -529,23 +528,29 @@ export default function KnowledgeBase() {
   });
 
   const startPipelineMutation = useMutation({
-    mutationFn: async (data: { url: string }) => {
-      const res = await apiRequest('POST', '/api/knowledge-intelligence/pipeline-jobs', {
-        name: `Analyze: ${new URL(data.url).hostname}`,
-        startUrl: data.url,
-        crawlType: 'single',
-        maxPages: 10
-      });
+    mutationFn: async (data: { url?: string }) => {
+      const payload = data.url 
+        ? {
+            name: `Analyze: ${new URL(data.url).hostname}`,
+            startUrl: data.url,
+            crawlType: 'single',
+            maxPages: 10
+          }
+        : {
+            name: 'Analyze All Content',
+            crawlType: 'existing',
+            maxPages: 0
+          };
+      const res = await apiRequest('POST', '/api/knowledge-intelligence/pipeline-jobs', payload);
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/pipeline-jobs/active'] });
       queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/intelligence-stats'] });
       setAnalyzeDialogOpen(false);
-      setAnalyzeUrl('');
       toast({
         title: "Pipeline Started",
-        description: "Crawling and analyzing your content. Progress is saved automatically.",
+        description: "Analyzing your content. Progress is saved automatically.",
       });
     },
     onError: (error: any) => {
@@ -1881,24 +1886,27 @@ export default function KnowledgeBase() {
       <Dialog open={analyzeDialogOpen} onOpenChange={setAnalyzeDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start Automated Pipeline</DialogTitle>
+            <DialogTitle>AI-Powered Insights</DialogTitle>
             <DialogDescription>
-              Crawl a website and automatically extract AI insights
+              Analyze all your knowledge base content with AI
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="analyze-url">Website URL</Label>
-              <Input
-                id="analyze-url"
-                placeholder="https://example.com"
-                value={analyzeUrl}
-                onChange={(e) => setAnalyzeUrl(e.target.value)}
-                data-testid="input-analyze-url"
-              />
-            </div>
-            <div className="p-3 bg-primary/5 border border-primary/20 rounded-md text-sm text-muted-foreground">
-              This will crawl your website, extract AI insights (entities, topics, FAQs), and generate content - all automatically. Progress is saved so you can close this page.
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Brain className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-medium">Analyze All Content</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {dashboardStats?.totalResources || 0} resources available
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                This will analyze your existing content to extract entities, discover topics, detect FAQs, and identify content gaps. Progress is saved automatically.
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -1907,11 +1915,9 @@ export default function KnowledgeBase() {
             </Button>
             <Button 
               onClick={() => {
-                if (analyzeUrl) {
-                  startPipelineMutation.mutate({ url: analyzeUrl });
-                }
+                startPipelineMutation.mutate({ url: '' });
               }} 
-              disabled={startPipelineMutation.isPending || !analyzeUrl}
+              disabled={startPipelineMutation.isPending || (dashboardStats?.totalResources || 0) === 0}
               data-testid="button-start-pipeline"
             >
               {startPipelineMutation.isPending ? "Starting..." : "Start Analysis"}

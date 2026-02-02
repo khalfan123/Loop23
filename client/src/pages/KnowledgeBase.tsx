@@ -689,7 +689,7 @@ export default function KnowledgeBase() {
     uploadFileMutation.mutate({ 
       file: selectedFile, 
       name: fileName || selectedFile.name,
-      folderId: fileFolderId || undefined,
+      folderId: fileFolderId && fileFolderId !== "none" ? fileFolderId : undefined,
     });
   };
 
@@ -705,7 +705,7 @@ export default function KnowledgeBase() {
     addUrlMutation.mutate({ 
       url: urlInput, 
       name: urlName || urlInput,
-      folderId: urlFolderId || undefined,
+      folderId: urlFolderId && urlFolderId !== "none" ? urlFolderId : undefined,
       startPipeline: urlStartPipeline,
     });
   };
@@ -730,7 +730,7 @@ export default function KnowledgeBase() {
     addTextMutation.mutate({ 
       text: textInput, 
       name: textName,
-      folderId: textFolderId || undefined,
+      folderId: textFolderId && textFolderId !== "none" ? textFolderId : undefined,
     });
   };
 
@@ -1784,7 +1784,7 @@ export default function KnowledgeBase() {
                   <SelectValue placeholder="Select folder" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Folder</SelectItem>
+                  <SelectItem value="none">No Folder</SelectItem>
                   {folders.map((folder) => (
                     <SelectItem key={folder.id} value={folder.id}>
                       {folder.name}
@@ -1872,7 +1872,7 @@ export default function KnowledgeBase() {
                   <SelectValue placeholder="Select folder" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Folder</SelectItem>
+                  <SelectItem value="none">No Folder</SelectItem>
                   {folders.map((folder) => (
                     <SelectItem key={folder.id} value={folder.id}>
                       {folder.name}
@@ -1929,7 +1929,7 @@ export default function KnowledgeBase() {
                   <SelectValue placeholder="Select folder" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Folder</SelectItem>
+                  <SelectItem value="none">No Folder</SelectItem>
                   {folders.map((folder) => (
                     <SelectItem key={folder.id} value={folder.id}>
                       {folder.name}

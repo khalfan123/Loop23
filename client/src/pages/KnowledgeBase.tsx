@@ -1156,6 +1156,35 @@ export default function KnowledgeBase() {
               URL
               <ChevronDown className="h-3 w-3 opacity-50" />
             </Button>
+
+            {/* Pipeline Progress - Next to URL button */}
+            {activePipelineJob && ["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) && (
+              <div className="flex items-center gap-2 text-sm whitespace-nowrap bg-primary/10 px-3 py-1.5 rounded-md border border-primary/20">
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                <span className="font-medium text-primary">{activePipelineJob.name}</span>
+                <span className="text-muted-foreground">•</span>
+                <span className="text-muted-foreground">{formatTimeRemaining(activePipelineJob.estimatedTimeRemaining)}</span>
+                <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all" 
+                    style={{ width: `${activePipelineJob.overallProgress}%` }}
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => cancelPipelineMutation.mutate(activePipelineJob.id)}
+                  disabled={cancelPipelineMutation.isPending}
+                  title="Stop pipeline"
+                  data-testid="button-stop-pipeline"
+                >
+                  <Square className="h-3.5 w-3.5 fill-current mr-1" />
+                  Stop
+                </Button>
+              </div>
+            )}
+
             <Button 
               variant="outline" 
               size="sm" 
@@ -1190,36 +1219,6 @@ export default function KnowledgeBase() {
 
           {/* Intelligence Stats Bar */}
           <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 overflow-x-auto">
-            {/* Pipeline Progress - First in stats bar for visibility */}
-            {activePipelineJob && ["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) && (
-              <>
-                <div className="flex items-center gap-2 text-sm whitespace-nowrap bg-primary/10 px-3 py-1.5 rounded-md border border-primary/20">
-                  <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                  <span className="font-medium text-primary">{activePipelineJob.name}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-muted-foreground">{formatTimeRemaining(activePipelineJob.estimatedTimeRemaining)}</span>
-                  <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all" 
-                      style={{ width: `${activePipelineJob.overallProgress}%` }}
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => cancelPipelineMutation.mutate(activePipelineJob.id)}
-                    disabled={cancelPipelineMutation.isPending}
-                    title="Stop pipeline"
-                    data-testid="button-stop-pipeline"
-                  >
-                    <Square className="h-3.5 w-3.5 fill-current mr-1" />
-                    Stop
-                  </Button>
-                </div>
-                <div className="h-4 w-px bg-border" />
-              </>
-            )}
             <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
               <Globe className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-muted-foreground">Crawl Jobs</span>

@@ -1026,7 +1026,7 @@ export default function KnowledgeBase() {
               </div>
             ))}
 
-            {/* Uncategorized */}
+            {/* Index */}
             {folderStats && folderStats.uncategorized > 0 && (
               <button
                 onClick={() => {
@@ -1041,7 +1041,7 @@ export default function KnowledgeBase() {
                 data-testid="folder-uncategorized"
               >
                 <Folder className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                <span className="truncate flex-1 text-left">Uncategorized</span>
+                <span className="truncate flex-1 text-left">Index</span>
                 <span className="text-xs text-muted-foreground">
                   {folderStats.uncategorized}
                 </span>
@@ -1565,7 +1565,7 @@ export default function KnowledgeBase() {
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                                    <SelectItem value="uncategorized">Index</SelectItem>
                                     {folders.map((folder) => (
                                       <SelectItem key={folder.id} value={folder.id}>
                                         {folder.name}
@@ -1651,7 +1651,7 @@ export default function KnowledgeBase() {
                   <span className="text-foreground font-medium">
                     {selectedFolderId 
                       ? folders.find(f => f.id === selectedFolderId)?.name || "Folder"
-                      : "Uncategorized"}
+                      : "Index"}
                   </span>
                 </div>
 

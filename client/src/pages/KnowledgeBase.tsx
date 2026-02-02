@@ -324,6 +324,49 @@ export default function KnowledgeBase() {
     enabled: user?.planType !== 'free',
   });
 
+  // Intelligence stats for header
+  interface IntelligenceStats {
+    crawlJobs: number;
+    entities: number;
+    topics: number;
+    faqs: number;
+    articles: number;
+    graphNodes: number;
+  }
+
+  interface PipelineJob {
+    id: string;
+    name: string;
+    status: string;
+    currentStage: string;
+    overallProgress: number;
+    stageProgress: number;
+    estimatedTimeRemaining: number | null;
+  }
+
+  const { data: intelligenceStats } = useQuery<IntelligenceStats>({
+    queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
+  });
+
+  const { data: activePipelineJob } = useQuery<PipelineJob | null>({
+    queryKey: ["/api/knowledge-intelligence/pipeline-jobs/active"],
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data && ["pending", "crawling", "analyzing", "generating"].includes(data.status)) {
+        return 2000;
+      }
+      return 30000;
+    },
+  });
+
+  const formatTimeRemaining = (seconds: number | null): string => {
+    if (!seconds) return "calculating...";
+    if (seconds < 60) return `${seconds}s remaining`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s remaining`;
+  };
+
   const uploadFileMutation = useMutation({
     mutationFn: async (data: { file: File; name?: string; folderId?: string }) => {
       const formData = new FormData();
@@ -1070,18 +1113,19 @@ export default function KnowledgeBase() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col bg-background overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Brain className="h-5 w-5 text-primary" />
+        <div className="border-b">
+          <div className="flex items-center justify-between p-4 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Brain className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold">Knowledge Base</h1>
+                <p className="text-xs text-muted-foreground">
+                  {dashboardStats?.totalResources || 0} resources · {dashboardStats?.totalChunks || 0} chunks
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-semibold">Knowledge Base</h1>
-              <p className="text-xs text-muted-foreground">
-                {dashboardStats?.totalResources || 0} resources · {dashboardStats?.totalChunks || 0} chunks
-              </p>
-            </div>
-          </div>
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
@@ -1124,6 +1168,65 @@ export default function KnowledgeBase() {
               <Sparkles className="h-4 w-4" />
               AI Articles
             </Button>
+          </div>
+          </div>
+
+          {/* Intelligence Stats Bar */}
+          <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 overflow-x-auto">
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground">Crawl Jobs</span>
+              <span className="font-semibold">{intelligenceStats?.crawlJobs || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <Tags className="h-3.5 w-3.5 text-blue-500" />
+              <span className="text-muted-foreground">Entities</span>
+              <span className="font-semibold">{intelligenceStats?.entities || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <Layers className="h-3.5 w-3.5 text-green-500" />
+              <span className="text-muted-foreground">Topics</span>
+              <span className="font-semibold">{intelligenceStats?.topics || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <HelpCircle className="h-3.5 w-3.5 text-orange-500" />
+              <span className="text-muted-foreground">FAQs</span>
+              <span className="font-semibold">{intelligenceStats?.faqs || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <FileText className="h-3.5 w-3.5 text-purple-500" />
+              <span className="text-muted-foreground">Articles</span>
+              <span className="font-semibold">{intelligenceStats?.articles || 0}</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <Database className="h-3.5 w-3.5 text-cyan-500" />
+              <span className="text-muted-foreground">Graph Nodes</span>
+              <span className="font-semibold">{intelligenceStats?.graphNodes || 0}</span>
+            </div>
+
+            {/* Pipeline Progress - Inline in stats bar */}
+            {activePipelineJob && ["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) && (
+              <>
+                <div className="h-4 w-px bg-border" />
+                <div className="flex items-center gap-2 text-sm whitespace-nowrap bg-primary/10 px-2 py-1 rounded-md">
+                  <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+                  <span className="font-medium text-primary">{activePipelineJob.name}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-muted-foreground">{formatTimeRemaining(activePipelineJob.estimatedTimeRemaining)}</span>
+                  <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all" 
+                      style={{ width: `${activePipelineJob.overallProgress}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

@@ -282,8 +282,6 @@ export default function KnowledgeBase() {
   const [fileFolderId, setFileFolderId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [analyzeDialogOpen, setAnalyzeDialogOpen] = useState(false);
-  
   const [deletingItem, setDeletingItem] = useState<KnowledgeBaseItem | null>(null);
   
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
@@ -547,7 +545,6 @@ export default function KnowledgeBase() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/pipeline-jobs/active'] });
       queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/intelligence-stats'] });
-      setAnalyzeDialogOpen(false);
       toast({
         title: "Pipeline Started",
         description: "Analyzing your content. Progress is saved automatically.",
@@ -1233,16 +1230,6 @@ export default function KnowledgeBase() {
               <FileText className="h-4 w-4" />
               Files
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-1.5"
-              onClick={() => setAnalyzeDialogOpen(true)}
-              data-testid="button-analyze-content"
-            >
-              <Sparkles className="h-4 w-4" />
-              Analyze
-            </Button>
           </div>
           </div>
 
@@ -1787,6 +1774,34 @@ export default function KnowledgeBase() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="pt-2 border-t">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium">Automated Knowledge Pipeline</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Crawl a website, extract AI insights, and generate content - all automatically
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (urlInput) {
+                        setUrlDialogOpen(false);
+                        startPipelineMutation.mutate({ url: urlInput });
+                      }
+                    }}
+                    disabled={!urlInput || startPipelineMutation.isPending}
+                    data-testid="button-start-url-pipeline"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    Start Pipeline
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUrlDialogOpen(false)}>
@@ -1877,50 +1892,6 @@ export default function KnowledgeBase() {
               data-testid="button-submit-file"
             >
               {uploadFileMutation.isPending ? t('knowledgeBase.actions.uploading') : t('knowledgeBase.actions.uploadFile')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Analyze Dialog */}
-      <Dialog open={analyzeDialogOpen} onOpenChange={setAnalyzeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>AI-Powered Insights</DialogTitle>
-            <DialogDescription>
-              Analyze all your knowledge base content with AI
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Brain className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-medium">Analyze All Content</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {dashboardStats?.totalResources || 0} resources available
-                  </p>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                This will analyze your existing content to extract entities, discover topics, detect FAQs, and identify content gaps. Progress is saved automatically.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAnalyzeDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={() => {
-                startPipelineMutation.mutate({ url: '' });
-              }} 
-              disabled={startPipelineMutation.isPending || (dashboardStats?.totalResources || 0) === 0}
-              data-testid="button-start-pipeline"
-            >
-              {startPipelineMutation.isPending ? "Starting..." : "Start Analysis"}
             </Button>
           </DialogFooter>
         </DialogContent>

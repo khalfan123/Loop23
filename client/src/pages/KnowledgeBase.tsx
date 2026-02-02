@@ -1793,16 +1793,23 @@ export default function KnowledgeBase() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 pt-2">
-              <Checkbox 
-                id="start-pipeline"
-                checked={urlStartPipeline}
-                onCheckedChange={(checked) => setUrlStartPipeline(checked === true)}
-                data-testid="checkbox-start-pipeline"
-              />
-              <Label htmlFor="start-pipeline" className="text-sm font-normal cursor-pointer">
-                Analyze with AI (extract entities, topics, FAQs)
-              </Label>
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="start-pipeline"
+                  checked={urlStartPipeline}
+                  onCheckedChange={(checked) => setUrlStartPipeline(checked === true)}
+                  data-testid="checkbox-start-pipeline"
+                />
+                <Label htmlFor="start-pipeline" className="text-sm font-medium cursor-pointer">
+                  Start Automated Pipeline
+                </Label>
+              </div>
+              {urlStartPipeline && (
+                <div className="ml-6 p-3 bg-primary/5 border border-primary/20 rounded-md text-sm text-muted-foreground">
+                  This will crawl your website, extract AI insights (entities, topics, FAQs), and generate content - all automatically. Progress is saved so you can close this page.
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

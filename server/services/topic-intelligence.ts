@@ -813,11 +813,24 @@ Include [Source] citations where appropriate.`
       }
     };
 
+    // Calculate estimated time remaining based on elapsed time and progress
+    let estimatedTimeRemaining = 30; // Default fallback
+    if (currentJob?.startedAt && overallProgress > 0) {
+      const elapsedMs = Date.now() - new Date(currentJob.startedAt).getTime();
+      const elapsedSeconds = elapsedMs / 1000;
+      const progressFraction = overallProgress / 100;
+      if (progressFraction > 0.1) {
+        const totalEstimatedSeconds = elapsedSeconds / progressFraction;
+        estimatedTimeRemaining = Math.max(5, Math.round(totalEstimatedSeconds - elapsedSeconds));
+      }
+    }
+
     await db.update(knowledgePipelineJobs)
       .set({
         currentStage: stage,
         stageProgress: progress,
         overallProgress: Math.min(overallProgress, 100),
+        estimatedTimeRemaining,
         stageDetails: updatedStageDetails,
         updatedAt: new Date()
       })

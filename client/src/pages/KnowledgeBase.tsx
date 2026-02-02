@@ -107,6 +107,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
@@ -269,6 +270,7 @@ export default function KnowledgeBase() {
   const [urlInput, setUrlInput] = useState("");
   const [urlName, setUrlName] = useState("");
   const [urlFolderId, setUrlFolderId] = useState<string>("");
+  const [urlStartPipeline, setUrlStartPipeline] = useState<boolean>(true);
   
   const [textDialogOpen, setTextDialogOpen] = useState(false);
   const [textInput, setTextInput] = useState("");
@@ -423,23 +425,55 @@ export default function KnowledgeBase() {
   });
 
   const addUrlMutation = useMutation({
-    mutationFn: async (data: { url: string; name?: string; folderId?: string }) => {
+    mutationFn: async (data: { url: string; name?: string; folderId?: string; startPipeline?: boolean }) => {
       const res = await apiRequest('POST', '/api/rag-knowledge/url', data);
-      return res.json();
+      const result = await res.json();
+      
+      let pipelineStarted = false;
+      // If startPipeline flag is set, also trigger the intelligence pipeline
+      if (data.startPipeline) {
+        try {
+          await apiRequest('POST', '/api/knowledge-intelligence/pipeline-jobs', {
+            name: data.name || `Analyze: ${new URL(data.url).hostname}`,
+            startUrl: data.url,
+            crawlType: 'single',
+            maxPages: 1
+          });
+          pipelineStarted = true;
+        } catch (pipelineError) {
+          console.log('Pipeline already running or failed to start:', pipelineError);
+        }
+      }
+      
+      return { ...result, pipelineStarted, requestedPipeline: data.startPipeline };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/pipeline-jobs/active'] });
       setUrlDialogOpen(false);
       setUrlInput('');
       setUrlName('');
       setUrlFolderId('');
-      toast({
-        title: t('knowledgeBase.toast.urlAdded'),
-        description: t('knowledgeBase.toast.urlAddedDesc'),
-      });
+      
+      if (result.requestedPipeline && result.pipelineStarted) {
+        toast({
+          title: t('knowledgeBase.toast.urlAdded'),
+          description: "URL added and analysis pipeline started",
+        });
+      } else if (result.requestedPipeline && !result.pipelineStarted) {
+        toast({
+          title: t('knowledgeBase.toast.urlAdded'),
+          description: "URL added. Pipeline not started (another pipeline may be running)",
+        });
+      } else {
+        toast({
+          title: t('knowledgeBase.toast.urlAdded'),
+          description: t('knowledgeBase.toast.urlAddedDesc'),
+        });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -672,6 +706,7 @@ export default function KnowledgeBase() {
       url: urlInput, 
       name: urlName || urlInput,
       folderId: urlFolderId || undefined,
+      startPipeline: urlStartPipeline,
     });
   };
 
@@ -1758,6 +1793,17 @@ export default function KnowledgeBase() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-2 pt-2">
+              <Checkbox 
+                id="start-pipeline"
+                checked={urlStartPipeline}
+                onCheckedChange={(checked) => setUrlStartPipeline(checked === true)}
+                data-testid="checkbox-start-pipeline"
+              />
+              <Label htmlFor="start-pipeline" className="text-sm font-normal cursor-pointer">
+                Analyze with AI (extract entities, topics, FAQs)
+              </Label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUrlDialogOpen(false)}>
@@ -1768,7 +1814,10 @@ export default function KnowledgeBase() {
               disabled={addUrlMutation.isPending}
               data-testid="button-submit-url"
             >
-              {addUrlMutation.isPending ? t('knowledgeBase.actions.adding') : t('knowledgeBase.actions.addUrl')}
+              {addUrlMutation.isPending 
+                ? (urlStartPipeline ? "Adding & Analyzing..." : t('knowledgeBase.actions.adding'))
+                : (urlStartPipeline ? "Add & Analyze" : t('knowledgeBase.actions.addUrl'))
+              }
             </Button>
           </DialogFooter>
         </DialogContent>

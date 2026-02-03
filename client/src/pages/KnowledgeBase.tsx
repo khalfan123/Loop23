@@ -1781,34 +1781,6 @@ export default function KnowledgeBase() {
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="pt-2 border-t">
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium">Automated Knowledge Pipeline</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Crawl a website, extract AI insights, and generate content - all automatically
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (urlInput) {
-                        setUrlDialogOpen(false);
-                        startPipelineMutation.mutate({ url: urlInput });
-                      }
-                    }}
-                    disabled={!urlInput || startPipelineMutation.isPending}
-                    data-testid="button-start-url-pipeline"
-                  >
-                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                    Start Pipeline
-                  </Button>
-                </div>
-              </div>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUrlDialogOpen(false)}>
@@ -1816,10 +1788,13 @@ export default function KnowledgeBase() {
             </Button>
             <Button 
               onClick={handleAddUrl} 
-              disabled={addUrlMutation.isPending}
+              disabled={addUrlMutation.isPending || startPipelineMutation.isPending}
               data-testid="button-submit-url"
             >
-              {addUrlMutation.isPending ? t('knowledgeBase.actions.adding') : t('knowledgeBase.actions.addUrl')}
+              <Sparkles className="h-4 w-4 mr-2" />
+              {addUrlMutation.isPending || startPipelineMutation.isPending 
+                ? 'Adding & Analyzing...' 
+                : 'Add URL & Start Pipeline'}
             </Button>
           </DialogFooter>
         </DialogContent>

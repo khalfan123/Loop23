@@ -1051,107 +1051,106 @@ export default function KnowledgeBase() {
                 </span>
               </button>
             )}
+
+            {/* AI Intelligence - Integrated */}
+            <div className="mt-4 pt-3 border-t border-dashed">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3" />
+                AI Intelligence
+              </div>
+              <button
+                onClick={() => {
+                  setViewMode("ai-insights");
+                  setSelectedFolderId(null);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  viewMode === "ai-insights"
+                    ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium"
+                    : "hover-elevate"
+                }`}
+                data-testid="folder-ai-insights"
+              >
+                <Brain className="h-4 w-4 flex-shrink-0 text-purple-500" />
+                <span className="truncate flex-1 text-left">AI Insights</span>
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("content-studio");
+                  setSelectedFolderId(null);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  viewMode === "content-studio"
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
+                    : "hover-elevate"
+                }`}
+                data-testid="folder-content-studio"
+              >
+                <Sparkles className="h-4 w-4 flex-shrink-0 text-amber-500" />
+                <span className="truncate flex-1 text-left">Content Studio</span>
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("entities");
+                  setSelectedFolderId(null);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  viewMode === "entities"
+                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
+                    : "hover-elevate"
+                }`}
+                data-testid="folder-entities"
+              >
+                <Tags className="h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span className="truncate flex-1 text-left">Entities</span>
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("topic-clusters");
+                  setSelectedFolderId(null);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  viewMode === "topic-clusters"
+                    ? "bg-green-500/10 text-green-600 dark:text-green-400 font-medium"
+                    : "hover-elevate"
+                }`}
+                data-testid="folder-topic-clusters"
+              >
+                <Layers className="h-4 w-4 flex-shrink-0 text-green-500" />
+                <span className="truncate flex-1 text-left">Topics</span>
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("faqs");
+                  setSelectedFolderId(null);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  viewMode === "faqs"
+                    ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium"
+                    : "hover-elevate"
+                }`}
+                data-testid="folder-faqs"
+              >
+                <HelpCircle className="h-4 w-4 flex-shrink-0 text-orange-500" />
+                <span className="truncate flex-1 text-left">FAQs</span>
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("content-gaps");
+                  setSelectedFolderId(null);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  viewMode === "content-gaps"
+                    ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 font-medium"
+                    : "hover-elevate"
+                }`}
+                data-testid="folder-content-gaps"
+              >
+                <Lightbulb className="h-4 w-4 flex-shrink-0 text-yellow-500" />
+                <span className="truncate flex-1 text-left">Content Gaps</span>
+              </button>
+            </div>
           </div>
         </ScrollArea>
-
-        {/* AI Features Section */}
-        <div className="px-3 py-2 border-t">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            AI Features
-          </div>
-          <div className="space-y-1">
-            <button
-              onClick={() => {
-                setViewMode("ai-insights");
-                setSelectedFolderId(null);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                viewMode === "ai-insights"
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "hover-elevate"
-              }`}
-              data-testid="folder-ai-insights"
-            >
-              <Brain className="h-4 w-4 flex-shrink-0 text-purple-500" />
-              <span className="truncate flex-1 text-left">AI Insights</span>
-            </button>
-            <button
-              onClick={() => {
-                setViewMode("content-studio");
-                setSelectedFolderId(null);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                viewMode === "content-studio"
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "hover-elevate"
-              }`}
-              data-testid="folder-content-studio"
-            >
-              <Sparkles className="h-4 w-4 flex-shrink-0 text-amber-500" />
-              <span className="truncate flex-1 text-left">Content Studio</span>
-            </button>
-            <button
-              onClick={() => {
-                setViewMode("entities");
-                setSelectedFolderId(null);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                viewMode === "entities"
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "hover-elevate"
-              }`}
-              data-testid="folder-entities"
-            >
-              <Tags className="h-4 w-4 flex-shrink-0 text-blue-500" />
-              <span className="truncate flex-1 text-left">Extracted Entities</span>
-            </button>
-            <button
-              onClick={() => {
-                setViewMode("topic-clusters");
-                setSelectedFolderId(null);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                viewMode === "topic-clusters"
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "hover-elevate"
-              }`}
-              data-testid="folder-topic-clusters"
-            >
-              <Layers className="h-4 w-4 flex-shrink-0 text-green-500" />
-              <span className="truncate flex-1 text-left">Topic Clusters</span>
-            </button>
-            <button
-              onClick={() => {
-                setViewMode("faqs");
-                setSelectedFolderId(null);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                viewMode === "faqs"
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "hover-elevate"
-              }`}
-              data-testid="folder-faqs"
-            >
-              <HelpCircle className="h-4 w-4 flex-shrink-0 text-orange-500" />
-              <span className="truncate flex-1 text-left">Detected FAQs</span>
-            </button>
-            <button
-              onClick={() => {
-                setViewMode("content-gaps");
-                setSelectedFolderId(null);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                viewMode === "content-gaps"
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "hover-elevate"
-              }`}
-              data-testid="folder-content-gaps"
-            >
-              <Lightbulb className="h-4 w-4 flex-shrink-0 text-yellow-500" />
-              <span className="truncate flex-1 text-left">Content Gap Analysis</span>
-            </button>
-          </div>
-        </div>
 
         {/* Storage Usage */}
         {storageUsage && (

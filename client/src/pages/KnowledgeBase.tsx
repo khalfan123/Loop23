@@ -1697,9 +1697,23 @@ export default function KnowledgeBase() {
                             {paginatedItems.map((item) => (
                               <TableRow key={item.id} data-testid={`row-kb-item-${item.id}`}>
                                 <TableCell className="font-medium">
-                                  <div className="flex items-center gap-2">
-                                    {getTypeIcon(item.type)}
-                                    <span className="truncate max-w-[200px]">{item.title}</span>
+                                  <div className="flex items-start gap-2">
+                                    <div className="mt-0.5">{getTypeIcon(item.type)}</div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="truncate max-w-[200px]">{item.title}</span>
+                                      {item.type === "url" && item.url && (
+                                        <a 
+                                          href={item.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-muted-foreground hover:text-primary truncate max-w-[250px]"
+                                          onClick={(e) => e.stopPropagation()}
+                                          data-testid={`link-url-${item.id}`}
+                                        >
+                                          {item.url}
+                                        </a>
+                                      )}
+                                    </div>
                                   </div>
                                 </TableCell>
                                 <TableCell>

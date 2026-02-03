@@ -768,6 +768,7 @@ interface IVRConfigPanelProps {
   setMultiLangEnabled: (val: boolean) => void;
   languageOptions: LanguageOption[];
   setLanguageOptions: (opts: LanguageOption[]) => void;
+  nodes: Node[];
 }
 
 function IVRConfigPanel({
@@ -777,6 +778,7 @@ function IVRConfigPanel({
   setMultiLangEnabled,
   languageOptions,
   setLanguageOptions,
+  nodes,
 }: IVRConfigPanelProps) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1834,6 +1836,7 @@ function DepartmentCanvasContent() {
                 setMultiLangEnabled={setMultiLangEnabled}
                 languageOptions={languageOptions}
                 setLanguageOptions={setLanguageOptions}
+                nodes={nodes}
               />
             )}
 

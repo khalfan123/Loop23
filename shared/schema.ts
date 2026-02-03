@@ -3498,3 +3498,191 @@ export const insertKnowledgePipelineJobSchema = createInsertSchema(knowledgePipe
 });
 export type InsertKnowledgePipelineJob = z.infer<typeof insertKnowledgePipelineJobSchema>;
 export type KnowledgePipelineJob = typeof knowledgePipelineJobs.$inferSelect;
+
+// ============================================
+// ML Conversations - AI Training from Call Transcripts
+// ============================================
+
+// ML Analysis Jobs - Tracks batch analysis jobs for call transcripts
+export const mlAnalysisJobs = pgTable("ml_analysis_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed
+  totalCalls: integer("total_calls").notNull().default(0),
+  processedCalls: integer("processed_calls").notNull().default(0),
+  issuesFound: integer("issues_found").notNull().default(0),
+  trainingSamplesCreated: integer("training_samples_created").notNull().default(0),
+  dateRangeStart: timestamp("date_range_start"),
+  dateRangeEnd: timestamp("date_range_end"),
+  errorMessage: text("error_message"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ML Conversation Analyses - Individual call transcript analysis results
+export const mlConversationAnalyses = pgTable("ml_conversation_analyses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  callId: varchar("call_id").notNull().references(() => calls.id, { onDelete: "cascade" }),
+  analysisJobId: varchar("analysis_job_id").references(() => mlAnalysisJobs.id, { onDelete: "set null" }),
+  
+  // Analysis Results
+  sentiment: text("sentiment"), // positive, negative, neutral, mixed
+  sentimentScore: real("sentiment_score"), // -1 to 1 score
+  issuesDetected: jsonb("issues_detected"), // Array of { issue: string, severity: string, context: string }
+  keyTopics: jsonb("key_topics"), // Array of extracted topics/themes
+  customerIntent: text("customer_intent"), // What the customer was trying to achieve
+  resolutionStatus: text("resolution_status"), // resolved, unresolved, escalated, transferred
+  agentPerformance: jsonb("agent_performance"), // { helpfulness: number, clarity: number, empathy: number }
+  
+  // Extracted data for training
+  questionAnswerPairs: jsonb("question_answer_pairs"), // Array of { question: string, answer: string, quality: number }
+  suggestedImprovements: jsonb("suggested_improvements"), // Array of improvement suggestions
+  
+  // Metadata
+  transcriptLength: integer("transcript_length"),
+  callDuration: integer("call_duration"),
+  analyzedAt: timestamp("analyzed_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ML Common Issues - Aggregated patterns/issues discovered across conversations
+export const mlCommonIssues = pgTable("ml_common_issues", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Issue Details
+  issueName: text("issue_name").notNull(),
+  description: text("description"),
+  category: text("category"), // billing, technical, product, service, general
+  severity: text("severity").notNull().default("medium"), // low, medium, high, critical
+  
+  // Statistics
+  occurrenceCount: integer("occurrence_count").notNull().default(1),
+  firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+  
+  // Resolution
+  suggestedResponse: text("suggested_response"),
+  knowledgeBaseLink: varchar("knowledge_base_link"),
+  resolutionRate: real("resolution_rate"), // 0-100 percentage of times this issue was resolved
+  
+  // AI Training
+  isTrainingApproved: boolean("is_training_approved").default(false),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: varchar("approved_by").references(() => users.id, { onDelete: "set null" }),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ML Training Samples - Curated training data from conversations
+export const mlTrainingSamples = pgTable("ml_training_samples", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sourceCallId: varchar("source_call_id").references(() => calls.id, { onDelete: "set null" }),
+  commonIssueId: varchar("common_issue_id").references(() => mlCommonIssues.id, { onDelete: "set null" }),
+  
+  // Training Content
+  sampleType: text("sample_type").notNull(), // qa_pair, issue_resolution, greeting, objection_handling, closing
+  inputText: text("input_text").notNull(), // Customer query/question
+  outputText: text("output_text").notNull(), // Ideal AI response
+  context: text("context"), // Additional context for the interaction
+  
+  // Quality & Approval
+  qualityScore: real("quality_score"), // 0-100 AI-assessed quality
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, used
+  reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Usage Tracking
+  usedInTrainingAt: timestamp("used_in_training_at"),
+  trainingBatchId: varchar("training_batch_id"),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ML Training Stats - Aggregate statistics for ML training progress
+export const mlTrainingStats = pgTable("ml_training_stats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Overall Stats
+  totalCallsAnalyzed: integer("total_calls_analyzed").notNull().default(0),
+  totalIssuesDiscovered: integer("total_issues_discovered").notNull().default(0),
+  totalTrainingSamples: integer("total_training_samples").notNull().default(0),
+  approvedSamples: integer("approved_samples").notNull().default(0),
+  
+  // Performance Metrics
+  averageSentimentScore: real("average_sentiment_score"),
+  resolutionRate: real("resolution_rate"),
+  topIssueCategories: jsonb("top_issue_categories"), // Array of { category: string, count: number }
+  
+  // AI Improvement Tracking
+  baselineAccuracy: real("baseline_accuracy"), // Initial AI performance
+  currentAccuracy: real("current_accuracy"), // Current AI performance after training
+  improvementPercentage: real("improvement_percentage"),
+  lastTrainingDate: timestamp("last_training_date"),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Insert Schemas and Types for ML Conversations
+export const insertMlAnalysisJobSchema = createInsertSchema(mlAnalysisJobs).omit({
+  id: true,
+  status: true,
+  processedCalls: true,
+  issuesFound: true,
+  trainingSamplesCreated: true,
+  errorMessage: true,
+  startedAt: true,
+  completedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertMlAnalysisJob = z.infer<typeof insertMlAnalysisJobSchema>;
+export type MlAnalysisJob = typeof mlAnalysisJobs.$inferSelect;
+
+export const insertMlConversationAnalysisSchema = createInsertSchema(mlConversationAnalyses).omit({
+  id: true,
+  analyzedAt: true,
+  createdAt: true,
+});
+export type InsertMlConversationAnalysis = z.infer<typeof insertMlConversationAnalysisSchema>;
+export type MlConversationAnalysis = typeof mlConversationAnalyses.$inferSelect;
+
+export const insertMlCommonIssueSchema = createInsertSchema(mlCommonIssues).omit({
+  id: true,
+  occurrenceCount: true,
+  firstSeenAt: true,
+  lastSeenAt: true,
+  approvedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertMlCommonIssue = z.infer<typeof insertMlCommonIssueSchema>;
+export type MlCommonIssue = typeof mlCommonIssues.$inferSelect;
+
+export const insertMlTrainingSampleSchema = createInsertSchema(mlTrainingSamples).omit({
+  id: true,
+  reviewedAt: true,
+  usedInTrainingAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertMlTrainingSample = z.infer<typeof insertMlTrainingSampleSchema>;
+export type MlTrainingSample = typeof mlTrainingSamples.$inferSelect;
+
+export const insertMlTrainingStatsSchema = createInsertSchema(mlTrainingStats).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertMlTrainingStats = z.infer<typeof insertMlTrainingStatsSchema>;
+export type MlTrainingStats = typeof mlTrainingStats.$inferSelect;

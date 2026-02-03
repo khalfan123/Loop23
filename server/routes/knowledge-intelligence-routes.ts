@@ -19,7 +19,13 @@ import {
   generatedArticles,
   contentAuditLog,
   knowledgeBase,
-  knowledgePipelineJobs
+  knowledgePipelineJobs,
+  mlAnalysisJobs,
+  mlConversationAnalyses,
+  mlCommonIssues,
+  mlTrainingSamples,
+  mlTrainingStats,
+  calls
 } from "@shared/schema";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { createCrawler } from "../services/knowledge-crawler";
@@ -1166,6 +1172,444 @@ router.post("/pipeline-jobs/:id/cancel", async (req: AuthRequest, res: Response)
     res.status(500).json({ error: "Failed to cancel pipeline" });
   }
 });
+
+// ============================================================
+// ML CONVERSATIONS - AI Training from Call Transcripts
+// ============================================================
+
+// Get ML Conversations Stats
+router.get("/ml-conversations/stats", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Get or create stats for user
+    let [stats] = await db.select().from(mlTrainingStats)
+      .where(eq(mlTrainingStats.userId, req.userId));
+
+    if (!stats) {
+      // Create default stats
+      const [newStats] = await db.insert(mlTrainingStats).values({
+        userId: req.userId,
+        totalCallsAnalyzed: 0,
+        totalIssuesDiscovered: 0,
+        totalTrainingSamples: 0,
+        approvedSamples: 0,
+      }).returning();
+      stats = newStats;
+    }
+
+    // Get counts
+    const [analysisCount] = await db.select({ count: count() })
+      .from(mlConversationAnalyses)
+      .where(eq(mlConversationAnalyses.userId, req.userId));
+
+    const [issueCount] = await db.select({ count: count() })
+      .from(mlCommonIssues)
+      .where(eq(mlCommonIssues.userId, req.userId));
+
+    const [sampleCount] = await db.select({ count: count() })
+      .from(mlTrainingSamples)
+      .where(eq(mlTrainingSamples.userId, req.userId));
+
+    const [approvedCount] = await db.select({ count: count() })
+      .from(mlTrainingSamples)
+      .where(and(
+        eq(mlTrainingSamples.userId, req.userId),
+        eq(mlTrainingSamples.status, "approved")
+      ));
+
+    // Get available calls with transcripts
+    const [callsWithTranscripts] = await db.select({ count: count() })
+      .from(calls)
+      .where(and(
+        eq(calls.userId, req.userId),
+        sql`${calls.transcript} IS NOT NULL AND ${calls.transcript} != ''`
+      ));
+
+    res.json({
+      ...stats,
+      totalCallsAnalyzed: analysisCount?.count || 0,
+      totalIssuesDiscovered: issueCount?.count || 0,
+      totalTrainingSamples: sampleCount?.count || 0,
+      approvedSamples: approvedCount?.count || 0,
+      availableCallsForAnalysis: callsWithTranscripts?.count || 0,
+    });
+  } catch (error) {
+    console.error("Error fetching ML stats:", error);
+    res.status(500).json({ error: "Failed to fetch ML stats" });
+  }
+});
+
+// Get Analysis Jobs
+router.get("/ml-conversations/jobs", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const jobs = await db.select().from(mlAnalysisJobs)
+      .where(eq(mlAnalysisJobs.userId, req.userId))
+      .orderBy(desc(mlAnalysisJobs.createdAt));
+
+    res.json(jobs);
+  } catch (error) {
+    console.error("Error fetching analysis jobs:", error);
+    res.status(500).json({ error: "Failed to fetch analysis jobs" });
+  }
+});
+
+// Start Analysis Job
+router.post("/ml-conversations/analyze", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { name, dateRangeStart, dateRangeEnd } = req.body;
+
+    // Get calls with transcripts in date range
+    let callsQuery = db.select().from(calls)
+      .where(and(
+        eq(calls.userId, req.userId),
+        sql`${calls.transcript} IS NOT NULL AND ${calls.transcript} != ''`
+      ));
+
+    const callsToAnalyze = await callsQuery.orderBy(desc(calls.createdAt));
+
+    if (callsToAnalyze.length === 0) {
+      return res.status(400).json({ error: "No calls with transcripts available for analysis" });
+    }
+
+    // Create analysis job
+    const [job] = await db.insert(mlAnalysisJobs).values({
+      userId: req.userId,
+      name: name || `Analysis ${new Date().toLocaleDateString()}`,
+      totalCalls: callsToAnalyze.length,
+      dateRangeStart: dateRangeStart ? new Date(dateRangeStart) : null,
+      dateRangeEnd: dateRangeEnd ? new Date(dateRangeEnd) : null,
+      status: "processing",
+      startedAt: new Date(),
+    }).returning();
+
+    // Process calls in background
+    processCallsForML(req.userId, job.id, callsToAnalyze).catch(err => {
+      console.error("ML analysis error:", err);
+    });
+
+    res.json(job);
+  } catch (error) {
+    console.error("Error starting ML analysis:", error);
+    res.status(500).json({ error: "Failed to start analysis" });
+  }
+});
+
+// Get Common Issues
+router.get("/ml-conversations/issues", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const issues = await db.select().from(mlCommonIssues)
+      .where(eq(mlCommonIssues.userId, req.userId))
+      .orderBy(desc(mlCommonIssues.occurrenceCount));
+
+    res.json(issues);
+  } catch (error) {
+    console.error("Error fetching common issues:", error);
+    res.status(500).json({ error: "Failed to fetch common issues" });
+  }
+});
+
+// Update Common Issue
+router.patch("/ml-conversations/issues/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { suggestedResponse, isTrainingApproved } = req.body;
+
+    const [updated] = await db.update(mlCommonIssues)
+      .set({
+        suggestedResponse,
+        isTrainingApproved,
+        approvedAt: isTrainingApproved ? new Date() : null,
+        approvedBy: isTrainingApproved ? req.userId : null,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(mlCommonIssues.id, req.params.id),
+        eq(mlCommonIssues.userId, req.userId)
+      ))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Issue not found" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Error updating issue:", error);
+    res.status(500).json({ error: "Failed to update issue" });
+  }
+});
+
+// Get Training Samples
+router.get("/ml-conversations/samples", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const status = req.query.status as string;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+
+    let query = db.select().from(mlTrainingSamples)
+      .where(eq(mlTrainingSamples.userId, req.userId));
+
+    if (status && status !== "all") {
+      query = query.where(and(
+        eq(mlTrainingSamples.userId, req.userId),
+        eq(mlTrainingSamples.status, status)
+      ));
+    }
+
+    const samples = await query.orderBy(desc(mlTrainingSamples.createdAt)).limit(limit);
+
+    res.json(samples);
+  } catch (error) {
+    console.error("Error fetching training samples:", error);
+    res.status(500).json({ error: "Failed to fetch training samples" });
+  }
+});
+
+// Approve/Reject Training Sample
+router.patch("/ml-conversations/samples/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { status, rejectionReason, outputText } = req.body;
+
+    if (!["approved", "rejected", "pending"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const [updated] = await db.update(mlTrainingSamples)
+      .set({
+        status,
+        outputText: outputText || undefined,
+        rejectionReason: status === "rejected" ? rejectionReason : null,
+        reviewedBy: req.userId,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(mlTrainingSamples.id, req.params.id),
+        eq(mlTrainingSamples.userId, req.userId)
+      ))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Sample not found" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Error updating sample:", error);
+    res.status(500).json({ error: "Failed to update sample" });
+  }
+});
+
+// Get Conversation Analyses
+router.get("/ml-conversations/analyses", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+
+    const analyses = await db.select().from(mlConversationAnalyses)
+      .where(eq(mlConversationAnalyses.userId, req.userId))
+      .orderBy(desc(mlConversationAnalyses.analyzedAt))
+      .limit(limit);
+
+    res.json(analyses);
+  } catch (error) {
+    console.error("Error fetching analyses:", error);
+    res.status(500).json({ error: "Failed to fetch analyses" });
+  }
+});
+
+// Background function to process calls for ML
+async function processCallsForML(userId: string, jobId: string, callsToProcess: any[]) {
+  const { getOpenAIClient } = await import("../services/openai-modelfarm");
+  
+  let processedCount = 0;
+  let issuesFound = 0;
+  let samplesCreated = 0;
+
+  try {
+    for (const call of callsToProcess) {
+      if (!call.transcript) continue;
+
+      try {
+        const openai = getOpenAIClient(userId);
+        
+        // Analyze transcript with AI
+        const analysisResponse = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are an AI conversation analyst. Analyze the following call transcript and extract:
+1. Overall sentiment (positive, negative, neutral, mixed) and score (-1 to 1)
+2. Key issues or problems mentioned by the customer
+3. Customer's intent/goal
+4. Resolution status (resolved, unresolved, escalated, transferred)
+5. Quality question-answer pairs that could be used for training
+6. Suggested improvements for the AI agent
+
+Respond in JSON format:
+{
+  "sentiment": "positive|negative|neutral|mixed",
+  "sentimentScore": 0.5,
+  "issues": [{"issue": "description", "severity": "low|medium|high", "context": "excerpt from transcript"}],
+  "keyTopics": ["topic1", "topic2"],
+  "customerIntent": "what the customer wanted",
+  "resolutionStatus": "resolved|unresolved|escalated|transferred",
+  "agentPerformance": {"helpfulness": 80, "clarity": 75, "empathy": 70},
+  "questionAnswerPairs": [{"question": "customer question", "answer": "good response", "quality": 85}],
+  "suggestedImprovements": ["improvement 1", "improvement 2"]
+}`
+            },
+            {
+              role: "user",
+              content: call.transcript
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 2000,
+        });
+
+        const analysis = JSON.parse(analysisResponse.choices[0].message.content || "{}");
+
+        // Save conversation analysis
+        await db.insert(mlConversationAnalyses).values({
+          userId,
+          callId: call.id,
+          analysisJobId: jobId,
+          sentiment: analysis.sentiment,
+          sentimentScore: analysis.sentimentScore,
+          issuesDetected: analysis.issues || [],
+          keyTopics: analysis.keyTopics || [],
+          customerIntent: analysis.customerIntent,
+          resolutionStatus: analysis.resolutionStatus,
+          agentPerformance: analysis.agentPerformance,
+          questionAnswerPairs: analysis.questionAnswerPairs || [],
+          suggestedImprovements: analysis.suggestedImprovements || [],
+          transcriptLength: call.transcript.length,
+          callDuration: call.duration,
+        });
+
+        // Process issues - aggregate into common issues
+        if (analysis.issues && analysis.issues.length > 0) {
+          for (const issue of analysis.issues) {
+            // Check if similar issue exists
+            const existingIssues = await db.select().from(mlCommonIssues)
+              .where(eq(mlCommonIssues.userId, userId));
+
+            const similarIssue = existingIssues.find(
+              existing => existing.issueName.toLowerCase().includes(issue.issue.toLowerCase().slice(0, 20)) ||
+                         issue.issue.toLowerCase().includes(existing.issueName.toLowerCase().slice(0, 20))
+            );
+
+            if (similarIssue) {
+              // Update existing issue count
+              await db.update(mlCommonIssues)
+                .set({
+                  occurrenceCount: similarIssue.occurrenceCount + 1,
+                  lastSeenAt: new Date(),
+                  updatedAt: new Date(),
+                })
+                .where(eq(mlCommonIssues.id, similarIssue.id));
+            } else {
+              // Create new common issue
+              await db.insert(mlCommonIssues).values({
+                userId,
+                issueName: issue.issue,
+                description: issue.context,
+                severity: issue.severity || "medium",
+                category: "general",
+              });
+              issuesFound++;
+            }
+          }
+        }
+
+        // Create training samples from Q&A pairs
+        if (analysis.questionAnswerPairs && analysis.questionAnswerPairs.length > 0) {
+          for (const qa of analysis.questionAnswerPairs) {
+            if (qa.quality >= 70) { // Only create samples from high-quality pairs
+              await db.insert(mlTrainingSamples).values({
+                userId,
+                sourceCallId: call.id,
+                sampleType: "qa_pair",
+                inputText: qa.question,
+                outputText: qa.answer,
+                qualityScore: qa.quality,
+                status: "pending",
+              });
+              samplesCreated++;
+            }
+          }
+        }
+
+        processedCount++;
+
+        // Update job progress
+        await db.update(mlAnalysisJobs)
+          .set({
+            processedCalls: processedCount,
+            issuesFound,
+            trainingSamplesCreated: samplesCreated,
+            updatedAt: new Date(),
+          })
+          .where(eq(mlAnalysisJobs.id, jobId));
+
+      } catch (callError) {
+        console.error(`Error processing call ${call.id}:`, callError);
+      }
+    }
+
+    // Mark job complete
+    await db.update(mlAnalysisJobs)
+      .set({
+        status: "completed",
+        processedCalls: processedCount,
+        issuesFound,
+        trainingSamplesCreated: samplesCreated,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(mlAnalysisJobs.id, jobId));
+
+  } catch (error) {
+    console.error("ML processing error:", error);
+    await db.update(mlAnalysisJobs)
+      .set({
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        updatedAt: new Date(),
+      })
+      .where(eq(mlAnalysisJobs.id, jobId));
+  }
+}
 
 export function createKnowledgeIntelligenceRoutes(): Router {
   return router;

@@ -42,7 +42,16 @@ import {
   RefreshCw,
   Search,
   Trash2,
-  ChevronRight
+  ChevronRight,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  Phone,
+  TrendingDown,
+  BarChart3,
+  CheckCircle,
+  XCircle,
+  Clock
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -170,8 +179,39 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
   // Topic expansion state
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
 
+  // ML Conversations state
+  const [mlAnalysisName, setMlAnalysisName] = useState("");
+  const [selectedSampleFilter, setSelectedSampleFilter] = useState("all");
+
   const { data: stats, isLoading: statsLoading } = useQuery<IntelligenceStats>({
     queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
+  });
+
+  // ML Conversations queries
+  const { data: mlStats, isLoading: mlStatsLoading, refetch: refetchMlStats } = useQuery<{
+    totalCallsAnalyzed: number;
+    totalIssuesDiscovered: number;
+    totalTrainingSamples: number;
+    approvedSamples: number;
+    availableCallsForAnalysis: number;
+    averageSentimentScore?: number;
+    resolutionRate?: number;
+    improvementPercentage?: number;
+  }>({
+    queryKey: ["/api/knowledge-intelligence/ml-conversations/stats"],
+  });
+
+  const { data: mlJobs = [], refetch: refetchMlJobs } = useQuery<any[]>({
+    queryKey: ["/api/knowledge-intelligence/ml-conversations/jobs"],
+    refetchInterval: 5000,
+  });
+
+  const { data: mlIssues = [], refetch: refetchMlIssues } = useQuery<any[]>({
+    queryKey: ["/api/knowledge-intelligence/ml-conversations/issues"],
+  });
+
+  const { data: mlSamples = [], refetch: refetchMlSamples } = useQuery<any[]>({
+    queryKey: ["/api/knowledge-intelligence/ml-conversations/samples"],
   });
 
   // Poll for active pipeline job
@@ -337,6 +377,52 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
       setPipelineName("");
       setPipelineUrl("");
       toast({ title: "Pipeline Started", description: "The automated pipeline is now running. You can close this page and the progress will be saved." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // ML Conversations Mutations
+  const startMlAnalysisMutation = useMutation({
+    mutationFn: async (data: { name: string }) => {
+      const res = await apiRequest("POST", "/api/knowledge-intelligence/ml-conversations/analyze", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/stats"] });
+      setMlAnalysisName("");
+      toast({ title: "Analysis Started", description: "Analyzing call transcripts for insights and training data..." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateIssueMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; suggestedResponse?: string; isTrainingApproved?: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/knowledge-intelligence/ml-conversations/issues/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/issues"] });
+      toast({ title: "Issue Updated" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateSampleMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; status: string; rejectionReason?: string; outputText?: string }) => {
+      const res = await apiRequest("PATCH", `/api/knowledge-intelligence/ml-conversations/samples/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/samples"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/ml-conversations/stats"] });
+      toast({ title: "Sample Updated" });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -612,6 +698,10 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
             <TabsTrigger value="generate" data-testid="tab-generate">
               <Sparkles className="h-4 w-4 mr-2" />
               Content Studio
+            </TabsTrigger>
+            <TabsTrigger value="ml-conversations" data-testid="tab-ml-conversations">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              ML Conversations
             </TabsTrigger>
           </TabsList>
 
@@ -1010,6 +1100,314 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                 )}
               </div>
             </>
+          )}
+        </TabsContent>
+
+        {/* ML Conversations Tab */}
+        <TabsContent value="ml-conversations" className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-lg font-medium">ML Conversations</h3>
+              <p className="text-sm text-muted-foreground">Train AI using insights from real call conversations</p>
+            </div>
+            <Button 
+              onClick={() => {
+                const name = `Analysis ${new Date().toLocaleDateString()}`;
+                startMlAnalysisMutation.mutate({ name });
+              }}
+              disabled={startMlAnalysisMutation.isPending || (mlStats?.availableCallsForAnalysis || 0) === 0}
+              data-testid="button-start-ml-analysis"
+            >
+              {startMlAnalysisMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <Brain className="h-4 w-4 mr-2" />
+                  Analyze Calls
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Stats Overview */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card data-testid="card-ml-calls-available">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-blue-500" />
+                  <span className="text-xs text-muted-foreground">Calls Available</span>
+                </div>
+                <p className="text-2xl font-bold mt-1" data-testid="text-calls-available">
+                  {mlStatsLoading ? <Skeleton className="h-8 w-16" /> : mlStats?.availableCallsForAnalysis || 0}
+                </p>
+              </CardContent>
+            </Card>
+            <Card data-testid="card-ml-analyzed">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-green-500" />
+                  <span className="text-xs text-muted-foreground">Calls Analyzed</span>
+                </div>
+                <p className="text-2xl font-bold mt-1" data-testid="text-calls-analyzed">
+                  {mlStatsLoading ? <Skeleton className="h-8 w-16" /> : mlStats?.totalCallsAnalyzed || 0}
+                </p>
+              </CardContent>
+            </Card>
+            <Card data-testid="card-ml-issues">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  <span className="text-xs text-muted-foreground">Issues Found</span>
+                </div>
+                <p className="text-2xl font-bold mt-1" data-testid="text-issues-found">
+                  {mlStatsLoading ? <Skeleton className="h-8 w-16" /> : mlStats?.totalIssuesDiscovered || 0}
+                </p>
+              </CardContent>
+            </Card>
+            <Card data-testid="card-ml-samples">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-500" />
+                  <span className="text-xs text-muted-foreground">Training Samples</span>
+                </div>
+                <p className="text-2xl font-bold mt-1" data-testid="text-training-samples">
+                  {mlStatsLoading ? <Skeleton className="h-8 w-16" /> : (
+                    <span>
+                      {mlStats?.approvedSamples || 0}
+                      <span className="text-sm text-muted-foreground font-normal">/{mlStats?.totalTrainingSamples || 0}</span>
+                    </span>
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Active Analysis Jobs */}
+          {mlJobs.filter(j => j.status === "processing").length > 0 && (
+            <Card data-testid="card-ml-active-job">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div className="flex-1">
+                    <p className="font-medium">Analysis in Progress</p>
+                    {mlJobs.filter(j => j.status === "processing").map(job => (
+                      <div key={job.id} className="text-sm text-muted-foreground">
+                        {job.name}: {job.processedCalls}/{job.totalCalls} calls processed
+                        {job.issuesFound > 0 && ` • ${job.issuesFound} issues found`}
+                        {job.trainingSamplesCreated > 0 && ` • ${job.trainingSamplesCreated} samples created`}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Common Issues Section */}
+          <Card data-testid="card-ml-common-issues">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Common Issues Discovered
+              </CardTitle>
+              <CardDescription>Recurring problems identified from call conversations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {mlIssues.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No issues discovered yet</p>
+                  <p className="text-sm">Analyze calls to discover common customer issues</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-3">
+                    {mlIssues.map((issue: any) => (
+                      <Card key={issue.id} className="bg-muted/30" data-testid={`card-issue-${issue.id}`}>
+                        <CardContent className="py-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium" data-testid={`text-issue-name-${issue.id}`}>{issue.issueName}</span>
+                                <Badge variant={
+                                  issue.severity === "critical" ? "destructive" :
+                                  issue.severity === "high" ? "destructive" :
+                                  issue.severity === "medium" ? "secondary" : "outline"
+                                }>
+                                  {issue.severity}
+                                </Badge>
+                                <Badge variant="outline" className="capitalize">{issue.category || "general"}</Badge>
+                                <span className="text-xs text-muted-foreground">({issue.occurrenceCount} occurrences)</span>
+                              </div>
+                              {issue.description && (
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{issue.description}</p>
+                              )}
+                              {issue.suggestedResponse && (
+                                <div className="mt-2 p-2 bg-green-50 dark:bg-green-950/20 rounded text-sm">
+                                  <span className="font-medium text-green-700 dark:text-green-400">Suggested Response:</span>
+                                  <p className="text-green-600 dark:text-green-300">{issue.suggestedResponse}</p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                size="icon"
+                                variant={issue.isTrainingApproved ? "default" : "outline"}
+                                onClick={() => updateIssueMutation.mutate({ id: issue.id, isTrainingApproved: !issue.isTrainingApproved })}
+                                disabled={updateIssueMutation.isPending}
+                                title={issue.isTrainingApproved ? "Approved for training" : "Approve for training"}
+                                data-testid={`button-approve-issue-${issue.id}`}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Training Samples Section */}
+          <Card data-testid="card-ml-training-samples">
+            <CardHeader>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Training Samples
+                  </CardTitle>
+                  <CardDescription>Question-answer pairs extracted from conversations</CardDescription>
+                </div>
+                <Select value={selectedSampleFilter} onValueChange={setSelectedSampleFilter}>
+                  <SelectTrigger className="w-[140px]" data-testid="select-sample-filter">
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="pending">Pending Review</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {mlSamples.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No training samples yet</p>
+                  <p className="text-sm">Analyze calls to generate training data</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-3">
+                    {mlSamples
+                      .filter((s: any) => selectedSampleFilter === "all" || s.status === selectedSampleFilter)
+                      .map((sample: any) => (
+                      <Card key={sample.id} className="bg-muted/30" data-testid={`card-sample-${sample.id}`}>
+                        <CardContent className="py-3">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="capitalize">{sample.sampleType?.replace("_", " ")}</Badge>
+                                <Badge variant={
+                                  sample.status === "approved" ? "default" :
+                                  sample.status === "rejected" ? "destructive" : "secondary"
+                                }>
+                                  {sample.status}
+                                </Badge>
+                                {sample.qualityScore && (
+                                  <span className="text-xs text-muted-foreground">Quality: {sample.qualityScore.toFixed(0)}%</span>
+                                )}
+                              </div>
+                              {sample.status === "pending" && (
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => updateSampleMutation.mutate({ id: sample.id, status: "approved" })}
+                                    disabled={updateSampleMutation.isPending}
+                                    title="Approve"
+                                    data-testid={`button-approve-sample-${sample.id}`}
+                                  >
+                                    <ThumbsUp className="h-4 w-4 text-green-500" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => updateSampleMutation.mutate({ id: sample.id, status: "rejected", rejectionReason: "Low quality" })}
+                                    disabled={updateSampleMutation.isPending}
+                                    title="Reject"
+                                    data-testid={`button-reject-sample-${sample.id}`}
+                                  >
+                                    <ThumbsDown className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <div className="p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
+                                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Customer:</span>
+                                <p className="text-sm" data-testid={`text-sample-input-${sample.id}`}>{sample.inputText}</p>
+                              </div>
+                              <div className="p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                                <span className="text-xs font-medium text-green-600 dark:text-green-400">AI Response:</span>
+                                <p className="text-sm" data-testid={`text-sample-output-${sample.id}`}>{sample.outputText}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Analysis History */}
+          {mlJobs.length > 0 && (
+            <Card data-testid="card-ml-job-history">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Analysis History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {mlJobs.slice(0, 5).map((job: any) => (
+                    <div key={job.id} className="flex items-center justify-between p-2 bg-muted/30 rounded" data-testid={`row-job-${job.id}`}>
+                      <div className="flex items-center gap-2">
+                        {job.status === "completed" ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : job.status === "processing" ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                        ) : job.status === "failed" ? (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="font-medium">{job.name}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>{job.processedCalls}/{job.totalCalls} calls</span>
+                        <span>{job.issuesFound} issues</span>
+                        <span>{job.trainingSamplesCreated} samples</span>
+                        <span>{new Date(job.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>

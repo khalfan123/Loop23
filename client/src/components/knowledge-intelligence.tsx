@@ -664,26 +664,6 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
         </Card>
       )}
 
-      {/* Quick Start Pipeline Button */}
-      {!activePipelineJob || !["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) ? (
-        <Card className="border-dashed" data-testid="card-start-pipeline">
-          <CardContent className="py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium">Automated Knowledge Pipeline</h4>
-                <p className="text-sm text-muted-foreground">
-                  Crawl a website, extract AI insights, and generate content - all automatically
-                </p>
-              </div>
-              <Button onClick={() => setPipelineDialogOpen(true)} data-testid="button-start-pipeline">
-                <Sparkles className="h-4 w-4 mr-2" />
-                Start Pipeline
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {section === "all" ? (
         <Tabs defaultValue="crawl" className="space-y-4">
           <TabsList>

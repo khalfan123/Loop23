@@ -55,7 +55,8 @@ import {
   Layers,
   HelpCircle,
   Lightbulb,
-  Square
+  Square,
+  Phone
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -264,7 +265,7 @@ export default function KnowledgeBase() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -1148,6 +1149,21 @@ export default function KnowledgeBase() {
                 <Lightbulb className="h-4 w-4 flex-shrink-0 text-yellow-500" />
                 <span className="truncate flex-1 text-left">Content Gaps</span>
               </button>
+              <button
+                onClick={() => {
+                  setViewMode("ml-conversations");
+                  setSelectedFolderId(null);
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                  viewMode === "ml-conversations"
+                    ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-medium"
+                    : "hover-elevate"
+                }`}
+                data-testid="folder-ml-conversations"
+              >
+                <Phone className="h-4 w-4 flex-shrink-0 text-cyan-500" />
+                <span className="truncate flex-1 text-left">ML Conversations</span>
+              </button>
             </div>
           </div>
         </ScrollArea>
@@ -1308,6 +1324,8 @@ export default function KnowledgeBase() {
               <KnowledgeIntelligence section="faqs" />
             ) : viewMode === "content-gaps" ? (
               <KnowledgeIntelligence section="content-gaps" />
+            ) : viewMode === "ml-conversations" ? (
+              <KnowledgeIntelligence section="ml-conversations" />
             ) : isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

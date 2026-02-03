@@ -423,24 +423,65 @@ export default function KnowledgeBase() {
     },
   });
 
-  const addUrlMutation = useMutation({
-    mutationFn: async (data: { url: string; name?: string; folderId?: string }) => {
-      const res = await apiRequest('POST', '/api/rag-knowledge/url', data);
+  const startPipelineMutation = useMutation({
+    mutationFn: async (data: { url?: string }) => {
+      const payload = data.url 
+        ? {
+            name: `Analyze: ${new URL(data.url).hostname}`,
+            startUrl: data.url,
+            crawlType: 'single',
+            maxPages: 10
+          }
+        : {
+            name: 'Analyze All Content',
+            crawlType: 'existing',
+            maxPages: 0
+          };
+      const res = await apiRequest('POST', '/api/knowledge-intelligence/pipeline-jobs', payload);
       return res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/pipeline-jobs/active'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/intelligence-stats'] });
+      toast({
+        title: "Pipeline Started",
+        description: "Analyzing your content. Progress is saved automatically.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Pipeline Failed",
+        description: error.message || "Failed to start the analysis pipeline.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addUrlMutation = useMutation({
+    mutationFn: async (data: { url: string; name?: string; folderId?: string }) => {
+      const res = await apiRequest('POST', '/api/rag-knowledge/url', data);
+      return { ...await res.json(), originalUrl: data.url };
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
+      
+      const savedUrl = urlInput;
       setUrlDialogOpen(false);
       setUrlInput('');
       setUrlName('');
       setUrlFolderId('');
+      
       toast({
         title: t('knowledgeBase.toast.urlAdded'),
-        description: t('knowledgeBase.toast.urlAddedDesc'),
+        description: "Starting AI analysis pipeline...",
       });
+      
+      if (savedUrl) {
+        startPipelineMutation.mutate({ url: savedUrl });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -520,40 +561,6 @@ export default function KnowledgeBase() {
       toast({
         title: "Error",
         description: "Failed to stop the pipeline.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const startPipelineMutation = useMutation({
-    mutationFn: async (data: { url?: string }) => {
-      const payload = data.url 
-        ? {
-            name: `Analyze: ${new URL(data.url).hostname}`,
-            startUrl: data.url,
-            crawlType: 'single',
-            maxPages: 10
-          }
-        : {
-            name: 'Analyze All Content',
-            crawlType: 'existing',
-            maxPages: 0
-          };
-      const res = await apiRequest('POST', '/api/knowledge-intelligence/pipeline-jobs', payload);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/pipeline-jobs/active'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/intelligence-stats'] });
-      toast({
-        title: "Pipeline Started",
-        description: "Analyzing your content. Progress is saved automatically.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Pipeline Failed",
-        description: error.message || "Failed to start the analysis pipeline.",
         variant: "destructive",
       });
     },

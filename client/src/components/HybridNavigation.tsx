@@ -73,8 +73,6 @@ interface NavSection {
 interface SidebarContextType {
   isExpanded: boolean;
   setIsExpanded: (expanded: boolean) => void;
-  isHovered: boolean;
-  setIsHovered: (hovered: boolean) => void;
 }
 
 const SidebarContext = createContext<SidebarContextType | null>(null);
@@ -109,8 +107,6 @@ export function HybridNavigation({
     }
     return true;
   });
-  const [isHovered, setIsHovered] = useState(false);
-
   // Persist sidebar state
   useEffect(() => {
     localStorage.setItem('sidebar-expanded', String(isExpanded));
@@ -120,6 +116,14 @@ export function HybridNavigation({
   const topItems: NavItem[] = [
     { title: t('nav.home'), url: variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app", icon: Home },
   ];
+  
+  // Return to main app link for admin variants
+  const returnToAppItem: NavItem = { 
+    title: t('nav.returnToApp') || 'Return to App', 
+    url: "/app", 
+    icon: Home, 
+    iconColor: "text-blue-500" 
+  };
 
   const buildItems: NavItem[] = [
     { title: t('nav.campaigns'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500" },
@@ -206,8 +210,7 @@ export function HybridNavigation({
     return location === url || location.startsWith(url + '/');
   };
 
-  // Determine if sidebar should appear expanded (either pinned or hovered)
-  const showExpanded = isExpanded || isHovered;
+  // Sidebar only expands when user clicks toggle (no hover behavior)
 
   // Sidebar navigation item component
   const NavItemComponent = ({ item, showLabel }: { item: NavItem; showLabel: boolean }) => {
@@ -254,17 +257,15 @@ export function HybridNavigation({
     <aside
       className={cn(
         "hidden lg:flex flex-col h-full border-r bg-background transition-all duration-300 ease-in-out",
-        showExpanded ? "w-60" : "w-14"
+        isExpanded ? "w-60" : "w-14"
       )}
-      onMouseEnter={() => !isExpanded && setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Sidebar Header */}
       <div className={cn(
         "flex items-center h-12 px-3 border-b",
-        showExpanded ? "justify-between" : "justify-center"
+        isExpanded ? "justify-between" : "justify-center"
       )}>
-        {showExpanded && (
+        {isExpanded && (
           <span className="font-semibold text-sm truncate">
             {t('sidebar.navigation') || 'Navigation'}
           </span>
@@ -289,21 +290,31 @@ export function HybridNavigation({
         <nav className="px-2 space-y-1">
           {/* Home */}
           {topItems.map((item) => (
-            <NavItemComponent key={item.url} item={item} showLabel={showExpanded} />
+            <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
           ))}
+
+          {/* Return to App - for admin variants */}
+          {(variant === 'admin' || variant === 'admin-team') && (
+            <div className="mt-2">
+              <NavItemComponent 
+                item={returnToAppItem} 
+                showLabel={isExpanded} 
+              />
+            </div>
+          )}
 
           {/* Nav Sections */}
           {navSections.map((section) => (
             <div key={section.label} className="mt-4">
-              {showExpanded && (
+              {isExpanded && (
                 <div className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   {section.label}
                 </div>
               )}
-              {!showExpanded && <div className="h-px bg-border mx-2 my-2" />}
+              {!isExpanded && <div className="h-px bg-border mx-2 my-2" />}
               <div className="space-y-0.5">
                 {section.items.map((item) => (
-                  <NavItemComponent key={item.url} item={item} showLabel={showExpanded} />
+                  <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
                 ))}
               </div>
             </div>
@@ -312,15 +323,15 @@ export function HybridNavigation({
           {/* Admin Link */}
           {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
             <div className="mt-4">
-              {showExpanded && (
+              {isExpanded && (
                 <div className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   {t('nav.administration')}
                 </div>
               )}
-              {!showExpanded && <div className="h-px bg-border mx-2 my-2" />}
+              {!isExpanded && <div className="h-px bg-border mx-2 my-2" />}
               <NavItemComponent 
                 item={{ title: t('nav.adminDashboard'), url: "/admin", icon: Shield }} 
-                showLabel={showExpanded} 
+                showLabel={isExpanded} 
               />
             </div>
           )}
@@ -328,8 +339,8 @@ export function HybridNavigation({
       </ScrollArea>
 
       {/* Credits Section */}
-      <div className={cn("p-2 border-t", !showExpanded && "flex justify-center")}>
-        {showExpanded ? (
+      <div className={cn("p-2 border-t", !isExpanded && "flex justify-center")}>
+        {isExpanded ? (
           <div 
             className="p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30 cursor-pointer hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
             onClick={() => setLocation("/app/billing")}
@@ -367,10 +378,10 @@ export function HybridNavigation({
       </div>
 
       {/* Settings Link */}
-      <div className={cn("p-2 border-t", !showExpanded && "flex justify-center")}>
+      <div className={cn("p-2 border-t", !isExpanded && "flex justify-center")}>
         <NavItemComponent 
           item={{ title: t('nav.accountSettings'), url: "/app/settings", icon: Settings }} 
-          showLabel={showExpanded} 
+          showLabel={isExpanded} 
         />
       </div>
     </aside>
@@ -454,7 +465,7 @@ export function HybridNavigation({
   );
 
   return (
-    <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isHovered, setIsHovered }}>
+    <SidebarContext.Provider value={{ isExpanded, setIsExpanded }}>
       <div className="flex h-screen w-full overflow-hidden">
         {/* Desktop Sidebar */}
         <DesktopSidebar />
@@ -475,20 +486,20 @@ export function HybridNavigation({
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Logo */}
+            {/* Logo - Large and prominent */}
             <Link 
               href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-              className="flex items-center gap-2 shrink-0"
+              className="flex items-center gap-3 shrink-0"
               data-testid="link-logo"
             >
               {currentLogo ? (
-                <img src={currentLogo} alt={branding.app_name} className="h-8 w-auto max-w-[160px] object-contain" />
+                <img src={currentLogo} alt={branding.app_name} className="h-10 w-auto max-w-[200px] object-contain" />
               ) : (
                 <>
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-                    <Zap className="h-5 w-5 text-primary-foreground" />
+                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-sm">
+                    <Zap className="h-6 w-6 text-primary-foreground" />
                   </div>
-                  <span className="hidden sm:inline font-semibold text-lg">{branding.app_name}</span>
+                  <span className="hidden sm:inline font-bold text-xl tracking-tight">{branding.app_name}</span>
                 </>
               )}
             </Link>

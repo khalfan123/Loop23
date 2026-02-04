@@ -1,0 +1,479 @@
+Detailed Features Documentation
+The Call History section in Retell AI provides comprehensive call monitoring, analysis, and management capabilities. Here's a complete breakdown of all features:
+
+1. Call History Overview
+The Call History page displays all past voice and chat interactions in a sortable, filterable table format with:
+
+Location: Monitor section in left sidebar
+
+Pagination: Shows "Page 1 of 1 - Total Session: 1" with navigation controls
+
+Bulk Actions: 50/page display option
+
+Export Functionality: Export call data for external analysis
+
+2. Top Toolbar Features
+Date Range Selector
+Filter calls by custom date ranges
+
+Quick access to time-based filtering
+
+Filter Button
+​
+Comprehensive filtering with 4 tabs:
+
+Base Tab - Core Call Attributes:
+Agent: Filter by specific AI agent(s)
+
+Call ID: Search by unique call identifier
+
+Batch Call ID: Filter bulk/batch call sessions
+
+Type: Channel type selection (web_call, phone_call, etc.)
+
+Duration: Filter by call length
+
+From: Caller phone number/ID
+
+To: Recipient phone number/ID
+
+User Sentiment: Filter by detected sentiment (Positive, Neutral, Negative)
+
+Disconnection Reason: Why call ended (user_hangup, agent_hangup, error, voicemail, IVR, etc.)
+
+Call Status: Session state (ended, in_progress, error)
+
+Call Successful: Success/failure status
+
+E2E Latency: End-to-end response time filtering
+
+Post Call Analysis Tab
+​
+Filter based on post-call analytics
+
+Agent-specific analysis criteria
+
+Conditional filters based on selected agent
+
+Metadata Tab
+Custom metadata filtering
+
+Integration data filtering
+
+Dynamic Variables Tab
+Filter by extracted variables from conversations
+
+Custom data points collected during calls
+
+Customize View Button
+Toggle visibility of columns with sortable, drag-and-drop interface. Available columns include:
+
+Standard Columns (checked by default):
+
+✅ Time
+
+✅ Duration
+
+✅ Channel Type
+
+✅ Cost
+
+✅ Session ID
+
+✅ End Reason
+
+✅ Session Status
+
+✅ User Sentiment
+
+✅ From
+
+✅ To
+
+✅ Direction
+
+✅ Session Outcome
+
+✅ End to End Latency
+
+Additional Columns (optional):
+
+Agent ID
+
+Agent Version
+
+Agent Name
+
+Recording URL
+
+Scrubbed Recording URL (PII removed)
+
+Public Log URL
+
+Transcript
+
+Transcript With Tool Calls
+
+Scrubbed Transcript With Tool Calls
+
+Custom Extracted Data Columns:
+
+Healthcare-specific example fields shown:
+
+"Do you currently have a steady place to live?"
+
+"Do you feel safe in your current living situation?"
+
+"Do you have problems with any of the following in your home?"
+
+Food security questions
+
+Transportation questions
+
+Employment status
+
+Custom calculated fields
+
+Custom Attributes Button
+Add/manage custom metadata fields
+
+Create organization-specific tracking parameters
+
+Export Button
+​
+Export filtered call data
+
+Multiple format options (CSV, JSON, etc.)
+
+Includes all visible columns
+
+3. Call Detail View
+​
+Clicking any call opens a comprehensive detail panel with:
+
+Header Information
+Call DateTime: "01/25/2026 12:18 web_call"
+
+Agent Used: "Healthcare Check-I...(agent_561e32...9a8)"
+
+Version Number: Version: 0
+
+Call ID: "call_3f241725beb5b099df7...80b" (with copy button)
+
+Duration: Full timestamp range (01/25/2026 12:18 - 01/25/2026 12:18 +04)
+
+Cost: "$0.035"
+
+LLM Token Usage: "704 tokens"
+
+Audio Player
+​
+Embedded player: Play/pause call recording
+
+Timeline scrubber: Navigate through conversation (0:00 / 0:05 format)
+
+Volume control
+
+Download button: Save recording locally
+
+Three-dot menu: Additional audio options
+
+Conversation Analysis Panel
+​
+Preset Analysis Section
+Automated AI analysis with key metrics:
+
+Call Successful:
+
+✅ Successful
+
+❌ Unsuccessful
+
+Call Status:
+
+States: "Ended", "In Progress", "Error"
+
+User Sentiment:
+
+😊 Positive
+
+😐 Neutral
+
+😟 Negative
+
+Disconnection Reason:
+
+User_hangup (with info tooltip)
+
+Agent_hangup
+
+Error
+
+Voicemail_reached
+
+IVR_detected
+
+Max_duration_reached
+
+Inactivity_timeout
+
+Summary Section
+​
+AI-generated conversation summary:
+
+Natural language description of call purpose
+
+Key outcomes and findings
+
+Example: "The agent Kate called Cindy from the appointment department at Retell Health to presumably discuss or schedule an appointment. The transcript ends after the initial greeting and confirmation of identity, so no further details are available."
+
+Rerun Button
+Re-analyze call with updated agent configuration
+
+Useful for testing prompt changes
+
+Tabbed Content Area
+​
+Transcription Tab (Default)
+Full conversation transcript with timestamps
+
+Speaker identification: "Agent" and "User" labels
+
+Timestamp markers: "0:01", "0:03", etc.
+
+Turn-by-turn dialogue:
+
+Agent: "Hi, this is Kate calling from the appointment department at Retell Health. Am I speaking with Cindy?"
+
+User: [Response]
+
+View in Test Playground button: Opens conversation in testing environment
+
+Data Tab
+​
+Three collapsible sections:
+
+{} Dynamic Variables
+
+Shows variables passed to the agent at call start
+
+Example: customer_name, customer_dob, customer_zip
+
+Empty state: "No Dynamic Variables"
+
+{} Extracted Dynamic Variables
+
+Data extracted during conversation via agent functions
+
+Shows structured data pulled from user responses
+
+Empty state: "No Extracted Dynamic Variables"
+
+🏷️ Metadata
+
+Custom tags and metadata attached to call
+
+Integration tracking information
+
+Empty state: "No Metadata"
+
+Detail Logs Tab
+​
+Technical event log showing:
+
+Timestamp format: "2026-01-25 08:18:31.358"
+
+Call ID: Full session identifier
+
+Event types:
+
+info: Starting call: - Call initiation
+
+info: Ending call: - Call termination
+
+Technical debugging information
+
+System events and state changes
+
+Action Buttons
+🗑️ Delete button (top-right): Remove call from history
+
+Keyboard navigation: Use ↑↓ arrows to navigate between calls
+
+4. Call History Table Columns Explained
+Time
+Full timestamp with timezone: "2026-01-25 12:18:32 +04"
+
+Sortable column
+
+Duration
+Call length in MM:SS format: "0:18"
+
+Helps identify abandoned/short calls
+
+Channel Type
+web_call: Browser-based calls (WebRTC)
+
+phone_call: PSTN telephony calls
+
+sip: SIP trunk calls
+
+Cost
+Real-time cost calculation: "$0.035"
+
+Based on duration, LLM usage, TTS/STT costs
+
+Info button for cost breakdown
+
+Session ID
+Unique call identifier: "call_3f241725beb5b099df7574b880b"
+
+Used for API queries and debugging
+
+Clickable to open detail view
+
+End Reason
+​
+Why the call ended:
+
+user hangup - Customer disconnected
+
+agent_hangup - AI terminated call
+
+error - Technical failure
+
+voicemail - Voicemail detected
+
+ivr_detected - IVR system detected
+
+max_duration - Time limit reached
+
+inactivity - No user input timeout
+
+Session Status (optional column)
+ended - Completed normally
+
+in_progress - Currently active
+
+error - Failed or crashed
+
+User Sentiment (optional column)
+​
+AI-detected emotional state
+
+Neutral, Positive, Negative
+
+Based on speech patterns and conversation content
+
+Additional Optional Columns
+From/To: Phone numbers or identifiers
+
+Direction: Inbound/Outbound
+
+Session Outcome: "Unsuccessful", "Successful"
+
+End to End Latency: Response time metrics
+
+5. Advanced Features
+Bulk Export
+Export filtered results
+
+Includes all visible columns
+
+Supports CSV/JSON formats
+
+Custom Column Configuration
+​
+Drag-and-drop reordering: Rearrange columns
+
+Show/hide controls: Toggle column visibility
+
+Persistent settings: Saved per user
+
+Cancel/Save buttons: Apply or discard changes
+
+Pagination Controls
+​
+Page navigation: Previous/Next buttons
+
+Direct page number entry
+
+Results per page selector: "50 / page" dropdown
+
+Total session count display
+
+Recording Management
+Recording URL: Direct access to audio file
+
+Scrubbed Recording URL: PII-removed version (for compliance)
+
+Public Log URL: Shareable call review link
+
+Transcript Options
+Standard Transcript: Conversation only
+
+Transcript With Tool Calls: Includes function executions
+
+Scrubbed Transcript: PII redacted version
+
+6. Use Cases
+Quality Assurance
+Review call recordings
+
+Analyze conversation flow
+
+Check agent performance
+
+Identify training needs
+
+Debugging
+Detailed event logs
+
+Error tracking
+
+Latency analysis
+
+Integration testing
+
+Compliance & Security
+Scrubbed recordings for PII protection
+
+Audit trail with timestamps
+
+Metadata tracking
+
+Cost monitoring
+
+Business Intelligence
+Sentiment analysis trends
+
+Call success rates
+
+Duration patterns
+
+Cost optimization
+
+Custom Data Extraction
+Healthcare screenings
+
+Customer surveys
+
+Lead qualification data
+
+Appointment confirmations
+
+7. Integration Features
+API Access: All call data accessible via REST API
+
+Webhook Events: Real-time call status updates
+
+Custom Attributes: Organization-specific fields
+
+Export Capabilities: Bulk data export for BI tools
+
+Public Log URLs: Share call reviews with stakeholders
+
+This comprehensive Call History system provides enterprise-grade call monitoring, analysis, and management capabilities for AI voice
+
+dashboard.retellai.com favicon
+Retell AI

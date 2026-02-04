@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from 'react-i18next';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,13 +23,35 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Search, Download, Loader2, Phone, Calendar, Clock, MessageSquare, Eye, Play, Pause, Volume2, PhoneIncoming, PhoneOutgoing, CheckCircle2, XCircle, Mic, FileText, Sparkles, Globe } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { Search, Download, Loader2, Phone, Calendar as CalendarIcon, Clock, MessageSquare, Eye, Play, Pause, Volume2, PhoneIncoming, PhoneOutgoing, CheckCircle2, XCircle, Mic, FileText, Sparkles, Globe, Filter, X, Columns3, ChevronDown, LayoutGrid, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, DollarSign } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, startOfMonth, isWithinInterval } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { AuthStorage } from "@/lib/auth-storage";
 import { formatSipEndpoint } from "@/lib/formatters";
+import { DateRange } from "react-day-picker";
 
 interface Call {
   id: string;
@@ -58,7 +80,36 @@ interface Call {
   agent?: { id: string; name: string } | null;
   widgetId?: string | null;
   widget?: { id: string; name: string } | null;
+  cost?: number | null;
+  endReason?: string | null;
 }
+
+type DatePreset = 'today' | 'yesterday' | 'last7days' | 'last30days' | 'thisMonth' | 'custom' | 'all';
+
+const COLUMN_STORAGE_KEY = 'calls-column-visibility';
+
+const DEFAULT_COLUMNS = {
+  time: true,
+  duration: true,
+  channelType: true,
+  cost: false,
+  sessionId: false,
+  endReason: false,
+  status: true,
+  sentiment: true,
+  from: true,
+  to: true,
+  direction: true,
+  agent: true,
+  engine: true,
+};
+
+type ColumnVisibility = typeof DEFAULT_COLUMNS;
+
+type ViewMode = 'card' | 'table';
+type SortField = 'time' | 'duration' | 'status' | 'sentiment' | 'direction' | 'agent' | 'cost';
+type SortDirection = 'asc' | 'desc';
+const VIEW_MODE_STORAGE_KEY = 'calls-view-mode';
 
 export default function Calls() {
   const { t } = useTranslation();
@@ -73,9 +124,145 @@ export default function Calls() {
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [filterTab, setFilterTab] = useState<'base' | 'analysis'>('base');
+  const [callIdFilter, setCallIdFilter] = useState("");
+  const [fromNumberFilter, setFromNumberFilter] = useState("");
+  const [toNumberFilter, setToNumberFilter] = useState("");
+  const [agentFilter, setAgentFilter] = useState("all");
+  const [durationRange, setDurationRange] = useState<[number, number]>([0, 3600]);
+
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      if (saved === 'card' || saved === 'table') return saved;
+    } catch (e) {}
+    return 'card';
+  });
+  const [sortField, setSortField] = useState<SortField>('time');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+  }, [viewMode]);
+
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(() => {
+    try {
+      const saved = localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (saved) {
+        return { ...DEFAULT_COLUMNS, ...JSON.parse(saved) };
+      }
+    } catch (e) {}
+    return DEFAULT_COLUMNS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnVisibility));
+  }, [columnVisibility]);
+
   const { data: calls, isLoading } = useQuery<Call[]>({
     queryKey: ["/api/calls"],
   });
+
+  const uniqueAgents = useMemo(() => {
+    if (!calls) return [];
+    const agents = new Map<string, string>();
+    calls.forEach(call => {
+      if (call.agent) {
+        agents.set(call.agent.id, call.agent.name);
+      }
+    });
+    return Array.from(agents, ([id, name]) => ({ id, name }));
+  }, [calls]);
+
+  const handleDatePreset = (preset: DatePreset) => {
+    const today = new Date();
+    setDatePreset(preset);
+    
+    switch (preset) {
+      case 'today':
+        setDateRange({ from: startOfDay(today), to: endOfDay(today) });
+        break;
+      case 'yesterday':
+        const yesterday = subDays(today, 1);
+        setDateRange({ from: startOfDay(yesterday), to: endOfDay(yesterday) });
+        break;
+      case 'last7days':
+        setDateRange({ from: startOfDay(subDays(today, 6)), to: endOfDay(today) });
+        break;
+      case 'last30days':
+        setDateRange({ from: startOfDay(subDays(today, 29)), to: endOfDay(today) });
+        break;
+      case 'thisMonth':
+        setDateRange({ from: startOfMonth(today), to: endOfDay(today) });
+        break;
+      case 'all':
+        setDateRange(undefined);
+        break;
+      case 'custom':
+        break;
+    }
+    
+    if (preset !== 'custom') {
+      setIsDatePickerOpen(false);
+    }
+  };
+
+  const getDateRangeLabel = () => {
+    if (datePreset === 'all' || !dateRange?.from) {
+      return 'All Time';
+    }
+    if (datePreset !== 'custom') {
+      const labels: Record<DatePreset, string> = {
+        today: 'Today',
+        yesterday: 'Yesterday',
+        last7days: 'Last 7 Days',
+        last30days: 'Last 30 Days',
+        thisMonth: 'This Month',
+        custom: 'Custom Range',
+        all: 'All Time',
+      };
+      return labels[datePreset];
+    }
+    if (dateRange.from && dateRange.to) {
+      return `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d')}`;
+    }
+    if (dateRange.from) {
+      return `From ${format(dateRange.from, 'MMM d')}`;
+    }
+    return 'Select dates';
+  };
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'all') count++;
+    if (sentimentFilter !== 'all') count++;
+    if (directionFilter !== 'all') count++;
+    if (leadFilter !== 'all') count++;
+    if (callIdFilter) count++;
+    if (fromNumberFilter) count++;
+    if (toNumberFilter) count++;
+    if (agentFilter !== 'all') count++;
+    if (durationRange[0] > 0 || durationRange[1] < 3600) count++;
+    return count;
+  }, [statusFilter, sentimentFilter, directionFilter, leadFilter, callIdFilter, fromNumberFilter, toNumberFilter, agentFilter, durationRange]);
+
+  const clearAllFilters = () => {
+    setStatusFilter('all');
+    setSentimentFilter('all');
+    setDirectionFilter('all');
+    setLeadFilter('all');
+    setCallIdFilter('');
+    setFromNumberFilter('');
+    setToNumberFilter('');
+    setAgentFilter('all');
+    setDurationRange([0, 3600]);
+    setSearchQuery('');
+  };
 
   const handleExportCsv = () => {
     if (!calls || calls.length === 0) {
@@ -87,7 +274,6 @@ export default function Calls() {
       return;
     }
 
-    // Build CSV content
     const headers = [
       'ID',
       'Phone Number',
@@ -130,7 +316,6 @@ export default function Calls() {
       ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n');
 
-    // Create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -321,29 +506,96 @@ export default function Calls() {
     return <PhoneOutgoing className="h-4 w-4 text-blue-500" />;
   };
 
-  const filteredCalls = (calls || []).filter((call) => {
-    const contactFullName = call.contact ? `${call.contact.firstName} ${call.contact.lastName || ""}`.toLowerCase() : "";
-    const matchesSearch = 
-      searchQuery === "" || 
-      contactFullName.includes(searchQuery.toLowerCase()) ||
-      call.contact?.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      call.phoneNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      call.transcript?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      call.aiSummary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      call.id.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || call.status === statusFilter;
-    const matchesSentiment = sentimentFilter === "all" || call.sentiment === sentimentFilter;
-    const matchesDirection = directionFilter === "all" || call.callDirection === directionFilter;
-    const matchesLead = leadFilter === "all" || call.classification === leadFilter;
-    
-    return matchesSearch && matchesStatus && matchesSentiment && matchesDirection && matchesLead;
-  });
+  const filteredCalls = useMemo(() => {
+    return (calls || []).filter((call) => {
+      const contactFullName = call.contact ? `${call.contact.firstName} ${call.contact.lastName || ""}`.toLowerCase() : "";
+      const matchesSearch = 
+        searchQuery === "" || 
+        contactFullName.includes(searchQuery.toLowerCase()) ||
+        call.contact?.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        call.phoneNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        call.transcript?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        call.aiSummary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        call.id.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === "all" || call.status === statusFilter;
+      const matchesSentiment = sentimentFilter === "all" || call.sentiment === sentimentFilter;
+      const matchesDirection = directionFilter === "all" || call.callDirection === directionFilter;
+      const matchesLead = leadFilter === "all" || call.classification === leadFilter;
+      
+      const matchesCallId = !callIdFilter || call.id.toLowerCase().includes(callIdFilter.toLowerCase());
+      const matchesFromNumber = !fromNumberFilter || call.fromNumber?.toLowerCase().includes(fromNumberFilter.toLowerCase());
+      const matchesToNumber = !toNumberFilter || call.toNumber?.toLowerCase().includes(toNumberFilter.toLowerCase());
+      const matchesAgent = agentFilter === "all" || call.agent?.id === agentFilter;
+      
+      const callDuration = call.duration || 0;
+      const matchesDuration = callDuration >= durationRange[0] && callDuration <= durationRange[1];
+      
+      let matchesDateRange = true;
+      if (dateRange?.from) {
+        const callDate = new Date(call.createdAt);
+        const from = startOfDay(dateRange.from);
+        const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+        matchesDateRange = isWithinInterval(callDate, { start: from, end: to });
+      }
+      
+      return matchesSearch && matchesStatus && matchesSentiment && matchesDirection && matchesLead && 
+             matchesCallId && matchesFromNumber && matchesToNumber && matchesAgent && matchesDuration && matchesDateRange;
+    });
+  }, [calls, searchQuery, statusFilter, sentimentFilter, directionFilter, leadFilter, callIdFilter, fromNumberFilter, toNumberFilter, agentFilter, durationRange, dateRange]);
 
-  const callsWithTranscripts = filteredCalls.filter(call => call.transcript);
-  const callsWithRecordings = filteredCalls.filter(call => hasRecording(call));
+  const sortedCalls = useMemo(() => {
+    const sorted = [...filteredCalls];
+    sorted.sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'time':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case 'duration':
+          comparison = (a.duration || 0) - (b.duration || 0);
+          break;
+        case 'status':
+          comparison = (a.status || '').localeCompare(b.status || '');
+          break;
+        case 'sentiment':
+          comparison = (a.sentiment || '').localeCompare(b.sentiment || '');
+          break;
+        case 'direction':
+          comparison = (a.callDirection || '').localeCompare(b.callDirection || '');
+          break;
+        case 'agent':
+          comparison = (a.agent?.name || '').localeCompare(b.agent?.name || '');
+          break;
+        case 'cost':
+          comparison = (a.cost || 0) - (b.cost || 0);
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+  }, [filteredCalls, sortField, sortDirection]);
 
-  const allPagination = usePagination(filteredCalls, 10);
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-3 w-3 ml-1" /> 
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const callsWithTranscripts = sortedCalls.filter(call => call.transcript);
+  const callsWithRecordings = sortedCalls.filter(call => hasRecording(call));
+
+  const allPagination = usePagination(sortedCalls, 10);
   const transcribedPagination = usePagination(callsWithTranscripts, 10);
   const recordingsPagination = usePagination(callsWithRecordings, 10);
 
@@ -385,7 +637,6 @@ export default function Calls() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-foreground truncate">
                     {(() => {
-                      // Widget calls: show widget name or "Website Widget"
                       if (call.widgetId) {
                         return call.widget?.name || (call.metadata as any)?.widgetName || 'Website Widget';
                       }
@@ -399,22 +650,25 @@ export default function Calls() {
                       return formatSipEndpoint(call.toNumber, call.engine) || call.contact?.phone || call.phoneNumber || `Call ${call.id.slice(0, 8)}`;
                     })()}
                   </h3>
-                  {getEngineBadge(call.engine)}
+                  {columnVisibility.engine && getEngineBadge(call.engine)}
                   {getWidgetBadge(call)}
-                  {getStatusBadge(call.status)}
-                  {getSentimentBadge(call.sentiment)}
+                  {columnVisibility.status && getStatusBadge(call.status)}
+                  {columnVisibility.sentiment && getSentimentBadge(call.sentiment)}
                   {getClassificationBadge(call.classification)}
                 </div>
                 
                 <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
+                  {columnVisibility.sessionId && (
+                    <span className="font-mono text-xs">ID: {call.id.slice(0, 8)}</span>
+                  )}
                   {call.callDirection === 'incoming' ? (
                     <>
-                      {call.fromNumber && (
+                      {columnVisibility.from && call.fromNumber && (
                         <span className="font-mono text-xs flex items-center gap-1">
                           <span className="text-muted-foreground/70">From:</span> {formatSipEndpoint(call.fromNumber, call.engine)}
                         </span>
                       )}
-                      {call.toNumber && (
+                      {columnVisibility.to && call.toNumber && (
                         <span className="font-mono text-xs flex items-center gap-1">
                           <span className="text-muted-foreground/70">To:</span> {formatSipEndpoint(call.toNumber, call.engine)}
                         </span>
@@ -422,17 +676,20 @@ export default function Calls() {
                     </>
                   ) : (
                     <>
-                      {call.toNumber && (
+                      {columnVisibility.to && call.toNumber && (
                         <span className="font-mono text-xs flex items-center gap-1">
                           <span className="text-muted-foreground/70">To:</span> {formatSipEndpoint(call.toNumber, call.engine)}
                         </span>
                       )}
-                      {call.fromNumber && (
+                      {columnVisibility.from && call.fromNumber && (
                         <span className="font-mono text-xs flex items-center gap-1">
                           <span className="text-muted-foreground/70">From:</span> {formatSipEndpoint(call.fromNumber, call.engine)}
                         </span>
                       )}
                     </>
+                  )}
+                  {columnVisibility.agent && call.agent && (
+                    <span className="text-xs">Agent: {call.agent.name}</span>
                   )}
                   {call.campaign && (
                     <span className="truncate max-w-[150px]">{call.campaign.name}</span>
@@ -464,14 +721,26 @@ export default function Calls() {
           </div>
           
           <div className="flex items-center gap-4 mt-3 flex-wrap">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" />
-              <span className="font-medium">{formatDuration(call.duration)}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>{formatRelativeTime(call.createdAt) || format(new Date(call.createdAt), "MMM d, h:mm a")}</span>
-            </div>
+            {columnVisibility.duration && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                <span className="font-medium">{formatDuration(call.duration)}</span>
+              </div>
+            )}
+            {columnVisibility.time && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                <span>{formatRelativeTime(call.createdAt) || format(new Date(call.createdAt), "MMM d, h:mm a")}</span>
+              </div>
+            )}
+            {columnVisibility.cost && call.cost !== undefined && call.cost !== null && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <span className="font-medium">${call.cost.toFixed(4)}</span>
+              </div>
+            )}
+            {columnVisibility.endReason && call.endReason && (
+              <Badge variant="outline" className="text-xs">{call.endReason}</Badge>
+            )}
           </div>
           
           {(call.aiSummary || call.transcript) && (
@@ -535,6 +804,235 @@ export default function Calls() {
     </div>
   );
 
+  const renderPagination = (pagination: ReturnType<typeof usePagination>, testId: string) => (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4">
+      <div className="text-sm text-muted-foreground">
+        Page {pagination.currentPage} of {pagination.totalPages} - Total Sessions: {pagination.totalItems}
+      </div>
+      <DataPagination
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        itemsPerPage={pagination.itemsPerPage}
+        onPageChange={pagination.handlePageChange}
+        onItemsPerPageChange={pagination.handleItemsPerPageChange}
+        itemsPerPageOptions={[10, 25, 50, 100]}
+        showItemsPerPage={true}
+        data-testid={testId}
+      />
+    </div>
+  );
+
+  const renderCallsTable = (callList: Call[], pagination: ReturnType<typeof usePagination>, testIdPrefix: string = "") => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              {columnVisibility.time && (
+                <TableHead 
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => toggleSort('time')}
+                  data-testid="th-time"
+                >
+                  <div className="flex items-center">
+                    Time
+                    {getSortIcon('time')}
+                  </div>
+                </TableHead>
+              )}
+              {columnVisibility.from && <TableHead className="whitespace-nowrap">From</TableHead>}
+              {columnVisibility.to && <TableHead className="whitespace-nowrap">To</TableHead>}
+              {columnVisibility.duration && (
+                <TableHead 
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => toggleSort('duration')}
+                  data-testid="th-duration"
+                >
+                  <div className="flex items-center">
+                    Duration
+                    {getSortIcon('duration')}
+                  </div>
+                </TableHead>
+              )}
+              {columnVisibility.direction && (
+                <TableHead 
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => toggleSort('direction')}
+                  data-testid="th-direction"
+                >
+                  <div className="flex items-center">
+                    Direction
+                    {getSortIcon('direction')}
+                  </div>
+                </TableHead>
+              )}
+              {columnVisibility.status && (
+                <TableHead 
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => toggleSort('status')}
+                  data-testid="th-status"
+                >
+                  <div className="flex items-center">
+                    Status
+                    {getSortIcon('status')}
+                  </div>
+                </TableHead>
+              )}
+              {columnVisibility.sentiment && (
+                <TableHead 
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => toggleSort('sentiment')}
+                  data-testid="th-sentiment"
+                >
+                  <div className="flex items-center">
+                    Sentiment
+                    {getSortIcon('sentiment')}
+                  </div>
+                </TableHead>
+              )}
+              {columnVisibility.agent && (
+                <TableHead 
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => toggleSort('agent')}
+                  data-testid="th-agent"
+                >
+                  <div className="flex items-center">
+                    Agent
+                    {getSortIcon('agent')}
+                  </div>
+                </TableHead>
+              )}
+              {columnVisibility.engine && <TableHead className="whitespace-nowrap">Engine</TableHead>}
+              {columnVisibility.channelType && <TableHead className="whitespace-nowrap">Channel</TableHead>}
+              {columnVisibility.cost && (
+                <TableHead 
+                  className="cursor-pointer select-none whitespace-nowrap"
+                  onClick={() => toggleSort('cost')}
+                  data-testid="th-cost"
+                >
+                  <div className="flex items-center">
+                    Cost
+                    {getSortIcon('cost')}
+                  </div>
+                </TableHead>
+              )}
+              {columnVisibility.sessionId && <TableHead className="whitespace-nowrap">Session ID</TableHead>}
+              {columnVisibility.endReason && <TableHead className="whitespace-nowrap">End Reason</TableHead>}
+              <TableHead className="w-[80px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pagination.paginatedItems.map((call) => (
+              <TableRow 
+                key={call.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => setLocation(`/app/calls/${call.id}`)}
+                data-testid={`row-call-${testIdPrefix}${call.id}`}
+              >
+                {columnVisibility.time && (
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{format(new Date(call.createdAt), "MMM d, yyyy")}</span>
+                      <span className="text-xs text-muted-foreground">{format(new Date(call.createdAt), "h:mm a")}</span>
+                    </div>
+                  </TableCell>
+                )}
+                {columnVisibility.from && (
+                  <TableCell className="font-mono text-xs whitespace-nowrap">
+                    {formatSipEndpoint(call.fromNumber, call.engine) || '-'}
+                  </TableCell>
+                )}
+                {columnVisibility.to && (
+                  <TableCell className="font-mono text-xs whitespace-nowrap">
+                    {formatSipEndpoint(call.toNumber, call.engine) || '-'}
+                  </TableCell>
+                )}
+                {columnVisibility.duration && (
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm">{formatDuration(call.duration)}</span>
+                    </div>
+                  </TableCell>
+                )}
+                {columnVisibility.direction && (
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      {getDirectionIcon(call.callDirection)}
+                      <span className="text-xs capitalize">{call.callDirection || '-'}</span>
+                    </div>
+                  </TableCell>
+                )}
+                {columnVisibility.status && (
+                  <TableCell>{getStatusBadge(call.status)}</TableCell>
+                )}
+                {columnVisibility.sentiment && (
+                  <TableCell>{getSentimentBadge(call.sentiment)}</TableCell>
+                )}
+                {columnVisibility.agent && (
+                  <TableCell className="whitespace-nowrap">
+                    <span className="text-sm">{call.agent?.name || '-'}</span>
+                  </TableCell>
+                )}
+                {columnVisibility.engine && (
+                  <TableCell>{getEngineBadge(call.engine)}</TableCell>
+                )}
+                {columnVisibility.channelType && (
+                  <TableCell>
+                    {call.widgetId ? (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Globe className="h-3 w-3" />
+                        Widget
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">
+                        <Phone className="h-3 w-3 mr-1" />
+                        Phone
+                      </Badge>
+                    )}
+                  </TableCell>
+                )}
+                {columnVisibility.cost && (
+                  <TableCell className="whitespace-nowrap">
+                    {call.cost != null ? (
+                      <span className="text-sm font-medium">${call.cost.toFixed(4)}</span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                )}
+                {columnVisibility.sessionId && (
+                  <TableCell className="font-mono text-xs">
+                    {call.id.slice(0, 8)}...
+                  </TableCell>
+                )}
+                {columnVisibility.endReason && (
+                  <TableCell className="text-xs whitespace-nowrap">
+                    {call.endReason || '-'}
+                  </TableCell>
+                )}
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocation(`/app/calls/${call.id}`);
+                    }}
+                    data-testid={`button-view-${testIdPrefix}${call.id}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-sky-950/40 border p-6">
@@ -593,6 +1091,117 @@ export default function Calls() {
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
+        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2" data-testid="button-date-range">
+              <CalendarIcon className="h-4 w-4" />
+              <span>{getDateRangeLabel()}</span>
+              <ChevronDown className="h-4 w-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <div className="flex">
+              <div className="border-r p-2 space-y-1 min-w-[140px]">
+                <Button
+                  variant={datePreset === 'all' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  size="sm"
+                  onClick={() => handleDatePreset('all')}
+                  data-testid="button-preset-all"
+                >
+                  All Time
+                </Button>
+                <Button
+                  variant={datePreset === 'today' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  size="sm"
+                  onClick={() => handleDatePreset('today')}
+                  data-testid="button-preset-today"
+                >
+                  Today
+                </Button>
+                <Button
+                  variant={datePreset === 'yesterday' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  size="sm"
+                  onClick={() => handleDatePreset('yesterday')}
+                  data-testid="button-preset-yesterday"
+                >
+                  Yesterday
+                </Button>
+                <Button
+                  variant={datePreset === 'last7days' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  size="sm"
+                  onClick={() => handleDatePreset('last7days')}
+                  data-testid="button-preset-last7days"
+                >
+                  Last 7 Days
+                </Button>
+                <Button
+                  variant={datePreset === 'last30days' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  size="sm"
+                  onClick={() => handleDatePreset('last30days')}
+                  data-testid="button-preset-last30days"
+                >
+                  Last 30 Days
+                </Button>
+                <Button
+                  variant={datePreset === 'thisMonth' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  size="sm"
+                  onClick={() => handleDatePreset('thisMonth')}
+                  data-testid="button-preset-thismonth"
+                >
+                  This Month
+                </Button>
+                <Button
+                  variant={datePreset === 'custom' ? 'secondary' : 'ghost'}
+                  className="w-full justify-start"
+                  size="sm"
+                  onClick={() => setDatePreset('custom')}
+                  data-testid="button-preset-custom"
+                >
+                  Custom Range
+                </Button>
+              </div>
+              <div className="p-2">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => {
+                    setDateRange(range);
+                    setDatePreset('custom');
+                  }}
+                  numberOfMonths={2}
+                  disabled={{ after: new Date() }}
+                />
+                <div className="flex justify-end gap-2 pt-2 border-t mt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDateRange(undefined);
+                      setDatePreset('all');
+                    }}
+                    data-testid="button-clear-dates"
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsDatePickerOpen(false)}
+                    data-testid="button-apply-dates"
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <div className="relative flex-1 min-w-[200px] w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -603,50 +1212,308 @@ export default function Calls() {
             data-testid="input-search-calls"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[130px]" data-testid="select-filter-status">
-            <SelectValue placeholder={t('calls.details.status')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('calls.filters.allStatus')}</SelectItem>
-            <SelectItem value="completed">{t('calls.status.completed')}</SelectItem>
-            <SelectItem value="failed">{t('calls.status.failed')}</SelectItem>
-            <SelectItem value="in_progress">{t('calls.status.inProgress')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={sentimentFilter} onValueChange={setSentimentFilter}>
-          <SelectTrigger className="w-full sm:w-[130px]" data-testid="select-filter-sentiment">
-            <SelectValue placeholder={t('calls.details.sentiment')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('calls.filters.allSentiment')}</SelectItem>
-            <SelectItem value="positive">{t('calls.sentiment.positive')}</SelectItem>
-            <SelectItem value="neutral">{t('calls.sentiment.neutral')}</SelectItem>
-            <SelectItem value="negative">{t('calls.sentiment.negative')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={directionFilter} onValueChange={setDirectionFilter}>
-          <SelectTrigger className="w-full sm:w-[130px]" data-testid="select-filter-direction">
-            <SelectValue placeholder={t('calls.details.direction')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('calls.filters.allDirections')}</SelectItem>
-            <SelectItem value="incoming">{t('calls.filters.incoming')}</SelectItem>
-            <SelectItem value="outgoing">{t('calls.filters.outgoing')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={leadFilter} onValueChange={setLeadFilter}>
-          <SelectTrigger className="w-full sm:w-[130px]" data-testid="select-filter-lead">
-            <SelectValue placeholder={t('calls.filters.leadQuality')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('calls.filters.allLeads')}</SelectItem>
-            <SelectItem value="hot">{t('calls.classification.hot')}</SelectItem>
-            <SelectItem value="warm">{t('calls.classification.warm')}</SelectItem>
-            <SelectItem value="cold">{t('calls.classification.cold')}</SelectItem>
-            <SelectItem value="lost">{t('calls.classification.lost')}</SelectItem>
-          </SelectContent>
-        </Select>
+
+        <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2" data-testid="button-filters">
+              <Filter className="h-4 w-4" />
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <Badge className="h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[400px] p-0" align="start">
+            <div className="p-4 border-b">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold">Filters</h4>
+                {activeFilterCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllFilters}
+                    className="h-8 text-xs"
+                    data-testid="button-clear-filters"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Clear All
+                  </Button>
+                )}
+              </div>
+            </div>
+            <Tabs value={filterTab} onValueChange={(v) => setFilterTab(v as 'base' | 'analysis')} className="w-full">
+              <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
+                <TabsTrigger 
+                  value="base" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                  data-testid="tab-filter-base"
+                >
+                  Base
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="analysis" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
+                  data-testid="tab-filter-analysis"
+                >
+                  Analysis
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="base" className="p-4 space-y-4 mt-0">
+                <div className="space-y-2">
+                  <Label htmlFor="agent-filter">Agent</Label>
+                  <Select value={agentFilter} onValueChange={setAgentFilter}>
+                    <SelectTrigger id="agent-filter" data-testid="select-filter-agent">
+                      <SelectValue placeholder="All Agents" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Agents</SelectItem>
+                      {uniqueAgents.map(agent => (
+                        <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="callid-filter">Call ID</Label>
+                  <Input
+                    id="callid-filter"
+                    placeholder="Search by Call ID..."
+                    value={callIdFilter}
+                    onChange={(e) => setCallIdFilter(e.target.value)}
+                    data-testid="input-filter-callid"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="from-filter">From Number</Label>
+                    <Input
+                      id="from-filter"
+                      placeholder="From..."
+                      value={fromNumberFilter}
+                      onChange={(e) => setFromNumberFilter(e.target.value)}
+                      data-testid="input-filter-from"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="to-filter">To Number</Label>
+                    <Input
+                      id="to-filter"
+                      placeholder="To..."
+                      value={toNumberFilter}
+                      onChange={(e) => setToNumberFilter(e.target.value)}
+                      data-testid="input-filter-to"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Duration Range (seconds): {durationRange[0]}s - {durationRange[1]}s</Label>
+                  <Slider
+                    value={durationRange}
+                    onValueChange={(v) => setDurationRange(v as [number, number])}
+                    min={0}
+                    max={3600}
+                    step={10}
+                    data-testid="slider-duration"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger data-testid="select-filter-status">
+                        <SelectValue placeholder={t('calls.details.status')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('calls.filters.allStatus')}</SelectItem>
+                        <SelectItem value="completed">{t('calls.status.completed')}</SelectItem>
+                        <SelectItem value="failed">{t('calls.status.failed')}</SelectItem>
+                        <SelectItem value="in_progress">{t('calls.status.inProgress')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Direction</Label>
+                    <Select value={directionFilter} onValueChange={setDirectionFilter}>
+                      <SelectTrigger data-testid="select-filter-direction">
+                        <SelectValue placeholder={t('calls.details.direction')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('calls.filters.allDirections')}</SelectItem>
+                        <SelectItem value="incoming">{t('calls.filters.incoming')}</SelectItem>
+                        <SelectItem value="outgoing">{t('calls.filters.outgoing')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Sentiment</Label>
+                  <Select value={sentimentFilter} onValueChange={setSentimentFilter}>
+                    <SelectTrigger data-testid="select-filter-sentiment">
+                      <SelectValue placeholder={t('calls.details.sentiment')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('calls.filters.allSentiment')}</SelectItem>
+                      <SelectItem value="positive">{t('calls.sentiment.positive')}</SelectItem>
+                      <SelectItem value="neutral">{t('calls.sentiment.neutral')}</SelectItem>
+                      <SelectItem value="negative">{t('calls.sentiment.negative')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TabsContent>
+              <TabsContent value="analysis" className="p-4 space-y-4 mt-0">
+                <div className="space-y-2">
+                  <Label>Classification / Lead Quality</Label>
+                  <Select value={leadFilter} onValueChange={setLeadFilter}>
+                    <SelectTrigger data-testid="select-filter-lead">
+                      <SelectValue placeholder={t('calls.filters.leadQuality')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('calls.filters.allLeads')}</SelectItem>
+                      <SelectItem value="hot">{t('calls.classification.hot')}</SelectItem>
+                      <SelectItem value="warm">{t('calls.classification.warm')}</SelectItem>
+                      <SelectItem value="cold">{t('calls.classification.cold')}</SelectItem>
+                      <SelectItem value="lost">{t('calls.classification.lost')}</SelectItem>
+                      <SelectItem value="completed_successful">Successful</SelectItem>
+                      <SelectItem value="completed_failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </PopoverContent>
+        </Popover>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2" data-testid="button-columns">
+              <Columns3 className="h-4 w-4" />
+              <span>Columns</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[200px]">
+            <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.time}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, time: checked }))}
+              data-testid="checkbox-col-time"
+            >
+              Time
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.duration}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, duration: checked }))}
+              data-testid="checkbox-col-duration"
+            >
+              Duration
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.channelType}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, channelType: checked }))}
+              data-testid="checkbox-col-channeltype"
+            >
+              Channel Type
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.cost}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, cost: checked }))}
+              data-testid="checkbox-col-cost"
+            >
+              Cost
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.sessionId}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, sessionId: checked }))}
+              data-testid="checkbox-col-sessionid"
+            >
+              Session ID
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.endReason}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, endReason: checked }))}
+              data-testid="checkbox-col-endreason"
+            >
+              End Reason
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.status}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, status: checked }))}
+              data-testid="checkbox-col-status"
+            >
+              Status
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.sentiment}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, sentiment: checked }))}
+              data-testid="checkbox-col-sentiment"
+            >
+              Sentiment
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.from}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, from: checked }))}
+              data-testid="checkbox-col-from"
+            >
+              From
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.to}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, to: checked }))}
+              data-testid="checkbox-col-to"
+            >
+              To
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.direction}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, direction: checked }))}
+              data-testid="checkbox-col-direction"
+            >
+              Direction
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.agent}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, agent: checked }))}
+              data-testid="checkbox-col-agent"
+            >
+              Agent
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.engine}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, engine: checked }))}
+              data-testid="checkbox-col-engine"
+            >
+              Engine
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="flex items-center gap-1 border rounded-md p-1">
+          <Button
+            variant={viewMode === 'card' ? 'secondary' : 'ghost'}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setViewMode('card')}
+            data-testid="button-view-card"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setViewMode('table')}
+            data-testid="button-view-table"
+          >
+            <LayoutList className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="all" className="space-y-4">
@@ -663,7 +1530,7 @@ export default function Calls() {
         </TabsList>
 
         <TabsContent value="all" className="space-y-3">
-          {filteredCalls.length === 0 ? (
+          {sortedCalls.length === 0 ? (
             <Card className="p-12 text-center">
               <Phone className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <h3 className="font-medium text-lg mb-1">{t('calls.noCalls')}</h3>
@@ -675,18 +1542,14 @@ export default function Calls() {
             </Card>
           ) : (
             <>
-              <div className="grid gap-3">
-                {allPagination.paginatedItems.map((call) => renderCallCard(call))}
-              </div>
-              <DataPagination
-                currentPage={allPagination.currentPage}
-                totalPages={allPagination.totalPages}
-                totalItems={allPagination.totalItems}
-                itemsPerPage={allPagination.itemsPerPage}
-                onPageChange={allPagination.handlePageChange}
-                onItemsPerPageChange={allPagination.handleItemsPerPageChange}
-                data-testid="pagination-all-calls"
-              />
+              {viewMode === 'table' ? (
+                renderCallsTable(sortedCalls, allPagination)
+              ) : (
+                <div className="grid gap-3">
+                  {allPagination.paginatedItems.map((call) => renderCallCard(call))}
+                </div>
+              )}
+              {renderPagination(allPagination, "pagination-all-calls")}
             </>
           )}
         </TabsContent>
@@ -702,18 +1565,14 @@ export default function Calls() {
             </Card>
           ) : (
             <>
-              <div className="grid gap-3">
-                {transcribedPagination.paginatedItems.map((call) => renderCallCard(call, "transcribed-"))}
-              </div>
-              <DataPagination
-                currentPage={transcribedPagination.currentPage}
-                totalPages={transcribedPagination.totalPages}
-                totalItems={transcribedPagination.totalItems}
-                itemsPerPage={transcribedPagination.itemsPerPage}
-                onPageChange={transcribedPagination.handlePageChange}
-                onItemsPerPageChange={transcribedPagination.handleItemsPerPageChange}
-                data-testid="pagination-transcribed-calls"
-              />
+              {viewMode === 'table' ? (
+                renderCallsTable(callsWithTranscripts, transcribedPagination, "transcribed-")
+              ) : (
+                <div className="grid gap-3">
+                  {transcribedPagination.paginatedItems.map((call) => renderCallCard(call, "transcribed-"))}
+                </div>
+              )}
+              {renderPagination(transcribedPagination, "pagination-transcribed-calls")}
             </>
           )}
         </TabsContent>
@@ -729,18 +1588,14 @@ export default function Calls() {
             </Card>
           ) : (
             <>
-              <div className="grid gap-3">
-                {recordingsPagination.paginatedItems.map((call) => renderCallCard(call, "recording-"))}
-              </div>
-              <DataPagination
-                currentPage={recordingsPagination.currentPage}
-                totalPages={recordingsPagination.totalPages}
-                totalItems={recordingsPagination.totalItems}
-                itemsPerPage={recordingsPagination.itemsPerPage}
-                onPageChange={recordingsPagination.handlePageChange}
-                onItemsPerPageChange={recordingsPagination.handleItemsPerPageChange}
-                data-testid="pagination-recordings-calls"
-              />
+              {viewMode === 'table' ? (
+                renderCallsTable(callsWithRecordings, recordingsPagination, "recording-")
+              ) : (
+                <div className="grid gap-3">
+                  {recordingsPagination.paginatedItems.map((call) => renderCallCard(call, "recording-"))}
+                </div>
+              )}
+              {renderPagination(recordingsPagination, "pagination-recordings-calls")}
             </>
           )}
         </TabsContent>

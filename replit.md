@@ -15,7 +15,8 @@ The application follows a client-server architecture.
 - **Frontend**: Built with React 18, Vite, TypeScript, TailwindCSS, and shadcn/ui for a modern and responsive user interface.
 - **Backend**: Implemented using Node.js and Express 4.x, utilizing Drizzle ORM for database interactions.
 - **Database**: PostgreSQL, with schema defined in `shared/schema.ts`.
-- **UI/UX**: Features a modern design inspired by Google Workspace Studio, including hero sections, template cards, category filtering, stats overviews, and quick action panels. Visual elements like gradients and consistent spacing are used throughout.
+- **UI/UX**: Features a modern design inspired by Google Workspace Studio and Microsoft 365, including hero sections, template cards, category filtering, stats overviews, and quick action panels. Visual elements like gradients and consistent spacing are used throughout.
+- **Hybrid Navigation System**: Microsoft 365-inspired layout with a slim top bar (48px) for logo, notifications, and user menu, plus a collapsible side rail (56px collapsed, 240px expanded) for main navigation. Sidebar state persists in localStorage. Click-to-expand only (no hover behavior). Admin panel includes "Return to App" link.
 - **Real-time Communication**: Employs WebSocket connections for real-time voice streaming.
 - **Background Processing**: Schedulers handle campaign execution, billing, and cleanup tasks.
 - **Modular Design**: Feature modules and engine integrations are organized within the `server/modules/` and `server/engines/` directories, respectively.

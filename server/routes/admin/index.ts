@@ -11,3 +11,4 @@ export { registerSeoRoutes } from './seo-routes';
 export { registerPhoneNumbersRoutes } from './phone-numbers-routes';
 export { registerElevenlabsPoolRoutes } from './elevenlabs-pool-routes';
 export { registerCallsModerationRoutes } from './calls-moderation-routes';
+export { registerAwsCredentialsRoutes } from './aws-credentials-routes';

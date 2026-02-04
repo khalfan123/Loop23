@@ -175,7 +175,12 @@ export const agents = pgTable("agents", {
   knowledgeBaseIds: text("knowledge_base_ids").array(),
   
   // Shared Voice Configuration (used by both Incoming and Flow agents)
+  // Voice Provider: 'elevenlabs' (default), 'aws_polly', or 'openai'
+  voiceProvider: text("voice_provider").default("elevenlabs"),
   elevenLabsVoiceId: text("eleven_labs_voice_id"),
+  awsPollyVoiceId: text("aws_polly_voice_id"), // AWS Polly voice ID (e.g., 'Joanna', 'Matthew')
+  awsPollyEngine: text("aws_polly_engine").default("neural"), // 'standard', 'neural', 'long-form', 'generative'
+  awsCredentialId: varchar("aws_credential_id"), // References awsCredentials.id
   voiceStability: doublePrecision("voice_stability").default(0.55),
   voiceSimilarityBoost: doublePrecision("voice_similarity_boost").default(0.85),
   voiceSpeed: doublePrecision("voice_speed").default(1.0),
@@ -2153,6 +2158,42 @@ export const insertOpenaiCredentialSchema = createInsertSchema(openaiCredentials
 });
 export type InsertOpenaiCredential = z.infer<typeof insertOpenaiCredentialSchema>;
 export type OpenaiCredential = typeof openaiCredentials.$inferSelect;
+
+// AWS Credentials - For AWS Polly (TTS) and Bedrock (LLM) services
+export const awsCredentials = pgTable("aws_credentials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  accessKeyId: text("access_key_id").notNull(),
+  secretAccessKey: text("secret_access_key").notNull(),
+  region: text("region").notNull().default("us-east-1"),
+  isActive: boolean("is_active").notNull().default(true),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  enabledServices: jsonb("enabled_services").$type<{
+    polly: boolean;
+    bedrock: boolean;
+  }>().default({ polly: true, bedrock: true }),
+  pollyVoiceEngine: text("polly_voice_engine").notNull().default("neural"), // standard, neural, long-form, generative
+  bedrockDefaultModel: text("bedrock_default_model").default("anthropic.claude-3-5-sonnet-20241022-v2:0"),
+  maxConcurrency: integer("max_concurrency").notNull().default(100),
+  currentLoad: integer("current_load").notNull().default(0),
+  totalAssignedAgents: integer("total_assigned_agents").notNull().default(0),
+  lastHealthCheck: timestamp("last_health_check"),
+  healthStatus: text("health_status").notNull().default("healthy"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAwsCredentialSchema = createInsertSchema(awsCredentials).omit({
+  id: true,
+  currentLoad: true,
+  totalAssignedAgents: true,
+  lastHealthCheck: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAwsCredential = z.infer<typeof insertAwsCredentialSchema>;
+export type AwsCredential = typeof awsCredentials.$inferSelect;
 
 // Plivo Credentials - Account credentials for Plivo telephony
 export const plivoCredentials = pgTable("plivo_credentials", {

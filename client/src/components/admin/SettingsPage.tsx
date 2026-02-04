@@ -16,7 +16,7 @@
  */
 import { useState, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Search, Server, Sliders, Activity, BarChart3, Key, Phone, Loader2, Globe } from "lucide-react";
+import { Settings, Search, Server, Sliders, Activity, BarChart3, Key, Phone, Loader2, Globe, Cloud } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 import { usePluginRegistry } from "@/contexts/plugin-registry";
@@ -24,6 +24,7 @@ import GlobalSettings from "./GlobalSettings";
 import SEOModule from "./SEOModule";
 import AnalyticsModule from "./AnalyticsModule";
 import ElevenLabsPool from "./ElevenLabsPool";
+import AwsCredentials from "./AwsCredentials";
 import AutoRestartModule from "./AutoRestartModule";
 import SystemSettings from "./SystemSettings";
 import AdminApiKeysModule from "./AdminApiKeysModule";
@@ -41,8 +42,8 @@ export default function SettingsPage({ onSwitchTab, initialSubTab }: SettingsPag
   const adminSettingsTabs = pluginRegistry.getAdminSettingsTabs();
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab || "master");
   
-  // Count active tabs for dynamic grid columns (6 base tabs + conditional ones)
-  const tabCount = 6 + (isRestApiPluginEnabled ? 1 : 0) + adminSettingsTabs.length;
+  // Count active tabs for dynamic grid columns (7 base tabs + conditional ones)
+  const tabCount = 7 + (isRestApiPluginEnabled ? 1 : 0) + adminSettingsTabs.length;
 
   return (
     <div className="space-y-6">
@@ -64,6 +65,11 @@ export default function SettingsPage({ onSwitchTab, initialSubTab }: SettingsPag
             <Server className="h-4 w-4" />
             <span className="hidden sm:inline">{t("admin.settings.tabs.elevenlabs")}</span>
             <span className="sm:hidden">ElevenLabs</span>
+          </TabsTrigger>
+          <TabsTrigger value="aws" data-testid="settings-tab-aws" className="flex items-center gap-2">
+            <Cloud className="h-4 w-4" />
+            <span className="hidden sm:inline">AWS</span>
+            <span className="sm:hidden">AWS</span>
           </TabsTrigger>
           <TabsTrigger value="seo" data-testid="settings-tab-seo" className="flex items-center gap-2">
             <Search className="h-4 w-4" />
@@ -113,6 +119,10 @@ export default function SettingsPage({ onSwitchTab, initialSubTab }: SettingsPag
 
         <TabsContent value="elevenlabs" className="space-y-4">
           <ElevenLabsPool />
+        </TabsContent>
+
+        <TabsContent value="aws" className="space-y-4">
+          <AwsCredentials />
         </TabsContent>
 
         <TabsContent value="seo" className="space-y-4">

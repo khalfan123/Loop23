@@ -48,6 +48,7 @@ import Voices from "@/pages/Voices";
 import PhoneNumbers from "@/pages/PhoneNumbers";
 import AllContacts from "@/pages/AllContacts";
 import Settings from "@/pages/Settings";
+import SettingsHub from "@/pages/SettingsHub";
 import Login from "@/pages/Login";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminCampaignDetail from "@/pages/AdminCampaignDetail";
@@ -208,7 +209,8 @@ function UserRouter() {
           <Route path="/app/flows/:id" component={FlowBuilderPage} />
           <Route path="/app/flows" component={FlowsPage} />
           <Route path="/app/outbound" component={() => <div className="text-center py-16 text-muted-foreground">Outbound page coming soon</div>} />
-          <Route path="/app/settings" component={Settings} />
+          <Route path="/app/settings/account" component={Settings} />
+          <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
           <Route component={NotFound} />
         </Switch>
@@ -264,7 +266,8 @@ function TeamMemberRouter() {
           </Route>
           <Route path="/app/flows/:id" component={FlowBuilderPage} />
           <Route path="/app/flows" component={FlowsPage} />
-          <Route path="/app/settings" component={Settings} />
+          <Route path="/app/settings/account" component={Settings} />
+          <Route path="/app/settings" component={SettingsHub} />
           <Route path="/admin" component={AdminDashboard} />
           <Route component={NotFound} />
         </Switch>

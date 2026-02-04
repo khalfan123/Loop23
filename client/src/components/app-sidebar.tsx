@@ -90,24 +90,10 @@ export function AppSidebar() {
     { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500" },
   ];
 
-  const flowAutomationItems = [
-    { title: t('nav.flowBuilder'), url: "/app/flows", icon: Workflow, iconColor: "text-indigo-500" },
-    { title: t('nav.executionLogs'), url: "/app/flows/execution", icon: BarChart3, iconColor: "text-slate-500" },
+  const formsAppointmentsItems = [
     { title: t('nav.forms'), url: "/app/flows/forms", icon: ClipboardList, iconColor: "text-cyan-500" },
     { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar, iconColor: "text-rose-500" },
   ];
-
-  const toolsItems = [
-    { title: t('nav.webhooks'), url: "/app/flows/webhooks", icon: Webhook, iconColor: "text-violet-500" },
-    { title: t('nav.websiteWidget') || 'Website Widget', url: "/app/tools/widgets", icon: Globe, iconColor: "text-sky-500" },
-  ];
-
-  const getAllBillingItems = () => {
-    return [
-      { title: t('nav.upgradePlan'), url: "/app/upgrade", icon: TrendingUp, iconColor: "text-amber-500" },
-      { title: t('nav.billingCredits'), url: "/app/billing", icon: CreditCard, iconColor: "text-amber-500" },
-    ];
-  };
 
   // Fetch current user data including credits - ONLY from server, no localStorage fallback
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -132,9 +118,6 @@ export function AppSidebar() {
 
   // Credits from user data
   const remainingCredits = user.credits || 0;
-  
-  // Get billing items - always show both upgrade and billing options
-  const billingItems = getAllBillingItems();
 
   const handleLogout = () => {
     // Logout request clears the HttpOnly refresh token cookie on the server
@@ -285,12 +268,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Flow Automation Section */}
+        {/* Forms & Appointments Section */}
         <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.flowAutomation')}</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.formsAppointments', 'Forms & Appointments')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {flowAutomationItems.map((item) => (
+              {formsAppointmentsItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
@@ -309,50 +292,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Tools Section */}
+        {/* Settings Section */}
         <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.tools') || 'Tools'}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {toolsItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url || location.startsWith(item.url)}
-                    tooltip={item.title}
-                    data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <Link href={item.url} onClick={handleNavClick}>
-                      <item.icon className={`h-4 w-4 ${item.iconColor || ''}`} />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Billing Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.billing')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {billingItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    tooltip={item.title}
-                    data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <Link href={item.url} onClick={handleNavClick}>
-                      <item.icon className={`h-4 w-4 ${item.iconColor || ''}`} />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location === "/app/settings" || location.startsWith("/app/settings")}
+                  tooltip={t('nav.settings', 'Settings')}
+                  data-testid="link-settings"
+                >
+                  <Link href="/app/settings" onClick={handleNavClick}>
+                    <Settings className="h-4 w-4 text-slate-500" />
+                    <span>{t('nav.settings', 'Settings')}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

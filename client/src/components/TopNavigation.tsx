@@ -20,7 +20,7 @@ import {
   CreditCard, TrendingUp, UserCheck, Workflow, Webhook, 
   ClipboardList, Calendar, Layout, FileText, Wrench, Globe, 
   Bot, ContactRound, Building2, ShieldCheck, Brain, Menu, X, 
-  ChevronDown, Zap
+  ChevronDown, Zap, Grid3X3, Search, HelpCircle
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -66,6 +66,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   hasPlus?: boolean;
   iconColor?: string;
+  description?: string;
 }
 
 interface NavSection {
@@ -83,46 +84,47 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
   const { t } = useTranslation();
   const { branding, currentLogo } = useBranding();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [appLauncherOpen, setAppLauncherOpen] = useState(false);
 
   const topItems: NavItem[] = [
     { title: t('nav.home'), url: variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app", icon: Home },
   ];
 
   const buildItems: NavItem[] = [
-    { title: t('nav.campaigns'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500" },
-    { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500" },
-    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500" },
+    { title: t('nav.campaigns'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500", description: "Manage calling campaigns" },
+    { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500", description: "AI voice agents" },
+    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500", description: "Train your AI" },
   ];
 
   const evaluateItems: NavItem[] = [
-    { title: t('nav.allContacts'), url: "/app/contacts", icon: UserCheck, iconColor: "text-teal-500" },
-    { title: t('nav.calls'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500" },
-    { title: t('nav.crm'), url: "/app/crm", icon: ContactRound, iconColor: "text-cyan-500" },
-    { title: t('nav.analytics'), url: "/app/analytics", icon: BarChart3, iconColor: "text-purple-500" },
-    { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500" },
+    { title: t('nav.allContacts'), url: "/app/contacts", icon: UserCheck, iconColor: "text-teal-500", description: "Contact management" },
+    { title: t('nav.calls'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500", description: "Call history & logs" },
+    { title: t('nav.crm'), url: "/app/crm", icon: ContactRound, iconColor: "text-cyan-500", description: "Customer relationships" },
+    { title: t('nav.analytics'), url: "/app/analytics", icon: BarChart3, iconColor: "text-purple-500", description: "Performance insights" },
+    { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500", description: "Call quality monitoring" },
   ];
 
   const telephonyItems: NavItem[] = [
-    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500" },
-    { title: t('nav.incomingConnections'), url: "/app/incoming-connections", icon: LinkIcon, iconColor: "text-amber-500" },
-    { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500" },
+    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500", description: "Manage phone numbers" },
+    { title: t('nav.incomingConnections'), url: "/app/incoming-connections", icon: LinkIcon, iconColor: "text-amber-500", description: "Inbound call routing" },
+    { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500", description: "Department management" },
   ];
 
   const flowAutomationItems: NavItem[] = [
-    { title: t('nav.flowBuilder'), url: "/app/flows", icon: Workflow, iconColor: "text-indigo-500" },
-    { title: t('nav.executionLogs'), url: "/app/flows/execution", icon: BarChart3, iconColor: "text-slate-500" },
-    { title: t('nav.forms'), url: "/app/flows/forms", icon: ClipboardList, iconColor: "text-cyan-500" },
-    { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar, iconColor: "text-rose-500" },
+    { title: t('nav.flowBuilder'), url: "/app/flows", icon: Workflow, iconColor: "text-indigo-500", description: "Visual flow designer" },
+    { title: t('nav.executionLogs'), url: "/app/flows/execution", icon: BarChart3, iconColor: "text-slate-500", description: "Flow execution history" },
+    { title: t('nav.forms'), url: "/app/flows/forms", icon: ClipboardList, iconColor: "text-cyan-500", description: "Form builder" },
+    { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar, iconColor: "text-rose-500", description: "Scheduling system" },
   ];
 
   const toolsItems: NavItem[] = [
-    { title: t('nav.webhooks'), url: "/app/flows/webhooks", icon: Webhook, iconColor: "text-violet-500" },
-    { title: t('nav.websiteWidget') || 'Website Widget', url: "/app/tools/widgets", icon: Globe, iconColor: "text-sky-500" },
+    { title: t('nav.webhooks'), url: "/app/flows/webhooks", icon: Webhook, iconColor: "text-violet-500", description: "API integrations" },
+    { title: t('nav.websiteWidget') || 'Website Widget', url: "/app/tools/widgets", icon: Globe, iconColor: "text-sky-500", description: "Embed on your site" },
   ];
 
   const billingItems: NavItem[] = [
-    { title: t('nav.upgradePlan'), url: "/app/upgrade", icon: TrendingUp, iconColor: "text-amber-500" },
-    { title: t('nav.billingCredits'), url: "/app/billing", icon: CreditCard, iconColor: "text-amber-500" },
+    { title: t('nav.upgradePlan'), url: "/app/upgrade", icon: TrendingUp, iconColor: "text-amber-500", description: "Upgrade your plan" },
+    { title: t('nav.billingCredits'), url: "/app/billing", icon: CreditCard, iconColor: "text-amber-500", description: "Credits & billing" },
   ];
 
   const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [] : [
@@ -140,9 +142,9 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
 
   if (userLoading || !user) {
     return (
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-14 items-center px-4 md:px-6">
-          <div className="animate-pulse h-8 w-32 bg-muted rounded" />
+      <header className="sticky top-0 z-50 w-full border-b bg-background">
+        <div className="flex h-12 items-center px-4">
+          <div className="animate-pulse h-8 w-40 bg-muted rounded" />
         </div>
       </header>
     );
@@ -150,6 +152,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
 
   const userName = user.name || "User";
   const userInitial = userName.charAt(0).toUpperCase() || "U";
+  const userEmail = user.email || "";
   const isPaidPlan = user.planType && user.planType !== "free";
   const planDisplayName = user.planType 
     ? user.planType.charAt(0).toUpperCase() + user.planType.slice(1) 
@@ -179,39 +182,89 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
   const NavDropdown = ({ section }: { section: NavSection }) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="gap-1"
+        <button 
+          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-accent/50 rounded-sm transition-colors"
           data-testid={`dropdown-${section.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
           {section.label}
-          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-        </Button>
+          <ChevronDown className="h-3 w-3 opacity-60" />
+        </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" className="w-64 p-1">
         {section.items.map((item) => (
           <DropdownMenuItem 
             key={item.url} 
             asChild 
             className={cn(
-              "cursor-pointer",
+              "cursor-pointer p-2 rounded-md",
               isActive(item.url) && "bg-accent"
             )}
           >
             <Link 
               href={item.url} 
-              className="flex items-center gap-2 w-full"
+              className="flex items-start gap-3 w-full"
               data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
             >
-              <item.icon className={cn("h-4 w-4", item.iconColor)} />
-              <span>{item.title}</span>
-              {item.hasPlus && (
-                <Plus className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-              )}
+              <div className={cn("mt-0.5 p-1.5 rounded-md bg-muted", item.iconColor)}>
+                <item.icon className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm">{item.title}</span>
+                  {item.hasPlus && (
+                    <Plus className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </div>
+                {item.description && (
+                  <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                )}
+              </div>
             </Link>
           </DropdownMenuItem>
         ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const AppLauncher = () => (
+    <DropdownMenu open={appLauncherOpen} onOpenChange={setAppLauncherOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="h-10 w-10 hover:bg-accent/50"
+          data-testid="button-app-launcher"
+        >
+          <Grid3X3 className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-80 p-4">
+        <div className="grid grid-cols-3 gap-2">
+          {buildItems.concat(evaluateItems.slice(0, 3)).map((item) => (
+            <Link
+              key={item.url}
+              href={item.url}
+              onClick={() => setAppLauncherOpen(false)}
+              className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-accent/50 transition-colors"
+              data-testid={`launcher-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              <div className={cn("p-2 rounded-lg bg-muted", item.iconColor)}>
+                <item.icon className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-medium text-center leading-tight">{item.title}</span>
+            </Link>
+          ))}
+        </div>
+        <div className="mt-4 pt-3 border-t">
+          <Link 
+            href="/app" 
+            onClick={() => setAppLauncherOpen(false)}
+            className="text-sm text-primary hover:underline flex items-center gap-1"
+          >
+            View all apps
+            <ChevronDown className="h-3 w-3 rotate-[-90deg]" />
+          </Link>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -251,45 +304,62 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center gap-4 px-4 md:px-6">
-        {/* Logo */}
-        <Link href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"} className="flex items-center gap-2 shrink-0">
-          {currentLogo ? (
-            <img 
-              src={currentLogo} 
-              alt={branding.app_name} 
-              className={cn(
-                "w-auto object-contain",
-                branding.logo_size === 'small' ? 'h-6 max-w-[100px]' : 
-                branding.logo_size === 'large' ? 'h-9 max-w-[150px]' : 
-                branding.logo_size === 'xlarge' ? 'h-10 max-w-[170px]' : 'h-7 max-w-[130px]'
-              )}
-            />
-          ) : (
-            <Zap className="h-6 w-6 text-primary" />
-          )}
-        </Link>
+    <header className="sticky top-0 z-50 w-full bg-background border-b">
+      {/* Microsoft-style top bar */}
+      <div className="flex h-12 items-center">
+        {/* Left section: App launcher + Logo */}
+        <div className="flex items-center h-full">
+          {/* App Launcher (Waffle) */}
+          <div className="hidden lg:flex items-center justify-center w-12 h-full border-r">
+            <AppLauncher />
+          </div>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center gap-1 flex-1">
+          {/* Logo Section */}
+          <Link 
+            href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"} 
+            className="flex items-center gap-3 px-4 h-full hover:bg-accent/30 transition-colors"
+            data-testid="link-logo"
+          >
+            {currentLogo ? (
+              <img 
+                src={currentLogo} 
+                alt={branding.app_name} 
+                className="h-8 w-auto max-w-[180px] object-contain"
+              />
+            ) : (
+              <>
+                <div className="flex items-center justify-center w-8 h-8 rounded bg-primary">
+                  <Zap className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <span className="text-lg font-semibold tracking-tight hidden sm:inline">
+                  {branding.app_name}
+                </span>
+              </>
+            )}
+          </Link>
+
+          {/* Divider */}
+          <div className="hidden lg:block h-6 w-px bg-border mx-1" />
+        </div>
+
+        {/* Center section: Navigation */}
+        <nav className="hidden lg:flex items-center gap-0.5 flex-1 px-2">
           {/* Home Link */}
           {topItems.map((item) => (
-            <Button
+            <Link
               key={item.url}
-              variant="ghost"
-              size="sm"
-              asChild
-              className={cn(isActive(item.url) && "bg-accent")}
+              href={item.url}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors",
+                isActive(item.url) 
+                  ? "text-foreground bg-accent" 
+                  : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
+              )}
+              data-testid={`link-${item.title.toLowerCase()}`}
             >
-              <Link 
-                href={item.url}
-                data-testid={`link-${item.title.toLowerCase()}`}
-              >
-                <item.icon className="h-4 w-4 mr-1.5" />
-                {item.title}
-              </Link>
-            </Button>
+              <item.icon className="h-4 w-4" />
+              {item.title}
+            </Link>
           ))}
 
           {/* Nav Dropdowns */}
@@ -299,38 +369,38 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
 
           {/* Admin Link for admin users */}
           {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className={cn(isActive('/admin') && "bg-accent")}
+            <Link
+              href="/admin"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors",
+                isActive('/admin') 
+                  ? "text-foreground bg-accent" 
+                  : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
+              )}
+              data-testid="link-admin-dashboard"
             >
-              <Link 
-                href="/admin"
-                data-testid="link-admin-dashboard"
-              >
-                <Shield className="h-4 w-4 mr-1.5" />
-                {t('nav.adminDashboard')}
-              </Link>
-            </Button>
+              <Shield className="h-4 w-4" />
+              {t('nav.adminDashboard')}
+            </Link>
           )}
         </nav>
 
-        {/* Right side utilities */}
-        <div className="flex items-center gap-2 ml-auto">
+        {/* Right section: Utilities */}
+        <div className="flex items-center gap-1 px-2 ml-auto">
           {showNotifications && (
             <>
               <HeaderBannerNotifications />
               <NotificationBell />
             </>
           )}
+          
           <LanguageSelector variant="compact" />
           <ThemeToggle />
 
           {/* Credits Badge - Desktop */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-muted/50">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setLocation("/app/billing")}>
             <Coins className="h-4 w-4 text-amber-500" />
-            <span className="text-sm font-medium">{remainingCredits.toLocaleString()}</span>
+            <span className="text-sm font-semibold">{remainingCredits.toLocaleString()}</span>
           </div>
 
           {/* User Menu */}
@@ -338,76 +408,94 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
-                size="sm" 
-                className="gap-2"
+                className="h-10 px-2 gap-2 hover:bg-accent/50"
                 data-testid="button-user-menu"
               >
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                <Avatar className="h-8 w-8 ring-2 ring-primary/20">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
                     {userInitial}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden sm:inline text-sm font-medium max-w-[100px] truncate">
-                  {userName}
-                </span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                <ChevronDown className="h-3 w-3 opacity-60 hidden sm:block" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72 p-0">
-              {/* Credits Section */}
-              <div className="relative overflow-hidden m-2 rounded-xl border border-slate-300/60 dark:border-slate-600/60 p-4 bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 shadow-sm">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-white/10 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite]" style={{ backgroundSize: '200% 100%' }} />
-                <div className="relative space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 shadow-inner">
-                        <Coins className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                      </div>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('sidebar.credits')}</span>
-                    </div>
-                    {isPaidPlan ? (
-                      <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide bg-gradient-to-r from-amber-400/90 to-yellow-500/90 text-amber-900 dark:from-amber-500 dark:to-yellow-600 dark:text-amber-950 shadow-sm border border-amber-500/30 dark:border-yellow-600/30">
+            <DropdownMenuContent align="end" className="w-80 p-0">
+              {/* User Info Header */}
+              <div className="p-4 border-b bg-muted/30">
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-12 w-12 ring-2 ring-primary/20">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-lg font-semibold">
+                      {userInitial}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-base truncate">{userName}</p>
+                    <p className="text-sm text-muted-foreground truncate">{userEmail}</p>
+                    {isPaidPlan && (
+                      <span className="inline-flex items-center mt-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide bg-gradient-to-r from-amber-400/90 to-yellow-500/90 text-amber-900">
                         {planDisplayName}
                       </span>
-                    ) : (
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => setLocation("/app/upgrade")}
-                        data-testid="button-upgrade-dropdown"
-                      >
-                        {t('sidebar.upgrade')}
-                      </Button>
                     )}
-                  </div>
-                  <div className="text-2xl font-bold bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 dark:from-slate-100 dark:via-slate-200 dark:to-slate-100 bg-clip-text text-transparent">
-                    {remainingCredits.toLocaleString()} <span className="text-sm font-medium text-slate-500 dark:text-slate-400">credits</span>
                   </div>
                 </div>
               </div>
-              <DropdownMenuSeparator />
+
+              {/* Credits Section */}
+              <div className="p-3 border-b">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
+                  <div className="flex items-center gap-2">
+                    <Coins className="h-5 w-5 text-amber-500" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t('sidebar.credits')}</p>
+                      <p className="text-lg font-bold">{remainingCredits.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  {!isPaidPlan && (
+                    <Button 
+                      size="sm"
+                      onClick={() => setLocation("/app/upgrade")}
+                      data-testid="button-upgrade-dropdown"
+                    >
+                      {t('sidebar.upgrade')}
+                    </Button>
+                  )}
+                </div>
+              </div>
               
-              {/* Account Settings */}
-              <DropdownMenuItem 
-                onClick={() => setLocation("/app/settings")}
-                className="cursor-pointer"
-                data-testid="link-account-settings"
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                <span>{t('nav.accountSettings')}</span>
-              </DropdownMenuItem>
+              {/* Menu Items */}
+              <div className="p-1">
+                <DropdownMenuItem 
+                  onClick={() => setLocation("/app/settings")}
+                  className="cursor-pointer p-2.5 rounded-md"
+                  data-testid="link-account-settings"
+                >
+                  <Settings className="mr-3 h-4 w-4" />
+                  <span>{t('nav.accountSettings')}</span>
+                </DropdownMenuItem>
+                
+                <DropdownMenuItem 
+                  onClick={() => setLocation("/app/billing")}
+                  className="cursor-pointer p-2.5 rounded-md"
+                  data-testid="link-billing"
+                >
+                  <CreditCard className="mr-3 h-4 w-4" />
+                  <span>{t('nav.billingCredits')}</span>
+                </DropdownMenuItem>
+              </div>
               
               <DropdownMenuSeparator />
               
               {/* Log out */}
-              <DropdownMenuItem 
-                onClick={handleLogout}
-                className="cursor-pointer text-destructive focus:text-destructive"
-                data-testid="button-logout"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>{t('auth.logout')}</span>
-              </DropdownMenuItem>
+              <div className="p-1">
+                <DropdownMenuItem 
+                  onClick={handleLogout}
+                  className="cursor-pointer p-2.5 rounded-md text-destructive focus:text-destructive"
+                  data-testid="button-logout"
+                >
+                  <LogOut className="mr-3 h-4 w-4" />
+                  <span>{t('auth.logout')}</span>
+                </DropdownMenuItem>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -417,7 +505,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="lg:hidden"
+                className="lg:hidden h-10 w-10"
                 data-testid="button-mobile-menu"
               >
                 <Menu className="h-5 w-5" />
@@ -425,18 +513,20 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-80 p-0 overflow-y-auto">
-              <SheetHeader className="p-4 border-b">
-                <SheetTitle className="flex items-center gap-2">
+              <SheetHeader className="p-4 border-b bg-muted/30">
+                <SheetTitle className="flex items-center gap-3">
                   {currentLogo ? (
                     <img 
                       src={currentLogo} 
                       alt={branding.app_name} 
-                      className="h-7 w-auto max-w-[130px] object-contain"
+                      className="h-8 w-auto max-w-[150px] object-contain"
                     />
                   ) : (
                     <>
-                      <Zap className="h-5 w-5 text-primary" />
-                      <span>{branding.app_name}</span>
+                      <div className="flex items-center justify-center w-8 h-8 rounded bg-primary">
+                        <Zap className="h-5 w-5 text-primary-foreground" />
+                      </div>
+                      <span className="text-lg font-semibold">{branding.app_name}</span>
                     </>
                   )}
                 </SheetTitle>
@@ -444,13 +534,13 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
               
               <div className="p-2">
                 {/* Credits on Mobile */}
-                <div className="relative overflow-hidden m-2 rounded-xl border border-slate-300/60 dark:border-slate-600/60 p-3 bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 shadow-sm">
-                  <div className="flex items-center justify-between gap-2">
+                <div className="m-2 p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Coins className="h-4 w-4 text-amber-500" />
+                      <Coins className="h-5 w-5 text-amber-500" />
                       <span className="text-sm font-semibold">{t('sidebar.credits')}</span>
                     </div>
-                    <span className="text-lg font-bold">{remainingCredits.toLocaleString()}</span>
+                    <span className="text-xl font-bold">{remainingCredits.toLocaleString()}</span>
                   </div>
                 </div>
 

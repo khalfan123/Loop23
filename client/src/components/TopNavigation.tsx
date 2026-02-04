@@ -110,30 +110,21 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
     { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500", description: "Department management" },
   ];
 
-  const flowAutomationItems: NavItem[] = [
-    { title: t('nav.flowBuilder'), url: "/app/flows", icon: Workflow, iconColor: "text-indigo-500", description: "Visual flow designer" },
-    { title: t('nav.executionLogs'), url: "/app/flows/execution", icon: BarChart3, iconColor: "text-slate-500", description: "Flow execution history" },
+  const formsAppointmentsItems: NavItem[] = [
     { title: t('nav.forms'), url: "/app/flows/forms", icon: ClipboardList, iconColor: "text-cyan-500", description: "Form builder" },
     { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar, iconColor: "text-rose-500", description: "Scheduling system" },
   ];
 
-  const toolsItems: NavItem[] = [
-    { title: t('nav.webhooks'), url: "/app/flows/webhooks", icon: Webhook, iconColor: "text-violet-500", description: "API integrations" },
-    { title: t('nav.websiteWidget') || 'Website Widget', url: "/app/tools/widgets", icon: Globe, iconColor: "text-sky-500", description: "Embed on your site" },
-  ];
-
-  const billingItems: NavItem[] = [
-    { title: t('nav.upgradePlan'), url: "/app/upgrade", icon: TrendingUp, iconColor: "text-amber-500", description: "Upgrade your plan" },
-    { title: t('nav.billingCredits'), url: "/app/billing", icon: CreditCard, iconColor: "text-amber-500", description: "Credits & billing" },
+  const settingsItems: NavItem[] = [
+    { title: t('nav.settings', 'Settings'), url: "/app/settings", icon: Settings, iconColor: "text-slate-500", description: "App settings" },
   ];
 
   const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [] : [
     { label: t('sidebar.build'), items: buildItems },
     { label: t('sidebar.evaluate'), items: evaluateItems },
     { label: t('sidebar.telephony'), items: telephonyItems },
-    { label: t('sidebar.flowAutomation'), items: flowAutomationItems },
-    { label: t('sidebar.tools') || 'Tools', items: toolsItems },
-    { label: t('sidebar.billing'), items: billingItems },
+    { label: t('sidebar.formsAppointments', 'Forms & Appointments'), items: formsAppointmentsItems },
+    { label: '', items: settingsItems },
   ];
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -397,8 +388,8 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
           <LanguageSelector variant="compact" />
           <ThemeToggle />
 
-          {/* Credits Badge - Desktop */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setLocation("/app/billing")}>
+          {/* Credits Badge - Desktop (display only) */}
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/30">
             <Coins className="h-4 w-4 text-amber-500" />
             <span className="text-sm font-semibold">{remainingCredits.toLocaleString()}</span>
           </div>
@@ -440,7 +431,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
                 </div>
               </div>
 
-              {/* Credits Section */}
+              {/* Credits Section (display only) */}
               <div className="p-3 border-b">
                 <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
                   <div className="flex items-center gap-2">
@@ -450,14 +441,10 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
                       <p className="text-lg font-bold">{remainingCredits.toLocaleString()}</p>
                     </div>
                   </div>
-                  {!isPaidPlan && (
-                    <Button 
-                      size="sm"
-                      onClick={() => setLocation("/app/upgrade")}
-                      data-testid="button-upgrade-dropdown"
-                    >
-                      {t('sidebar.upgrade')}
-                    </Button>
+                  {isPaidPlan && (
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+                      {planDisplayName}
+                    </span>
                   )}
                 </div>
               </div>
@@ -470,16 +457,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
                   data-testid="link-account-settings"
                 >
                   <Settings className="mr-3 h-4 w-4" />
-                  <span>{t('nav.accountSettings')}</span>
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem 
-                  onClick={() => setLocation("/app/billing")}
-                  className="cursor-pointer p-2.5 rounded-md"
-                  data-testid="link-billing"
-                >
-                  <CreditCard className="mr-3 h-4 w-4" />
-                  <span>{t('nav.billingCredits')}</span>
+                  <span>{t('nav.settings', 'Settings')}</span>
                 </DropdownMenuItem>
               </div>
               

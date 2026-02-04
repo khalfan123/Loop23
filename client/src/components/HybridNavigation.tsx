@@ -145,30 +145,21 @@ export function HybridNavigation({
     { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500" },
   ];
 
-  const flowAutomationItems: NavItem[] = [
-    { title: t('nav.flowBuilder'), url: "/app/flows", icon: Workflow, iconColor: "text-indigo-500" },
-    { title: t('nav.executionLogs'), url: "/app/flows/execution", icon: BarChart3, iconColor: "text-slate-500" },
+  const formsAppointmentsItems: NavItem[] = [
     { title: t('nav.forms'), url: "/app/flows/forms", icon: ClipboardList, iconColor: "text-cyan-500" },
     { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar, iconColor: "text-rose-500" },
   ];
 
-  const toolsItems: NavItem[] = [
-    { title: t('nav.webhooks'), url: "/app/flows/webhooks", icon: Webhook, iconColor: "text-violet-500" },
-    { title: t('nav.websiteWidget') || 'Website Widget', url: "/app/tools/widgets", icon: Globe, iconColor: "text-sky-500" },
-  ];
-
-  const billingItems: NavItem[] = [
-    { title: t('nav.upgradePlan'), url: "/app/upgrade", icon: TrendingUp, iconColor: "text-amber-500" },
-    { title: t('nav.billingCredits'), url: "/app/billing", icon: CreditCard, iconColor: "text-amber-500" },
+  const settingsItems: NavItem[] = [
+    { title: t('nav.settings', 'Settings'), url: "/app/settings", icon: Settings, iconColor: "text-slate-500" },
   ];
 
   const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [] : [
     { label: t('sidebar.build'), items: buildItems },
     { label: t('sidebar.evaluate'), items: evaluateItems },
     { label: t('sidebar.telephony'), items: telephonyItems },
-    { label: t('sidebar.flowAutomation'), items: flowAutomationItems },
-    { label: t('sidebar.tools') || 'Tools', items: toolsItems },
-    { label: t('sidebar.billing'), items: billingItems },
+    { label: t('sidebar.formsAppointments', 'Forms & Appointments'), items: formsAppointmentsItems },
+    { label: '', items: settingsItems },
   ];
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -338,13 +329,10 @@ export function HybridNavigation({
         </nav>
       </ScrollArea>
 
-      {/* Credits Section */}
+      {/* Credits Display (info only) */}
       <div className={cn("p-2 border-t", !isExpanded && "flex justify-center")}>
         {isExpanded ? (
-          <div 
-            className="p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30 cursor-pointer hover:bg-amber-100/50 dark:hover:bg-amber-900/30 transition-colors"
-            onClick={() => setLocation("/app/billing")}
-          >
+          <div className="p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-amber-500" />
@@ -361,28 +349,15 @@ export function HybridNavigation({
         ) : (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10"
-                onClick={() => setLocation("/app/billing")}
-              >
+              <div className="h-10 w-10 flex items-center justify-center">
                 <Coins className="h-5 w-5 text-amber-500" />
-              </Button>
+              </div>
             </TooltipTrigger>
             <TooltipContent side="right">
               <div className="font-medium">{remainingCredits.toLocaleString()} {t('sidebar.credits')}</div>
             </TooltipContent>
           </Tooltip>
         )}
-      </div>
-
-      {/* Settings Link */}
-      <div className={cn("p-2 border-t", !isExpanded && "flex justify-center")}>
-        <NavItemComponent 
-          item={{ title: t('nav.accountSettings'), url: "/app/settings", icon: Settings }} 
-          showLabel={isExpanded} 
-        />
       </div>
     </aside>
   );
@@ -439,10 +414,7 @@ export function HybridNavigation({
 
         {/* Mobile Credits & Actions */}
         <div className="p-3 border-t space-y-2">
-          <div 
-            className="p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30"
-            onClick={() => { setLocation("/app/billing"); setMobileMenuOpen(false); }}
-          >
+          <div className="p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-amber-500" />
@@ -518,11 +490,8 @@ export function HybridNavigation({
               <LanguageSelector variant="compact" />
               <ThemeToggle />
 
-              {/* Credits - Desktop only */}
-              <div 
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => setLocation("/app/billing")}
-              >
+              {/* Credits - Desktop only (display only) */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-muted/30">
                 <Coins className="h-4 w-4 text-amber-500" />
                 <span className="text-sm font-semibold">{remainingCredits.toLocaleString()}</span>
               </div>
@@ -555,7 +524,7 @@ export function HybridNavigation({
                     </div>
                   </div>
 
-                  {/* Credits */}
+                  {/* Credits (display only) */}
                   <div className="p-3 border-b">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
                       <div className="flex items-center gap-2">
@@ -565,10 +534,10 @@ export function HybridNavigation({
                           <p className="text-lg font-bold">{remainingCredits.toLocaleString()}</p>
                         </div>
                       </div>
-                      {!isPaidPlan && (
-                        <Button size="sm" onClick={() => setLocation("/app/upgrade")}>
-                          {t('sidebar.upgrade')}
-                        </Button>
+                      {isPaidPlan && (
+                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+                          {planDisplayName}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -576,11 +545,7 @@ export function HybridNavigation({
                   <div className="p-1">
                     <DropdownMenuItem onClick={() => setLocation("/app/settings")} className="cursor-pointer p-2.5">
                       <Settings className="mr-3 h-4 w-4" />
-                      {t('nav.accountSettings')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setLocation("/app/billing")} className="cursor-pointer p-2.5">
-                      <CreditCard className="mr-3 h-4 w-4" />
-                      {t('nav.billingCredits')}
+                      {t('nav.settings', 'Settings')}
                     </DropdownMenuItem>
                   </div>
 

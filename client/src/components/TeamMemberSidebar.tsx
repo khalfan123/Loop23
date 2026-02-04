@@ -103,18 +103,9 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
   analytics: [
     { url: "/app/analytics", icon: BarChart3, label: "Analytics", group: "evaluate", iconColor: "text-purple-500" },
   ],
-  website_widget: [
-    { url: "/app/tools/widgets", icon: Globe, label: "Website Widget", group: "tools", iconColor: "text-sky-500" },
-  ],
-  webhooks: [
-    { url: "/app/flows/webhooks", icon: Webhook, label: "Webhooks", group: "tools", iconColor: "text-violet-500" },
-  ],
   phone_numbers: [
     { url: "/app/phone-numbers", icon: Phone, label: "Phone Numbers", group: "telephony", iconColor: "text-emerald-500" },
     { url: "/app/incoming-connections", icon: LinkIcon, label: "Incoming Connections", group: "telephony", iconColor: "text-amber-500" },
-  ],
-  billing: [
-    { url: "/app/billing", icon: CreditCard, label: "Billing & Credits", group: "billing", iconColor: "text-amber-500" },
   ],
   api_keys: [
     { url: "/app/api-keys", icon: Key, label: "API Keys", group: "settings", iconColor: "text-slate-500" },

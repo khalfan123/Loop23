@@ -23,6 +23,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { BrandingProvider, useBranding } from "@/components/BrandingProvider";
 import { DirectionProvider } from "@/components/DirectionProvider";
 import { TopNavigation, AdminTopNavigation, TeamTopNavigation, AdminTeamTopNavigation } from "@/components/TopNavigation";
+import { HybridNavigation, UserHybridNavigation, AdminHybridNavigation, TeamHybridNavigation, AdminTeamHybridNavigation } from "@/components/HybridNavigation";
 import { useEffect, useState } from "react";
 import { AuthStorage } from "./lib/auth-storage";
 import { TeamAuth } from "./lib/team-auth";
@@ -140,165 +141,153 @@ function PublicRouter() {
 
 function AdminRouter() {
   return (
-    <div className="flex flex-col min-h-screen w-full">
-      <AdminTopNavigation />
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
-          <Switch>
-            <Route path="/">
-              <Redirect to="/admin" />
-            </Route>
-            <Route path="/admin" component={AdminDashboard} />
-            <Route path="/admin/dashboard" component={AdminDashboard} />
-            <Route path="/admin/campaigns/:id" component={AdminCampaignDetail} />
-            <Route component={NotFound} />
-          </Switch>
-        </div>
-      </main>
-    </div>
+    <AdminHybridNavigation>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
+        <Switch>
+          <Route path="/">
+            <Redirect to="/admin" />
+          </Route>
+          <Route path="/admin" component={AdminDashboard} />
+          <Route path="/admin/dashboard" component={AdminDashboard} />
+          <Route path="/admin/campaigns/:id" component={AdminCampaignDetail} />
+          <Route component={NotFound} />
+        </Switch>
+      </div>
+    </AdminHybridNavigation>
   );
 }
 
 function UserRouter() {
   return (
-    <div className="flex flex-col min-h-screen w-full">
-      <TopNavigation variant="user" showNotifications={true} />
-      <main className="flex-1 overflow-auto bg-gray-100 dark:bg-muted/30">
-        <div className="w-full px-4 md:px-10 lg:px-16 xl:px-20 py-4 md:py-6">
-          <Switch>
-            <Route path="/">
-              <Redirect to="/app" />
-            </Route>
-            <Route path="/app" component={Dashboard} />
-            <Route path="/app/dashboard" component={Dashboard} />
-            <Route path="/app/campaigns/new" component={CreateCampaign} />
-            <Route path="/app/campaigns/:id" component={CampaignDetail} />
-            <Route path="/app/campaigns" component={Campaigns} />
-            <Route path="/app/calls/:id" component={CallDetail} />
-            <Route path="/app/calls" component={Calls} />
-            <Route path="/app/contacts" component={AllContacts} />
-            <Route path="/app/analytics" component={Analytics} />
-            <Route path="/app/quality-assurance" component={QualityAssurance} />
-            <Route path="/app/crm" component={CRMPage} />
-            <Route path="/app/tools/widgets" component={WidgetsPage} />
-            <Route path="/app/billing" component={Billing} />
-            <Route path="/app/payment-result" component={PaymentResult} />
-            <Route path="/app/transaction-history">
-              <Redirect to="/app/billing?tab=credits" />
-            </Route>
-            <Route path="/app/upgrade" component={Upgrade} />
-            <Route path="/app/knowledge-base" component={KnowledgeBase} />
-            <Route path="/app/knowledge-intelligence">
-              <Redirect to="/app/knowledge-base" />
-            </Route>
-            <Route path="/app/departments" component={DepartmentManagement} />
-            <Route path="/app/departments/canvas" component={DepartmentCanvas} />
-            <Route path="/app/agents/new" component={AgentEditor} />
-            <Route path="/app/agents/:id/edit" component={AgentEditor} />
-            <Route path="/app/agents" component={Agents} />
-            <Route path="/app/prompt-templates" component={PromptTemplates} />
-            <Route path="/app/incoming-connections" component={IncomingConnections} />
-            <Route path="/app/voices" component={Voices} />
-            <Route path="/app/phone-numbers" component={PhoneNumbers} />
-            <Route path="/app/tools" component={() => <div className="text-center py-16 text-muted-foreground">Tools page coming soon</div>} />
-            <Route path="/app/flows/new" component={FlowBuilderPage} />
-            <Route path="/app/flows/execution" component={FlowExecutionLogsPage} />
-            <Route path="/app/flows/webhooks" component={WebhookConfigPage} />
-            <Route path="/app/flows/forms" component={FormsPage} />
-            <Route path="/app/flows/appointments" component={AppointmentsPage} />
-            <Route path="/app/flows/templates">
-              <Redirect to="/app/flows?tab=templates" />
-            </Route>
-            <Route path="/app/flows/:id" component={FlowBuilderPage} />
-            <Route path="/app/flows" component={FlowsPage} />
-            <Route path="/app/outbound" component={() => <div className="text-center py-16 text-muted-foreground">Outbound page coming soon</div>} />
-            <Route path="/app/settings" component={Settings} />
-            <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
-            <Route component={NotFound} />
-          </Switch>
-        </div>
-      </main>
-    </div>
+    <UserHybridNavigation>
+      <div className="w-full px-4 md:px-8 lg:px-12 py-4 md:py-6">
+        <Switch>
+          <Route path="/">
+            <Redirect to="/app" />
+          </Route>
+          <Route path="/app" component={Dashboard} />
+          <Route path="/app/dashboard" component={Dashboard} />
+          <Route path="/app/campaigns/new" component={CreateCampaign} />
+          <Route path="/app/campaigns/:id" component={CampaignDetail} />
+          <Route path="/app/campaigns" component={Campaigns} />
+          <Route path="/app/calls/:id" component={CallDetail} />
+          <Route path="/app/calls" component={Calls} />
+          <Route path="/app/contacts" component={AllContacts} />
+          <Route path="/app/analytics" component={Analytics} />
+          <Route path="/app/quality-assurance" component={QualityAssurance} />
+          <Route path="/app/crm" component={CRMPage} />
+          <Route path="/app/tools/widgets" component={WidgetsPage} />
+          <Route path="/app/billing" component={Billing} />
+          <Route path="/app/payment-result" component={PaymentResult} />
+          <Route path="/app/transaction-history">
+            <Redirect to="/app/billing?tab=credits" />
+          </Route>
+          <Route path="/app/upgrade" component={Upgrade} />
+          <Route path="/app/knowledge-base" component={KnowledgeBase} />
+          <Route path="/app/knowledge-intelligence">
+            <Redirect to="/app/knowledge-base" />
+          </Route>
+          <Route path="/app/departments" component={DepartmentManagement} />
+          <Route path="/app/departments/canvas" component={DepartmentCanvas} />
+          <Route path="/app/agents/new" component={AgentEditor} />
+          <Route path="/app/agents/:id/edit" component={AgentEditor} />
+          <Route path="/app/agents" component={Agents} />
+          <Route path="/app/prompt-templates" component={PromptTemplates} />
+          <Route path="/app/incoming-connections" component={IncomingConnections} />
+          <Route path="/app/voices" component={Voices} />
+          <Route path="/app/phone-numbers" component={PhoneNumbers} />
+          <Route path="/app/tools" component={() => <div className="text-center py-16 text-muted-foreground">Tools page coming soon</div>} />
+          <Route path="/app/flows/new" component={FlowBuilderPage} />
+          <Route path="/app/flows/execution" component={FlowExecutionLogsPage} />
+          <Route path="/app/flows/webhooks" component={WebhookConfigPage} />
+          <Route path="/app/flows/forms" component={FormsPage} />
+          <Route path="/app/flows/appointments" component={AppointmentsPage} />
+          <Route path="/app/flows/templates">
+            <Redirect to="/app/flows?tab=templates" />
+          </Route>
+          <Route path="/app/flows/:id" component={FlowBuilderPage} />
+          <Route path="/app/flows" component={FlowsPage} />
+          <Route path="/app/outbound" component={() => <div className="text-center py-16 text-muted-foreground">Outbound page coming soon</div>} />
+          <Route path="/app/settings" component={Settings} />
+          <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
+          <Route component={NotFound} />
+        </Switch>
+      </div>
+    </UserHybridNavigation>
   );
 }
 
 function TeamMemberRouter() {
   return (
-    <div className="flex flex-col min-h-screen w-full">
-      <TeamTopNavigation />
-      <main className="flex-1 overflow-auto bg-gray-100 dark:bg-muted/30">
-        <div className="w-full px-4 md:px-10 lg:px-16 xl:px-20 py-4 md:py-6">
-          <Switch>
-            <Route path="/">
-              <Redirect to="/app" />
-            </Route>
-            <Route path="/app" component={Dashboard} />
-            <Route path="/app/dashboard" component={Dashboard} />
-            <Route path="/app/campaigns/new" component={CreateCampaign} />
-            <Route path="/app/campaigns/:id" component={CampaignDetail} />
-            <Route path="/app/campaigns" component={Campaigns} />
-            <Route path="/app/calls/:id" component={CallDetail} />
-            <Route path="/app/calls" component={Calls} />
-            <Route path="/app/contacts" component={AllContacts} />
-            <Route path="/app/analytics" component={Analytics} />
-            <Route path="/app/quality-assurance" component={QualityAssurance} />
-            <Route path="/app/crm" component={CRMPage} />
-            <Route path="/app/tools/widgets" component={WidgetsPage} />
-            <Route path="/app/billing" component={Billing} />
-            <Route path="/app/transaction-history">
-              <Redirect to="/app/billing?tab=credits" />
-            </Route>
-            <Route path="/app/knowledge-base" component={KnowledgeBase} />
-            <Route path="/app/knowledge-intelligence">
-              <Redirect to="/app/knowledge-base" />
-            </Route>
-            <Route path="/app/departments" component={DepartmentManagement} />
-            <Route path="/app/departments/canvas" component={DepartmentCanvas} />
-            <Route path="/app/agents/new" component={AgentEditor} />
-            <Route path="/app/agents/:id/edit" component={AgentEditor} />
-            <Route path="/app/agents" component={Agents} />
-            <Route path="/app/prompt-templates" component={PromptTemplates} />
-            <Route path="/app/incoming-connections" component={IncomingConnections} />
-            <Route path="/app/voices" component={Voices} />
-            <Route path="/app/phone-numbers" component={PhoneNumbers} />
-            <Route path="/app/flows/new" component={FlowBuilderPage} />
-            <Route path="/app/flows/execution" component={FlowExecutionLogsPage} />
-            <Route path="/app/flows/webhooks" component={WebhookConfigPage} />
-            <Route path="/app/flows/forms" component={FormsPage} />
-            <Route path="/app/flows/appointments" component={AppointmentsPage} />
-            <Route path="/app/flows/templates">
-              <Redirect to="/app/flows?tab=templates" />
-            </Route>
-            <Route path="/app/flows/:id" component={FlowBuilderPage} />
-            <Route path="/app/flows" component={FlowsPage} />
-            <Route path="/app/settings" component={Settings} />
-            <Route path="/admin" component={AdminDashboard} />
-            <Route component={NotFound} />
-          </Switch>
-        </div>
-      </main>
-    </div>
+    <TeamHybridNavigation>
+      <div className="w-full px-4 md:px-8 lg:px-12 py-4 md:py-6">
+        <Switch>
+          <Route path="/">
+            <Redirect to="/app" />
+          </Route>
+          <Route path="/app" component={Dashboard} />
+          <Route path="/app/dashboard" component={Dashboard} />
+          <Route path="/app/campaigns/new" component={CreateCampaign} />
+          <Route path="/app/campaigns/:id" component={CampaignDetail} />
+          <Route path="/app/campaigns" component={Campaigns} />
+          <Route path="/app/calls/:id" component={CallDetail} />
+          <Route path="/app/calls" component={Calls} />
+          <Route path="/app/contacts" component={AllContacts} />
+          <Route path="/app/analytics" component={Analytics} />
+          <Route path="/app/quality-assurance" component={QualityAssurance} />
+          <Route path="/app/crm" component={CRMPage} />
+          <Route path="/app/tools/widgets" component={WidgetsPage} />
+          <Route path="/app/billing" component={Billing} />
+          <Route path="/app/transaction-history">
+            <Redirect to="/app/billing?tab=credits" />
+          </Route>
+          <Route path="/app/knowledge-base" component={KnowledgeBase} />
+          <Route path="/app/knowledge-intelligence">
+            <Redirect to="/app/knowledge-base" />
+          </Route>
+          <Route path="/app/departments" component={DepartmentManagement} />
+          <Route path="/app/departments/canvas" component={DepartmentCanvas} />
+          <Route path="/app/agents/new" component={AgentEditor} />
+          <Route path="/app/agents/:id/edit" component={AgentEditor} />
+          <Route path="/app/agents" component={Agents} />
+          <Route path="/app/prompt-templates" component={PromptTemplates} />
+          <Route path="/app/incoming-connections" component={IncomingConnections} />
+          <Route path="/app/voices" component={Voices} />
+          <Route path="/app/phone-numbers" component={PhoneNumbers} />
+          <Route path="/app/flows/new" component={FlowBuilderPage} />
+          <Route path="/app/flows/execution" component={FlowExecutionLogsPage} />
+          <Route path="/app/flows/webhooks" component={WebhookConfigPage} />
+          <Route path="/app/flows/forms" component={FormsPage} />
+          <Route path="/app/flows/appointments" component={AppointmentsPage} />
+          <Route path="/app/flows/templates">
+            <Redirect to="/app/flows?tab=templates" />
+          </Route>
+          <Route path="/app/flows/:id" component={FlowBuilderPage} />
+          <Route path="/app/flows" component={FlowsPage} />
+          <Route path="/app/settings" component={Settings} />
+          <Route path="/admin" component={AdminDashboard} />
+          <Route component={NotFound} />
+        </Switch>
+      </div>
+    </TeamHybridNavigation>
   );
 }
 
 function AdminTeamMemberRouter() {
   return (
-    <div className="flex flex-col min-h-screen w-full">
-      <AdminTeamTopNavigation />
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
-          <Switch>
-            <Route path="/">
-              <Redirect to="/admin" />
-            </Route>
-            <Route path="/admin" component={AdminDashboard} />
-            <Route path="/admin/dashboard" component={AdminDashboard} />
-            <Route path="/admin/campaigns/:id" component={AdminCampaignDetail} />
-            <Route component={NotFound} />
-          </Switch>
-        </div>
-      </main>
-    </div>
+    <AdminTeamHybridNavigation>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
+        <Switch>
+          <Route path="/">
+            <Redirect to="/admin" />
+          </Route>
+          <Route path="/admin" component={AdminDashboard} />
+          <Route path="/admin/dashboard" component={AdminDashboard} />
+          <Route path="/admin/campaigns/:id" component={AdminCampaignDetail} />
+          <Route component={NotFound} />
+        </Switch>
+      </div>
+    </AdminTeamHybridNavigation>
   );
 }
 

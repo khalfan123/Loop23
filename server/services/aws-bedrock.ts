@@ -3,10 +3,6 @@ import {
   InvokeModelCommand,
   InvokeModelWithResponseStreamCommand,
 } from "@aws-sdk/client-bedrock-runtime";
-import { db } from "../db";
-import { awsCredentials } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
-import type { AwsCredential } from "@shared/schema";
 
 export interface BedrockMessage {
   role: "user" | "assistant";
@@ -46,98 +42,91 @@ export type BedrockModelAlias = keyof typeof BEDROCK_MODELS;
 
 export class AWSBedrockService {
   private client: BedrockRuntimeClient | null = null;
-  private credential: AwsCredential | null = null;
 
-  private async getClient(): Promise<BedrockRuntimeClient> {
-    if (this.client && this.credential) {
+  /**
+   * Check if AWS credentials are configured via environment variables
+   */
+  isConfigured(): boolean {
+    return !!(
+      process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY
+    );
+  }
+
+  private getClient(): BedrockRuntimeClient {
+    if (this.client) {
       return this.client;
     }
 
-    const [credential] = await db
-      .select()
-      .from(awsCredentials)
-      .where(
-        and(
-          eq(awsCredentials.isActive, true),
-          eq(awsCredentials.isPrimary, true)
-        )
-      )
-      .limit(1);
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+    const region = process.env.AWS_REGION || "us-east-1";
 
-    if (!credential) {
-      const [anyCredential] = await db
-        .select()
-        .from(awsCredentials)
-        .where(eq(awsCredentials.isActive, true))
-        .limit(1);
-
-      if (!anyCredential) {
-        throw new Error("No active AWS credentials found");
-      }
-      this.credential = anyCredential;
-    } else {
-      this.credential = credential;
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error("AWS credentials not configured. Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_REGION secrets.");
     }
 
     this.client = new BedrockRuntimeClient({
-      region: this.credential.region,
+      region,
       credentials: {
-        accessKeyId: this.credential.accessKeyId,
-        secretAccessKey: this.credential.secretAccessKey,
+        accessKeyId,
+        secretAccessKey,
       },
     });
 
     return this.client;
   }
 
-  async getCredentialById(credentialId: string): Promise<AwsCredential | null> {
-    const [credential] = await db
-      .select()
-      .from(awsCredentials)
-      .where(eq(awsCredentials.id, credentialId))
-      .limit(1);
+  /**
+   * Get a client for a specific region (uses same credentials)
+   */
+  getClientForRegion(region: string): BedrockRuntimeClient {
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
-    return credential || null;
-  }
-
-  async getClientForCredential(
-    credentialId: string
-  ): Promise<BedrockRuntimeClient> {
-    const credential = await this.getCredentialById(credentialId);
-    if (!credential) {
-      throw new Error(`AWS credential not found: ${credentialId}`);
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error("AWS credentials not configured");
     }
 
     return new BedrockRuntimeClient({
-      region: credential.region,
+      region,
       credentials: {
-        accessKeyId: credential.accessKeyId,
-        secretAccessKey: credential.secretAccessKey,
+        accessKeyId,
+        secretAccessKey,
       },
     });
   }
 
-  private resolveModelId(modelOrAlias: string): string {
-    if (modelOrAlias in BEDROCK_MODELS) {
-      return BEDROCK_MODELS[modelOrAlias as BedrockModelAlias];
-    }
-    return modelOrAlias;
+  /**
+   * List available Bedrock models
+   */
+  listModels(): { id: string; alias: string; provider: string; tier: string }[] {
+    return [
+      { id: BEDROCK_MODELS["claude-3-5-sonnet"], alias: "claude-3-5-sonnet", provider: "Anthropic", tier: "premium" },
+      { id: BEDROCK_MODELS["claude-3-haiku"], alias: "claude-3-haiku", provider: "Anthropic", tier: "standard" },
+      { id: BEDROCK_MODELS["claude-3-opus"], alias: "claude-3-opus", provider: "Anthropic", tier: "premium" },
+      { id: BEDROCK_MODELS["titan-text-express"], alias: "titan-text-express", provider: "Amazon", tier: "budget" },
+      { id: BEDROCK_MODELS["titan-text-lite"], alias: "titan-text-lite", provider: "Amazon", tier: "budget" },
+      { id: BEDROCK_MODELS["llama-3-8b"], alias: "llama-3-8b", provider: "Meta", tier: "budget" },
+      { id: BEDROCK_MODELS["llama-3-70b"], alias: "llama-3-70b", provider: "Meta", tier: "standard" },
+      { id: BEDROCK_MODELS["mistral-7b"], alias: "mistral-7b", provider: "Mistral AI", tier: "budget" },
+      { id: BEDROCK_MODELS["mixtral-8x7b"], alias: "mixtral-8x7b", provider: "Mistral AI", tier: "standard" },
+    ];
   }
 
-  async invoke(
-    options: BedrockInvokeOptions,
-    credentialId?: string
-  ): Promise<BedrockResponse> {
-    const client = credentialId
-      ? await this.getClientForCredential(credentialId)
-      : await this.getClient();
+  private resolveModelId(modelInput: string): string {
+    if (modelInput in BEDROCK_MODELS) {
+      return BEDROCK_MODELS[modelInput as BedrockModelAlias];
+    }
+    return modelInput;
+  }
 
-    const modelId = this.resolveModelId(
-      options.model || "anthropic.claude-3-5-sonnet-20241022-v2:0"
-    );
+  async invoke(options: BedrockInvokeOptions): Promise<BedrockResponse> {
+    const client = this.getClient();
+    const modelId = this.resolveModelId(options.model || "claude-3-5-sonnet");
 
-    if (modelId.startsWith("anthropic.claude")) {
-      return this.invokeClaudeModel(client, modelId, options);
+    if (modelId.startsWith("anthropic.")) {
+      return this.invokeAnthropicModel(client, modelId, options);
     } else if (modelId.startsWith("amazon.titan")) {
       return this.invokeTitanModel(client, modelId, options);
     } else if (modelId.startsWith("meta.llama")) {
@@ -145,11 +134,11 @@ export class AWSBedrockService {
     } else if (modelId.startsWith("mistral.")) {
       return this.invokeMistralModel(client, modelId, options);
     } else {
-      return this.invokeClaudeModel(client, modelId, options);
+      return this.invokeAnthropicModel(client, modelId, options);
     }
   }
 
-  private async invokeClaudeModel(
+  private async invokeAnthropicModel(
     client: BedrockRuntimeClient,
     modelId: string,
     options: BedrockInvokeOptions
@@ -181,7 +170,7 @@ export class AWSBedrockService {
       content: responseBody.content?.[0]?.text || "",
       inputTokens: responseBody.usage?.input_tokens || 0,
       outputTokens: responseBody.usage?.output_tokens || 0,
-      stopReason: responseBody.stop_reason || "end_turn",
+      stopReason: responseBody.stop_reason || "stop",
     };
   }
 
@@ -190,14 +179,11 @@ export class AWSBedrockService {
     modelId: string,
     options: BedrockInvokeOptions
   ): Promise<BedrockResponse> {
-    const inputText = options.messages
-      .map((m) => `${m.role}: ${m.content}`)
-      .join("\n");
+    const inputText = options.messages.map((m) => `${m.role}: ${m.content}`).join("\n");
 
     const payload = {
       inputText:
-        (options.systemPrompt ? `System: ${options.systemPrompt}\n` : "") +
-        inputText,
+        (options.systemPrompt ? `System: ${options.systemPrompt}\n\n` : "") + inputText,
       textGenerationConfig: {
         maxTokenCount: options.maxTokens || 4096,
         temperature: options.temperature ?? 0.7,
@@ -220,7 +206,7 @@ export class AWSBedrockService {
       content: responseBody.results?.[0]?.outputText || "",
       inputTokens: responseBody.inputTextTokenCount || 0,
       outputTokens: responseBody.results?.[0]?.tokenCount || 0,
-      stopReason: responseBody.results?.[0]?.completionReason || "FINISH",
+      stopReason: responseBody.results?.[0]?.completionReason || "stop",
     };
   }
 
@@ -233,7 +219,7 @@ export class AWSBedrockService {
 
     const payload = {
       prompt,
-      max_gen_len: options.maxTokens || 2048,
+      max_gen_len: options.maxTokens || 4096,
       temperature: options.temperature ?? 0.7,
       top_p: options.topP ?? 0.9,
     };
@@ -309,17 +295,9 @@ export class AWSBedrockService {
     return prompt;
   }
 
-  async *invokeStream(
-    options: BedrockInvokeOptions,
-    credentialId?: string
-  ): AsyncGenerator<string> {
-    const client = credentialId
-      ? await this.getClientForCredential(credentialId)
-      : await this.getClient();
-
-    const modelId = this.resolveModelId(
-      options.model || "anthropic.claude-3-5-sonnet-20241022-v2:0"
-    );
+  async *invokeStream(options: BedrockInvokeOptions): AsyncGenerator<string> {
+    const client = this.getClient();
+    const modelId = this.resolveModelId(options.model || "claude-3-5-sonnet");
 
     const payload = {
       anthropic_version: "bedrock-2023-05-31",
@@ -344,7 +322,7 @@ export class AWSBedrockService {
     const response = await client.send(command);
 
     if (!response.body) {
-      throw new Error("No response body from Bedrock stream");
+      throw new Error("No response body from Bedrock");
     }
 
     for await (const event of response.body) {
@@ -357,113 +335,21 @@ export class AWSBedrockService {
     }
   }
 
-  async testCredentials(
-    accessKeyId: string,
-    secretAccessKey: string,
-    region: string
-  ): Promise<boolean> {
+  /**
+   * Test AWS Bedrock credentials
+   */
+  async testCredentials(): Promise<{ success: boolean; message: string }> {
     try {
-      const testClient = new BedrockRuntimeClient({
-        region,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
+      const client = this.getClient();
+      const result = await this.invoke({
+        model: "claude-3-haiku",
+        messages: [{ role: "user", content: "Say 'Hello'" }],
+        maxTokens: 10,
       });
-
-      const payload = {
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 10,
-        messages: [{ role: "user", content: "Hi" }],
-      };
-
-      const command = new InvokeModelCommand({
-        modelId: "anthropic.claude-3-haiku-20240307-v1:0",
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify(payload),
-      });
-
-      await testClient.send(command);
-      console.log("✅ AWS Bedrock credentials validated successfully");
-      return true;
+      return { success: true, message: `Bedrock is working. Response: ${result.content}` };
     } catch (error: any) {
-      if (
-        error.name === "AccessDeniedException" &&
-        error.message?.includes("not authorized")
-      ) {
-        console.log(
-          "⚠️ AWS Bedrock credentials valid but model access may need to be enabled"
-        );
-        return true;
-      }
-      console.error("❌ AWS Bedrock credentials validation failed:", error);
-      return false;
+      return { success: false, message: error.message || "Failed to connect to Bedrock" };
     }
-  }
-
-  getAvailableModels(): Array<{
-    id: string;
-    alias: string;
-    provider: string;
-    tier: string;
-  }> {
-    return [
-      {
-        id: BEDROCK_MODELS["claude-3-5-sonnet"],
-        alias: "claude-3-5-sonnet",
-        provider: "Anthropic",
-        tier: "pro",
-      },
-      {
-        id: BEDROCK_MODELS["claude-3-haiku"],
-        alias: "claude-3-haiku",
-        provider: "Anthropic",
-        tier: "free",
-      },
-      {
-        id: BEDROCK_MODELS["claude-3-opus"],
-        alias: "claude-3-opus",
-        provider: "Anthropic",
-        tier: "pro",
-      },
-      {
-        id: BEDROCK_MODELS["titan-text-express"],
-        alias: "titan-text-express",
-        provider: "Amazon",
-        tier: "free",
-      },
-      {
-        id: BEDROCK_MODELS["titan-text-lite"],
-        alias: "titan-text-lite",
-        provider: "Amazon",
-        tier: "free",
-      },
-      {
-        id: BEDROCK_MODELS["llama-3-8b"],
-        alias: "llama-3-8b",
-        provider: "Meta",
-        tier: "free",
-      },
-      {
-        id: BEDROCK_MODELS["llama-3-70b"],
-        alias: "llama-3-70b",
-        provider: "Meta",
-        tier: "pro",
-      },
-      {
-        id: BEDROCK_MODELS["mistral-7b"],
-        alias: "mistral-7b",
-        provider: "Mistral",
-        tier: "free",
-      },
-      {
-        id: BEDROCK_MODELS["mixtral-8x7b"],
-        alias: "mixtral-8x7b",
-        provider: "Mistral",
-        tier: "pro",
-      },
-    ];
   }
 }
 

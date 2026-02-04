@@ -8,10 +8,6 @@ import {
   LanguageCode,
   TextType,
 } from "@aws-sdk/client-polly";
-import { db } from "../db";
-import { awsCredentials } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
-import type { AwsCredential } from "@shared/schema";
 import { Readable } from "stream";
 
 export interface PollyVoice {
@@ -41,83 +37,66 @@ export interface SynthesizeSpeechResult {
 
 export class AWSPollyService {
   private client: PollyClient | null = null;
-  private credential: AwsCredential | null = null;
 
-  private async getClient(): Promise<PollyClient> {
-    if (this.client && this.credential) {
+  /**
+   * Check if AWS credentials are configured via environment variables
+   */
+  isConfigured(): boolean {
+    return !!(
+      process.env.AWS_ACCESS_KEY_ID &&
+      process.env.AWS_SECRET_ACCESS_KEY
+    );
+  }
+
+  private getClient(): PollyClient {
+    if (this.client) {
       return this.client;
     }
 
-    const [credential] = await db
-      .select()
-      .from(awsCredentials)
-      .where(
-        and(
-          eq(awsCredentials.isActive, true),
-          eq(awsCredentials.isPrimary, true)
-        )
-      )
-      .limit(1);
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+    const region = process.env.AWS_REGION || "us-east-1";
 
-    if (!credential) {
-      const [anyCredential] = await db
-        .select()
-        .from(awsCredentials)
-        .where(eq(awsCredentials.isActive, true))
-        .limit(1);
-
-      if (!anyCredential) {
-        throw new Error("No active AWS credentials found");
-      }
-      this.credential = anyCredential;
-    } else {
-      this.credential = credential;
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error("AWS credentials not configured. Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_REGION secrets.");
     }
 
     this.client = new PollyClient({
-      region: this.credential.region,
+      region,
       credentials: {
-        accessKeyId: this.credential.accessKeyId,
-        secretAccessKey: this.credential.secretAccessKey,
+        accessKeyId,
+        secretAccessKey,
       },
     });
 
     return this.client;
   }
 
-  async getCredentialById(credentialId: string): Promise<AwsCredential | null> {
-    const [credential] = await db
-      .select()
-      .from(awsCredentials)
-      .where(eq(awsCredentials.id, credentialId))
-      .limit(1);
+  /**
+   * Get a client for a specific region (uses same credentials)
+   */
+  getClientForRegion(region: string): PollyClient {
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
-    return credential || null;
-  }
-
-  async getClientForCredential(credentialId: string): Promise<PollyClient> {
-    const credential = await this.getCredentialById(credentialId);
-    if (!credential) {
-      throw new Error(`AWS credential not found: ${credentialId}`);
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error("AWS credentials not configured");
     }
 
     return new PollyClient({
-      region: credential.region,
+      region,
       credentials: {
-        accessKeyId: credential.accessKeyId,
-        secretAccessKey: credential.secretAccessKey,
+        accessKeyId,
+        secretAccessKey,
       },
     });
   }
 
   async listVoices(
     languageCode?: string,
-    engine?: string,
-    credentialId?: string
+    engine?: string
   ): Promise<PollyVoice[]> {
-    const client = credentialId
-      ? await this.getClientForCredential(credentialId)
-      : await this.getClient();
+    const client = this.getClient();
 
     const command = new DescribeVoicesCommand({
       LanguageCode: languageCode as LanguageCode | undefined,
@@ -137,12 +116,9 @@ export class AWSPollyService {
   }
 
   async synthesizeSpeech(
-    options: SynthesizeSpeechOptions,
-    credentialId?: string
+    options: SynthesizeSpeechOptions
   ): Promise<SynthesizeSpeechResult> {
-    const client = credentialId
-      ? await this.getClientForCredential(credentialId)
-      : await this.getClient();
+    const client = this.getClient();
 
     const outputFormatMap: Record<string, OutputFormat> = {
       mp3: "mp3",
@@ -176,12 +152,9 @@ export class AWSPollyService {
   }
 
   async synthesizeSpeechStream(
-    options: SynthesizeSpeechOptions,
-    credentialId?: string
+    options: SynthesizeSpeechOptions
   ): Promise<{ stream: Readable; contentType: string }> {
-    const client = credentialId
-      ? await this.getClientForCredential(credentialId)
-      : await this.getClient();
+    const client = this.getClient();
 
     const outputFormatMap: Record<string, OutputFormat> = {
       mp3: "mp3",
@@ -211,69 +184,72 @@ export class AWSPollyService {
     };
   }
 
-  async testCredentials(
-    accessKeyId: string,
-    secretAccessKey: string,
-    region: string
-  ): Promise<boolean> {
-    try {
-      const testClient = new PollyClient({
-        region,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
-      });
-
-      const command = new DescribeVoicesCommand({
-        Engine: "neural",
-      });
-
-      await testClient.send(command);
-      console.log("✅ AWS Polly credentials validated successfully");
-      return true;
-    } catch (error) {
-      console.error("❌ AWS Polly credentials validation failed:", error);
-      return false;
-    }
-  }
-
   private async streamToBuffer(stream: Readable): Promise<Buffer> {
-    const chunks: Uint8Array[] = [];
+    const chunks: Buffer[] = [];
     for await (const chunk of stream) {
-      chunks.push(chunk);
+      chunks.push(Buffer.from(chunk));
     }
     return Buffer.concat(chunks);
   }
 
-  async getAvailableLanguages(credentialId?: string): Promise<
-    Array<{
-      code: string;
-      name: string;
-      voiceCount: number;
-    }>
-  > {
-    const voices = await this.listVoices(undefined, undefined, credentialId);
-
-    const languageMap = new Map<string, { name: string; count: number }>();
-
-    for (const voice of voices) {
-      const existing = languageMap.get(voice.languageCode);
-      if (existing) {
-        existing.count++;
-      } else {
-        languageMap.set(voice.languageCode, {
-          name: voice.languageName,
-          count: 1,
-        });
-      }
+  /**
+   * Test AWS credentials by attempting to list voices
+   */
+  async testCredentials(): Promise<{ success: boolean; message: string }> {
+    try {
+      const client = this.getClient();
+      const command = new DescribeVoicesCommand({ MaxResults: 1 });
+      await client.send(command);
+      return { success: true, message: "AWS credentials are valid" };
+    } catch (error: any) {
+      return { success: false, message: error.message || "Invalid AWS credentials" };
     }
+  }
 
-    return Array.from(languageMap.entries()).map(([code, data]) => ({
-      code,
-      name: data.name,
-      voiceCount: data.count,
-    }));
+  /**
+   * Get supported languages with their codes
+   */
+  getSupportedLanguages(): { code: string; name: string }[] {
+    return [
+      { code: "arb", name: "Arabic" },
+      { code: "ca-ES", name: "Catalan" },
+      { code: "cs-CZ", name: "Czech" },
+      { code: "cy-GB", name: "Welsh" },
+      { code: "da-DK", name: "Danish" },
+      { code: "de-AT", name: "German (Austrian)" },
+      { code: "de-DE", name: "German" },
+      { code: "en-AU", name: "English (Australian)" },
+      { code: "en-GB", name: "English (British)" },
+      { code: "en-GB-WLS", name: "English (Welsh)" },
+      { code: "en-IN", name: "English (Indian)" },
+      { code: "en-NZ", name: "English (New Zealand)" },
+      { code: "en-US", name: "English (US)" },
+      { code: "en-ZA", name: "English (South African)" },
+      { code: "es-ES", name: "Spanish (European)" },
+      { code: "es-MX", name: "Spanish (Mexican)" },
+      { code: "es-US", name: "Spanish (US)" },
+      { code: "fi-FI", name: "Finnish" },
+      { code: "fr-BE", name: "French (Belgian)" },
+      { code: "fr-CA", name: "French (Canadian)" },
+      { code: "fr-FR", name: "French" },
+      { code: "hi-IN", name: "Hindi" },
+      { code: "is-IS", name: "Icelandic" },
+      { code: "it-IT", name: "Italian" },
+      { code: "ja-JP", name: "Japanese" },
+      { code: "ko-KR", name: "Korean" },
+      { code: "nb-NO", name: "Norwegian" },
+      { code: "nl-BE", name: "Dutch (Belgian)" },
+      { code: "nl-NL", name: "Dutch" },
+      { code: "pl-PL", name: "Polish" },
+      { code: "pt-BR", name: "Portuguese (Brazilian)" },
+      { code: "pt-PT", name: "Portuguese (European)" },
+      { code: "ro-RO", name: "Romanian" },
+      { code: "ru-RU", name: "Russian" },
+      { code: "sv-SE", name: "Swedish" },
+      { code: "tr-TR", name: "Turkish" },
+      { code: "yue-CN", name: "Chinese (Cantonese)" },
+      { code: "cmn-CN", name: "Chinese (Mandarin)" },
+    ];
   }
 }
 

@@ -441,7 +441,7 @@ export function HybridNavigation({
               data-testid="link-logo"
             >
               {currentLogo ? (
-                <img src={currentLogo} alt={branding.app_name} className="h-10 w-auto max-w-[200px] object-contain" />
+                <img src={currentLogo} alt={branding.app_name} className="h-16 w-auto max-w-[320px] object-contain" />
               ) : (
                 <>
                   <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-sm">

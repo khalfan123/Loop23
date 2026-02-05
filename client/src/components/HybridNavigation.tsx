@@ -487,7 +487,7 @@ export function HybridNavigation({
               data-testid="link-logo"
             >
               {currentLogo ? (
-                <img src={currentLogo} alt={branding.app_name} className="h-7 w-auto object-contain" />
+                <img src={currentLogo} alt={branding.app_name} className="h-8 w-auto object-contain" />
               ) : (
                 <span className="font-semibold text-base tracking-tight">{branding.app_name}</span>
               )}

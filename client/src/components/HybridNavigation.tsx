@@ -1,18 +1,15 @@
 /**
- * Hybrid Navigation System
- * Microsoft 365 / Google Workspace inspired layout:
- * - Slim top bar (48px) with logo, search, notifications, user menu
- * - Collapsible side rail (56px collapsed, 240px expanded) for navigation
+ * Hybrid Navigation System - iOS 18 Minimal Design
+ * Clean, minimal sidebar with pill-shaped selections
  */
 import { useState, useEffect, createContext, useContext } from "react";
 import { 
-  Settings, LogOut, Coins, Menu, ChevronDown, Zap, 
+  Settings, LogOut, Coins, Menu, ChevronDown,
   ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +27,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from 'react-i18next';
@@ -41,7 +37,6 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { NotificationBell } from "@/components/NotificationBell";
 import { HeaderBannerNotifications } from "@/components/HeaderBannerNotifications";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface User {
   id: string;
@@ -62,7 +57,6 @@ interface NavSection {
   items: NavItem[];
 }
 
-// Sidebar context for managing expanded/collapsed state
 interface SidebarContextType {
   isExpanded: boolean;
   setIsExpanded: (expanded: boolean) => void;
@@ -92,7 +86,6 @@ export function HybridNavigation({
   const { branding, currentLogo } = useBranding();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Sidebar state with localStorage persistence
   const [isExpanded, setIsExpanded] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebar-expanded');
@@ -100,12 +93,11 @@ export function HybridNavigation({
     }
     return true;
   });
-  // Persist sidebar state
+
   useEffect(() => {
     localStorage.setItem('sidebar-expanded', String(isExpanded));
   }, [isExpanded]);
 
-  // Navigation items - Top level (no section header)
   const topItems: NavItem[] = [
     { title: t('nav.apps', 'Apps'), url: variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app" },
     { title: t('nav.analytics'), url: "/app/analytics" },
@@ -113,13 +105,11 @@ export function HybridNavigation({
     { title: t('nav.logs', 'Logs'), url: "/app/calls" },
   ];
   
-  // Return to main app link for admin variants
   const returnToAppItem: NavItem = { 
     title: t('nav.returnToApp') || 'Return to App', 
     url: "/app"
   };
 
-  // Setup section items
   const setupItems: NavItem[] = [
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
     { title: t('nav.inboundCalls', 'Inbound Calls'), url: "/app/incoming-connections" },
@@ -128,7 +118,6 @@ export function HybridNavigation({
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
   ];
 
-  // Manage section items
   const manageItems: NavItem[] = [
     { title: t('nav.appointments'), url: "/app/flows/appointments" },
     { title: t('nav.forms'), url: "/app/flows/forms" },
@@ -183,9 +172,7 @@ export function HybridNavigation({
     return location === url || location.startsWith(url + '/');
   };
 
-  // Sidebar only expands when user clicks toggle (no hover behavior)
-
-  // Sidebar navigation item component
+  // iOS 18 style nav item
   const NavItemComponent = ({ item, showLabel }: { item: NavItem; showLabel: boolean }) => {
     const active = isActive(item.url);
     
@@ -194,22 +181,36 @@ export function HybridNavigation({
         href={item.url}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200",
+          "flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all duration-200 text-[15px]",
           active 
-            ? "bg-primary/10 text-primary font-medium" 
-            : "text-foreground/70 hover:bg-accent hover:text-foreground"
+            ? "bg-foreground/[0.08] text-foreground font-semibold" 
+            : "text-foreground/60 hover:text-foreground hover:bg-foreground/[0.04]"
         )}
         data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <span className="truncate text-sm">{item.title}</span>
+        <span className="truncate">{item.title}</span>
       </Link>
     );
 
     if (!showLabel) {
       return (
         <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>{content}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
+          <TooltipTrigger asChild>
+            <Link
+              href={item.url}
+              onClick={() => setMobileMenuOpen(false)}
+              className={cn(
+                "flex items-center justify-center h-10 w-10 rounded-2xl transition-all duration-200",
+                active 
+                  ? "bg-foreground/[0.08] text-foreground" 
+                  : "text-foreground/60 hover:text-foreground hover:bg-foreground/[0.04]"
+              )}
+              data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              <span className="text-sm font-semibold">{item.title.charAt(0)}</span>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-medium rounded-xl">
             {item.title}
           </TooltipContent>
         </Tooltip>
@@ -219,28 +220,29 @@ export function HybridNavigation({
     return content;
   };
 
-  // Desktop Sidebar
+  // Desktop Sidebar - iOS 18 Style
   const DesktopSidebar = () => (
     <aside
       className={cn(
-        "hidden lg:flex flex-col h-full border-r bg-background transition-all duration-300 ease-in-out",
-        isExpanded ? "w-60" : "w-14"
+        "hidden lg:flex flex-col h-full bg-background/80 backdrop-blur-xl border-r border-border/40 transition-all duration-300 ease-out",
+        isExpanded ? "w-64" : "w-16"
       )}
     >
       {/* Sidebar Header */}
       <div className={cn(
-        "flex items-center h-12 px-3 border-b",
+        "flex items-center h-14 px-3",
         isExpanded ? "justify-between" : "justify-center"
       )}>
-        {isExpanded && (
-          <span className="font-semibold text-sm truncate">
-            {t('sidebar.navigation') || 'Navigation'}
-          </span>
+        {isExpanded && currentLogo && (
+          <img src={currentLogo} alt={branding.app_name} className="h-7 w-auto object-contain" />
+        )}
+        {isExpanded && !currentLogo && (
+          <span className="font-semibold text-[15px] text-foreground/80">{branding.app_name}</span>
         )}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0"
+          className="h-9 w-9 rounded-xl text-foreground/50 hover:text-foreground hover:bg-foreground/[0.06]"
           onClick={() => setIsExpanded(!isExpanded)}
           data-testid="button-sidebar-toggle"
         >
@@ -253,155 +255,219 @@ export function HybridNavigation({
       </div>
 
       {/* Navigation Content */}
-      <ScrollArea className="flex-1 py-2">
-        <nav className="px-2 space-y-1">
-          {/* Home */}
+      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        {/* Top Items */}
+        {topItems.map((item) => (
+          <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
+        ))}
+
+        {/* Return to App */}
+        {(variant === 'admin' || variant === 'admin-team') && (
+          <div className="pt-2">
+            <NavItemComponent item={returnToAppItem} showLabel={isExpanded} />
+          </div>
+        )}
+
+        {/* Nav Sections */}
+        {navSections.map((section, idx) => (
+          <div key={section.label || idx} className="pt-6">
+            {isExpanded && section.label && (
+              <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+                {section.label}
+              </div>
+            )}
+            {!isExpanded && section.label && (
+              <div className="h-px bg-border/50 mx-2 mb-3" />
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Admin Link */}
+        {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
+          <div className="pt-6">
+            {isExpanded && (
+              <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+                {t('nav.administration')}
+              </div>
+            )}
+            {!isExpanded && <div className="h-px bg-border/50 mx-2 mb-3" />}
+            <NavItemComponent 
+              item={{ title: t('nav.adminDashboard'), url: "/admin" }} 
+              showLabel={isExpanded} 
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Credits Card - iOS style */}
+      <div className={cn("p-3", !isExpanded && "flex justify-center")}>
+        {isExpanded ? (
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.06] border border-border/30">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <Coins className="h-4 w-4 text-amber-500" />
+                </div>
+                <span className="text-[13px] font-medium text-foreground/60">{t('sidebar.credits')}</span>
+              </div>
+              {isPaidPlan && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-primary/10 text-primary">
+                  {planDisplayName}
+                </span>
+              )}
+            </div>
+            <div className="text-2xl font-bold tracking-tight text-foreground">
+              {remainingCredits.toLocaleString()}
+            </div>
+          </div>
+        ) : (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center cursor-default">
+                <Coins className="h-4 w-4 text-amber-500" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="rounded-xl">
+              <div className="font-semibold">{remainingCredits.toLocaleString()} {t('sidebar.credits')}</div>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+
+      {/* User Footer */}
+      <div className="p-3 border-t border-border/30">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className={cn(
+                "flex items-center gap-3 w-full p-2 rounded-2xl transition-colors",
+                "hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                !isExpanded && "justify-center p-2"
+              )}
+              data-testid="button-user-menu-sidebar"
+            >
+              <Avatar className="h-9 w-9 ring-2 ring-background">
+                <AvatarFallback className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground text-sm font-semibold">
+                  {userInitial}
+                </AvatarFallback>
+              </Avatar>
+              {isExpanded && (
+                <>
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="text-[14px] font-semibold text-foreground truncate">{userName}</div>
+                    <div className="text-[12px] text-foreground/50 truncate">{userEmail}</div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-foreground/30" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top" className="w-64 rounded-2xl p-1.5">
+            <div className="px-3 py-3">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-11 w-11 ring-2 ring-background">
+                  <AvatarFallback className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground text-base font-semibold">
+                    {userInitial}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[15px] font-semibold truncate">{userName}</div>
+                  <div className="text-[13px] text-muted-foreground truncate">{userEmail}</div>
+                </div>
+              </div>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => setLocation("/app/settings")} 
+              className="rounded-xl py-2.5 px-3 cursor-pointer"
+              data-testid="link-account-settings"
+            >
+              <Settings className="mr-2.5 h-4 w-4 text-foreground/50" />
+              <span className="text-[14px]">{t('nav.settings', 'Settings')}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={handleLogout}
+              className="rounded-xl py-2.5 px-3 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+              data-testid="button-logout"
+            >
+              <LogOut className="mr-2.5 h-4 w-4" />
+              <span className="text-[14px]">{t('auth.logout')}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </aside>
+  );
+
+  // Mobile Sidebar - iOS 18 Style
+  const MobileSidebar = () => (
+    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+      <SheetContent side="left" className="w-80 p-0 border-r-0">
+        <SheetHeader className="p-5 pb-4">
+          <SheetTitle className="flex items-center gap-3 text-left">
+            {currentLogo ? (
+              <img src={currentLogo} alt={branding.app_name} className="h-8 w-auto" />
+            ) : (
+              <span className="font-semibold text-lg">{branding.app_name}</span>
+            )}
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-1">
           {topItems.map((item) => (
-            <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
+            <NavItemComponent key={item.url} item={item} showLabel={true} />
           ))}
 
-          {/* Return to App - for admin variants */}
-          {(variant === 'admin' || variant === 'admin-team') && (
-            <div className="mt-2">
-              <NavItemComponent 
-                item={returnToAppItem} 
-                showLabel={isExpanded} 
-              />
-            </div>
-          )}
-
-          {/* Nav Sections */}
-          {navSections.map((section) => (
-            <div key={section.label} className="mt-4">
-              {isExpanded && (
-                <div className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {navSections.map((section, idx) => (
+            <div key={section.label || idx} className="pt-6">
+              {section.label && (
+                <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
                   {section.label}
                 </div>
               )}
-              {!isExpanded && <div className="h-px bg-border mx-2 my-2" />}
               <div className="space-y-0.5">
                 {section.items.map((item) => (
-                  <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
+                  <NavItemComponent key={item.url} item={item} showLabel={true} />
                 ))}
               </div>
             </div>
           ))}
 
-          {/* Admin Link */}
           {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-            <div className="mt-4">
-              {isExpanded && (
-                <div className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  {t('nav.administration')}
-                </div>
-              )}
-              {!isExpanded && <div className="h-px bg-border mx-2 my-2" />}
+            <div className="pt-6">
+              <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+                {t('nav.administration')}
+              </div>
               <NavItemComponent 
                 item={{ title: t('nav.adminDashboard'), url: "/admin" }} 
-                showLabel={isExpanded} 
+                showLabel={true} 
               />
             </div>
           )}
-        </nav>
-      </ScrollArea>
+        </div>
 
-      {/* Credits Display (info only) */}
-      <div className={cn("p-2 border-t", !isExpanded && "flex justify-center")}>
-        {isExpanded ? (
-          <div className="p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Coins className="h-4 w-4 text-amber-500" />
-                <span className="text-xs font-medium text-muted-foreground">{t('sidebar.credits')}</span>
-              </div>
-              {isPaidPlan && (
-                <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
-                  {planDisplayName}
-                </span>
-              )}
-            </div>
-            <div className="mt-1 text-lg font-bold">{remainingCredits.toLocaleString()}</div>
-          </div>
-        ) : (
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <div className="h-10 w-10 flex items-center justify-center">
-                <Coins className="h-5 w-5 text-amber-500" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <div className="font-medium">{remainingCredits.toLocaleString()} {t('sidebar.credits')}</div>
-            </TooltipContent>
-          </Tooltip>
-        )}
-      </div>
-    </aside>
-  );
-
-  // Mobile Sidebar Sheet
-  const MobileSidebar = () => (
-    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-      <SheetContent side="left" className="w-72 p-0">
-        <SheetHeader className="p-4 border-b">
-          <SheetTitle className="flex items-center gap-2">
-            {currentLogo ? (
-              <img src={currentLogo} alt={branding.app_name} className="h-8 w-auto" />
-            ) : (
-              <>
-                <Zap className="h-6 w-6 text-primary" />
-                <span>{branding.app_name}</span>
-              </>
-            )}
-          </SheetTitle>
-        </SheetHeader>
-
-        <ScrollArea className="flex-1 h-[calc(100vh-180px)]">
-          <nav className="p-2 space-y-1">
-            {topItems.map((item) => (
-              <NavItemComponent key={item.url} item={item} showLabel={true} />
-            ))}
-
-            {navSections.map((section) => (
-              <div key={section.label} className="mt-4">
-                <div className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  {section.label}
-                </div>
-                <div className="space-y-0.5">
-                  {section.items.map((item) => (
-                    <NavItemComponent key={item.url} item={item} showLabel={true} />
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-              <div className="mt-4">
-                <div className="px-3 py-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  {t('nav.administration')}
-                </div>
-                <NavItemComponent 
-                  item={{ title: t('nav.adminDashboard'), url: "/admin" }} 
-                  showLabel={true} 
-                />
-              </div>
-            )}
-          </nav>
-        </ScrollArea>
-
-        {/* Mobile Credits & Actions */}
-        <div className="p-3 border-t space-y-2">
-          <div className="p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
+        {/* Mobile Footer */}
+        <div className="p-4 border-t border-border/30 space-y-3">
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.06] border border-border/30">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Coins className="h-4 w-4 text-amber-500" />
-                <span className="text-sm font-medium">{t('sidebar.credits')}</span>
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <Coins className="h-4 w-4 text-amber-500" />
+                </div>
+                <span className="text-[13px] font-medium text-foreground/60">{t('sidebar.credits')}</span>
               </div>
-              <span className="text-lg font-bold">{remainingCredits.toLocaleString()}</span>
+              <span className="text-xl font-bold">{remainingCredits.toLocaleString()}</span>
             </div>
           </div>
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 text-destructive"
+            className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-2xl py-2.5"
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4" />
@@ -414,41 +480,36 @@ export function HybridNavigation({
 
   return (
     <SidebarContext.Provider value={{ isExpanded, setIsExpanded }}>
-      <div className="flex h-screen w-full overflow-hidden">
+      <div className="flex h-screen w-full overflow-hidden bg-background">
         {/* Desktop Sidebar */}
         <DesktopSidebar />
         <MobileSidebar />
 
         {/* Main Content Area */}
         <div className="flex flex-col flex-1 min-w-0">
-          {/* Top Bar */}
-          <header className="sticky top-0 z-40 flex h-12 items-center gap-4 border-b bg-background px-4">
+          {/* Top Bar - iOS style */}
+          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4">
             {/* Mobile Menu Button */}
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden h-9 w-9"
+              className="lg:hidden h-9 w-9 rounded-xl"
               onClick={() => setMobileMenuOpen(true)}
               data-testid="button-mobile-menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Logo - Large and prominent */}
+            {/* Logo */}
             <Link 
               href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-              className="flex items-center gap-3 shrink-0"
+              className="flex items-center gap-3 shrink-0 lg:hidden"
               data-testid="link-logo"
             >
               {currentLogo ? (
-                <img src={currentLogo} alt={branding.app_name} className="h-16 w-auto max-w-[320px] object-contain" />
+                <img src={currentLogo} alt={branding.app_name} className="h-8 w-auto object-contain" />
               ) : (
-                <>
-                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-sm">
-                    <Zap className="h-6 w-6 text-primary-foreground" />
-                  </div>
-                  <span className="hidden sm:inline font-bold text-xl tracking-tight">{branding.app_name}</span>
-                </>
+                <span className="font-semibold text-lg">{branding.app_name}</span>
               )}
             </Link>
 
@@ -456,7 +517,7 @@ export function HybridNavigation({
             <div className="flex-1" />
 
             {/* Right side utilities */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {showNotifications && (
                 <>
                   <HeaderBannerNotifications />
@@ -466,8 +527,8 @@ export function HybridNavigation({
               <LanguageSelector variant="compact" />
               <ThemeToggle />
 
-              {/* Credits - Desktop only (display only) */}
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-muted/30">
+              {/* Credits - Desktop only */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-foreground/[0.04]">
                 <Coins className="h-4 w-4 text-amber-500" />
                 <span className="text-sm font-semibold">{remainingCredits.toLocaleString()}</span>
               </div>
@@ -475,43 +536,45 @@ export function HybridNavigation({
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-9 px-2 gap-2" data-testid="button-user-menu">
+                  <Button variant="ghost" className="h-9 px-2 gap-2 rounded-xl" data-testid="button-user-menu">
                     <Avatar className="h-7 w-7">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                      <AvatarFallback className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground text-xs font-semibold">
                         {userInitial}
                       </AvatarFallback>
                     </Avatar>
-                    <ChevronDown className="h-3 w-3 opacity-60 hidden sm:block" />
+                    <ChevronDown className="h-3 w-3 opacity-50 hidden sm:block" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 p-0">
+                <DropdownMenuContent align="end" className="w-72 rounded-2xl p-1.5">
                   {/* User Info */}
-                  <div className="p-4 border-b bg-muted/30">
+                  <div className="p-4 border-b border-border/30">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary text-primary-foreground font-medium">
+                      <Avatar className="h-11 w-11 ring-2 ring-background">
+                        <AvatarFallback className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground font-semibold">
                           {userInitial}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{userName}</p>
+                        <p className="font-semibold truncate">{userName}</p>
                         <p className="text-sm text-muted-foreground truncate">{userEmail}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Credits (display only) */}
-                  <div className="p-3 border-b">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
-                      <div className="flex items-center gap-2">
-                        <Coins className="h-5 w-5 text-amber-500" />
+                  {/* Credits */}
+                  <div className="p-3 border-b border-border/30">
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.06]">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                          <Coins className="h-4 w-4 text-amber-500" />
+                        </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">{t('sidebar.credits')}</p>
+                          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">{t('sidebar.credits')}</p>
                           <p className="text-lg font-bold">{remainingCredits.toLocaleString()}</p>
                         </div>
                       </div>
                       {isPaidPlan && (
-                        <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-primary/10 text-primary">
                           {planDisplayName}
                         </span>
                       )}
@@ -519,8 +582,8 @@ export function HybridNavigation({
                   </div>
 
                   <div className="p-1">
-                    <DropdownMenuItem onClick={() => setLocation("/app/settings")} className="cursor-pointer p-2.5">
-                      <Settings className="mr-3 h-4 w-4" />
+                    <DropdownMenuItem onClick={() => setLocation("/app/settings")} className="rounded-xl cursor-pointer py-2.5 px-3">
+                      <Settings className="mr-3 h-4 w-4 text-foreground/50" />
                       {t('nav.settings', 'Settings')}
                     </DropdownMenuItem>
                   </div>
@@ -528,7 +591,7 @@ export function HybridNavigation({
                   <DropdownMenuSeparator />
 
                   <div className="p-1">
-                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer p-2.5 text-destructive focus:text-destructive">
+                    <DropdownMenuItem onClick={handleLogout} className="rounded-xl cursor-pointer py-2.5 px-3 text-destructive focus:text-destructive focus:bg-destructive/10">
                       <LogOut className="mr-3 h-4 w-4" />
                       {t('auth.logout')}
                     </DropdownMenuItem>
@@ -539,7 +602,7 @@ export function HybridNavigation({
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-auto bg-muted/30">
+          <main className="flex-1 overflow-auto">
             {children}
           </main>
         </div>

@@ -220,11 +220,11 @@ export function HybridNavigation({
     return content;
   };
 
-  // Desktop Sidebar - iOS 18 Minimal Style
+  // Desktop Sidebar - iOS 18 Minimal Style with soft gray
   const DesktopSidebar = () => (
     <aside
       className={cn(
-        "hidden lg:flex flex-col h-full bg-background/95 backdrop-blur-2xl border-r border-border/20 transition-all duration-300 ease-out",
+        "hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] transition-all duration-300 ease-out",
         isExpanded ? "w-60" : "w-14"
       )}
     >
@@ -467,8 +467,8 @@ export function HybridNavigation({
 
         {/* Main Content Area */}
         <div className="flex flex-col flex-1 min-w-0">
-          {/* Top Bar - iOS 18 Minimal Style */}
-          <header className="sticky top-0 z-40 flex h-12 items-center gap-3 border-b border-border/20 bg-background/95 backdrop-blur-2xl px-4">
+          {/* Top Bar - iOS 18 Minimal Style with soft gray */}
+          <header className="sticky top-0 z-40 flex h-12 items-center gap-3 border-b border-black/[0.06] dark:border-white/[0.08] bg-zinc-50/90 dark:bg-zinc-900/90 backdrop-blur-xl px-4">
             {/* Mobile Menu Button */}
             <Button
               variant="ghost"
@@ -507,10 +507,10 @@ export function HybridNavigation({
               <LanguageSelector variant="compact" />
               <ThemeToggle />
 
-              {/* Credits Pill - Desktop only */}
-              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+              {/* Credits Pill - Desktop only - iOS 18 style */}
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/[0.06] dark:border-white/[0.08] shadow-sm">
                 <Coins className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-sm font-medium tabular-nums">{remainingCredits.toLocaleString()}</span>
+                <span className="text-sm font-medium tabular-nums text-zinc-700 dark:text-zinc-300">{remainingCredits.toLocaleString()}</span>
               </div>
 
               {/* User Menu - iOS 18 Style */}

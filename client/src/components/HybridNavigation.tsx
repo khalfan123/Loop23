@@ -229,27 +229,35 @@ export function HybridNavigation({
       )}
     >
       {/* Sidebar Header - Logo */}
-      <div className="flex-shrink-0 h-14 flex items-center border-b border-black/[0.06] dark:border-white/[0.08] bg-white/60 dark:bg-zinc-800/60 px-3">
+      <div className={cn(
+        "flex-shrink-0 flex items-center border-b border-black/[0.06] dark:border-white/[0.08]",
+        isExpanded ? "h-16 px-4" : "h-14 justify-center"
+      )}>
         <Link 
           href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
           className={cn(
-            "flex items-center gap-3 rounded-xl transition-colors w-full",
-            isExpanded ? "px-2 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "justify-center"
+            "flex items-center gap-3 rounded-2xl transition-all duration-200",
+            isExpanded 
+              ? "px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/30 w-full" 
+              : "p-2 hover:bg-blue-50 dark:hover:bg-blue-950/30"
           )}
           data-testid="link-logo-sidebar"
         >
           {currentLogo ? (
-            <img src={currentLogo} alt={branding.app_name} className={cn("object-contain", isExpanded ? "h-8" : "h-7")} />
+            <img src={currentLogo} alt={branding.app_name} className={cn("object-contain", isExpanded ? "h-9" : "h-8")} />
           ) : (
             <>
               <div className={cn(
-                "rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0",
-                isExpanded ? "h-8 w-8" : "h-9 w-9"
+                "rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25 flex-shrink-0",
+                isExpanded ? "h-10 w-10" : "h-10 w-10"
               )}>
-                <span className={cn("text-white font-bold", isExpanded ? "text-base" : "text-lg")}>{branding.app_name?.charAt(0) || 'A'}</span>
+                <span className="text-white font-bold text-xl">{branding.app_name?.charAt(0) || 'A'}</span>
               </div>
               {isExpanded && (
-                <span className="font-semibold text-base text-zinc-900 dark:text-zinc-100 tracking-tight truncate">{branding.app_name}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-bold text-lg text-zinc-900 dark:text-white tracking-tight truncate leading-tight">{branding.app_name}</span>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">AI Platform</span>
+                </div>
               )}
             </>
           )}

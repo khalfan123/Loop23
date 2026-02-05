@@ -41,13 +41,15 @@ export function ThreeColumnLayout({
       {subPanel && (
         <aside
           className={cn(
-            "hidden lg:flex flex-col flex-shrink-0 border-r border-border/40 bg-muted/20",
+            "hidden lg:flex flex-col flex-shrink-0 border-r border-border/40 bg-background",
             subPanelWidthClass[subPanelWidth]
           )}
         >
           {subPanelHeader && (
-            <div className="px-4 py-3 border-b border-border/40">
-              {subPanelHeader}
+            <div className="px-4 py-4 border-b border-border/40">
+              <div className="text-base font-semibold text-foreground">
+                {subPanelHeader}
+              </div>
             </div>
           )}
           <div className="flex-1 overflow-auto p-3">
@@ -56,8 +58,8 @@ export function ThreeColumnLayout({
         </aside>
       )}
       
-      {/* Main Content Area */}
-      <div className="flex-1 min-w-0 overflow-auto bg-background">
+      {/* Main Content Area - Light gray background */}
+      <div className="flex-1 min-w-0 overflow-auto bg-muted/30 dark:bg-muted/10">
         {children}
       </div>
     </div>

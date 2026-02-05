@@ -220,25 +220,16 @@ export function HybridNavigation({
     return content;
   };
 
-  // Desktop Sidebar - iOS 18 Minimal Style with soft gray
+  // Desktop Sidebar - iOS 18 Minimal Style with soft gray (always expanded)
   const DesktopSidebar = () => (
     <aside
-      className={cn(
-        "hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] transition-all duration-300 ease-out",
-        isExpanded ? "w-64" : "w-36"
-      )}
+      className="hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] w-64"
     >
       {/* Sidebar Header - Logo */}
-      <div className={cn(
-        "flex-shrink-0 flex items-center justify-center border-b border-black/[0.06] dark:border-white/[0.08]",
-        isExpanded ? "h-40 px-4" : "h-40"
-      )}>
+      <div className="flex-shrink-0 flex items-center justify-center h-40 px-4">
         <Link 
           href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-          className={cn(
-            "flex flex-col items-center rounded-2xl transition-all duration-200 py-4",
-            "hover:bg-blue-50 dark:hover:bg-blue-950/30"
-          )}
+          className="flex flex-col items-center rounded-2xl transition-all duration-200 py-4 hover:bg-blue-50 dark:hover:bg-blue-950/30"
           data-testid="link-logo-sidebar"
         >
           {currentLogo ? (
@@ -248,12 +239,10 @@ export function HybridNavigation({
               <div className="h-[120px] w-[120px] rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/40 flex-shrink-0">
                 <span className="text-white font-bold text-5xl">{branding.app_name?.charAt(0) || 'A'}</span>
               </div>
-              {isExpanded && (
-                <div className="flex flex-col items-center mt-3">
-                  <span className="font-bold text-lg text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">AI Platform</span>
-                </div>
-              )}
+              <div className="flex flex-col items-center mt-3">
+                <span className="font-bold text-lg text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">AI Platform</span>
+              </div>
             </>
           )}
         </Link>
@@ -263,30 +252,27 @@ export function HybridNavigation({
       <div className="flex-1 min-h-0 py-4 px-3 space-y-1 overflow-y-auto">
         {/* Top Items */}
         {topItems.map((item) => (
-          <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
+          <NavItemComponent key={item.url} item={item} showLabel={true} />
         ))}
 
         {/* Return to App */}
         {(variant === 'admin' || variant === 'admin-team') && (
           <div className="pt-2">
-            <NavItemComponent item={returnToAppItem} showLabel={isExpanded} />
+            <NavItemComponent item={returnToAppItem} showLabel={true} />
           </div>
         )}
 
         {/* Nav Sections */}
         {navSections.map((section, idx) => (
           <div key={section.label || idx} className="pt-6">
-            {isExpanded && section.label && (
+            {section.label && (
               <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
                 {section.label}
               </div>
             )}
-            {!isExpanded && section.label && (
-              <div className="h-px bg-border/50 mx-2 mb-3" />
-            )}
             <div className="space-y-0.5">
               {section.items.map((item) => (
-                <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
+                <NavItemComponent key={item.url} item={item} showLabel={true} />
               ))}
             </div>
           </div>
@@ -295,49 +281,33 @@ export function HybridNavigation({
         {/* Admin Link */}
         {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
           <div className="pt-6">
-            {isExpanded && (
-              <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
-                {t('nav.administration')}
-              </div>
-            )}
-            {!isExpanded && <div className="h-px bg-border/50 mx-2 mb-3" />}
+            <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+              {t('nav.administration')}
+            </div>
             <NavItemComponent 
               item={{ title: t('nav.adminDashboard'), url: "/admin" }} 
-              showLabel={isExpanded} 
+              showLabel={true} 
             />
           </div>
         )}
       </div>
 
       {/* Credits Card - iOS 18 Minimal */}
-      <div className={cn("flex-shrink-0 p-2", !isExpanded && "flex justify-center")}>
-        {isExpanded ? (
-          <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
-            <div className="flex items-center gap-2">
-              <Coins className="h-4 w-4 text-amber-500" />
-              <span className="text-xs text-muted-foreground">{t('sidebar.credits')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold tabular-nums">{remainingCredits.toLocaleString()}</span>
-              {isPaidPlan && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
-                  {planDisplayName}
-                </span>
-              )}
-            </div>
+      <div className="flex-shrink-0 p-2">
+        <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+          <div className="flex items-center gap-2">
+            <Coins className="h-4 w-4 text-amber-500" />
+            <span className="text-xs text-muted-foreground">{t('sidebar.credits')}</span>
           </div>
-        ) : (
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <div className="h-9 w-9 rounded-2xl bg-foreground/[0.04] flex items-center justify-center cursor-default">
-                <Coins className="h-4 w-4 text-amber-500" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="rounded-2xl">
-              <div className="font-medium text-sm">{remainingCredits.toLocaleString()} {t('sidebar.credits')}</div>
-            </TooltipContent>
-          </Tooltip>
-        )}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold tabular-nums">{remainingCredits.toLocaleString()}</span>
+            {isPaidPlan && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
+                {planDisplayName}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* User Footer - iOS 18 Minimal */}
@@ -345,11 +315,7 @@ export function HybridNavigation({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className={cn(
-                "flex items-center gap-2.5 w-full p-2 rounded-2xl transition-colors",
-                "hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                !isExpanded && "justify-center"
-              )}
+              className="flex items-center gap-2.5 w-full p-2 rounded-2xl transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-testid="button-user-menu-sidebar"
             >
               <Avatar className="h-8 w-8">
@@ -357,15 +323,11 @@ export function HybridNavigation({
                   {userInitial}
                 </AvatarFallback>
               </Avatar>
-              {isExpanded && (
-                <>
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="text-sm font-medium text-foreground truncate">{userName}</div>
-                    <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
-                  </div>
-                  <ChevronDown className="h-3.5 w-3.5 text-foreground/30" />
-                </>
-              )}
+              <div className="flex-1 min-w-0 text-left">
+                <div className="text-sm font-medium text-foreground truncate">{userName}</div>
+                <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
+              </div>
+              <ChevronDown className="h-3.5 w-3.5 text-foreground/30" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="top" className="w-60 rounded-2xl p-2 border-border/30">
@@ -492,21 +454,6 @@ export function HybridNavigation({
               data-testid="button-mobile-menu"
             >
               <Menu className="h-5 w-5" />
-            </Button>
-
-            {/* Sidebar Toggle - Desktop */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden lg:flex rounded-xl h-9 w-9 text-zinc-500 dark:text-zinc-400"
-              onClick={() => setIsExpanded(!isExpanded)}
-              data-testid="button-sidebar-toggle"
-            >
-              {isExpanded ? (
-                <ChevronLeft className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
             </Button>
 
             {/* Spacer */}

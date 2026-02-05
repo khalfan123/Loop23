@@ -14,29 +14,22 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { Settings, ChevronsUpDown, LogOut, Coins } from "lucide-react";
+import { Settings, ChevronsUpDown, LogOut, Coins, ChevronRight } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Link, useLocation, useRoute } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -44,6 +37,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from 'react-i18next';
 import { useBranding } from "@/components/BrandingProvider";
 import { AuthStorage } from "@/lib/auth-storage";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface User {
   id: string;
@@ -54,11 +53,86 @@ interface User {
   planType?: string;
 }
 
+interface NavItemProps {
+  title: string;
+  url: string;
+  isActive: boolean;
+  onClick: () => void;
+  isCollapsed: boolean;
+}
+
+function NavItem({ title, url, isActive, onClick, isCollapsed }: NavItemProps) {
+  const content = (
+    <Link href={url} onClick={onClick}>
+      <div
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-medium transition-all duration-200",
+          isActive
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        )}
+        data-testid={`link-${title.toLowerCase().replace(/\s+/g, "-")}`}
+      >
+        <span className={cn(isCollapsed && "hidden")}>{title}</span>
+      </div>
+    </Link>
+  );
+
+  if (isCollapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="right" className="font-medium">
+          {title}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return content;
+}
+
+interface NavSectionProps {
+  label?: string;
+  items: { title: string; url: string }[];
+  location: string;
+  onNavClick: () => void;
+  isCollapsed: boolean;
+}
+
+function NavSection({ label, items, location, onNavClick, isCollapsed }: NavSectionProps) {
+  return (
+    <div className="space-y-1">
+      {label && !isCollapsed && (
+        <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          {label}
+        </div>
+      )}
+      {label && isCollapsed && (
+        <div className="h-px mx-2 my-2 bg-sidebar-border" />
+      )}
+      <div className="space-y-0.5">
+        {items.map((item) => (
+          <NavItem
+            key={item.url}
+            title={item.title}
+            url={item.url}
+            isActive={location === item.url}
+            onClick={onNavClick}
+            isCollapsed={isCollapsed}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { t } = useTranslation();
   const { branding, currentLogo, showLogo, showFavicon } = useBranding();
-  const { setOpenMobile, isMobile } = useSidebar();
+  const { setOpenMobile, isMobile, state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const handleNavClick = () => {
     if (isMobile) {
@@ -66,7 +140,6 @@ export function AppSidebar() {
     }
   };
 
-  // Top level items (no section header)
   const topItems = [
     { title: t('nav.apps', 'Apps'), url: "/app" },
     { title: t('nav.analytics'), url: "/app/analytics" },
@@ -74,7 +147,6 @@ export function AppSidebar() {
     { title: t('nav.logs', 'Logs'), url: "/app/calls" },
   ];
 
-  // Setup section items
   const setupItems = [
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
     { title: t('nav.inboundCalls', 'Inbound Calls'), url: "/app/incoming-connections" },
@@ -83,38 +155,28 @@ export function AppSidebar() {
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
   ];
 
-  // Manage section items
   const manageItems = [
     { title: t('nav.appointments'), url: "/app/flows/appointments" },
     { title: t('nav.forms'), url: "/app/flows/forms" },
   ];
 
-  // Fetch current user data including credits - ONLY from server, no localStorage fallback
   const { data: user, isLoading: userLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
 
-  // If no user data from server, don't render (security: prevents localStorage spoofing)
   if (userLoading || !user) {
     return null;
   }
 
   const userName = user.name || "User";
   const userInitial = userName.charAt(0).toUpperCase() || "U";
-  
-  // Check if user is on any paid plan (not just "pro")
   const isPaidPlan = user.planType && user.planType !== "free";
-  
-  // Format plan name for display (capitalize first letter)
   const planDisplayName = user.planType 
     ? user.planType.charAt(0).toUpperCase() + user.planType.slice(1) 
     : "Free";
-
-  // Credits from user data
   const remainingCredits = user.credits || 0;
 
   const handleLogout = () => {
-    // Logout request clears the HttpOnly refresh token cookie on the server
     fetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'include',
@@ -125,270 +187,218 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      {/* Header with responsive logo */}
-      <SidebarHeader className="px-3 py-3 border-b border-sidebar-border">
-        {/* When expanded: Logo on left, toggle on right */}
-        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:hidden min-w-0">
-          <div className="flex-1 min-w-0 overflow-hidden">
+      <SidebarHeader className="px-4 py-4 border-b border-sidebar-border/50">
+        <div className="flex items-center justify-between gap-3 group-data-[collapsible=icon]:hidden">
+          <div className="flex-1 min-w-0">
             {showLogo && (
               <img 
                 src={currentLogo!} 
                 alt={branding.app_name} 
-                className={`w-auto object-contain ${
+                className={cn(
+                  "w-auto object-contain",
                   branding.logo_size === 'small' ? 'h-6 max-w-[100px]' : 
                   branding.logo_size === 'large' ? 'h-10 max-w-[160px]' : 
                   branding.logo_size === 'xlarge' ? 'h-12 max-w-[180px]' : 'h-8 max-w-[140px]'
-                }`}
+                )}
               />
             )}
           </div>
           <SidebarTrigger 
-            className="h-6 w-6 shrink-0" 
+            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground" 
             data-testid="button-sidebar-toggle" 
           />
         </div>
-        {/* When collapsed: Favicon + toggle stacked */}
-        <div className="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-2">
+        <div className="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-3">
           {showFavicon && (
             <img 
               src={branding.favicon_url!} 
               alt={branding.app_name} 
-              className="h-6 w-6 object-contain"
+              className="h-7 w-7 object-contain"
             />
           )}
           <SidebarTrigger 
-            className="h-5 w-5 shrink-0" 
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground" 
             data-testid="button-sidebar-toggle-collapsed" 
           />
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="group-data-[collapsible=icon]:px-0 px-2 py-1">
-        {/* Top level items (no section header) */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {topItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    tooltip={item.title}
-                    data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <Link href={item.url} onClick={handleNavClick}>
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className="px-2 py-4 space-y-6">
+        <NavSection
+          items={topItems}
+          location={location}
+          onNavClick={handleNavClick}
+          isCollapsed={isCollapsed}
+        />
 
-        {/* Setup Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.setup', 'Setup')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {setupItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    tooltip={item.title}
-                    data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <Link href={item.url} onClick={handleNavClick}>
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavSection
+          label={t('sidebar.setup', 'Setup')}
+          items={setupItems}
+          location={location}
+          onNavClick={handleNavClick}
+          isCollapsed={isCollapsed}
+        />
 
-        {/* Manage Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.manage', 'Manage')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {manageItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    tooltip={item.title}
-                    data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <Link href={item.url} onClick={handleNavClick}>
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavSection
+          label={t('sidebar.manage', 'Manage')}
+          items={manageItems}
+          location={location}
+          onNavClick={handleNavClick}
+          isCollapsed={isCollapsed}
+        />
 
-        {/* Settings (standalone) */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location === "/app/settings" || location.startsWith("/app/settings")}
-                  tooltip={t('nav.settings', 'Settings')}
-                  data-testid="link-settings"
-                >
-                  <Link href="/app/settings" onClick={handleNavClick}>
-                    <span>{t('nav.settings', 'Settings')}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <div className="space-y-0.5">
+          <NavItem
+            title={t('nav.settings', 'Settings')}
+            url="/app/settings"
+            isActive={location === "/app/settings" || location.startsWith("/app/settings")}
+            onClick={handleNavClick}
+            isCollapsed={isCollapsed}
+          />
+        </div>
 
-        {/* Admin - Show for admins only */}
         {user.role === 'admin' && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('nav.administration')}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === "/admin"}
-                    tooltip={t('nav.adminDashboard')}
-                    data-testid="link-admin-dashboard"
-                  >
-                    <Link href="/admin" onClick={handleNavClick}>
-                      <span>{t('nav.adminDashboard')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavSection
+            label={t('nav.administration')}
+            items={[{ title: t('nav.adminDashboard'), url: "/admin" }]}
+            location={location}
+            onNavClick={handleNavClick}
+            isCollapsed={isCollapsed}
+          />
         )}
 
-        {/* Credit Status - Silver Shiny Design */}
-        <div className="mx-2 my-2 group-data-[collapsible=icon]:hidden">
-          <div className="relative overflow-hidden rounded-xl border border-slate-300/60 dark:border-slate-600/60 p-3 bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 shadow-sm">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-white/10 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite]" style={{ backgroundSize: '200% 100%' }} />
-            <div className="relative">
-              <div className="flex items-center justify-between gap-2">
+        {!isCollapsed && (
+          <div className="mx-1 mt-4">
+            <div className="rounded-2xl bg-gradient-to-br from-muted/80 to-muted/40 p-4 border border-border/30">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 shadow-inner">
-                    <Coins className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                  <div className="h-8 w-8 rounded-full bg-background/80 flex items-center justify-center">
+                    <Coins className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('sidebar.credits')}</span>
+                  <span className="text-[13px] font-medium text-foreground/80">{t('sidebar.credits')}</span>
                 </div>
                 {isPaidPlan ? (
-                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide bg-gradient-to-r from-amber-400/90 to-yellow-500/90 text-amber-900 dark:from-amber-500 dark:to-yellow-600 dark:text-amber-950 shadow-sm border border-amber-500/30 dark:border-yellow-600/30">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide bg-primary/10 text-primary border border-primary/20">
                     {planDisplayName}
                   </span>
                 ) : (
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    className="h-6 px-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-600/60"
+                    className="h-7 px-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground rounded-lg"
                     onClick={() => setLocation("/app/upgrade")}
                     data-testid="button-upgrade-inline"
+                  >
+                    {t('sidebar.upgrade')}
+                    <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                  </Button>
+                )}
+              </div>
+              <div className="text-2xl font-bold tracking-tight text-foreground">
+                {remainingCredits.toLocaleString()}
+              </div>
+            </div>
+          </div>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter className="px-3 py-3 border-t border-sidebar-border/50">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button 
+              className={cn(
+                "flex items-center gap-3 w-full px-2 py-2 rounded-xl transition-colors",
+                "hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isCollapsed && "justify-center px-0"
+              )}
+              data-testid="button-user-menu"
+            >
+              <Avatar className="h-9 w-9 ring-2 ring-background shadow-sm">
+                <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-sm font-semibold">
+                  {userInitial}
+                </AvatarFallback>
+              </Avatar>
+              {!isCollapsed && (
+                <>
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="text-[14px] font-semibold text-foreground truncate">
+                      {userName}
+                    </div>
+                    <div className="text-[12px] text-muted-foreground truncate">
+                      {t('sidebar.myWorkspace')}
+                    </div>
+                  </div>
+                  <ChevronsUpDown className="h-4 w-4 text-muted-foreground/60" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" className="w-72 rounded-xl p-1.5">
+            <div className="px-3 py-3 mb-1">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-11 w-11 ring-2 ring-background shadow-sm">
+                  <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary text-primary-foreground text-base font-semibold">
+                    {userInitial}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[15px] font-semibold text-foreground truncate">
+                    {userName}
+                  </div>
+                  <div className="text-[13px] text-muted-foreground truncate">
+                    {user.email}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mx-2 mb-2 rounded-xl bg-muted/50 p-3 border border-border/30">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Coins className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-[13px] font-medium text-foreground/70">{t('sidebar.credits')}</span>
+                </div>
+                {isPaidPlan ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary">
+                    {planDisplayName}
+                  </span>
+                ) : (
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    className="h-6 px-2.5 text-[11px] font-semibold rounded-lg"
+                    onClick={() => setLocation("/app/upgrade")}
+                    data-testid="button-upgrade-dropdown"
                   >
                     {t('sidebar.upgrade')}
                   </Button>
                 )}
               </div>
-              <div className="mt-1.5 text-xl font-bold bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 dark:from-slate-100 dark:via-slate-200 dark:to-slate-100 bg-clip-text text-transparent">
+              <div className="text-xl font-bold text-foreground">
                 {remainingCredits.toLocaleString()}
               </div>
             </div>
-          </div>
-        </div>
-      </SidebarContent>
 
-      {/* Footer */}
-      <SidebarFooter className="px-2 py-1.5 mt-auto border-t border-sidebar-border">
-        {/* User Profile Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div 
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover-elevate cursor-pointer"
-              data-testid="button-user-menu"
-            >
-              <Avatar className="h-7 w-7">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
-                  {userInitial}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-xs font-medium text-sidebar-foreground truncate">
-                  {userName}
-                </span>
-                <span className="text-xs text-muted-foreground truncate">{t('sidebar.myWorkspace')}</span>
-              </div>
-              <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72 p-0">
-            {/* Credits Section - Silver Shiny Design */}
-            <div className="relative overflow-hidden m-2 rounded-xl border border-slate-300/60 dark:border-slate-600/60 p-4 bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 shadow-sm">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-white/10 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite]" style={{ backgroundSize: '200% 100%' }} />
-              <div className="relative space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 shadow-inner">
-                      <Coins className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                    </div>
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('sidebar.credits')}</span>
-                  </div>
-                  {isPaidPlan ? (
-                    <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide bg-gradient-to-r from-amber-400/90 to-yellow-500/90 text-amber-900 dark:from-amber-500 dark:to-yellow-600 dark:text-amber-950 shadow-sm border border-amber-500/30 dark:border-yellow-600/30">
-                      {planDisplayName}
-                    </span>
-                  ) : (
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      className="h-7 px-3 text-xs font-semibold"
-                      onClick={() => setLocation("/app/upgrade")}
-                      data-testid="button-upgrade-dropdown"
-                    >
-                      {t('sidebar.upgrade')}
-                    </Button>
-                  )}
-                </div>
-                <div className="text-2xl font-bold bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 dark:from-slate-100 dark:via-slate-200 dark:to-slate-100 bg-clip-text text-transparent">
-                  {remainingCredits.toLocaleString()} <span className="text-sm font-medium text-slate-500 dark:text-slate-400">credits</span>
-                </div>
-              </div>
-            </div>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="my-1.5" />
             
-            {/* Account Settings */}
             <DropdownMenuItem 
               onClick={() => setLocation("/app/settings")}
-              className="cursor-pointer"
+              className="rounded-lg py-2.5 px-3 cursor-pointer"
               data-testid="link-account-settings"
             >
-              <Settings className="mr-2 h-4 w-4" />
-              <span>{t('nav.accountSettings')}</span>
+              <Settings className="mr-2.5 h-4 w-4 text-muted-foreground" />
+              <span className="text-[14px]">{t('nav.accountSettings')}</span>
             </DropdownMenuItem>
             
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="my-1.5" />
             
-            {/* Log out */}
             <DropdownMenuItem 
               onClick={handleLogout}
-              className="cursor-pointer text-destructive focus:text-destructive"
+              className="rounded-lg py-2.5 px-3 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
               data-testid="button-logout"
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>{t('auth.logout')}</span>
+              <LogOut className="mr-2.5 h-4 w-4" />
+              <span className="text-[14px]">{t('auth.logout')}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

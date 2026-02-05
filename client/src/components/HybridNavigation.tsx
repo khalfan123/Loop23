@@ -228,22 +228,8 @@ export function HybridNavigation({
         isExpanded ? "w-60" : "w-14"
       )}
     >
-      {/* Sidebar Header - Toggle only */}
-      <div className="flex-shrink-0 flex items-center justify-center h-12 px-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-2xl text-foreground/40"
-          onClick={() => setIsExpanded(!isExpanded)}
-          data-testid="button-sidebar-toggle"
-        >
-          {isExpanded ? (
-            <ChevronLeft className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
+      {/* Sidebar Header - Spacing to align with toolbar */}
+      <div className="flex-shrink-0 h-12" />
 
       {/* Navigation Content - Scrollable */}
       <div className="flex-1 min-h-0 py-4 px-3 space-y-1 overflow-y-auto">
@@ -480,18 +466,38 @@ export function HybridNavigation({
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Logo - Always visible in toolbar */}
-            <Link 
-              href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-              className="flex items-center shrink-0"
-              data-testid="link-logo"
-            >
-              {currentLogo ? (
-                <img src={currentLogo} alt={branding.app_name} className="h-8 w-auto object-contain" />
-              ) : (
-                <span className="font-semibold text-base tracking-tight">{branding.app_name}</span>
-              )}
-            </Link>
+            {/* Logo - Prominent in toolbar with sidebar toggle */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden lg:flex rounded-xl h-9 w-9 text-zinc-500 dark:text-zinc-400"
+                onClick={() => setIsExpanded(!isExpanded)}
+                data-testid="button-sidebar-toggle"
+              >
+                {isExpanded ? (
+                  <ChevronLeft className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+              <Link 
+                href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
+                className="flex items-center shrink-0 gap-2.5 px-2 py-1.5 rounded-xl hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+                data-testid="link-logo"
+              >
+                {currentLogo ? (
+                  <img src={currentLogo} alt={branding.app_name} className="h-7 w-auto object-contain" />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                      <span className="text-white font-bold text-sm">{branding.app_name?.charAt(0) || 'A'}</span>
+                    </div>
+                    <span className="font-semibold text-[15px] text-zinc-800 dark:text-zinc-200 tracking-tight">{branding.app_name}</span>
+                  </div>
+                )}
+              </Link>
+            </div>
 
             {/* Spacer */}
             <div className="flex-1" />

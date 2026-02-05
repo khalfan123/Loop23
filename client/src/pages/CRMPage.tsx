@@ -399,16 +399,16 @@ function LeadCard({ lead, onClick, stageColor, isSelected, onToggleSelect }: {
       transition={{ duration: 0.15 }}
       className="group"
     >
+      {/* iOS 18 Style Lead Card using Shadcn Card */}
       <Card 
-        className={`cursor-pointer hover-elevate transition-all bg-card border-l-[3px] ${!borderStyle ? theme.accentBorder : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}
+        className={`cursor-pointer hover-elevate transition-all rounded-2xl border-border/30 bg-card/50 ${isSelected ? 'ring-2 ring-primary' : ''}`}
         onClick={onClick}
         data-testid={`lead-card-${lead.id}`}
-        style={borderStyle}
       >
-        <CardContent className="p-3">
-          <div className="flex flex-col gap-2">
+        <CardContent className="p-3.5">
+          <div className="flex flex-col gap-2.5">
             {/* Header row: Checkbox, Score, Phone/Name, Notes icon */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {onToggleSelect && (
                 <Checkbox
                   checked={isSelected}
@@ -423,14 +423,14 @@ function LeadCard({ lead, onClick, stageColor, isSelected, onToggleSelect }: {
               <ScoreIndicator score={lead.leadScore} />
               
               {/* Phone Number / Name - Primary display */}
-              <h4 className={`font-semibold text-sm text-foreground flex-1 truncate ${hasValidPhone ? 'font-mono' : ''}`} data-testid={`lead-primary-${lead.id}`}>
+              <h4 className={`font-medium text-sm text-foreground flex-1 truncate ${hasValidPhone ? 'font-mono' : ''}`} data-testid={`lead-primary-${lead.id}`}>
                 {primaryDisplay}
               </h4>
               
               {/* Notes icon - show if notes exist */}
               {hasNotes && (
                 <div 
-                  className="flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 dark:bg-blue-900/50"
+                  className="flex items-center justify-center w-6 h-6 rounded-lg bg-blue-500/10"
                   title={`${lead.notesCount} note${(lead.notesCount ?? 0) > 1 ? 's' : ''}`}
                 >
                   <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
@@ -447,19 +447,18 @@ function LeadCard({ lead, onClick, stageColor, isSelected, onToggleSelect }: {
 
             {/* Tags display */}
             {lead.tags && lead.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {lead.tags.slice(0, 3).map((tag, idx) => (
                   <Badge 
                     key={idx} 
-                    variant="secondary" 
-                    className="text-[10px] px-1.5 py-0 h-4 bg-primary/10 text-primary hover:bg-primary/20"
+                    variant="secondary"
                   >
-                    <Tag className="w-2.5 h-2.5 mr-0.5" />
+                    <Tag className="w-2.5 h-2.5 mr-1" />
                     {tag}
                   </Badge>
                 ))}
                 {lead.tags.length > 3 && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                  <Badge variant="secondary">
                     +{lead.tags.length - 3}
                   </Badge>
                 )}
@@ -467,13 +466,13 @@ function LeadCard({ lead, onClick, stageColor, isSelected, onToggleSelect }: {
             )}
 
             {/* Footer: Activity indicators and time */}
-            <div className="flex items-center justify-between pt-1 border-t border-border/50">
+            <div className="flex items-center justify-between pt-2 border-t border-border/20">
               <div className="flex items-center gap-2">
                 <ActivityIndicators lead={lead} />
                 {lead.sentiment && <SentimentIcon sentiment={lead.sentiment} />}
               </div>
               {timeAgo && (
-                <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
+                <span className="text-xs text-muted-foreground">{timeAgo}</span>
               )}
             </div>
           </div>
@@ -533,13 +532,13 @@ function KanbanColumn({ stage, leads, onLeadClick, onDrop, onSort, selectedLeadI
             <h3 className="font-semibold text-sm uppercase tracking-wide">
               {stage.name.replace(/_/g, " ")}
             </h3>
-            <Badge className="h-5 px-1.5 text-[10px] font-medium bg-white/20 text-white border-0">
+            <Badge variant="secondary" className="font-medium bg-white/20 text-white border-0">
               {leads.length}
             </Badge>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20" data-testid={`column-menu-${stage.id}`}>
+              <Button size="icon" variant="ghost" data-testid={`column-menu-${stage.id}`}>
                 <ArrowDownUp className="w-3.5 h-3.5" />
               </Button>
             </DropdownMenuTrigger>
@@ -582,7 +581,7 @@ function KanbanColumn({ stage, leads, onLeadClick, onDrop, onSort, selectedLeadI
                 <StageIcon className={`w-4 h-4 ${theme.accent}`} />
               </div>
               <p className="text-xs text-muted-foreground">No leads</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Drop leads here</p>
+              <p className="text-xs text-muted-foreground/60 mt-0.5">Drop leads here</p>
             </div>
           )}
         </div>
@@ -635,9 +634,9 @@ function AIKanbanColumn({
 
   return (
     <div 
-      className={`flex flex-col min-w-[300px] max-w-[300px] rounded-xl overflow-hidden transition-all border bg-card ${
-        highlighted ? 'border-primary ring-2 ring-primary/30 shadow-lg' : 'border-border/50 opacity-90'
-      } ${isDragging ? 'opacity-50 scale-95' : ''} ${isDragOver ? 'ring-2 ring-blue-400 scale-[1.02]' : ''}`}
+      className={`flex flex-col min-w-[300px] max-w-[300px] rounded-2xl overflow-hidden transition-all border bg-foreground/[0.02] ${
+        highlighted ? 'border-primary ring-2 ring-primary/30' : 'border-border/30'
+      } ${isDragging ? 'opacity-50' : ''} ${isDragOver ? 'ring-2 ring-blue-400 bg-blue-50/30 dark:bg-blue-950/20' : ''}`}
       data-testid={`ai-kanban-column-${category.id}`}
       draggable
       onDragStart={onDragStart}
@@ -646,30 +645,31 @@ function AIKanbanColumn({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >
-      <div 
-        className="px-4 py-3 text-white cursor-grab active:cursor-grabbing"
-        style={{ backgroundColor: category.color }}
-      >
+      {/* iOS 18 Style Column Header */}
+      <div className="px-4 py-3 cursor-grab active:cursor-grabbing border-b border-border/20">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <GripVertical className="w-4 h-4 text-white/60" />
-            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/20">
-              <Icon className="w-4 h-4" />
+          <div className="flex items-center gap-2.5">
+            <GripVertical className="w-4 h-4 text-foreground/30" />
+            <div 
+              className="flex items-center justify-center w-8 h-8 rounded-xl"
+              style={{ backgroundColor: `${category.color}15` }}
+            >
+              <Icon className="w-4 h-4" style={{ color: category.color }} />
             </div>
-            <h3 className="font-semibold text-sm uppercase tracking-wide">
+            <h3 className="font-medium text-sm text-foreground">
               {category.label}
             </h3>
-            <Badge className="h-5 px-1.5 text-[10px] font-medium bg-white/20 text-white border-0">
+            <Badge variant="secondary" className="rounded-full">
               {total}
             </Badge>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20">
+              <Button size="icon" variant="ghost">
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="rounded-xl">
               <DropdownMenuItem 
                 onClick={() => onSortChange?.('newest')}
                 className={sortBy === 'newest' ? 'bg-accent' : ''}
@@ -703,9 +703,11 @@ function AIKanbanColumn({
                 <p className="text-xs font-medium mb-2">Column Color</p>
                 <div className="grid grid-cols-4 gap-1">
                   {COLOR_PRESETS.slice(0, 8).map((preset) => (
-                    <button
+                    <Button
                       key={preset.hex}
-                      className={`w-6 h-6 rounded-md transition-transform hover:scale-110 ${
+                      size="icon"
+                      variant="ghost"
+                      className={`rounded-lg ${
                         category.color.toLowerCase() === preset.hex.toLowerCase() ? 'ring-2 ring-primary ring-offset-1' : ''
                       }`}
                       style={{ backgroundColor: preset.hex }}
@@ -760,11 +762,14 @@ function AIKanbanColumn({
           </AnimatePresence>
           {leads.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 text-center min-h-[100px]">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mb-2">
+              <div 
+                className="w-10 h-10 rounded-xl flex items-center justify-center mb-2"
+                style={{ backgroundColor: `${category.color}10` }}
+              >
                 <Icon className="w-4 h-4" style={{ color: category.color }} />
               </div>
-              <p className="text-xs text-muted-foreground">No leads</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5">Drop leads here</p>
+              <p className="text-xs text-foreground/50">No leads</p>
+              <p className="text-xs text-foreground/30 mt-0.5">Drop leads here</p>
             </div>
           )}
         </div>
@@ -828,14 +833,16 @@ function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lead | nul
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="lead-detail-modal">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl" data-testid="lead-detail-modal">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
+          <DialogTitle className="flex items-center gap-4">
             <ScoreIndicator score={lead.leadScore} />
             <div>
-              <span className="text-lg">{displayName}</span>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge className={theme.badgeBg}>{lead.stage}</Badge>
+              <span className="text-xl font-semibold tracking-tight">{displayName}</span>
+              <div className="flex items-center gap-2 mt-1.5">
+                <Badge variant="secondary" className="rounded-full">
+                  {lead.stage}
+                </Badge>
                 {lead.sentiment && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <SentimentIcon sentiment={lead.sentiment} />
@@ -845,65 +852,66 @@ function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lead | nul
               </div>
             </div>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-foreground/50">
             Lead details and conversation history
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-5 py-4">
+          {/* iOS 18 Style Info Grid */}
+          <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-foreground/[0.02] border border-border/30">
             <div>
-              <p className="text-sm text-muted-foreground">Phone</p>
-              <p className="font-mono" data-testid="lead-detail-phone">{lead.phone}</p>
+              <p className="text-xs text-foreground/50 mb-1">Phone</p>
+              <p className="font-mono text-sm" data-testid="lead-detail-phone">{lead.phone}</p>
             </div>
             {lead.email && (
               <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p data-testid="lead-detail-email">{lead.email}</p>
+                <p className="text-xs text-foreground/50 mb-1">Email</p>
+                <p className="text-sm" data-testid="lead-detail-email">{lead.email}</p>
               </div>
             )}
             <div>
-              <p className="text-sm text-muted-foreground">Source</p>
+              <p className="text-xs text-foreground/50 mb-1">Source</p>
               <Badge variant="outline" className="flex items-center gap-1 w-fit">
                 {lead.sourceType === "campaign" ? <Zap className="w-3 h-3" /> : <PhoneCall className="w-3 h-3" />}
                 {lead.sourceType === "campaign" ? "Campaign" : "Incoming"}
               </Badge>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Created</p>
+              <p className="text-xs text-foreground/50 mb-1">Created</p>
               <p className="text-sm">{new Date(lead.createdAt).toLocaleDateString()}</p>
             </div>
           </div>
 
-          <Separator />
-
+          {/* iOS 18 Style Activity Badges */}
           <div className="flex flex-wrap gap-2">
             {lead.hasAppointment && (
-              <Badge className="bg-blue-500 text-white flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> Appointment Booked
+              <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <Calendar className="w-3 h-3 mr-1" /> Appointment Booked
               </Badge>
             )}
             {lead.hasFormSubmission && (
-              <Badge className="bg-purple-500 text-white flex items-center gap-1">
-                <ClipboardCheck className="w-3 h-3" /> Form Submitted
+              <Badge variant="secondary" className="bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                <ClipboardCheck className="w-3 h-3 mr-1" /> Form Submitted
               </Badge>
             )}
             {lead.hasTransfer && (
-              <Badge className="bg-violet-500 text-white flex items-center gap-1">
-                <PhoneForwarded className="w-3 h-3" /> Transferred
+              <Badge variant="secondary" className="bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                <PhoneForwarded className="w-3 h-3 mr-1" /> Transferred
               </Badge>
             )}
             {lead.hasCallback && (
-              <Badge className="bg-amber-500 text-white flex items-center gap-1">
-                <PhoneCall className="w-3 h-3" /> Callback Scheduled
+              <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <PhoneCall className="w-3 h-3 mr-1" /> Callback Scheduled
               </Badge>
             )}
           </div>
 
+          {/* iOS 18 Style Recording Section */}
           {lead.recordingUrl && (
-            <div>
-              <p className="text-sm font-medium mb-2">Recording</p>
-              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+            <div className="p-4 rounded-2xl bg-foreground/[0.02] border border-border/30">
+              <p className="text-xs text-foreground/50 mb-2">Recording</p>
+              <div className="flex items-center gap-3">
                 <Button
                   size="icon"
                   variant="ghost"
@@ -923,36 +931,37 @@ function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lead | nul
                   {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 </Button>
                 <audio id={`audio-${lead.id}`} src={lead.recordingUrl} onEnded={() => setIsPlaying(false)} className="hidden" />
-                <span className="text-sm text-muted-foreground">Call Recording</span>
+                <span className="text-sm text-foreground/60">Call Recording</span>
               </div>
             </div>
           )}
 
+          {/* iOS 18 Style AI Summary */}
           {lead.aiSummary && (
-            <div>
-              <p className="text-sm font-medium mb-2">AI Summary</p>
-              <p className="text-sm text-muted-foreground bg-muted p-3 rounded-lg" data-testid="lead-ai-summary">{lead.aiSummary}</p>
+            <div className="p-4 rounded-2xl bg-foreground/[0.02] border border-border/30">
+              <p className="text-xs text-foreground/50 mb-2">AI Summary</p>
+              <p className="text-sm text-foreground/70 leading-relaxed" data-testid="lead-ai-summary">{lead.aiSummary}</p>
             </div>
           )}
 
+          {/* iOS 18 Style Transcript */}
           {lead.transcript && (
-            <div>
-              <p className="text-sm font-medium mb-2">Transcript</p>
-              <ScrollArea className="h-48 bg-muted p-3 rounded-lg">
-                <pre className="text-xs whitespace-pre-wrap font-sans" data-testid="lead-transcript">{lead.transcript}</pre>
+            <div className="p-4 rounded-2xl bg-foreground/[0.02] border border-border/30">
+              <p className="text-xs text-foreground/50 mb-2">Transcript</p>
+              <ScrollArea className="h-48">
+                <pre className="text-xs whitespace-pre-wrap font-sans text-foreground/60" data-testid="lead-transcript">{lead.transcript}</pre>
               </ScrollArea>
             </div>
           )}
 
-          <Separator />
-
+          {/* iOS 18 Style Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full">
-              <TabsTrigger value="notes" className="flex-1" data-testid="tab-notes">
+            <TabsList className="w-full bg-foreground/[0.04] rounded-xl p-1">
+              <TabsTrigger value="notes" className="flex-1 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm" data-testid="tab-notes">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Notes ({notes.length})
               </TabsTrigger>
-              <TabsTrigger value="activity" className="flex-1" data-testid="tab-activity">
+              <TabsTrigger value="activity" className="flex-1 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm" data-testid="tab-activity">
                 <History className="w-4 h-4 mr-2" />
                 Activity ({activities.length})
               </TabsTrigger>
@@ -961,24 +970,24 @@ function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lead | nul
             <TabsContent value="notes" className="mt-4" data-testid="notes-section">
               {notesLoading ? (
                 <div className="flex items-center justify-center py-4" data-testid="notes-loading">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="w-4 h-4 animate-spin text-foreground/40" />
                 </div>
               ) : notes.length > 0 ? (
                 <div className="space-y-3 mb-4" data-testid="notes-list">
                   {notes.map((note, index) => (
-                    <div key={note.id} className="p-3 bg-muted rounded-lg" data-testid={`note-item-${index}`}>
-                      <p className="text-sm" data-testid={`note-content-${index}`}>{note.content}</p>
-                      <p className="text-xs text-muted-foreground mt-2" data-testid={`note-date-${index}`}>
+                    <div key={note.id} className="p-3.5 rounded-xl bg-foreground/[0.03] border border-border/20" data-testid={`note-item-${index}`}>
+                      <p className="text-sm text-foreground/80" data-testid={`note-content-${index}`}>{note.content}</p>
+                      <p className="text-xs text-foreground/40 mt-2" data-testid={`note-date-${index}`}>
                         {new Date(note.createdAt).toLocaleString()}
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground mb-4" data-testid="notes-empty">No notes yet</p>
+                <p className="text-sm text-foreground/50 mb-4" data-testid="notes-empty">No notes yet</p>
               )}
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Textarea 
                   placeholder="Add a note about this lead..."
                   value={noteText}
@@ -1000,22 +1009,22 @@ function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lead | nul
             <TabsContent value="activity" className="mt-4" data-testid="activity-section">
               {activitiesLoading ? (
                 <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="w-4 h-4 animate-spin text-foreground/40" />
                 </div>
               ) : activities.length > 0 ? (
                 <ScrollArea className="h-64">
-                  <div className="space-y-3" data-testid="activity-list">
+                  <div className="space-y-2" data-testid="activity-list">
                     {activities.map((activity, index) => (
-                      <div key={activity.id} className="flex gap-3 p-3 bg-muted rounded-lg" data-testid={`activity-item-${index}`}>
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-background shrink-0">
+                      <div key={activity.id} className="flex gap-3 p-3 rounded-xl bg-foreground/[0.03] border border-border/20" data-testid={`activity-item-${index}`}>
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-foreground/[0.06] shrink-0">
                           {getActivityIcon(activity.activityType)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{activity.title}</p>
+                          <p className="text-sm font-medium text-foreground/80">{activity.title}</p>
                           {activity.description && (
-                            <p className="text-xs text-muted-foreground mt-1">{activity.description}</p>
+                            <p className="text-xs text-foreground/50 mt-1">{activity.description}</p>
                           )}
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="text-xs text-foreground/40 mt-1">
                             {new Date(activity.createdAt).toLocaleString()}
                           </p>
                         </div>
@@ -1024,7 +1033,7 @@ function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lead | nul
                   </div>
                 </ScrollArea>
               ) : (
-                <p className="text-sm text-muted-foreground">No activity recorded yet</p>
+                <p className="text-sm text-foreground/50">No activity recorded yet</p>
               )}
             </TabsContent>
           </Tabs>
@@ -1060,12 +1069,11 @@ function ListViewCard({ lead, onClick, stageColor, isSelected, onToggleSelect }:
 
   return (
     <Card 
-      className={`cursor-pointer hover-elevate transition-all border-l-[3px] ${!borderStyle ? theme.accentBorder : ''} ${isSelected ? 'ring-2 ring-primary' : ''}`}
-      style={borderStyle}
+      className={`cursor-pointer hover-elevate transition-all rounded-2xl border-border/30 bg-card/50 ${isSelected ? 'ring-2 ring-primary' : ''}`}
       onClick={onClick}
       data-testid={`list-lead-${lead.id}`}
     >
-      <CardContent className="p-3">
+      <CardContent className="p-3.5">
         <div className="flex items-center gap-3">
           {onToggleSelect && (
             <Checkbox
@@ -1084,7 +1092,6 @@ function ListViewCard({ lead, onClick, stageColor, isSelected, onToggleSelect }:
           
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-sm truncate">{displayName}</h4>
-            {/* Only show phone separately if we have a name (otherwise phone is already the display name) */}
             {fullName && hasValidPhone && (
               <p className="text-xs text-muted-foreground font-mono">{lead.phone}</p>
             )}
@@ -1094,7 +1101,7 @@ function ListViewCard({ lead, onClick, stageColor, isSelected, onToggleSelect }:
 
           <ActivityIndicators lead={lead} />
 
-          <Badge className={theme.badgeBg} variant="secondary">
+          <Badge variant="secondary" className="rounded-full">
             {lead.stage.replace(/_/g, " ")}
           </Badge>
           
@@ -1953,106 +1960,101 @@ export default function CRMPage() {
 
   return (
     <div className="flex flex-col h-full bg-background" data-testid="crm-page">
-      <div className="bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border-b">
-        <div className="px-6 py-4 space-y-4">
-          {/* Header Row - Title and Actions */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10">
-                <Zap className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold">Qualified Leads</h1>
-                <p className="text-sm text-muted-foreground">
-                  View and manage AI-categorized leads
-                </p>
-              </div>
+      {/* iOS 18 Style Header */}
+      <div className="px-6 py-5 space-y-5">
+        {/* Header Row - Title and Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-foreground/[0.06]">
+              <Zap className="w-6 h-6 text-foreground/70" />
             </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleExportCSV} 
-                data-testid="export-leads"
-              >
-                <Download className="w-4 h-4 mr-1.5" />
-                Export
-              </Button>
-
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setFilterSettingsOpen(true)} 
-                data-testid="open-filter-settings"
-              >
-                <Settings className="w-4 h-4 mr-1.5" />
-                Settings
-              </Button>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">Qualified Leads</h1>
+              <p className="text-sm text-foreground/50 mt-0.5">
+                View and manage AI-categorized leads
+              </p>
             </div>
           </div>
 
-          {/* Stats Cards Row - Lead Counts by Category */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-            {/* All Leads Card */}
-            <Card 
-              className={`cursor-pointer transition-all hover-elevate ${aiCategoryFilter === "all" ? "ring-2 ring-primary bg-primary/5" : "bg-card/50"}`}
-              onClick={() => setAiCategoryFilter("all")}
-              data-testid="filter-all"
+          <div className="flex flex-wrap items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleExportCSV} 
+              data-testid="export-leads"
             >
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Zap className="w-4 h-4 text-primary" />
-                  <span className="text-2xl font-bold">{categoryCounts?.total || 0}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">All Leads</p>
-              </CardContent>
-            </Card>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
 
-            {/* Category Cards */}
-            {orderedCategories.map((cat) => {
-              const Icon = cat.icon;
-              const count = categoryCounts?.counts?.[cat.id] || 0;
-              const isSelected = aiCategoryFilter === cat.id;
-              return (
-                <Card 
-                  key={cat.id}
-                  className={`cursor-pointer transition-all hover-elevate ${isSelected ? "ring-2 ring-primary" : "bg-card/50"}`}
-                  onClick={() => setAiCategoryFilter(cat.id)}
-                  data-testid={`filter-${cat.id}`}
-                  style={isSelected ? { backgroundColor: `${cat.color}15` } : undefined}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon className="w-4 h-4" style={{ color: cat.color }} />
-                      <span className="text-2xl font-bold">{count}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">{cat.label}</p>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            <Button 
+              variant="outline" 
+              onClick={() => setFilterSettingsOpen(true)} 
+              data-testid="open-filter-settings"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
           </div>
+        </div>
+
+        {/* iOS 18 Style Category Pills */}
+        <div className="flex flex-wrap gap-2">
+          {/* All Leads Pill */}
+          <Button
+            variant={aiCategoryFilter === "all" ? "secondary" : "ghost"}
+            className="rounded-2xl"
+            onClick={() => setAiCategoryFilter("all")}
+            data-testid="filter-all"
+          >
+            <Zap className="w-4 h-4 mr-2" />
+            <span>All</span>
+            <Badge variant="secondary" className="rounded-full ml-2">
+              {categoryCounts?.total || 0}
+            </Badge>
+          </Button>
+
+          {/* Category Pills */}
+          {orderedCategories.map((cat) => {
+            const Icon = cat.icon;
+            const count = categoryCounts?.counts?.[cat.id] || 0;
+            const isSelected = aiCategoryFilter === cat.id;
+            return (
+              <Button
+                key={cat.id}
+                variant={isSelected ? "secondary" : "ghost"}
+                className="rounded-2xl"
+                onClick={() => setAiCategoryFilter(cat.id)}
+                data-testid={`filter-${cat.id}`}
+              >
+                <Icon className="w-4 h-4 mr-2" style={{ color: cat.color }} />
+                <span className="hidden sm:inline">{cat.label}</span>
+                <Badge variant="secondary" className="rounded-full ml-2">
+                  {count}
+                </Badge>
+              </Button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 px-6 py-3 border-b bg-muted/30">
+      {/* iOS 18 Style Search and Filters Bar */}
+      <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-y border-border/30">
         <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
           <Input
-            placeholder="Search leads by name, phone, email, or tag..."
+            placeholder="Search leads..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-background"
+            className="pl-10 h-10 rounded-xl border-border/40 bg-foreground/[0.03] focus:bg-background"
             data-testid="search-leads-input"
           />
         </div>
         
         <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setSelectedSourceId("all"); }}>
-          <SelectTrigger className="w-40 bg-background" data-testid="source-filter">
+          <SelectTrigger className="w-40 h-10 rounded-xl border-border/40 bg-foreground/[0.03]" data-testid="source-filter">
             <SelectValue placeholder="All Sources" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-xl">
             <SelectItem value="all">All Sources</SelectItem>
             <SelectItem value="campaign">Campaigns</SelectItem>
             <SelectItem value="incoming">Incoming</SelectItem>
@@ -2061,10 +2063,10 @@ export default function CRMPage() {
 
         {sourceFilter === "campaign" && campaigns.length > 0 && (
           <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
-            <SelectTrigger className="w-52 bg-background" data-testid="campaign-filter">
+            <SelectTrigger className="w-52 h-10 rounded-xl border-border/40 bg-foreground/[0.03]" data-testid="campaign-filter">
               <SelectValue placeholder="All Campaigns" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl">
               <SelectItem value="all">All Campaigns</SelectItem>
               {campaigns.map(c => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -2075,10 +2077,10 @@ export default function CRMPage() {
 
         {sourceFilter === "incoming" && incomingConnections.length > 0 && (
           <Select value={selectedSourceId} onValueChange={setSelectedSourceId}>
-            <SelectTrigger className="w-52 bg-background" data-testid="incoming-filter">
+            <SelectTrigger className="w-52 h-10 rounded-xl border-border/40 bg-foreground/[0.03]" data-testid="incoming-filter">
               <SelectValue placeholder="All Connections" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl">
               <SelectItem value="all">All Connections</SelectItem>
               {incomingConnections.map(c => (
                 <SelectItem key={c.id} value={c.id}>Connection {c.id.slice(0, 8)}</SelectItem>
@@ -2089,11 +2091,11 @@ export default function CRMPage() {
 
         {allTags.length > 0 && (
           <Select value={tagFilter} onValueChange={setTagFilter}>
-            <SelectTrigger className="w-40 bg-background" data-testid="tag-filter">
+            <SelectTrigger className="w-40 h-10 rounded-xl border-border/40 bg-foreground/[0.03]" data-testid="tag-filter">
               <Tag className="w-4 h-4 mr-2" />
               <SelectValue placeholder="All Tags" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl">
               <SelectItem value="all">All Tags</SelectItem>
               {allTags.map(tag => (
                 <SelectItem key={tag} value={tag}>{tag}</SelectItem>
@@ -2115,7 +2117,7 @@ export default function CRMPage() {
                 <RefreshCw className={`w-4 h-4 ${backfillCategoriesMutation.isPending ? 'animate-spin' : ''}`} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="rounded-xl">
               <DropdownMenuItem 
                 onClick={() => {
                   queryClientRef.invalidateQueries({ predicate: (query) => {
@@ -2139,49 +2141,59 @@ export default function CRMPage() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <div className="h-6 w-px bg-border mx-1" />
-          
-          <div className="flex items-center rounded-lg border bg-background p-1 gap-1">
-            <Button
-              variant={viewMode === "kanban" ? "secondary" : "ghost"}
-              size="icon"
+          {/* iOS 18 Style View Toggle Pills */}
+          <div className="flex items-center rounded-2xl bg-foreground/[0.04] p-1 gap-0.5">
+            <button
+              className={`flex items-center justify-center h-8 w-8 rounded-xl transition-all ${
+                viewMode === "kanban" 
+                  ? "bg-background shadow-sm text-foreground" 
+                  : "text-foreground/50 hover:text-foreground"
+              }`}
               onClick={() => setViewMode("kanban")}
               data-testid="view-kanban"
               title="Kanban View"
             >
               <LayoutGrid className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="icon"
+            </button>
+            <button
+              className={`flex items-center justify-center h-8 w-8 rounded-xl transition-all ${
+                viewMode === "list" 
+                  ? "bg-background shadow-sm text-foreground" 
+                  : "text-foreground/50 hover:text-foreground"
+              }`}
               onClick={() => setViewMode("list")}
               data-testid="view-list"
               title="List View"
             >
               <List className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === "analytics" ? "secondary" : "ghost"}
-              size="icon"
+            </button>
+            <button
+              className={`flex items-center justify-center h-8 w-8 rounded-xl transition-all ${
+                viewMode === "analytics" 
+                  ? "bg-background shadow-sm text-foreground" 
+                  : "text-foreground/50 hover:text-foreground"
+              }`}
               onClick={() => setViewMode("analytics")}
               data-testid="view-analytics"
               title="Analytics View"
             >
               <BarChart3 className="w-4 h-4" />
-            </Button>
+            </button>
           </div>
         </div>
       </div>
 
+      {/* iOS 18 Style Bulk Selection Bar */}
       {selectedLeadIds.size > 0 && (
-        <div className="flex items-center gap-3 px-6 py-2 border-b bg-primary/5">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 px-6 py-3 border-b border-border/30 bg-foreground/[0.02]">
+          <div className="flex items-center gap-2.5">
             <Checkbox
               checked={selectedLeadIds.size === filteredLeads.length && filteredLeads.length > 0}
               onCheckedChange={selectAllLeads}
+              className="rounded-md"
               data-testid="select-all-leads"
             />
-            <span className="text-sm font-medium">{selectedLeadIds.size} selected</span>
+            <span className="text-sm font-medium text-foreground">{selectedLeadIds.size} selected</span>
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <Button
@@ -2191,7 +2203,7 @@ export default function CRMPage() {
               data-testid="bulk-change-stage"
             >
               <ArrowRightLeft className="w-4 h-4 mr-2" />
-              Move to Category
+              Move
             </Button>
             <Button
               variant="outline"
@@ -2200,17 +2212,17 @@ export default function CRMPage() {
               data-testid="bulk-add-tag"
             >
               <Tag className="w-4 h-4 mr-2" />
-              Add Tag
+              Tag
             </Button>
             <Button
               variant="outline"
               size="sm"
+              className="text-destructive"
               onClick={() => {
                 if (confirm(`Delete ${selectedLeadIds.size} leads?`)) {
                   bulkDeleteMutation.mutate(Array.from(selectedLeadIds));
                 }
               }}
-              className="text-destructive hover:text-destructive"
               data-testid="bulk-delete"
             >
               <Trash2 className="w-4 h-4 mr-2" />
@@ -2218,7 +2230,7 @@ export default function CRMPage() {
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={clearSelection}
               data-testid="clear-selection"
             >
@@ -2229,9 +2241,9 @@ export default function CRMPage() {
       )}
 
       <Dialog open={bulkStageDialogOpen} onOpenChange={setBulkStageDialogOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Move {selectedLeadIds.size} Leads to Category</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">Move {selectedLeadIds.size} Leads</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2 py-4">
             {AI_CATEGORIES.map(cat => {
@@ -2258,9 +2270,9 @@ export default function CRMPage() {
       </Dialog>
 
       <Dialog open={bulkTagDialogOpen} onOpenChange={setBulkTagDialogOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Add Tag to {selectedLeadIds.size} Leads</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">Add Tag to {selectedLeadIds.size} Leads</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex gap-2">

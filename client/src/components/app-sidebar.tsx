@@ -141,10 +141,10 @@ export function AppSidebar() {
   };
 
   const topItems = [
-    { title: t('nav.apps', 'Apps'), url: "/app" },
-    { title: t('nav.analytics'), url: "/app/analytics" },
-    { title: t('nav.crm'), url: "/app/crm" },
-    { title: t('nav.logs', 'Logs'), url: "/app/calls" },
+    { title: t('nav.analytics', 'Analytics'), url: "/app/analytics" },
+    { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm" },
+    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/calls" },
+    { title: t('nav.departments', 'Departments'), url: "/app/departments" },
   ];
 
   const setupItems = [

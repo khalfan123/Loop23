@@ -26,6 +26,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from 'react-i18next';
 import { AuthStorage } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
+import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
+import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
 
 interface TypeBreakdown {
   incoming: number;
@@ -171,52 +173,97 @@ export default function Analytics() {
     { value: 'batch', label: t('analytics.callTypes.campaigns'), labelShort: t('analytics.callTypes.campaignsShort'), icon: Target, count: typeBreakdown.batch },
   ];
 
+  const rightPanelContent = (
+    <div className="space-y-4">
+      <DocumentCard>
+        <DocumentCardHeader>
+          <DocumentCardTitle>{t('analytics.quickStats', 'Quick Stats')}</DocumentCardTitle>
+        </DocumentCardHeader>
+        <DocumentCardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('analytics.callTypes.incoming')}</span>
+            <span className="text-sm font-medium">{typeBreakdown.incoming}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('analytics.callTypes.outgoing')}</span>
+            <span className="text-sm font-medium">{typeBreakdown.outgoing}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('analytics.callTypes.campaigns')}</span>
+            <span className="text-sm font-medium">{typeBreakdown.batch}</span>
+          </div>
+        </DocumentCardContent>
+      </DocumentCard>
+      
+      <DocumentCard>
+        <DocumentCardHeader>
+          <DocumentCardTitle>{t('analytics.performance', 'Performance')}</DocumentCardTitle>
+        </DocumentCardHeader>
+        <DocumentCardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('analytics.successRate')}</span>
+            <span className="text-sm font-medium text-emerald-600">{successRate}%</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('analytics.qualifiedLeads')}</span>
+            <span className="text-sm font-medium">{qualifiedLeads}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('analytics.avgDurationLabel')}</span>
+            <span className="text-sm font-medium">{formatDuration(avgDuration)}</span>
+          </div>
+        </DocumentCardContent>
+      </DocumentCard>
+    </div>
+  );
+
   return (
-    <div className="space-y-6 p-6" ref={reportRef}>
-      {/* iOS 18 Style Header - Clean and Minimal */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-foreground/[0.06] flex items-center justify-center">
-            <BarChart3 className="h-6 w-6 text-foreground/70" />
+    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+      <div className="space-y-6" ref={reportRef}>
+        {/* iOS 18 Style Header - Clean and Minimal */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-foreground/[0.06] flex items-center justify-center">
+              <BarChart3 className="h-6 w-6 text-foreground/70" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-analytics-title">
+                {t('analytics.title')}
+              </h1>
+              <p className="text-sm text-foreground/50 mt-0.5">{t('analytics.subtitle')}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-analytics-title">
-              {t('analytics.title')}
-            </h1>
-            <p className="text-sm text-foreground/50 mt-0.5">{t('analytics.subtitle')}</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger 
-              className="w-[150px] h-10 rounded-xl border-border/40 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-colors" 
-              data-testid="select-time-range"
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger 
+                className="w-[150px] h-10 rounded-xl border-border/40 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-colors" 
+                data-testid="select-time-range"
+              >
+                <SelectValue placeholder={t('analytics.selectPeriod')} />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="7days">{t('analytics.timeRange.last7Days')}</SelectItem>
+                <SelectItem value="30days">{t('analytics.timeRange.last30Days')}</SelectItem>
+                <SelectItem value="90days">{t('analytics.timeRange.last90Days')}</SelectItem>
+                <SelectItem value="year">{t('analytics.timeRange.thisYear')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="default"
+              className="h-10 rounded-xl"
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              data-testid="button-export-report"
             >
-              <SelectValue placeholder={t('analytics.selectPeriod')} />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="7days">{t('analytics.timeRange.last7Days')}</SelectItem>
-              <SelectItem value="30days">{t('analytics.timeRange.last30Days')}</SelectItem>
-              <SelectItem value="90days">{t('analytics.timeRange.last90Days')}</SelectItem>
-              <SelectItem value="year">{t('analytics.timeRange.thisYear')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button 
-            variant="default"
-            className="h-10 rounded-xl"
-            onClick={handleExportPDF}
-            disabled={isExporting}
-            data-testid="button-export-report"
-          >
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {t('analytics.exportReport')}
-          </Button>
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {t('analytics.exportReport')}
+            </Button>
+          </div>
         </div>
-      </div>
 
       {/* iOS 18 Style Pill Tabs */}
       <div className="flex flex-wrap gap-2" data-testid="tabs-call-type">
@@ -371,6 +418,7 @@ export default function Analytics() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </ThreeColumnLayout>
   );
 }

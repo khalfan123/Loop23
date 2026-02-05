@@ -166,7 +166,9 @@ function UserRouter() {
           <Route path="/">
             <Redirect to="/app" />
           </Route>
-          <Route path="/app" component={Dashboard} />
+          <Route path="/app">
+            <Redirect to="/app/analytics" />
+          </Route>
           <Route path="/app/dashboard" component={Dashboard} />
           <Route path="/app/campaigns/new" component={CreateCampaign} />
           <Route path="/app/campaigns/:id" component={CampaignDetail} />
@@ -227,7 +229,9 @@ function TeamMemberRouter() {
           <Route path="/">
             <Redirect to="/app" />
           </Route>
-          <Route path="/app" component={Dashboard} />
+          <Route path="/app">
+            <Redirect to="/app/analytics" />
+          </Route>
           <Route path="/app/dashboard" component={Dashboard} />
           <Route path="/app/campaigns/new" component={CreateCampaign} />
           <Route path="/app/campaigns/:id" component={CampaignDetail} />

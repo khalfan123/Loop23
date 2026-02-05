@@ -99,9 +99,8 @@ export function HybridNavigation({
   }, [isExpanded]);
 
   const topItems: NavItem[] = [
-    { title: t('nav.apps', 'Apps'), url: variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app" },
-    { title: t('nav.analytics'), url: "/app/analytics" },
-    { title: t('nav.crm'), url: "/app/crm" },
+    { title: t('nav.analytics', 'Analytics'), url: "/app/analytics" },
+    { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm" },
     { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/calls" },
     { title: t('nav.departments', 'Departments'), url: "/app/departments" },
   ];

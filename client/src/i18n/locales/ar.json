@@ -134,6 +134,9 @@
     "accountSettings": "إعدادات الحساب"
   },
   "sidebar": {
+    "navigation": "القائمة",
+    "setup": "الإعداد",
+    "manage": "إدارة",
     "build": "بناء",
     "evaluate": "تقييم",
     "telephony": "الاتصالات الهاتفية",

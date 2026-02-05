@@ -141,6 +141,9 @@
     "websiteWidget": "Website Widget"
   },
   "sidebar": {
+    "navigation": "Menu",
+    "setup": "Setup",
+    "manage": "Manage",
     "build": "Build",
     "evaluate": "Evaluate",
     "telephony": "Telephony",

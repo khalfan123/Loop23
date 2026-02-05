@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { Users, BookOpen, Mic, Link as LinkIcon, Phone, Settings, ChevronsUpDown, Plus, BarChart3, Home, Target, LogOut, Coins, Shield, CreditCard, TrendingUp, UserCheck, Workflow, Webhook, ClipboardList, Calendar, Layout, FileText, Wrench, Globe, Bot, ContactRound, Building2, ShieldCheck, Brain } from "lucide-react";
+import { Settings, ChevronsUpDown, LogOut, Coins } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -66,33 +66,27 @@ export function AppSidebar() {
     }
   };
 
+  // Top level items (no section header)
   const topItems = [
-    { title: t('nav.home'), url: "/app", icon: Home },
+    { title: t('nav.apps', 'Apps'), url: "/app" },
+    { title: t('nav.analytics'), url: "/app/analytics" },
+    { title: t('nav.crm'), url: "/app/crm" },
+    { title: t('nav.logs', 'Logs'), url: "/app/calls" },
   ];
 
-  const buildItems = [
-    { title: t('nav.campaigns'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500" },
-    { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500" },
-    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500" },
+  // Setup section items
+  const setupItems = [
+    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
+    { title: t('nav.inboundCalls', 'Inbound Calls'), url: "/app/incoming-connections" },
+    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/campaigns" },
+    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
+    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
   ];
 
-  const evaluateItems = [
-    { title: t('nav.allContacts'), url: "/app/contacts", icon: UserCheck, iconColor: "text-teal-500" },
-    { title: t('nav.calls'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500" },
-    { title: t('nav.crm'), url: "/app/crm", icon: ContactRound, iconColor: "text-cyan-500" },
-    { title: t('nav.analytics'), url: "/app/analytics", icon: BarChart3, iconColor: "text-purple-500" },
-    { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500" },
-  ];
-
-  const telephonyItems = [
-    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500" },
-    { title: t('nav.incomingConnections'), url: "/app/incoming-connections", icon: LinkIcon, iconColor: "text-amber-500" },
-    { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500" },
-  ];
-
-  const formsAppointmentsItems = [
-    { title: t('nav.forms'), url: "/app/flows/forms", icon: ClipboardList, iconColor: "text-cyan-500" },
-    { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar, iconColor: "text-rose-500" },
+  // Manage section items
+  const manageItems = [
+    { title: t('nav.appointments'), url: "/app/flows/appointments" },
+    { title: t('nav.forms'), url: "/app/flows/forms" },
   ];
 
   // Fetch current user data including credits - ONLY from server, no localStorage fallback
@@ -170,7 +164,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="group-data-[collapsible=icon]:px-0 px-2 py-1">
-        {/* Home */}
+        {/* Top level items (no section header) */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -180,10 +174,9 @@ export function AppSidebar() {
                     asChild
                     isActive={location === item.url}
                     tooltip={item.title}
-                    data-testid={`link-${item.title.toLowerCase()}`}
+                    data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                   >
                     <Link href={item.url} onClick={handleNavClick}>
-                      <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -193,12 +186,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Build Section */}
+        {/* Setup Section */}
         <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.build')}</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.setup', 'Setup')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {buildItems.map((item) => (
+              {setupItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
@@ -207,34 +200,6 @@ export function AppSidebar() {
                     data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                   >
                     <Link href={item.url} onClick={handleNavClick}>
-                      <item.icon className={`h-4 w-4 ${item.iconColor || ''}`} />
-                      <span>{item.title}</span>
-                      {item.hasPlus && (
-                        <Plus className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Evaluate Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.evaluate')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {evaluateItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    tooltip={item.title}
-                    data-testid={`link-${item.title.toLowerCase()}`}
-                  >
-                    <Link href={item.url} onClick={handleNavClick}>
-                      <item.icon className={`h-4 w-4 ${item.iconColor || ''}`} />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -244,12 +209,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Telephony Section */}
+        {/* Manage Section */}
         <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.telephony')}</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.manage', 'Manage')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {telephonyItems.map((item) => (
+              {manageItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
@@ -258,7 +223,6 @@ export function AppSidebar() {
                     data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                   >
                     <Link href={item.url} onClick={handleNavClick}>
-                      <item.icon className={`h-4 w-4 ${item.iconColor || ''}`} />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -268,31 +232,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Forms & Appointments Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('sidebar.formsAppointments', 'Forms & Appointments')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {formsAppointmentsItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    tooltip={item.title}
-                    data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <Link href={item.url} onClick={handleNavClick}>
-                      <item.icon className={`h-4 w-4 ${item.iconColor || ''}`} />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Settings Section */}
+        {/* Settings (standalone) */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -304,7 +244,6 @@ export function AppSidebar() {
                   data-testid="link-settings"
                 >
                   <Link href="/app/settings" onClick={handleNavClick}>
-                    <Settings className="h-4 w-4 text-slate-500" />
                     <span>{t('nav.settings', 'Settings')}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -327,7 +266,6 @@ export function AppSidebar() {
                     data-testid="link-admin-dashboard"
                   >
                     <Link href="/admin" onClick={handleNavClick}>
-                      <Shield className="h-4 w-4" />
                       <span>{t('nav.adminDashboard')}</span>
                     </Link>
                   </SidebarMenuButton>

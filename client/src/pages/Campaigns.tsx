@@ -19,6 +19,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
+import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
+import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
 import { Badge } from "@/components/ui/badge";
 import { Phone, AlertTriangle, Loader2 } from "lucide-react";
 import {
@@ -141,21 +143,54 @@ export default function Campaigns() {
     });
   };
 
+  const activeCampaigns = campaigns.filter(c => c.status === 'in_progress').length;
+  const completedCampaigns = campaigns.filter(c => c.status === 'completed').length;
+  const pendingCampaigns = campaigns.filter(c => c.status === 'pending' || c.status === 'scheduled').length;
+
+  const rightPanelContent = (
+    <div className="space-y-4">
+      <DocumentCard>
+        <DocumentCardHeader>
+          <DocumentCardTitle>{t('campaigns.summary', 'Campaign Summary')}</DocumentCardTitle>
+        </DocumentCardHeader>
+        <DocumentCardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('campaigns.total', 'Total')}</span>
+            <span className="text-sm font-medium">{campaigns.length}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('campaigns.status.active', 'Active')}</span>
+            <span className="text-sm font-medium text-blue-600">{activeCampaigns}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('campaigns.status.completed', 'Completed')}</span>
+            <span className="text-sm font-medium text-emerald-600">{completedCampaigns}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('campaigns.status.pending', 'Pending')}</span>
+            <span className="text-sm font-medium">{pendingCampaigns}</span>
+          </div>
+        </DocumentCardContent>
+      </DocumentCard>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)]">
-      {/* Header */}
-      <div className="flex items-center justify-between py-4 px-1">
-        <div className="flex items-center gap-2">
-          <Phone className="h-4 w-4 text-foreground" />
-          <span className="font-medium">{t('campaigns.batchCall', 'Batch Call')}</span>
+    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+      <div className="flex flex-col h-[calc(100vh-120px)]">
+        {/* Header */}
+        <div className="flex items-center justify-between py-4 px-1">
+          <div className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-foreground" />
+            <span className="font-medium">{t('campaigns.batchCall', 'Batch Call')}</span>
+          </div>
+          <Button 
+            onClick={() => setLocation('/app/campaigns/new')}
+            data-testid="button-create-campaign"
+          >
+            {t('campaigns.createBatchCall', 'Create a batch call')}
+          </Button>
         </div>
-        <Button 
-          onClick={() => setLocation('/app/campaigns/new')}
-          data-testid="button-create-campaign"
-        >
-          {t('campaigns.createBatchCall', 'Create a batch call')}
-        </Button>
-      </div>
       
       {/* White Content Container */}
       <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-hidden">
@@ -253,6 +288,7 @@ export default function Campaigns() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </ThreeColumnLayout>
   );
 }

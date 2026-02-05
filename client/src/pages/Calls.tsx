@@ -17,6 +17,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from "@/components/ui/card";
+import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
+import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -1029,15 +1031,44 @@ export default function Calls() {
     </div>
   );
 
-  return (
-    <div className="space-y-6">
-      {/* iOS 18 Style Clean Header */}
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('calls.title')}</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">{t('calls.description')}</p>
+  const rightPanelContent = (
+    <div className="space-y-4">
+      <DocumentCard>
+        <DocumentCardHeader>
+          <DocumentCardTitle>{t('calls.stats.summary', 'Call Summary')}</DocumentCardTitle>
+        </DocumentCardHeader>
+        <DocumentCardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('calls.stats.totalCalls', 'Total')}</span>
+            <span className="text-sm font-medium">{totalCalls}</span>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('calls.status.completed', 'Completed')}</span>
+            <span className="text-sm font-medium text-emerald-600">{completedCalls}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('calls.filters.incoming', 'Incoming')}</span>
+            <span className="text-sm font-medium">{incomingCalls}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('calls.filters.outgoing', 'Outgoing')}</span>
+            <span className="text-sm font-medium">{outgoingCalls}</span>
+          </div>
+        </DocumentCardContent>
+      </DocumentCard>
+    </div>
+  );
+
+  return (
+    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+      <div className="space-y-6">
+        {/* iOS 18 Style Clean Header */}
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('calls.title')}</h1>
+              <p className="text-muted-foreground text-sm mt-0.5">{t('calls.description')}</p>
+            </div>
           <Button 
             variant="default"
             className="rounded-2xl"
@@ -1601,6 +1632,7 @@ export default function Calls() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </ThreeColumnLayout>
   );
 }

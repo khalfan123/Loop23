@@ -28,6 +28,8 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
+import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
 
 interface Lead {
   id: string;
@@ -1958,23 +1960,44 @@ export default function CRMPage() {
 
   const isLoading = stagesLoading || leadsLoading;
 
-  return (
-    <div className="flex flex-col h-full bg-background" data-testid="crm-page">
-      {/* iOS 18 Style Header */}
-      <div className="px-6 py-5 space-y-5">
-        {/* Header Row - Title and Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-foreground/[0.06]">
-              <Zap className="w-6 h-6 text-foreground/70" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">Qualified Leads</h1>
-              <p className="text-sm text-foreground/50 mt-0.5">
-                View and manage AI-categorized leads
-              </p>
-            </div>
+  const rightPanelContent = (
+    <div className="space-y-4">
+      <DocumentCard>
+        <DocumentCardHeader>
+          <DocumentCardTitle>Lead Overview</DocumentCardTitle>
+        </DocumentCardHeader>
+        <DocumentCardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Total Leads</span>
+            <span className="text-sm font-medium">{totalLeads || loadedLeads.length}</span>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Selected</span>
+            <span className="text-sm font-medium text-blue-600">{selectedLeadIds.size}</span>
+          </div>
+        </DocumentCardContent>
+      </DocumentCard>
+    </div>
+  );
+
+  return (
+    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+      <div className="flex flex-col h-full bg-background" data-testid="crm-page">
+        {/* iOS 18 Style Header */}
+        <div className="px-6 py-5 space-y-5">
+          {/* Header Row - Title and Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-foreground/[0.06]">
+                <Zap className="w-6 h-6 text-foreground/70" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Qualified Leads</h1>
+                <p className="text-sm text-foreground/50 mt-0.5">
+                  View and manage AI-categorized leads
+                </p>
+              </div>
+            </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Button 
@@ -2665,6 +2688,7 @@ export default function CRMPage() {
         onSave={(settings) => updateFilterSettingsMutation.mutate(settings)}
         isSaving={updateFilterSettingsMutation.isPending}
       />
-    </div>
+      </div>
+    </ThreeColumnLayout>
   );
 }

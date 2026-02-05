@@ -48,6 +48,8 @@ import {
   TrendingUp,
   BarChart3
 } from "lucide-react";
+import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
+import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
 import { useState } from "react";
 import { CreateCampaignDialog } from "@/components/CreateCampaignDialog";
 import { useQuery } from "@tanstack/react-query";
@@ -276,9 +278,54 @@ export default function Dashboard() {
 
   const userName = dashboard?.userName || 'User';
 
+  const rightPanelContent = (
+    <div className="space-y-4">
+      <DocumentCard>
+        <DocumentCardHeader>
+          <DocumentCardTitle>{t('dashboard.quickActions', 'Quick Actions')}</DocumentCardTitle>
+        </DocumentCardHeader>
+        <DocumentCardContent className="space-y-2">
+          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setCreateDialogOpen(true)}>
+            <Megaphone className="h-4 w-4 mr-2" />
+            {t('dashboard.newCampaign', 'New Campaign')}
+          </Button>
+          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setLocation('/app/agents')}>
+            <Bot className="h-4 w-4 mr-2" />
+            {t('dashboard.createAgent', 'Create Agent')}
+          </Button>
+          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setLocation('/app/calls')}>
+            <Phone className="h-4 w-4 mr-2" />
+            {t('dashboard.viewCalls', 'View Calls')}
+          </Button>
+        </DocumentCardContent>
+      </DocumentCard>
+      
+      <DocumentCard>
+        <DocumentCardHeader>
+          <DocumentCardTitle>{t('dashboard.overview', 'Overview')}</DocumentCardTitle>
+        </DocumentCardHeader>
+        <DocumentCardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('dashboard.totalCalls', 'Total Calls')}</span>
+            <span className="text-sm font-medium">{dashboard?.totalCalls || 0}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('dashboard.agents', 'Agents')}</span>
+            <span className="text-sm font-medium">{dashboard?.agentsCount || 0}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{t('dashboard.campaigns', 'Campaigns')}</span>
+            <span className="text-sm font-medium">{dashboard?.campaignsCount || 0}</span>
+          </div>
+        </DocumentCardContent>
+      </DocumentCard>
+    </div>
+  );
+
   return (
-    <div className="space-y-8">
-      {/* Hero Section */}
+    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+      <div className="space-y-8">
+        {/* Hero Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-100 via-purple-50 to-fuchsia-100 dark:from-violet-950/50 dark:via-purple-950/30 dark:to-fuchsia-950/50 p-8 md:p-12">
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-violet-300/30 to-purple-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -671,11 +718,12 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Create Campaign Dialog */}
-      <CreateCampaignDialog 
-        open={createDialogOpen} 
-        onOpenChange={setCreateDialogOpen} 
-      />
-    </div>
+        {/* Create Campaign Dialog */}
+        <CreateCampaignDialog 
+          open={createDialogOpen} 
+          onOpenChange={setCreateDialogOpen} 
+        />
+        </div>
+    </ThreeColumnLayout>
   );
 }

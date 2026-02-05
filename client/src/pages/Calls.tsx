@@ -16,7 +16,7 @@
  */
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from 'react-i18next';
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -613,16 +613,13 @@ export default function Calls() {
   }
 
   const renderCallCard = (call: Call, testIdPrefix: string = "") => (
-    <div 
+    <Card 
       key={call.id}
-      className="group bg-card border rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer"
+      className="group rounded-2xl border-border/30 bg-card/50 hover-elevate transition-all cursor-pointer overflow-visible"
       onClick={() => setLocation(`/app/calls/${call.id}`)}
       data-testid={`card-call-${testIdPrefix}${call.id}`}
     >
-      <div className="flex">
-        <div className={`w-1 ${call.status === 'completed' ? 'bg-emerald-500' : call.status === 'failed' ? 'bg-rose-500' : 'bg-amber-500'}`} />
-        
-        <div className="flex-1 p-4">
+      <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0">
               <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
@@ -703,7 +700,7 @@ export default function Calls() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-full"
+                  className="rounded-full"
                   onClick={(e) => handlePlayRecording(e, call)}
                   disabled={loadingRecording === call.id}
                   data-testid={`button-play-${testIdPrefix}${call.id}`}
@@ -799,9 +796,8 @@ export default function Calls() {
               {t('calls.viewDetails')}
             </Button>
           </div>
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 
   const renderPagination = (pagination: ReturnType<typeof usePagination>, testId: string) => (
@@ -1035,65 +1031,70 @@ export default function Calls() {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50 dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-sky-950/40 border p-6">
+      {/* iOS 18 Style Clean Header */}
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-              <Phone className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{t('calls.title')}</h1>
-              <p className="text-muted-foreground text-sm">{t('calls.description')}</p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('calls.title')}</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">{t('calls.description')}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="default"
-              onClick={handleExportCsv}
-              data-testid="button-export-calls"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {t('common.export')}
-            </Button>
-          </div>
+          <Button 
+            variant="default"
+            className="rounded-2xl"
+            onClick={handleExportCsv}
+            data-testid="button-export-calls"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t('common.export')}
+          </Button>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-          <div className="bg-background/60 backdrop-blur-sm rounded-lg p-3 border">
-            <div className="flex items-center gap-2">
+        {/* iOS 18 Style Stats Pills */}
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
               <Phone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-2xl font-bold text-foreground" data-testid="text-total-calls">{totalCalls}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{t('calls.stats.totalCalls')}</p>
+            <div>
+              <span className="text-lg font-semibold text-foreground" data-testid="text-total-calls">{totalCalls}</span>
+              <p className="text-xs text-muted-foreground">{t('calls.stats.totalCalls')}</p>
+            </div>
           </div>
-          <div className="bg-background/60 backdrop-blur-sm rounded-lg p-3 border">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-2xl font-bold text-foreground">{completedCalls}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{t('calls.status.completed')}</p>
+            <div>
+              <span className="text-lg font-semibold text-foreground">{completedCalls}</span>
+              <p className="text-xs text-muted-foreground">{t('calls.status.completed')}</p>
+            </div>
           </div>
-          <div className="bg-background/60 backdrop-blur-sm rounded-lg p-3 border">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
               <PhoneIncoming className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-2xl font-bold text-foreground">{incomingCalls}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{t('calls.filters.incoming')}</p>
+            <div>
+              <span className="text-lg font-semibold text-foreground">{incomingCalls}</span>
+              <p className="text-xs text-muted-foreground">{t('calls.filters.incoming')}</p>
+            </div>
           </div>
-          <div className="bg-background/60 backdrop-blur-sm rounded-lg p-3 border">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
               <PhoneOutgoing className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-2xl font-bold text-foreground">{outgoingCalls}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{t('calls.filters.outgoing')}</p>
+            <div>
+              <span className="text-lg font-semibold text-foreground">{outgoingCalls}</span>
+              <p className="text-xs text-muted-foreground">{t('calls.filters.outgoing')}</p>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* iOS 18 Style Search and Filters Bar */}
       <div className="flex items-center gap-3 flex-wrap">
         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2" data-testid="button-date-range">
+            <Button variant="outline" className="gap-2 rounded-2xl" data-testid="button-date-range">
               <CalendarIcon className="h-4 w-4" />
               <span>{getDateRangeLabel()}</span>
               <ChevronDown className="h-4 w-4 opacity-50" />
@@ -1206,7 +1207,7 @@ export default function Calls() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t('calls.searchPlaceholder')}
-            className="pl-9"
+            className="pl-9 rounded-2xl"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             data-testid="input-search-calls"
@@ -1215,11 +1216,11 @@ export default function Calls() {
 
         <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2" data-testid="button-filters">
+            <Button variant="outline" className="gap-2 rounded-2xl" data-testid="button-filters">
               <Filter className="h-4 w-4" />
               <span>Filters</span>
               {activeFilterCount > 0 && (
-                <Badge className="h-5 w-5 p-0 flex items-center justify-center text-xs">
+                <Badge variant="secondary" className="rounded-full ml-1">
                   {activeFilterCount}
                 </Badge>
               )}
@@ -1392,7 +1393,7 @@ export default function Calls() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2" data-testid="button-columns">
+            <Button variant="outline" className="gap-2 rounded-2xl" data-testid="button-columns">
               <Columns3 className="h-4 w-4" />
               <span>Columns</span>
             </Button>
@@ -1494,11 +1495,11 @@ export default function Calls() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="flex items-center gap-1 border rounded-md p-1">
+        {/* iOS 18 Style View Toggle */}
+        <div className="flex items-center gap-1 rounded-2xl bg-foreground/[0.03] border border-border/30 p-1">
           <Button
             variant={viewMode === 'card' ? 'secondary' : 'ghost'}
             size="icon"
-            className="h-7 w-7"
             onClick={() => setViewMode('card')}
             data-testid="button-view-card"
           >
@@ -1507,7 +1508,6 @@ export default function Calls() {
           <Button
             variant={viewMode === 'table' ? 'secondary' : 'ghost'}
             size="icon"
-            className="h-7 w-7"
             onClick={() => setViewMode('table')}
             data-testid="button-view-table"
           >
@@ -1516,8 +1516,9 @@ export default function Calls() {
         </div>
       </div>
 
+      {/* iOS 18 Style Pill Tabs */}
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
+        <TabsList className="bg-foreground/[0.03] rounded-2xl p-1 border border-border/30">
           <TabsTrigger value="all" data-testid="tab-all">
             {t('calls.allCalls')} ({filteredCalls.length})
           </TabsTrigger>

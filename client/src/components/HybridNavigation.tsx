@@ -225,11 +225,11 @@ export function HybridNavigation({
     <aside
       className="hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] w-64"
     >
-      {/* Sidebar Header - Logo */}
-      <div className="flex-shrink-0 flex items-center justify-center h-40 px-4">
+      {/* Sidebar Header - Logo (aligned with toolbar) */}
+      <div className="flex-shrink-0 flex flex-col items-center pt-0 pb-4 px-4">
         <Link 
           href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-          className="flex flex-col items-center rounded-2xl transition-all duration-200 py-4 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+          className="flex flex-col items-center rounded-2xl transition-all duration-200 py-3 hover:bg-blue-50 dark:hover:bg-blue-950/30"
           data-testid="link-logo-sidebar"
         >
           {currentLogo ? (

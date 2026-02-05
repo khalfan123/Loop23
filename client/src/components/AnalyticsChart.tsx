@@ -51,12 +51,12 @@ export function AnalyticsChart({ title, type, data, dataKey = "value", xAxisKey 
                 contentStyle={{
                   backgroundColor: "hsl(var(--popover))",
                   border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  borderRadius: "12px",
+                  boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.08)",
                 }}
                 labelStyle={{ color: 'hsl(var(--foreground))' }}
               />
-              <Bar dataKey={dataKey} fill="url(#barGradient)" radius={[6, 6, 0, 0]} />
+              <Bar dataKey={dataKey} fill="url(#barGradient)" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : type === "area" ? (
@@ -75,8 +75,8 @@ export function AnalyticsChart({ title, type, data, dataKey = "value", xAxisKey 
                 contentStyle={{
                   backgroundColor: "hsl(var(--popover))",
                   border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  borderRadius: "12px",
+                  boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.08)",
                 }}
                 labelStyle={{ color: 'hsl(var(--foreground))' }}
               />
@@ -104,8 +104,8 @@ export function AnalyticsChart({ title, type, data, dataKey = "value", xAxisKey 
                 contentStyle={{
                   backgroundColor: "hsl(var(--popover))",
                   border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  borderRadius: "12px",
+                  boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.08)",
                 }}
               />
               <Legend />

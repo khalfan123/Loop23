@@ -228,17 +228,8 @@ export function HybridNavigation({
         isExpanded ? "w-64" : "w-16"
       )}
     >
-      {/* Sidebar Header */}
-      <div className={cn(
-        "flex items-center h-14 px-3",
-        isExpanded ? "justify-between" : "justify-center"
-      )}>
-        {isExpanded && currentLogo && (
-          <img src={currentLogo} alt={branding.app_name} className="h-7 w-auto object-contain" />
-        )}
-        {isExpanded && !currentLogo && (
-          <span className="font-semibold text-[15px] text-foreground/80">{branding.app_name}</span>
-        )}
+      {/* Sidebar Header - Toggle only */}
+      <div className="flex items-center justify-center h-14 px-3">
         <Button
           variant="ghost"
           size="icon"
@@ -254,8 +245,8 @@ export function HybridNavigation({
         </Button>
       </div>
 
-      {/* Navigation Content */}
-      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      {/* Navigation Content - No scroll */}
+      <div className="flex-1 py-4 px-3 space-y-1 overflow-hidden">
         {/* Top Items */}
         {topItems.map((item) => (
           <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
@@ -410,12 +401,8 @@ export function HybridNavigation({
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
       <SheetContent side="left" className="w-80 p-0 border-r-0">
         <SheetHeader className="p-5 pb-4">
-          <SheetTitle className="flex items-center gap-3 text-left">
-            {currentLogo ? (
-              <img src={currentLogo} alt={branding.app_name} className="h-8 w-auto" />
-            ) : (
-              <span className="font-semibold text-lg">{branding.app_name}</span>
-            )}
+          <SheetTitle className="text-left text-[15px] font-semibold text-foreground/60">
+            {t('sidebar.navigation') || 'Menu'}
           </SheetTitle>
         </SheetHeader>
 
@@ -500,10 +487,10 @@ export function HybridNavigation({
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Logo */}
+            {/* Logo - Always visible in toolbar */}
             <Link 
               href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-              className="flex items-center gap-3 shrink-0 lg:hidden"
+              className="flex items-center gap-3 shrink-0"
               data-testid="link-logo"
             >
               {currentLogo ? (

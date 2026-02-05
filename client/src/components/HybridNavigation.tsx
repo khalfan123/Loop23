@@ -225,34 +225,32 @@ export function HybridNavigation({
     <aside
       className={cn(
         "hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] transition-all duration-300 ease-out",
-        isExpanded ? "w-64" : "w-24"
+        isExpanded ? "w-64" : "w-36"
       )}
     >
       {/* Sidebar Header - Logo */}
       <div className={cn(
         "flex-shrink-0 flex items-center justify-center border-b border-black/[0.06] dark:border-white/[0.08]",
-        isExpanded ? "h-24 px-4" : "h-24"
+        isExpanded ? "h-40 px-4" : "h-40"
       )}>
         <Link 
           href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
           className={cn(
-            "flex items-center rounded-2xl transition-all duration-200",
-            isExpanded 
-              ? "flex-row gap-4 px-3 py-3 hover:bg-blue-50 dark:hover:bg-blue-950/30" 
-              : "flex-col p-2 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+            "flex flex-col items-center rounded-2xl transition-all duration-200 py-4",
+            "hover:bg-blue-50 dark:hover:bg-blue-950/30"
           )}
           data-testid="link-logo-sidebar"
         >
           {currentLogo ? (
-            <img src={currentLogo} alt={branding.app_name} className="h-[70px] w-[70px] object-contain" />
+            <img src={currentLogo} alt={branding.app_name} className="h-[120px] w-[120px] object-contain" />
           ) : (
             <>
-              <div className="h-[70px] w-[70px] rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/30 flex-shrink-0">
-                <span className="text-white font-bold text-3xl">{branding.app_name?.charAt(0) || 'A'}</span>
+              <div className="h-[120px] w-[120px] rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/40 flex-shrink-0">
+                <span className="text-white font-bold text-5xl">{branding.app_name?.charAt(0) || 'A'}</span>
               </div>
               {isExpanded && (
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-xl text-zinc-900 dark:text-white tracking-tight truncate leading-tight">{branding.app_name}</span>
+                <div className="flex flex-col items-center mt-3">
+                  <span className="font-bold text-lg text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">AI Platform</span>
                 </div>
               )}

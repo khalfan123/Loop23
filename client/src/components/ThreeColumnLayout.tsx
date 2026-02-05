@@ -40,11 +40,11 @@ export function ThreeColumnLayout({
       {rightPanel && (
         <aside
           className={cn(
-            "hidden xl:block flex-shrink-0 overflow-auto",
+            "hidden lg:block flex-shrink-0 overflow-auto border-l border-border/30 pl-6",
             rightPanelWidthClass[rightPanelWidth]
           )}
         >
-          <div className="sticky top-0 space-y-4">
+          <div className="sticky top-0 space-y-4 py-2">
             {rightPanel}
           </div>
         </aside>

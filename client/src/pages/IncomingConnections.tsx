@@ -449,108 +449,106 @@ export default function IncomingConnectionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 dark:from-slate-950/40 dark:via-gray-900/30 dark:to-zinc-950/40 border p-6">
+      {/* iOS 18 Style Clean Header */}
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-600 to-gray-700 flex items-center justify-center shadow-lg">
-              <PhoneIncoming className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground" data-testid="heading-incoming-connections">
-                {t("incomingConnections.title")}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {t("incomingConnections.subtitle")}
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="heading-incoming-connections">
+              {t("incomingConnections.title")}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {t("incomingConnections.subtitle")}
+            </p>
           </div>
-          <Button onClick={handleNewConnection} data-testid="button-create-connection">
+          <Button className="rounded-2xl" onClick={handleNewConnection} data-testid="button-create-connection">
             <Plus className="w-4 h-4 mr-2" />
             New Connection
           </Button>
         </div>
 
-        {/* Engine Summary Cards */}
-        <div className={`mt-6 grid grid-cols-1 gap-4 ${enabledEngineCount === 1 ? 'md:grid-cols-1' : enabledEngineCount === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+        {/* iOS 18 Style Engine Summary Pills */}
+        <div className="flex flex-wrap gap-3">
           {/* Twilio + ElevenLabs Summary - Always shown */}
-          <div 
-            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+          <Button 
+            variant="ghost"
+            className={`flex items-center gap-3 rounded-2xl transition-all border ${
               activeTab === 'twilio-elevenlabs' 
-                ? 'border-violet-500 bg-violet-500/10 dark:bg-violet-500/20' 
-                : 'border-border bg-background/50 hover:border-violet-300'
+                ? 'border-violet-500 bg-violet-500/10 dark:bg-violet-500/20 toggle-elevate toggle-elevated' 
+                : 'border-border/30 bg-foreground/[0.03]'
             }`}
             onClick={() => setActiveTab('twilio-elevenlabs')}
             data-testid="engine-card-twilio-elevenlabs"
           >
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-1.5">
               <SiTwilio className="h-4 w-4 text-red-500" />
-              <span className="font-medium text-sm">+</span>
+              <span className="text-muted-foreground">+</span>
               <ElevenLabsIcon className="h-4 w-4 text-violet-600" />
-              <span className="font-semibold text-sm">Twilio + ElevenLabs</span>
             </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span><strong className="text-violet-600">{connections.length}</strong> active</span>
-              <span><strong>{availablePhoneNumbers.length}</strong> available</span>
-              <span><strong>{agents.length}</strong> agents</span>
+            <div className="text-left">
+              <p className="font-medium text-sm">Twilio + ElevenLabs</p>
+              <p className="text-xs text-muted-foreground">
+                <strong className="text-violet-600">{connections.length}</strong> active
+              </p>
             </div>
-          </div>
+          </Button>
 
           {/* Plivo + OpenAI Summary - Only shown when enabled */}
           {plivoEnabled && (
-            <div 
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+            <Button 
+              variant="ghost"
+              className={`flex items-center gap-3 rounded-2xl transition-all border ${
                 activeTab === 'plivo-openai' 
-                  ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20' 
-                  : 'border-border bg-background/50 hover:border-emerald-300'
+                  ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20 toggle-elevate toggle-elevated' 
+                  : 'border-border/30 bg-foreground/[0.03]'
               }`}
               onClick={() => setActiveTab('plivo-openai')}
               data-testid="engine-card-plivo-openai"
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
                 <Phone className="h-4 w-4 text-green-600" />
-                <span className="font-medium text-sm">+</span>
+                <span className="text-muted-foreground">+</span>
                 <SiOpenai className="h-4 w-4 text-emerald-600" />
-                <span className="font-semibold text-sm">Plivo + OpenAI</span>
               </div>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span><strong className="text-emerald-600">{plivoStats.totalConnections}</strong> active</span>
-                <span><strong>{plivoStats.availableNumbers}</strong> available</span>
-                <span><strong>{plivoStats.totalAgents}</strong> agents</span>
+              <div className="text-left">
+                <p className="font-medium text-sm">Plivo + OpenAI</p>
+                <p className="text-xs text-muted-foreground">
+                  <strong className="text-emerald-600">{plivoStats.totalConnections}</strong> active
+                </p>
               </div>
-            </div>
+            </Button>
           )}
 
           {/* Twilio + OpenAI Summary - Only shown when enabled */}
           {twilioOpenaiEnabled && (
-            <div 
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+            <Button 
+              variant="ghost"
+              className={`flex items-center gap-3 rounded-2xl transition-all border ${
                 activeTab === 'twilio-openai' 
-                  ? 'border-teal-500 bg-teal-500/10 dark:bg-teal-500/20' 
-                  : 'border-border bg-background/50 hover:border-teal-300'
+                  ? 'border-teal-500 bg-teal-500/10 dark:bg-teal-500/20 toggle-elevate toggle-elevated' 
+                  : 'border-border/30 bg-foreground/[0.03]'
               }`}
               onClick={() => setActiveTab('twilio-openai')}
               data-testid="engine-card-twilio-openai"
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
                 <SiTwilio className="h-4 w-4 text-red-500" />
-                <span className="font-medium text-sm">+</span>
+                <span className="text-muted-foreground">+</span>
                 <SiOpenai className="h-4 w-4 text-teal-600" />
-                <span className="font-semibold text-sm">Twilio + OpenAI</span>
               </div>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span><strong className="text-teal-600">{twilioOpenaiStats.totalConnections}</strong> active</span>
-                <span><strong>{twilioOpenaiStats.availableNumbers}</strong> available</span>
-                <span><strong>{twilioOpenaiStats.totalAgents}</strong> agents</span>
+              <div className="text-left">
+                <p className="font-medium text-sm">Twilio + OpenAI</p>
+                <p className="text-xs text-muted-foreground">
+                  <strong className="text-teal-600">{twilioOpenaiStats.totalConnections}</strong> active
+                </p>
               </div>
-            </div>
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Tabbed Content */}
+      {/* iOS 18 Style Pill Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as EngineTab)} className="w-full">
-        <TabsList className={`grid w-full mb-4 ${enabledEngineCount === 1 ? 'grid-cols-1' : enabledEngineCount === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full mb-4 rounded-2xl bg-foreground/[0.03] border border-border/30 p-1 ${enabledEngineCount === 1 ? 'grid-cols-1' : enabledEngineCount === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
           <TabsTrigger value="twilio-elevenlabs" className="flex items-center gap-2" data-testid="tab-twilio-elevenlabs">
             <SiTwilio className="h-3.5 w-3.5 text-red-500" />
             <ElevenLabsIcon className="h-3.5 w-3.5 text-violet-600" />

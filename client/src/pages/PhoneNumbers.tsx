@@ -978,29 +978,25 @@ export default function PhoneNumbers() {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 via-green-100/50 to-teal-50 dark:from-emerald-950/40 dark:via-green-900/30 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-              <Smartphone className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t('phoneNumbers.title')}</h1>
-              <p className="text-muted-foreground mt-0.5">{t('phoneNumbers.subtitle')}</p>
-            </div>
+      {/* iOS 18 Style Clean Header */}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('phoneNumbers.title')}</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">{t('phoneNumbers.subtitle')}</p>
           </div>
           <div className="flex gap-2">
             <Button 
               variant="outline" 
+              className="rounded-2xl"
               onClick={() => setLocation("/app/incoming-connections")}
-              className="bg-white/80 dark:bg-white/10 border-emerald-200 dark:border-emerald-800"
               data-testid="button-manage-connections"
             >
               <LinkIcon className="h-4 w-4 mr-2" />
               {t('phoneNumbers.manageConnections')}
             </Button>
             <Button 
+              className="rounded-2xl"
               onClick={() => plivoEnabled ? handleBuyClick('select') : handleBuyClick('twilio')} 
               data-testid="button-buy-number"
             >
@@ -1010,40 +1006,50 @@ export default function PhoneNumbers() {
           </div>
         </div>
 
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-emerald-100/50 dark:border-emerald-800/30">
-            <div className="flex items-center gap-2">
+        {/* iOS 18 Style Stats Pills */}
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
               <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300" data-testid="text-total-numbers">{totalNumbers}</div>
             </div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-sm">{t('phoneNumbers.stats.totalNumbers')}</div>
+            <div>
+              <span className="text-lg font-semibold text-foreground" data-testid="text-total-numbers">{totalNumbers}</span>
+              <p className="text-xs text-muted-foreground">{t('phoneNumbers.stats.totalNumbers')}</p>
+            </div>
           </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-green-100/50 dark:border-green-800/30">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
+            <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center">
               <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <div className="text-2xl font-bold text-green-700 dark:text-green-300">{activeNumbers}</div>
             </div>
-            <div className="text-green-600/70 dark:text-green-400/70 text-sm">{t('common.active')}</div>
+            <div>
+              <span className="text-lg font-semibold text-foreground">{activeNumbers}</span>
+              <p className="text-xs text-muted-foreground">{t('common.active')}</p>
+            </div>
           </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-teal-100/50 dark:border-teal-800/30">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
+            <div className="w-8 h-8 rounded-xl bg-teal-500/10 flex items-center justify-center">
               <LinkIcon className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-              <div className="text-2xl font-bold text-teal-700 dark:text-teal-300">{connectedNumbers}</div>
             </div>
-            <div className="text-teal-600/70 dark:text-teal-400/70 text-sm">{t('phoneNumbers.stats.connected')}</div>
+            <div>
+              <span className="text-lg font-semibold text-foreground">{connectedNumbers}</span>
+              <p className="text-xs text-muted-foreground">{t('phoneNumbers.stats.connected')}</p>
+            </div>
           </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-cyan-100/50 dark:border-cyan-800/30">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 flex items-center justify-center">
               <CreditCard className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-              <div className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">{MONTHLY_CREDITS}</div>
             </div>
-            <div className="text-cyan-600/70 dark:text-cyan-400/70 text-sm">{t('phoneNumbers.stats.creditsPerMonth')}</div>
+            <div>
+              <span className="text-lg font-semibold text-foreground">{MONTHLY_CREDITS}</span>
+              <p className="text-xs text-muted-foreground">{t('phoneNumbers.stats.creditsPerMonth')}</p>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* iOS 18 Style Pill Tabs */}
       <Tabs defaultValue="owned" className="space-y-6">
-        <TabsList>
+        <TabsList className="bg-foreground/[0.03] rounded-2xl p-1 border border-border/30">
           <TabsTrigger value="owned" data-testid="tab-owned-numbers">
             Twilio Numbers ({ownedNumbers.length})
           </TabsTrigger>

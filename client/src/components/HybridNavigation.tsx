@@ -220,20 +220,20 @@ export function HybridNavigation({
     return content;
   };
 
-  // Desktop Sidebar - iOS 18 Style
+  // Desktop Sidebar - iOS 18 Minimal Style
   const DesktopSidebar = () => (
     <aside
       className={cn(
-        "hidden lg:flex flex-col h-full bg-background/80 backdrop-blur-xl border-r border-border/40 transition-all duration-300 ease-out",
-        isExpanded ? "w-64" : "w-16"
+        "hidden lg:flex flex-col h-full bg-background/95 backdrop-blur-2xl border-r border-border/20 transition-all duration-300 ease-out",
+        isExpanded ? "w-60" : "w-14"
       )}
     >
       {/* Sidebar Header - Toggle only */}
-      <div className="flex-shrink-0 flex items-center justify-center h-14 px-3">
+      <div className="flex-shrink-0 flex items-center justify-center h-12 px-2">
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 rounded-xl text-foreground/50 hover:text-foreground hover:bg-foreground/[0.06]"
+          className="rounded-2xl text-foreground/40"
           onClick={() => setIsExpanded(!isExpanded)}
           data-testid="button-sidebar-toggle"
         >
@@ -295,113 +295,110 @@ export function HybridNavigation({
         )}
       </div>
 
-      {/* Credits Card - iOS style */}
-      <div className={cn("flex-shrink-0 p-3", !isExpanded && "flex justify-center")}>
+      {/* Credits Card - iOS 18 Minimal */}
+      <div className={cn("flex-shrink-0 p-2", !isExpanded && "flex justify-center")}>
         {isExpanded ? (
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.06] border border-border/30">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <Coins className="h-4 w-4 text-amber-500" />
-                </div>
-                <span className="text-[13px] font-medium text-foreground/60">{t('sidebar.credits')}</span>
-              </div>
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+            <div className="flex items-center gap-2">
+              <Coins className="h-4 w-4 text-amber-500" />
+              <span className="text-xs text-muted-foreground">{t('sidebar.credits')}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold tabular-nums">{remainingCredits.toLocaleString()}</span>
               {isPaidPlan && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-primary/10 text-primary">
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
                   {planDisplayName}
                 </span>
               )}
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-foreground">
-              {remainingCredits.toLocaleString()}
             </div>
           </div>
         ) : (
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
-              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center cursor-default">
+              <div className="h-9 w-9 rounded-2xl bg-foreground/[0.04] flex items-center justify-center cursor-default">
                 <Coins className="h-4 w-4 text-amber-500" />
               </div>
             </TooltipTrigger>
-            <TooltipContent side="right" className="rounded-xl">
-              <div className="font-semibold">{remainingCredits.toLocaleString()} {t('sidebar.credits')}</div>
+            <TooltipContent side="right" className="rounded-2xl">
+              <div className="font-medium text-sm">{remainingCredits.toLocaleString()} {t('sidebar.credits')}</div>
             </TooltipContent>
           </Tooltip>
         )}
       </div>
 
-      {/* User Footer */}
-      <div className="flex-shrink-0 p-3 border-t border-border/30">
+      {/* User Footer - iOS 18 Minimal */}
+      <div className="flex-shrink-0 p-2 border-t border-border/20">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className={cn(
-                "flex items-center gap-3 w-full p-2 rounded-2xl transition-colors",
+                "flex items-center gap-2.5 w-full p-2 rounded-2xl transition-colors",
                 "hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                !isExpanded && "justify-center p-2"
+                !isExpanded && "justify-center"
               )}
               data-testid="button-user-menu-sidebar"
             >
-              <Avatar className="h-9 w-9 ring-2 ring-background">
-                <AvatarFallback className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground text-sm font-semibold">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-foreground/[0.08] text-foreground text-sm font-medium">
                   {userInitial}
                 </AvatarFallback>
               </Avatar>
               {isExpanded && (
                 <>
                   <div className="flex-1 min-w-0 text-left">
-                    <div className="text-[14px] font-semibold text-foreground truncate">{userName}</div>
-                    <div className="text-[12px] text-foreground/50 truncate">{userEmail}</div>
+                    <div className="text-sm font-medium text-foreground truncate">{userName}</div>
+                    <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-foreground/30" />
+                  <ChevronDown className="h-3.5 w-3.5 text-foreground/30" />
                 </>
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top" className="w-64 rounded-2xl p-1.5">
-            <div className="px-3 py-3">
+          <DropdownMenuContent align="start" side="top" className="w-60 rounded-2xl p-2 border-border/30">
+            <div className="px-3 py-2.5 mb-1">
               <div className="flex items-center gap-3">
-                <Avatar className="h-11 w-11 ring-2 ring-background">
-                  <AvatarFallback className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground text-base font-semibold">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-foreground/[0.08] text-foreground font-medium">
                     {userInitial}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[15px] font-semibold truncate">{userName}</div>
-                  <div className="text-[13px] text-muted-foreground truncate">{userEmail}</div>
+                  <div className="text-sm font-medium truncate">{userName}</div>
+                  <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
                 </div>
               </div>
             </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => setLocation("/app/settings")} 
-              className="rounded-xl py-2.5 px-3 cursor-pointer"
-              data-testid="link-account-settings"
-            >
-              <Settings className="mr-2.5 h-4 w-4 text-foreground/50" />
-              <span className="text-[14px]">{t('nav.settings', 'Settings')}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={handleLogout}
-              className="rounded-xl py-2.5 px-3 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
-              data-testid="button-logout"
-            >
-              <LogOut className="mr-2.5 h-4 w-4" />
-              <span className="text-[14px]">{t('auth.logout')}</span>
-            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-border/20" />
+            <div className="p-1">
+              <DropdownMenuItem 
+                onClick={() => setLocation("/app/settings")} 
+                className="rounded-2xl py-2 px-3 cursor-pointer"
+                data-testid="link-account-settings"
+              >
+                <Settings className="mr-2.5 h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">{t('nav.settings', 'Settings')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleLogout}
+                className="rounded-2xl py-2 px-3 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+                data-testid="button-logout"
+              >
+                <LogOut className="mr-2.5 h-4 w-4" />
+                <span className="text-sm">{t('auth.logout')}</span>
+              </DropdownMenuItem>
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </aside>
   );
 
-  // Mobile Sidebar - iOS 18 Style
+  // Mobile Sidebar - iOS 18 Minimal Style
   const MobileSidebar = () => (
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-      <SheetContent side="left" className="w-80 p-0 border-r-0 flex flex-col">
-        <SheetHeader className="p-5 pb-4 flex-shrink-0">
-          <SheetTitle className="text-left text-[15px] font-semibold text-foreground/60">
+      <SheetContent side="left" className="w-72 p-0 border-r-0 flex flex-col">
+        <SheetHeader className="px-4 py-3 flex-shrink-0 border-b border-border/20">
+          <SheetTitle className="text-left text-sm font-medium text-muted-foreground">
             {t('sidebar.navigation') || 'Menu'}
           </SheetTitle>
         </SheetHeader>
@@ -439,26 +436,22 @@ export function HybridNavigation({
           )}
         </div>
 
-        {/* Mobile Footer */}
-        <div className="flex-shrink-0 p-4 border-t border-border/30 space-y-3">
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.06] border border-border/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <Coins className="h-4 w-4 text-amber-500" />
-                </div>
-                <span className="text-[13px] font-medium text-foreground/60">{t('sidebar.credits')}</span>
-              </div>
-              <span className="text-xl font-bold">{remainingCredits.toLocaleString()}</span>
+        {/* Mobile Footer - iOS 18 Minimal */}
+        <div className="flex-shrink-0 p-3 border-t border-border/20 space-y-2">
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+            <div className="flex items-center gap-2">
+              <Coins className="h-4 w-4 text-amber-500" />
+              <span className="text-xs text-muted-foreground">{t('sidebar.credits')}</span>
             </div>
+            <span className="text-sm font-semibold tabular-nums">{remainingCredits.toLocaleString()}</span>
           </div>
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-2xl py-2.5"
+            className="w-full justify-start gap-2.5 text-destructive rounded-2xl"
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4" />
-            {t('auth.logout')}
+            <span className="text-sm">{t('auth.logout')}</span>
           </Button>
         </div>
       </SheetContent>
@@ -474,13 +467,13 @@ export function HybridNavigation({
 
         {/* Main Content Area */}
         <div className="flex flex-col flex-1 min-w-0">
-          {/* Top Bar - iOS style */}
-          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4">
+          {/* Top Bar - iOS 18 Minimal Style */}
+          <header className="sticky top-0 z-40 flex h-12 items-center gap-3 border-b border-border/20 bg-background/95 backdrop-blur-2xl px-4">
             {/* Mobile Menu Button */}
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden h-9 w-9 rounded-xl"
+              className="lg:hidden rounded-2xl"
               onClick={() => setMobileMenuOpen(true)}
               data-testid="button-mobile-menu"
             >
@@ -490,21 +483,21 @@ export function HybridNavigation({
             {/* Logo - Always visible in toolbar */}
             <Link 
               href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-              className="flex items-center gap-3 shrink-0"
+              className="flex items-center shrink-0"
               data-testid="link-logo"
             >
               {currentLogo ? (
-                <img src={currentLogo} alt={branding.app_name} className="h-8 w-auto object-contain" />
+                <img src={currentLogo} alt={branding.app_name} className="h-7 w-auto object-contain" />
               ) : (
-                <span className="font-semibold text-lg">{branding.app_name}</span>
+                <span className="font-semibold text-base tracking-tight">{branding.app_name}</span>
               )}
             </Link>
 
             {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Right side utilities */}
-            <div className="flex items-center gap-1.5">
+            {/* Right side utilities - iOS 18 pill group */}
+            <div className="flex items-center gap-1">
               {showNotifications && (
                 <>
                   <HeaderBannerNotifications />
@@ -514,73 +507,68 @@ export function HybridNavigation({
               <LanguageSelector variant="compact" />
               <ThemeToggle />
 
-              {/* Credits - Desktop only */}
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-foreground/[0.04]">
-                <Coins className="h-4 w-4 text-amber-500" />
-                <span className="text-sm font-semibold">{remainingCredits.toLocaleString()}</span>
+              {/* Credits Pill - Desktop only */}
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+                <Coins className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-sm font-medium tabular-nums">{remainingCredits.toLocaleString()}</span>
               </div>
 
-              {/* User Menu */}
+              {/* User Menu - iOS 18 Style */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-9 px-2 gap-2 rounded-xl" data-testid="button-user-menu">
-                    <Avatar className="h-7 w-7">
-                      <AvatarFallback className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground text-xs font-semibold">
+                  <Button variant="ghost" size="sm" className="gap-1.5 rounded-2xl" data-testid="button-user-menu">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="bg-foreground/10 text-foreground text-xs font-medium">
                         {userInitial}
                       </AvatarFallback>
                     </Avatar>
                     <ChevronDown className="h-3 w-3 opacity-50 hidden sm:block" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 rounded-2xl p-1.5">
-                  {/* User Info */}
-                  <div className="p-4 border-b border-border/30">
+                <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2 border-border/30">
+                  {/* User Info - iOS 18 Minimal */}
+                  <div className="px-3 py-3 mb-1">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-11 w-11 ring-2 ring-background">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/90 to-primary text-primary-foreground font-semibold">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-foreground/[0.08] text-foreground font-medium">
                           {userInitial}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{userName}</p>
-                        <p className="text-sm text-muted-foreground truncate">{userEmail}</p>
+                        <p className="font-medium text-sm truncate">{userName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Credits */}
-                  <div className="p-3 border-b border-border/30">
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.06]">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                          <Coins className="h-4 w-4 text-amber-500" />
-                        </div>
-                        <div>
-                          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">{t('sidebar.credits')}</p>
-                          <p className="text-lg font-bold">{remainingCredits.toLocaleString()}</p>
-                        </div>
+                  {/* Credits Pill - iOS 18 Style */}
+                  <div className="px-2 pb-2">
+                    <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+                      <div className="flex items-center gap-2">
+                        <Coins className="h-4 w-4 text-amber-500" />
+                        <span className="text-xs text-muted-foreground">{t('sidebar.credits')}</span>
                       </div>
-                      {isPaidPlan && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-primary/10 text-primary">
-                          {planDisplayName}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold tabular-nums">{remainingCredits.toLocaleString()}</span>
+                        {isPaidPlan && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
+                            {planDisplayName}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  <DropdownMenuSeparator className="bg-border/20" />
 
                   <div className="p-1">
-                    <DropdownMenuItem onClick={() => setLocation("/app/settings")} className="rounded-xl cursor-pointer py-2.5 px-3">
-                      <Settings className="mr-3 h-4 w-4 text-foreground/50" />
-                      {t('nav.settings', 'Settings')}
+                    <DropdownMenuItem onClick={() => setLocation("/app/settings")} className="rounded-2xl cursor-pointer py-2 px-3">
+                      <Settings className="mr-2.5 h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{t('nav.settings', 'Settings')}</span>
                     </DropdownMenuItem>
-                  </div>
-
-                  <DropdownMenuSeparator />
-
-                  <div className="p-1">
-                    <DropdownMenuItem onClick={handleLogout} className="rounded-xl cursor-pointer py-2.5 px-3 text-destructive focus:text-destructive focus:bg-destructive/10">
-                      <LogOut className="mr-3 h-4 w-4" />
-                      {t('auth.logout')}
+                    <DropdownMenuItem onClick={handleLogout} className="rounded-2xl cursor-pointer py-2 px-3 text-destructive focus:text-destructive focus:bg-destructive/10">
+                      <LogOut className="mr-2.5 h-4 w-4" />
+                      <span className="text-sm">{t('auth.logout')}</span>
                     </DropdownMenuItem>
                   </div>
                 </DropdownMenuContent>

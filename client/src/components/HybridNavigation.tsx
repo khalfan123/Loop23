@@ -6,12 +6,8 @@
  */
 import { useState, useEffect, createContext, useContext } from "react";
 import { 
-  Users, BookOpen, Link as LinkIcon, Phone, Settings, 
-  Plus, BarChart3, Home, Target, LogOut, Coins, Shield, 
-  CreditCard, TrendingUp, UserCheck, Workflow, Webhook, 
-  ClipboardList, Calendar, Globe, Bot, ContactRound, 
-  Building2, ShieldCheck, Menu, ChevronDown, Zap, 
-  ChevronLeft, ChevronRight, Search, Bell, Grid3X3
+  Settings, LogOut, Coins, Menu, ChevronDown, Zap, 
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -59,9 +55,6 @@ interface User {
 interface NavItem {
   title: string;
   url: string;
-  icon: React.ComponentType<{ className?: string }>;
-  hasPlus?: boolean;
-  iconColor?: string;
 }
 
 interface NavSection {
@@ -112,53 +105,42 @@ export function HybridNavigation({
     localStorage.setItem('sidebar-expanded', String(isExpanded));
   }, [isExpanded]);
 
-  // Navigation items
+  // Navigation items - Top level (no section header)
   const topItems: NavItem[] = [
-    { title: t('nav.home'), url: variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app", icon: Home },
+    { title: t('nav.apps', 'Apps'), url: variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app" },
+    { title: t('nav.analytics'), url: "/app/analytics" },
+    { title: t('nav.crm'), url: "/app/crm" },
+    { title: t('nav.logs', 'Logs'), url: "/app/calls" },
   ];
   
   // Return to main app link for admin variants
   const returnToAppItem: NavItem = { 
     title: t('nav.returnToApp') || 'Return to App', 
-    url: "/app", 
-    icon: Home, 
-    iconColor: "text-blue-500" 
+    url: "/app"
   };
 
-  const buildItems: NavItem[] = [
-    { title: t('nav.campaigns'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500" },
-    { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500" },
-    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500" },
+  // Setup section items
+  const setupItems: NavItem[] = [
+    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
+    { title: t('nav.inboundCalls', 'Inbound Calls'), url: "/app/incoming-connections" },
+    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/campaigns" },
+    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
+    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
   ];
 
-  const evaluateItems: NavItem[] = [
-    { title: t('nav.allContacts'), url: "/app/contacts", icon: UserCheck, iconColor: "text-teal-500" },
-    { title: t('nav.calls'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500" },
-    { title: t('nav.crm'), url: "/app/crm", icon: ContactRound, iconColor: "text-cyan-500" },
-    { title: t('nav.analytics'), url: "/app/analytics", icon: BarChart3, iconColor: "text-purple-500" },
-    { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500" },
-  ];
-
-  const telephonyItems: NavItem[] = [
-    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500" },
-    { title: t('nav.incomingConnections'), url: "/app/incoming-connections", icon: LinkIcon, iconColor: "text-amber-500" },
-    { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500" },
-  ];
-
-  const formsAppointmentsItems: NavItem[] = [
-    { title: t('nav.forms'), url: "/app/flows/forms", icon: ClipboardList, iconColor: "text-cyan-500" },
-    { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar, iconColor: "text-rose-500" },
+  // Manage section items
+  const manageItems: NavItem[] = [
+    { title: t('nav.appointments'), url: "/app/flows/appointments" },
+    { title: t('nav.forms'), url: "/app/flows/forms" },
   ];
 
   const settingsItems: NavItem[] = [
-    { title: t('nav.settings', 'Settings'), url: "/app/settings", icon: Settings, iconColor: "text-slate-500" },
+    { title: t('nav.settings', 'Settings'), url: "/app/settings" },
   ];
 
   const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [] : [
-    { label: t('sidebar.build'), items: buildItems },
-    { label: t('sidebar.evaluate'), items: evaluateItems },
-    { label: t('sidebar.telephony'), items: telephonyItems },
-    { label: t('sidebar.formsAppointments', 'Forms & Appointments'), items: formsAppointmentsItems },
+    { label: t('sidebar.setup', 'Setup'), items: setupItems },
+    { label: t('sidebar.manage', 'Manage'), items: manageItems },
     { label: '', items: settingsItems },
   ];
 
@@ -219,13 +201,7 @@ export function HybridNavigation({
         )}
         data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <item.icon className={cn("h-5 w-5 shrink-0", item.iconColor)} />
-        {showLabel && (
-          <span className="truncate text-sm">{item.title}</span>
-        )}
-        {showLabel && item.hasPlus && (
-          <Plus className="ml-auto h-4 w-4 text-muted-foreground" />
-        )}
+        <span className="truncate text-sm">{item.title}</span>
       </Link>
     );
 
@@ -321,7 +297,7 @@ export function HybridNavigation({
               )}
               {!isExpanded && <div className="h-px bg-border mx-2 my-2" />}
               <NavItemComponent 
-                item={{ title: t('nav.adminDashboard'), url: "/admin", icon: Shield }} 
+                item={{ title: t('nav.adminDashboard'), url: "/admin" }} 
                 showLabel={isExpanded} 
               />
             </div>
@@ -404,7 +380,7 @@ export function HybridNavigation({
                   {t('nav.administration')}
                 </div>
                 <NavItemComponent 
-                  item={{ title: t('nav.adminDashboard'), url: "/admin", icon: Shield }} 
+                  item={{ title: t('nav.adminDashboard'), url: "/admin" }} 
                   showLabel={true} 
                 />
               </div>

@@ -229,27 +229,27 @@ export function HybridNavigation({
       )}
     >
       {/* Sidebar Header - Logo */}
-      <div className="flex-shrink-0 h-12 flex items-center border-b border-black/[0.06] dark:border-white/[0.08] px-3">
+      <div className="flex-shrink-0 h-14 flex items-center border-b border-black/[0.06] dark:border-white/[0.08] bg-white/60 dark:bg-zinc-800/60 px-3">
         <Link 
           href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
           className={cn(
-            "flex items-center gap-2.5 rounded-xl transition-colors",
-            isExpanded ? "px-2 py-1.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "justify-center w-full"
+            "flex items-center gap-3 rounded-xl transition-colors w-full",
+            isExpanded ? "px-2 py-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "justify-center"
           )}
           data-testid="link-logo-sidebar"
         >
           {currentLogo ? (
-            <img src={currentLogo} alt={branding.app_name} className={cn("object-contain", isExpanded ? "h-7" : "h-6")} />
+            <img src={currentLogo} alt={branding.app_name} className={cn("object-contain", isExpanded ? "h-8" : "h-7")} />
           ) : (
             <>
               <div className={cn(
-                "rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm",
-                isExpanded ? "h-7 w-7" : "h-8 w-8"
+                "rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0",
+                isExpanded ? "h-8 w-8" : "h-9 w-9"
               )}>
-                <span className={cn("text-white font-bold", isExpanded ? "text-sm" : "text-base")}>{branding.app_name?.charAt(0) || 'A'}</span>
+                <span className={cn("text-white font-bold", isExpanded ? "text-base" : "text-lg")}>{branding.app_name?.charAt(0) || 'A'}</span>
               </div>
               {isExpanded && (
-                <span className="font-semibold text-[15px] text-zinc-800 dark:text-zinc-200 tracking-tight">{branding.app_name}</span>
+                <span className="font-semibold text-base text-zinc-900 dark:text-zinc-100 tracking-tight truncate">{branding.app_name}</span>
               )}
             </>
           )}

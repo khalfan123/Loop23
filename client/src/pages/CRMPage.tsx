@@ -28,8 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion, AnimatePresence } from "framer-motion";
-import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
-import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 
 interface Lead {
   id: string;
@@ -1960,28 +1959,50 @@ export default function CRMPage() {
 
   const isLoading = stagesLoading || leadsLoading;
 
-  const rightPanelContent = (
-    <div className="space-y-4">
-      <DocumentCard>
-        <DocumentCardHeader>
-          <DocumentCardTitle>Lead Overview</DocumentCardTitle>
-        </DocumentCardHeader>
-        <DocumentCardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Total Leads</span>
-            <span className="text-sm font-medium">{totalLeads || loadedLeads.length}</span>
+  const subPanelContent = (
+    <div className="space-y-1">
+      <SubPanelSection title="VIEWS">
+        <SubPanelItem
+          icon={<BarChart3 className="w-4 h-4" />}
+          label="Kanban"
+          isActive={viewMode === 'kanban'}
+          onClick={() => setViewMode('kanban')}
+        />
+        <SubPanelItem
+          icon={<ClipboardCheck className="w-4 h-4" />}
+          label="List"
+          isActive={viewMode === 'list'}
+          onClick={() => setViewMode('list')}
+        />
+        <SubPanelItem
+          icon={<TrendingUp className="w-4 h-4" />}
+          label="Analytics"
+          isActive={viewMode === 'analytics'}
+          onClick={() => setViewMode('analytics')}
+        />
+      </SubPanelSection>
+      
+      <SubPanelSection title="OVERVIEW">
+        <div className="px-2.5 py-2 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Total Leads</span>
+            <span className="font-medium">{totalLeads || loadedLeads.length}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Selected</span>
-            <span className="text-sm font-medium text-blue-600">{selectedLeadIds.size}</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Selected</span>
+            <span className="font-medium text-blue-600">{selectedLeadIds.size}</span>
           </div>
-        </DocumentCardContent>
-      </DocumentCard>
+        </div>
+      </SubPanelSection>
     </div>
   );
 
   return (
-    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+    <ThreeColumnLayout 
+      subPanel={subPanelContent} 
+      subPanelWidth="sm"
+      subPanelHeader={<span className="font-medium text-sm">Quick CRM</span>}
+    >
       <div className="flex flex-col h-full bg-background" data-testid="crm-page">
         {/* iOS 18 Style Header */}
         <div className="px-6 py-5 space-y-5">

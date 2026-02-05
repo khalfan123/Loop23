@@ -17,8 +17,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from "@/components/ui/card";
-import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
-import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -1031,36 +1030,49 @@ export default function Calls() {
     </div>
   );
 
-  const rightPanelContent = (
-    <div className="space-y-4">
-      <DocumentCard>
-        <DocumentCardHeader>
-          <DocumentCardTitle>{t('calls.stats.summary', 'Call Summary')}</DocumentCardTitle>
-        </DocumentCardHeader>
-        <DocumentCardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('calls.stats.totalCalls', 'Total')}</span>
-            <span className="text-sm font-medium">{totalCalls}</span>
+  const subPanelContent = (
+    <div className="space-y-1">
+      <SubPanelSection title={t('calls.filters.direction', 'DIRECTION')}>
+        <SubPanelItem
+          icon={<Phone className="w-4 h-4" />}
+          label={t('calls.filters.all', 'All Calls')}
+          isActive={directionFilter === 'all'}
+          onClick={() => setDirectionFilter('all')}
+          badge={<span className="text-xs text-muted-foreground">{totalCalls}</span>}
+        />
+        <SubPanelItem
+          icon={<PhoneIncoming className="w-4 h-4" />}
+          label={t('calls.filters.incoming', 'Incoming')}
+          isActive={directionFilter === 'incoming'}
+          onClick={() => setDirectionFilter('incoming')}
+          badge={<span className="text-xs text-muted-foreground">{incomingCalls}</span>}
+        />
+        <SubPanelItem
+          icon={<PhoneOutgoing className="w-4 h-4" />}
+          label={t('calls.filters.outgoing', 'Outgoing')}
+          isActive={directionFilter === 'outgoing'}
+          onClick={() => setDirectionFilter('outgoing')}
+          badge={<span className="text-xs text-muted-foreground">{outgoingCalls}</span>}
+        />
+      </SubPanelSection>
+      
+      <SubPanelSection title={t('calls.stats.summary', 'SUMMARY')}>
+        <div className="px-2.5 py-2 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t('calls.status.completed', 'Completed')}</span>
+            <span className="font-medium text-emerald-600">{completedCalls}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('calls.status.completed', 'Completed')}</span>
-            <span className="text-sm font-medium text-emerald-600">{completedCalls}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('calls.filters.incoming', 'Incoming')}</span>
-            <span className="text-sm font-medium">{incomingCalls}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('calls.filters.outgoing', 'Outgoing')}</span>
-            <span className="text-sm font-medium">{outgoingCalls}</span>
-          </div>
-        </DocumentCardContent>
-      </DocumentCard>
+        </div>
+      </SubPanelSection>
     </div>
   );
 
   return (
-    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+    <ThreeColumnLayout 
+      subPanel={subPanelContent} 
+      subPanelWidth="sm"
+      subPanelHeader={<span className="font-medium text-sm">{t('calls.title', 'Calls')}</span>}
+    >
       <div className="space-y-6">
         {/* iOS 18 Style Clean Header */}
         <div className="flex flex-col gap-6">

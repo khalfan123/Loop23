@@ -26,8 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from 'react-i18next';
 import { AuthStorage } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
-import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
-import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 
 interface TypeBreakdown {
   incoming: number;
@@ -173,52 +172,49 @@ export default function Analytics() {
     { value: 'batch', label: t('analytics.callTypes.campaigns'), labelShort: t('analytics.callTypes.campaignsShort'), icon: Target, count: typeBreakdown.batch },
   ];
 
-  const rightPanelContent = (
-    <div className="space-y-4">
-      <DocumentCard>
-        <DocumentCardHeader>
-          <DocumentCardTitle>{t('analytics.quickStats', 'Quick Stats')}</DocumentCardTitle>
-        </DocumentCardHeader>
-        <DocumentCardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('analytics.callTypes.incoming')}</span>
-            <span className="text-sm font-medium">{typeBreakdown.incoming}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('analytics.callTypes.outgoing')}</span>
-            <span className="text-sm font-medium">{typeBreakdown.outgoing}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('analytics.callTypes.campaigns')}</span>
-            <span className="text-sm font-medium">{typeBreakdown.batch}</span>
-          </div>
-        </DocumentCardContent>
-      </DocumentCard>
+  const callTypeItems = [
+    { value: 'all', label: t('analytics.callTypes.all'), icon: Phone, count: typeBreakdown.total },
+    { value: 'incoming', label: t('analytics.callTypes.incoming'), icon: PhoneIncoming, count: typeBreakdown.incoming },
+    { value: 'outgoing', label: t('analytics.callTypes.outgoing'), icon: PhoneOutgoing, count: typeBreakdown.outgoing },
+    { value: 'batch', label: t('analytics.callTypes.campaigns'), icon: Target, count: typeBreakdown.batch },
+  ];
+
+  const subPanelContent = (
+    <div className="space-y-1">
+      <SubPanelSection title={t('analytics.callTypes.title', 'CALL TYPES')}>
+        {callTypeItems.map((filter) => (
+          <SubPanelItem
+            key={filter.value}
+            icon={<filter.icon className="w-4 h-4" />}
+            label={filter.label}
+            isActive={callType === filter.value}
+            onClick={() => setCallType(filter.value)}
+            badge={<span className="text-xs text-muted-foreground">{filter.count}</span>}
+          />
+        ))}
+      </SubPanelSection>
       
-      <DocumentCard>
-        <DocumentCardHeader>
-          <DocumentCardTitle>{t('analytics.performance', 'Performance')}</DocumentCardTitle>
-        </DocumentCardHeader>
-        <DocumentCardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('analytics.successRate')}</span>
-            <span className="text-sm font-medium text-emerald-600">{successRate}%</span>
+      <SubPanelSection title={t('analytics.metrics', 'METRICS')}>
+        <div className="px-2.5 py-2 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t('analytics.successRate')}</span>
+            <span className="font-medium text-emerald-600">{successRate}%</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('analytics.qualifiedLeads')}</span>
-            <span className="text-sm font-medium">{qualifiedLeads}</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t('analytics.avgDurationLabel')}</span>
+            <span className="font-medium">{formatDuration(avgDuration)}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('analytics.avgDurationLabel')}</span>
-            <span className="text-sm font-medium">{formatDuration(avgDuration)}</span>
-          </div>
-        </DocumentCardContent>
-      </DocumentCard>
+        </div>
+      </SubPanelSection>
     </div>
   );
 
   return (
-    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+    <ThreeColumnLayout 
+      subPanel={subPanelContent} 
+      subPanelWidth="sm"
+      subPanelHeader={<span className="font-medium text-sm">{t('analytics.filters', 'Filters')}</span>}
+    >
       <div className="space-y-6" ref={reportRef}>
         {/* iOS 18 Style Header - Clean and Minimal */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">

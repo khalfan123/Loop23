@@ -48,8 +48,7 @@ import {
   TrendingUp,
   BarChart3
 } from "lucide-react";
-import { ThreeColumnLayout } from "@/components/ThreeColumnLayout";
-import { DocumentCard, DocumentCardHeader, DocumentCardContent, DocumentCardTitle } from "@/components/DocumentCard";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import { useState } from "react";
 import { CreateCampaignDialog } from "@/components/CreateCampaignDialog";
 import { useQuery } from "@tanstack/react-query";
@@ -278,52 +277,51 @@ export default function Dashboard() {
 
   const userName = dashboard?.userName || 'User';
 
-  const rightPanelContent = (
-    <div className="space-y-4">
-      <DocumentCard>
-        <DocumentCardHeader>
-          <DocumentCardTitle>{t('dashboard.quickActions', 'Quick Actions')}</DocumentCardTitle>
-        </DocumentCardHeader>
-        <DocumentCardContent className="space-y-2">
-          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setCreateDialogOpen(true)}>
-            <Megaphone className="h-4 w-4 mr-2" />
-            {t('dashboard.newCampaign', 'New Campaign')}
-          </Button>
-          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setLocation('/app/agents')}>
-            <Bot className="h-4 w-4 mr-2" />
-            {t('dashboard.createAgent', 'Create Agent')}
-          </Button>
-          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setLocation('/app/calls')}>
-            <Phone className="h-4 w-4 mr-2" />
-            {t('dashboard.viewCalls', 'View Calls')}
-          </Button>
-        </DocumentCardContent>
-      </DocumentCard>
+  const subPanelContent = (
+    <div className="space-y-1">
+      <SubPanelSection title={t('dashboard.quickActions', 'QUICK ACTIONS')}>
+        <SubPanelItem
+          icon={<Megaphone className="w-4 h-4" />}
+          label={t('dashboard.newCampaign', 'New Campaign')}
+          onClick={() => setCreateDialogOpen(true)}
+        />
+        <SubPanelItem
+          icon={<Bot className="w-4 h-4" />}
+          label={t('dashboard.createAgent', 'Create Agent')}
+          onClick={() => setLocation('/app/agents')}
+        />
+        <SubPanelItem
+          icon={<Phone className="w-4 h-4" />}
+          label={t('dashboard.viewCalls', 'View Calls')}
+          onClick={() => setLocation('/app/calls')}
+        />
+      </SubPanelSection>
       
-      <DocumentCard>
-        <DocumentCardHeader>
-          <DocumentCardTitle>{t('dashboard.overview', 'Overview')}</DocumentCardTitle>
-        </DocumentCardHeader>
-        <DocumentCardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('dashboard.totalCalls', 'Total Calls')}</span>
-            <span className="text-sm font-medium">{dashboard?.totalCalls || 0}</span>
+      <SubPanelSection title={t('dashboard.stats', 'STATS')}>
+        <div className="px-2.5 py-2 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t('dashboard.totalCalls', 'Total Calls')}</span>
+            <span className="font-medium">{dashboard?.totalCalls || 0}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('dashboard.agents', 'Agents')}</span>
-            <span className="text-sm font-medium">{dashboard?.agentsCount || 0}</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t('dashboard.thisWeek', 'This Week')}</span>
+            <span className="font-medium">{dashboard?.totalThisWeek || 0}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{t('dashboard.campaigns', 'Campaigns')}</span>
-            <span className="text-sm font-medium">{dashboard?.campaignsCount || 0}</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t('dashboard.appointments', 'Appointments')}</span>
+            <span className="font-medium">{dashboard?.appointmentsBooked || 0}</span>
           </div>
-        </DocumentCardContent>
-      </DocumentCard>
+        </div>
+      </SubPanelSection>
     </div>
   );
 
   return (
-    <ThreeColumnLayout rightPanel={rightPanelContent} rightPanelWidth="sm">
+    <ThreeColumnLayout 
+      subPanel={subPanelContent} 
+      subPanelWidth="sm"
+      subPanelHeader={<span className="font-medium text-sm">{t('dashboard.navigation', 'Navigation')}</span>}
+    >
       <div className="space-y-8">
         {/* Hero Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-100 via-purple-50 to-fuchsia-100 dark:from-violet-950/50 dark:via-purple-950/30 dark:to-fuchsia-950/50 p-8 md:p-12">

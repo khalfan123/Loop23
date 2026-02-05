@@ -1,15 +1,12 @@
 import { cn } from "@/lib/utils";
 
 /**
- * ThreeColumnLayout - Creates a 3-column page layout similar to Retell's design.
+ * ThreeColumnLayout - iOS 18 inspired 3-column page layout.
  * 
- * Structure (matching reference design):
- * - Left sidebar (from HybridNavigation wrapper - external to this component)
- * - Left sub-panel (for folders, filters, categories - optional)
- * - Main content area (primary content)
- * 
- * The sub-panel is a secondary navigation/filter area that appears
- * between the main sidebar and the content area.
+ * Features minimal design with:
+ * - Clean white sub-panel with subtle borders
+ * - Soft gray content area background
+ * - Refined typography and spacing
  */
 interface ThreeColumnLayoutProps {
   children: React.ReactNode;
@@ -30,44 +27,46 @@ export function ThreeColumnLayout({
   className,
 }: ThreeColumnLayoutProps) {
   const subPanelWidthClass = {
-    sm: "w-56",
-    md: "w-64",
-    lg: "w-72",
+    sm: "w-60",
+    md: "w-72",
+    lg: "w-80",
   };
 
   return (
     <div className={cn("flex h-full w-full", className)}>
-      {/* Left Sub-Panel - Folders/Filters */}
+      {/* Left Sub-Panel - iOS 18 style clean white panel */}
       {subPanel && (
         <aside
           className={cn(
-            "hidden lg:flex flex-col flex-shrink-0 border-r border-border/40 bg-background",
+            "hidden lg:flex flex-col flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900",
             subPanelWidthClass[subPanelWidth]
           )}
         >
           {subPanelHeader && (
-            <div className="px-4 py-4 border-b border-border/40">
-              <div className="text-base font-semibold text-foreground">
+            <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+              <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
                 {subPanelHeader}
-              </div>
+              </h2>
             </div>
           )}
-          <div className="flex-1 overflow-auto p-3">
+          <div className="flex-1 overflow-auto px-3 py-3">
             {subPanel}
           </div>
         </aside>
       )}
       
-      {/* Main Content Area - Light gray background */}
-      <div className="flex-1 min-w-0 overflow-auto bg-muted/30 dark:bg-muted/10">
-        {children}
+      {/* Main Content Area - iOS 18 soft gray background */}
+      <div className="flex-1 min-w-0 overflow-auto bg-zinc-50/80 dark:bg-zinc-950/50">
+        <div className="p-6">
+          {children}
+        </div>
       </div>
     </div>
   );
 }
 
 /**
- * SubPanelSection - Section within the sub-panel (like FOLDERS, TRANSFER AGENTS)
+ * SubPanelSection - iOS 18 style section with refined typography
  */
 interface SubPanelSectionProps {
   title?: string;
@@ -81,9 +80,9 @@ export function SubPanelSection({
   className,
 }: SubPanelSectionProps) {
   return (
-    <div className={cn("mb-4", className)}>
+    <div className={cn("mb-5", className)}>
       {title && (
-        <h3 className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider px-2 mb-2">
+        <h3 className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide px-3 mb-1.5">
           {title}
         </h3>
       )}
@@ -95,15 +94,15 @@ export function SubPanelSection({
 }
 
 /**
- * SubPanelItem - Individual item in the sub-panel
- * Uses hover-elevate utility for consistent interaction behavior
+ * SubPanelItem - iOS 18 style navigation item
+ * Features soft blue selection, rounded corners, smooth transitions
  */
 interface SubPanelItemProps {
   icon?: React.ReactNode;
   label: string;
   isActive?: boolean;
   onClick?: () => void;
-  badge?: React.ReactNode;
+  badge?: React.ReactNode | string | number;
   className?: string;
 }
 
@@ -119,16 +118,27 @@ export function SubPanelItem({
     <button
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-left hover-elevate active-elevate-2",
+        "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-left transition-all duration-150 hover-elevate active-elevate-2",
         isActive 
-          ? "bg-primary/10 text-primary font-medium" 
-          : "text-foreground/70",
+          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium" 
+          : "text-zinc-600 dark:text-zinc-400",
         className
       )}
     >
-      {icon && <span className="flex-shrink-0 w-4 h-4">{icon}</span>}
+      {icon && (
+        <span className={cn(
+          "flex-shrink-0 w-4 h-4",
+          isActive ? "text-blue-500" : "text-zinc-400 dark:text-zinc-500"
+        )}>
+          {icon}
+        </span>
+      )}
       <span className="flex-1 truncate">{label}</span>
-      {badge}
+      {badge && (
+        <span className="text-[12px] text-zinc-400 dark:text-zinc-500 font-medium">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }

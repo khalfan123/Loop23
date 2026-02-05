@@ -189,7 +189,7 @@ export default function Analytics() {
             label={filter.label}
             isActive={callType === filter.value}
             onClick={() => setCallType(filter.value)}
-            badge={<span className="text-xs text-muted-foreground">{filter.count}</span>}
+            badge={filter.count}
           />
         ))}
       </SubPanelSection>

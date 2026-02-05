@@ -1038,21 +1038,21 @@ export default function Calls() {
           label={t('calls.filters.all', 'All Calls')}
           isActive={directionFilter === 'all'}
           onClick={() => setDirectionFilter('all')}
-          badge={<span className="text-xs text-muted-foreground">{totalCalls}</span>}
+          badge={totalCalls}
         />
         <SubPanelItem
           icon={<PhoneIncoming className="w-4 h-4" />}
           label={t('calls.filters.incoming', 'Incoming')}
           isActive={directionFilter === 'incoming'}
           onClick={() => setDirectionFilter('incoming')}
-          badge={<span className="text-xs text-muted-foreground">{incomingCalls}</span>}
+          badge={incomingCalls}
         />
         <SubPanelItem
           icon={<PhoneOutgoing className="w-4 h-4" />}
           label={t('calls.filters.outgoing', 'Outgoing')}
           isActive={directionFilter === 'outgoing'}
           onClick={() => setDirectionFilter('outgoing')}
-          badge={<span className="text-xs text-muted-foreground">{outgoingCalls}</span>}
+          badge={outgoingCalls}
         />
       </SubPanelSection>
       

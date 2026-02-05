@@ -153,7 +153,7 @@ export default function Campaigns() {
           icon={<Phone className="w-4 h-4" />}
           label={t('campaigns.batchCall', 'Batch Call')}
           isActive={true}
-          badge={<span className="text-xs text-muted-foreground">{campaigns.length}</span>}
+          badge={campaigns.length}
         />
       </SubPanelSection>
       

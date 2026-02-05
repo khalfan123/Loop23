@@ -5,7 +5,10 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { 
   Settings, LogOut, Coins, Menu, ChevronDown,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, BarChart3, Users, Phone,
+  Building2, PhoneCall, PhoneIncoming, PhoneOutgoing,
+  Bot, BookOpen, Calendar, FileText, Home, Plus,
+  type LucideIcon
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -50,11 +53,14 @@ interface User {
 interface NavItem {
   title: string;
   url: string;
+  icon?: LucideIcon;
+  badge?: number;
 }
 
 interface NavSection {
   label: string;
   items: NavItem[];
+  collapsible?: boolean;
 }
 
 interface SidebarContextType {
@@ -99,32 +105,33 @@ export function HybridNavigation({
   }, [isExpanded]);
 
   const topItems: NavItem[] = [
-    { title: t('nav.analytics', 'Analytics'), url: "/app/analytics" },
-    { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm" },
-    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/calls" },
-    { title: t('nav.departments', 'Departments'), url: "/app/departments" },
+    { title: t('nav.analytics', 'Analytics'), url: "/app/analytics", icon: BarChart3 },
+    { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm", icon: Users },
+    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/calls", icon: PhoneCall },
+    { title: t('nav.departments', 'Departments'), url: "/app/departments", icon: Building2 },
   ];
   
   const returnToAppItem: NavItem = { 
     title: t('nav.returnToApp') || 'Return to App', 
-    url: "/app"
+    url: "/app",
+    icon: Home
   };
 
   const setupItems: NavItem[] = [
-    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
-    { title: t('nav.inboundCalls', 'Inbound Calls'), url: "/app/incoming-connections" },
-    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/campaigns" },
-    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
-    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
+    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone },
+    { title: t('nav.inboundCalls', 'Inbound Calls'), url: "/app/incoming-connections", icon: PhoneIncoming },
+    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/campaigns", icon: PhoneOutgoing },
+    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents", icon: Bot },
+    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen },
   ];
 
   const manageItems: NavItem[] = [
-    { title: t('nav.appointments'), url: "/app/flows/appointments" },
-    { title: t('nav.forms'), url: "/app/flows/forms" },
+    { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar },
+    { title: t('nav.forms'), url: "/app/flows/forms", icon: FileText },
   ];
 
   const settingsItems: NavItem[] = [
-    { title: t('nav.settings', 'Settings'), url: "/app/settings" },
+    { title: t('nav.settings', 'Settings'), url: "/app/settings", icon: Settings },
   ];
 
   const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [] : [
@@ -172,52 +179,42 @@ export function HybridNavigation({
     return location === url || location.startsWith(url + '/');
   };
 
-  // iOS 18 style nav item
+  // iOS 18 style nav item with icon
   const NavItemComponent = ({ item, showLabel }: { item: NavItem; showLabel: boolean }) => {
     const active = isActive(item.url);
+    const IconComponent = item.icon;
     
-    const content = (
+    return (
       <Link
         href={item.url}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all duration-200 text-[15px]",
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-[14px] group",
           active 
-            ? "bg-foreground/[0.08] text-foreground font-semibold" 
-            : "text-foreground/60 hover:text-foreground hover:bg-foreground/[0.04]"
+            ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-medium shadow-sm" 
+            : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
         )}
         data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <span className="truncate">{item.title}</span>
+        {IconComponent && (
+          <IconComponent className={cn(
+            "h-4 w-4 flex-shrink-0",
+            active ? "text-white dark:text-zinc-900" : "text-zinc-400 dark:text-zinc-500"
+          )} />
+        )}
+        {showLabel && <span className="truncate flex-1">{item.title}</span>}
+        {item.badge !== undefined && item.badge > 0 && (
+          <span className={cn(
+            "ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-semibold min-w-[18px] text-center",
+            active 
+              ? "bg-white/20 text-white dark:bg-zinc-900/20 dark:text-zinc-900" 
+              : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+          )}>
+            {item.badge}
+          </span>
+        )}
       </Link>
     );
-
-    if (!showLabel) {
-      return (
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <Link
-              href={item.url}
-              onClick={() => setMobileMenuOpen(false)}
-              className={cn(
-                "flex items-center justify-center h-10 w-10 rounded-2xl transition-all duration-200",
-                active 
-                  ? "bg-foreground/[0.08] text-foreground" 
-                  : "text-foreground/60 hover:text-foreground hover:bg-foreground/[0.04]"
-              )}
-              data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              <span className="text-sm font-semibold">{item.title.charAt(0)}</span>
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="font-medium rounded-xl">
-            {item.title}
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return content;
   };
 
   // Desktop Sidebar - iOS 18 Minimal Style with soft gray (always expanded)
@@ -283,24 +280,40 @@ export function HybridNavigation({
               {t('nav.administration')}
             </div>
             <NavItemComponent 
-              item={{ title: t('nav.adminDashboard'), url: "/admin" }} 
+              item={{ title: t('nav.adminDashboard'), url: "/admin", icon: Settings }} 
               showLabel={true} 
             />
           </div>
         )}
       </div>
 
+      {/* Quick Action Card - Like reference design */}
+      <div className="flex-shrink-0 px-3 pb-2">
+        <Link
+          href="/app/campaigns"
+          className="flex items-center gap-3 p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-dashed border-zinc-300 dark:border-zinc-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all group"
+        >
+          <div className="h-10 w-10 rounded-xl bg-white dark:bg-zinc-700 flex items-center justify-center shadow-sm group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
+            <Plus className="h-5 w-5 text-zinc-400 group-hover:text-blue-500 transition-colors" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{t('sidebar.newCampaign', 'New Campaign')}</div>
+            <div className="text-xs text-zinc-400 dark:text-zinc-500">{t('sidebar.createAndLaunch', 'Create & Launch')}</div>
+          </div>
+        </Link>
+      </div>
+
       {/* Credits Card - iOS 18 Minimal */}
-      <div className="flex-shrink-0 p-2">
-        <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+      <div className="flex-shrink-0 px-3 pb-2">
+        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm">
           <div className="flex items-center gap-2">
             <Coins className="h-4 w-4 text-amber-500" />
-            <span className="text-xs text-muted-foreground">{t('sidebar.credits')}</span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">{t('sidebar.credits')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold tabular-nums">{remainingCredits.toLocaleString()}</span>
+            <span className="text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">{remainingCredits.toLocaleString()}</span>
             {isPaidPlan && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
                 {planDisplayName}
               </span>
             )}

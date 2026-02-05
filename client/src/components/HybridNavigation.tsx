@@ -229,7 +229,7 @@ export function HybridNavigation({
       )}
     >
       {/* Sidebar Header - Toggle only */}
-      <div className="flex items-center justify-center h-14 px-3">
+      <div className="flex-shrink-0 flex items-center justify-center h-14 px-3">
         <Button
           variant="ghost"
           size="icon"
@@ -246,7 +246,7 @@ export function HybridNavigation({
       </div>
 
       {/* Navigation Content - Scrollable */}
-      <div className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 py-4 px-3 space-y-1 overflow-y-auto">
         {/* Top Items */}
         {topItems.map((item) => (
           <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />
@@ -296,7 +296,7 @@ export function HybridNavigation({
       </div>
 
       {/* Credits Card - iOS style */}
-      <div className={cn("p-3", !isExpanded && "flex justify-center")}>
+      <div className={cn("flex-shrink-0 p-3", !isExpanded && "flex justify-center")}>
         {isExpanded ? (
           <div className="p-4 rounded-2xl bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.06] border border-border/30">
             <div className="flex items-center justify-between mb-2">
@@ -331,7 +331,7 @@ export function HybridNavigation({
       </div>
 
       {/* User Footer */}
-      <div className="p-3 border-t border-border/30">
+      <div className="flex-shrink-0 p-3 border-t border-border/30">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -399,14 +399,14 @@ export function HybridNavigation({
   // Mobile Sidebar - iOS 18 Style
   const MobileSidebar = () => (
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-      <SheetContent side="left" className="w-80 p-0 border-r-0">
-        <SheetHeader className="p-5 pb-4">
+      <SheetContent side="left" className="w-80 p-0 border-r-0 flex flex-col">
+        <SheetHeader className="p-5 pb-4 flex-shrink-0">
           <SheetTitle className="text-left text-[15px] font-semibold text-foreground/60">
             {t('sidebar.navigation') || 'Menu'}
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-1">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-1">
           {topItems.map((item) => (
             <NavItemComponent key={item.url} item={item} showLabel={true} />
           ))}
@@ -440,7 +440,7 @@ export function HybridNavigation({
         </div>
 
         {/* Mobile Footer */}
-        <div className="p-4 border-t border-border/30 space-y-3">
+        <div className="flex-shrink-0 p-4 border-t border-border/30 space-y-3">
           <div className="p-4 rounded-2xl bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.06] border border-border/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">

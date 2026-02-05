@@ -225,11 +225,11 @@ export function HybridNavigation({
     <aside
       className="hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] w-64"
     >
-      {/* Sidebar Header - Logo (compact alignment) */}
-      <div className="flex-shrink-0 flex flex-col items-center px-3 py-2">
+      {/* Sidebar Header - Logo */}
+      <div className="flex-shrink-0 flex flex-col items-center px-3 pt-1 pb-1">
         <Link 
           href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-          className="flex flex-col items-center rounded-2xl transition-all duration-200 p-2 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+          className="flex flex-col items-center rounded-2xl transition-all duration-200 p-1 hover:bg-blue-50 dark:hover:bg-blue-950/30"
           data-testid="link-logo-sidebar"
         >
           {currentLogo ? (
@@ -239,7 +239,7 @@ export function HybridNavigation({
               <div className="h-[120px] w-[120px] rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/40 flex-shrink-0">
                 <span className="text-white font-bold text-5xl">{branding.app_name?.charAt(0) || 'A'}</span>
               </div>
-              <div className="flex flex-col items-center mt-2">
+              <div className="flex flex-col items-center mt-1">
                 <span className="font-bold text-lg text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
                 <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">AI Platform</span>
               </div>
@@ -248,8 +248,8 @@ export function HybridNavigation({
         </Link>
       </div>
 
-      {/* Navigation Content - Scrollable */}
-      <div className="flex-1 min-h-0 py-2 px-3 space-y-1 overflow-y-auto">
+      {/* Navigation Content - Scrollable (no top gap) */}
+      <div className="flex-1 min-h-0 pt-0 pb-2 px-3 space-y-0.5 overflow-y-auto">
         {/* Top Items */}
         {topItems.map((item) => (
           <NavItemComponent key={item.url} item={item} showLabel={true} />
@@ -257,16 +257,16 @@ export function HybridNavigation({
 
         {/* Return to App */}
         {(variant === 'admin' || variant === 'admin-team') && (
-          <div className="pt-2">
+          <div className="pt-1">
             <NavItemComponent item={returnToAppItem} showLabel={true} />
           </div>
         )}
 
         {/* Nav Sections */}
         {navSections.map((section, idx) => (
-          <div key={section.label || idx} className="pt-6">
+          <div key={section.label || idx} className="pt-4">
             {section.label && (
-              <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+              <div className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
                 {section.label}
               </div>
             )}
@@ -280,8 +280,8 @@ export function HybridNavigation({
 
         {/* Admin Link */}
         {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-          <div className="pt-6">
-            <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+          <div className="pt-4">
+            <div className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
               {t('nav.administration')}
             </div>
             <NavItemComponent 

@@ -245,8 +245,8 @@ export function HybridNavigation({
         </Button>
       </div>
 
-      {/* Navigation Content - No scroll */}
-      <div className="flex-1 py-4 px-3 space-y-1 overflow-hidden">
+      {/* Navigation Content - Scrollable */}
+      <div className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {/* Top Items */}
         {topItems.map((item) => (
           <NavItemComponent key={item.url} item={item} showLabel={isExpanded} />

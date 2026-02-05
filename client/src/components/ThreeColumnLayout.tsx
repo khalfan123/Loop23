@@ -1,5 +1,17 @@
 import { cn } from "@/lib/utils";
 
+/**
+ * ThreeColumnLayout - Creates the center and right columns of a 3-column page layout.
+ * 
+ * This component is designed to work with the existing sidebar (AppSidebar/HybridNavigation)
+ * which provides the left column. Together they form a 3-column layout:
+ * - Left sidebar (from HybridNavigation wrapper)
+ * - Center content area (children prop)
+ * - Right panel (optional, for contextual info like stats, actions, details)
+ * 
+ * Usage: Wrap page content in ThreeColumnLayout within pages that are already
+ * rendered inside the HybridNavigation/UserRouter structure.
+ */
 interface ThreeColumnLayoutProps {
   children: React.ReactNode;
   rightPanel?: React.ReactNode;

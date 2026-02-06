@@ -1080,7 +1080,37 @@ export default function DepartmentManagement() {
                         </div>
                       </Card>
                     )}
-                    <div className="w-px h-6 bg-gradient-to-b from-amber-500 to-border" />
+                    <div className="w-px h-6 bg-gradient-to-b from-amber-500 to-blue-500" />
+                    
+                    {multiLangEnabled && languageOptions.length > 1 && (
+                      <>
+                        <Card className="border-blue-400 bg-blue-50 dark:bg-blue-900/20 p-4 min-w-[300px]">
+                          <div className="flex items-center gap-2 mb-3">
+                            <GitBranch className="h-5 w-5 text-blue-600" />
+                            <span className="font-semibold text-blue-700 dark:text-blue-300">Department Selection</span>
+                          </div>
+                          <p className="text-xs text-blue-700/70 dark:text-blue-300/70 mb-2">Menu plays in the caller's selected language</p>
+                          <div className="space-y-1 mb-2">
+                            {departments.slice(0, 4).map((dept, idx) => (
+                              <div key={dept.id} className="text-sm text-blue-800 dark:text-blue-200 bg-white dark:bg-gray-800 rounded p-2 flex items-center gap-2">
+                                <span className="font-mono text-blue-600 font-semibold shrink-0">{idx + 1}</span>
+                                <span className="flex-1">{dept.name}</span>
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: dept.color }} />
+                              </div>
+                            ))}
+                            {departments.length > 4 && (
+                              <div className="text-xs text-blue-600 text-center">+{departments.length - 4} more</div>
+                            )}
+                          </div>
+                        </Card>
+                        <div className="w-px h-6 bg-gradient-to-b from-blue-500 to-purple-500" />
+                        <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-4 py-2">
+                          <Mic className="h-4 w-4 mr-2" />
+                          Connected to AI Agent
+                        </Badge>
+                        <div className="w-px h-6 bg-gradient-to-b from-purple-500 to-border" />
+                      </>
+                    )}
                   </>
                 )}
                 

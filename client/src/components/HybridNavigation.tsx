@@ -286,22 +286,6 @@ export function HybridNavigation({
         )}
       </div>
 
-      {/* Quick Action Card - Like reference design */}
-      <div className="flex-shrink-0 px-3 pb-2">
-        <Link
-          href="/app/campaigns"
-          className="flex items-center gap-3 p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-dashed border-zinc-300 dark:border-zinc-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all group"
-        >
-          <div className="h-10 w-10 rounded-xl bg-white dark:bg-zinc-700 flex items-center justify-center shadow-sm group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition-colors">
-            <Plus className="h-5 w-5 text-zinc-400 group-hover:text-blue-500 transition-colors" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{t('sidebar.newCampaign', 'New Campaign')}</div>
-            <div className="text-xs text-zinc-400 dark:text-zinc-500">{t('sidebar.createAndLaunch', 'Create & Launch')}</div>
-          </div>
-        </Link>
-      </div>
-
       {/* Credits Card - iOS 18 Minimal */}
       <div className="flex-shrink-0 px-3 pb-2">
         <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm">

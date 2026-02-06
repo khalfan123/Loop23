@@ -226,7 +226,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-80 p-4">
         <div className="grid grid-cols-3 gap-2">
-          {buildItems.concat(evaluateItems.slice(0, 3)).map((item) => (
+          {setupItems.concat(evaluateItems.slice(0, 3)).map((item) => (
             <Link
               key={item.url}
               href={item.url}

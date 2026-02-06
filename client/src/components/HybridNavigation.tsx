@@ -117,11 +117,11 @@ export function HybridNavigation({
   };
 
   const setupItems: NavItem[] = [
-    { title: t('nav.departments', 'Departments'), url: "/app/departments", icon: Building2 },
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone },
-    { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: PhoneOutgoing },
     { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents", icon: Bot },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen },
+    { title: t('nav.departments', 'Departments'), url: "/app/departments", icon: Building2 },
+    { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: PhoneOutgoing },
   ];
 
   const manageItems: NavItem[] = [

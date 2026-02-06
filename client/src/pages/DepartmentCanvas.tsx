@@ -222,6 +222,9 @@ interface LanguageOption {
 }
 
 const generateDefaultLangGreeting = (langOpts: LanguageOption[], companyName?: string): string => {
+  if (companyName) {
+    return `Thanks for calling ${companyName}. Please select your preferred language.`;
+  }
   return 'Please select your preferred language.';
 };
 
@@ -968,7 +971,7 @@ function IVRConfigPanel({
                   }}
                   rows={3}
                   className="text-sm"
-                  placeholder='Thanks for calling. For English, press 1...'
+                  placeholder='Thanks for calling {Company Name}. Please select your preferred language. For English, press 1...'
                   data-testid="textarea-lang-selection-greeting"
                 />
                 <p className="text-xs text-muted-foreground">

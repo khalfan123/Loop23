@@ -861,18 +861,16 @@ async function handleIvrCall(
         timeout: 10,
       });
       
-      // Play company intro + language selection greeting (with slower speech)
-      if (companyName) {
-        const companyIntro = `Thanks for calling ${companyName}.`;
-        saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, companyIntro);
-        console.log(`   Company Intro: "${companyIntro}"`);
-      }
-      
+      // Play language selection greeting (with slower speech)
+      // The greeting message already includes "Thanks for calling {company}" when set from the UI
       if (ivrConfig.greetingMessage) {
         saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, ivrConfig.greetingMessage);
         console.log(`   Greeting: "${ivrConfig.greetingMessage}"`);
       } else {
-        const defaultGreeting = 'Please select your preferred language.';
+        // Fallback: if no greeting saved, build one with company name
+        const defaultGreeting = companyName 
+          ? `Thanks for calling ${companyName}. Please select your preferred language.`
+          : 'Please select your preferred language.';
         saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, defaultGreeting);
         console.log(`   Greeting: "${defaultGreeting}"`);
       }

@@ -629,6 +629,10 @@ export default function DepartmentManagement() {
   }, []);
 
   const generateDefaultLanguageSelectionGreeting = () => {
+    const companyName = userProfile?.company || userProfile?.name || '';
+    if (companyName) {
+      return `Thanks for calling ${companyName}. Please select your preferred language.`;
+    }
     return 'Please select your preferred language.';
   };
 
@@ -2378,7 +2382,7 @@ export default function DepartmentManagement() {
                           }}
                           rows={3}
                           className="text-sm"
-                          placeholder='Thank you for calling "Company Name". For English, press 1...'
+                          placeholder='Thanks for calling {Company Name}. Please select your preferred language. For English, press 1...'
                           data-testid="textarea-lang-selection-greeting"
                         />
                         <p className="text-xs text-muted-foreground">

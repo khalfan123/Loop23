@@ -840,6 +840,15 @@ async function handleIvrCall(
         timeout: 10,
       });
       
+      // Play language selection greeting before listing options
+      if (ivrConfig.greetingMessage) {
+        gather.say({ voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, ivrConfig.greetingMessage);
+        console.log(`   Greeting: "${ivrConfig.greetingMessage}"`);
+      } else {
+        gather.say({ voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, 'Welcome. Please select your preferred language.');
+        console.log(`   Greeting: default welcome`);
+      }
+      
       for (let idx = 0; idx < langOptions.length; idx++) {
         const opt = langOptions[idx];
         const voice = getVoiceForLanguage(opt.language);

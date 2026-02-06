@@ -1051,7 +1051,14 @@ export default function DepartmentManagement() {
                           <Globe className="h-5 w-5 text-amber-600" />
                           <span className="font-semibold text-amber-700 dark:text-amber-300">Language Selection</span>
                         </div>
-                        <p className="text-xs text-amber-700/70 dark:text-amber-300/70 mb-2">Each option spoken in its native voice</p>
+                        <div className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 rounded p-2 mb-2 italic">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Volume2 className="h-3 w-3 text-amber-500 shrink-0" />
+                            <span className="text-xs font-medium text-amber-600 not-italic">Greeting</span>
+                          </div>
+                          "{ivrConfigurations.find(i => i.isActive)?.greetingMessage || 'Welcome. Please select your preferred language.'}"
+                        </div>
+                        <p className="text-xs text-amber-700/70 dark:text-amber-300/70 mb-2">Then each option spoken in its native voice</p>
                         <div className="space-y-1 mb-3">
                           {languageOptions.map((opt, idx) => {
                             const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
@@ -1397,9 +1404,18 @@ export default function DepartmentManagement() {
                         <span className="text-amber-600 font-semibold text-sm">2</span>
                       </div>
                       <div className="flex-1 pt-1">
-                        <p className="font-medium">Language Selection Plays</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Each option is spoken in its native language voice</p>
-                        <div className="space-y-1 mt-2">
+                        <p className="font-medium">Language Selection Greeting & Options</p>
+                        <div className="bg-muted/50 rounded p-2 mt-2 mb-2">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Volume2 className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs font-medium">Greeting plays first</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground italic">
+                            "{ivrConfigurations.find(i => i.isActive)?.greetingMessage || 'Welcome. Please select your preferred language.'}"
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 mb-1">Then each option is spoken in its native voice</p>
+                        <div className="space-y-1 mt-1">
                           {languageOptions.map((opt, idx) => {
                             const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
                             const nativePrompt = LANGUAGE_SELECTION_PROMPTS[opt.language] || `For ${opt.language}`;

@@ -1,9 +1,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
-import { Settings, Workflow, BarChart3, Webhook, Globe, TrendingUp, CreditCard, ChevronRight } from "lucide-react";
+import { Settings, Workflow, BarChart3, Webhook, Globe, TrendingUp, CreditCard, ChevronRight, UserCog } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const settingsItems = [
+  {
+    title: "Account Settings",
+    description: "Manage your profile, KYC documents, notifications, and account",
+    url: "/app/settings/account",
+    icon: UserCog,
+    iconColor: "text-blue-500",
+    bgColor: "bg-blue-50 dark:bg-blue-950/30",
+  },
   {
     title: "Flow Builder",
     description: "Create and manage automated call flows",

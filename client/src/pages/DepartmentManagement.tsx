@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import IncomingConnectionsPage from "@/pages/IncomingConnections";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -334,7 +335,7 @@ export default function DepartmentManagement() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
-  const [activeTab, setActiveTab] = useState<"org-map" | "departments">("org-map");
+  const [activeTab, setActiveTab] = useState<"org-map" | "departments" | "incoming-connections">("org-map");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
@@ -1025,7 +1026,7 @@ export default function DepartmentManagement() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "org-map" | "departments")}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "org-map" | "departments" | "incoming-connections")}>
         <TabsList data-testid="tabs-list">
           <TabsTrigger value="org-map" data-testid="tab-org-map">
             <Network className="h-4 w-4 mr-2" />
@@ -1034,6 +1035,10 @@ export default function DepartmentManagement() {
           <TabsTrigger value="departments" data-testid="tab-departments">
             <LayoutGrid className="h-4 w-4 mr-2" />
             Departments
+          </TabsTrigger>
+          <TabsTrigger value="incoming-connections" data-testid="tab-incoming-connections">
+            <PhoneIncoming className="h-4 w-4 mr-2" />
+            Incoming Connections
           </TabsTrigger>
         </TabsList>
 
@@ -1597,6 +1602,10 @@ export default function DepartmentManagement() {
               <span className="text-muted-foreground">Add Department</span>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="incoming-connections" className="mt-6">
+          <IncomingConnectionsPage embedded={true} />
         </TabsContent>
       </Tabs>
 

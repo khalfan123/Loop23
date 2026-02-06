@@ -167,7 +167,7 @@ type VoiceEngineSettings = {
   twilio_openai_engine_enabled: boolean;
 };
 
-export default function IncomingConnectionsPage() {
+export default function IncomingConnectionsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<EngineTab>('twilio-elevenlabs');
@@ -449,22 +449,36 @@ export default function IncomingConnectionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* iOS 18 Style Clean Header */}
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="heading-incoming-connections">
-              {t("incomingConnections.title")}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {t("incomingConnections.subtitle")}
-            </p>
+      {/* Header - hidden when embedded as a tab */}
+      {!embedded && (
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="heading-incoming-connections">
+                {t("incomingConnections.title")}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {t("incomingConnections.subtitle")}
+              </p>
+            </div>
+            <Button className="rounded-2xl" onClick={handleNewConnection} data-testid="button-create-connection">
+              <Plus className="w-4 h-4 mr-2" />
+              New Connection
+            </Button>
           </div>
-          <Button className="rounded-2xl" onClick={handleNewConnection} data-testid="button-create-connection">
+        </div>
+      )}
+      {embedded && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className="text-sm text-muted-foreground">
+            {t("incomingConnections.subtitle")}
+          </p>
+          <Button onClick={handleNewConnection} data-testid="button-create-connection-embedded">
             <Plus className="w-4 h-4 mr-2" />
             New Connection
           </Button>
         </div>
+      )}
 
         {/* iOS 18 Style Engine Summary Pills */}
         <div className="flex flex-wrap gap-3">
@@ -544,7 +558,6 @@ export default function IncomingConnectionsPage() {
             </Button>
           )}
         </div>
-      </div>
 
       {/* iOS 18 Style Pill Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as EngineTab)} className="w-full">

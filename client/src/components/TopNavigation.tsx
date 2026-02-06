@@ -98,7 +98,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
 
   const evaluateItems: NavItem[] = [
     { title: t('nav.allContacts'), url: "/app/contacts", icon: UserCheck, iconColor: "text-teal-500", description: "Contact management" },
-    { title: t('nav.calls'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500", description: "Call history & logs" },
+    { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500", description: "Call history & logs" },
     { title: t('nav.crm'), url: "/app/crm", icon: ContactRound, iconColor: "text-cyan-500", description: "Customer relationships" },
     { title: t('nav.analytics'), url: "/app/analytics", icon: BarChart3, iconColor: "text-purple-500", description: "Performance insights" },
     { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500", description: "Call quality monitoring" },
@@ -106,7 +106,6 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
 
   const telephonyItems: NavItem[] = [
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500", description: "Manage phone numbers" },
-    { title: t('nav.incomingConnections'), url: "/app/incoming-connections", icon: LinkIcon, iconColor: "text-amber-500", description: "Inbound call routing" },
     { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500", description: "Department management" },
   ];
 

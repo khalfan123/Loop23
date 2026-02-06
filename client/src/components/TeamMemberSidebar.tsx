@@ -98,14 +98,13 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
     { url: "/app/crm", icon: ContactRound, label: "Quick CRM", group: "evaluate", iconColor: "text-cyan-500" },
   ],
   calls: [
-    { url: "/app/calls", icon: Phone, label: "Calls", group: "evaluate", iconColor: "text-blue-500" },
+    { url: "/app/calls", icon: Phone, label: "Call History", group: "evaluate", iconColor: "text-blue-500" },
   ],
   analytics: [
     { url: "/app/analytics", icon: BarChart3, label: "Analytics", group: "evaluate", iconColor: "text-purple-500" },
   ],
   phone_numbers: [
     { url: "/app/phone-numbers", icon: Phone, label: "Phone Numbers", group: "telephony", iconColor: "text-emerald-500" },
-    { url: "/app/incoming-connections", icon: LinkIcon, label: "Incoming Connections", group: "telephony", iconColor: "text-amber-500" },
   ],
   api_keys: [
     { url: "/app/api-keys", icon: Key, label: "API Keys", group: "settings", iconColor: "text-slate-500" },

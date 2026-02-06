@@ -143,13 +143,12 @@ export function AppSidebar() {
   const topItems = [
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics" },
     { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm" },
-    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/calls" },
+    { title: t('nav.callHistory', 'Call History'), url: "/app/calls" },
     { title: t('nav.departments', 'Departments'), url: "/app/departments" },
   ];
 
   const setupItems = [
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
-    { title: t('nav.inboundCalls', 'Inbound Calls'), url: "/app/incoming-connections" },
     { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/campaigns" },
     { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },

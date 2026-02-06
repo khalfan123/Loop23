@@ -629,15 +629,7 @@ export default function DepartmentManagement() {
   }, []);
 
   const generateDefaultLanguageSelectionGreeting = () => {
-    const displayName = userProfile?.company || userProfile?.name || '';
-    const greetingIntro = displayName
-      ? `Thanks for calling ${displayName}.`
-      : 'Thanks for calling.';
-    if (languageOptions.length === 0) return greetingIntro;
-    const langParts = languageOptions
-      .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
-      .join(" ");
-    return `${greetingIntro} ${langParts}`;
+    return 'Please select your preferred language.';
   };
 
   useEffect(() => {

@@ -222,15 +222,7 @@ interface LanguageOption {
 }
 
 const generateDefaultLangGreeting = (langOpts: LanguageOption[], companyName?: string): string => {
-  const displayName = companyName || '';
-  const greetingIntro = displayName
-    ? `Thanks for calling ${displayName}.`
-    : 'Thanks for calling.';
-  if (langOpts.length === 0) return greetingIntro;
-  const langParts = langOpts
-    .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
-    .join(" ");
-  return `${greetingIntro} ${langParts}`;
+  return 'Please select your preferred language.';
 };
 
 interface CanvasPhoneNode {
@@ -785,6 +777,7 @@ interface IVRConfigPanelProps {
   languageSelectionGreetingText: string;
   setLanguageSelectionGreetingText: (val: string) => void;
   isGreetingCustomized: React.MutableRefObject<boolean>;
+  companyDisplayName: string;
 }
 
 function IVRConfigPanel({
@@ -798,6 +791,7 @@ function IVRConfigPanel({
   languageSelectionGreetingText,
   setLanguageSelectionGreetingText,
   isGreetingCustomized,
+  companyDisplayName,
 }: IVRConfigPanelProps) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1889,6 +1883,7 @@ function DepartmentCanvasContent() {
                 languageSelectionGreetingText={languageSelectionGreetingText}
                 setLanguageSelectionGreetingText={setLanguageSelectionGreetingText}
                 isGreetingCustomized={isGreetingCustomized}
+                companyDisplayName={companyDisplayName}
               />
             )}
 

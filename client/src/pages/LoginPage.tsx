@@ -1018,22 +1018,6 @@ export default function LoginPage() {
               <Link href="/privacy" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">Privacy Policy</Link>
             </p>
 
-            {/* Trust indicators */}
-            <motion.div
-              className="flex items-center justify-center gap-6 pt-2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 font-light">
-                <Check className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-                <span>14-day free trial</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 font-light">
-                <Check className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-                <span>No credit card</span>
-              </div>
-            </motion.div>
           </div>
         </div>
       </div>

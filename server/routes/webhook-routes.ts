@@ -757,7 +757,7 @@ const IVR_DEPT_TEMPLATES: Record<string, { prefix: string; pressKey: string; hol
 // Helper: add SSML prosody to a TwiML say element for slower IVR speech
 function saySlow(parent: any, attrs: Record<string, any>, text: string) {
   const sayEl = parent.say(attrs);
-  sayEl.ssml(`<prosody rate="92%">${text}</prosody>`);
+  sayEl.prosody({ rate: '92%' }, text);
 }
 
 // Department name translations for IVR spoken menus

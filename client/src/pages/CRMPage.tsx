@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1308,7 +1309,16 @@ function CRMFilterSettingsDialog({
 export default function CRMPage() {
   const { toast } = useToast();
   const queryClientRef = useQueryClient();
-  const [viewMode, setViewMode] = useState<"kanban" | "list" | "analytics">("kanban");
+  const searchString = useSearch();
+  const validViews = ["kanban", "list", "analytics"] as const;
+  const urlViewRaw = new URLSearchParams(searchString).get('view');
+  const urlViewParam = validViews.includes(urlViewRaw as any) ? (urlViewRaw as "kanban" | "list" | "analytics") : null;
+  const [viewMode, setViewMode] = useState<"kanban" | "list" | "analytics">(urlViewParam || "kanban");
+  
+  useEffect(() => {
+    setViewMode(urlViewParam || "kanban");
+  }, [urlViewParam]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [selectedSourceId, setSelectedSourceId] = useState<string>("all");

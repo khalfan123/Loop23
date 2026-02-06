@@ -1051,20 +1051,22 @@ export default function DepartmentManagement() {
                           <Globe className="h-5 w-5 text-amber-600" />
                           <span className="font-semibold text-amber-700 dark:text-amber-300">Language Selection</span>
                         </div>
-                        <div className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 rounded p-2 mb-3 italic">
-                          "{languageSelectionGreeting}"
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {languageOptions.map((opt, idx) => (
-                            <Badge 
-                              key={opt.id} 
-                              variant="outline" 
-                              className="border-amber-400 bg-white dark:bg-gray-800"
-                            >
-                              <span className="font-mono text-amber-600 mr-1">{idx + 1}</span>
-                              {SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label}
-                            </Badge>
-                          ))}
+                        <p className="text-xs text-amber-700/70 dark:text-amber-300/70 mb-2">Each option spoken in its native voice</p>
+                        <div className="space-y-1 mb-3">
+                          {languageOptions.map((opt, idx) => {
+                            const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
+                            const nativePrompt = LANGUAGE_SELECTION_PROMPTS[opt.language] || `For ${opt.language}`;
+                            return (
+                              <div key={opt.id} className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 rounded p-2 flex items-center gap-2">
+                                <span className="font-mono text-amber-600 font-semibold shrink-0">{idx + 1}</span>
+                                <span className="italic flex-1">"{nativePrompt}, {idx + 1}"</span>
+                                <Badge variant="outline" className="text-xs border-amber-400 shrink-0">
+                                  <Volume2 className="h-3 w-3 mr-1" />
+                                  {langLabel}
+                                </Badge>
+                              </div>
+                            );
+                          })}
                         </div>
                       </Card>
                     ) : (
@@ -1366,15 +1368,24 @@ export default function DepartmentManagement() {
                       </div>
                       <div className="flex-1 pt-1">
                         <p className="font-medium">Language Selection Plays</p>
-                        <div className="text-sm text-muted-foreground bg-muted/50 rounded p-2 mt-1 italic">
-                          "{languageSelectionGreeting}"
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {languageOptions.map((opt, idx) => (
-                            <Badge key={opt.id} variant="secondary" className="text-xs">
-                              Press {idx + 1}: {SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label}
-                            </Badge>
-                          ))}
+                        <p className="text-xs text-muted-foreground mt-0.5">Each option is spoken in its native language voice</p>
+                        <div className="space-y-1 mt-2">
+                          {languageOptions.map((opt, idx) => {
+                            const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
+                            const nativePrompt = LANGUAGE_SELECTION_PROMPTS[opt.language] || `For ${opt.language}`;
+                            return (
+                              <div key={opt.id} className="bg-muted/50 rounded p-2 flex items-center gap-2">
+                                <Badge variant="secondary" className="text-xs shrink-0">
+                                  {idx + 1}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground italic">"{nativePrompt}, {idx + 1}"</span>
+                                <Badge variant="outline" className="text-xs ml-auto shrink-0">
+                                  <Volume2 className="h-3 w-3 mr-1" />
+                                  {langLabel}
+                                </Badge>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -1385,19 +1396,25 @@ export default function DepartmentManagement() {
                       <span className="text-blue-600 font-semibold text-sm">{multiLangEnabled && languageOptions.length > 1 ? "3" : "2"}</span>
                     </div>
                     <div className="flex-1 pt-1">
-                      <p className="font-medium">Department Menu Plays</p>
+                      <p className="font-medium">Department Selection Plays</p>
                       {multiLangEnabled && languageOptions.length > 1 ? (
-                        <div className="space-y-2 mt-2">
-                          {languageOptions.map((opt) => {
-                            const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
-                            return (
-                              <div key={opt.id} className="bg-muted/50 rounded p-2">
-                                <Badge variant="outline" className="mb-1 text-xs">{langLabel}</Badge>
-                                <div className="text-sm text-muted-foreground italic">"{opt.greeting}"</div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <>
+                          <p className="text-xs text-muted-foreground mt-0.5">Department menu plays in the caller's selected language</p>
+                          <div className="space-y-2 mt-2">
+                            {languageOptions.map((opt) => {
+                              const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
+                              return (
+                                <div key={opt.id} className="bg-muted/50 rounded p-2">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge variant="outline" className="text-xs">{langLabel}</Badge>
+                                    <Volume2 className="h-3 w-3 text-muted-foreground" />
+                                  </div>
+                                  <div className="text-sm text-muted-foreground italic">"{opt.greeting}"</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
                       ) : (
                         <div className="text-sm text-muted-foreground bg-muted/50 rounded p-2 mt-1 italic">
                           "{languageOptions[0]?.greeting || generateDeptGreeting(departments.map(d => d.name), "en")}"

@@ -724,6 +724,83 @@ async function initializeElevenLabsConnection(
   return elevenLabsWs;
 }
 
+// Twilio Polly voice mapping for each language (native speakers)
+const TWILIO_LANGUAGE_VOICES: Record<string, { voice: string; lang: string }> = {
+  en: { voice: 'Polly.Joanna', lang: 'en-US' },
+  fr: { voice: 'Polly.Lea', lang: 'fr-FR' },
+  it: { voice: 'Polly.Bianca', lang: 'it-IT' },
+  zh: { voice: 'Polly.Zhiyu', lang: 'cmn-CN' },
+  hi: { voice: 'Polly.Kajal', lang: 'hi-IN' },
+  ar: { voice: 'Polly.Zeina', lang: 'arb' },
+};
+
+// Language selection prompts spoken in their native language
+const IVR_LANGUAGE_PROMPTS: Record<string, string> = {
+  en: 'For English, press',
+  fr: 'Pour le fran\u00e7ais, appuyez sur',
+  it: "Per l'italiano, premere",
+  zh: '\u4E2D\u6587\u8BF7\u6309',
+  hi: '\u0939\u093F\u0902\u0926\u0940 \u0915\u0947 \u0932\u093F\u090F \u0926\u092C\u093E\u090F\u0902',
+  ar: '\u0644\u0644\u0639\u0631\u0628\u064A\u0629 \u0627\u0636\u063A\u0637',
+};
+
+// Department menu templates for each language
+const IVR_DEPT_TEMPLATES: Record<string, { prefix: string; pressKey: string; holdMsg: string; noAgentMsg: string; invalidMsg: string; noInputMsg: string }> = {
+  en: { prefix: 'For', pressKey: 'press', holdMsg: 'Please hold while we connect you to an agent.', noAgentMsg: 'Unfortunately, no agents are currently available. Please try again later.', invalidMsg: 'Invalid selection. Please try again.', noInputMsg: 'We did not receive your selection.' },
+  fr: { prefix: 'Pour', pressKey: 'appuyez sur', holdMsg: 'Veuillez patienter pendant que nous vous connectons \u00e0 un agent.', noAgentMsg: 'Malheureusement, aucun agent n\'est disponible actuellement. Veuillez r\u00e9essayer plus tard.', invalidMsg: 'S\u00e9lection invalide. Veuillez r\u00e9essayer.', noInputMsg: 'Nous n\'avons pas re\u00e7u votre s\u00e9lection.' },
+  it: { prefix: 'Per', pressKey: 'premere', holdMsg: 'Attendere mentre la colleghiamo a un agente.', noAgentMsg: 'Purtroppo nessun agente \u00e8 attualmente disponibile. Riprovi pi\u00f9 tardi.', invalidMsg: 'Selezione non valida. Riprovi.', noInputMsg: 'Non abbiamo ricevuto la sua selezione.' },
+  zh: { prefix: '\u5982\u9700', pressKey: '\u8BF7\u6309', holdMsg: '\u8BF7\u7A0D\u7B49\uFF0C\u6211\u4EEC\u6B63\u5728\u4E3A\u60A8\u8F6C\u63A5\u5BA2\u670D\u4EBA\u5458\u3002', noAgentMsg: '\u5F88\u62B1\u6B49\uFF0C\u76EE\u524D\u6CA1\u6709\u53EF\u7528\u7684\u5BA2\u670D\u4EBA\u5458\u3002\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002', invalidMsg: '\u65E0\u6548\u7684\u9009\u62E9\u3002\u8BF7\u91CD\u8BD5\u3002', noInputMsg: '\u6211\u4EEC\u6CA1\u6709\u6536\u5230\u60A8\u7684\u9009\u62E9\u3002' },
+  hi: { prefix: '', pressKey: '\u0926\u092C\u093E\u090F\u0902', holdMsg: '\u0915\u0943\u092A\u092F\u093E \u0930\u0941\u0915\u093F\u090F\uFF0C \u0939\u092E \u0906\u092A\u0915\u094B \u090F\u091C\u0947\u0902\u091F \u0938\u0947 \u091C\u094B\u0921\u093C \u0930\u0939\u0947 \u0939\u0948\u0902\u0964', noAgentMsg: '\u0926\u0941\u0930\u094D\u092D\u093E\u0917\u094D\u092F \u0938\u0947 \u0915\u094B\u0908 \u090F\u091C\u0947\u0902\u091F \u0909\u092A\u0932\u092C\u094D\u0927 \u0928\u0939\u0940\u0902 \u0939\u0948\u0964 \u0915\u0943\u092A\u092F\u093E \u092C\u093E\u0926 \u092E\u0947\u0902 \u092A\u0941\u0928\u0903 \u092A\u094D\u0930\u092F\u093E\u0938 \u0915\u0930\u0947\u0902\u0964', invalidMsg: '\u0905\u092E\u093E\u0928\u094D\u092F \u091A\u092F\u0928\u0964 \u0915\u0943\u092A\u092F\u093E \u092A\u0941\u0928\u0903 \u092A\u094D\u0930\u092F\u093E\u0938 \u0915\u0930\u0947\u0902\u0964', noInputMsg: '\u0939\u092E\u0947\u0902 \u0906\u092A\u0915\u093E \u091A\u092F\u0928 \u092A\u094D\u0930\u093E\u092A\u094D\u0924 \u0928\u0939\u0940\u0902 \u0939\u0941\u0906\u0964' },
+  ar: { prefix: '\u0644\u0640', pressKey: '\u0627\u0636\u063A\u0637', holdMsg: '\u064A\u0631\u062C\u0649 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631 \u0628\u064A\u0646\u0645\u0627 \u0646\u0642\u0648\u0645 \u0628\u062A\u0648\u0635\u064A\u0644\u0643 \u0628\u0627\u0644\u0648\u0643\u064A\u0644.', noAgentMsg: '\u0644\u0644\u0623\u0633\u0641\u060C \u0644\u0627 \u064A\u0648\u062C\u062F \u0648\u0643\u0644\u0627\u0621 \u0645\u062A\u0627\u062D\u0648\u0646 \u062D\u0627\u0644\u064A\u064B\u0627. \u064A\u0631\u062C\u0649 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0644\u0627\u062D\u0642\u064B\u0627.', invalidMsg: '\u0627\u062E\u062A\u064A\u0627\u0631 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D. \u064A\u0631\u062C\u0649 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.', noInputMsg: '\u0644\u0645 \u0646\u062A\u0644\u0642\u0651 \u0627\u062E\u062A\u064A\u0627\u0631\u0643.' },
+};
+
+// Department name translations for IVR spoken menus
+const IVR_DEPT_NAME_TRANSLATIONS: Record<string, Record<string, string>> = {
+  Sales: { en: 'Sales', fr: 'Ventes', it: 'Vendite', zh: '\u9500\u552E', hi: '\u092C\u093F\u0915\u094D\u0930\u0940', ar: '\u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A' },
+  Support: { en: 'Support', fr: 'Assistance', it: 'Supporto', zh: '\u5BA2\u670D', hi: '\u0938\u0939\u093E\u092F\u0924\u093E', ar: '\u0627\u0644\u062F\u0639\u0645' },
+  Scheduling: { en: 'Scheduling', fr: 'Planification', it: 'Programmazione', zh: '\u9884\u7EA6', hi: '\u0936\u0947\u0921\u094D\u092F\u0942\u0932\u093F\u0902\u0917', ar: '\u0627\u0644\u062C\u062F\u0648\u0644\u0629' },
+  Billing: { en: 'Billing', fr: 'Facturation', it: 'Fatturazione', zh: '\u8D26\u5355', hi: '\u092C\u093F\u0932\u093F\u0902\u0917', ar: '\u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631' },
+  'Technical Support': { en: 'Technical Support', fr: 'Support Technique', it: 'Supporto Tecnico', zh: '\u6280\u672F\u652F\u6301', hi: '\u0924\u0915\u0928\u0940\u0915\u0940 \u0938\u0939\u093E\u092F\u0924\u093E', ar: '\u0627\u0644\u062F\u0639\u0645 \u0627\u0644\u0641\u0646\u064A' },
+  'Customer Service': { en: 'Customer Service', fr: 'Service Client', it: 'Servizio Clienti', zh: '\u5BA2\u6237\u670D\u52A1', hi: '\u0917\u094D\u0930\u093E\u0939\u0915 \u0938\u0947\u0935\u093E', ar: '\u062E\u062F\u0645\u0629 \u0627\u0644\u0639\u0645\u0644\u0627\u0621' },
+  Appointments: { en: 'Appointments', fr: 'Rendez-vous', it: 'Appuntamenti', zh: '\u9884\u7EA6', hi: '\u0905\u092A\u0949\u0907\u0902\u091F\u092E\u0947\u0902\u091F', ar: '\u0627\u0644\u0645\u0648\u0627\u0639\u064A\u062F' },
+  General: { en: 'General', fr: 'G\u00e9n\u00e9ral', it: 'Generale', zh: '\u901A\u7528', hi: '\u0938\u093E\u092E\u093E\u0928\u094D\u092F', ar: '\u0639\u0627\u0645' },
+  Marketing: { en: 'Marketing', fr: 'Marketing', it: 'Marketing', zh: '\u5E02\u573A\u8425\u9500', hi: '\u092E\u093E\u0930\u094D\u0915\u0947\u091F\u093F\u0902\u0917', ar: '\u0627\u0644\u062A\u0633\u0648\u064A\u0642' },
+  'Human Resources': { en: 'Human Resources', fr: 'Ressources Humaines', it: 'Risorse Umane', zh: '\u4EBA\u529B\u8D44\u6E90', hi: '\u092E\u093E\u0928\u0935 \u0938\u0902\u0938\u093E\u0927\u0928', ar: '\u0627\u0644\u0645\u0648\u0627\u0631\u062F \u0627\u0644\u0628\u0634\u0631\u064A\u0629' },
+};
+
+function getVoiceForLanguage(langCode: string): string {
+  return TWILIO_LANGUAGE_VOICES[langCode]?.voice || 'Polly.Joanna';
+}
+
+function getTwilioLangCode(langCode: string): string {
+  return TWILIO_LANGUAGE_VOICES[langCode]?.lang || 'en-US';
+}
+
+function translateDeptNameForIvr(name: string, langCode: string): string {
+  const translations = IVR_DEPT_NAME_TRANSLATIONS[name];
+  if (translations && translations[langCode]) {
+    return translations[langCode];
+  }
+  return name;
+}
+
+function buildDeptMenuPrompt(deptNames: string[], langCode: string): string {
+  const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
+  const items = deptNames.map((name, idx) => {
+    const translated = translateDeptNameForIvr(name, langCode);
+    const keyNum = idx + 1;
+    if (langCode === 'ar') {
+      return `${template.prefix}${translated} ${template.pressKey} ${keyNum}`;
+    } else if (langCode === 'zh') {
+      return `${template.prefix}${translated}${template.pressKey}${keyNum}`;
+    } else if (langCode === 'hi') {
+      return `${translated} ${template.prefix} ${keyNum} ${template.pressKey}`;
+    }
+    return `${template.prefix} ${translated} ${template.pressKey} ${keyNum}`;
+  });
+  return items.join(langCode === 'zh' ? '\u3002' : langCode === 'ar' ? '\u060C ' : ', ') + '.';
+}
+
 // Handle IVR calls (department routing)
 async function handleIvrCall(
   req: Request,
@@ -742,6 +819,7 @@ async function handleIvrCall(
     const response = new VoiceResponse();
     
     const menuOptions = ivrConfig.menuOptions || [];
+    const langOptions = ivrConfig.languageOptions as { id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }[] | null;
     
     if (menuOptions.length === 0) {
       console.log(`⚠️ [IVR Call] No menu options configured`);
@@ -751,26 +829,59 @@ async function handleIvrCall(
       return res.send(response.toString());
     }
 
-    // Build greeting message
-    const greetingMessage = ivrConfig.greetingMessage || 
-      `Thank you for calling. ${menuOptions.map((opt: any) => `Press ${opt.key} for ${opt.label}.`).join(' ')}`;
+    // Multi-language mode: play language selection with each option spoken in its native voice
+    if (langOptions && langOptions.length > 1) {
+      console.log(`📞 [IVR Call] Multi-language mode with ${langOptions.length} languages`);
+      
+      const gather = response.gather({
+        numDigits: 1,
+        action: `/api/webhooks/ivr/handle-language?ivrId=${ivrConfig.id}&callSid=${callSid}&caller=${encodeURIComponent(callerNumber)}`,
+        method: 'POST',
+        timeout: 10,
+      });
+      
+      for (let idx = 0; idx < langOptions.length; idx++) {
+        const opt = langOptions[idx];
+        const voice = getVoiceForLanguage(opt.language);
+        const lang = getTwilioLangCode(opt.language);
+        const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
+        const keyNum = idx + 1;
+        
+        gather.say({ voice, language: lang as any }, `${prompt} ${keyNum}.`);
+        console.log(`   Lang option ${keyNum}: ${opt.language} → voice=${voice}, lang=${lang}`);
+      }
+      
+      response.say({ voice: 'Polly.Joanna' }, 'We did not receive your selection.');
+      response.redirect(`/api/webhooks/twilio/incoming`);
+      
+      res.type('text/xml');
+      console.log(`📞 [IVR Call] Sending multi-language TwiML response`);
+      return res.send(response.toString());
+    }
 
-    // Create Gather to collect DTMF digits
+    // Single language mode: go straight to department menu
+    const langCode = langOptions?.[0]?.language || 'en';
+    const voice = getVoiceForLanguage(langCode);
+    const lang = getTwilioLangCode(langCode);
+    
+    const deptNames = menuOptions.map((opt: any) => opt.label);
+    const deptMenuPrompt = buildDeptMenuPrompt(deptNames, langCode);
+    
     const gather = response.gather({
       numDigits: 1,
-      action: `/api/webhooks/ivr/handle-selection?ivrId=${ivrConfig.id}&callSid=${callSid}&caller=${encodeURIComponent(callerNumber)}`,
+      action: `/api/webhooks/ivr/handle-selection?ivrId=${ivrConfig.id}&callSid=${callSid}&caller=${encodeURIComponent(callerNumber)}&lang=${langCode}`,
       method: 'POST',
       timeout: 10,
     });
     
-    gather.say({ voice: 'Polly.Joanna' }, greetingMessage);
+    gather.say({ voice, language: lang as any }, deptMenuPrompt);
 
-    // If no input, repeat the menu
-    response.say({ voice: 'Polly.Joanna' }, 'We did not receive your selection.');
+    const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
+    response.say({ voice, language: lang as any }, template.noInputMsg);
     response.redirect(`/api/webhooks/twilio/incoming`);
 
     res.type('text/xml');
-    console.log(`📞 [IVR Call] Sending TwiML response`);
+    console.log(`📞 [IVR Call] Sending single-language TwiML response`);
     return res.send(response.toString());
   } catch (error) {
     console.error(`❌ [IVR Call] Error:`, error);
@@ -783,18 +894,141 @@ async function handleIvrCall(
   }
 }
 
-// Handle IVR menu selection
-export async function handleIvrSelection(req: Request, res: Response) {
+// Handle IVR language selection - plays department menu in the selected language
+export async function handleIvrLanguageSelection(req: Request, res: Response) {
   try {
     const { ivrId, callSid, caller } = req.query;
     const { Digits, To } = req.body;
     
-    console.log(`📞 [IVR Selection] Received digit: ${Digits} for IVR: ${ivrId}, To: ${To}`);
+    console.log(`📞 [IVR Language] Received digit: ${Digits} for IVR: ${ivrId}`);
     
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
     
-    // Get IVR config with ownership validation
+    const ivrConfig = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.id, ivrId as string),
+        eq(ivrConfigurations.isActive, true)
+      ))
+      .limit(1);
+    
+    if (!ivrConfig.length) {
+      console.error(`❌ [IVR Language] IVR config not found or inactive: ${ivrId}`);
+      response.say({ voice: 'Polly.Joanna' }, 'Sorry, an error occurred. Please try again.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+    
+    const langOptions = ivrConfig[0].languageOptions as { id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }[] | null;
+    const menuOptions = ivrConfig[0].menuOptions || [];
+    
+    if (!langOptions || langOptions.length === 0) {
+      console.error(`❌ [IVR Language] No language options configured`);
+      response.say({ voice: 'Polly.Joanna' }, 'Sorry, an error occurred. Please try again.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+    
+    const digitIdx = parseInt(Digits, 10) - 1;
+    const selectedLang = langOptions[digitIdx];
+    
+    if (!selectedLang) {
+      console.log(`⚠️ [IVR Language] Invalid digit: ${Digits}`);
+      const invalidVoice = getVoiceForLanguage('en');
+      response.say({ voice: invalidVoice }, 'Invalid selection.');
+      
+      const gather = response.gather({
+        numDigits: 1,
+        action: `/api/webhooks/ivr/handle-language?ivrId=${ivrId}&callSid=${callSid}&caller=${encodeURIComponent(caller as string || '')}`,
+        method: 'POST',
+        timeout: 10,
+      });
+      
+      for (let idx = 0; idx < langOptions.length; idx++) {
+        const opt = langOptions[idx];
+        const voice = getVoiceForLanguage(opt.language);
+        const lang = getTwilioLangCode(opt.language);
+        const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
+        gather.say({ voice, language: lang as any }, `${prompt} ${idx + 1}.`);
+      }
+      
+      response.say({ voice: 'Polly.Joanna' }, 'Goodbye.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
+    
+    const langCode = selectedLang.language;
+    const voice = getVoiceForLanguage(langCode);
+    const lang = getTwilioLangCode(langCode);
+    
+    console.log(`📞 [IVR Language] Selected language: ${langCode}, voice: ${voice}`);
+    
+    // Filter departments to only those selected for this language (if configured)
+    let filteredMenuOptions = menuOptions;
+    if (selectedLang.selectedDepartments && selectedLang.selectedDepartments.length > 0) {
+      filteredMenuOptions = menuOptions.filter((opt: any) => 
+        selectedLang.selectedDepartments!.includes(opt.departmentId)
+      );
+      if (filteredMenuOptions.length === 0) {
+        filteredMenuOptions = menuOptions;
+      }
+    }
+    
+    // Build department menu prompt in the selected language
+    const deptNames = filteredMenuOptions.map((opt: any) => opt.label);
+    const deptMenuPrompt = buildDeptMenuPrompt(deptNames, langCode);
+    
+    console.log(`📞 [IVR Language] Department menu (${langCode}): ${deptMenuPrompt}`);
+    
+    // Create gather for department selection
+    const gather = response.gather({
+      numDigits: 1,
+      action: `/api/webhooks/ivr/handle-selection?ivrId=${ivrId}&callSid=${callSid}&caller=${encodeURIComponent(caller as string || '')}&lang=${langCode}`,
+      method: 'POST',
+      timeout: 10,
+    });
+    
+    gather.say({ voice, language: lang as any }, deptMenuPrompt);
+    
+    const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
+    response.say({ voice, language: lang as any }, template.noInputMsg);
+    response.redirect(`/api/webhooks/twilio/incoming`);
+    
+    res.type('text/xml');
+    console.log(`📞 [IVR Language] Sending department menu TwiML in ${langCode}`);
+    return res.send(response.toString());
+  } catch (error) {
+    console.error(`❌ [IVR Language] Error:`, error);
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    response.say('An error occurred. Please try again later.');
+    response.hangup();
+    res.type('text/xml');
+    return res.send(response.toString());
+  }
+}
+
+// Handle IVR department selection (language-aware)
+export async function handleIvrSelection(req: Request, res: Response) {
+  try {
+    const { ivrId, callSid, caller, lang } = req.query;
+    const { Digits, To } = req.body;
+    
+    const langCode = (lang as string) || 'en';
+    const voice = getVoiceForLanguage(langCode);
+    const langTag = getTwilioLangCode(langCode);
+    const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
+    
+    console.log(`📞 [IVR Selection] Received digit: ${Digits} for IVR: ${ivrId}, lang: ${langCode}, To: ${To}`);
+    
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    
     const ivrConfig = await db
       .select()
       .from(ivrConfigurations)
@@ -806,13 +1040,12 @@ export async function handleIvrSelection(req: Request, res: Response) {
     
     if (!ivrConfig.length) {
       console.error(`❌ [IVR Selection] IVR config not found or inactive: ${ivrId}`);
-      response.say({ voice: 'Polly.Joanna' }, 'Sorry, an error occurred. Please try again.');
+      response.say({ voice, language: langTag as any }, template.invalidMsg);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
     }
     
-    // Validate that the IVR config's phone number matches the called number (security check)
     if (ivrConfig[0].phoneNumberId) {
       const phoneCheck = await db
         .select({ phoneNumber: phoneNumbers.phoneNumber })
@@ -822,7 +1055,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
       
       if (phoneCheck.length > 0 && To && phoneCheck[0].phoneNumber !== To) {
         console.error(`❌ [IVR Selection] Phone number mismatch - IVR phone: ${phoneCheck[0].phoneNumber}, Called: ${To}`);
-        response.say({ voice: 'Polly.Joanna' }, 'Sorry, an error occurred. Please try again.');
+        response.say({ voice, language: langTag as any }, template.invalidMsg);
         response.hangup();
         res.type('text/xml');
         return res.send(response.toString());
@@ -834,18 +1067,17 @@ export async function handleIvrSelection(req: Request, res: Response) {
     
     if (!selectedOption) {
       console.log(`⚠️ [IVR Selection] Invalid digit: ${Digits}`);
-      response.say({ voice: 'Polly.Joanna' }, 'Invalid selection.');
-      // Rebuild the menu for this IVR
-      const greetingMessage = ivrConfig[0].greetingMessage || 
-        `Please try again. ${menuOptions.map((opt: any) => `Press ${opt.key} for ${opt.label}.`).join(' ')}`;
+      response.say({ voice, language: langTag as any }, template.invalidMsg);
+      
+      const deptNames = menuOptions.map((opt: any) => opt.label);
+      const deptMenuPrompt = buildDeptMenuPrompt(deptNames, langCode);
       const gather = response.gather({
         numDigits: 1,
-        action: `/api/webhooks/ivr/handle-selection?ivrId=${ivrId}&callSid=${callSid}&caller=${encodeURIComponent(caller as string || '')}`,
+        action: `/api/webhooks/ivr/handle-selection?ivrId=${ivrId}&callSid=${callSid}&caller=${encodeURIComponent(caller as string || '')}&lang=${langCode}`,
         method: 'POST',
         timeout: 10,
       });
-      gather.say({ voice: 'Polly.Joanna' }, greetingMessage);
-      response.say({ voice: 'Polly.Joanna' }, 'Goodbye.');
+      gather.say({ voice, language: langTag as any }, deptMenuPrompt);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
@@ -853,7 +1085,6 @@ export async function handleIvrSelection(req: Request, res: Response) {
     
     console.log(`📞 [IVR Selection] Selected department: ${selectedOption.label} (${selectedOption.departmentId})`);
     
-    // Get department and its agents
     const dept = await db
       .select()
       .from(departments)
@@ -861,13 +1092,12 @@ export async function handleIvrSelection(req: Request, res: Response) {
       .limit(1);
     
     if (!dept.length) {
-      response.say({ voice: 'Polly.Joanna' }, 'Sorry, that department is not available. Please try again.');
+      response.say({ voice, language: langTag as any }, template.noAgentMsg);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
     }
     
-    // Get agents assigned to this department
     const deptAgentsList = await db
       .select({
         agentId: departmentAgents.agentId,
@@ -878,23 +1108,21 @@ export async function handleIvrSelection(req: Request, res: Response) {
       .where(eq(departmentAgents.departmentId, selectedOption.departmentId));
     
     if (deptAgentsList.length === 0 || !deptAgentsList[0].agent) {
-      response.say({ voice: 'Polly.Joanna' }, `You have selected ${selectedOption.label}. Unfortunately, no agents are currently available. Please try again later.`);
+      response.say({ voice, language: langTag as any }, template.noAgentMsg);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
     }
     
-    // Get first available agent with ElevenLabs configuration
     const availableAgent = deptAgentsList.find(da => da.agent?.elevenLabsAgentId);
     
     if (!availableAgent || !availableAgent.agent) {
-      response.say({ voice: 'Polly.Joanna' }, `You have selected ${selectedOption.label}. Please hold while we connect you.`);
-      // If no ElevenLabs agent, try to transfer to the department's first agent
+      response.say({ voice, language: langTag as any }, template.holdMsg);
       const firstAgent = deptAgentsList[0].agent;
       if (firstAgent?.transferPhoneNumber) {
         response.dial().number(firstAgent.transferPhoneNumber);
       } else {
-        response.say({ voice: 'Polly.Joanna' }, 'We were unable to connect you. Please try again later.');
+        response.say({ voice, language: langTag as any }, template.noAgentMsg);
         response.hangup();
       }
       res.type('text/xml');
@@ -904,10 +1132,8 @@ export async function handleIvrSelection(req: Request, res: Response) {
     const selectedAgent = availableAgent.agent;
     console.log(`📞 [IVR Selection] Connecting to agent: ${selectedAgent.name} (${selectedAgent.id})`);
     
-    response.say({ voice: 'Polly.Joanna' }, `You have selected ${selectedOption.label}. Please hold while we connect you to an agent.`);
+    response.say({ voice, language: langTag as any }, template.holdMsg);
     
-    // Redirect to ElevenLabs for the AI conversation
-    const domain = getDomain();
     const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${selectedAgent.elevenLabsAgentId}`;
     
     console.log(`📞 [IVR Selection] Redirecting to ElevenLabs: ${elevenLabsUrl}`);

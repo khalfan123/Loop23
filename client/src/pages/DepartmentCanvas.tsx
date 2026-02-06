@@ -67,6 +67,7 @@ import {
   Volume2,
   Square,
   Circle,
+  RotateCcw,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -219,6 +220,14 @@ interface LanguageOption {
   greeting: string;
   selectedDepartments?: string[];
 }
+
+const generateDefaultLangGreeting = (langOpts: LanguageOption[]): string => {
+  if (langOpts.length === 0) return 'Thank you for calling "Company Name".';
+  const langParts = langOpts
+    .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
+    .join(" ");
+  return `Thank you for calling "Company Name". ${langParts}`;
+};
 
 interface CanvasPhoneNode {
   id: string;
@@ -769,6 +778,9 @@ interface IVRConfigPanelProps {
   languageOptions: LanguageOption[];
   setLanguageOptions: (opts: LanguageOption[]) => void;
   nodes: Node[];
+  languageSelectionGreetingText: string;
+  setLanguageSelectionGreetingText: (val: string) => void;
+  isGreetingCustomized: React.MutableRefObject<boolean>;
 }
 
 function IVRConfigPanel({
@@ -779,6 +791,9 @@ function IVRConfigPanel({
   languageOptions,
   setLanguageOptions,
   nodes,
+  languageSelectionGreetingText,
+  setLanguageSelectionGreetingText,
+  isGreetingCustomized,
 }: IVRConfigPanelProps) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -793,12 +808,13 @@ function IVRConfigPanel({
     };
   }, []);
   
-  const languageSelectionGreeting = useMemo(() => {
-    if (languageOptions.length === 0) return "No languages configured";
-    return languageOptions
-      .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
-      .join(" ");
+  useEffect(() => {
+    if (!isGreetingCustomized.current) {
+      setLanguageSelectionGreetingText(generateDefaultLangGreeting(languageOptions));
+    }
   }, [languageOptions]);
+
+  const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions);
   
   const addLanguageOption = () => {
     const usedLangs = languageOptions.map((o) => o.language);
@@ -931,13 +947,35 @@ function IVRConfigPanel({
           {multiLangEnabled && (
             <>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <Label>Language Selection Greeting</Label>
-                  <Badge variant="secondary" className="text-xs">Auto-generated</Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setLanguageSelectionGreetingText(generateDefaultLangGreeting(languageOptions));
+                      isGreetingCustomized.current = false;
+                    }}
+                    data-testid="button-reset-lang-greeting"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                    Reset to default
+                  </Button>
                 </div>
-                <div className="p-3 bg-muted/30 rounded-lg text-sm border">
-                  {languageSelectionGreeting}
-                </div>
+                <Textarea
+                  value={languageSelectionGreetingText}
+                  onChange={(e) => {
+                    setLanguageSelectionGreetingText(e.target.value);
+                    isGreetingCustomized.current = true;
+                  }}
+                  rows={3}
+                  className="text-sm"
+                  placeholder='Thank you for calling "Company Name". For English, press 1...'
+                  data-testid="textarea-lang-selection-greeting"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This greeting plays when callers first connect. Replace "Company Name" with your business name.
+                </p>
               </div>
               
               <div className="space-y-3">
@@ -1255,6 +1293,8 @@ function DepartmentCanvasContent() {
   const [languageOptions, setLanguageOptions] = useState<LanguageOption[]>([
     { id: "default", language: "en", voiceId: "nova", greeting: DEFAULT_GREETINGS.en }
   ]);
+  const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
+  const isGreetingCustomized = useRef(false);
   const [saving, setSaving] = useState(false);
 
   const [canvasPhones, setCanvasPhones] = useState<string[]>([]);
@@ -1508,7 +1548,7 @@ function DepartmentCanvasContent() {
         }));
 
         const greetingMessage = multiLangEnabled && languageOptions.length > 0
-          ? languageOptions.map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`).join(" ")
+          ? languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions)
           : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
         
         for (const phone of assignedPhones) {
@@ -1837,6 +1877,9 @@ function DepartmentCanvasContent() {
                 languageOptions={languageOptions}
                 setLanguageOptions={setLanguageOptions}
                 nodes={nodes}
+                languageSelectionGreetingText={languageSelectionGreetingText}
+                setLanguageSelectionGreetingText={setLanguageSelectionGreetingText}
+                isGreetingCustomized={isGreetingCustomized}
               />
             )}
 

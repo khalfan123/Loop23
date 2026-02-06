@@ -39,6 +39,7 @@ import {
   Square,
   Sparkles,
   Globe,
+  RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -371,6 +372,8 @@ export default function DepartmentManagement() {
   ]);
   const ivrAudioRef = useRef<HTMLAudioElement | null>(null);
   const [ivrPlayingVoiceId, setIvrPlayingVoiceId] = useState<string | null>(null);
+  const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
+  const isGreetingCustomized = useRef(false);
   
   const [languageAgents, setLanguageAgents] = useState<LanguageAgentConfig[]>([]);
   const [activeTabIdx, setActiveTabIdx] = useState(0);
@@ -567,7 +570,7 @@ export default function DepartmentManagement() {
       if (!activeIvr) return;
       
       const greetingMessage = multiLangEnabled && languageOptions.length > 0
-        ? languageOptions.map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`).join(" ")
+        ? languageSelectionGreetingText || generateDefaultLanguageSelectionGreeting()
         : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
       
       return apiRequest("PATCH", `/api/departments/ivr/${activeIvr.id}`, {
@@ -621,12 +624,21 @@ export default function DepartmentManagement() {
     };
   }, []);
 
-  const languageSelectionGreeting = useMemo(() => {
-    if (languageOptions.length === 0) return "No languages configured";
-    return languageOptions
+  const generateDefaultLanguageSelectionGreeting = () => {
+    if (languageOptions.length === 0) return 'Thank you for calling "Company Name".';
+    const langParts = languageOptions
       .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
       .join(" ");
+    return `Thank you for calling "Company Name". ${langParts}`;
+  };
+
+  useEffect(() => {
+    if (!isGreetingCustomized.current) {
+      setLanguageSelectionGreetingText(generateDefaultLanguageSelectionGreeting());
+    }
   }, [languageOptions]);
+
+  const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLanguageSelectionGreeting();
 
   const getDefaultVoiceForLanguage = (langCode: string) => {
     const voices = getVoicesForLanguage(langCode);
@@ -927,6 +939,10 @@ export default function DepartmentManagement() {
         setMultiLangEnabled(false);
         setLanguageOptions(savedLangOptions);
       }
+      if ((activeIvr as any).greetingMessage) {
+        setLanguageSelectionGreetingText((activeIvr as any).greetingMessage);
+        isGreetingCustomized.current = true;
+      }
     }
   }, [activeIvr]);
 
@@ -1069,7 +1085,7 @@ export default function DepartmentManagement() {
                             <Volume2 className="h-3 w-3 text-amber-500 shrink-0" />
                             <span className="text-xs font-medium text-amber-600 not-italic">Greeting</span>
                           </div>
-                          "{ivrConfigurations.find(i => i.isActive)?.greetingMessage || 'Welcome. Please select your preferred language.'}"
+                          "{languageSelectionGreeting}"
                         </div>
                         <p className="text-xs text-amber-700/70 dark:text-amber-300/70 mb-2">Then each option spoken in its native voice</p>
                         <div className="space-y-1 mb-3">
@@ -1424,7 +1440,7 @@ export default function DepartmentManagement() {
                             <span className="text-xs font-medium">Greeting plays first</span>
                           </div>
                           <p className="text-sm text-muted-foreground italic">
-                            "{ivrConfigurations.find(i => i.isActive)?.greetingMessage || 'Welcome. Please select your preferred language.'}"
+                            "{languageSelectionGreeting}"
                           </p>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 mb-1">Then each option is spoken in its native voice</p>
@@ -2339,13 +2355,35 @@ export default function DepartmentManagement() {
                   {multiLangEnabled && (
                     <>
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <Label>Language Selection Greeting</Label>
-                          <Badge variant="secondary" className="text-xs">Auto-generated</Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setLanguageSelectionGreetingText(generateDefaultLanguageSelectionGreeting());
+                              isGreetingCustomized.current = false;
+                            }}
+                            data-testid="button-reset-lang-greeting"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                            Reset to default
+                          </Button>
                         </div>
-                        <div className="p-3 bg-muted/30 rounded-lg text-sm border">
-                          {languageSelectionGreeting}
-                        </div>
+                        <Textarea
+                          value={languageSelectionGreetingText}
+                          onChange={(e) => {
+                            setLanguageSelectionGreetingText(e.target.value);
+                            isGreetingCustomized.current = true;
+                          }}
+                          rows={3}
+                          className="text-sm"
+                          placeholder='Thank you for calling "Company Name". For English, press 1...'
+                          data-testid="textarea-lang-selection-greeting"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This greeting plays when callers first connect. Replace "Company Name" with your business name.
+                        </p>
                       </div>
                       
                       <div className="space-y-3">

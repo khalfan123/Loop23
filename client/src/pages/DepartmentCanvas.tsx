@@ -221,12 +221,16 @@ interface LanguageOption {
   selectedDepartments?: string[];
 }
 
-const generateDefaultLangGreeting = (langOpts: LanguageOption[]): string => {
-  if (langOpts.length === 0) return 'Thank you for calling "Company Name".';
+const generateDefaultLangGreeting = (langOpts: LanguageOption[], companyName?: string): string => {
+  const displayName = companyName || '';
+  const greetingIntro = displayName
+    ? `Thanks for calling ${displayName}.`
+    : 'Thanks for calling.';
+  if (langOpts.length === 0) return greetingIntro;
   const langParts = langOpts
     .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
     .join(" ");
-  return `Thank you for calling "Company Name". ${langParts}`;
+  return `${greetingIntro} ${langParts}`;
 };
 
 interface CanvasPhoneNode {
@@ -810,11 +814,11 @@ function IVRConfigPanel({
   
   useEffect(() => {
     if (!isGreetingCustomized.current) {
-      setLanguageSelectionGreetingText(generateDefaultLangGreeting(languageOptions));
+      setLanguageSelectionGreetingText(generateDefaultLangGreeting(languageOptions, companyDisplayName));
     }
-  }, [languageOptions]);
+  }, [languageOptions, companyDisplayName]);
 
-  const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions);
+  const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions, companyDisplayName);
   
   const addLanguageOption = () => {
     const usedLangs = languageOptions.map((o) => o.language);
@@ -953,7 +957,7 @@ function IVRConfigPanel({
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setLanguageSelectionGreetingText(generateDefaultLangGreeting(languageOptions));
+                      setLanguageSelectionGreetingText(generateDefaultLangGreeting(languageOptions, companyDisplayName));
                       isGreetingCustomized.current = false;
                     }}
                     data-testid="button-reset-lang-greeting"
@@ -970,11 +974,11 @@ function IVRConfigPanel({
                   }}
                   rows={3}
                   className="text-sm"
-                  placeholder='Thank you for calling "Company Name". For English, press 1...'
+                  placeholder='Thanks for calling. For English, press 1...'
                   data-testid="textarea-lang-selection-greeting"
                 />
                 <p className="text-xs text-muted-foreground">
-                  This greeting plays when callers first connect. Replace "Company Name" with your business name.
+                  This greeting plays when callers first connect. Your company name from your profile is used automatically.
                 </p>
               </div>
               
@@ -1300,6 +1304,11 @@ function DepartmentCanvasContent() {
   const [canvasPhones, setCanvasPhones] = useState<string[]>([]);
   const [canvasDepartments, setCanvasDepartments] = useState<CanvasDepartment[]>([]);
 
+  const { data: userProfile } = useQuery<{ company?: string; name?: string }>({
+    queryKey: ["/api/auth/me"],
+  });
+  const companyDisplayName = userProfile?.company || userProfile?.name || '';
+
   const { data: phoneNumbers = [] } = useQuery<PhoneNumber[]>({
     queryKey: ["/api/phone-numbers"],
   });
@@ -1548,7 +1557,7 @@ function DepartmentCanvasContent() {
         }));
 
         const greetingMessage = multiLangEnabled && languageOptions.length > 0
-          ? languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions)
+          ? languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions, companyDisplayName)
           : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
         
         for (const phone of assignedPhones) {

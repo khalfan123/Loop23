@@ -731,7 +731,7 @@ const TWILIO_LANGUAGE_VOICES: Record<string, { voice: string; lang: string }> = 
   it: { voice: 'Polly.Bianca', lang: 'it-IT' },
   zh: { voice: 'Polly.Zhiyu', lang: 'cmn-CN' },
   hi: { voice: 'Polly.Kajal', lang: 'hi-IN' },
-  ar: { voice: 'Polly.Zeina', lang: 'arb' },
+  ar: { voice: 'Polly.Hala-Neural', lang: 'ar-AE' },
 };
 
 // Language selection prompts spoken in their native language
@@ -821,9 +821,24 @@ async function handleIvrCall(
     const menuOptions = ivrConfig.menuOptions || [];
     const langOptions = ivrConfig.languageOptions as { id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }[] | null;
     
+    let companyName = '';
+    if (phone.userId) {
+      const userResult = await db
+        .select({ company: users.company, name: users.name })
+        .from(users)
+        .where(eq(users.id, phone.userId))
+        .limit(1);
+      if (userResult.length > 0) {
+        companyName = userResult[0].company || userResult[0].name || '';
+      }
+    }
+    
     if (menuOptions.length === 0) {
       console.log(`⚠️ [IVR Call] No menu options configured`);
-      response.say({ voice: 'Polly.Joanna' }, 'Thank you for calling. Our system is currently being configured. Please try again later.');
+      const noMenuGreeting = companyName
+        ? `Thanks for calling ${companyName}. Our system is currently being configured. Please try again later.`
+        : 'Thank you for calling. Our system is currently being configured. Please try again later.';
+      response.say({ voice: 'Polly.Joanna' }, noMenuGreeting);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
@@ -845,8 +860,11 @@ async function handleIvrCall(
         gather.say({ voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, ivrConfig.greetingMessage);
         console.log(`   Greeting: "${ivrConfig.greetingMessage}"`);
       } else {
-        gather.say({ voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, 'Welcome. Please select your preferred language.');
-        console.log(`   Greeting: default welcome`);
+        const defaultGreeting = companyName
+          ? `Thanks for calling ${companyName}. Please select your preferred language.`
+          : 'Welcome. Please select your preferred language.';
+        gather.say({ voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, defaultGreeting);
+        console.log(`   Greeting: "${defaultGreeting}"`);
       }
       
       for (let idx = 0; idx < langOptions.length; idx++) {

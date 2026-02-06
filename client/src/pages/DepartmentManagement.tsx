@@ -403,6 +403,10 @@ export default function DepartmentManagement() {
     };
   }, []);
 
+  const { data: userProfile } = useQuery<{ company?: string; name?: string }>({
+    queryKey: ["/api/auth/me"],
+  });
+
   const { data: statsData, isLoading: statsLoading } = useQuery<{
     departments: Department[];
     totalDepartments: number;
@@ -625,18 +629,22 @@ export default function DepartmentManagement() {
   }, []);
 
   const generateDefaultLanguageSelectionGreeting = () => {
-    if (languageOptions.length === 0) return 'Thank you for calling "Company Name".';
+    const displayName = userProfile?.company || userProfile?.name || '';
+    const greetingIntro = displayName
+      ? `Thanks for calling ${displayName}.`
+      : 'Thanks for calling.';
+    if (languageOptions.length === 0) return greetingIntro;
     const langParts = languageOptions
       .map((opt, idx) => `${LANGUAGE_SELECTION_PROMPTS[opt.language] || "For " + opt.language}, press ${idx + 1}.`)
       .join(" ");
-    return `Thank you for calling "Company Name". ${langParts}`;
+    return `${greetingIntro} ${langParts}`;
   };
 
   useEffect(() => {
     if (!isGreetingCustomized.current) {
       setLanguageSelectionGreetingText(generateDefaultLanguageSelectionGreeting());
     }
-  }, [languageOptions]);
+  }, [languageOptions, userProfile]);
 
   const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLanguageSelectionGreeting();
 

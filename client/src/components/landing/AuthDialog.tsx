@@ -587,8 +587,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         <form onSubmit={handleForgotPasswordSendOTP} className="space-y-4">
           <div className="text-center space-y-3 mb-6">
             <div className="flex justify-center">
-              <div className="h-14 w-14 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                <KeyRound className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+              <div className="h-14 w-14 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                <KeyRound className="h-7 w-7 text-blue-500 dark:text-blue-400" />
               </div>
             </div>
             <div>
@@ -600,7 +600,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="forgot-email">Email</Label>
+            <Label htmlFor="forgot-email" className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</Label>
             <Input
               id="forgot-email"
               type="email"
@@ -608,14 +608,15 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
               value={forgotPasswordForm.email}
               onChange={(e) => setForgotPasswordForm({ email: e.target.value })}
               required
-              className="h-11"
+              className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-all duration-300"
               data-testid="input-forgot-email"
             />
           </div>
           
           <Button
             type="submit"
-            className="w-full h-11 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900"
+            size="lg"
+            className="w-full bg-blue-500 text-white rounded-xl shadow-md shadow-blue-500/20"
             disabled={isLoading}
             data-testid="button-forgot-send-otp"
           >
@@ -632,7 +633,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           <Button
             type="button"
             variant="ghost"
-            className="w-full"
+            className="w-full rounded-xl"
             onClick={() => {
               setAuthView("login");
               setActiveTab("login");
@@ -650,8 +651,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         <form onSubmit={handleForgotPasswordVerifyOTP} className="space-y-6">
           <div className="text-center space-y-3">
             <div className="flex justify-center">
-              <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Mail className="h-7 w-7 text-slate-600 dark:text-slate-300" />
+              <div className="h-14 w-14 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                <Mail className="h-7 w-7 text-blue-500 dark:text-blue-400" />
               </div>
             </div>
             <div>
@@ -690,7 +691,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           <div className="space-y-3">
             <Button
               type="submit"
-              className="w-full h-11 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900"
+              size="lg"
+              className="w-full bg-blue-500 text-white rounded-xl shadow-md shadow-blue-500/20"
               disabled={isLoading || otpCode.length !== 6}
               data-testid="button-forgot-verify"
             >
@@ -705,7 +707,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
+                className="flex-1 rounded-xl"
                 onClick={() => setForgotPasswordStep("email")}
                 disabled={isLoading}
                 data-testid="button-forgot-back"
@@ -715,7 +717,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
+                className="flex-1 rounded-xl"
                 onClick={handleForgotPasswordResendOTP}
                 disabled={isLoading || !canResendOtp}
                 data-testid="button-forgot-resend"
@@ -733,8 +735,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
         <form onSubmit={handleResetPassword} className="space-y-4">
           <div className="text-center space-y-3 mb-6">
             <div className="flex justify-center">
-              <div className="h-14 w-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <KeyRound className="h-7 w-7 text-green-600 dark:text-green-400" />
+              <div className="h-14 w-14 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                <KeyRound className="h-7 w-7 text-blue-500 dark:text-blue-400" />
               </div>
             </div>
             <div>
@@ -746,7 +748,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="new-password">New Password</Label>
+            <Label htmlFor="new-password" className="text-sm font-medium text-gray-600 dark:text-gray-400">New Password</Label>
             <div className="relative">
               <Input
                 id="new-password"
@@ -755,14 +757,14 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                 onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, newPassword: e.target.value })}
                 required
                 minLength={6}
-                className="h-11 pr-10"
+                className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-all duration-300 pr-10"
                 data-testid="input-new-password"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="absolute right-0 top-0 h-11 w-11"
+                className="absolute right-0 top-0 h-full w-11 rounded-xl"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -771,7 +773,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm Password</Label>
+            <Label htmlFor="confirm-password" className="text-sm font-medium text-gray-600 dark:text-gray-400">Confirm Password</Label>
             <Input
               id="confirm-password"
               type={showPassword ? "text" : "password"}
@@ -779,14 +781,15 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
               onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, confirmPassword: e.target.value })}
               required
               minLength={6}
-              className="h-11"
+              className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-all duration-300"
               data-testid="input-confirm-password"
             />
           </div>
           
           <Button
             type="submit"
-            className="w-full h-11 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900"
+            size="lg"
+            className="w-full bg-blue-500 text-white rounded-xl shadow-md shadow-blue-500/20"
             disabled={isLoading}
             data-testid="button-reset-password"
           >
@@ -805,7 +808,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent hideCloseButton className="sm:max-w-[440px] p-0 gap-0 overflow-hidden rounded-2xl border shadow-2xl bg-background" data-testid="dialog-auth">
+      <DialogContent hideCloseButton className="sm:max-w-[440px] p-0 gap-0 overflow-hidden rounded-3xl backdrop-blur-xl bg-white/80 dark:bg-[#1c1c1e]/90 border border-white/30 dark:border-white/10 shadow-2xl shadow-black/10" data-testid="dialog-auth">
         <VisuallyHidden.Root>
           <DialogTitle>{getDialogTitle()}</DialogTitle>
           <DialogDescription>{getDialogDescription()}</DialogDescription>
@@ -816,14 +819,14 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-background/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-4 z-50"
+            className="absolute inset-0 bg-background/95 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center gap-4 z-50"
             data-testid="auth-loading-overlay"
           >
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
             >
-              <div className="w-12 h-12 border-4 border-slate-200 dark:border-slate-700 border-t-amber-500 rounded-full" />
+              <div className="w-12 h-12 border-4 border-slate-200 dark:border-slate-700 border-t-blue-500 rounded-full" />
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -837,11 +840,11 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           </motion.div>
         )}
         
-        <div className="relative p-6 pb-4 border-b bg-muted/30">
+        <div className="relative p-7 pb-5 border-b border-gray-200/60 dark:border-white/10">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
+            className="absolute top-3 right-3 rounded-xl text-muted-foreground hover:text-foreground"
             onClick={onClose}
             data-testid="button-close-auth"
           >
@@ -859,16 +862,16 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                 />
               )}
               <div>
-                <h2 className="text-xl font-bold">Welcome back</h2>
-                <p className="text-muted-foreground text-sm">
+                <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
+                <p className="text-sm font-light text-muted-foreground">
                   Sign in to manage your AI voice agents
                 </p>
               </div>
             </div>
           ) : authView === "forgot-password" ? (
             <div className="space-y-1">
-              <h2 className="text-xl font-bold">Reset password</h2>
-              <p className="text-muted-foreground text-sm">
+              <h2 className="text-2xl font-semibold tracking-tight">Reset password</h2>
+              <p className="text-sm font-light text-muted-foreground">
                 {forgotPasswordStep === "email" && "Enter your email to receive a reset code"}
                 {forgotPasswordStep === "otp" && "Enter the verification code"}
                 {forgotPasswordStep === "new-password" && "Create your new password"}
@@ -887,8 +890,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                 )}
               </div>
               <div>
-                <h2 className="text-xl font-bold">Create your account</h2>
-                <p className="text-muted-foreground text-sm">
+                <h2 className="text-2xl font-semibold tracking-tight">Create your account</h2>
+                <p className="text-sm font-light text-muted-foreground">
                   Get started with AI-powered calling
                 </p>
               </div>
@@ -896,7 +899,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
           )}
         </div>
         
-        <div className="p-6">
+        <div className="p-7">
           {authView === "forgot-password" ? (
             renderForgotPassword()
           ) : (
@@ -905,15 +908,15 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                 setActiveTab(v as "login" | "register");
                 setAuthView(v as "login" | "register");
               }} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="login" data-testid="tab-login">Sign In</TabsTrigger>
-                  <TabsTrigger value="register" data-testid="tab-register">Create Account</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 mb-6 rounded-xl bg-gray-100/80 dark:bg-white/10 p-1">
+                  <TabsTrigger value="login" className="data-[state=active]:bg-white dark:data-[state=active]:bg-white/15 data-[state=active]:shadow-sm data-[state=active]:rounded-lg" data-testid="tab-login">Sign In</TabsTrigger>
+                  <TabsTrigger value="register" className="data-[state=active]:bg-white dark:data-[state=active]:bg-white/15 data-[state=active]:shadow-sm data-[state=active]:rounded-lg" data-testid="tab-register">Create Account</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="login" className="mt-0">
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="dialog-login-email">Email</Label>
+                      <Label htmlFor="dialog-login-email" className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</Label>
                       <Input
                         id="dialog-login-email"
                         type="email"
@@ -921,16 +924,16 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                         value={loginForm.email}
                         onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
                         required
-                        className="h-11"
+                        className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-all duration-300"
                         data-testid="input-dialog-login-email"
                       />
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="dialog-login-password">Password</Label>
+                        <Label htmlFor="dialog-login-password" className="text-sm font-medium text-gray-600 dark:text-gray-400">Password</Label>
                         <button
                           type="button"
-                          className="text-sm text-primary hover:underline"
+                          className="text-sm text-blue-500 dark:text-blue-400 hover:underline"
                           onClick={() => {
                             setAuthView("forgot-password");
                             setForgotPasswordForm({ email: loginForm.email });
@@ -947,14 +950,14 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                           value={loginForm.password}
                           onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                           required
-                          className="h-11 pr-10"
+                          className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-all duration-300 pr-10"
                           data-testid="input-dialog-login-password"
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute right-0 top-0 h-11 w-11"
+                          className="absolute right-0 top-0 h-full w-11 rounded-xl"
                           onClick={() => setShowPassword(!showPassword)}
                           data-testid="button-toggle-login-password"
                         >
@@ -964,7 +967,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                     </div>
                     <Button
                       type="submit"
-                      className="w-full h-11 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900"
+                      size="lg"
+                      className="w-full bg-blue-500 text-white rounded-xl shadow-md shadow-blue-500/20"
                       disabled={isLoading}
                       data-testid="button-dialog-login"
                     >
@@ -984,7 +988,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                   {signupStep === "details" ? (
                     <form onSubmit={handleSendOTP} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="dialog-register-name">Full Name</Label>
+                        <Label htmlFor="dialog-register-name" className="text-sm font-medium text-gray-600 dark:text-gray-400">Full Name</Label>
                         <Input
                           id="dialog-register-name"
                           type="text"
@@ -992,12 +996,12 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                           value={registerForm.name}
                           onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
                           required
-                          className="h-11"
+                          className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-all duration-300"
                           data-testid="input-dialog-register-name"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="dialog-register-email">Email</Label>
+                        <Label htmlFor="dialog-register-email" className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</Label>
                         <Input
                           id="dialog-register-email"
                           type="email"
@@ -1005,12 +1009,12 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                           value={registerForm.email}
                           onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
                           required
-                          className="h-11"
+                          className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-all duration-300"
                           data-testid="input-dialog-register-email"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="dialog-register-password">Password</Label>
+                        <Label htmlFor="dialog-register-password" className="text-sm font-medium text-gray-600 dark:text-gray-400">Password</Label>
                         <div className="relative">
                           <Input
                             id="dialog-register-password"
@@ -1019,14 +1023,14 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                             onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
                             required
                             minLength={6}
-                            className="h-11 pr-10"
+                            className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 focus-visible:ring-2 focus-visible:ring-blue-500/40 transition-all duration-300 pr-10"
                             data-testid="input-dialog-register-password"
                           />
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute right-0 top-0 h-11 w-11"
+                            className="absolute right-0 top-0 h-full w-11 rounded-xl"
                             onClick={() => setShowPassword(!showPassword)}
                             data-testid="button-toggle-register-password"
                           >
@@ -1050,11 +1054,11 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                           className="text-sm text-muted-foreground leading-relaxed cursor-pointer"
                         >
                           I agree to the{" "}
-                          <Link href="/terms" className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                          <Link href="/terms" className="text-blue-500 dark:text-blue-400 hover:underline" onClick={(e) => e.stopPropagation()}>
                             Terms of Service
                           </Link>{" "}
                           and{" "}
-                          <Link href="/privacy" className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                          <Link href="/privacy" className="text-blue-500 dark:text-blue-400 hover:underline" onClick={(e) => e.stopPropagation()}>
                             Privacy Policy
                           </Link>
                         </label>
@@ -1062,7 +1066,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                       
                       <Button
                         type="submit"
-                        className="w-full h-11 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900"
+                        size="lg"
+                        className="w-full bg-blue-500 text-white rounded-xl shadow-md shadow-blue-500/20"
                         disabled={isLoading || !registerForm.acceptedTerms}
                         data-testid="button-dialog-send-otp"
                       >
@@ -1080,8 +1085,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                     <form onSubmit={handleVerifyOTP} className="space-y-6">
                       <div className="text-center space-y-3">
                         <div className="flex justify-center">
-                          <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                            <Mail className="h-7 w-7 text-slate-600 dark:text-slate-300" />
+                          <div className="h-14 w-14 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                            <Mail className="h-7 w-7 text-blue-500 dark:text-blue-400" />
                           </div>
                         </div>
                         <div>
@@ -1120,7 +1125,8 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                       <div className="space-y-3">
                         <Button
                           type="submit"
-                          className="w-full h-11 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900"
+                          size="lg"
+                          className="w-full bg-blue-500 text-white rounded-xl shadow-md shadow-blue-500/20"
                           disabled={isLoading || otpCode.length !== 6}
                           data-testid="button-dialog-verify"
                         >
@@ -1135,7 +1141,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                           <Button
                             type="button"
                             variant="outline"
-                            className="flex-1"
+                            className="flex-1 rounded-xl"
                             onClick={() => setSignupStep("details")}
                             disabled={isLoading}
                             data-testid="button-dialog-back"
@@ -1145,7 +1151,7 @@ function AuthDialogContent({ isOpen, onClose, activeTab, setActiveTab, onAuthSuc
                           <Button
                             type="button"
                             variant="outline"
-                            className="flex-1"
+                            className="flex-1 rounded-xl"
                             onClick={handleResendOTP}
                             disabled={isLoading || !canResendOtp}
                             data-testid="button-dialog-resend"

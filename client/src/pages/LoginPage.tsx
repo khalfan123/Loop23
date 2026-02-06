@@ -91,6 +91,8 @@ const stats = [
   { value: "24/7", label: "Support" }
 ];
 
+const springTransition = { type: "spring" as const, stiffness: 300, damping: 30 };
+
 export default function LoginPage() {
   const [location, setLocation] = useLocation();
   const initialTab = location === "/register" ? "register" : "login";
@@ -107,7 +109,6 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { branding, currentLogo } = useBranding();
 
-  // OTP timer countdown
   useEffect(() => {
     if (otpTimer > 0) {
       const timer = setTimeout(() => setOtpTimer(otpTimer - 1), 1000);
@@ -138,8 +139,6 @@ export default function LoginPage() {
   });
 
   const handleLoadingComplete = () => {
-    // Navigate using SPA routing - don't hide the loader first
-    // The component will unmount naturally when navigation completes
     if (pendingRedirect) {
       setLocation(pendingRedirect);
     }
@@ -165,7 +164,6 @@ export default function LoginPage() {
       
       toast({ title: "Welcome back!", description: "Login successful" });
 
-      // Show loading animation then redirect based on user role
       const redirectPath = (result.user.role === 'admin' || result.user.role === 'super_admin') ? "/admin" : "/app";
       setPendingRedirect(redirectPath);
       setShowLoadingAnimation(true);
@@ -176,7 +174,6 @@ export default function LoginPage() {
     }
   };
 
-  // Step 1: Send OTP for registration
   const handleSendRegistrationOTP = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
@@ -201,7 +198,7 @@ export default function LoginPage() {
       });
 
       setActiveView('register-otp');
-      setOtpTimer(300); // 5 minutes countdown
+      setOtpTimer(300);
       setCanResendOtp(false);
       setRegisterOtpCode("");
     } catch (error: any) {
@@ -215,7 +212,6 @@ export default function LoginPage() {
     }
   };
 
-  // Resend OTP for registration
   const handleResendRegistrationOTP = async () => {
     const data = registerForm.getValues();
     setIsLoading(true);
@@ -254,7 +250,6 @@ export default function LoginPage() {
     }
   };
 
-  // Step 2: Verify OTP and complete registration
   const handleVerifyAndRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (registerOtpCode.length !== 6) {
@@ -264,7 +259,6 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      // First verify the OTP
       const verifyResponse = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -280,7 +274,6 @@ export default function LoginPage() {
         throw new Error(verifyResult.error || "Invalid verification code");
       }
 
-      // OTP verified successfully, now complete registration
       const registerData = registerForm.getValues();
       const registerResponse = await fetch("/api/auth/register", {
         method: "POST",
@@ -306,7 +299,6 @@ export default function LoginPage() {
         description: `Welcome, ${result.user.name}`,
       });
 
-      // Show loading animation then redirect based on user role
       const redirectPath = result.user.role === 'admin' ? "/admin" : "/app";
       setPendingRedirect(redirectPath);
       setShowLoadingAnimation(true);
@@ -382,7 +374,6 @@ export default function LoginPage() {
   const handleResetPassword = async (data: ResetPasswordFormData) => {
     setIsLoading(true);
     try {
-      // First verify OTP
       const verifyResponse = await fetch("/api/auth/forgot-password/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -396,7 +387,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Then reset password
       const resetResponse = await fetch("/api/auth/forgot-password/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -442,6 +432,10 @@ export default function LoginPage() {
     }
   };
 
+  const inputClassName = "h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 px-4 text-base placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-0 transition-all duration-300";
+
+  const primaryButtonClassName = "w-full h-[52px] rounded-xl bg-blue-500 text-white font-medium border-0 shadow-md shadow-blue-500/20 no-default-hover-elevate no-default-active-elevate hover:bg-blue-600 active:bg-blue-700 transition-all duration-200";
+
   return (
     <>
       <AILoadingAnimation 
@@ -450,23 +444,27 @@ export default function LoginPage() {
         userName={userName}
       />
       
-      <div className="min-h-screen flex" data-testid="login-page">
-        {/* Left side - Informative Panel */}
-        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#050B1A] via-[#0a1628] to-[#050B1A] relative overflow-hidden">
-          {/* Animated background elements */}
+      <div className="min-h-screen flex bg-white dark:bg-[#1c1c1e]" data-testid="login-page">
+        {/* Left side - Apple Mesh Gradient Panel */}
+        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50/50 to-purple-50/30 dark:from-[#1c1c1e] dark:via-[#1c1c2e] dark:to-[#1c1c1e]">
+          {/* Mesh gradient blobs */}
           <div className="absolute inset-0">
-            <div className="absolute top-20 left-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl" />
-            <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-400/5 rounded-full blur-3xl" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-teal-500/5 to-cyan-500/5 rounded-full blur-3xl" />
+            <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-[100px]" />
+            <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] bg-purple-400/20 dark:bg-purple-500/10 rounded-full blur-[100px]" />
+            <div className="absolute bottom-[-5%] left-[10%] w-[450px] h-[450px] bg-pink-300/15 dark:bg-pink-500/8 rounded-full blur-[100px]" />
+            <div className="absolute top-[50%] left-[30%] w-[350px] h-[350px] bg-teal-300/15 dark:bg-teal-500/8 rounded-full blur-[80px]" />
+            <div className="absolute bottom-[30%] right-[5%] w-[300px] h-[300px] bg-indigo-300/10 dark:bg-indigo-500/8 rounded-full blur-[90px]" />
           </div>
           
           <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-            {/* Logo - Use white logo (logo_url_dark) for dark background */}
+            {/* Logo */}
             <Link href="/">
               <div className="flex items-center gap-3 cursor-pointer" data-testid="link-logo">
-                {branding.logo_url_dark && (
-                  <img src={branding.logo_url_dark} alt={branding.app_name} className="h-10" />
-                )}
+                {branding.logo_url_dark ? (
+                  <img src={currentLogo || branding.logo_url_dark} alt={branding.app_name} className="h-10" />
+                ) : currentLogo ? (
+                  <img src={currentLogo} alt={branding.app_name} className="h-10" />
+                ) : null}
               </div>
             </Link>
             
@@ -475,19 +473,19 @@ export default function LoginPage() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
+                transition={{ ...springTransition, delay: 0.1 }}
               >
-                <h1 className="text-4xl xl:text-5xl font-bold leading-tight text-white mb-4">
+                <h1 className="text-4xl xl:text-5xl font-semibold leading-tight tracking-tight text-gray-900 dark:text-white mb-4">
                   Launch AI agents & automate your customer interactions
                 </h1>
               </motion.div>
               
               {/* Features List */}
               <motion.div 
-                className="space-y-6"
+                className="space-y-5"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                transition={{ ...springTransition, delay: 0.2 }}
               >
                 {features.map((feature, index) => (
                   <motion.div 
@@ -495,16 +493,16 @@ export default function LoginPage() {
                     className="flex items-start gap-4"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
+                    transition={{ ...springTransition, delay: 0.3 + index * 0.08 }}
                     data-testid={`feature-item-${index}`}
                   >
-                    <div className="w-10 h-10 rounded-lg bg-teal-500/20 border border-teal-500/30 flex items-center justify-center shrink-0">
-                      <feature.icon className="w-5 h-5 text-teal-400" />
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 dark:bg-blue-400/15 flex items-center justify-center shrink-0">
+                      <feature.icon className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-white">
-                        Access pre-built <span className="font-semibold">{feature.title}</span>.{" "}
-                        <span className="text-gray-400">{feature.description}</span>
+                      <p className="text-gray-800 dark:text-gray-200 font-light">
+                        Access pre-built <span className="font-medium">{feature.title}</span>.{" "}
+                        <span className="text-gray-500 dark:text-gray-400">{feature.description}</span>
                       </p>
                     </div>
                   </motion.div>
@@ -513,16 +511,16 @@ export default function LoginPage() {
 
               {/* Stats Row */}
               <motion.div
-                className="pt-8 border-t border-white/10"
+                className="pt-8 border-t border-gray-200/60 dark:border-white/10"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
+                transition={{ ...springTransition, delay: 0.6 }}
               >
                 <div className="grid grid-cols-4 gap-6">
                   {stats.map((stat, index) => (
                     <div key={index} className="text-center" data-testid={`stat-${index}`}>
-                      <div className="text-2xl font-bold text-teal-400">{stat.value}</div>
-                      <div className="text-sm text-gray-400">{stat.label}</div>
+                      <div className="text-2xl font-semibold tracking-tight text-blue-500 dark:text-blue-400">{stat.value}</div>
+                      <div className="text-sm font-light text-gray-500 dark:text-gray-400 tracking-wide">{stat.label}</div>
                     </div>
                   ))}
                 </div>
@@ -530,14 +528,14 @@ export default function LoginPage() {
             </div>
             
             {/* Footer */}
-            <p className="text-sm text-gray-500">
+            <p className="text-sm font-light text-gray-400 dark:text-gray-500 tracking-wide">
               &copy; {new Date().getFullYear()} {branding.app_name}. All rights reserved.
             </p>
           </div>
         </div>
 
         {/* Right side - Login Form */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50 dark:bg-[#0a1628]">
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50/50 dark:bg-[#1c1c1e]">
           <div className="w-full max-w-md space-y-6">
             {/* Mobile back button */}
             <div className="lg:hidden">
@@ -552,13 +550,15 @@ export default function LoginPage() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={springTransition}
               key={activeView}
             >
-              <Card className="border border-gray-200 dark:border-teal-900/50 shadow-2xl shadow-gray-200/50 dark:shadow-teal-900/20 bg-white dark:bg-[#0f1d32]">
-                <CardHeader className="text-center pb-2">
+              {/* Frosted glass card */}
+              <div className="rounded-2xl backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-white/40 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/20 p-8">
+                {/* Header */}
+                <div className="text-center pb-6">
                   {/* Mobile logo */}
-                  <div className="lg:hidden flex justify-center mb-4">
+                  <div className="lg:hidden flex justify-center mb-5">
                     {currentLogo && (
                       <img src={currentLogo} alt={branding.app_name} className="h-10" />
                     )}
@@ -566,55 +566,56 @@ export default function LoginPage() {
                   
                   {/* Icon for forgot/reset password views */}
                   {(activeView === "forgot-password" || activeView === "reset-password") && (
-                    <div className="flex justify-center mb-4">
-                      <div className="w-16 h-16 rounded-full bg-teal-500/10 border border-teal-500/30 flex items-center justify-center">
+                    <div className="flex justify-center mb-5">
+                      <div className="w-16 h-16 rounded-2xl bg-blue-500/10 dark:bg-blue-400/15 flex items-center justify-center">
                         {activeView === "forgot-password" ? (
-                          <Mail className="w-8 h-8 text-teal-400" />
+                          <Mail className="w-7 h-7 text-blue-500 dark:text-blue-400" />
                         ) : (
-                          <KeyRound className="w-8 h-8 text-teal-400" />
+                          <KeyRound className="w-7 h-7 text-blue-500 dark:text-blue-400" />
                         )}
                       </div>
                     </div>
                   )}
                   
-                  <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <h2 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
                     {getCardTitle()}
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-400">
+                  </h2>
+                  <p className="text-base text-gray-500 dark:text-gray-400 font-light mt-2">
                     {getCardDescription()}
-                  </CardDescription>
-                </CardHeader>
+                  </p>
+                </div>
                 
-                <CardContent className="pt-4">
+                {/* Form Content */}
+                <div className="pt-2">
                   {/* Login/Register Tabs */}
                   {(activeView === "login" || activeView === "register") && (
                     <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ViewType)}>
-                      <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 dark:bg-[#0a1628]">
+                      <TabsList className="grid w-full grid-cols-2 mb-6 rounded-xl bg-gray-100/80 dark:bg-white/10 p-1 h-auto">
                         <TabsTrigger 
                           value="login" 
                           data-testid="tab-login"
-                          className="data-[state=active]:bg-white dark:data-[state=active]:bg-teal-600 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
+                          className="rounded-lg py-2.5 text-sm font-medium data-[state=active]:bg-white dark:data-[state=active]:bg-white/15 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
                         >
                           Sign In
                         </TabsTrigger>
                         <TabsTrigger 
                           value="register" 
                           data-testid="tab-register"
-                          className="data-[state=active]:bg-white dark:data-[state=active]:bg-teal-600 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
+                          className="rounded-lg py-2.5 text-sm font-medium data-[state=active]:bg-white dark:data-[state=active]:bg-white/15 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-200"
                         >
                           Sign Up
                         </TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="login">
-                        <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
+                        <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-5">
                           <div className="space-y-2">
-                            <Label htmlFor="login-email" className="text-gray-700 dark:text-gray-300">Email</Label>
+                            <Label htmlFor="login-email" className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</Label>
                             <Input
                               id="login-email"
                               type="email"
                               placeholder="you@example.com"
-                              className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500"
+                              className={inputClassName}
                               {...loginForm.register("email")}
                               data-testid="input-login-email"
                             />
@@ -624,13 +625,13 @@ export default function LoginPage() {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor="login-password" className="text-gray-700 dark:text-gray-300">Password</Label>
+                            <Label htmlFor="login-password" className="text-sm font-medium text-gray-600 dark:text-gray-400">Password</Label>
                             <div className="relative">
                               <Input
                                 id="login-password"
                                 type={showPassword ? "text" : "password"}
                                 placeholder="Enter your password"
-                                className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500 pr-12"
+                                className={`${inputClassName} pr-12`}
                                 {...loginForm.register("password")}
                                 data-testid="input-login-password"
                               />
@@ -638,7 +639,7 @@ export default function LoginPage() {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="absolute right-0 top-0 h-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                                 onClick={() => setShowPassword(!showPassword)}
                                 data-testid="button-toggle-password"
                               >
@@ -655,7 +656,7 @@ export default function LoginPage() {
                                   forgotPasswordForm.setValue("email", loginForm.getValues("email"));
                                   setActiveView("forgot-password");
                                 }}
-                                className="text-sm text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+                                className="text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors cursor-pointer"
                                 data-testid="link-forgot-password"
                               >
                                 Forgot password?
@@ -663,26 +664,34 @@ export default function LoginPage() {
                             </div>
                           </div>
 
-                          <Button
+                          <button
                             type="submit"
-                            className="w-full h-12 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-medium border-0 shadow-lg shadow-teal-500/25"
+                            className={primaryButtonClassName}
                             disabled={isLoading}
                             data-testid="button-login-submit"
                           >
-                            {isLoading ? "Signing in..." : "Sign In"}
-                          </Button>
+                            {isLoading ? (
+                              <span className="flex items-center justify-center gap-2">
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Signing in...
+                              </span>
+                            ) : "Sign In"}
+                          </button>
                         </form>
                       </TabsContent>
 
                       <TabsContent value="register">
-                        <form onSubmit={registerForm.handleSubmit(handleSendRegistrationOTP)} className="space-y-4">
+                        <form onSubmit={registerForm.handleSubmit(handleSendRegistrationOTP)} className="space-y-5">
                           <div className="space-y-2">
-                            <Label htmlFor="register-name" className="text-gray-700 dark:text-gray-300">Full Name</Label>
+                            <Label htmlFor="register-name" className="text-sm font-medium text-gray-600 dark:text-gray-400">Full Name</Label>
                             <Input
                               id="register-name"
                               type="text"
                               placeholder="John Doe"
-                              className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500"
+                              className={inputClassName}
                               {...registerForm.register("name")}
                               data-testid="input-register-name"
                             />
@@ -692,12 +701,12 @@ export default function LoginPage() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="register-email" className="text-gray-700 dark:text-gray-300">Email</Label>
+                            <Label htmlFor="register-email" className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</Label>
                             <Input
                               id="register-email"
                               type="email"
                               placeholder="you@example.com"
-                              className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500"
+                              className={inputClassName}
                               {...registerForm.register("email")}
                               data-testid="input-register-email"
                             />
@@ -707,13 +716,13 @@ export default function LoginPage() {
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor="register-password" className="text-gray-700 dark:text-gray-300">Password</Label>
+                            <Label htmlFor="register-password" className="text-sm font-medium text-gray-600 dark:text-gray-400">Password</Label>
                             <div className="relative">
                               <Input
                                 id="register-password"
                                 type={showPassword ? "text" : "password"}
                                 placeholder="Create a password"
-                                className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500 pr-12"
+                                className={`${inputClassName} pr-12`}
                                 {...registerForm.register("password")}
                                 data-testid="input-register-password"
                               />
@@ -721,7 +730,7 @@ export default function LoginPage() {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="absolute right-0 top-0 h-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                                 onClick={() => setShowPassword(!showPassword)}
                               >
                                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -733,12 +742,12 @@ export default function LoginPage() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="register-confirm" className="text-gray-700 dark:text-gray-300">Confirm Password</Label>
+                            <Label htmlFor="register-confirm" className="text-sm font-medium text-gray-600 dark:text-gray-400">Confirm Password</Label>
                             <Input
                               id="register-confirm"
                               type="password"
                               placeholder="Confirm your password"
-                              className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500"
+                              className={inputClassName}
                               {...registerForm.register("confirmPassword")}
                               data-testid="input-register-confirm"
                             />
@@ -747,14 +756,22 @@ export default function LoginPage() {
                             )}
                           </div>
 
-                          <Button
+                          <button
                             type="submit"
-                            className="w-full h-12 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-medium border-0 shadow-lg shadow-teal-500/25"
+                            className={primaryButtonClassName}
                             disabled={isLoading}
                             data-testid="button-register-submit"
                           >
-                            {isLoading ? "Sending code..." : "Send Verification Code"}
-                          </Button>
+                            {isLoading ? (
+                              <span className="flex items-center justify-center gap-2">
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Sending code...
+                              </span>
+                            ) : "Send Verification Code"}
+                          </button>
                         </form>
                       </TabsContent>
                     </Tabs>
@@ -762,22 +779,22 @@ export default function LoginPage() {
 
                   {/* Registration OTP Verification */}
                   {activeView === "register-otp" && (
-                    <form onSubmit={handleVerifyAndRegister} className="space-y-4">
+                    <form onSubmit={handleVerifyAndRegister} className="space-y-5">
                       <div className="text-center space-y-2 mb-4">
                         <div className="flex justify-center mb-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-500/10">
-                            <Mail className="h-6 w-6 text-teal-500" />
+                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 dark:bg-blue-400/15">
+                            <Mail className="h-6 w-6 text-blue-500 dark:text-blue-400" />
                           </div>
                         </div>
                         <h3 className="font-semibold text-lg text-gray-900 dark:text-white">Check your email</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 font-light">
                           We sent a verification code to<br />
-                          <strong className="text-gray-700 dark:text-gray-200">{registerForm.getValues().email}</strong>
+                          <strong className="text-gray-700 dark:text-gray-200 font-medium">{registerForm.getValues().email}</strong>
                         </p>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="register-otp" className="text-gray-700 dark:text-gray-300">Verification Code</Label>
+                        <Label htmlFor="register-otp" className="text-sm font-medium text-gray-600 dark:text-gray-400">Verification Code</Label>
                         <Input
                           id="register-otp"
                           type="text"
@@ -785,61 +802,67 @@ export default function LoginPage() {
                           maxLength={6}
                           value={registerOtpCode}
                           onChange={(e) => setRegisterOtpCode(e.target.value.replace(/\D/g, ''))}
-                          className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500 text-center text-lg tracking-widest"
+                          className={`${inputClassName} text-center text-lg tracking-widest`}
                           data-testid="input-register-otp"
                         />
                         {otpTimer > 0 && (
-                          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                          <div className="flex items-center justify-center gap-2 text-sm text-gray-400 dark:text-gray-500 font-light">
                             <span>Code expires in {Math.floor(otpTimer / 60)}:{String(otpTimer % 60).padStart(2, '0')}</span>
                           </div>
                         )}
                       </div>
 
-                      <Button
+                      <button
                         type="submit"
-                        className="w-full h-12 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-medium border-0 shadow-lg shadow-teal-500/25"
+                        className={primaryButtonClassName}
                         disabled={isLoading || registerOtpCode.length !== 6}
                         data-testid="button-verify-register"
                       >
-                        {isLoading ? "Verifying..." : "Verify & Create Account"}
-                      </Button>
+                        {isLoading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Verifying...
+                          </span>
+                        ) : "Verify & Create Account"}
+                      </button>
 
-                      <div className="flex gap-2">
-                        <Button
+                      <div className="flex gap-3">
+                        <button
                           type="button"
-                          variant="outline"
-                          className="flex-1"
+                          className="flex-1 h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 text-gray-700 dark:text-gray-300 font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-200/80 dark:hover:bg-white/15 transition-all duration-200 disabled:opacity-50"
                           onClick={handleBackToRegisterDetails}
                           disabled={isLoading}
                           data-testid="button-back-register"
                         >
-                          <ArrowLeft className="w-4 h-4 mr-2" />
+                          <ArrowLeft className="w-4 h-4" />
                           Back
-                        </Button>
-                        <Button
+                        </button>
+                        <button
                           type="button"
-                          variant="outline"
-                          className="flex-1"
+                          className="flex-1 h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 text-gray-700 dark:text-gray-300 font-medium text-sm flex items-center justify-center hover:bg-gray-200/80 dark:hover:bg-white/15 transition-all duration-200 disabled:opacity-50"
                           onClick={handleResendRegistrationOTP}
                           disabled={isLoading || !canResendOtp}
                           data-testid="button-resend-register-otp"
                         >
                           {canResendOtp ? "Resend Code" : `Resend in ${Math.floor(otpTimer / 60)}:${String(otpTimer % 60).padStart(2, '0')}`}
-                        </Button>
+                        </button>
                       </div>
                     </form>
                   )}
 
                   {/* Forgot Password Form */}
                   {activeView === "forgot-password" && (
-                    <form onSubmit={forgotPasswordForm.handleSubmit(handleForgotPasswordSubmit)} className="space-y-4">
+                    <form onSubmit={forgotPasswordForm.handleSubmit(handleForgotPasswordSubmit)} className="space-y-5">
                       <div className="space-y-2">
-                        <Label htmlFor="forgot-email" className="text-gray-700 dark:text-gray-300">Email</Label>
+                        <Label htmlFor="forgot-email" className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</Label>
                         <Input
                           id="forgot-email"
                           type="email"
                           placeholder="you@example.com"
-                          className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500"
+                          className={inputClassName}
                           {...forgotPasswordForm.register("email")}
                           data-testid="input-forgot-email"
                         />
@@ -848,39 +871,46 @@ export default function LoginPage() {
                         )}
                       </div>
 
-                      <Button
+                      <button
                         type="submit"
-                        className="w-full h-12 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-medium border-0 shadow-lg shadow-teal-500/25"
+                        className={primaryButtonClassName}
                         disabled={isLoading}
                         data-testid="button-send-code"
                       >
-                        {isLoading ? "Sending..." : "Send Reset Code"}
-                      </Button>
+                        {isLoading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Sending...
+                          </span>
+                        ) : "Send Reset Code"}
+                      </button>
 
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        className="w-full"
+                        className="w-full h-[44px] rounded-xl text-gray-600 dark:text-gray-400 font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-100/60 dark:hover:bg-white/5 transition-all duration-200"
                         onClick={() => setActiveView("login")}
                         data-testid="button-back-to-login"
                       >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        <ArrowLeft className="w-4 h-4" />
                         Back to login
-                      </Button>
+                      </button>
                     </form>
                   )}
 
                   {/* Reset Password Form */}
                   {activeView === "reset-password" && (
-                    <form onSubmit={resetPasswordForm.handleSubmit(handleResetPassword)} className="space-y-4">
+                    <form onSubmit={resetPasswordForm.handleSubmit(handleResetPassword)} className="space-y-5">
                       <div className="space-y-2">
-                        <Label htmlFor="reset-otp" className="text-gray-700 dark:text-gray-300">Verification Code</Label>
+                        <Label htmlFor="reset-otp" className="text-sm font-medium text-gray-600 dark:text-gray-400">Verification Code</Label>
                         <Input
                           id="reset-otp"
                           type="text"
                           placeholder="Enter 6-digit code"
                           maxLength={6}
-                          className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500 text-center text-lg tracking-widest"
+                          className={`${inputClassName} text-center text-lg tracking-widest`}
                           {...resetPasswordForm.register("otp")}
                           data-testid="input-reset-otp"
                         />
@@ -889,12 +919,12 @@ export default function LoginPage() {
                         )}
                         <div className="flex justify-center">
                           {otpTimer > 0 ? (
-                            <span className="text-sm text-gray-500">Resend code in {Math.floor(otpTimer / 60)}:{String(otpTimer % 60).padStart(2, '0')}</span>
+                            <span className="text-sm text-gray-400 dark:text-gray-500 font-light">Resend code in {Math.floor(otpTimer / 60)}:{String(otpTimer % 60).padStart(2, '0')}</span>
                           ) : (
                             <button
                               type="button"
                               onClick={handleResendForgotPasswordOTP}
-                              className="text-sm text-teal-600 dark:text-teal-400 hover:underline"
+                              className="text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
                               disabled={isLoading}
                               data-testid="button-resend-otp"
                             >
@@ -905,13 +935,13 @@ export default function LoginPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="reset-password" className="text-gray-700 dark:text-gray-300">New Password</Label>
+                        <Label htmlFor="reset-password" className="text-sm font-medium text-gray-600 dark:text-gray-400">New Password</Label>
                         <div className="relative">
                           <Input
                             id="reset-password"
                             type={showPassword ? "text" : "password"}
                             placeholder="Create a new password"
-                            className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500 pr-12"
+                            className={`${inputClassName} pr-12`}
                             {...resetPasswordForm.register("newPassword")}
                             data-testid="input-reset-password"
                           />
@@ -919,7 +949,7 @@ export default function LoginPage() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute right-0 top-0 h-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                             onClick={() => setShowPassword(!showPassword)}
                           >
                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -931,12 +961,12 @@ export default function LoginPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="reset-confirm" className="text-gray-700 dark:text-gray-300">Confirm New Password</Label>
+                        <Label htmlFor="reset-confirm" className="text-sm font-medium text-gray-600 dark:text-gray-400">Confirm New Password</Label>
                         <Input
                           id="reset-confirm"
                           type="password"
                           placeholder="Confirm your new password"
-                          className="h-12 bg-gray-50 dark:bg-[#0a1628] border-gray-200 dark:border-teal-900/50 focus:border-teal-500 dark:focus:border-teal-500"
+                          className={inputClassName}
                           {...resetPasswordForm.register("confirmPassword")}
                           data-testid="input-reset-confirm"
                         />
@@ -945,55 +975,62 @@ export default function LoginPage() {
                         )}
                       </div>
 
-                      <Button
+                      <button
                         type="submit"
-                        className="w-full h-12 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-medium border-0 shadow-lg shadow-teal-500/25"
+                        className={primaryButtonClassName}
                         disabled={isLoading}
                         data-testid="button-reset-password"
                       >
-                        {isLoading ? "Resetting..." : "Reset Password"}
-                      </Button>
+                        {isLoading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Resetting...
+                          </span>
+                        ) : "Reset Password"}
+                      </button>
 
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        className="w-full"
+                        className="w-full h-[44px] rounded-xl text-gray-600 dark:text-gray-400 font-medium text-sm flex items-center justify-center gap-2 hover:bg-gray-100/60 dark:hover:bg-white/5 transition-all duration-200"
                         onClick={() => {
                           setActiveView("forgot-password");
                           resetPasswordForm.reset();
                         }}
                         data-testid="button-back-to-email"
                       >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        <ArrowLeft className="w-4 h-4" />
                         Change email
-                      </Button>
+                      </button>
                     </form>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </motion.div>
 
             {/* Terms */}
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-center text-sm text-gray-400 dark:text-gray-500 font-light">
               By continuing, you agree to our{" "}
-              <Link href="/terms" className="text-teal-600 dark:text-teal-400 hover:underline">Terms of Service</Link>
+              <Link href="/terms" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">Terms of Service</Link>
               {" "}and{" "}
-              <Link href="/privacy" className="text-teal-600 dark:text-teal-400 hover:underline">Privacy Policy</Link>
+              <Link href="/privacy" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">Privacy Policy</Link>
             </p>
 
             {/* Trust indicators */}
             <motion.div
-              className="flex items-center justify-center gap-6 pt-4"
+              className="flex items-center justify-center gap-6 pt-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
             >
-              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <Check className="w-4 h-4 text-teal-500" />
+              <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 font-light">
+                <Check className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
                 <span>14-day free trial</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <Check className="w-4 h-4 text-teal-500" />
+              <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 font-light">
+                <Check className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
                 <span>No credit card</span>
               </div>
             </motion.div>

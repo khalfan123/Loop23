@@ -461,9 +461,9 @@ export default function LoginPage() {
             <Link href="/">
               <div className="flex items-center gap-3 cursor-pointer" data-testid="link-logo">
                 {branding.logo_url_dark ? (
-                  <img src={currentLogo || branding.logo_url_dark} alt={branding.app_name} className="h-10" />
+                  <img src={currentLogo || branding.logo_url_dark} alt={branding.app_name} className="h-[120px]" />
                 ) : currentLogo ? (
-                  <img src={currentLogo} alt={branding.app_name} className="h-10" />
+                  <img src={currentLogo} alt={branding.app_name} className="h-[120px]" />
                 ) : null}
               </div>
             </Link>
@@ -560,7 +560,7 @@ export default function LoginPage() {
                   {/* Mobile logo */}
                   <div className="lg:hidden flex justify-center mb-5">
                     {currentLogo && (
-                      <img src={currentLogo} alt={branding.app_name} className="h-10" />
+                      <img src={currentLogo} alt={branding.app_name} className="h-[120px]" />
                     )}
                   </div>
                   

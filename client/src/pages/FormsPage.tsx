@@ -17,7 +17,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, CheckSquare, Download, ExternalLink } from "lucide-react";
+import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, CheckSquare, Download, ExternalLink, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -108,7 +108,6 @@ export default function FormsPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      // Map frontend field properties to backend expected names
       const mappedFields = fields.map((field, index) => {
         let options = null;
         if (field.type === "multiple_choice" && field.options.trim()) {
@@ -210,7 +209,6 @@ export default function FormsPage() {
   const handleDownloadCSV = () => {
     if (!selectedForm || submissions.length === 0) return;
     
-    // Build CSV headers from all unique questions
     const headers = ["Submission ID", "Contact Name", "Contact Phone", "Submitted At"];
     const allQuestions = new Set<string>();
     submissions.forEach(sub => {
@@ -219,7 +217,6 @@ export default function FormsPage() {
     const questionHeaders = Array.from(allQuestions);
     headers.push(...questionHeaders);
     
-    // Build CSV rows
     const rows = submissions.map(sub => {
       const row: string[] = [
         sub.id,
@@ -228,7 +225,6 @@ export default function FormsPage() {
         format(new Date(sub.submittedAt), "yyyy-MM-dd HH:mm:ss"),
       ];
       
-      // Add answers in the same order as question headers
       questionHeaders.forEach(question => {
         const response = (sub.responses || []).find(r => r.question === question);
         row.push(response ? response.answer : "");
@@ -237,7 +233,6 @@ export default function FormsPage() {
       return row;
     });
     
-    // Escape CSV values
     const escapeCSV = (val: string) => {
       if (val.includes(",") || val.includes('"') || val.includes("\n")) {
         return `"${val.replace(/"/g, '""')}"`;
@@ -250,7 +245,6 @@ export default function FormsPage() {
       ...rows.map(row => row.map(escapeCSV).join(","))
     ].join("\n");
     
-    // Download
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -263,141 +257,141 @@ export default function FormsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">{t("forms.loading")}</div>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-5 w-5 border-2 border-foreground/20 border-t-foreground/70 rounded-full" />
       </div>
     );
   }
 
   const totalForms = forms.length;
-  // Calculate total submissions from all forms (using submissionCount from API)
   const totalSubmissions = forms.reduce((sum, form) => sum + ((form as any).submissionCount || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-50 via-teal-100/50 to-sky-50 dark:from-cyan-950/40 dark:via-teal-900/30 dark:to-sky-950/40 border border-cyan-100 dark:border-cyan-900/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center shadow-lg shadow-cyan-500/25">
-              <ClipboardList className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground" data-testid="text-page-title">
-                {t("forms.title")}
-              </h1>
-              <p className="text-muted-foreground mt-0.5">{t("forms.subtitle")}</p>
-            </div>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-page-title">
+              {t("forms.title")}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 font-light">{t("forms.subtitle")}</p>
           </div>
           <Button 
-            onClick={() => setCreateDialogOpen(true)} 
-            className="bg-cyan-600 hover:bg-cyan-700 text-white"
+            onClick={() => setCreateDialogOpen(true)}
+            size="sm"
             data-testid="button-create-form"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 mr-1.5" />
             {t("forms.createForm")}
           </Button>
         </div>
+      </div>
 
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-cyan-100/50 dark:border-cyan-800/30">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-              <div className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">{totalForms}</div>
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold tracking-tight">{totalForms}</div>
+                <div className="text-xs text-muted-foreground font-light">{t("forms.totalForms")}</div>
+              </div>
             </div>
-            <div className="text-cyan-600/70 dark:text-cyan-400/70 text-sm">{t("forms.totalForms")}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-teal-100/50 dark:border-teal-800/30">
-            <div className="flex items-center gap-2">
-              <CheckSquare className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-              <div className="text-2xl font-bold text-teal-700 dark:text-teal-300">{totalSubmissions}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                <CheckSquare className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold tracking-tight">{totalSubmissions}</div>
+                <div className="text-xs text-muted-foreground font-light">{t("forms.submissions")}</div>
+              </div>
             </div>
-            <div className="text-teal-600/70 dark:text-teal-400/70 text-sm">{t("forms.submissions")}</div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {forms.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h3 className="text-base font-medium mb-1">{t("forms.noForms")}</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mb-5 font-light">
+            {t("forms.noFormsDescription")}
+          </p>
+          <Button onClick={() => setCreateDialogOpen(true)} size="sm" data-testid="button-create-first-form">
+            <Plus className="h-4 w-4 mr-1.5" />
+            {t("forms.createFirstForm")}
+          </Button>
+        </div>
+      ) : (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">{t("forms.noForms")}</h3>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
-              {t("forms.noFormsDescription")}
-            </p>
-            <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-create-first-form">
-              <Plus className="h-4 w-4 mr-2" />
-              {t("forms.createFirstForm")}
-            </Button>
+          <CardContent className="p-0 divide-y">
+          {forms.map((form) => (
+            <div 
+              key={form.id} 
+              className="flex items-center justify-between p-4 gap-4 hover-elevate"
+              data-testid={`card-form-${form.id}`}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-medium text-sm truncate" data-testid={`text-form-name-${form.id}`}>
+                    {form.name}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-light mt-0.5">
+                    {format(new Date(form.createdAt), "MMM d, yyyy")}
+                    {form.description && <span className="ml-2">{form.description}</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="secondary" className="text-xs font-normal" data-testid={`badge-submissions-${form.id}`}>
+                  {(form as any).submissionCount || 0}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleViewSubmissions(form)}
+                  data-testid={`button-view-submissions-${form.id}`}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => deleteMutation.mutate(form.id)}
+                  disabled={deleteMutation.isPending}
+                  data-testid={`button-delete-${form.id}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-4">
-          {forms.map((form) => (
-            <Card key={form.id} className="hover-elevate">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <CardTitle className="text-lg" data-testid={`text-form-name-${form.id}`}>
-                        {form.name}
-                      </CardTitle>
-                    </div>
-                    {form.description && (
-                      <CardDescription className="text-sm">{form.description}</CardDescription>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewSubmissions(form)}
-                      data-testid={`button-view-submissions-${form.id}`}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      {t("forms.viewSubmissions")}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteMutation.mutate(form.id)}
-                      disabled={deleteMutation.isPending}
-                      data-testid={`button-delete-${form.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    {t("forms.createdOn")} {format(new Date(form.createdAt), "MMM d, yyyy")}
-                  </div>
-                  <Badge variant="secondary" data-testid={`badge-submissions-${form.id}`}>
-                    {(form as any).submissionCount || 0} {t("forms.submissions").toLowerCase()}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       )}
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="text-create-dialog-title">{t("forms.createForm")}</DialogTitle>
-            <DialogDescription>{t("forms.buildCustomForm")}</DialogDescription>
+            <DialogTitle className="text-lg font-semibold" data-testid="text-create-dialog-title">{t("forms.createForm")}</DialogTitle>
+            <DialogDescription className="text-sm font-light">{t("forms.buildCustomForm")}</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
+          <div className="space-y-6 py-2">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="form-name">{t("forms.formNameRequired")}</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="form-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formNameRequired")}</Label>
                 <Input
                   id="form-name"
                   placeholder={t("forms.formNamePlaceholder")}
@@ -407,8 +401,8 @@ export default function FormsPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="form-description">{t("forms.formDescription")}</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="form-description" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formDescription")}</Label>
                 <Textarea
                   id="form-description"
                   placeholder={t("forms.descriptionPlaceholder")}
@@ -423,53 +417,51 @@ export default function FormsPage() {
             <Separator />
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{t("forms.formFields")}</h3>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-sm font-medium">{t("forms.formFields")}</h3>
                 <Button onClick={addField} variant="outline" size="sm" data-testid="button-add-field">
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
                   {t("forms.addField")}
                 </Button>
               </div>
 
               {fields.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground border border-dashed rounded-md">
+                <div className="text-center py-10 text-sm text-muted-foreground font-light border border-dashed rounded-xl">
                   {t("forms.addFieldHint")}
                 </div>
               ) : (
-                <ScrollArea className="h-96">
+                <ScrollArea className="h-80">
                   <div className="space-y-3 pr-4">
                     {fields.map((field, index) => (
-                      <Card key={field.tempId} className="p-4">
+                      <div key={field.tempId} className="rounded-xl border p-4">
                         <div className="space-y-3">
                           <div className="flex items-start gap-3">
-                            <div className="flex flex-col gap-1 pt-7">
+                            <div className="flex flex-col items-center gap-0.5 pt-6">
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
+                                size="icon"
                                 onClick={() => moveField(field.tempId, "up")}
                                 disabled={index === 0}
                                 data-testid={`button-move-up-${field.tempId}`}
                               >
-                                ▲
+                                <ChevronRight className="h-3.5 w-3.5 -rotate-90" />
                               </Button>
                               <GripVertical className="h-4 w-4 text-muted-foreground" />
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
+                                size="icon"
                                 onClick={() => moveField(field.tempId, "down")}
                                 disabled={index === fields.length - 1}
                                 data-testid={`button-move-down-${field.tempId}`}
                               >
-                                ▼
+                                <ChevronRight className="h-3.5 w-3.5 rotate-90" />
                               </Button>
                             </div>
 
                             <div className="flex-1 space-y-3">
                               <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-2">
-                                  <Label>{t("forms.fieldLabel")}</Label>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldLabel")}</Label>
                                   <Input
                                     placeholder={t("forms.fieldLabelPlaceholder")}
                                     value={field.label}
@@ -477,8 +469,8 @@ export default function FormsPage() {
                                     data-testid={`input-field-label-${field.tempId}`}
                                   />
                                 </div>
-                                <div className="space-y-2">
-                                  <Label>{t("forms.fieldType")}</Label>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldType")}</Label>
                                   <Select
                                     value={field.type}
                                     onValueChange={(value) => updateField(field.tempId, { type: value })}
@@ -498,8 +490,8 @@ export default function FormsPage() {
                               </div>
 
                               {field.type === "multiple_choice" && (
-                                <div className="space-y-2">
-                                  <Label>{t("forms.fieldOptions")}</Label>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldOptions")}</Label>
                                   <Input
                                     placeholder={t("forms.optionsPlaceholder")}
                                     value={field.options}
@@ -516,9 +508,9 @@ export default function FormsPage() {
                                   checked={field.required}
                                   onChange={(e) => updateField(field.tempId, { required: e.target.checked })}
                                   data-testid={`checkbox-required-${field.tempId}`}
-                                  className="h-4 w-4"
+                                  className="h-4 w-4 rounded"
                                 />
-                                <Label htmlFor={`required-${field.tempId}`} className="cursor-pointer">
+                                <Label htmlFor={`required-${field.tempId}`} className="cursor-pointer text-sm font-light">
                                   {t("forms.requiredField")}
                                 </Label>
                               </div>
@@ -526,7 +518,7 @@ export default function FormsPage() {
 
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
                               onClick={() => removeField(field.tempId)}
                               data-testid={`button-remove-field-${field.tempId}`}
                             >
@@ -534,7 +526,7 @@ export default function FormsPage() {
                             </Button>
                           </div>
                         </div>
-                      </Card>
+                      </div>
                     ))}
                   </div>
                 </ScrollArea>
@@ -558,25 +550,25 @@ export default function FormsPage() {
       </Dialog>
 
       <Dialog open={submissionsDialogOpen} onOpenChange={setSubmissionsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="text-submissions-dialog-title">
+            <DialogTitle className="text-lg font-semibold" data-testid="text-submissions-dialog-title">
               {t("forms.formSubmissions")}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="font-light">
               {selectedForm?.name}
             </DialogDescription>
           </DialogHeader>
 
           {submissions.length > 0 && (
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-end">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleDownloadCSV}
                 data-testid="button-download-csv"
               >
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-3.5 w-3.5 mr-1.5" />
                 {t("forms.downloadCSV")}
               </Button>
             </div>
@@ -584,61 +576,60 @@ export default function FormsPage() {
 
           <ScrollArea className="h-96">
             {submissions.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                {t("forms.noSubmissions")}
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground font-light">{t("forms.noSubmissions")}</p>
               </div>
             ) : (
-              <div className="space-y-3 pr-4">
+              <div className="divide-y rounded-xl border">
                 {submissions.map((submission) => (
-                  <Card key={submission.id}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {t("forms.callId")}: {submission.callId ? submission.callId.slice(0, 12) + '...' : 'N/A'}
-                          </span>
-                          {submission.callId && (
-                            <Button
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              data-testid={`button-view-call-${submission.id}`}
-                            >
-                              <Link href={`/app/calls/${submission.callId}`}>
-                                <ExternalLink className="h-3 w-3 mr-1" />
-                                {t("forms.viewCall")}
-                              </Link>
-                            </Button>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {submission.contactName && (
-                          <div className="flex gap-3 text-sm">
-                            <div className="font-medium min-w-[140px]">{t("forms.contactName")}:</div>
-                            <div className="text-muted-foreground flex-1">{submission.contactName}</div>
-                          </div>
+                  <div key={submission.id} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {t("forms.callId")}: {submission.callId ? submission.callId.slice(0, 12) + '...' : 'N/A'}
+                        </span>
+                        {submission.callId && (
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="sm"
+                            data-testid={`button-view-call-${submission.id}`}
+                          >
+                            <Link href={`/app/calls/${submission.callId}`}>
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              {t("forms.viewCall")}
+                            </Link>
+                          </Button>
                         )}
-                        {submission.contactPhone && (
-                          <div className="flex gap-3 text-sm">
-                            <div className="font-medium min-w-[140px]">{t("forms.contactPhone")}:</div>
-                            <div className="text-muted-foreground flex-1">{submission.contactPhone}</div>
-                          </div>
-                        )}
-                        {(submission.responses || []).map((response, idx) => (
-                          <div key={idx} className="flex gap-3 text-sm">
-                            <div className="font-medium min-w-[140px]">{response.question}:</div>
-                            <div className="text-muted-foreground flex-1">{response.answer}</div>
-                          </div>
-                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className="text-xs text-muted-foreground font-light">
+                        {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {submission.contactName && (
+                        <div className="flex gap-3 text-sm">
+                          <div className="text-muted-foreground min-w-[120px] text-xs">{t("forms.contactName")}</div>
+                          <div className="flex-1 text-sm">{submission.contactName}</div>
+                        </div>
+                      )}
+                      {submission.contactPhone && (
+                        <div className="flex gap-3 text-sm">
+                          <div className="text-muted-foreground min-w-[120px] text-xs">{t("forms.contactPhone")}</div>
+                          <div className="flex-1 text-sm">{submission.contactPhone}</div>
+                        </div>
+                      )}
+                      {(submission.responses || []).map((response, idx) => (
+                        <div key={idx} className="flex gap-3 text-sm">
+                          <div className="text-muted-foreground min-w-[120px] text-xs">{response.question}</div>
+                          <div className="flex-1 text-sm">{response.answer}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

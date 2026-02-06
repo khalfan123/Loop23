@@ -17,7 +17,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -174,116 +174,137 @@ export default function AppointmentsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">{t("appointments.loading")}</div>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-5 w-5 border-2 border-foreground/20 border-t-foreground/70 rounded-full" />
       </div>
     );
   }
 
   const totalAppointments = appointments.length;
-  const upcomingAppointments = appointments.filter(apt => new Date(apt.scheduledFor) > new Date()).length;
-  const completedAppointments = appointments.filter(apt => apt.status === 'completed').length;
-  const cancelledAppointments = appointments.filter(apt => apt.status === 'cancelled').length;
+  const upcomingCount = appointments.filter(apt => new Date(apt.scheduledFor) > new Date()).length;
+  const completedCount = appointments.filter(apt => apt.status === 'completed').length;
+  const cancelledCount = appointments.filter(apt => apt.status === 'cancelled').length;
+
+  const statusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "confirmed": return "default" as const;
+      case "completed": return "secondary" as const;
+      case "cancelled": return "outline" as const;
+      default: return "secondary" as const;
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-50 via-pink-100/50 to-red-50 dark:from-rose-950/40 dark:via-pink-900/30 dark:to-red-950/40 border border-rose-100 dark:border-rose-900/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/25">
-              <CalendarDays className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground" data-testid="text-page-title">
-                {t("appointments.title")}
-              </h1>
-              <p className="text-muted-foreground mt-0.5">{t("appointments.subtitle")}</p>
-            </div>
-          </div>
-          <Button 
-            onClick={() => setSettingsOpen(true)} 
-            variant="outline" 
-            className="border-rose-200 dark:border-rose-800"
-            data-testid="button-settings"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            {t("common.settings")}
-          </Button>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-page-title">
+            {t("appointments.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 font-light">{t("appointments.subtitle")}</p>
         </div>
+        <Button 
+          onClick={() => setSettingsOpen(true)} 
+          variant="outline" 
+          size="sm"
+          data-testid="button-settings"
+        >
+          <Settings className="h-4 w-4 mr-1.5" />
+          {t("common.settings")}
+        </Button>
+      </div>
 
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-rose-100/50 dark:border-rose-800/30">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-              <div className="text-2xl font-bold text-rose-700 dark:text-rose-300">{totalAppointments}</div>
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold tracking-tight">{totalAppointments}</div>
+                <div className="text-xs text-muted-foreground font-light">{t("appointments.stats.total")}</div>
+              </div>
             </div>
-            <div className="text-rose-600/70 dark:text-rose-400/70 text-sm">{t("appointments.stats.total")}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-pink-100/50 dark:border-pink-800/30">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-pink-600 dark:text-pink-400" />
-              <div className="text-2xl font-bold text-pink-700 dark:text-pink-300">{upcomingAppointments}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold tracking-tight">{upcomingCount}</div>
+                <div className="text-xs text-muted-foreground font-light">{t("appointments.stats.upcoming")}</div>
+              </div>
             </div>
-            <div className="text-pink-600/70 dark:text-pink-400/70 text-sm">{t("appointments.stats.upcoming")}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-emerald-100/50 dark:border-emerald-800/30">
-            <div className="flex items-center gap-2">
-              <CalendarCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{completedAppointments}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                <CalendarCheck className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold tracking-tight">{completedCount}</div>
+                <div className="text-xs text-muted-foreground font-light">{t("appointments.stats.completed")}</div>
+              </div>
             </div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-sm">{t("appointments.stats.completed")}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-slate-100/50 dark:border-slate-700/30">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-              <div className="text-2xl font-bold text-slate-700 dark:text-slate-300">{cancelledAppointments}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="text-2xl font-semibold tracking-tight">{cancelledCount}</div>
+                <div className="text-xs text-muted-foreground font-light">{t("appointments.stats.cancelled")}</div>
+              </div>
             </div>
-            <div className="text-slate-600/70 dark:text-slate-400/70 text-sm">{t("appointments.stats.cancelled")}</div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handlePrevious} data-testid="button-prev-month">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleToday} data-testid="button-today">
-                {t("appointments.calendar.today")}
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleNext} data-testid="button-next-month">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            <h2 className="text-xl font-semibold" data-testid="text-current-month">
-              {format(currentDate, "MMMM yyyy")}
-            </h2>
-            <Tabs value={view} onValueChange={(v: any) => setView(v)}>
-              <TabsList>
-                <TabsTrigger value="day" data-testid="tab-day">{t("appointments.calendar.day")}</TabsTrigger>
-                <TabsTrigger value="week" data-testid="tab-week">{t("appointments.calendar.week")}</TabsTrigger>
-                <TabsTrigger value="month" data-testid="tab-month">{t("appointments.calendar.month")}</TabsTrigger>
-              </TabsList>
-            </Tabs>
+        <div className="flex items-center justify-between p-4 border-b flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handlePrevious} data-testid="button-prev-month">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleToday} data-testid="button-today">
+              {t("appointments.calendar.today")}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleNext} data-testid="button-next-month">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+          <h2 className="text-base font-semibold tracking-tight" data-testid="text-current-month">
+            {format(currentDate, "MMMM yyyy")}
+          </h2>
+          <Tabs value={view} onValueChange={(v: any) => setView(v)}>
+            <TabsList className="h-8">
+              <TabsTrigger value="day" className="text-xs px-2.5" data-testid="tab-day">{t("appointments.calendar.day")}</TabsTrigger>
+              <TabsTrigger value="week" className="text-xs px-2.5" data-testid="tab-week">{t("appointments.calendar.week")}</TabsTrigger>
+              <TabsTrigger value="month" className="text-xs px-2.5" data-testid="tab-month">{t("appointments.calendar.month")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="p-4">
           {view === "month" && (
             <div>
-              <div className="grid grid-cols-7 gap-2 mb-2">
+              <div className="grid grid-cols-7 mb-1">
                 {calendarDays.map((day) => (
-                  <div key={day.key} className="text-center text-sm font-semibold text-muted-foreground py-2">
+                  <div key={day.key} className="text-center text-xs font-medium text-muted-foreground py-2">
                     {day.label}
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7">
                 {getMonthDays().map((day, index) => {
                   const dayAppointments = getAppointmentsForDate(day);
                   const isCurrentMonth = isSameMonth(day, currentDate);
@@ -292,27 +313,32 @@ export default function AppointmentsPage() {
                   return (
                     <div
                       key={index}
-                      className={`min-h-24 p-2 border rounded-md ${
-                        !isCurrentMonth ? "bg-muted/30 text-muted-foreground" : ""
-                      } ${isToday ? "border-primary bg-primary/5" : ""} hover-elevate`}
+                      className={`min-h-[88px] p-2 border-t ${
+                        !isCurrentMonth ? "opacity-40" : ""
+                      }`}
                       data-testid={`calendar-day-${format(day, "yyyy-MM-dd")}`}
                     >
-                      <div className="text-sm font-medium mb-1">{format(day, "d")}</div>
+                      <div className={`text-xs font-medium mb-1 ${
+                        isToday 
+                          ? "bg-foreground text-background w-6 h-6 rounded-full flex items-center justify-center"
+                          : ""
+                      }`}>
+                        {format(day, "d")}
+                      </div>
                       {dayAppointments.length > 0 && (
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                           {dayAppointments.slice(0, 2).map((apt) => (
                             <div
                               key={apt.id}
-                              className="text-xs p-1 bg-primary/10 border border-primary/20 rounded truncate"
+                              className="text-[10px] leading-tight px-1.5 py-0.5 bg-primary/8 dark:bg-primary/15 text-foreground rounded truncate"
                               title={`${apt.contactName} - ${format(new Date(apt.scheduledFor), "h:mm a")}`}
                               data-testid={`appointment-${apt.id}`}
                             >
-                              <Clock className="h-3 w-3 inline mr-1" />
                               {format(new Date(apt.scheduledFor), "h:mm a")}
                             </div>
                           ))}
                           {dayAppointments.length > 2 && (
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-[10px] text-muted-foreground px-1.5">
                               {t("appointments.calendar.more", { count: dayAppointments.length - 2 })}
                             </div>
                           )}
@@ -326,27 +352,32 @@ export default function AppointmentsPage() {
           )}
 
           {view === "week" && (
-            <div className="text-center py-12 text-muted-foreground">
-              {t("appointments.calendar.weekViewSoon")}
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground font-light">{t("appointments.calendar.weekViewSoon")}</p>
             </div>
           )}
 
           {view === "day" && (
-            <div className="text-center py-12 text-muted-foreground">
-              {t("appointments.calendar.dayViewSoon")}
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground font-light">{t("appointments.calendar.dayViewSoon")}</p>
             </div>
           )}
-        </CardContent>
+        </div>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>{t("appointments.upcomingAppointments")}</CardTitle>
-          <CardDescription>{t("appointments.upcomingDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <div className="p-4 border-b">
+          <h2 className="text-base font-semibold tracking-tight">{t("appointments.upcomingAppointments")}</h2>
+          <p className="text-xs text-muted-foreground font-light mt-0.5">{t("appointments.upcomingDescription")}</p>
+        </div>
+        <div className="p-4">
           {(() => {
-            // Filter for upcoming appointments (scheduled >= now) and sort by soonest first
             const now = new Date();
             const upcomingAppointments = appointments
               .filter((apt) => new Date(apt.scheduledFor) >= now)
@@ -354,10 +385,12 @@ export default function AppointmentsPage() {
             
             if (upcomingAppointments.length === 0) {
               return (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <CalendarIcon className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">{t("appointments.noAppointments")}</h3>
-                  <p className="text-sm text-muted-foreground text-center max-w-md">
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-base font-medium mb-1">{t("appointments.noAppointments")}</h3>
+                  <p className="text-sm text-muted-foreground font-light text-center max-w-sm">
                     {t("appointments.noAppointmentsDescription")}
                   </p>
                 </div>
@@ -365,92 +398,83 @@ export default function AppointmentsPage() {
             }
             
             return (
-              <ScrollArea className="h-96">
-                <div className="space-y-3 pr-4">
-                  {upcomingAppointments.map((apt) => (
-                    <Card key={apt.id} className="hover-elevate">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <div className="font-semibold" data-testid={`text-contact-name-${apt.id}`}>
-                                {apt.contactName}
-                              </div>
-                              <Badge variant={apt.status === "confirmed" ? "default" : "secondary"}>
-                                {apt.status}
-                              </Badge>
-                              {apt.metadata?.phoneDiscrepancy && (
-                                <Badge variant="outline" className="text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700">
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                  Phone mismatch
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-sm text-muted-foreground space-y-0.5">
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-foreground">{apt.contactPhone}</span>
-                                {apt.contactEmail && <span>• {apt.contactEmail}</span>}
-                              </div>
-                              {apt.metadata?.phoneDiscrepancy && apt.metadata.aiCollectedPhone && (
-                                <div className="text-xs text-amber-600 dark:text-amber-400">
-                                  AI heard: {apt.metadata.aiCollectedPhone}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium" data-testid={`text-scheduled-time-${apt.id}`}>
-                              {format(new Date(apt.scheduledFor), "MMM d, yyyy")}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {format(new Date(apt.scheduledFor), "h:mm a")}
-                            </div>
-                          </div>
+              <div className="divide-y">
+                {upcomingAppointments.map((apt) => (
+                  <div key={apt.id} className="py-4 first:pt-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                          <User className="h-4 w-4 text-muted-foreground" />
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          {apt.serviceName && (
-                            <div>
-                              <span className="text-muted-foreground">{t("appointments.details.service")}: </span>
-                              <span className="font-medium">{apt.serviceName}</span>
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm" data-testid={`text-contact-name-${apt.id}`}>
+                              {apt.contactName}
+                            </span>
+                            <Badge variant={statusBadgeVariant(apt.status)} className="text-[10px]">
+                              {apt.status}
+                            </Badge>
+                            {apt.metadata?.phoneDiscrepancy && (
+                              <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700">
+                                <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                Mismatch
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span>{apt.contactPhone}</span>
+                              {apt.contactEmail && <span>· {apt.contactEmail}</span>}
+                            </div>
+                            {apt.metadata?.phoneDiscrepancy && apt.metadata.aiCollectedPhone && (
+                              <div className="text-[10px] text-amber-600 dark:text-amber-400">
+                                AI heard: {apt.metadata.aiCollectedPhone}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground pt-0.5 flex-wrap">
+                            {apt.serviceName && (
+                              <span>{apt.serviceName}</span>
+                            )}
+                            <span>{t("appointments.durationMinutes", { count: apt.duration })}</span>
+                          </div>
+                          {apt.notes && (
+                            <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mt-1.5">
+                              {apt.notes}
                             </div>
                           )}
-                          <div>
-                            <span className="text-muted-foreground">{t("appointments.duration")}: </span>
-                            <span className="font-medium">{t("appointments.durationMinutes", { count: apt.duration })}</span>
-                          </div>
                         </div>
-                        {apt.notes && (
-                          <div className="mt-3 p-2 bg-muted/50 rounded-md text-sm">
-                            <span className="text-muted-foreground">{t("appointments.details.notes")}: </span>
-                            {apt.notes}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-medium" data-testid={`text-scheduled-time-${apt.id}`}>
+                          {format(new Date(apt.scheduledFor), "MMM d")}
+                        </div>
+                        <div className="text-xs text-muted-foreground font-light">
+                          {format(new Date(apt.scheduledFor), "h:mm a")}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             );
           })()}
-        </CardContent>
+        </div>
       </Card>
 
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle data-testid="text-settings-title">{t("appointments.settings.title")}</DialogTitle>
-            <DialogDescription>{t("appointments.settings.description")}</DialogDescription>
+            <DialogTitle className="text-lg font-semibold" data-testid="text-settings-title">{t("appointments.settings.title")}</DialogTitle>
+            <DialogDescription className="font-light">{t("appointments.settings.description")}</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+          <div className="space-y-6 py-2">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label>{t("appointments.settings.allowOverlap")}</Label>
-                  <p className="text-sm text-muted-foreground">
+                  <Label className="text-sm">{t("appointments.settings.allowOverlap")}</Label>
+                  <p className="text-xs text-muted-foreground font-light">
                     {t("appointments.settings.allowOverlapDescription")}
                   </p>
                 </div>
@@ -463,8 +487,8 @@ export default function AppointmentsPage() {
 
               <Separator />
 
-              <div className="space-y-2">
-                <Label htmlFor="buffer-time">{t("appointments.settings.bufferTime")}</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="buffer-time" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("appointments.settings.bufferTime")}</Label>
                 <Input
                   id="buffer-time"
                   type="number"
@@ -474,8 +498,8 @@ export default function AppointmentsPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="max-per-day">{t("appointments.settings.maxPerDay")}</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="max-per-day" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("appointments.settings.maxPerDay")}</Label>
                 <Input
                   id="max-per-day"
                   type="number"
@@ -491,10 +515,10 @@ export default function AppointmentsPage() {
               <Separator />
 
               <div className="space-y-3">
-                <Label>{t("appointments.settings.workingHours")}</Label>
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("appointments.settings.workingHours")}</Label>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="hours-start">{t("appointments.settings.startTime")}</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="hours-start" className="text-xs text-muted-foreground">{t("appointments.settings.startTime")}</Label>
                     <Input
                       id="hours-start"
                       type="time"
@@ -503,8 +527,8 @@ export default function AppointmentsPage() {
                       data-testid="input-hours-start"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="hours-end">{t("appointments.settings.endTime")}</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="hours-end" className="text-xs text-muted-foreground">{t("appointments.settings.endTime")}</Label>
                     <Input
                       id="hours-end"
                       type="time"
@@ -519,26 +543,26 @@ export default function AppointmentsPage() {
               <Separator />
 
               <div className="space-y-3">
-                <Label>{t("appointments.settings.workingDays")}</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("appointments.settings.workingDays")}</Label>
+                <div className="rounded-xl border divide-y">
                   {workingDayOptions.map((day) => (
                     <div
                       key={day}
-                      className={`p-3 border rounded-md cursor-pointer hover-elevate ${
-                        settingsData.workingDays?.includes(day) ? "border-primary bg-primary/5" : ""
-                      }`}
+                      className="flex items-center justify-between px-4 py-3 cursor-pointer hover-elevate"
                       onClick={() => toggleWorkingDay(day)}
                       data-testid={`day-option-${day}`}
                     >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`h-4 w-4 rounded border ${
-                            settingsData.workingDays?.includes(day)
-                              ? "bg-primary border-primary"
-                              : "border-muted-foreground"
-                          }`}
-                        />
-                        <span className="text-sm font-medium capitalize">{t(`appointments.settings.days.${day}`)}</span>
+                      <span className="text-sm capitalize">{t(`appointments.settings.days.${day}`)}</span>
+                      <div
+                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          settingsData.workingDays?.includes(day)
+                            ? "bg-primary border-primary"
+                            : "border-muted-foreground/30"
+                        }`}
+                      >
+                        {settingsData.workingDays?.includes(day) && (
+                          <div className="h-2 w-2 rounded-full bg-primary-foreground" />
+                        )}
                       </div>
                     </div>
                   ))}

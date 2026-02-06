@@ -180,14 +180,14 @@ export default function Campaigns() {
     <ThreeColumnLayout 
       subPanel={subPanelContent} 
       subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">{t('campaigns.campaigns', 'Campaigns')}</span>}
+      subPanelHeader={<span className="font-medium text-sm">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>}
     >
       <div className="flex flex-col h-[calc(100vh-120px)]">
         {/* Header */}
         <div className="flex items-center justify-between py-4 px-1">
           <div className="flex items-center gap-2">
             <Phone className="h-4 w-4 text-foreground" />
-            <span className="font-medium">{t('campaigns.batchCall', 'Batch Call')}</span>
+            <span className="font-medium">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>
           </div>
           <Button 
             onClick={() => setLocation('/app/campaigns/new')}

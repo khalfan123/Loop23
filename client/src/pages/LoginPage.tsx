@@ -444,8 +444,8 @@ export default function LoginPage() {
         userName={userName}
       />
       
-      <div className="min-h-screen flex bg-white dark:bg-[#1c1c1e]" data-testid="login-page">
-        {/* Left side - Apple Mesh Gradient Panel */}
+      <div className="min-h-screen flex flex-row-reverse bg-white dark:bg-[#1c1c1e]" data-testid="login-page">
+        {/* Right side - Apple Mesh Gradient Panel */}
         <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-gray-50 via-blue-50/50 to-purple-50/30 dark:from-[#1c1c1e] dark:via-[#1c1c2e] dark:to-[#1c1c1e]">
           {/* Mesh gradient blobs */}
           <div className="absolute inset-0">
@@ -534,7 +534,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Right side - Login Form */}
+        {/* Left side - Login Form */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50/50 dark:bg-[#1c1c1e]">
           <div className="w-full max-w-md space-y-6">
             {/* Mobile back button */}

@@ -918,6 +918,19 @@ export default function DepartmentManagement() {
   const activePhoneNumber = phoneNumbers?.find(p => p.id === activeIvr?.phoneNumberId);
 
   useEffect(() => {
+    if (activeIvr) {
+      const savedLangOptions = (activeIvr as any).languageOptions as LanguageOption[] | null;
+      if (savedLangOptions && savedLangOptions.length > 1) {
+        setMultiLangEnabled(true);
+        setLanguageOptions(savedLangOptions);
+      } else if (savedLangOptions && savedLangOptions.length === 1) {
+        setMultiLangEnabled(false);
+        setLanguageOptions(savedLangOptions);
+      }
+    }
+  }, [activeIvr]);
+
+  useEffect(() => {
     if (departments.length > 0 && languageOptions.length > 0) {
       setLanguageOptions(prevOptions => 
         prevOptions.map(opt => {

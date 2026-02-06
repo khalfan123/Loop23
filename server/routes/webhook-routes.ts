@@ -768,7 +768,7 @@ const IVR_DEPT_NAME_TRANSLATIONS: Record<string, Record<string, string>> = {
   'Human Resources': { en: 'Human Resources', fr: 'Ressources Humaines', it: 'Risorse Umane', zh: '\u4EBA\u529B\u8D44\u6E90', hi: '\u092E\u093E\u0928\u0935 \u0938\u0902\u0938\u093E\u0927\u0928', ar: '\u0627\u0644\u0645\u0648\u0627\u0631\u062F \u0627\u0644\u0628\u0634\u0631\u064A\u0629' },
 };
 
-function getVoiceForLanguage(langCode: string): string {
+function getVoiceForLanguage(langCode: string): any {
   return TWILIO_LANGUAGE_VOICES[langCode]?.voice || 'Polly.Joanna';
 }
 

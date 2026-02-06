@@ -855,14 +855,18 @@ async function handleIvrCall(
         timeout: 10,
       });
       
-      // Play language selection greeting before listing options
+      // Play company intro + language selection greeting
+      if (companyName) {
+        const companyIntro = `Thanks for calling ${companyName}.`;
+        gather.say({ voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, companyIntro);
+        console.log(`   Company Intro: "${companyIntro}"`);
+      }
+      
       if (ivrConfig.greetingMessage) {
         gather.say({ voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, ivrConfig.greetingMessage);
         console.log(`   Greeting: "${ivrConfig.greetingMessage}"`);
       } else {
-        const defaultGreeting = companyName
-          ? `Thanks for calling ${companyName}. Please select your preferred language.`
-          : 'Welcome. Please select your preferred language.';
+        const defaultGreeting = 'Please select your preferred language.';
         gather.say({ voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, defaultGreeting);
         console.log(`   Greeting: "${defaultGreeting}"`);
       }

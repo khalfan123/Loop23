@@ -108,7 +108,6 @@ export function HybridNavigation({
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics", icon: BarChart3 },
     { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm", icon: Users },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: PhoneCall },
-    { title: t('nav.departments', 'Departments'), url: "/app/departments", icon: Building2 },
   ];
   
   const returnToAppItem: NavItem = { 
@@ -118,8 +117,9 @@ export function HybridNavigation({
   };
 
   const setupItems: NavItem[] = [
+    { title: t('nav.departments', 'Departments'), url: "/app/departments", icon: Building2 },
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone },
-    { title: t('nav.outboundCalls', 'Outbound Calls'), url: "/app/campaigns", icon: PhoneOutgoing },
+    { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: PhoneOutgoing },
     { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents", icon: Bot },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen },
   ];

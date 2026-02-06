@@ -90,12 +90,6 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
     { title: t('nav.home'), url: variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app", icon: Home },
   ];
 
-  const buildItems: NavItem[] = [
-    { title: t('nav.campaigns'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500", description: "Manage calling campaigns" },
-    { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500", description: "AI voice agents" },
-    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500", description: "Train your AI" },
-  ];
-
   const evaluateItems: NavItem[] = [
     { title: t('nav.allContacts'), url: "/app/contacts", icon: UserCheck, iconColor: "text-teal-500", description: "Contact management" },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500", description: "Call history & logs" },
@@ -104,9 +98,12 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
     { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500", description: "Call quality monitoring" },
   ];
 
-  const telephonyItems: NavItem[] = [
-    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500", description: "Manage phone numbers" },
+  const setupItems: NavItem[] = [
     { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500", description: "Department management" },
+    { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500", description: "Manage phone numbers" },
+    { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500", description: "Batch calling campaigns" },
+    { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500", description: "AI voice agents" },
+    { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500", description: "Train your AI" },
   ];
 
   const formsAppointmentsItems: NavItem[] = [
@@ -119,9 +116,8 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
   ];
 
   const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [] : [
-    { label: t('sidebar.build'), items: buildItems },
+    { label: t('sidebar.setup', 'Setup'), items: setupItems },
     { label: t('sidebar.evaluate'), items: evaluateItems },
-    { label: t('sidebar.telephony'), items: telephonyItems },
     { label: t('sidebar.formsAppointments', 'Forms & Appointments'), items: formsAppointmentsItems },
     { label: '', items: settingsItems },
   ];

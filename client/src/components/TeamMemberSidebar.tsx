@@ -78,7 +78,7 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
     { url: "/app", icon: Home, label: "Home", group: "build", iconColor: "text-blue-500" },
   ],
   campaigns: [
-    { url: "/app/campaigns", icon: Target, label: "Campaigns", group: "build", iconColor: "text-orange-500" },
+    { url: "/app/campaigns", icon: Target, label: "Batch Call", group: "build", iconColor: "text-orange-500" },
   ],
   agents: [
     { url: "/app/agents", icon: Bot, label: "Agents", group: "build", iconColor: "text-blue-500" },

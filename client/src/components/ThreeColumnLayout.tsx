@@ -1,20 +1,13 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { PanelLeft } from "lucide-react";
 
-/**
- * ThreeColumnLayout - iOS 18 inspired 3-column page layout.
- * 
- * Features minimal design with:
- * - Clean white sub-panel with subtle borders
- * - Soft gray content area background
- * - Refined typography and spacing
- */
 interface ThreeColumnLayoutProps {
   children: React.ReactNode;
-  /** Left sub-panel for folders, filters, categories */
   subPanel?: React.ReactNode;
-  /** Width of the sub-panel */
   subPanelWidth?: "sm" | "md" | "lg";
-  /** Optional header for the sub-panel */
   subPanelHeader?: React.ReactNode;
   className?: string;
 }
@@ -26,6 +19,8 @@ export function ThreeColumnLayout({
   subPanelHeader,
   className,
 }: ThreeColumnLayoutProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const subPanelWidthClass = {
     sm: "w-60",
     md: "w-72",
@@ -34,29 +29,60 @@ export function ThreeColumnLayout({
 
   return (
     <div className={cn("flex h-full w-full", className)}>
-      {/* Left Sub-Panel - iOS 18 style clean white panel */}
       {subPanel && (
-        <aside
-          className={cn(
-            "hidden lg:flex flex-col flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900",
-            subPanelWidthClass[subPanelWidth]
-          )}
-        >
-          {subPanelHeader && (
-            <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
-              <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                {subPanelHeader}
-              </h2>
+        <>
+          <aside
+            className={cn(
+              "hidden lg:flex flex-col flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900",
+              subPanelWidthClass[subPanelWidth]
+            )}
+          >
+            {subPanelHeader && (
+              <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+                <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                  {subPanelHeader}
+                </h2>
+              </div>
+            )}
+            <div className="flex-1 overflow-auto px-3 py-3">
+              {subPanel}
             </div>
-          )}
-          <div className="flex-1 overflow-auto px-3 py-3">
-            {subPanel}
-          </div>
-        </aside>
+          </aside>
+
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetContent side="left" className="w-72 p-0">
+              <SheetHeader className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+                <SheetTitle className="text-[15px] font-semibold tracking-tight">
+                  {subPanelHeader || "Menu"}
+                </SheetTitle>
+              </SheetHeader>
+              <div className="flex-1 overflow-auto px-3 py-3" onClick={() => setMobileOpen(false)}>
+                {subPanel}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </>
       )}
       
-      {/* Main Content Area - iOS 18 soft gray background */}
       <div className="flex-1 min-w-0 overflow-auto bg-zinc-50/80 dark:bg-zinc-950/50">
+        {subPanel && (
+          <div className="lg:hidden flex items-center gap-2 px-4 pt-3">
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
+              data-testid="button-mobile-menu-toggle"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </Button>
+            {subPanelHeader && (
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                {subPanelHeader}
+              </span>
+            )}
+          </div>
+        )}
         <div className="p-6">
           {children}
         </div>
@@ -65,9 +91,6 @@ export function ThreeColumnLayout({
   );
 }
 
-/**
- * SubPanelSection - iOS 18 style section with refined typography
- */
 interface SubPanelSectionProps {
   title?: string;
   children: React.ReactNode;
@@ -93,10 +116,6 @@ export function SubPanelSection({
   );
 }
 
-/**
- * SubPanelItem - iOS 18 style navigation item
- * Features soft blue selection, rounded corners, smooth transitions
- */
 interface SubPanelItemProps {
   icon?: React.ReactNode;
   label: string;

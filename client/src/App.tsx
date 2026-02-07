@@ -198,7 +198,8 @@ function UserRouter() {
           <Route path="/app/agents" component={Agents} />
           <Route path="/app/prompt-templates" component={PromptTemplates} />
           <Route path="/app/incoming-connections/canvas" component={IncomingCallCanvas} />
-          <Route path="/app/incoming-connections" component={IncomingConnections} />
+          <Route path="/app/incoming-connections/list" component={IncomingConnections} />
+          <Route path="/app/incoming-connections" component={IncomingCallCanvas} />
           <Route path="/app/voices" component={Voices} />
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
           <Route path="/app/tools" component={() => <div className="text-center py-16 text-muted-foreground">Tools page coming soon</div>} />
@@ -260,7 +261,8 @@ function TeamMemberRouter() {
           <Route path="/app/agents" component={Agents} />
           <Route path="/app/prompt-templates" component={PromptTemplates} />
           <Route path="/app/incoming-connections/canvas" component={IncomingCallCanvas} />
-          <Route path="/app/incoming-connections" component={IncomingConnections} />
+          <Route path="/app/incoming-connections/list" component={IncomingConnections} />
+          <Route path="/app/incoming-connections" component={IncomingCallCanvas} />
           <Route path="/app/voices" component={Voices} />
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
           <Route path="/app/flows/new" component={FlowBuilderPage} />

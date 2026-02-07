@@ -464,9 +464,9 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Button variant="outline" className="rounded-2xl" onClick={() => setLocation("/app/incoming-connections/canvas")} data-testid="button-design-flow">
+              <Button variant="outline" className="rounded-2xl" onClick={() => setLocation("/app/incoming-connections")} data-testid="button-design-flow">
                 <LayoutGrid className="w-4 h-4 mr-2" />
-                Design Flow
+                Canvas View
               </Button>
               <Button className="rounded-2xl" onClick={handleNewConnection} data-testid="button-create-connection">
                 <Plus className="w-4 h-4 mr-2" />

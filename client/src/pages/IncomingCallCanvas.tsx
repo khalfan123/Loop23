@@ -58,6 +58,7 @@ import {
   Globe,
   Sparkles,
   BookOpen,
+  List,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -108,6 +109,28 @@ interface CanvasStaffAI {
   voiceName: string | null;
 }
 
+const getLanguageLabel = (code: string) => {
+  const labels: Record<string, string> = {
+    en: "English",
+    ar: "Arabic",
+    fr: "French",
+    hi: "Hindi",
+    it: "Italian",
+    zh: "Chinese",
+    es: "Spanish",
+    de: "German",
+    pt: "Portuguese",
+    ja: "Japanese",
+    ko: "Korean",
+    ru: "Russian",
+    nl: "Dutch",
+    tr: "Turkish",
+    pl: "Polish",
+    sv: "Swedish",
+  };
+  return labels[code] || code.toUpperCase();
+};
+
 const getCategoryColor = (category: string) => {
   const colors: Record<string, string> = {
     agent_preset: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
@@ -154,7 +177,7 @@ const PhoneContainerNode = ({ data }: { data: any }) => {
 
 const StaffAINodeComponent = ({ data, selected }: { data: any; selected: boolean }) => {
   return (
-    <div className={`bg-white dark:bg-gray-800 border ${selected ? "border-blue-600" : "border-blue-400"} rounded-lg p-2 min-w-[120px] max-w-[150px] shadow-sm`}>
+    <div className={`bg-white dark:bg-gray-800 border ${selected ? "border-blue-600" : "border-blue-400"} rounded-lg p-2 min-w-[120px] max-w-[160px] shadow-sm`}>
       <Handle type="target" position={Position.Top} className="!bg-blue-500 !w-2 !h-2" />
       <Handle type="source" position={Position.Bottom} className="!bg-blue-500 !w-2 !h-2" />
       <div className="flex items-center gap-1.5">
@@ -170,6 +193,13 @@ const StaffAINodeComponent = ({ data, selected }: { data: any; selected: boolean
           </div>
         </div>
       </div>
+      {data.language && (
+        <div className="mt-1 flex items-center gap-1">
+          <Badge variant="outline" className="text-[7px] px-1 py-0 border-blue-300 text-blue-600">
+            {data.language.toUpperCase()}
+          </Badge>
+        </div>
+      )}
       {data.customPrompt && (
         <div className="mt-1 pt-1 border-t border-dashed">
           <div className="text-[8px] text-muted-foreground truncate">
@@ -255,6 +285,8 @@ function IncomingCallCanvasContent() {
 
   const [canvasPhones, setCanvasPhones] = useState<string[]>([]);
   const [staffAINodes, setStaffAINodes] = useState<CanvasStaffAI[]>([]);
+  const [languageFilter, setLanguageFilter] = useState<string>("all");
+  const [useCaseFilter, setUseCaseFilter] = useState<string>("all");
 
   const { data: phoneNumbers = [], isLoading: phonesLoading } = useQuery<PhoneNumber[]>({
     queryKey: ["/api/phone-numbers"],
@@ -271,6 +303,32 @@ function IncomingCallCanvasContent() {
   const { data: knowledgeBases = [], isLoading: kbLoading } = useQuery<KnowledgeBase[]>({
     queryKey: ["/api/knowledge-base"],
   });
+
+  const availableLanguages = useMemo(() => {
+    const langs = new Set<string>();
+    agents.forEach((a) => {
+      if (a.language) langs.add(a.language);
+    });
+    return Array.from(langs).sort();
+  }, [agents]);
+
+  const filteredAgents = useMemo(() => {
+    if (languageFilter === "all") return agents;
+    return agents.filter((a) => a.language === languageFilter);
+  }, [agents, languageFilter]);
+
+  const useCaseCategories = useMemo(() => {
+    const cats = new Set<string>();
+    promptTemplates.forEach((t) => {
+      if (t.category) cats.add(t.category);
+    });
+    return Array.from(cats).sort();
+  }, [promptTemplates]);
+
+  const filteredTemplates = useMemo(() => {
+    if (useCaseFilter === "all") return promptTemplates;
+    return promptTemplates.filter((t) => t.category === useCaseFilter);
+  }, [promptTemplates, useCaseFilter]);
 
   const availablePhones = useMemo(() => {
     return phoneNumbers.filter((p) => !canvasPhones.includes(p.id));
@@ -716,7 +774,7 @@ function IncomingCallCanvasContent() {
         title: "Canvas Saved",
         description: "All incoming connections have been created successfully.",
       });
-      setLocation("/app/incoming-connections");
+      setLocation("/app/incoming-connections/list");
     },
     onError: (error: any) => {
       toast({
@@ -768,7 +826,7 @@ function IncomingCallCanvasContent() {
     <div className="h-screen flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-background">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setLocation("/app/incoming-connections")} data-testid="button-back">
+          <Button variant="ghost" size="sm" onClick={() => setLocation("/app/incoming-connections/list")} data-testid="button-back">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
@@ -778,6 +836,10 @@ function IncomingCallCanvasContent() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setLocation("/app/incoming-connections/list")} data-testid="button-list-view">
+            <List className="h-4 w-4 mr-1" />
+            List View
+          </Button>
           <Button variant="outline" size="sm" onClick={() => reactFlowInstance?.zoomOut()} data-testid="button-zoom-out">
             <ZoomOut className="h-4 w-4" />
           </Button>
@@ -849,20 +911,38 @@ function IncomingCallCanvasContent() {
               </div>
 
               <div>
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                   <Bot className="h-3.5 w-3.5" />
                   Staff AI Agents
                 </div>
+                <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                  <SelectTrigger className="mb-3" data-testid="select-language-filter">
+                    <div className="flex items-center gap-1.5">
+                      <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                      <SelectValue placeholder="Filter by language" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Languages</SelectItem>
+                    {availableLanguages.map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {lang.toUpperCase()} - {getLanguageLabel(lang)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {agentsLoading ? (
                   <div className="space-y-2">
                     <Skeleton className="h-14 w-full" />
                     <Skeleton className="h-14 w-full" />
                   </div>
-                ) : agents.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No agents available</p>
+                ) : filteredAgents.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {languageFilter !== "all" ? `No agents for ${languageFilter.toUpperCase()}` : "No agents available"}
+                  </p>
                 ) : (
                   <div className="space-y-2">
-                    {agents.slice(0, 6).map((agent) => (
+                    {filteredAgents.slice(0, 8).map((agent) => (
                       <Card
                         key={agent.id}
                         className="cursor-pointer hover-elevate"
@@ -875,33 +955,63 @@ function IncomingCallCanvasContent() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{agent.name}</div>
-                            <div className="text-xs text-muted-foreground">{agent.type} {agent.language ? `- ${agent.language}` : ""}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {agent.language && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                  {agent.language.toUpperCase()}
+                                </Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">{agent.type}</span>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
-                    {agents.length > 6 && (
-                      <p className="text-xs text-muted-foreground text-center">+{agents.length - 6} more agents</p>
+                    {filteredAgents.length > 8 && (
+                      <p className="text-xs text-muted-foreground text-center">+{filteredAgents.length - 8} more agents</p>
                     )}
                   </div>
                 )}
               </div>
 
               <div>
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  <FileText className="h-3.5 w-3.5" />
-                  Prompt Templates
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Use Case / Prompt
                 </div>
+                <Select value={useCaseFilter} onValueChange={setUseCaseFilter}>
+                  <SelectTrigger className="mb-3" data-testid="select-usecase-filter">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <SelectValue placeholder="Filter by use case" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Use Cases</SelectItem>
+                    {useCaseCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={`text-[9px] px-1 py-0 ${getCategoryColor(cat)}`}>
+                            {cat}
+                          </Badge>
+                          <span className="capitalize">{cat.replace("_", " ")}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {templatesLoading ? (
                   <div className="space-y-2">
                     <Skeleton className="h-14 w-full" />
                     <Skeleton className="h-14 w-full" />
                   </div>
-                ) : promptTemplates.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No templates available</p>
+                ) : filteredTemplates.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {useCaseFilter !== "all" ? `No templates for "${useCaseFilter}"` : "No templates available"}
+                  </p>
                 ) : (
                   <div className="space-y-2">
-                    {promptTemplates.slice(0, 5).map((template) => (
+                    {filteredTemplates.slice(0, 6).map((template) => (
                       <Card
                         key={template.id}
                         className="cursor-pointer hover-elevate"
@@ -915,14 +1025,14 @@ function IncomingCallCanvasContent() {
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{template.name}</div>
                             <Badge variant="outline" className={`text-[10px] ${getCategoryColor(template.category)}`}>
-                              {template.category}
+                              {template.category.replace("_", " ")}
                             </Badge>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
-                    {promptTemplates.length > 5 && (
-                      <p className="text-xs text-muted-foreground text-center">+{promptTemplates.length - 5} more templates</p>
+                    {filteredTemplates.length > 6 && (
+                      <p className="text-xs text-muted-foreground text-center">+{filteredTemplates.length - 6} more templates</p>
                     )}
                   </div>
                 )}
@@ -1109,6 +1219,26 @@ function IncomingCallCanvasContent() {
             {selectedNode?.type === "staffAI" && (
               <div className="mt-4 space-y-4">
                 <div>
+                  <Label>Language Filter</Label>
+                  <Select value={languageFilter} onValueChange={setLanguageFilter}>
+                    <SelectTrigger className="mt-1.5" data-testid="select-config-language-filter">
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                        <SelectValue placeholder="Filter by language" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Languages</SelectItem>
+                      {availableLanguages.map((lang) => (
+                        <SelectItem key={lang} value={lang}>
+                          {lang.toUpperCase()} - {getLanguageLabel(lang)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <Label>Select Agent</Label>
                   <Select
                     value={(selectedNode.data as any).agentId || ""}
@@ -1129,9 +1259,53 @@ function IncomingCallCanvasContent() {
                       <SelectValue placeholder="Select an agent..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {agents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id}>
-                          {agent.name} ({agent.type})
+                      {filteredAgents.length === 0 ? (
+                        <SelectItem value="__empty__" disabled>
+                          {languageFilter !== "all" ? `No agents for ${getLanguageLabel(languageFilter)}` : "No agents available"}
+                        </SelectItem>
+                      ) : (
+                        filteredAgents.map((agent) => (
+                          <SelectItem key={agent.id} value={agent.id}>
+                            <div className="flex items-center gap-2">
+                              <span>{agent.name}</span>
+                              {agent.language && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                  {agent.language.toUpperCase()}
+                                </Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Use Case</Label>
+                  <Select
+                    value={useCaseFilter}
+                    onValueChange={(val) => {
+                      setUseCaseFilter(val);
+                      if (val !== "all") {
+                        const matchingTemplate = promptTemplates.find((t) => t.category === val);
+                        if (matchingTemplate) {
+                          applyTemplateToStaffAI(matchingTemplate);
+                        }
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="mt-1.5" data-testid="select-config-usecase">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                        <SelectValue placeholder="Select use case..." />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Use Cases</SelectItem>
+                      {useCaseCategories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          <span className="capitalize">{cat.replace("_", " ")}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1164,7 +1338,7 @@ function IncomingCallCanvasContent() {
                     <Label>Language</Label>
                     <div className="mt-1.5 p-2 bg-muted rounded text-sm flex items-center gap-2" data-testid="display-language">
                       <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                      {(selectedNode.data as any).language || "Not set"}
+                      {(selectedNode.data as any).language ? `${((selectedNode.data as any).language as string).toUpperCase()} - ${getLanguageLabel((selectedNode.data as any).language)}` : "Not set"}
                     </div>
                   </div>
                 </div>

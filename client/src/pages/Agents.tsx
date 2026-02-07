@@ -44,9 +44,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AuthStorage } from "@/lib/auth-storage";
-import PromptTemplatesLibrary from "@/components/PromptTemplatesLibrary";
+import PromptTemplatesLibrary, { CATEGORIES } from "@/components/PromptTemplatesLibrary";
 import Voices from "@/pages/Voices";
-import PromptTemplates from "@/pages/PromptTemplates";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import AgentVersionHistory from "@/components/AgentVersionHistory";
 import { useToast } from "@/hooks/use-toast";
@@ -236,6 +235,7 @@ export default function Agents() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<'agents' | 'templates' | 'voices'>('agents');
+  const [templateCategory, setTemplateCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<'all' | 'incoming' | 'flow'>('all');
   const [selectedFolder, setSelectedFolder] = useState<string>('all');
@@ -1039,10 +1039,24 @@ export default function Agents() {
       <SubPanelItem
         icon={<FileText className="h-4 w-4" />}
         label={t('nav.promptTemplates', { defaultValue: 'Prompt Templates' })}
-        isActive={activeTab === 'templates'}
-        onClick={() => setActiveTab('templates')}
+        isActive={activeTab === 'templates' && templateCategory === 'all'}
+        onClick={() => { setActiveTab('templates'); setTemplateCategory('all'); }}
         data-testid="tab-templates"
       />
+      {activeTab === 'templates' && (
+        <div className="pl-6 space-y-0.5">
+          {CATEGORIES.filter(c => c.value !== 'all').map((cat) => (
+            <SubPanelItem
+              key={cat.value}
+              icon={<cat.icon className={`h-4 w-4 ${cat.color}`} />}
+              label={cat.label}
+              isActive={templateCategory === cat.value}
+              onClick={() => setTemplateCategory(cat.value)}
+              data-testid={`tab-category-${cat.value}`}
+            />
+          ))}
+        </div>
+      )}
       <SubPanelItem
         icon={<Mic className="h-4 w-4" />}
         label={t('nav.voices', { defaultValue: 'Voices' })}
@@ -1060,7 +1074,18 @@ export default function Agents() {
       subPanelWidth="sm"
       subPanelHeader={<span className="font-medium text-sm">{t('nav.agents', { defaultValue: 'Staff AI' })}</span>}
     >
-      <div className={activeTab === 'templates' ? '' : 'hidden'}><PromptTemplates /></div>
+      <div className={activeTab === 'templates' ? '' : 'hidden'}>
+        <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
+          <div className="flex items-center justify-between p-3 md:p-4 border-b">
+            <h2 className="text-base md:text-lg font-semibold">
+              {templateCategory === 'all' ? 'Prompt Templates' : CATEGORIES.find(c => c.value === templateCategory)?.label || 'Templates'}
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 md:p-4">
+            <PromptTemplatesLibrary mode="browse" externalCategory={templateCategory} hideCategories />
+          </div>
+        </div>
+      </div>
       <div className={activeTab === 'voices' ? '' : 'hidden'}><Voices /></div>
       <div className={activeTab === 'agents' ? '' : 'hidden'}>
       {/* Main Content Area */}

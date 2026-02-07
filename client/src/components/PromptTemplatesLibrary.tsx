@@ -106,6 +106,8 @@ interface PromptTemplatesLibraryProps {
     isSystemTemplate?: boolean;
   }) => void;
   mode?: 'browse' | 'select';
+  externalCategory?: string;
+  hideCategories?: boolean;
 }
 
 const CATEGORIES = [
@@ -132,12 +134,15 @@ const getCategoryColor = (category: string) => {
 
 const ITEMS_PER_PAGE = 6;
 
-export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'browse' }: PromptTemplatesLibraryProps) {
+export { CATEGORIES };
+
+export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'browse', externalCategory, hideCategories = false }: PromptTemplatesLibraryProps) {
   const { toast } = useToast();
   const { i18n } = useTranslation();
   const currentLanguage = i18n.language || 'en';
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [internalCategory, setInternalCategory] = useState("all");
+  const selectedCategory = externalCategory !== undefined ? externalCategory : internalCategory;
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null);
   const [variableDialogOpen, setVariableDialogOpen] = useState(false);
@@ -273,7 +278,7 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
   };
 
   const handleCategoryChange = (value: string) => {
-    setSelectedCategory(value);
+    setInternalCategory(value);
     setCurrentPage(1);
   };
 
@@ -293,23 +298,23 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+    <div className="space-y-4">
+      {/* Search - iOS 8 style rounded search bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
           <Input
-            placeholder="Search templates by name or description..."
+            placeholder="Search templates..."
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-10 h-11"
+            className="pl-10 bg-muted/30 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
             data-testid="input-template-search"
           />
         </div>
         {mode === 'browse' && (
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="h-11 shrink-0" data-testid="button-create-template">
+              <Button variant="default" className="shrink-0" data-testid="button-create-template">
                 <Plus className="h-4 w-4 mr-2" />
                 New Template
               </Button>
@@ -326,171 +331,99 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
         )}
       </div>
 
-      {/* Category Tabs - Single Row */}
-      <Tabs value={selectedCategory} onValueChange={handleCategoryChange}>
-        <TabsList className="w-full h-auto p-1 flex flex-nowrap gap-1 bg-muted/50 overflow-x-auto">
-          {CATEGORIES.map((cat) => (
-            <TabsTrigger 
-              key={cat.value} 
-              value={cat.value} 
-              className="flex items-center gap-1.5 px-3 py-1.5 shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-              data-testid={`tab-category-${cat.value}`}
-            >
-              <cat.icon className={`h-3.5 w-3.5 ${cat.color}`} />
-              <span className="text-xs font-medium whitespace-nowrap">{cat.label}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      {!hideCategories && (
+        <Tabs value={selectedCategory} onValueChange={handleCategoryChange}>
+          <TabsList className="w-full h-auto p-1 flex flex-nowrap gap-1 bg-muted/50 overflow-x-auto">
+            {CATEGORIES.map((cat) => (
+              <TabsTrigger 
+                key={cat.value} 
+                value={cat.value} 
+                className="flex items-center gap-1.5 px-3 py-1.5 shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                data-testid={`tab-category-${cat.value}`}
+              >
+                <cat.icon className={`h-3.5 w-3.5 ${cat.color}`} />
+                <span className="text-xs font-medium whitespace-nowrap">{cat.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
 
-      {/* Templates Grid */}
+      {/* Templates List - iOS 8 minimal style */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="space-y-0 divide-y divide-border/40">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="overflow-hidden">
-              <CardHeader className="p-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-5 w-16" />
-                </div>
-                <Skeleton className="h-3 w-full" />
-              </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <Skeleton className="h-16 w-full rounded" />
-                <div className="flex gap-1.5 mt-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              </CardContent>
-              <CardFooter className="p-2 border-t">
-                <Skeleton className="h-4 w-16" />
-              </CardFooter>
-            </Card>
+            <div key={i} className="py-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-16" />
+              </div>
+              <Skeleton className="h-3 w-3/4" />
+            </div>
           ))}
         </div>
       ) : filteredTemplates.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-              <FileText className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-1">
-              {searchQuery ? "No templates found" : "No templates available"}
-            </h3>
-            <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
-              {searchQuery 
-                ? "Try adjusting your search query or browse different categories" 
-                : "Get started by creating your first prompt template"}
-            </p>
-            {mode === 'browse' && !searchQuery && (
-              <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-create-first-template">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Template
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-3">
+            <FileText className="h-6 w-6 text-muted-foreground/50" />
+          </div>
+          <h3 className="text-sm font-medium text-foreground/80 mb-1">
+            {searchQuery ? "No templates found" : "No templates yet"}
+          </h3>
+          <p className="text-xs text-muted-foreground text-center max-w-xs mb-4">
+            {searchQuery 
+              ? "Try a different search term" 
+              : "Create your first prompt template to get started"}
+          </p>
+          {mode === 'browse' && !searchQuery && (
+            <Button variant="default" size="sm" onClick={() => setCreateDialogOpen(true)} data-testid="button-create-first-template">
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              New Template
+            </Button>
+          )}
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="space-y-0 divide-y divide-border/40">
             {paginatedTemplates.map((template) => {
               const CategoryIcon = getCategoryIcon(template.category);
               return (
-                <Card 
+                <div 
                   key={template.id} 
-                  className="group overflow-hidden hover-elevate transition-all duration-200" 
+                  className="group py-3 hover-elevate transition-colors duration-150 rounded-md px-2 -mx-2" 
                   data-testid={`card-template-${template.id}`}
                 >
-                  <CardHeader className="p-3 pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-sm font-semibold leading-tight truncate flex-1">
-                        {getLocalizedName(template.name, currentLanguage)}
-                      </CardTitle>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <Badge 
-                          variant="outline" 
-                          className={`text-[10px] px-1.5 py-0 font-medium border ${getCategoryColor(template.category)}`}
-                        >
-                          <CategoryIcon className="h-2.5 w-2.5 mr-0.5" />
-                          {template.category}
-                        </Badge>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="text-sm font-medium truncate">
+                          {getLocalizedName(template.name, currentLanguage)}
+                        </h3>
                         {template.isSystemTemplate && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
-                            <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-                            Staff Pick
-                          </Badge>
+                          <Sparkles className="h-3 w-3 text-amber-500 shrink-0" />
                         )}
                       </div>
-                    </div>
-                    <CardDescription className="text-xs line-clamp-1 mt-1">
-                      {template.description || "No description"}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  <CardContent className="p-3 pt-0">
-                    <div className="bg-muted/40 dark:bg-muted/20 rounded p-2 border border-border/50">
-                      <p className="text-[10px] text-muted-foreground font-mono leading-relaxed line-clamp-3">
-                        {template.systemPrompt.substring(0, 120)}
-                        {template.systemPrompt.length > 120 && '...'}
+                      <p className="text-xs text-muted-foreground/70 line-clamp-1 mb-1.5">
+                        {template.description || "No description"}
                       </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[11px] font-medium ${getCategoryColor(template.category).split(' ').find(c => c.startsWith('text-')) || ''}`}>
+                          {template.category}
+                        </span>
+                        {template.variables && template.variables.length > 0 && (
+                          <span className="text-[11px] text-muted-foreground/50">
+                            {template.variables.length} variable{template.variables.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                        <span className="text-[11px] text-muted-foreground/40">
+                          {template.usageCount}x used
+                        </span>
+                      </div>
                     </div>
-                    
-                    {template.variables && template.variables.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        <span className="text-[10px] text-muted-foreground">Variables:</span>
-                        {template.variables.slice(0, 2).map((v) => (
-                          <Badge 
-                            key={v} 
-                            variant="outline" 
-                            className="text-[10px] px-1 py-0 font-mono bg-primary/5 border-primary/20 text-primary"
-                          >
-                            {`{{${v}}}`}
-                          </Badge>
-                        ))}
-                        {template.variables.length > 2 && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">
-                            +{template.variables.length - 2} more
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-
-                    {template.tags && template.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {template.tags.slice(0, 3).map((tag) => (
-                          <Badge 
-                            key={tag} 
-                            variant="outline" 
-                            className="text-[10px] px-1 py-0 bg-secondary/50 border-border/50"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                        {template.tags.length > 3 && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">
-                            +{template.tags.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-
-                    {template.suggestedVoiceTone && (
-                      <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
-                        <Sparkles className="h-2.5 w-2.5" />
-                        <span className="truncate">{template.suggestedVoiceTone}</span>
-                      </div>
-                    )}
-                  </CardContent>
-                  
-                  <CardFooter className="flex justify-between items-center p-2 border-t bg-muted/20">
-                    <span className="text-[10px] text-muted-foreground">
-                      {template.usageCount}x used
-                    </span>
-                    <div className="flex gap-0.5">
+                    <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150" style={{ visibility: 'visible' }}>
                       {mode === 'select' && onSelectTemplate && (
                         <Button 
-                          size="sm" 
-                          className="h-7 text-xs px-2"
+                          size="sm"
                           onClick={() => handleSelectTemplate(template)}
                           data-testid={`button-use-template-${template.id}`}
                         >
@@ -503,20 +436,19 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
                           <Button 
                             size="icon" 
                             variant="ghost"
-                            className="h-7 w-7"
                             onClick={() => setEditingTemplate(template)}
                             data-testid={`button-edit-template-${template.id}`}
                           >
-                            <Edit className="h-3 w-3" />
+                            <Edit className="h-3.5 w-3.5" />
                           </Button>
                           <Button 
                             size="icon" 
                             variant="ghost"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            className="text-destructive"
                             onClick={() => handleDeleteClick(template)}
                             data-testid={`button-delete-template-${template.id}`}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </>
                       )}
@@ -524,19 +456,18 @@ export default function PromptTemplatesLibrary({ onSelectTemplate, mode = 'brows
                         <Button 
                           size="icon" 
                           variant="ghost"
-                          className="h-7 w-7"
                           onClick={() => {
                             navigator.clipboard.writeText(template.systemPrompt);
                             toast({ title: "Copied to clipboard" });
                           }}
                           data-testid={`button-copy-template-${template.id}`}
                         >
-                          <Copy className="h-3 w-3" />
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                       )}
                     </div>
-                  </CardFooter>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </div>

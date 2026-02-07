@@ -43,10 +43,10 @@ router.get("/api/search", authenticateToken, async (req: AuthRequest, res: Respo
         .orderBy(desc(calls.createdAt))
         .limit(limit),
 
-      db.select({ id: contacts.id, name: contacts.name, phone: contacts.phone, campaignId: contacts.campaignId })
+      db.select({ id: contacts.id, firstName: contacts.firstName, lastName: contacts.lastName, phone: contacts.phone, campaignId: contacts.campaignId })
         .from(contacts)
         .innerJoin(campaigns, eq(contacts.campaignId, campaigns.id))
-        .where(and(eq(campaigns.userId, userId), or(ilike(contacts.name, pattern), ilike(contacts.phone, pattern))))
+        .where(and(eq(campaigns.userId, userId), or(ilike(contacts.firstName, pattern), ilike(contacts.phone, pattern))))
         .limit(limit),
 
       db.select({ id: knowledgeBase.id, title: knowledgeBase.title, type: knowledgeBase.type })
@@ -59,9 +59,9 @@ router.get("/api/search", authenticateToken, async (req: AuthRequest, res: Respo
         .where(and(eq(departments.userId, userId), or(ilike(departments.name, pattern), ilike(departments.description, pattern))))
         .limit(limit),
 
-      db.select({ id: phoneNumbers.id, number: phoneNumbers.number, friendlyName: phoneNumbers.friendlyName })
+      db.select({ id: phoneNumbers.id, phoneNumber: phoneNumbers.phoneNumber, friendlyName: phoneNumbers.friendlyName })
         .from(phoneNumbers)
-        .where(and(eq(phoneNumbers.userId, userId), or(ilike(phoneNumbers.number, pattern), ilike(phoneNumbers.friendlyName, pattern))))
+        .where(and(eq(phoneNumbers.userId, userId), or(ilike(phoneNumbers.phoneNumber, pattern), ilike(phoneNumbers.friendlyName, pattern))))
         .limit(limit),
     ]);
 
@@ -75,7 +75,8 @@ router.get("/api/search", authenticateToken, async (req: AuthRequest, res: Respo
       results.push({ id: c.id, type: "call", title: c.phoneNumber || "Unknown", subtitle: c.status, url: `/app/calls/${c.id}` });
     }
     for (const c of contactResults) {
-      results.push({ id: c.id, type: "contact", title: c.name || c.phone, subtitle: c.phone, url: `/app/contacts` });
+      const contactName = [c.firstName, c.lastName].filter(Boolean).join(" ") || c.phone;
+      results.push({ id: c.id, type: "contact", title: contactName, subtitle: c.phone, url: `/app/contacts` });
     }
     for (const k of knowledgeResults) {
       results.push({ id: k.id, type: "knowledge", title: k.title, subtitle: k.type, url: `/app/knowledge-base` });
@@ -84,7 +85,7 @@ router.get("/api/search", authenticateToken, async (req: AuthRequest, res: Respo
       results.push({ id: d.id, type: "department", title: d.name, subtitle: d.description || undefined, url: `/app/departments` });
     }
     for (const p of phoneResults) {
-      results.push({ id: p.id, type: "phone", title: p.friendlyName || p.number, subtitle: p.number, url: `/app/phone-numbers` });
+      results.push({ id: p.id, type: "phone", title: p.friendlyName || p.phoneNumber, subtitle: p.phoneNumber, url: `/app/phone-numbers` });
     }
 
     res.json({ results });

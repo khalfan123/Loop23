@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import { Switch } from "@/components/ui/switch";
 import { 
   Plus, 
@@ -985,64 +985,90 @@ export default function DepartmentManagement() {
     );
   }
 
+  const subPanelContent = (
+    <div className="space-y-1">
+      <SubPanelSection title="VIEWS">
+        <SubPanelItem
+          icon={<Network className="w-4 h-4" />}
+          label="Org Map"
+          isActive={activeTab === 'org-map'}
+          onClick={() => setActiveTab('org-map')}
+        />
+        <SubPanelItem
+          icon={<LayoutGrid className="w-4 h-4" />}
+          label="Departments"
+          isActive={activeTab === 'departments'}
+          badge={departments.length}
+          onClick={() => setActiveTab('departments')}
+        />
+        <SubPanelItem
+          icon={<PhoneIncoming className="w-4 h-4" />}
+          label="Incoming Connections"
+          isActive={activeTab === 'incoming-connections'}
+          onClick={() => setActiveTab('incoming-connections')}
+        />
+      </SubPanelSection>
+
+      <SubPanelSection title="STATS">
+        <div className="px-2.5 py-2 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Departments</span>
+            <span className="font-medium">{departments.length}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Active IVR</span>
+            <span className="font-medium text-emerald-600">{statsData?.activeIvrCount || 0}</span>
+          </div>
+        </div>
+      </SubPanelSection>
+    </div>
+  );
+
   return (
-    <div className="p-6 space-y-6" data-testid="department-management-page">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="page-title">Department Management</h1>
-          <p className="text-muted-foreground">
-            Organize your AI call center by departments
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="destructive" 
-            onClick={() => setShowDeleteAllDialog(true)}
-            disabled={departments.length === 0}
-            data-testid="button-delete-all"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete All
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={() => setLocation("/app/departments/canvas")}
-            data-testid="button-open-canvas"
-          >
-            <LayoutGrid className="h-4 w-4 mr-2" />
-            Design Canvas
-          </Button>
-          <Button 
-            onClick={() => {
-              setSelectedDepartment(null);
-              setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
-              setShowCreateDialog(true);
-            }}
-            data-testid="button-setup-new"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Setup New Call Center
-          </Button>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "org-map" | "departments" | "incoming-connections")}>
-        <TabsList data-testid="tabs-list">
-          <TabsTrigger value="org-map" data-testid="tab-org-map">
-            <Network className="h-4 w-4 mr-2" />
-            Org Map
-          </TabsTrigger>
-          <TabsTrigger value="departments" data-testid="tab-departments">
-            <LayoutGrid className="h-4 w-4 mr-2" />
-            Departments
-          </TabsTrigger>
-          <TabsTrigger value="incoming-connections" data-testid="tab-incoming-connections">
-            <PhoneIncoming className="h-4 w-4 mr-2" />
-            Incoming Connections
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="org-map" className="space-y-6 mt-6">
+    <ThreeColumnLayout
+      subPanel={subPanelContent}
+      subPanelWidth="sm"
+      subPanelHeader={<span className="font-medium text-sm">Department Management</span>}
+    >
+      <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="department-management-page">
+        {activeTab === 'org-map' && (
+          <div className="space-y-6 p-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Network className="h-4 w-4 text-foreground" />
+                <span className="font-medium">Call Center Organization</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button 
+                  variant="destructive" 
+                  onClick={() => setShowDeleteAllDialog(true)}
+                  disabled={departments.length === 0}
+                  data-testid="button-delete-all"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete All
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setLocation("/app/departments/canvas")}
+                  data-testid="button-open-canvas"
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Design Canvas
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setSelectedDepartment(null);
+                    setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
+                    setShowCreateDialog(true);
+                  }}
+                  data-testid="button-setup-new"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Setup New Call Center
+                </Button>
+              </div>
+            </div>
           <Card data-testid="call-center-org-card">
             <CardHeader className="flex flex-row items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -1565,49 +1591,70 @@ export default function DepartmentManagement() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-
-        <TabsContent value="departments" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {departments.map((dept, idx) => (
-              <DepartmentCard
-                key={dept.id}
-                department={dept}
-                index={idx + 1}
-                isExpanded={expandedDepartments.has(dept.id)}
-                onToggleExpand={() => toggleDepartmentExpanded(dept.id)}
-                onEdit={() => openConfigSheet(dept)}
-                onDelete={() => {
-                  setSelectedDepartment(dept);
-                  setShowDeleteDialog(true);
-                }}
-                onFlow={() => handleFlowClick(dept)}
-                onAddAgent={() => {
-                  setSelectedDepartment(dept);
-                  setShowAddAgentDialog(true);
-                }}
-              />
-            ))}
-            
-            <Card 
-              className="border-dashed hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
-              onClick={() => {
-                setSelectedDepartment(null);
-                setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
-                setShowCreateDialog(true);
-              }}
-              data-testid="add-department-card-tab"
-            >
-              <Plus className="h-8 w-8 text-muted-foreground mb-2" />
-              <span className="text-muted-foreground">Add Department</span>
-            </Card>
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="incoming-connections" className="mt-6">
-          <IncomingConnectionsPage embedded={true} />
-        </TabsContent>
-      </Tabs>
+        {activeTab === 'departments' && (
+          <div className="p-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4 text-foreground" />
+                <span className="font-medium">Departments</span>
+              </div>
+              <Button 
+                onClick={() => {
+                  setSelectedDepartment(null);
+                  setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
+                  setShowCreateDialog(true);
+                }}
+                data-testid="button-add-department"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Department
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {departments.map((dept, idx) => (
+                <DepartmentCard
+                  key={dept.id}
+                  department={dept}
+                  index={idx + 1}
+                  isExpanded={expandedDepartments.has(dept.id)}
+                  onToggleExpand={() => toggleDepartmentExpanded(dept.id)}
+                  onEdit={() => openConfigSheet(dept)}
+                  onDelete={() => {
+                    setSelectedDepartment(dept);
+                    setShowDeleteDialog(true);
+                  }}
+                  onFlow={() => handleFlowClick(dept)}
+                  onAddAgent={() => {
+                    setSelectedDepartment(dept);
+                    setShowAddAgentDialog(true);
+                  }}
+                />
+              ))}
+              
+              <Card 
+                className="border-dashed hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
+                onClick={() => {
+                  setSelectedDepartment(null);
+                  setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
+                  setShowCreateDialog(true);
+                }}
+                data-testid="add-department-card-tab"
+              >
+                <Plus className="h-8 w-8 text-muted-foreground mb-2" />
+                <span className="text-muted-foreground">Add Department</span>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'incoming-connections' && (
+          <div className="p-4">
+            <IncomingConnectionsPage embedded={true} />
+          </div>
+        )}
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent data-testid="dialog-create-department">
@@ -2615,7 +2662,8 @@ export default function DepartmentManagement() {
           </ScrollArea>
         </SheetContent>
       </Sheet>
-    </div>
+      </div>
+    </ThreeColumnLayout>
   );
 }
 

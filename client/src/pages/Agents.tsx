@@ -236,6 +236,8 @@ export default function Agents() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<'agents' | 'templates' | 'voices'>('agents');
   const [templateCategory, setTemplateCategory] = useState<string>('all');
+  const [voiceProvider, setVoiceProvider] = useState<string>('elevenlabs');
+  const [voiceLanguage, setVoiceLanguage] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<'all' | 'incoming' | 'flow'>('all');
   const [selectedFolder, setSelectedFolder] = useState<string>('all');
@@ -331,6 +333,27 @@ export default function Agents() {
       if (!voiceId) return null;
       return voiceMap.get(voiceId) || null;
     };
+  }, [voices]);
+
+  const availableVoiceLanguages = useMemo(() => {
+    const langMap = new Map<string, string>();
+    const defaultNames: Record<string, string> = {
+      en: "English", es: "Spanish", fr: "French", de: "German", it: "Italian",
+      pt: "Portuguese", ja: "Japanese", ko: "Korean", zh: "Chinese", ru: "Russian",
+      ar: "Arabic", hi: "Hindi", nl: "Dutch", pl: "Polish", sv: "Swedish",
+      tr: "Turkish", id: "Indonesian", th: "Thai", vi: "Vietnamese", cs: "Czech",
+      el: "Greek", hu: "Hungarian", ro: "Romanian", uk: "Ukrainian", he: "Hebrew",
+      ms: "Malay", fil: "Filipino", da: "Danish", fi: "Finnish", no: "Norwegian",
+    };
+    voices.forEach(v => {
+      const code = v.labels?.language?.toLowerCase();
+      if (code && !langMap.has(code)) {
+        langMap.set(code, defaultNames[code] || code.toUpperCase());
+      }
+    });
+    return Array.from(langMap.entries())
+      .map(([code, name]) => ({ value: code, label: name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [voices]);
 
   const { data: knowledgeBase = [] } = useQuery<KnowledgeBaseItem[]>({
@@ -1061,9 +1084,47 @@ export default function Agents() {
         icon={<Mic className="h-4 w-4" />}
         label={t('nav.voices', { defaultValue: 'Voices' })}
         isActive={activeTab === 'voices'}
-        onClick={() => setActiveTab('voices')}
+        onClick={() => { setActiveTab('voices'); setVoiceLanguage('all'); }}
         data-testid="tab-voices"
       />
+      {activeTab === 'voices' && (
+        <div className="pl-6 space-y-0.5">
+          <div className="px-2 py-1">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">Provider</span>
+          </div>
+          <SubPanelItem
+            icon={<Sparkles className="h-4 w-4" />}
+            label="ElevenLabs"
+            isActive={voiceProvider === 'elevenlabs'}
+            onClick={() => setVoiceProvider('elevenlabs')}
+            data-testid="tab-voice-provider-elevenlabs"
+          />
+          <SubPanelItem
+            icon={<Brain className="h-4 w-4" />}
+            label="OpenAI"
+            isActive={voiceProvider === 'openai'}
+            onClick={() => setVoiceProvider('openai')}
+            data-testid="tab-voice-provider-openai"
+          />
+          {voiceProvider === 'elevenlabs' && availableVoiceLanguages.length > 0 && (
+            <>
+              <div className="px-2 py-1 mt-1">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">Language</span>
+              </div>
+              {availableVoiceLanguages.map((lang) => (
+                <SubPanelItem
+                  key={lang.value}
+                  icon={<Globe className="h-4 w-4" />}
+                  label={lang.label}
+                  isActive={voiceLanguage === lang.value}
+                  onClick={() => setVoiceLanguage(lang.value)}
+                  data-testid={`tab-voice-lang-${lang.value}`}
+                />
+              ))}
+            </>
+          )}
+        </div>
+      )}
     </SubPanelSection>
     </>
   );
@@ -1086,7 +1147,25 @@ export default function Agents() {
           </div>
         </div>
       </div>
-      <div className={activeTab === 'voices' ? '' : 'hidden'}><Voices /></div>
+      <div className={activeTab === 'voices' ? '' : 'hidden'}>
+        <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
+          <div className="flex items-center justify-between p-3 md:p-4 border-b">
+            <h2 className="text-base md:text-lg font-semibold">
+              {voiceLanguage === 'all' 
+                ? (voiceProvider === 'elevenlabs' ? 'ElevenLabs Voices' : 'OpenAI Voices')
+                : `${availableVoiceLanguages.find(l => l.value === voiceLanguage)?.label || 'Voices'} Voices`}
+            </h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 md:p-4">
+            <Voices 
+              externalProvider={voiceProvider} 
+              externalLanguage={voiceLanguage} 
+              hideHeader 
+              hideProviderTabs 
+            />
+          </div>
+        </div>
+      </div>
       <div className={activeTab === 'agents' ? '' : 'hidden'}>
       {/* Main Content Area */}
       <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">

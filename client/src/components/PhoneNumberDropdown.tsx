@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Phone, Plus, Bot, Target, ChevronDown, Signal, Server } from "lucide-react";
+import { Phone, Plus, Bot, Target, ChevronDown, Signal, Server, Building2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,13 @@ interface Campaign {
   status: string;
 }
 
+interface IvrConfiguration {
+  id: string;
+  name: string;
+  phoneNumberId?: string | null;
+  isActive: boolean;
+}
+
 export function PhoneNumberDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,6 +59,10 @@ export function PhoneNumberDropdown() {
     queryKey: ["/api/campaigns"],
   });
 
+  const { data: ivrConfigs = [] } = useQuery<IvrConfiguration[]>({
+    queryKey: ["/api/departments/ivr/all"],
+  });
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -64,25 +75,41 @@ export function PhoneNumberDropdown() {
 
   const allConnections = connectionsData?.allConnections || connectionsData?.connections || [];
 
-  const getAssignment = (phoneId: string): { type: "agent" | "campaign"; name: string } | null => {
+  const getAssignments = (phoneId: string): { type: "agent" | "campaign" | "department"; name: string }[] => {
+    const results: { type: "agent" | "campaign" | "department"; name: string }[] = [];
     const connection = allConnections.find(c => c.phoneNumberId === phoneId);
     if (connection?.agent) {
-      return { type: "agent", name: connection.agent.name };
+      results.push({ type: "agent", name: connection.agent.name });
     }
     const campaign = campaigns.find(c => c.phoneNumberId === phoneId && ["pending", "running", "scheduled", "paused"].includes(c.status));
     if (campaign) {
-      return { type: "campaign", name: campaign.name };
+      results.push({ type: "campaign", name: campaign.name });
     }
-    return null;
+    const ivr = ivrConfigs.find(c => c.phoneNumberId === phoneId && c.isActive);
+    if (ivr) {
+      results.push({ type: "department", name: ivr.name });
+    }
+    return results;
   };
 
   const userNumbers = phoneNumbers.filter(p => !p.isSystemPool);
   const poolNumbers = phoneNumbers.filter(p => p.isSystemPool);
   const totalCount = phoneNumbers.length;
 
+  const getAssignIcon = (type: "agent" | "campaign" | "department") => {
+    if (type === "campaign") return Target;
+    if (type === "department") return Building2;
+    return Bot;
+  };
+
+  const getAssignColor = (type: "agent" | "campaign" | "department") => {
+    if (type === "department") return "text-purple-600 dark:text-purple-400";
+    if (type === "campaign") return "text-orange-600 dark:text-orange-400";
+    return "text-blue-600 dark:text-blue-400";
+  };
+
   const renderPhoneItem = (phone: PhoneNumberItem) => {
-    const assignment = getAssignment(phone.id);
-    const AssignIcon = assignment?.type === "campaign" ? Target : Bot;
+    const assignments = getAssignments(phone.id);
     return (
       <button
         key={phone.id}
@@ -111,11 +138,16 @@ export function PhoneNumberDropdown() {
                 {phone.phoneNumber}
               </span>
             )}
-            {assignment ? (
-              <span className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                <AssignIcon className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate max-w-[120px]">{assignment.name}</span>
-              </span>
+            {assignments.length > 0 ? (
+              assignments.map((a, i) => {
+                const Icon = getAssignIcon(a.type);
+                return (
+                  <span key={i} className={cn("inline-flex items-center gap-1 text-xs", getAssignColor(a.type))}>
+                    <Icon className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate max-w-[100px]">{a.name}</span>
+                  </span>
+                );
+              })
             ) : (
               <span className="text-xs text-zinc-400 dark:text-zinc-500 italic">Unassigned</span>
             )}

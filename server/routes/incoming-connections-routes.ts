@@ -77,10 +77,9 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       return !provider || provider === 'twilio'; // Include null/undefined or 'twilio' (ElevenLabs)
     });
 
-    // Get available phone numbers (owned by user, not in system pool, not already connected)
-    // Use ALL connections (not filtered) to compute availability - prevents showing numbers already assigned to other engines
+    // Get ALL phone numbers owned by user (not system pool, active)
     const connectedPhoneIds = allConnections.map((c) => c.phoneNumberId);
-    const availableNumbers = await db
+    const allUserNumbers = await db
       .select()
       .from(phoneNumbers)
       .where(
@@ -100,16 +99,11 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .map((ivr) => ivr.phoneNumberId)
       .filter((id): id is string => id !== null);
 
-    const availablePhoneNumbers = availableNumbers.filter(
-      (pn) => !connectedPhoneIds.includes(pn.id) && !ivrPhoneIds.includes(pn.id)
-    );
-
-    // Check which available phones have active campaign conflicts
-    // Active campaigns = pending, running, scheduled, paused
+    // Check which phones have active campaign conflicts
     const activeStatuses = ['pending', 'running', 'scheduled', 'paused'];
-    const phoneIdsToCheck = availablePhoneNumbers.map(pn => pn.id);
+    const allPhoneIds = allUserNumbers.map(pn => pn.id);
     
-    const activeCampaigns = phoneIdsToCheck.length > 0 ? await db
+    const activeCampaigns = allPhoneIds.length > 0 ? await db
       .select({
         phoneNumberId: campaigns.phoneNumberId,
         campaignName: campaigns.name,
@@ -118,13 +112,12 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .from(campaigns)
       .where(
         and(
-          inArray(campaigns.phoneNumberId, phoneIdsToCheck),
+          inArray(campaigns.phoneNumberId, allPhoneIds),
           inArray(campaigns.status, activeStatuses),
           isNull(campaigns.deletedAt)
         )
       ) : [];
 
-    // Create a map of phone ID -> campaign conflict info
     const conflictMap = new Map<string, { campaignName: string; campaignStatus: string }>();
     for (const campaign of activeCampaigns) {
       if (campaign.phoneNumberId && !conflictMap.has(campaign.phoneNumberId)) {
@@ -135,17 +128,42 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       }
     }
 
-    // Enhance available phone numbers with conflict status
-    const availablePhoneNumbersWithConflict = availablePhoneNumbers.map(pn => {
-      const conflict = conflictMap.get(pn.id);
+    // Build a connection lookup for connected phone numbers
+    const connectionLookup = new Map<string, { agentName: string }>();
+    for (const conn of allConnections) {
+      if (conn.phoneNumberId) {
+        connectionLookup.set(conn.phoneNumberId, {
+          agentName: (conn as any).agent?.name || "Unknown Agent",
+        });
+      }
+    }
+
+    // Mark every phone number with its availability status and reason
+    const availablePhoneNumbersWithConflict = allUserNumbers.map(pn => {
+      const isConnected = connectedPhoneIds.includes(pn.id);
+      const isIvrAssigned = ivrPhoneIds.includes(pn.id);
+      const campaign = conflictMap.get(pn.id);
+      const connInfo = connectionLookup.get(pn.id);
+
+      let unavailableReason: string | null = null;
+      if (isConnected) {
+        unavailableReason = `Connected to ${connInfo?.agentName || "an agent"}`;
+      } else if (isIvrAssigned) {
+        unavailableReason = "Assigned to department/IVR";
+      } else if (campaign) {
+        unavailableReason = `Used by campaign "${campaign.campaignName}" (${campaign.campaignStatus})`;
+      }
+
       return {
         ...pn,
-        isConflicted: !!conflict,
-        conflictReason: conflict 
-          ? `Used by campaign "${conflict.campaignName}" (${conflict.campaignStatus})`
+        isUnavailable: isConnected || isIvrAssigned || !!campaign,
+        unavailableReason,
+        isConflicted: !!campaign,
+        conflictReason: campaign
+          ? `Used by campaign "${campaign.campaignName}" (${campaign.campaignStatus})`
           : null,
-        conflictCampaignName: conflict?.campaignName || null,
-        conflictCampaignStatus: conflict?.campaignStatus || null,
+        conflictCampaignName: campaign?.campaignName || null,
+        conflictCampaignStatus: campaign?.campaignStatus || null,
       };
     });
 
@@ -170,7 +188,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       stats: {
         totalConnections: allConnections.length,
         elevenLabsConnections: connections.length,
-        availableNumbers: availablePhoneNumbersWithConflict.filter(pn => !pn.isConflicted).length,
+        availableNumbers: availablePhoneNumbersWithConflict.filter(pn => !pn.isUnavailable).length,
         totalAgents: incomingAgents.length,
       },
     });

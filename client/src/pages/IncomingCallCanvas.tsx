@@ -43,7 +43,6 @@ import {
   CheckCircle2,
   Circle,
   List,
-  AlertTriangle,
   Search,
   Plus,
   Trash2,
@@ -57,6 +56,8 @@ interface PhoneNumber {
   provider: string;
   country?: string | null;
   status?: string;
+  isUnavailable?: boolean;
+  unavailableReason?: string | null;
   isConflicted?: boolean;
   conflictReason?: string | null;
 }
@@ -170,20 +171,12 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
   const agents = incomingData?.incomingAgents || [];
 
   const availablePhones = useMemo(() => {
-    return phoneNumbers.filter((p) => !p.isConflicted);
+    return phoneNumbers.filter((p) => !p.isUnavailable);
   }, [phoneNumbers]);
 
-  const conflictedPhones = useMemo(() => {
-    return phoneNumbers.filter((p) => p.isConflicted);
+  const unavailablePhones = useMemo(() => {
+    return phoneNumbers.filter((p) => p.isUnavailable);
   }, [phoneNumbers]);
-
-  const connectedPhones = useMemo(() => {
-    return existingConnections.map(c => ({
-      phoneNumberId: c.phoneNumberId,
-      phoneNumber: (c as any).phoneNumber?.phoneNumber || "Phone",
-      agentName: (c as any).agent?.name || "Unknown Agent",
-    }));
-  }, [existingConnections]);
 
   const availableLanguages = useMemo(() => {
     const langs = new Set<string>();
@@ -524,7 +517,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
         </div>
-      ) : availablePhones.length === 0 && conflictedPhones.length === 0 && connectedPhones.length === 0 ? (
+      ) : phoneNumbers.length === 0 ? (
         <div className="text-center py-8">
           <Phone className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No phone numbers available. Purchase phone numbers first.</p>
@@ -533,7 +526,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
         <div className="max-w-2xl mx-auto space-y-4">
           {availablePhones.length > 0 && (
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-sm font-medium">{selectedPhoneIds.length} of {availablePhones.length} selected</span>
+              <span className="text-sm font-medium">{selectedPhoneIds.length} of {availablePhones.length} available selected</span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={selectAllPhones} data-testid="button-select-all-phones">
                   Select All
@@ -547,92 +540,58 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
             </div>
           )}
 
-          {availablePhones.length > 0 && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {availablePhones.map((phone) => {
-                const isSelected = selectedPhoneIds.includes(phone.id);
-                return (
-                  <Card
-                    key={phone.id}
-                    className={`cursor-pointer transition-colors ${
-                      isSelected
-                        ? "border-primary bg-primary/5"
-                        : "hover-elevate"
-                    }`}
-                    onClick={() => togglePhone(phone.id)}
-                    data-testid={`card-phone-${phone.id}`}
-                  >
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <div className={`flex items-center justify-center h-8 w-8 rounded-md ${
-                        isSelected ? "bg-primary text-primary-foreground" : "bg-green-100 dark:bg-green-900/30"
-                      }`}>
-                        {isSelected ? (
-                          <Check className="h-4 w-4" />
-                        ) : (
-                          <Phone className="h-4 w-4 text-green-600" />
-                        )}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {availablePhones.map((phone) => {
+              const isSelected = selectedPhoneIds.includes(phone.id);
+              return (
+                <Card
+                  key={phone.id}
+                  className={`cursor-pointer transition-colors ${
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : "hover-elevate"
+                  }`}
+                  onClick={() => togglePhone(phone.id)}
+                  data-testid={`card-phone-${phone.id}`}
+                >
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <div className={`flex items-center justify-center h-8 w-8 rounded-md ${
+                      isSelected ? "bg-primary text-primary-foreground" : "bg-green-100 dark:bg-green-900/30"
+                    }`}>
+                      {isSelected ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Phone className="h-4 w-4 text-green-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{phone.phoneNumber}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                        <span>{phone.provider}</span>
+                        {phone.friendlyName && <span>{phone.friendlyName}</span>}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{phone.phoneNumber}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                          <span>{phone.provider}</span>
-                          {phone.friendlyName && <span>{phone.friendlyName}</span>}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
 
-          {conflictedPhones.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                Unavailable (Campaign Conflict)
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {conflictedPhones.map((phone) => (
-                  <Card key={phone.id} className="opacity-50 cursor-not-allowed" data-testid={`card-phone-conflict-${phone.id}`}>
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-red-100 dark:bg-red-900/30">
-                        <Phone className="h-4 w-4 text-red-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{phone.phoneNumber}</div>
-                        <div className="text-xs text-red-500 truncate">{phone.conflictReason || "In use by campaign"}</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {connectedPhones.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                Already Connected
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {connectedPhones.map((cp) => (
-                  <Card key={cp.phoneNumberId} className="opacity-50 cursor-not-allowed" data-testid={`card-phone-connected-${cp.phoneNumberId}`}>
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-green-100 dark:bg-green-900/30">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{cp.phoneNumber}</div>
-                        <div className="text-xs text-green-600 truncate">Connected to {cp.agentName}</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
+            {unavailablePhones.map((phone) => (
+              <Card key={phone.id} className="opacity-50 cursor-not-allowed" data-testid={`card-phone-unavailable-${phone.id}`}>
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-md bg-muted">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate text-muted-foreground">{phone.phoneNumber}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {phone.unavailableReason || "Unavailable"}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1115,12 +1074,21 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
       <div className="flex items-center justify-between px-4 py-3 border-t bg-background gap-2">
         <Button
           variant="outline"
-          onClick={goBack}
-          disabled={currentStep === 1}
+          onClick={() => {
+            if (currentStep === 1) {
+              if (embedded) {
+                setWizardMode("list");
+              } else {
+                setLocation("/app/incoming-connections/list");
+              }
+            } else {
+              goBack();
+            }
+          }}
           data-testid="button-wizard-back"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
+          {currentStep === 1 ? (embedded ? "Back to Connections" : "Back to List") : "Back"}
         </Button>
 
         <div className="flex items-center gap-2 flex-wrap">

@@ -238,7 +238,7 @@ export default function Agents() {
   const [activeTab, setActiveTab] = useState<'agents' | 'templates' | 'voices'>('agents');
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<'all' | 'incoming' | 'flow'>('all');
-  const [selectedFolder, setSelectedFolder] = useState<'all' | 'template'>('all');
+  const [selectedFolder, setSelectedFolder] = useState<string>('all');
   const [engineFilter, setEngineFilter] = useState<'all' | 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip'>('all');
   const [languageFilter, setLanguageFilter] = useState<string>('all');
   const [tagsFilter, setTagsFilter] = useState<string>('all');
@@ -252,7 +252,12 @@ export default function Agents() {
     const saved = localStorage.getItem('staffFolderNames');
     return saved ? JSON.parse(saved) : { template: 'Template Staff' };
   });
+  const [customFolderIds, setCustomFolderIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('staffCustomFolderIds');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [showDeleteFolderConfirm, setShowDeleteFolderConfirm] = useState<string | null>(null);
+  const [addingNewFolder, setAddingNewFolder] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'type' | 'voice' | 'phone' | 'editedBy'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
@@ -303,10 +308,13 @@ export default function Agents() {
   // Animation state for success/failure feedback
   const [animationState, setAnimationState] = useState<'idle' | 'success' | 'error'>('idle');
 
-  // Persist folder names to localStorage
   useEffect(() => {
     localStorage.setItem('staffFolderNames', JSON.stringify(folderNames));
   }, [folderNames]);
+
+  useEffect(() => {
+    localStorage.setItem('staffCustomFolderIds', JSON.stringify(customFolderIds));
+  }, [customFolderIds]);
 
   const { data: agents = [], isLoading: agentsLoading } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
@@ -854,108 +862,178 @@ export default function Agents() {
     return Array.from(tags).sort();
   }, [agents]);
 
+  const allFolderIds = ['template', ...customFolderIds];
+
+  const handleAddFolder = () => {
+    setAddingNewFolder(true);
+  };
+
+  const handleCreateFolder = (name: string) => {
+    if (!name.trim()) {
+      setAddingNewFolder(false);
+      return;
+    }
+    const id = `folder_${Date.now()}`;
+    setCustomFolderIds(prev => [...prev, id]);
+    setFolderNames(prev => ({ ...prev, [id]: name.trim() }));
+    setAddingNewFolder(false);
+    setSelectedFolder(id);
+    toast({ title: "Folder Created", description: `"${name.trim()}" has been created.` });
+  };
+
+  const handleDeleteFolder = (folderId: string) => {
+    setCustomFolderIds(prev => prev.filter(id => id !== folderId));
+    setFolderNames(prev => {
+      const next = { ...prev };
+      delete next[folderId];
+      return next;
+    });
+    if (selectedFolder === folderId) {
+      setSelectedFolder('all');
+    }
+    toast({ title: "Folder Removed", description: `"${folderNames[folderId]}" has been removed.` });
+    setShowDeleteFolderConfirm(null);
+  };
+
+  const renderFolderItem = (folderId: string) => (
+    <div
+      key={folderId}
+      className={`group relative transition-all duration-200 ${
+        dropTargetFolder === folderId
+          ? 'ring-2 ring-primary ring-offset-2 rounded-md bg-primary/10'
+          : ''
+      }`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDropTargetFolder(folderId);
+      }}
+      onDragLeave={() => setDropTargetFolder(null)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDropTargetFolder(null);
+        if (draggedAgentId) {
+          const agent = agents.find(a => a.id === draggedAgentId);
+          if (agent) {
+            toast({
+              title: "Coming Soon",
+              description: `Moving "${agent.name}" to "${folderNames[folderId]}" folder will be available in a future update.`
+            });
+          }
+        }
+        setDraggedAgentId(null);
+      }}
+    >
+      {editingFolderName === folderId ? (
+        <div className="flex items-center gap-2 px-3 py-2">
+          <FolderOpen className="h-4 w-4 text-primary" />
+          <Input
+            autoFocus
+            className="h-6 text-sm flex-1"
+            defaultValue={folderNames[folderId]}
+            onBlur={(e) => {
+              if (e.target.value.trim()) {
+                setFolderNames(prev => ({ ...prev, [folderId]: e.target.value.trim() }));
+              }
+              setEditingFolderName(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const target = e.target as HTMLInputElement;
+                if (target.value.trim()) {
+                  setFolderNames(prev => ({ ...prev, [folderId]: target.value.trim() }));
+                }
+                setEditingFolderName(null);
+              } else if (e.key === 'Escape') {
+                setEditingFolderName(null);
+              }
+            }}
+            data-testid={`input-folder-name-${folderId}`}
+          />
+        </div>
+      ) : (
+        <SubPanelItem
+          icon={<FolderOpen className="h-4 w-4" />}
+          label={folderNames[folderId] || 'Untitled'}
+          isActive={activeTab === 'agents' && selectedFolder === folderId}
+          onClick={() => { setSelectedFolder(folderId); setTypeFilter('all'); }}
+          data-testid={`folder-${folderId}`}
+        />
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+            data-testid={`button-folder-options-${folderId}`}
+          >
+            <MoreHorizontal className="h-3 w-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={() => setEditingFolderName(folderId)}
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit Folder
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setShowDeleteFolderConfirm(folderId)}
+            className="text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Remove Folder
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
   const subPanelContent = (
     <>
     <SubPanelSection>
-      <SubPanelItem
-        icon={<Bot className="h-4 w-4" />}
-        label={t('nav.agents', { defaultValue: 'Staff AI' })}
-        isActive={activeTab === 'agents' && selectedFolder === 'all'}
-        onClick={() => { setActiveTab('agents'); setSelectedFolder('all'); setTypeFilter('all'); }}
-        data-testid="tab-agents"
-      />
-      {activeTab === 'agents' && (
-        <div className="pl-6">
-          <div
-            className={`group relative transition-all duration-200 ${
-              dropTargetFolder === 'template'
-                ? 'ring-2 ring-primary ring-offset-2 rounded-md bg-primary/10'
-                : ''
-            }`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDropTargetFolder('template');
-            }}
-            onDragLeave={() => setDropTargetFolder(null)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDropTargetFolder(null);
-              if (draggedAgentId) {
-                const agent = agents.find(a => a.id === draggedAgentId);
-                if (agent) {
-                  toast({
-                    title: "Coming Soon",
-                    description: `Moving "${agent.name}" to Template Staff folder will be available in a future update.`
-                  });
-                }
-              }
-              setDraggedAgentId(null);
-            }}
+      <div className="flex items-center justify-between pr-1">
+        <SubPanelItem
+          icon={<Bot className="h-4 w-4" />}
+          label={t('nav.agents', { defaultValue: 'Staff AI' })}
+          isActive={activeTab === 'agents' && selectedFolder === 'all'}
+          onClick={() => { setActiveTab('agents'); setSelectedFolder('all'); setTypeFilter('all'); }}
+          data-testid="tab-agents"
+          className="flex-1"
+        />
+        {activeTab === 'agents' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); handleAddFolder(); }}
+            data-testid="button-add-folder"
           >
-            {editingFolderName === 'template' ? (
-              <div className="flex items-center gap-2 px-3 py-2">
-                <FolderOpen className="h-4 w-4 text-primary" />
-                <Input
-                  autoFocus
-                  className="h-6 text-sm flex-1"
-                  defaultValue={folderNames.template}
-                  onBlur={(e) => {
-                    if (e.target.value.trim()) {
-                      setFolderNames(prev => ({ ...prev, template: e.target.value.trim() }));
-                    }
-                    setEditingFolderName(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const target = e.target as HTMLInputElement;
-                      if (target.value.trim()) {
-                        setFolderNames(prev => ({ ...prev, template: target.value.trim() }));
-                      }
-                      setEditingFolderName(null);
-                    } else if (e.key === 'Escape') {
-                      setEditingFolderName(null);
-                    }
-                  }}
-                  data-testid="input-folder-name"
-                />
-              </div>
-            ) : (
-              <SubPanelItem
-                icon={<FolderOpen className="h-4 w-4" />}
-                label={folderNames.template}
-                isActive={activeTab === 'agents' && selectedFolder === 'template'}
-                onClick={() => { setSelectedFolder('template'); setTypeFilter('all'); }}
-                data-testid="folder-template-agents"
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+      {activeTab === 'agents' && (
+        <div className="pl-6 space-y-0.5">
+          {allFolderIds.map(folderId => renderFolderItem(folderId))}
+          {addingNewFolder && (
+            <div className="flex items-center gap-2 px-3 py-2">
+              <FolderOpen className="h-4 w-4 text-primary" />
+              <Input
+                autoFocus
+                className="h-6 text-sm flex-1"
+                placeholder="Folder name..."
+                onBlur={(e) => handleCreateFolder(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateFolder((e.target as HTMLInputElement).value);
+                  } else if (e.key === 'Escape') {
+                    setAddingNewFolder(false);
+                  }
+                }}
+                data-testid="input-new-folder-name"
               />
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  data-testid="button-folder-options"
-                >
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => setEditingFolderName('template')}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit Folder
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setShowDeleteFolderConfirm('template')}
-                  className="text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Remove Folder
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+            </div>
+          )}
         </div>
       )}
       <SubPanelItem
@@ -991,7 +1069,7 @@ export default function Agents() {
           <div className="flex flex-col gap-3 p-3 md:p-4 border-b">
             <div className="flex items-center justify-between">
               <h2 className="text-base md:text-lg font-semibold">
-                {selectedFolder === 'all' ? 'Staff AI' : folderNames.template}
+                {selectedFolder === 'all' ? 'Staff AI' : (folderNames[selectedFolder] || 'Staff AI')}
               </h2>
               {/* Create Agent Dropdown */}
               <DropdownMenu>
@@ -2831,10 +2909,8 @@ export default function Agents() {
             <AlertDialogAction
               onClick={() => {
                 if (showDeleteFolderConfirm) {
-                  setSelectedFolder('all');
-                  toast({ title: "Folder Removed", description: `"${folderNames[showDeleteFolderConfirm]}" has been removed.` });
+                  handleDeleteFolder(showDeleteFolderConfirm);
                 }
-                setShowDeleteFolderConfirm(null);
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

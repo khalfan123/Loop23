@@ -1,0 +1,88 @@
+Build a “Call History” module for an AI call center web app.
+
+Goal
+- I need a call history table that captures core session metadata plus screening question responses.
+- I need to compute and display “Concerned Questions Count” per session.
+
+Tech requirements
+- Use TypeScript.
+- Backend: Node.js + Express.
+- Database: SQLite with Prisma ORM (migrations included).
+- Frontend: React + Vite + Tailwind.
+- Provide a clean UI: table view + session detail drawer/modal.
+- Include seed data for at least 20 sessions with varied answers.
+
+Data model
+1) sessions table
+- id (string UUID, primary key)
+- time (datetime)
+- durationSeconds (int)
+- channelType (enum: VOICE, CHAT, SMS)
+- cost (decimal)
+- endReason (string)
+- sessionStatus (enum: COMPLETED, FAILED, DROPPED, TRANSFERRED)
+- userSentiment (enum: POSITIVE, NEUTRAL, NEGATIVE, UNKNOWN)
+- fromNumber (string)
+- toNumber (string)
+- direction (enum: INBOUND, OUTBOUND)
+- sessionOutcome (string)
+- endToEndLatencyMs (int)
+
+2) session_responses table (flexible, future-proof)
+- id (string UUID, primary key)
+- sessionId (foreign key → sessions.id)
+- questionId (string)  // stable key, e.g. “steady_housing”
+- questionText (string)
+- answerType (enum: BOOLEAN, MULTISELECT, TEXT, NUMBER)
+- answerValue (string) // store normalized value, e.g. “yes/no”, JSON for multiselect
+- isConcern (boolean)
+
+Concern rules
+Implement deterministic mapping:
+- “Do you currently have a steady place to live?” → concern if answer is “no”
+- “Do you feel safe in your current living situation?” → concern if “no”
+- “Do you have problems with any of the following in your home?” → concern if any option is selected (non-empty)
+- “Within the past 12 months, have you worried about running out of food before you had money to buy more?” → concern if “yes”
+- “In the past 12 months, has lack of reliable transportation prevented you from:” → concern if “yes”
+- “Are you currently employed?” → concern if “no”
+Make concern calculation server-side and store isConcern per response at write time.
+
+API endpoints
+- GET /api/sessions?from=YYYY-MM-DD&to=YYYY-MM-DD&search=...&page=...&limit=...
+  Returns sessions plus:
+  - concernedQuestionsCount (computed as COUNT(session_responses where isConcern=true))
+- GET /api/sessions/:id
+  Returns full session + all responses + concernedQuestionsCount
+- POST /api/sessions
+  Accepts session metadata + responses, normalizes answers, sets isConcern, saves.
+- POST /api/sessions/:id/responses
+  Add/update responses for a session; recompute concern flags.
+
+Frontend UI
+1) Call History page
+- Table columns:
+  Time, Duration, Channel Type, Cost, Session ID, End Reason, Session Status,
+  User Sentiment, From, To, Direction, Session Outcome, End-to-End Latency,
+  Concerned Questions Count
+- Filters:
+  date range, channel type, sentiment, status
+- Search: by session ID, from/to number
+- Sorting: by time (default desc), duration, concern count
+- Pagination
+
+2) Session Detail drawer/modal
+- Shows all session metadata
+- Shows a “Screening Questions” section listing each question, answer, and a red badge if isConcern=true
+- Shows a big “Concerned Questions Count” KPI at the top
+
+Quality / polish
+- Input validation (zod)
+- Errors handled cleanly (frontend toast)
+- Use accessible UI components
+- Write README with how to run, seed, and test
+
+Deliverables
+- Working full-stack project in Replit
+- Prisma schema + migrations
+- Seed script
+- Example API requests in a docs file

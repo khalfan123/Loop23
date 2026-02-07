@@ -50,6 +50,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { HeaderBannerNotifications } from "@/components/HeaderBannerNotifications";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 interface User {
   id: string;
@@ -371,8 +372,13 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
           )}
         </nav>
 
+        {/* Center section: Search */}
+        <div className="flex-1 flex justify-center px-2 max-w-lg mx-auto">
+          <GlobalSearch />
+        </div>
+
         {/* Right section: Utilities */}
-        <div className="flex items-center gap-1 px-2 ml-auto">
+        <div className="flex items-center gap-1 px-2">
           {showNotifications && (
             <>
               <HeaderBannerNotifications />

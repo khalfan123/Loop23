@@ -40,6 +40,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { NotificationBell } from "@/components/NotificationBell";
 import { HeaderBannerNotifications } from "@/components/HeaderBannerNotifications";
 import { cn } from "@/lib/utils";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 interface User {
   id: string;
@@ -450,8 +451,9 @@ export function HybridNavigation({
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Spacer */}
-            <div className="flex-1" />
+            <div className="flex-1 flex justify-center px-2">
+              <GlobalSearch />
+            </div>
 
             {/* Right side utilities - iOS 18 pill group */}
             <div className="flex items-center gap-1">

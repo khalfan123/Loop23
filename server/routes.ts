@@ -103,6 +103,7 @@ import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
 import { createTemplateRoutes } from "./routes/template-routes";
 import { createSubscriptionRoutes } from "./routes/subscription-routes";
 import crmRoutes from "./routes/crm-routes";
+import searchRoutes from "./routes/search-routes";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
 import bcrypt from "bcrypt";
 import multer from "multer";
@@ -208,6 +209,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register subscription routes (plans, credits, billing)
   const subscriptionRoutes = createSubscriptionRoutes(routeContext);
   app.use(subscriptionRoutes);
+
+  // Register global search routes
+  app.use(searchRoutes);
 
   // Register Plivo + OpenAI Realtime Engine routes
   // Apply authenticateToken middleware only to user-facing Plivo API routes (not webhooks/stream)

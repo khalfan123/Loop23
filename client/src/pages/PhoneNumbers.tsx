@@ -1322,7 +1322,7 @@ export default function PhoneNumbers() {
   };
 
   return (
-    <div className="flex h-full w-full">
+    <div className="flex w-full -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6" style={{ minHeight: 'calc(100vh - 48px)' }}>
       {/* Left Sidebar - Desktop */}
       <aside className="hidden md:flex flex-col w-[240px] flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900">
         {renderSidebarContent()}

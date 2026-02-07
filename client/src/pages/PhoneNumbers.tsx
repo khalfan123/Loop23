@@ -21,7 +21,9 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, ShoppingCart, Check, Trash2, CreditCard, Link as LinkIcon, Smartphone, Globe, MapPin, Upload, FileText, AlertCircle, Shield, Server, Loader2, RefreshCw, PhoneOutgoing, PhoneIncoming, Network, Bot } from "lucide-react";
+import { Plus, Search, Phone, ShoppingCart, Check, Trash2, CreditCard, Link as LinkIcon, Smartphone, Globe, MapPin, Upload, FileText, AlertCircle, Shield, Server, Loader2, RefreshCw, PhoneOutgoing, PhoneIncoming, Network, Bot, PanelLeft, ClipboardList } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePluginRegistry } from "@/contexts/plugin-registry";
 import { AuthStorage } from "@/lib/auth-storage";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
@@ -261,6 +263,11 @@ export default function PhoneNumbers() {
 
   // Active tab state for controlled Tabs
   const [activeTab, setActiveTab] = useState("owned");
+
+  // Two-panel layout state
+  const [selectedPhoneId, setSelectedPhoneId] = useState<string | null>(null);
+  const [sidebarSearch, setSidebarSearch] = useState("");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Plivo state
   const [plivoBuyDialogOpen, setPlivoBuyDialogOpen] = useState(false);
@@ -982,1408 +989,403 @@ export default function PhoneNumbers() {
     handleItemsPerPageChange,
   } = usePagination(ownedNumbers, 9);
 
-  return (
-    <div className="space-y-6">
-      {/* iOS 18 Style Clean Header */}
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('phoneNumbers.title')}</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">{t('phoneNumbers.subtitle')}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              className="rounded-2xl"
-              onClick={() => setLocation("/app/incoming-connections")}
-              data-testid="button-manage-connections"
-            >
-              <LinkIcon className="h-4 w-4 mr-2" />
-              {t('phoneNumbers.manageConnections')}
-            </Button>
-            <Button 
-              className="rounded-2xl"
-              onClick={() => setAddNumberDialogOpen(true)} 
-              data-testid="button-add-number"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {t('phoneNumbers.addNumber', { defaultValue: 'Add Number' })}
-            </Button>
-          </div>
-        </div>
+  interface UnifiedPhoneNumber {
+    id: string;
+    phoneNumber: string;
+    friendlyName?: string;
+    status: string;
+    provider: 'twilio' | 'plivo' | 'tcxc';
+    country: string;
+  }
 
-        {/* iOS 18 Style Stats Pills */}
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <span className="text-lg font-semibold text-foreground" data-testid="text-total-numbers">{totalNumbers}</span>
-              <p className="text-xs text-muted-foreground">{t('phoneNumbers.stats.totalNumbers')}</p>
-            </div>
+  const allPhoneNumbers = useMemo<UnifiedPhoneNumber[]>(() => {
+    const unified: UnifiedPhoneNumber[] = [];
+    ownedNumbers.forEach(n => {
+      unified.push({
+        id: `twilio-${n.id}`,
+        phoneNumber: n.phoneNumber,
+        friendlyName: n.friendlyName,
+        status: n.status,
+        provider: 'twilio',
+        country: n.country,
+      });
+    });
+    plivoNumbers.forEach(n => {
+      unified.push({
+        id: `plivo-${n.id}`,
+        phoneNumber: n.phoneNumber,
+        status: n.status,
+        provider: 'plivo',
+        country: n.country,
+      });
+    });
+    tcxcMyDids.forEach(n => {
+      unified.push({
+        id: `tcxc-${n.id}`,
+        phoneNumber: n.phoneNumber,
+        status: n.available ? 'active' : 'inactive',
+        provider: 'tcxc',
+        country: n.countryName || n.countryCode,
+      });
+    });
+    return unified;
+  }, [ownedNumbers, plivoNumbers, tcxcMyDids]);
+
+  const filteredPhoneNumbers = useMemo(() => {
+    if (!sidebarSearch.trim()) return allPhoneNumbers;
+    const q = sidebarSearch.toLowerCase();
+    return allPhoneNumbers.filter(n =>
+      n.phoneNumber.toLowerCase().includes(q) ||
+      (n.friendlyName && n.friendlyName.toLowerCase().includes(q)) ||
+      n.provider.toLowerCase().includes(q) ||
+      n.country.toLowerCase().includes(q)
+    );
+  }, [allPhoneNumbers, sidebarSearch]);
+
+  const selectedPhone = useMemo(() => {
+    if (!selectedPhoneId) return null;
+    return allPhoneNumbers.find(n => n.id === selectedPhoneId) || null;
+  }, [selectedPhoneId, allPhoneNumbers]);
+
+  const getSelectedOriginalNumber = () => {
+    if (!selectedPhone) return null;
+    const [provider, ...idParts] = selectedPhone.id.split('-');
+    const rawId = idParts.join('-');
+    if (provider === 'twilio') return { type: 'twilio' as const, data: ownedNumbers.find(n => n.id === rawId) };
+    if (provider === 'plivo') return { type: 'plivo' as const, data: plivoNumbers.find(n => n.id === rawId) };
+    if (provider === 'tcxc') return { type: 'tcxc' as const, data: tcxcMyDids.find(n => n.id === rawId) };
+    return null;
+  };
+
+  const renderSidebarContent = () => (
+    <>
+      <div className="px-3 py-3 border-b border-black/[0.06] dark:border-white/[0.08]">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-semibold text-foreground">{t('phoneNumbers.title')}</span>
           </div>
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
-            <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center">
-              <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <span className="text-lg font-semibold text-foreground">{activeNumbers}</span>
-              <p className="text-xs text-muted-foreground">{t('common.active')}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
-            <div className="w-8 h-8 rounded-xl bg-teal-500/10 flex items-center justify-center">
-              <LinkIcon className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-            </div>
-            <div>
-              <span className="text-lg font-semibold text-foreground">{connectedNumbers}</span>
-              <p className="text-xs text-muted-foreground">{t('phoneNumbers.stats.connected')}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 flex items-center justify-center">
-              <CreditCard className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-            </div>
-            <div>
-              <span className="text-lg font-semibold text-foreground">{MONTHLY_CREDITS}</span>
-              <p className="text-xs text-muted-foreground">{t('phoneNumbers.stats.creditsPerMonth')}</p>
-            </div>
-          </div>
+          <Button
+            size="icon"
+            variant="default"
+            className="rounded-full"
+            onClick={() => setAddNumberDialogOpen(true)}
+            data-testid="button-add-number-sidebar"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search phone numbers"
+            value={sidebarSearch}
+            onChange={(e) => setSidebarSearch(e.target.value)}
+            className="h-8 pl-8 text-xs"
+            data-testid="input-sidebar-search"
+          />
         </div>
       </div>
-
-      {/* iOS 18 Style Pill Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-foreground/[0.03] rounded-2xl p-1 border border-border/30">
-          <TabsTrigger value="owned" data-testid="tab-owned-numbers">
-            Twilio Numbers ({ownedNumbers.length})
-          </TabsTrigger>
-          {plivoEnabled && (
-            <TabsTrigger value="plivo" data-testid="tab-plivo-numbers">
-              Plivo Numbers ({plivoNumbers.length})
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="tcxc-dids" data-testid="tab-tcxc-dids">
-            <PhoneIncoming className="h-4 w-4 mr-1" />
-            TCXC DIDs ({tcxcMyDids.length})
-          </TabsTrigger>
-          <TabsTrigger value="outbound" data-testid="tab-outbound">
-            <PhoneOutgoing className="h-4 w-4 mr-1" />
-            Outbound
-          </TabsTrigger>
-          {phoneNumbersTabs.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id} data-testid={`tab-${tab.id}`}>
-              {tab.icon === 'Server' && <Server className="h-4 w-4 mr-1" />}
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="owned" className="space-y-4">
-          {ownedLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="p-6 animate-pulse">
-                  <div className="h-6 bg-muted rounded w-3/4 mb-4" />
-                  <div className="h-4 bg-muted rounded w-full mb-2" />
-                  <div className="h-4 bg-muted rounded w-2/3" />
-                </Card>
-              ))}
+      <ScrollArea className="flex-1">
+        <div className="py-1">
+          {(ownedLoading || plivoNumbersLoading || tcxcMyDidsLoading) ? (
+            <div className="px-3 py-6 flex items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : ownedNumbers.length === 0 ? (
-            <Card className="p-6 sm:p-8">
-              <div className="text-center mb-6">
-                <Phone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">{t('phoneNumbers.empty.title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('phoneNumbers.empty.description')}
-                </p>
-              </div>
-
-              {twilioKycRequired && !canPurchaseTwilio ? (
-                <div className="text-center py-8">
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-6 max-w-md mx-auto">
-                    <Shield className="h-10 w-10 mx-auto mb-4 text-amber-500" />
-                    <h4 className="font-semibold mb-2">{t('phoneNumbers.kyc.requiredTitle', { defaultValue: 'KYC Verification Required' })}</h4>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {t('phoneNumbers.kyc.requiredDescription', { defaultValue: 'You need to complete identity verification before purchasing phone numbers.' })}
-                    </p>
-                    <Button onClick={() => setKycRequiredDialogOpen(true)} data-testid="button-complete-kyc-inline">
-                      <Shield className="h-4 w-4 mr-2" />
-                      {t('phoneNumbers.kyc.completeVerification', { defaultValue: 'Complete KYC Verification' })}
-                    </Button>
+          ) : filteredPhoneNumbers.length === 0 ? (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              {allPhoneNumbers.length === 0 ? "No phone numbers yet" : "No matching numbers"}
+            </div>
+          ) : (
+            filteredPhoneNumbers.map((phone) => (
+              <button
+                key={phone.id}
+                onClick={() => {
+                  setSelectedPhoneId(phone.id);
+                  setMobileSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${
+                  selectedPhoneId === phone.id
+                    ? 'bg-primary/10 dark:bg-primary/15'
+                    : 'hover-elevate'
+                }`}
+                data-testid={`sidebar-phone-${phone.id}`}
+              >
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  phone.status === 'active' ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-mono font-medium text-foreground truncate">
+                    {formatPhoneNumber(phone.phoneNumber)}
                   </div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {phone.provider === 'twilio' ? 'Twilio' : phone.provider === 'plivo' ? 'Plivo' : 'TCXC'} · {phone.country}
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </>
+  );
+
+  const renderSelectedDetails = () => {
+    if (!selectedPhone) return null;
+    const original = getSelectedOriginalNumber();
+    if (!original?.data) return null;
+
+    const { type, data } = original;
+    const connection = type === 'twilio' ? getConnection((data as PhoneNumber).id) : null;
+    const plivoConn = type === 'plivo' ? getPlivoConnection((data as PlivoPhoneNumber).id) : null;
+
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-xl font-semibold font-mono tracking-tight text-foreground" data-testid="text-selected-phone-number">
+              {formatPhoneNumber(selectedPhone.phoneNumber)}
+            </h2>
+            {((type === 'twilio' && twilioKycRequired) || (type === 'plivo' && plivoKycRequired)) && (
+              <Badge 
+                variant="outline"
+                className={`cursor-pointer ${
+                  currentUser?.kycStatus === 'approved'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                    : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30'
+                }`}
+                onClick={() => setLocation('/app/settings')}
+                data-testid="badge-kyc-status-detail"
+              >
+                <Shield className="h-3 w-3 mr-1" />
+                {getKycStatusLabel(currentUser?.kycStatus ?? undefined)}
+              </Badge>
+            )}
+          </div>
+          {selectedPhone.friendlyName && (
+            <p className="text-sm text-muted-foreground mt-0.5">{selectedPhone.friendlyName}</p>
+          )}
+        </div>
+
+        <Card className="p-5">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Status</span>
+              <Badge variant={selectedPhone.status === 'active' ? 'default' : 'secondary'}>
+                {selectedPhone.status === 'active' ? t('common.active') : selectedPhone.status}
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Provider</span>
+              <Badge variant="outline">
+                {selectedPhone.provider === 'twilio' ? 'Twilio' : selectedPhone.provider === 'plivo' ? 'Plivo' : 'TCXC'}
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">{t('phoneNumbers.labels.country')}</span>
+              <span className="text-sm font-medium text-foreground">{selectedPhone.country}</span>
+            </div>
+
+            {type === 'twilio' && !(data as PhoneNumber).isSystemPool && (
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-sm text-muted-foreground">{t('phoneNumbers.labels.monthlyCost')}</span>
+                <span className="text-sm font-medium text-foreground">{MONTHLY_CREDITS} {t('phoneNumbers.labels.credits')}</span>
+              </div>
+            )}
+
+            {type === 'plivo' && (
+              <>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Monthly Cost</span>
+                  <span className="text-sm font-medium text-foreground">{(data as PlivoPhoneNumber).monthlyCredits} credits</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Purchase Cost</span>
+                  <span className="text-sm font-medium text-foreground">{(data as PlivoPhoneNumber).purchaseCredits} credits</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Purchased</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {new Date((data as PlivoPhoneNumber).purchasedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {type === 'tcxc' && (
+              <>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Type</span>
+                  <span className="text-sm font-medium text-foreground">{(data as TcxcDid).type}</span>
+                </div>
+                {(data as TcxcDid).monthlyPrice > 0 && (
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground">Monthly Price</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {(data as TcxcDid).currency} {(data as TcxcDid).monthlyPrice}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="border-t pt-4">
+              <span className="text-sm text-muted-foreground">Connection</span>
+              {type === 'twilio' && connection ? (
+                <div className="flex items-center gap-2 mt-1.5" data-testid={`connection-status-connected-${(data as PhoneNumber).id}`}>
+                  <LinkIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                  <span className="text-sm text-muted-foreground">{t('phoneNumbers.status.connectedTo')}</span>
+                  <span className="text-sm font-medium text-foreground" data-testid={`connection-agent-name-${(data as PhoneNumber).id}`}>
+                    {connection.agent.name}
+                  </span>
+                </div>
+              ) : type === 'plivo' && plivoConn?.agent ? (
+                <div className="flex items-center gap-2 mt-1.5" data-testid={`plivo-connection-status-connected-${(data as PlivoPhoneNumber).id}`}>
+                  <LinkIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                  <span className="text-sm text-muted-foreground">{t('phoneNumbers.status.connectedTo')}</span>
+                  <span className="text-sm font-medium text-foreground">{plivoConn.agent.name}</span>
                 </div>
               ) : (
-                <>
-                  <div className="bg-accent/50 border border-accent rounded-lg p-4 flex items-start gap-3 mb-6">
-                    <CreditCard className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-sm mb-1">{t('phoneNumbers.dialog.monthlyBilling')}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {t('phoneNumbers.dialog.monthlyBillingDesc', { credits: MONTHLY_CREDITS })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6 max-w-xl mx-auto">
-                <div className="space-y-3">
-                  <Label>{t('phoneNumbers.labels.country')}</Label>
-                  <Select value={searchCountry} onValueChange={setSearchCountry} disabled={countriesLoading}>
-                    <SelectTrigger data-testid="select-country-inline">
-                      <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <SelectValue placeholder={countriesLoading ? t('phoneNumbers.placeholders.loadingCountries') : t('phoneNumbers.placeholders.selectCountry')} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {countries.map((country) => (
-                        <SelectItem key={country.code} value={country.code}>
-                          {country.name} ({country.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-sm text-muted-foreground">{t('phoneNumbers.status.notConnected')}</span>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="search-contains-inline">Search by digits (optional)</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="search-contains-inline"
-                      placeholder="e.g. 2200, 555"
-                      value={searchContains}
-                      onChange={(e) => setSearchContains(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      className="pl-10"
-                      data-testid="input-search-contains-inline"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Filter numbers containing specific digits (leave empty to see all available)
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setHasSearched(true);
-                      searchNumbers();
-                    }}
-                    disabled={!canSearch() || searchLoading}
-                    className="flex-1"
-                    data-testid="button-search-numbers-inline"
-                  >
-                    {searchLoading ? (
-                      <>
-                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                        {t('phoneNumbers.actions.searching')}
-                      </>
-                    ) : (
-                      <>
-                        <Search className="h-4 w-4 mr-2" />
-                        {t('phoneNumbers.actions.searchNumbers')}
-                      </>
-                    )}
-                  </Button>
-                  {hasSearched && (
-                    <Button
-                      variant="outline"
-                      onClick={() => searchNumbers()}
-                      disabled={!canSearch() || searchLoading}
-                      data-testid="button-refresh-numbers-inline"
-                      title="Load different numbers"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${searchLoading ? 'animate-spin' : ''}`} />
-                    </Button>
-                  )}
-                </div>
-
-                {!searchLoading && hasSearched && availableNumbers.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {t('phoneNumbers.search.noResults')}
-                  </div>
-                )}
-
-                {availableNumbers.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>{t('phoneNumbers.labels.availableNumbers')}</Label>
-                    <div className="border rounded-md divide-y max-h-96 overflow-y-auto">
-                      {availableNumbers.map((number) => (
-                        <div
-                          key={number.phoneNumber}
-                          className={`p-4 hover-elevate cursor-pointer ${
-                            selectedNumber?.phoneNumber === number.phoneNumber ? "bg-accent" : ""
-                          }`}
-                          onClick={() => setSelectedNumber(number)}
-                          data-testid={`available-number-inline-${number.phoneNumber}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="font-mono font-semibold">
-                                {formatPhoneNumber(number.phoneNumber)}
-                              </div>
-                              {number.locality && number.region && (
-                                <div className="text-sm text-muted-foreground">
-                                  {number.locality}, {number.region}
-                                </div>
-                              )}
-                            </div>
-                            {selectedNumber?.phoneNumber === number.phoneNumber && (
-                              <Check className="h-5 w-5 text-primary" />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedNumber && (
-                  <div className="space-y-2">
-                    <Label htmlFor="friendly-name-inline">{t('phoneNumbers.labels.friendlyName')}</Label>
-                    <Input
-                      id="friendly-name-inline"
-                      placeholder={t('phoneNumbers.placeholders.friendlyName')}
-                      value={friendlyName}
-                      onChange={(e) => setFriendlyName(e.target.value)}
-                      data-testid="input-friendly-name-inline"
-                    />
-                  </div>
-                )}
-
-                {selectedNumber && (
-                  <div className="flex justify-center">
-                    <Button
-                      onClick={handleBuyNumber}
-                      disabled={!selectedNumber || buyMutation.isPending}
-                      data-testid="button-confirm-purchase-inline"
-                    >
-                      {buyMutation.isPending ? (
-                        t('phoneNumbers.actions.purchasing')
-                      ) : (
-                        <>
-                          <ShoppingCart className="h-4 w-4 mr-2" />
-                          {t('phoneNumbers.actions.purchaseFor', { credits: MONTHLY_CREDITS })}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
-                </>
-              )}
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {paginatedNumbers.map((number) => (
-                  <Card
-                    key={number.id}
-                    className="p-4 sm:p-6"
-                    data-testid={`card-phone-${number.id}`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-4">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base sm:text-lg font-semibold font-mono mb-1 break-all" data-testid="text-phone-number">
-                          {formatPhoneNumber(number.phoneNumber)}
-                        </h3>
-                        {number.friendlyName && (
-                          <p className="text-sm text-muted-foreground truncate">{number.friendlyName}</p>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-1 items-end">
-                        <Badge variant={number.status === "active" ? "default" : "secondary"}>
-                          {number.status === "active" ? t('common.active') : number.status}
-                        </Badge>
-                        {twilioKycRequired && (
-                          <Badge 
-                            variant="outline"
-                            className={`cursor-pointer transition-colors ${
-                              currentUser?.kycStatus === 'approved'
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/20'
-                            }`}
-                            onClick={() => setLocation('/app/settings')}
-                            data-testid={`badge-kyc-status-twilio-${number.id}`}
-                          >
-                            <Shield className="h-3 w-3 mr-1" />
-                            {getKycStatusLabel(currentUser?.kycStatus ?? undefined)}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>{t('phoneNumbers.labels.country')}:</span>
-                        <span className="font-medium text-foreground">{number.country}</span>
-                      </div>
-                      {!number.isSystemPool && (
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>{t('phoneNumbers.labels.monthlyCost')}:</span>
-                          <span className="font-medium text-foreground">{MONTHLY_CREDITS} {t('phoneNumbers.labels.credits')}</span>
-                        </div>
-                      )}
-                      {(() => {
-                        const connection = getConnection(number.id);
-                        return connection ? (
-                          <div 
-                            className="flex flex-wrap items-center gap-1 sm:gap-2 pt-3 text-sm" 
-                            data-testid={`connection-status-connected-${number.id}`}
-                          >
-                            <LinkIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                            <span className="text-muted-foreground">{t('phoneNumbers.status.connectedTo')}</span>
-                            <span className="font-medium text-foreground truncate" data-testid={`connection-agent-name-${number.id}`}>
-                              {connection.agent.name}
-                            </span>
-                          </div>
-                        ) : (
-                          <div 
-                            className="flex items-center gap-2 pt-3 text-sm text-muted-foreground"
-                            data-testid={`connection-status-not-connected-${number.id}`}
-                          >
-                            <span>{t('phoneNumbers.status.notConnected')}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {!number.isSystemPool && (
-                      <div className="pt-4 mt-4 border-t space-y-2">
-                        {twilioKycRequired && !isKycApproved && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => {
-                              setKycRequiredDialogOpen(true);
-                            }}
-                            data-testid={`button-kyc-twilio-${number.id}`}
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Complete KYC Verification
-                          </Button>
-                        )}
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => {
-                            setNumberToRelease(number);
-                            setReleaseDialogOpen(true);
-                          }}
-                          data-testid={`button-release-${number.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          {t('phoneNumbers.actions.release')}
-                        </Button>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
-
-              {totalPages > 1 && (
-                <DataPagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  totalItems={totalItems}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={handlePageChange}
-                  onItemsPerPageChange={handleItemsPerPageChange}
-                  itemsPerPageOptions={[9, 18, 27, 54]}
-                  data-testid="pagination-phone-numbers"
-                />
               )}
             </div>
+
+            {type === 'plivo' && (data as PlivoPhoneNumber).kycRejectionReason && (
+              <div className="p-3 bg-destructive/10 rounded-md border border-destructive/20">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-destructive">KYC Rejection Reason:</p>
+                    <p className="text-sm text-muted-foreground">{(data as PlivoPhoneNumber).kycRejectionReason}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/app/incoming-connections")}
+            data-testid="button-manage-connections"
+          >
+            <LinkIcon className="h-4 w-4 mr-2" />
+            {t('phoneNumbers.manageConnections')}
+          </Button>
+
+          {type === 'twilio' && !(data as PhoneNumber).isSystemPool && (
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setNumberToRelease(data as PhoneNumber);
+                setReleaseDialogOpen(true);
+              }}
+              data-testid={`button-release-${(data as PhoneNumber).id}`}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {t('phoneNumbers.actions.release')}
+            </Button>
           )}
-        </TabsContent>
 
-        {plivoEnabled && (
-          <TabsContent value="plivo" className="space-y-4">
-            {plivoNumbersLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1, 2, 3].map((i) => (
-                  <Card key={i} className="p-6 animate-pulse">
-                    <div className="h-6 bg-muted rounded w-3/4 mb-4" />
-                    <div className="h-4 bg-muted rounded w-full mb-2" />
-                    <div className="h-4 bg-muted rounded w-2/3" />
-                  </Card>
-                ))}
-              </div>
-            ) : plivoNumbers.length === 0 ? (
-              <Card className="p-8 sm:p-16 text-center">
-                <Phone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No Plivo Numbers</h3>
-                <p className="text-muted-foreground mb-4">
-                  You haven't purchased any Plivo phone numbers yet.
-                </p>
-                <Button onClick={() => handleBuyClick('plivo')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Buy Your First Phone Number
-                </Button>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                  {paginatedPlivoNumbers.map((number) => {
-                    const pricing = getPlivoPricing(number.country);
-                    // Show KYC button if admin has enabled KYC for Plivo AND user's KYC is not approved
-                    const needsKyc = plivoKycRequired && !isKycApproved;
-                    
-                    return (
-                      <Card
-                        key={number.id}
-                        className="p-4 sm:p-6"
-                        data-testid={`card-plivo-phone-${number.id}`}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-4">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-base sm:text-lg font-semibold font-mono mb-1 break-all">
-                              {formatPhoneNumber(number.phoneNumber)}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              {number.country}{number.region ? ` - ${number.region}` : ''}
-                            </p>
-                          </div>
-                          <div className="flex flex-col gap-1 items-end">
-                            <Badge variant={number.status === "active" ? "default" : "secondary"}>
-                              {number.status === "active" ? t('common.active') : number.status}
-                            </Badge>
-                            {plivoKycRequired && (
-                              <Badge 
-                                variant="outline"
-                                className={`cursor-pointer transition-colors ${
-                                  currentUser?.kycStatus === 'approved'
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                                    : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/20'
-                                }`}
-                                onClick={() => setLocation('/app/settings')}
-                                data-testid={`badge-kyc-status-plivo-${number.id}`}
-                              >
-                                <Shield className="h-3 w-3 mr-1" />
-                                {getKycStatusLabel(currentUser?.kycStatus ?? undefined)}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Monthly Cost:</span>
-                            <span className="font-medium text-foreground">{number.monthlyCredits} credits</span>
-                          </div>
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Purchase Cost:</span>
-                            <span className="font-medium text-foreground">{number.purchaseCredits} credits</span>
-                          </div>
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Purchased:</span>
-                            <span className="font-medium text-foreground">
-                              {new Date(number.purchasedAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-
-                        {(() => {
-                          const plivoConn = getPlivoConnection(number.id);
-                          return plivoConn?.agent ? (
-                            <div className="flex flex-wrap items-center gap-1 sm:gap-2 pt-3 text-sm" data-testid={`plivo-connection-status-connected-${number.id}`}>
-                              <LinkIcon className="h-3.5 w-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                              <span className="text-muted-foreground">{t('phoneNumbers.status.connectedTo')}</span>
-                              <span className="font-medium text-foreground truncate">{plivoConn.agent.name}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 pt-3 text-sm text-muted-foreground" data-testid={`plivo-connection-status-not-connected-${number.id}`}>
-                              <span>{t('phoneNumbers.status.notConnected')}</span>
-                            </div>
-                          );
-                        })()}
-
-                        {number.kycRejectionReason && (
-                          <div className="mt-3 p-3 bg-destructive/10 rounded-md border border-destructive/20">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
-                              <div>
-                                <p className="text-sm font-medium text-destructive">KYC Rejection Reason:</p>
-                                <p className="text-sm text-muted-foreground">{number.kycRejectionReason}</p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="pt-4 mt-4 border-t space-y-2">
-                          {needsKyc && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full"
-                              onClick={() => {
-                                setKycRequiredDialogOpen(true);
-                              }}
-                              data-testid={`button-upload-kyc-${number.id}`}
-                            >
-                              <Upload className="h-4 w-4 mr-2" />
-                              Complete KYC Verification
-                            </Button>
-                          )}
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => {
-                              setPlivoNumberToRelease(number);
-                              setPlivoReleaseDialogOpen(true);
-                            }}
-                            data-testid={`button-release-plivo-${number.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Release Number
-                          </Button>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {plivoTotalPages > 1 && (
-                  <DataPagination
-                    currentPage={plivoCurrentPage}
-                    totalPages={plivoTotalPages}
-                    totalItems={plivoTotalItems}
-                    itemsPerPage={plivoItemsPerPage}
-                    onPageChange={handlePlivoPageChange}
-                    onItemsPerPageChange={handlePlivoItemsPerPageChange}
-                    itemsPerPageOptions={[9, 18, 27, 54]}
-                    data-testid="pagination-plivo-numbers"
-                  />
-                )}
-              </div>
-            )}
-          </TabsContent>
-        )}
-
-        {/* TCXC DIDs Tab */}
-        <TabsContent value="tcxc-dids" className="space-y-4">
-          {!tcxcConfigured ? (
-            <Card className="p-8 sm:p-16 text-center">
-              <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">TCXC Not Configured</h3>
-              <p className="text-muted-foreground mb-4">
-                Configure your TelecomXchange API credentials to browse and purchase DIDs from the marketplace.
-              </p>
-              <Button onClick={() => setLocation("/admin/settings")} data-testid="button-configure-tcxc">
-                Configure TCXC API
-              </Button>
-            </Card>
-          ) : (
-            <div className="space-y-6">
-              {/* My Interconnections Section */}
-              <Card className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Network className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">My Interconnections</h3>
-                    <p className="text-sm text-muted-foreground">Network topology and tech prefix routing</p>
-                  </div>
-                </div>
-
-                {tcxcInterconnections.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Network className="h-8 w-8 mx-auto mb-2" />
-                    <p>No interconnections configured yet.</p>
-                    <p className="text-sm">Add your tech prefixes in Admin Settings.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Network Topology Diagram */}
-                    <div className="rounded-lg border p-4 bg-muted/30">
-                      <h4 className="text-sm font-medium mb-3">Call Flow Topology</h4>
-                      <div className="flex items-center justify-center gap-2 flex-wrap py-4">
-                        <div className="flex flex-col items-center">
-                          <div className="h-16 w-16 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                            <Phone className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <span className="text-xs text-muted-foreground mt-1">Inbound Call</span>
-                        </div>
-                        <div className="text-2xl text-muted-foreground">→</div>
-                        <div className="flex flex-col items-center">
-                          <div className="h-16 w-20 rounded-lg bg-amber-100 dark:bg-amber-900 flex flex-col items-center justify-center px-2">
-                            <span className="text-xs font-mono font-bold text-amber-700 dark:text-amber-300">Tech Prefix</span>
-                            <div className="flex gap-1 mt-1 flex-wrap justify-center">
-                              {tcxcInterconnections.flatMap(i => i.techPrefixes).slice(0, 3).map((prefix, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-[10px] font-mono px-1">
-                                  {prefix}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          <span className="text-xs text-muted-foreground mt-1">Routing</span>
-                        </div>
-                        <div className="text-2xl text-muted-foreground">→</div>
-                        <div className="flex gap-2">
-                          {tcxcInterconnections.map((interconnection) => (
-                            <div key={interconnection.id} className="flex flex-col items-center">
-                              <div className={`h-16 w-20 rounded-lg flex flex-col items-center justify-center px-2 ${
-                                interconnection.healthStatus === 'healthy' 
-                                  ? 'bg-green-100 dark:bg-green-900' 
-                                  : 'bg-muted'
-                              }`}>
-                                {interconnection.connectionType === 'softswitch' ? (
-                                  <Server className={`h-6 w-6 ${interconnection.healthStatus === 'healthy' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
-                                ) : (
-                                  <Globe className={`h-6 w-6 ${interconnection.healthStatus === 'healthy' ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
-                                )}
-                                <span className="text-[10px] font-medium mt-1 text-center truncate max-w-full">
-                                  {interconnection.name}
-                                </span>
-                              </div>
-                              <span className="text-xs text-muted-foreground mt-1">
-                                {interconnection.connectionType === 'softswitch' ? 'Softswitch' : 'TCXC'}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="text-2xl text-muted-foreground">→</div>
-                        <div className="flex flex-col items-center">
-                          <div className="h-16 w-16 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                            <Bot className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-                          </div>
-                          <span className="text-xs text-muted-foreground mt-1">AI Agent</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Interconnection Details */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {tcxcInterconnections.map((interconnection) => (
-                        <div key={interconnection.id} className="p-4 rounded-lg border" data-testid={`card-interconnection-${interconnection.id}`}>
-                          <div className="flex items-start justify-between gap-2 mb-3">
-                            <div className="flex items-center gap-2">
-                              {interconnection.connectionType === 'softswitch' ? (
-                                <Server className="h-5 w-5 text-muted-foreground" />
-                              ) : (
-                                <Globe className="h-5 w-5 text-muted-foreground" />
-                              )}
-                              <h4 className="font-semibold">{interconnection.name}</h4>
-                            </div>
-                            <Badge 
-                              variant={interconnection.healthStatus === 'healthy' ? 'default' : 'secondary'}
-                              className={interconnection.healthStatus === 'healthy' ? 'bg-green-600 dark:bg-green-700' : ''}
-                            >
-                              {interconnection.healthStatus === 'healthy' ? 'Connected' : 'Unknown'}
-                            </Badge>
-                          </div>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Type:</span>
-                              <span>{interconnection.connectionType === 'softswitch' ? 'Softswitch' : 'TCXC API'}</span>
-                            </div>
-                            {interconnection.techPrefixes && interconnection.techPrefixes.length > 0 && (
-                              <div>
-                                <span className="text-muted-foreground">Tech Prefixes:</span>
-                                <div className="flex gap-1 mt-1 flex-wrap">
-                                  {interconnection.techPrefixes.map((prefix, idx) => (
-                                    <Badge key={idx} variant="outline" className="font-mono text-xs">
-                                      {prefix}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {interconnection.connectionType === 'softswitch' && interconnection.sipServer && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">SIP Server:</span>
-                                <span className="font-mono text-xs">{interconnection.sipServer}:{interconnection.sipPort || 5060}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </Card>
-
-              {/* DID Search Section */}
-              <Card className="p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold">Browse TCXC DID Marketplace</h3>
-                  <p className="text-sm text-muted-foreground">Select a country and type to search available numbers</p>
-                </div>
-
-                {/* Search Form - Twilio Style */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                  <div className="space-y-2">
-                    <Label>Country</Label>
-                    <Select value={tcxcSearchCountry} onValueChange={setTcxcSearchCountry}>
-                      <SelectTrigger data-testid="select-tcxc-country">
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {gccCountries.length > 0 && (
-                          <>
-                            {gccCountries.map((country) => (
-                              <SelectItem key={country.code} value={country.code}>
-                                {country.name}
-                              </SelectItem>
-                            ))}
-                          </>
-                        )}
-                        <SelectItem value="US">United States</SelectItem>
-                        <SelectItem value="GB">United Kingdom</SelectItem>
-                        <SelectItem value="CA">Canada</SelectItem>
-                        <SelectItem value="AU">Australia</SelectItem>
-                        <SelectItem value="DE">Germany</SelectItem>
-                        <SelectItem value="FR">France</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Type</Label>
-                    <Select value={tcxcSearchType} onValueChange={(v) => setTcxcSearchType(v as "local" | "tollfree" | "mobile")}>
-                      <SelectTrigger data-testid="select-tcxc-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="local">Local</SelectItem>
-                        <SelectItem value="tollfree">Toll-Free</SelectItem>
-                        <SelectItem value="mobile">Mobile</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button 
-                    onClick={() => searchTcxcDids()} 
-                    disabled={!tcxcSearchCountry || tcxcSearchLoading}
-                    data-testid="button-search-tcxc"
-                  >
-                    {tcxcSearchLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
-                    Search DIDs
-                  </Button>
-                  <Button variant="outline" onClick={() => refetchTcxcMyDids()} data-testid="button-refresh-my-tcxc">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh My DIDs
-                  </Button>
-                </div>
-              </Card>
-
-              {/* Search Results - Organized by Type */}
-              {tcxcSearchCountry && (
-                <Card className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold">
-                        Available DIDs in {
-                          [
-                            { code: 'SA', name: 'Saudi Arabia' },
-                            { code: 'AE', name: 'UAE' },
-                            { code: 'QA', name: 'Qatar' },
-                            { code: 'KW', name: 'Kuwait' },
-                            { code: 'BH', name: 'Bahrain' },
-                            { code: 'OM', name: 'Oman' },
-                            { code: 'US', name: 'USA' },
-                            { code: 'GB', name: 'UK' },
-                            { code: 'CA', name: 'Canada' },
-                            { code: 'AU', name: 'Australia' },
-                            { code: 'DE', name: 'Germany' },
-                            { code: 'FR', name: 'France' },
-                          ].find(c => c.code === tcxcSearchCountry)?.name || tcxcSearchCountry
-                        }
-                      </h3>
-                      {tcxcSearchLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                    </div>
-                    <Badge variant="secondary">{tcxcAvailableDids.length} numbers found</Badge>
-                  </div>
-
-                  {tcxcSearchLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="p-4 rounded-md border animate-pulse">
-                          <div className="h-6 bg-muted rounded w-3/4 mb-2" />
-                          <div className="h-4 bg-muted rounded w-full mb-1" />
-                          <div className="h-4 bg-muted rounded w-2/3" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : tcxcAvailableDids.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Globe className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="font-medium">No DIDs available for {tcxcSearchCountry}</p>
-                      <p className="text-sm mt-1">Try selecting a different country or type</p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Group by Type */}
-                      {['local', 'tollfree', 'mobile'].map((type) => {
-                        const didsOfType = tcxcAvailableDids.filter(d => d.type.toLowerCase() === type);
-                        if (didsOfType.length === 0) return null;
-                        
-                        return (
-                          <div key={type} className="mb-6 last:mb-0">
-                            <div className="flex items-center gap-2 mb-3">
-                              {type === 'local' && <MapPin className="h-4 w-4 text-blue-500" />}
-                              {type === 'tollfree' && <Phone className="h-4 w-4 text-green-500" />}
-                              {type === 'mobile' && <Smartphone className="h-4 w-4 text-purple-500" />}
-                              <h4 className="font-medium capitalize">{type} Numbers</h4>
-                              <Badge variant="outline" className="text-xs">{didsOfType.length}</Badge>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {didsOfType.map((did) => (
-                                <div 
-                                  key={did.id} 
-                                  className={`p-4 rounded-lg border cursor-pointer hover-elevate transition-all ${
-                                    selectedTcxcDid?.id === did.id 
-                                      ? 'ring-2 ring-primary border-primary bg-primary/5' 
-                                      : 'hover:border-primary/50'
-                                  }`}
-                                  onClick={() => setSelectedTcxcDid(did)}
-                                  data-testid={`card-tcxc-did-${did.id}`}
-                                >
-                                  <div className="flex items-start justify-between gap-2 mb-2">
-                                    <h5 className="font-mono font-semibold text-lg">{did.phoneNumber}</h5>
-                                    {selectedTcxcDid?.id === did.id && (
-                                      <Check className="h-5 w-5 text-primary" />
-                                    )}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground space-y-1">
-                                    {did.city && (
-                                      <div className="flex items-center gap-1">
-                                        <MapPin className="h-3 w-3" />
-                                        <span>{did.city}, {did.region}</span>
-                                      </div>
-                                    )}
-                                    <div className="flex items-center justify-between pt-2 border-t mt-2">
-                                      <span className="text-xs">Monthly</span>
-                                      <span className="font-semibold text-foreground">{did.currency} {did.monthlyPrice}</span>
-                                    </div>
-                                    {did.setupPrice > 0 && (
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs">Setup</span>
-                                        <span>{did.currency} {did.setupPrice}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {selectedTcxcDid?.id === did.id && (
-                                    <Button 
-                                      className="w-full mt-3" 
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setTcxcBuyDialogOpen(true);
-                                      }}
-                                      data-testid={`button-buy-tcxc-${did.id}`}
-                                    >
-                                      <ShoppingCart className="h-4 w-4 mr-2" />
-                                      Purchase This DID
-                                    </Button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </>
-                  )}
-                </Card>
-              )}
-
-              {/* My DIDs */}
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">My TCXC DIDs ({tcxcMyDids.length})</h3>
-                {tcxcMyDidsLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="p-4 rounded-md border animate-pulse">
-                        <div className="h-6 bg-muted rounded w-3/4 mb-2" />
-                        <div className="h-4 bg-muted rounded w-full" />
-                      </div>
-                    ))}
-                  </div>
-                ) : tcxcMyDids.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Phone className="h-8 w-8 mx-auto mb-2" />
-                    <p>No DIDs purchased yet. Search above to find and purchase DIDs.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {tcxcMyDids.map((did) => (
-                      <div key={did.id} className="p-4 rounded-md border" data-testid={`card-my-tcxc-${did.id}`}>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h4 className="font-mono font-semibold">{did.phoneNumber}</h4>
-                          <Badge>{did.available ? 'Active' : 'Inactive'}</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <div className="flex justify-between">
-                            <span>Country:</span>
-                            <span>{did.countryName}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Type:</span>
-                            <span>{did.type}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </div>
+          {type === 'plivo' && (
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setPlivoNumberToRelease(data as PlivoPhoneNumber);
+                setPlivoReleaseDialogOpen(true);
+              }}
+              data-testid={`button-release-plivo-${(data as PlivoPhoneNumber).id}`}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Release Number
+            </Button>
           )}
-        </TabsContent>
 
-        {/* Outbound Tab */}
-        <TabsContent value="outbound" className="space-y-4">
-          {/* Browse Provider Numbers - Same UI as TCXC DID Marketplace */}
-          <Card className="p-6">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold">Browse Provider Numbers</h3>
-              <p className="text-sm text-muted-foreground">Select a provider and country to search available caller IDs</p>
+          {((type === 'twilio' && twilioKycRequired && !isKycApproved) || (type === 'plivo' && plivoKycRequired && !isKycApproved)) && (
+            <Button
+              variant="outline"
+              onClick={() => setKycRequiredDialogOpen(true)}
+              data-testid="button-complete-kyc-detail"
+            >
+              <Shield className="h-4 w-4 mr-2" />
+              Complete KYC
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex flex-1 min-h-0">
+        {/* Left Sidebar - Desktop */}
+        <div className="hidden md:flex flex-col w-[240px] flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-background">
+          {renderSidebarContent()}
+        </div>
+
+        {/* Mobile Sidebar Trigger */}
+        <div className="md:hidden border-b border-black/[0.06] dark:border-white/[0.08] px-3 py-2 flex items-center gap-2 flex-shrink-0">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setMobileSidebarOpen(true)}
+            data-testid="button-mobile-sidebar-toggle"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-semibold text-foreground">{t('phoneNumbers.title')}</span>
+          <Button
+            size="icon"
+            variant="default"
+            className="rounded-full ml-auto"
+            onClick={() => setAddNumberDialogOpen(true)}
+            data-testid="button-add-number"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        {/* Mobile Sidebar Sheet */}
+        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+          <SheetContent side="left" className="p-0 w-[280px]">
+            <SheetHeader className="sr-only">
+              <SheetTitle>{t('phoneNumbers.title')}</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col h-full">
+              {renderSidebarContent()}
             </div>
+          </SheetContent>
+        </Sheet>
 
-            {/* Search Form - Same style as TCXC DIDs */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div className="space-y-2">
-                <Label>Provider</Label>
-                <Select 
-                  value={selectedCarrier?.id || ""} 
-                  onValueChange={(value) => {
-                    const carrier = carrierProviders.find(p => p.id === value);
-                    setSelectedCarrier(carrier || null);
-                  }}
-                >
-                  <SelectTrigger data-testid="select-outbound-provider">
-                    <SelectValue placeholder="Select provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {carrierProviders.map((carrier) => (
-                      <SelectItem key={carrier.id} value={carrier.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{carrier.name}</span>
-                          <span className="font-mono text-xs text-muted-foreground">({carrier.techPrefix})</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Country (optional)</Label>
-                <Select 
-                  value={marketplaceSearchPrefix} 
-                  onValueChange={setMarketplaceSearchPrefix}
-                >
-                  <SelectTrigger data-testid="select-outbound-country">
-                    <SelectValue placeholder="All countries" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Countries</SelectItem>
-                    {gccCountries.length > 0 && (
-                      <>
-                        {gccCountries.map((country) => (
-                          <SelectItem key={country.code} value={country.prefix}>
-                            {country.name} (+{country.prefix})
-                          </SelectItem>
-                        ))}
-                      </>
-                    )}
-                    <SelectItem value="1">United States (+1)</SelectItem>
-                    <SelectItem value="44">United Kingdom (+44)</SelectItem>
-                    <SelectItem value="49">Germany (+49)</SelectItem>
-                    <SelectItem value="33">France (+33)</SelectItem>
-                    <SelectItem value="61">Australia (+61)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={() => {
-                    // Search TCXC marketplace - "all" or empty means no country filter
-                    const prefix = marketplaceSearchPrefix === 'all' || !marketplaceSearchPrefix 
-                      ? undefined 
-                      : marketplaceSearchPrefix;
-                    searchMarketplaceDids(undefined, prefix);
-                  }}
-                  disabled={isSearchingMarketplace}
-                  data-testid="button-search-outbound"
-                >
-                  {isSearchingMarketplace ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                  ) : (
-                    <Search className="h-4 w-4 mr-1" />
-                  )}
-                  Search Marketplace
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => {
-                    setSelectedCarrier(null);
-                    setMarketplaceSearchPrefix('');
-                    setMarketplaceSearchResults([]);
-                  }}
-                  data-testid="button-reset-outbound-search"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Search Results */}
-            {marketplaceSearchResults.length > 0 && (
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium">Available Numbers ({marketplaceSearchResults.length})</h4>
-                </div>
-                <div className="grid gap-4">
-                  {marketplaceSearchResults.map((did, index) => (
-                    <div 
-                      key={`${did.did}-${index}`}
-                      className="p-4 rounded-lg border hover-elevate"
-                      data-testid={`outbound-result-${index}`}
-                    >
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-semibold font-mono">{did.did}</h3>
-                          <p className="text-muted-foreground mt-1">
-                            {did.country}{did.description ? ` - ${did.description}` : ''}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Seller: {did.seller || 'Unknown'}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            {did.voice && <Badge variant="secondary">Voice</Badge>}
-                            {did.sms && <Badge variant="secondary">SMS</Badge>}
-                            {did.fax && <Badge variant="secondary">Fax</Badge>}
-                            {did.video && <Badge variant="secondary">Video</Badge>}
-                            {did.did_type && did.did_type !== 'any' && (
-                              <Badge variant="outline">{did.did_type}</Badge>
-                            )}
-                            {did.capacity && (
-                              <Badge variant="outline">Capacity: {did.capacity}</Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                          <p className="text-lg font-bold">
-                            ${(did.monthly_fee || 0).toFixed(2)}/month
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Setup: ${(did.setup_fee || 0).toFixed(2)}
-                          </p>
-                          {did.price_per_minute > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              ${did.price_per_minute.toFixed(4)}/min
-                            </p>
-                          )}
-                          <Button 
-                            className="mt-2"
-                            onClick={() => {
-                              setSelectedMarketplaceDid(did);
-                              setRentDialogOpen(true);
-                            }}
-                            data-testid={`button-rent-outbound-${index}`}
-                          >
-                            Purchase & Use
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Empty State for Search */}
-            {marketplaceSearchResults.length === 0 && !isSearchingMarketplace && (
-              <div className="text-center py-8 text-muted-foreground mt-6">
-                <Phone className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p className="font-medium">No Numbers Found</p>
-                <p className="text-sm max-w-md mx-auto">
-                  Select a country and click "Search Marketplace" to find available phone numbers.
-                </p>
-                <div className="mt-4 p-3 bg-muted/50 rounded-lg inline-block text-left">
-                  <p className="text-xs font-medium mb-2">Tip: Countries with available inventory:</p>
-                  <ul className="text-xs space-y-1">
-                    <li>United Kingdom (+44) - London landlines from Nexmo/Vonage</li>
-                    <li>Germany (+49) - National numbers</li>
-                    <li>France (+33) - Geographic numbers</li>
-                  </ul>
-                  <p className="text-xs mt-2 text-muted-foreground">GCC regions may have limited availability.</p>
-                </div>
-              </div>
-            )}
-
-            {/* Loading State */}
-            {isSearchingMarketplace && (
-              <div className="text-center py-8 text-muted-foreground mt-6">
-                <Loader2 className="h-10 w-10 mx-auto mb-3 animate-spin" />
-                <p className="font-medium">Searching Marketplace...</p>
-                <p className="text-sm">Finding available phone numbers from TCXC providers</p>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {carrierProviders.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <Network className="h-10 w-10 mx-auto mb-3" />
-                <p className="font-medium">No carrier providers configured</p>
-                <p className="text-sm">Configure your provider interconnections with tech prefixes in the TCXC tab first.</p>
-              </div>
-            )}
-          </Card>
-
-          {/* My Outbound Caller IDs */}
-          <Card className="p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold">My Outbound Caller IDs</h3>
-              <p className="text-sm text-muted-foreground">Phone numbers available for outbound calling</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {ownedNumbers.filter(n => n.status === 'active').map((number) => (
-                <div 
-                  key={number.id} 
-                  className="flex items-center justify-between p-3 rounded-lg border"
-                  data-testid={`outbound-number-${number.id}`}
-                >
-                  <div>
-                    <p className="font-mono text-sm">{formatPhoneNumber(number.phoneNumber)}</p>
-                    <p className="text-xs text-muted-foreground">{number.country} - Twilio</p>
-                  </div>
-                  <Badge variant="outline">Available</Badge>
-                </div>
-              ))}
-              {plivoNumbers.filter(n => n.status === 'active').map((number) => (
-                <div 
-                  key={number.id} 
-                  className="flex items-center justify-between p-3 rounded-lg border"
-                  data-testid={`outbound-plivo-${number.id}`}
-                >
-                  <div>
-                    <p className="font-mono text-sm">{formatPhoneNumber(number.phoneNumber)}</p>
-                    <p className="text-xs text-muted-foreground">{number.country} - Plivo</p>
-                  </div>
-                  <Badge variant="outline">Available</Badge>
-                </div>
-              ))}
-              {tcxcMyDids.map((did) => (
-                <div 
-                  key={did.id} 
-                  className="flex items-center justify-between gap-2 p-3 rounded-lg border"
-                  data-testid={`outbound-tcxc-${did.id}`}
-                >
-                  <div>
-                    <p className="font-mono text-sm">{did.phoneNumber}</p>
-                    <p className="text-xs text-muted-foreground">{did.countryName} - TCXC</p>
-                  </div>
-                  <Badge variant="outline">Available</Badge>
-                </div>
-              ))}
-              {providerCallerIds.map((callerId) => (
-                <div 
-                  key={callerId.id} 
-                  className="flex items-center justify-between gap-2 p-3 rounded-lg border"
-                  data-testid={`outbound-provider-${callerId.id}`}
-                >
-                  <div>
-                    <p className="font-mono text-sm">{callerId.phoneNumber}</p>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <p className="text-xs text-muted-foreground">{callerId.country} - {callerId.providerName}</p>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {callerId.techPrefix}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default" className="bg-green-600 dark:bg-green-700">Active</Badge>
-                    <Button 
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => deleteProviderCallerIdMutation.mutate(callerId.id)}
-                      disabled={deleteProviderCallerIdMutation.isPending}
-                      data-testid={`button-remove-outbound-${callerId.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {(ownedNumbers.length === 0 && plivoNumbers.length === 0 && tcxcMyDids.length === 0 && providerCallerIds.length === 0) && (
-              <div className="text-center py-8 text-muted-foreground">
-                <Phone className="h-10 w-10 mx-auto mb-3" />
-                <p className="font-medium">No phone numbers available</p>
-                <p className="text-sm">Purchase phone numbers or search provider DIDs above to add caller IDs.</p>
-              </div>
-            )}
-          </Card>
-
-          {/* HLR Lookup - Validate destination numbers */}
-          <Card className="p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold">HLR Number Lookup</h3>
-              <p className="text-sm text-muted-foreground">Validate destination phone numbers before making outbound calls</p>
-            </div>
-            
-            <div className="flex gap-4 items-end">
-              <div className="flex-1 space-y-2">
-                <Label>Destination Number</Label>
-                <Input
-                  placeholder="Enter phone number (e.g., 19542405411)"
-                  value={hlrLookupNumber}
-                  onChange={(e) => setHlrLookupNumber(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && performHlrLookup()}
-                  data-testid="input-hlr-lookup"
-                />
-              </div>
-              <Button 
-                onClick={performHlrLookup} 
-                disabled={isLookingUpHlr || !hlrLookupNumber.trim()}
-                data-testid="button-hlr-lookup"
-              >
-                {isLookingUpHlr ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Search className="h-4 w-4 mr-2" />
-                )}
-                Lookup
+        {/* Right Panel */}
+        <div className="flex-1 min-w-0 overflow-auto p-6">
+          {allPhoneNumbers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center" data-testid="empty-state">
+              <ClipboardList className="h-12 w-12 text-muted-foreground/40 mb-4" />
+              <h3 className="text-base font-medium text-foreground mb-1">You don't have any phone numbers</h3>
+              <p className="text-sm text-muted-foreground mb-4">Add your first phone number to get started.</p>
+              <Button onClick={() => setAddNumberDialogOpen(true)} data-testid="button-add-first-number">
+                <Plus className="h-4 w-4 mr-2" />
+                {t('phoneNumbers.addNumber', { defaultValue: 'Add Number' })}
               </Button>
             </div>
-
-            {/* HLR Lookup Results */}
-            {hlrLookupResult && (
-              <div className="mt-6 border rounded-lg p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Check className="h-5 w-5 text-green-500" />
-                  <span className="font-semibold">Number Validated</span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">International Format</p>
-                      <p className="font-mono text-lg">{hlrLookupResult.internationalFormat}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">National Format</p>
-                      <p className="font-mono">{hlrLookupResult.nationalFormat}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Country</p>
-                      <p>{hlrLookupResult.countryName} ({hlrLookupResult.countryCode})</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Ported Status</p>
-                      <Badge variant={hlrLookupResult.ported === 'ported' ? 'secondary' : 'outline'}>
-                        {hlrLookupResult.ported === 'ported' ? 'Ported' : 'Not Ported'}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <p className="text-xs text-muted-foreground mb-1">Current Carrier</p>
-                      <p className="font-medium">{hlrLookupResult.currentCarrier.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {hlrLookupResult.currentCarrier.networkType} - {hlrLookupResult.currentCarrier.country}
-                      </p>
-                      {hlrLookupResult.currentCarrier.networkCode && (
-                        <p className="text-xs font-mono text-muted-foreground mt-1">
-                          MCC/MNC: {hlrLookupResult.currentCarrier.networkCode}
-                        </p>
-                      )}
-                    </div>
-                    
-                    {hlrLookupResult.ported === 'ported' && hlrLookupResult.originalCarrier.name !== 'Unknown' && (
-                      <div className="p-3 rounded-lg bg-muted/30">
-                        <p className="text-xs text-muted-foreground mb-1">Original Carrier</p>
-                        <p className="font-medium">{hlrLookupResult.originalCarrier.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {hlrLookupResult.originalCarrier.networkType}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {hlrLookupResult.roaming.status !== 'unknown' && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Roaming</p>
-                        <Badge variant="outline">{hlrLookupResult.roaming.status}</Badge>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Campaign Settings */}
-          <Card className="p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold">Outbound Campaign Settings</h3>
-              <p className="text-sm text-muted-foreground">Configure default settings for outbound calling campaigns</p>
+          ) : selectedPhone ? (
+            renderSelectedDetails()
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center" data-testid="no-selection-state">
+              <Phone className="h-12 w-12 text-muted-foreground/40 mb-4" />
+              <h3 className="text-base font-medium text-foreground mb-1">Select a phone number</h3>
+              <p className="text-sm text-muted-foreground">Choose a phone number from the list to view its details.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Default Caller ID</Label>
-                <Select>
-                  <SelectTrigger data-testid="select-default-caller-id">
-                    <SelectValue placeholder="Select default caller ID" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ownedNumbers.filter(n => n.status === 'active').map((number) => (
-                      <SelectItem key={number.id} value={number.id}>
-                        {formatPhoneNumber(number.phoneNumber)} (Twilio)
-                      </SelectItem>
-                    ))}
-                    {plivoNumbers.filter(n => n.status === 'active').map((number) => (
-                      <SelectItem key={number.id} value={number.id}>
-                        {formatPhoneNumber(number.phoneNumber)} (Plivo)
-                      </SelectItem>
-                    ))}
-                    {tcxcMyDids.map((did) => (
-                      <SelectItem key={did.id} value={did.id}>
-                        {did.phoneNumber} (TCXC)
-                      </SelectItem>
-                    ))}
-                    {providerCallerIds.map((callerId) => (
-                      <SelectItem key={callerId.id} value={callerId.id}>
-                        {callerId.phoneNumber} ({callerId.providerName})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Max Concurrent Calls</Label>
-                <Select defaultValue="5">
-                  <SelectTrigger data-testid="select-max-concurrent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 call</SelectItem>
-                    <SelectItem value="3">3 calls</SelectItem>
-                    <SelectItem value="5">5 calls</SelectItem>
-                    <SelectItem value="10">10 calls</SelectItem>
-                    <SelectItem value="20">20 calls</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {phoneNumbersTabs.map((tab) => (
-          <TabsContent key={tab.id} value={tab.id} className="space-y-4">
-            <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>}>
-              <tab.component />
-            </Suspense>
-          </TabsContent>
-        ))}
-      </Tabs>
+          )}
+        </div>
+      </div>
 
       {/* Provider Numbers Lookup Dialog */}
       <Dialog open={providerLookupDialogOpen} onOpenChange={setProviderLookupDialogOpen}>

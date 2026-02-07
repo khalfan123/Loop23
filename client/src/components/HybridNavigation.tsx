@@ -460,19 +460,9 @@ export function HybridNavigation({
             {/* Right side utilities - iOS 18 pill group */}
             <div className="flex items-center gap-1">
               {showNotifications && (
-                <>
-                  <HeaderBannerNotifications />
-                  <NotificationBell />
-                </>
+                <HeaderBannerNotifications />
               )}
-              <LanguageSelector variant="compact" />
               <ThemeToggle />
-
-              {/* Credits Pill - Desktop only - iOS 18 style */}
-              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/[0.06] dark:border-white/[0.08] shadow-sm">
-                <Coins className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-sm font-medium tabular-nums text-zinc-700 dark:text-zinc-300">{remainingCredits.toLocaleString()}</span>
-              </div>
 
               {/* User Menu - iOS 18 Style */}
               <DropdownMenu>
@@ -517,6 +507,14 @@ export function HybridNavigation({
                           </span>
                         )}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Language & Notifications */}
+                  <div className="px-2 pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <LanguageSelector variant="compact" />
+                      {showNotifications && <NotificationBell />}
                     </div>
                   </div>
 

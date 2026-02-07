@@ -382,20 +382,10 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
         {/* Right section: Utilities */}
         <div className="flex items-center gap-1 px-2">
           {showNotifications && (
-            <>
-              <HeaderBannerNotifications />
-              <NotificationBell />
-            </>
+            <HeaderBannerNotifications />
           )}
           
-          <LanguageSelector variant="compact" />
           <ThemeToggle />
-
-          {/* Credits Badge - Desktop (display only) */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/30">
-            <Coins className="h-4 w-4 text-amber-500" />
-            <span className="text-sm font-semibold">{remainingCredits.toLocaleString()}</span>
-          </div>
 
           {/* User Menu */}
           <DropdownMenu>
@@ -434,7 +424,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
                 </div>
               </div>
 
-              {/* Credits Section (display only) */}
+              {/* Credits Section */}
               <div className="p-3 border-b">
                 <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 border border-amber-200/50 dark:border-amber-800/30">
                   <div className="flex items-center gap-2">
@@ -449,6 +439,14 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
                       {planDisplayName}
                     </span>
                   )}
+                </div>
+              </div>
+
+              {/* Language & Notifications */}
+              <div className="p-3 border-b">
+                <div className="flex items-center justify-between gap-2">
+                  <LanguageSelector variant="compact" />
+                  {showNotifications && <NotificationBell />}
                 </div>
               </div>
               

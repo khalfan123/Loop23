@@ -23,6 +23,8 @@ import { authenticateHybrid } from "../middleware/hybrid-auth";
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
 import { PhoneMigrator } from "../engines/elevenlabs-migration";
+import { ElevenLabsService } from "../services/elevenlabs";
+import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 
 const router = Router();
 
@@ -289,13 +291,94 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
     // Import pool service for credential management
     const elevenLabsPoolModule = await import('../services/elevenlabs-pool');
     
-    // STEP 0: Ensure agent is synced with ElevenLabs (has elevenLabsAgentId)
-    if (!agent[0].elevenLabsAgentId) {
-      return res.status(400).json({
-        message: "Agent is not synced with ElevenLabs. Please sync the agent first before connecting a phone number.",
-        error: "Agent missing elevenLabsAgentId",
-        suggestion: "Go to Agents and ensure the agent is properly synced with ElevenLabs."
-      });
+    // STEP 0: Auto-sync agent with ElevenLabs if missing elevenLabsAgentId
+    // Only applies to Twilio/ElevenLabs agents (not plivo_openai or twilio_openai providers)
+    const isOpenAIProvider = agent[0].telephonyProvider === 'plivo_openai' || agent[0].telephonyProvider === 'twilio_openai';
+    
+    if (!agent[0].elevenLabsAgentId && !isOpenAIProvider) {
+      console.log(`📞 [Incoming Connection] Agent "${agent[0].name}" missing elevenLabsAgentId — auto-syncing with ElevenLabs...`);
+      
+      const agentData = agent[0];
+      
+      if (!agentData.elevenLabsVoiceId) {
+        return res.status(400).json({
+          message: "Agent is missing a voice configuration. Please edit the agent and assign a voice before connecting a phone number.",
+          error: "Agent missing elevenLabsVoiceId"
+        });
+      }
+      
+      try {
+        const credential = await ElevenLabsPoolService.getUserCredential(req.userId!);
+        if (!credential) {
+          return res.status(400).json({
+            message: "No ElevenLabs API keys available. Please configure ElevenLabs credentials in admin settings.",
+            error: "No active credentials in pool"
+          });
+        }
+
+        const syncService = new ElevenLabsService(credential.apiKey);
+        
+        const { storage } = await import('../storage');
+        const knowledgeBases: Array<{ type: string; title: string; elevenLabsDocId: string }> = [];
+        if (agentData.knowledgeBaseIds && Array.isArray(agentData.knowledgeBaseIds) && agentData.knowledgeBaseIds.length > 0) {
+          for (const kbId of agentData.knowledgeBaseIds) {
+            try {
+              const kbItem = await storage.getKnowledgeBaseItem(kbId);
+              if (kbItem && kbItem.elevenLabsDocId) {
+                knowledgeBases.push({
+                  type: kbItem.type,
+                  title: kbItem.title,
+                  elevenLabsDocId: kbItem.elevenLabsDocId
+                });
+              }
+            } catch (e: any) {
+              console.warn(`⚠️ [Auto-sync] Skipping KB ${kbId}: ${e.message}`);
+            }
+          }
+        }
+
+        const syncResponse = await syncService.createAgent({
+          name: agentData.name,
+          voice_id: agentData.elevenLabsVoiceId,
+          prompt: agentData.systemPrompt || "You are a helpful assistant.",
+          first_message: agentData.firstMessage || "Hello! How can I help you today?",
+          language: agentData.language || "en",
+          model: agentData.llmModel || "gpt-4o-mini",
+          temperature: agentData.temperature ? Number(agentData.temperature) : 0.5,
+          personality: agentData.personality || "helpful",
+          voice_tone: agentData.voiceTone || "professional",
+          knowledge_bases: knowledgeBases.length > 0 ? knowledgeBases : undefined,
+          transferEnabled: agentData.transferEnabled || false,
+          transferPhoneNumber: agentData.transferPhoneNumber || undefined,
+          detectLanguageEnabled: agentData.detectLanguageEnabled || false,
+          endConversationEnabled: agentData.endConversationEnabled || false,
+          voiceStability: agentData.voiceStability ? Number(agentData.voiceStability) : 0.55,
+          voiceSimilarityBoost: agentData.voiceSimilarityBoost ? Number(agentData.voiceSimilarityBoost) : 0.85,
+          voiceSpeed: agentData.voiceSpeed ? Number(agentData.voiceSpeed) : 1.0,
+          skipWorkflow: true,
+        });
+
+        const newElevenLabsAgentId = syncResponse.agent_id;
+        console.log(`✅ [Incoming Connection] Auto-synced agent "${agentData.name}" → ElevenLabs ID: ${newElevenLabsAgentId}`);
+
+        await db.update(agents)
+          .set({ 
+            elevenLabsAgentId: newElevenLabsAgentId,
+            elevenLabsCredentialId: credential.id
+          })
+          .where(eq(agents.id, agentData.id));
+
+        await ElevenLabsPoolService.updateAssignmentCount(credential.id, true);
+
+        agent[0].elevenLabsAgentId = newElevenLabsAgentId;
+        agent[0].elevenLabsCredentialId = credential.id;
+      } catch (syncError: any) {
+        console.error(`❌ [Incoming Connection] Auto-sync failed for agent "${agent[0].name}":`, syncError.message);
+        return res.status(400).json({
+          message: "Failed to sync agent with ElevenLabs. Please try again or check your ElevenLabs configuration.",
+          error: syncError.message || "ElevenLabs sync failed"
+        });
+      }
     }
     
     // STEP 1: Ensure agent has a credential (auto-assign if missing)

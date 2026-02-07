@@ -256,6 +256,12 @@ export default function PhoneNumbers() {
   // Provider selection state (unified buy button)
   const [providerSelectDialogOpen, setProviderSelectDialogOpen] = useState(false);
 
+  // Add number method selection dialog (Buy vs SIP Trunking)
+  const [addNumberDialogOpen, setAddNumberDialogOpen] = useState(false);
+
+  // Active tab state for controlled Tabs
+  const [activeTab, setActiveTab] = useState("owned");
+
   // Plivo state
   const [plivoBuyDialogOpen, setPlivoBuyDialogOpen] = useState(false);
   const [plivoSearchCountry, setPlivoSearchCountry] = useState("");
@@ -997,11 +1003,11 @@ export default function PhoneNumbers() {
             </Button>
             <Button 
               className="rounded-2xl"
-              onClick={() => plivoEnabled ? handleBuyClick('select') : handleBuyClick('twilio')} 
-              data-testid="button-buy-number"
+              onClick={() => setAddNumberDialogOpen(true)} 
+              data-testid="button-add-number"
             >
               <Plus className="h-4 w-4 mr-2" />
-              {t('phoneNumbers.buyNumber')}
+              {t('phoneNumbers.addNumber', { defaultValue: 'Add Number' })}
             </Button>
           </div>
         </div>
@@ -1048,7 +1054,7 @@ export default function PhoneNumbers() {
       </div>
 
       {/* iOS 18 Style Pill Tabs */}
-      <Tabs defaultValue="owned" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-foreground/[0.03] rounded-2xl p-1 border border-border/30">
           <TabsTrigger value="owned" data-testid="tab-owned-numbers">
             Twilio Numbers ({ownedNumbers.length})
@@ -3185,6 +3191,74 @@ export default function PhoneNumbers() {
             }} data-testid="button-go-to-addresses">
               <MapPin className="h-4 w-4 mr-2" />
               Add Address
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Number Method Selection Dialog */}
+      <Dialog open={addNumberDialogOpen} onOpenChange={setAddNumberDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              {t('phoneNumbers.addNumber', { defaultValue: 'Add Number' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('phoneNumbers.addNumberDescription', { defaultValue: 'Choose how you want to add a phone number to your account.' })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-4 py-4">
+            <div 
+              className="border rounded-md p-4 cursor-pointer hover-elevate transition-all"
+              onClick={() => {
+                setAddNumberDialogOpen(false);
+                if (plivoEnabled) {
+                  handleBuyClick('select');
+                } else {
+                  handleBuyClick('twilio');
+                }
+              }}
+              data-testid="option-buy-number"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-md bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                  <ShoppingCart className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold">{t('phoneNumbers.buyNewNumber', { defaultValue: 'Buy New Number' })}</h3>
+                  <p className="text-sm text-muted-foreground">{t('phoneNumbers.buyNewNumberDesc', { defaultValue: 'Purchase a new phone number from available providers' })}</p>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              className="border rounded-md p-4 cursor-pointer hover-elevate transition-all"
+              onClick={() => {
+                setAddNumberDialogOpen(false);
+                const sipTab = phoneNumbersTabs.find(tab => tab.id.toLowerCase().includes('sip'));
+                if (sipTab) {
+                  setActiveTab(sipTab.id);
+                } else {
+                  setActiveTab("tcxc-dids");
+                }
+              }}
+              data-testid="option-sip-trunking"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-md bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <Network className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold">{t('phoneNumbers.connectViaSipTrunking', { defaultValue: 'Connect via SIP Trunking' })}</h3>
+                  <p className="text-sm text-muted-foreground">{t('phoneNumbers.connectViaSipTrunkingDesc', { defaultValue: 'Connect your existing numbers through SIP trunk configuration' })}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setAddNumberDialogOpen(false)} data-testid="button-cancel-add-number">
+              {t('common.cancel')}
             </Button>
           </div>
         </DialogContent>

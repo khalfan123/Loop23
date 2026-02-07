@@ -1322,24 +1322,39 @@ export default function PhoneNumbers() {
   };
 
   return (
-    <div className="h-full flex flex-col" style={{ minHeight: '100vh' }}>
-      <div className="flex flex-1">
-        {/* Left Sidebar - Desktop */}
-        <div className="hidden md:flex flex-col w-[240px] flex-shrink-0 border-r border-border bg-background">
-          {renderSidebarContent()}
-        </div>
+    <div className="flex h-full w-full">
+      {/* Left Sidebar - Desktop */}
+      <aside className="hidden md:flex flex-col w-[240px] flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900">
+        {renderSidebarContent()}
+      </aside>
 
-        {/* Mobile Sidebar Trigger */}
-        <div className="md:hidden border-b border-black/[0.06] dark:border-white/[0.08] px-3 py-2 flex items-center gap-2 flex-shrink-0">
+      {/* Mobile Sidebar Sheet */}
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent side="left" className="p-0 w-[280px]">
+          <SheetHeader className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+            <SheetTitle className="text-[15px] font-semibold tracking-tight">
+              {t('phoneNumbers.title')}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col flex-1 overflow-auto">
+            {renderSidebarContent()}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Right Panel */}
+      <div className="flex-1 min-w-0 overflow-auto bg-zinc-50/80 dark:bg-zinc-950/50">
+        {/* Mobile header */}
+        <div className="md:hidden flex items-center gap-2 px-4 pt-3">
           <Button
             size="icon"
-            variant="ghost"
+            variant="outline"
             onClick={() => setMobileSidebarOpen(true)}
             data-testid="button-mobile-sidebar-toggle"
           >
             <PanelLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-semibold text-foreground">{t('phoneNumbers.title')}</span>
+          <span className="text-sm font-medium text-foreground">{t('phoneNumbers.title')}</span>
           <Button
             size="icon"
             variant="default"
@@ -1350,21 +1365,7 @@ export default function PhoneNumbers() {
             <Plus className="h-3.5 w-3.5" />
           </Button>
         </div>
-
-        {/* Mobile Sidebar Sheet */}
-        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <SheetContent side="left" className="p-0 w-[280px]">
-            <SheetHeader className="sr-only">
-              <SheetTitle>{t('phoneNumbers.title')}</SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col h-full">
-              {renderSidebarContent()}
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* Right Panel */}
-        <div className="flex-1 min-w-0 overflow-auto p-6">
+        <div className="p-6 h-full">
           {allPhoneNumbers.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center" data-testid="empty-state">
               <ClipboardList className="h-12 w-12 text-muted-foreground/40 mb-4" />

@@ -1459,7 +1459,7 @@ async function processCallsForML(userId: string, jobId: string, callsToProcess: 
       if (!call.transcript) continue;
 
       try {
-        const openai = getOpenAIClient(userId);
+        const openai = await getOpenAIClient(userId);
         
         // Analyze transcript with AI
         const analysisResponse = await openai.chat.completions.create({

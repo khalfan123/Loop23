@@ -8,6 +8,7 @@ import {
   Background,
   Controls,
   MiniMap,
+  Panel,
   addEdge,
   useNodesState,
   useEdgesState,
@@ -66,6 +67,16 @@ interface PhoneNumber {
   phoneNumber: string;
   friendlyName: string | null;
   provider: string;
+  isConflicted?: boolean;
+  conflictReason?: string | null;
+}
+
+interface ExistingConnection {
+  id: string;
+  agentId: string;
+  phoneNumberId: string;
+  agent?: { id: string; name: string } | null;
+  phoneNumber?: { id: string; phoneNumber: string } | null;
 }
 
 interface Agent {
@@ -288,13 +299,28 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [useCaseFilter, setUseCaseFilter] = useState<string>("all");
 
-  const { data: phoneNumbers = [], isLoading: phonesLoading } = useQuery<PhoneNumber[]>({
-    queryKey: ["/api/phone-numbers"],
+  const { data: incomingData, isLoading: incomingLoading } = useQuery<{
+    connections: ExistingConnection[];
+    allConnections: ExistingConnection[];
+    availablePhoneNumbers: (PhoneNumber & { isConflicted?: boolean; conflictReason?: string | null })[];
+    incomingAgents: Agent[];
+    stats: { totalConnections: number; elevenLabsConnections: number; availableNumbers: number; totalAgents: number };
+  }>({
+    queryKey: ["/api/incoming-connections"],
   });
 
-  const { data: agents = [], isLoading: agentsLoading } = useQuery<Agent[]>({
-    queryKey: ["/api/agents"],
-  });
+  const existingConnections = incomingData?.connections || [];
+  const phoneNumbers = incomingData?.availablePhoneNumbers || [];
+  const agents = incomingData?.incomingAgents || [];
+  const phonesLoading = incomingLoading;
+  const agentsLoading = incomingLoading;
+
+  const connectedPhones = useMemo(() => {
+    return existingConnections.map(c => ({
+      phoneNumberId: c.phoneNumberId,
+      agentName: (c as any).agent?.name || "Unknown Agent",
+    }));
+  }, [existingConnections]);
 
   const { data: promptTemplates = [], isLoading: templatesLoading } = useQuery<PromptTemplate[]>({
     queryKey: ["/api/prompt-templates"],
@@ -331,50 +357,25 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
   }, [promptTemplates, useCaseFilter]);
 
   const availablePhones = useMemo(() => {
-    return phoneNumbers.filter((p) => !canvasPhones.includes(p.id));
+    return phoneNumbers.filter((p) => !canvasPhones.includes(p.id) && !p.isConflicted);
+  }, [phoneNumbers, canvasPhones]);
+
+  const conflictedPhones = useMemo(() => {
+    return phoneNumbers.filter((p) => p.isConflicted && !canvasPhones.includes(p.id));
   }, [phoneNumbers, canvasPhones]);
 
   useEffect(() => {
-    const defaultStaffAI: CanvasStaffAI = {
-      id: "staff-ai-1",
-      agentId: null,
-      agentName: null,
-      customPrompt: "",
-      templateId: null,
-      templateName: null,
-      knowledgeBaseIds: [],
-      language: null,
-      voiceName: null,
-    };
-
     const phoneContainerNode: Node = {
       id: "phone-container",
       type: "phoneContainer",
-      position: { x: 200, y: 20 },
+      position: { x: 250, y: 20 },
       data: { phones: [] },
       draggable: false,
     };
 
-    const staffAINode: Node = {
-      id: "staff-ai-1",
-      type: "staffAI",
-      position: { x: 200, y: 180 },
-      data: { ...defaultStaffAI },
-    };
-
-    const containerToStaffEdge: Edge = {
-      id: "edge-container-staff-1",
-      source: "phone-container",
-      target: "staff-ai-1",
-      type: "smoothstep",
-      animated: true,
-      style: { stroke: "#22c55e", strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#22c55e" },
-    };
-
-    setNodes([phoneContainerNode, staffAINode]);
-    setEdges([containerToStaffEdge]);
-    setStaffAINodes([defaultStaffAI]);
+    setNodes([phoneContainerNode]);
+    setEdges([]);
+    setStaffAINodes([]);
   }, []);
 
   const assignedPhones = useMemo(() => {
@@ -417,7 +418,15 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
     }
   }, []);
 
-  const addPhoneToCanvas = (phone: PhoneNumber) => {
+  const addPhoneToCanvas = (phone: PhoneNumber & { isConflicted?: boolean; conflictReason?: string | null }) => {
+    if (phone.isConflicted) {
+      toast({
+        title: "Phone Unavailable",
+        description: phone.conflictReason || `${phone.phoneNumber} is currently in use by another campaign.`,
+        variant: "destructive",
+      });
+      return;
+    }
     setCanvasPhones((prev) => [...prev, phone.id]);
     toast({
       title: "Phone Added",
@@ -478,9 +487,12 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
       }
     }, 50);
 
+    setSelectedNodeId(newId);
+    setConfigPanelOpen(true);
+
     toast({
-      title: "Staff AI Added",
-      description: `${agent.name} added to canvas`,
+      title: "Agent Connected",
+      description: `${agent.name} added to canvas. Configure it in the panel.`,
     });
   };
 
@@ -488,9 +500,8 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
     const staffAINodesList = nodes.filter((n) => n.type === "staffAI");
     if (staffAINodesList.length === 0) {
       toast({
-        title: "No Staff AI",
-        description: "Add a Staff AI agent to the canvas first.",
-        variant: "destructive",
+        title: "No Agent on Canvas",
+        description: "Click an agent from the list above to add it first, then apply a template.",
       });
       return;
     }
@@ -599,8 +610,8 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
     const staffAINodesList = nodes.filter((n) => n.type === "staffAI");
     if (staffAINodesList.length === 0) {
       toast({
-        title: "No Staff AI",
-        description: "Add a Staff AI agent to the canvas first.",
+        title: "No Agent on Canvas",
+        description: "Click an agent from the list above to add it first, then attach knowledge bases.",
         variant: "destructive",
       });
       return;
@@ -897,12 +908,12 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
                   <Phone className="h-3.5 w-3.5" />
                   Available Phone Numbers
                 </div>
-                {phonesLoading ? (
+                {(phonesLoading || incomingLoading) ? (
                   <div className="space-y-2">
                     <Skeleton className="h-14 w-full" />
                     <Skeleton className="h-14 w-full" />
                   </div>
-                ) : availablePhones.length === 0 ? (
+                ) : availablePhones.length === 0 && conflictedPhones.length === 0 ? (
                   <p className="text-xs text-muted-foreground">No available numbers</p>
                 ) : (
                   <div className="space-y-2">
@@ -924,6 +935,57 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
                         </CardContent>
                       </Card>
                     ))}
+                    {conflictedPhones.length > 0 && (
+                      <>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-3 mb-1">Unavailable (Campaign Conflict)</div>
+                        {conflictedPhones.map((phone) => (
+                          <Card
+                            key={phone.id}
+                            className="opacity-50 cursor-not-allowed"
+                            data-testid={`card-phone-conflict-${phone.id}`}
+                          >
+                            <CardContent className="p-3 flex items-center gap-2">
+                              <div className="p-1.5 bg-red-100 dark:bg-red-900/30 rounded">
+                                <Phone className="h-3.5 w-3.5 text-red-500" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm truncate">{phone.phoneNumber}</div>
+                                <div className="text-[10px] text-red-500 truncate">
+                                  {phone.conflictReason || "In use by active campaign"}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </>
+                    )}
+                    {connectedPhones.length > 0 && (
+                      <>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-3 mb-1">Already Connected</div>
+                        {connectedPhones.map((cp) => {
+                          const conn = existingConnections.find(c => c.phoneNumberId === cp.phoneNumberId);
+                          return (
+                            <Card
+                              key={cp.phoneNumberId}
+                              className="opacity-50 cursor-not-allowed"
+                              data-testid={`card-phone-connected-${cp.phoneNumberId}`}
+                            >
+                              <CardContent className="p-3 flex items-center gap-2">
+                                <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded">
+                                  <Phone className="h-3.5 w-3.5 text-amber-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm truncate">{(conn as any)?.phoneNumber?.phoneNumber || "Phone"}</div>
+                                  <div className="text-[10px] text-amber-600 truncate">
+                                    Connected to {cp.agentName}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </>
+                    )}
                   </div>
                 )}
                 <Button
@@ -1142,6 +1204,17 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
             snapGrid={[15, 15]}
           >
             <Background gap={20} size={1} color="#e5e7eb" />
+            {staffAINodes.length === 0 && (
+              <Panel position="top-center">
+                <div className="mt-24 text-center p-6 rounded-lg bg-background/80 backdrop-blur-sm border max-w-xs">
+                  <Bot className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm font-medium">No agents on canvas</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Click an agent from the sidebar to connect it to your phone numbers
+                  </p>
+                </div>
+              </Panel>
+            )}
             <Controls showInteractive={false} />
             <MiniMap
               nodeStrokeColor={(n) => {
@@ -1383,22 +1456,64 @@ function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean })
                   </div>
                 )}
 
-                {((selectedNode.data as any).knowledgeBaseIds || []).length > 0 && (
-                  <div>
-                    <Label>Attached Knowledge Bases</Label>
-                    <div className="mt-1.5 space-y-1">
-                      {((selectedNode.data as any).knowledgeBaseIds || []).map((kbId: string) => {
-                        const kb = knowledgeBases.find((k) => k.id === kbId);
-                        return kb ? (
-                          <Badge key={kbId} variant="outline" className="border-amber-300 text-amber-600 mr-1">
-                            <Database className="h-3 w-3 mr-1" />
-                            {kb.name}
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <Label>Knowledge Base</Label>
+                  {(() => {
+                    const attachedIds = (selectedNode.data as any).knowledgeBaseIds || [];
+                    const unattachedKBs = knowledgeBases.filter(kb => !attachedIds.includes(kb.id));
+                    return (
+                      <>
+                        <Select
+                          onValueChange={(val) => {
+                            if (val && selectedNode) {
+                              const kb = knowledgeBases.find((k) => k.id === val);
+                              if (kb) {
+                                addKnowledgeBaseToStaffAI(kb);
+                              }
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="mt-1.5" data-testid="select-config-kb">
+                            <div className="flex items-center gap-1.5">
+                              <Database className="h-3.5 w-3.5 text-muted-foreground" />
+                              <SelectValue placeholder="Attach a knowledge base..." />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unattachedKBs.length === 0 ? (
+                              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                {knowledgeBases.length === 0 ? "No knowledge bases available" : "All knowledge bases attached"}
+                              </div>
+                            ) : (
+                              unattachedKBs.map((kb) => (
+                                <SelectItem key={kb.id} value={kb.id}>
+                                  <div className="flex items-center gap-2">
+                                    <Database className="h-3 w-3 text-amber-600" />
+                                    <span>{kb.name}</span>
+                                    <span className="text-xs text-muted-foreground">({kb.type})</span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {attachedIds.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {attachedIds.map((kbId: string) => {
+                              const kb = knowledgeBases.find((k) => k.id === kbId);
+                              return kb ? (
+                                <Badge key={kbId} variant="outline" className="border-amber-300 text-amber-600">
+                                  <Database className="h-3 w-3 mr-1" />
+                                  {kb.name}
+                                </Badge>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
 
                 <div className="pt-4">
                   <Button

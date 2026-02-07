@@ -101,15 +101,6 @@ interface NavSectionProps {
 }
 
 function isNavItemActive(itemUrl: string, currentLocation: string): boolean {
-  if (itemUrl.includes('?')) {
-    const [pathname, search] = itemUrl.split('?');
-    const itemParams = new URLSearchParams(search);
-    const currentParams = new URLSearchParams(window.location.search);
-    if (currentLocation !== pathname) return false;
-    const itemView = itemParams.get('view');
-    const currentView = currentParams.get('view') || 'kanban';
-    return itemView === currentView;
-  }
   return currentLocation === itemUrl;
 }
 
@@ -153,13 +144,8 @@ export function AppSidebar() {
     }
   };
 
-  const crmViewItems = [
-    { title: t('nav.crmKanban', 'Kanban'), url: "/app/crm?view=kanban" },
-    { title: t('nav.crmList', 'List'), url: "/app/crm?view=list" },
-    { title: t('nav.crmAnalytics', 'Analytics'), url: "/app/crm?view=analytics" },
-  ];
-
-  const callTypeItems = [
+  const overviewItems = [
+    { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm" },
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics" },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls" },
   ];
@@ -243,16 +229,8 @@ export function AppSidebar() {
 
       <SidebarContent className="px-2 py-2 space-y-3">
         <NavSection
-          label={t('sidebar.quickCrm', 'Quick CRM')}
-          items={crmViewItems}
-          location={location}
-          onNavClick={handleNavClick}
-          isCollapsed={isCollapsed}
-        />
-
-        <NavSection
-          label={t('sidebar.callTypes', 'Overview')}
-          items={callTypeItems}
+          label={t('sidebar.overview', 'Overview')}
+          items={overviewItems}
           location={location}
           onNavClick={handleNavClick}
           isCollapsed={isCollapsed}

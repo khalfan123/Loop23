@@ -5,6 +5,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,6 +34,7 @@ import {
   Circle,
   List,
   AlertTriangle,
+  Search,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -108,8 +110,9 @@ const getCategoryColor = (category: string) => {
 const STEPS = [
   { id: 1, label: "Phone Numbers", icon: Phone },
   { id: 2, label: "AI Agent", icon: Bot },
-  { id: 3, label: "Prompt & Knowledge", icon: Sparkles },
-  { id: 4, label: "Review & Save", icon: Check },
+  { id: 3, label: "Prompt", icon: FileText },
+  { id: 4, label: "Knowledge Base", icon: Database },
+  { id: 5, label: "Review & Save", icon: Check },
 ];
 
 function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
@@ -119,6 +122,8 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPhoneIds, setSelectedPhoneIds] = useState<string[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [agentSearch, setAgentSearch] = useState<string>("");
+  const [promptSearch, setPromptSearch] = useState<string>("");
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   const [useCaseFilter, setUseCaseFilter] = useState<string>("all");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -172,9 +177,16 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
   }, [agents]);
 
   const filteredAgents = useMemo(() => {
-    if (languageFilter === "all") return agents;
-    return agents.filter((a) => a.language === languageFilter);
-  }, [agents, languageFilter]);
+    let result = agents;
+    if (languageFilter !== "all") {
+      result = result.filter((a) => a.language === languageFilter);
+    }
+    if (agentSearch.trim()) {
+      const q = agentSearch.trim().toLowerCase();
+      result = result.filter((a) => a.name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [agents, languageFilter, agentSearch]);
 
   const useCaseCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -185,9 +197,16 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
   }, [promptTemplates]);
 
   const filteredTemplates = useMemo(() => {
-    if (useCaseFilter === "all") return promptTemplates;
-    return promptTemplates.filter((t) => t.category === useCaseFilter);
-  }, [promptTemplates, useCaseFilter]);
+    let result = promptTemplates;
+    if (useCaseFilter !== "all") {
+      result = result.filter((t) => t.category === useCaseFilter);
+    }
+    if (promptSearch.trim()) {
+      const q = promptSearch.trim().toLowerCase();
+      result = result.filter((t) => t.name.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)));
+    }
+    return result;
+  }, [promptTemplates, useCaseFilter, promptSearch]);
 
   const selectedAgent = useMemo(() => {
     return agents.find((a) => a.id === selectedAgentId) || null;
@@ -236,12 +255,13 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
       case 2: return selectedAgentId !== null;
       case 3: return true;
       case 4: return true;
+      case 5: return true;
       default: return false;
     }
   };
 
   const goNext = () => {
-    if (canProceed(currentStep) && currentStep < 4) {
+    if (canProceed(currentStep) && currentStep < 5) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -480,8 +500,19 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
         <p className="text-sm text-muted-foreground">Choose the agent that will handle incoming calls on your selected numbers</p>
       </div>
 
-      {availableLanguages.length > 1 && (
-        <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={agentSearch}
+            onChange={(e) => setAgentSearch(e.target.value)}
+            placeholder="Search agents by name..."
+            className="pl-9"
+            data-testid="input-agent-search"
+          />
+        </div>
+
+        {availableLanguages.length > 1 && (
           <div className="flex items-center gap-2 flex-wrap">
             <Globe className="h-4 w-4 text-muted-foreground" />
             <Label className="text-sm">Filter by language:</Label>
@@ -497,8 +528,8 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
               </SelectContent>
             </Select>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {incomingLoading ? (
         <div className="space-y-3 max-w-2xl mx-auto">
@@ -509,7 +540,9 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
         <div className="text-center py-8">
           <Bot className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">
-            {languageFilter !== "all"
+            {agentSearch.trim()
+              ? `No agents match "${agentSearch.trim()}"`
+              : languageFilter !== "all"
               ? `No agents available for ${getLanguageLabel(languageFilter)}`
               : "No incoming agents available. Create an agent first."}
           </p>
@@ -565,17 +598,28 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
   );
 
   const renderStep3 = () => (
-    <div className="space-y-6" data-testid="wizard-step-3">
+    <div className="space-y-4" data-testid="wizard-step-3">
       <div className="text-center mb-2">
-        <h2 className="text-lg font-semibold">Configure Prompt & Knowledge</h2>
-        <p className="text-sm text-muted-foreground">Optionally customize the agent's prompt and attach knowledge bases</p>
+        <h2 className="text-lg font-semibold">Configure Prompt</h2>
+        <p className="text-sm text-muted-foreground">Optionally customize the agent's system prompt using a template or write your own</p>
       </div>
 
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-5">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-purple-600" />
-            <Label className="font-medium">Prompt Template</Label>
+            <Sparkles className="h-4 w-4 text-purple-600" />
+            <Label className="font-medium">Prompt Templates</Label>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={promptSearch}
+              onChange={(e) => setPromptSearch(e.target.value)}
+              placeholder="Search templates..."
+              className="pl-9"
+              data-testid="input-prompt-search"
+            />
           </div>
 
           {useCaseCategories.length > 1 && (
@@ -603,7 +647,9 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
               <Skeleton className="h-16 w-full" />
             </div>
           ) : filteredTemplates.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No prompt templates available</p>
+            <p className="text-sm text-muted-foreground">
+              {promptSearch.trim() ? "No templates match your search" : "No prompt templates available"}
+            </p>
           ) : (
             <ScrollArea className="max-h-[200px]">
               <div className="grid gap-2 sm:grid-cols-2 pr-3">
@@ -669,19 +715,38 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
 
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Database className="h-4 w-4 text-amber-600" />
-            <Label className="font-medium">Knowledge Bases</Label>
-          </div>
-          <p className="text-xs text-muted-foreground">Select knowledge bases to give the agent access to your information</p>
+  const renderStep4 = () => (
+    <div className="space-y-4" data-testid="wizard-step-4">
+      <div className="text-center mb-2">
+        <h2 className="text-lg font-semibold">Knowledge Base</h2>
+        <p className="text-sm text-muted-foreground">Select knowledge bases to give the agent access to your information</p>
+      </div>
 
-          {kbLoading ? (
+      <div className="max-w-2xl mx-auto space-y-4">
+        {kbLoading ? (
+          <div className="space-y-2">
             <Skeleton className="h-16 w-full" />
-          ) : knowledgeBases.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No knowledge bases available</p>
-          ) : (
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : knowledgeBases.length === 0 ? (
+          <div className="text-center py-8">
+            <Database className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">No knowledge bases available. You can skip this step.</p>
+          </div>
+        ) : (
+          <>
+            {selectedKBIds.length > 0 && (
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-sm font-medium">{selectedKBIds.length} knowledge base(s) selected</span>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedKBIds([])} data-testid="button-clear-kbs">
+                  Clear All
+                </Button>
+              </div>
+            )}
             <div className="grid gap-2 sm:grid-cols-2">
               {knowledgeBases.map((kb) => {
                 const isSelected = selectedKBIds.includes(kb.id);
@@ -709,14 +774,14 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
                 );
               })}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
 
-  const renderStep4 = () => (
-    <div className="space-y-6" data-testid="wizard-step-4">
+  const renderStep5 = () => (
+    <div className="space-y-6" data-testid="wizard-step-5">
       <div className="text-center mb-2">
         <h2 className="text-lg font-semibold">Review & Save</h2>
         <p className="text-sm text-muted-foreground">Review your configuration before creating the connection</p>
@@ -840,6 +905,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
           {currentStep === 4 && renderStep4()}
+          {currentStep === 5 && renderStep5()}
         </div>
       </ScrollArea>
 
@@ -855,7 +921,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
         </Button>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {currentStep < 4 ? (
+          {currentStep < 5 ? (
             <Button
               onClick={goNext}
               disabled={!canProceed(currentStep)}

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import IncomingConnectionsPage from "@/pages/IncomingConnections";
+import IncomingCallCanvas from "@/pages/IncomingCallCanvas";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1651,8 +1651,8 @@ export default function DepartmentManagement() {
         )}
 
         {activeTab === 'incoming-connections' && (
-          <div className="p-4">
-            <IncomingConnectionsPage embedded={true} />
+          <div className="h-[calc(100vh-200px)]">
+            <IncomingCallCanvas embedded={true} />
           </div>
         )}
 

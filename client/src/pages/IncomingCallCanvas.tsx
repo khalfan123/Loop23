@@ -266,7 +266,7 @@ const nodeTypes: NodeTypes = {
   knowledgeBase: KnowledgeBaseNodeComponent,
 };
 
-function IncomingCallCanvasContent() {
+function IncomingCallCanvasContent({ embedded = false }: { embedded?: boolean }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -774,7 +774,9 @@ function IncomingCallCanvasContent() {
         title: "Canvas Saved",
         description: "All incoming connections have been created successfully.",
       });
-      setLocation("/app/incoming-connections/list");
+      if (!embedded) {
+        setLocation("/app/incoming-connections/list");
+      }
     },
     onError: (error: any) => {
       toast({
@@ -823,7 +825,8 @@ function IncomingCallCanvasContent() {
   const connectionCount = edges.length;
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className={`${embedded ? "h-full" : "h-screen"} flex flex-col`}>
+      {!embedded && (
       <div className="flex items-center justify-between px-4 py-3 border-b bg-background">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => setLocation("/app/incoming-connections/list")} data-testid="button-back">
@@ -859,6 +862,31 @@ function IncomingCallCanvasContent() {
           </Button>
         </div>
       </div>
+      )}
+
+      {embedded && (
+      <div className="flex items-center justify-between px-3 py-2 border-b bg-background">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => reactFlowInstance?.zoomOut()} data-testid="button-zoom-out-embedded">
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground min-w-[50px] text-center">
+            {Math.round((reactFlowInstance?.getZoom() || 1) * 100)}%
+          </span>
+          <Button variant="outline" size="sm" onClick={() => reactFlowInstance?.zoomIn()} data-testid="button-zoom-in-embedded">
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
+        <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-embedded">
+          {saveMutation.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          Save & Deploy
+        </Button>
+      </div>
+      )}
 
       <div className="flex-1 flex">
         <div className="w-64 border-r bg-muted/30 flex flex-col">
@@ -1547,10 +1575,10 @@ function IncomingCallCanvasContent() {
   );
 }
 
-export default function IncomingCallCanvas() {
+export default function IncomingCallCanvas({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <ReactFlowProvider>
-      <IncomingCallCanvasContent />
+      <IncomingCallCanvasContent embedded={embedded} />
     </ReactFlowProvider>
   );
 }

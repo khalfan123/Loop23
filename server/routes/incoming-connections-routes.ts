@@ -16,7 +16,7 @@
  */
 import { Router } from "express";
 import { db } from "../db";
-import { incomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, campaigns } from "@shared/schema";
+import { incomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, campaigns, ivrConfigurations } from "@shared/schema";
 import { eq, and, isNull, or, inArray, ne } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth";
 import { authenticateHybrid } from "../middleware/hybrid-auth";
@@ -91,8 +91,17 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
         )
       );
 
+    // Get phone numbers assigned to IVR/department configurations (exclude all, not just active)
+    const ivrPhoneAssignments = await db
+      .select({ phoneNumberId: ivrConfigurations.phoneNumberId })
+      .from(ivrConfigurations)
+      .where(eq(ivrConfigurations.userId, userId));
+    const ivrPhoneIds = ivrPhoneAssignments
+      .map((ivr) => ivr.phoneNumberId)
+      .filter((id): id is string => id !== null);
+
     const availablePhoneNumbers = availableNumbers.filter(
-      (pn) => !connectedPhoneIds.includes(pn.id)
+      (pn) => !connectedPhoneIds.includes(pn.id) && !ivrPhoneIds.includes(pn.id)
     );
 
     // Check which available phones have active campaign conflicts

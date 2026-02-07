@@ -19,6 +19,16 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   ArrowRight,
   Phone,
@@ -35,6 +45,9 @@ import {
   List,
   AlertTriangle,
   Search,
+  Plus,
+  Trash2,
+  Link as LinkIcon,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -121,6 +134,8 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  const [wizardMode, setWizardMode] = useState<"list" | "create">(embedded ? "list" : "create");
+  const [deleteConnectionId, setDeleteConnectionId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPhoneIds, setSelectedPhoneIds] = useState<string[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
@@ -316,6 +331,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
         setSelectedTemplateId(null);
         setCustomPrompt("");
         setSelectedKBIds([]);
+        setWizardMode("list");
       }
     },
     onError: (error: any) => {
@@ -326,6 +342,133 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
       });
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (connectionId: string) => {
+      await apiRequest("DELETE", `/api/incoming-connections/${connectionId}`);
+      return connectionId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/incoming-connections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers"] });
+      setDeleteConnectionId(null);
+      toast({
+        title: "Connection Deleted",
+        description: "The incoming connection has been removed successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete incoming connection",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const startNewConnection = () => {
+    setCurrentStep(1);
+    setSelectedPhoneIds([]);
+    setSelectedAgentId(null);
+    setAgentSearch("");
+    setPromptSearch("");
+    setLanguageFilter("all");
+    setUseCaseFilter("all");
+    setSelectedTemplateId(null);
+    setCustomPrompt("");
+    setSelectedKBIds([]);
+    setWizardMode("create");
+  };
+
+  const renderConnectionsList = () => (
+    <div className="space-y-4 p-4" data-testid="connections-list-view">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold">Incoming Connections</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage phone numbers connected to AI agents for incoming calls
+          </p>
+        </div>
+        <Button onClick={startNewConnection} data-testid="button-new-connection">
+          <Plus className="h-4 w-4 mr-2" />
+          New Connection
+        </Button>
+      </div>
+
+      {incomingLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      ) : existingConnections.length === 0 ? (
+        <div className="text-center py-12">
+          <LinkIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="font-medium mb-1">No Incoming Connections</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Connect phone numbers to AI agents so they can handle incoming calls.
+          </p>
+          <Button onClick={startNewConnection} data-testid="button-new-connection-empty">
+            <Plus className="h-4 w-4 mr-2" />
+            Create First Connection
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {existingConnections.map((conn) => {
+            const connAgent = (conn as any).agent;
+            const connPhone = (conn as any).phoneNumber;
+            return (
+              <Card key={conn.id} data-testid={`card-connection-${conn.id}`}>
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-md bg-green-100 dark:bg-green-900/30 flex-shrink-0">
+                    <Phone className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">
+                      {connPhone?.phoneNumber || "Unknown Number"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {connPhone?.friendlyName || ""}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="flex items-center justify-center h-10 w-10 rounded-md bg-blue-100 dark:bg-blue-900/30">
+                      <Bot className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {connAgent?.name || "Unknown Agent"}
+                      </div>
+                      {connAgent?.language && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {getLanguageLabel(connAgent.language)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeleteConnectionId(conn.id)}
+                    data-testid={`button-delete-connection-${conn.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-1 py-4 px-4" data-testid="wizard-step-indicator">
@@ -891,6 +1034,42 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
     </div>
   );
 
+  if (wizardMode === "list" && embedded) {
+    return (
+      <div className="h-full flex flex-col">
+        <ScrollArea className="flex-1">
+          {renderConnectionsList()}
+        </ScrollArea>
+
+        <AlertDialog open={!!deleteConnectionId} onOpenChange={(open) => { if (!open) setDeleteConnectionId(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Connection</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will disconnect the phone number from the AI agent. The phone number will become available for new connections. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteConnectionId && deleteMutation.mutate(deleteConnectionId)}
+                className="bg-destructive text-destructive-foreground"
+                data-testid="button-confirm-delete"
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }
+
   return (
     <div className={`${embedded ? "h-full" : "h-screen"} flex flex-col`}>
       {!embedded && (
@@ -908,6 +1087,15 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
           <Button variant="outline" size="sm" onClick={() => setLocation("/app/incoming-connections/list")} data-testid="button-list-view">
             <List className="h-4 w-4 mr-1" />
             List View
+          </Button>
+        </div>
+      )}
+
+      {embedded && (
+        <div className="flex items-center px-4 py-2 border-b bg-background gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setWizardMode("list")} data-testid="button-back-to-list">
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to Connections
           </Button>
         </div>
       )}

@@ -1322,10 +1322,10 @@ export default function PhoneNumbers() {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-1 min-h-0">
+    <div className="h-full flex flex-col" style={{ minHeight: '100vh' }}>
+      <div className="flex flex-1">
         {/* Left Sidebar - Desktop */}
-        <div className="hidden md:flex flex-col w-[240px] flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-background">
+        <div className="hidden md:flex flex-col w-[240px] flex-shrink-0 border-r border-border bg-background">
           {renderSidebarContent()}
         </div>
 

@@ -741,14 +741,24 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
           </div>
         ) : (
           <>
-            {selectedKBIds.length > 0 && (
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="text-sm font-medium">{selectedKBIds.length} knowledge base(s) selected</span>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedKBIds([])} data-testid="button-clear-kbs">
-                  Clear All
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-sm font-medium">{selectedKBIds.length} of {knowledgeBases.length} selected</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedKBIds(knowledgeBases.map((kb) => kb.id))}
+                  data-testid="button-select-all-kbs"
+                >
+                  Select All
                 </Button>
+                {selectedKBIds.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedKBIds([])} data-testid="button-clear-kbs">
+                    Clear
+                  </Button>
+                )}
               </div>
-            )}
+            </div>
             <div className="grid gap-2 sm:grid-cols-2">
               {knowledgeBases.map((kb) => {
                 const isSelected = selectedKBIds.includes(kb.id);

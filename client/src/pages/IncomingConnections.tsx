@@ -15,9 +15,10 @@
  * ============================================================
  */
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Plus, Phone, Trash2, Link as LinkIcon, PhoneIncoming, Bot, ArrowRight } from "lucide-react";
+import { Plus, Phone, Trash2, Link as LinkIcon, PhoneIncoming, Bot, ArrowRight, LayoutGrid } from "lucide-react";
 import { SiOpenai, SiTwilio } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -169,6 +170,7 @@ type VoiceEngineSettings = {
 
 export default function IncomingConnectionsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<EngineTab>('twilio-elevenlabs');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -461,10 +463,16 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
                 {t("incomingConnections.subtitle")}
               </p>
             </div>
-            <Button className="rounded-2xl" onClick={handleNewConnection} data-testid="button-create-connection">
-              <Plus className="w-4 h-4 mr-2" />
-              New Connection
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button variant="outline" className="rounded-2xl" onClick={() => setLocation("/app/incoming-connections/canvas")} data-testid="button-design-flow">
+                <LayoutGrid className="w-4 h-4 mr-2" />
+                Design Flow
+              </Button>
+              <Button className="rounded-2xl" onClick={handleNewConnection} data-testid="button-create-connection">
+                <Plus className="w-4 h-4 mr-2" />
+                New Connection
+              </Button>
+            </div>
           </div>
         </div>
       )}

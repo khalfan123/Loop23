@@ -67,6 +67,7 @@ import FormsPage from "@/pages/FormsPage";
 import AppointmentsPage from "@/pages/AppointmentsPage";
 import FlowTemplatesPage from "@/pages/FlowTemplatesPage";
 import IncomingConnections from "@/pages/IncomingConnections";
+import IncomingCallCanvas from "@/pages/IncomingCallCanvas";
 import PromptTemplates from "@/pages/PromptTemplates";
 import TransactionHistory from "@/pages/TransactionHistory";
 import LoginPage from "@/pages/LoginPage";
@@ -196,6 +197,7 @@ function UserRouter() {
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
           <Route path="/app/agents" component={Agents} />
           <Route path="/app/prompt-templates" component={PromptTemplates} />
+          <Route path="/app/incoming-connections/canvas" component={IncomingCallCanvas} />
           <Route path="/app/incoming-connections" component={IncomingConnections} />
           <Route path="/app/voices" component={Voices} />
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
@@ -257,6 +259,7 @@ function TeamMemberRouter() {
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
           <Route path="/app/agents" component={Agents} />
           <Route path="/app/prompt-templates" component={PromptTemplates} />
+          <Route path="/app/incoming-connections/canvas" component={IncomingCallCanvas} />
           <Route path="/app/incoming-connections" component={IncomingConnections} />
           <Route path="/app/voices" component={Voices} />
           <Route path="/app/phone-numbers" component={PhoneNumbers} />

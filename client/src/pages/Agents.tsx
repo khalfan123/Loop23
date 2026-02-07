@@ -25,7 +25,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
 import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Globe } from "lucide-react";
 import {
@@ -48,6 +47,7 @@ import { AuthStorage } from "@/lib/auth-storage";
 import PromptTemplatesLibrary from "@/components/PromptTemplatesLibrary";
 import Voices from "@/pages/Voices";
 import PromptTemplates from "@/pages/PromptTemplates";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import AgentVersionHistory from "@/components/AgentVersionHistory";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -854,40 +854,41 @@ export default function Agents() {
     return Array.from(tags).sort();
   }, [agents]);
 
+  const subPanelContent = (
+    <SubPanelSection>
+      <SubPanelItem
+        icon={<Bot className="h-4 w-4" />}
+        label={t('nav.agents', { defaultValue: 'Staff AI' })}
+        isActive={activeTab === 'agents'}
+        onClick={() => setActiveTab('agents')}
+        data-testid="tab-agents"
+      />
+      <SubPanelItem
+        icon={<FileText className="h-4 w-4" />}
+        label={t('nav.promptTemplates', { defaultValue: 'Prompt Templates' })}
+        isActive={activeTab === 'templates'}
+        onClick={() => setActiveTab('templates')}
+        data-testid="tab-templates"
+      />
+      <SubPanelItem
+        icon={<Mic className="h-4 w-4" />}
+        label={t('nav.voices', { defaultValue: 'Voices' })}
+        isActive={activeTab === 'voices'}
+        onClick={() => setActiveTab('voices')}
+        data-testid="tab-voices"
+      />
+    </SubPanelSection>
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'agents' | 'templates' | 'voices')} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3 mb-4 md:mb-6">
-          <TabsTrigger value="agents" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="tab-agents">
-            <Bot className="h-3 w-3 md:h-4 md:w-4" />
-            <span className="hidden sm:inline">{t('nav.agents')}</span>
-            <span className="sm:hidden">Agents</span>
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="tab-templates">
-            <FileText className="h-3 w-3 md:h-4 md:w-4" />
-            <span className="hidden sm:inline">{t('nav.promptTemplates')}</span>
-            <span className="sm:hidden">Templates</span>
-          </TabsTrigger>
-          <TabsTrigger value="voices" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm" data-testid="tab-voices">
-            <Mic className="h-3 w-3 md:h-4 md:w-4" />
-            <span className="hidden sm:inline">{t('nav.voices')}</span>
-            <span className="sm:hidden">Voices</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Prompt Templates Tab */}
-        <TabsContent value="templates" className="mt-0">
-          <PromptTemplates />
-        </TabsContent>
-
-        {/* Voices Tab */}
-        <TabsContent value="voices" className="mt-0">
-          <Voices />
-        </TabsContent>
-
-        {/* Agents Tab */}
-        <TabsContent value="agents" className="mt-0">
+    <ThreeColumnLayout
+      subPanel={subPanelContent}
+      subPanelWidth="sm"
+      subPanelHeader={<span className="font-medium text-sm">{t('nav.agents', { defaultValue: 'Staff AI' })}</span>}
+    >
+      <div className={activeTab === 'templates' ? '' : 'hidden'}><PromptTemplates /></div>
+      <div className={activeTab === 'voices' ? '' : 'hidden'}><Voices /></div>
+      <div className={activeTab === 'agents' ? '' : 'hidden'}>
       {/* New Sidebar + Table Layout */}
       <div className="flex h-[calc(100vh-180px)] border rounded-lg bg-background overflow-hidden">
         {/* Left Sidebar - Hidden on mobile */}
@@ -2923,8 +2924,7 @@ export default function Agents() {
           queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
         }}
       />
-      </TabsContent>
-      </Tabs>
-    </div>
+      </div>
+    </ThreeColumnLayout>
   );
 }

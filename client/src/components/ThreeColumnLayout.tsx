@@ -123,6 +123,7 @@ interface SubPanelItemProps {
   onClick?: () => void;
   badge?: React.ReactNode | string | number;
   className?: string;
+  "data-testid"?: string;
 }
 
 export function SubPanelItem({
@@ -132,10 +133,12 @@ export function SubPanelItem({
   onClick,
   badge,
   className,
+  "data-testid": dataTestId,
 }: SubPanelItemProps) {
   return (
     <button
       onClick={onClick}
+      data-testid={dataTestId}
       className={cn(
         "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-left transition-all duration-150 hover-elevate active-elevate-2",
         isActive 

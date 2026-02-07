@@ -80,9 +80,11 @@ interface PromptTemplate {
 
 interface KnowledgeBase {
   id: string;
-  name: string;
+  title: string;
   type: string;
-  status: string;
+  url?: string | null;
+  fileUrl?: string | null;
+  content?: string | null;
 }
 
 const getLanguageLabel = (code: string) => {
@@ -766,8 +768,11 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
                         {isSelected ? <Check className="h-4 w-4" /> : <Database className="h-4 w-4 text-amber-600" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{kb.name}</div>
-                        <div className="text-xs text-muted-foreground">{kb.type} - {kb.status}</div>
+                        <div className="font-medium text-sm truncate">{kb.title}</div>
+                        <div className="text-xs text-muted-foreground">{kb.type}</div>
+                        {kb.url && (
+                          <div className="text-xs text-muted-foreground truncate mt-0.5">{kb.url}</div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -858,7 +863,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
                   {selectedKBs.map((kb) => (
                     <Badge key={kb.id} variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-400">
                       <Database className="h-3 w-3 mr-1" />
-                      {kb.name}
+                      {kb.title}
                     </Badge>
                   ))}
                 </div>

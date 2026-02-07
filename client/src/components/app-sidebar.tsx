@@ -156,7 +156,6 @@ export function AppSidebar() {
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
     { title: t('nav.departments', 'Departments'), url: "/app/departments" },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns" },
-    { title: t('nav.contacts', 'Contacts'), url: "/app/contacts" },
   ];
 
   const manageItems = [

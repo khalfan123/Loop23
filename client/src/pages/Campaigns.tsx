@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import { Badge } from "@/components/ui/badge";
-import { Phone, AlertTriangle, Loader2 } from "lucide-react";
+import { Phone, AlertTriangle, Loader2, Users } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -154,6 +154,12 @@ export default function Campaigns() {
           label={t('campaigns.batchCall', 'Batch Call')}
           isActive={true}
           badge={campaigns.length}
+        />
+        <SubPanelItem
+          icon={<Users className="w-4 h-4" />}
+          label={t('nav.contacts', 'Contacts')}
+          isActive={false}
+          onClick={() => setLocation('/app/contacts')}
         />
       </SubPanelSection>
       

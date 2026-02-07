@@ -51,6 +51,7 @@ import { HeaderBannerNotifications } from "@/components/HeaderBannerNotification
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { PhoneNumberDropdown } from "@/components/PhoneNumberDropdown";
 
 interface User {
   id: string;
@@ -372,6 +373,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
           )}
         </nav>
 
+        <PhoneNumberDropdown />
         {/* Center section: Search */}
         <div className="flex-1 flex justify-center px-2 max-w-lg mx-auto">
           <GlobalSearch />

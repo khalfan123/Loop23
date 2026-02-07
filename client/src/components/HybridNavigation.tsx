@@ -41,6 +41,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { HeaderBannerNotifications } from "@/components/HeaderBannerNotifications";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { PhoneNumberDropdown } from "@/components/PhoneNumberDropdown";
 
 interface User {
   id: string;
@@ -451,6 +452,7 @@ export function HybridNavigation({
               <Menu className="h-5 w-5" />
             </Button>
 
+            <PhoneNumberDropdown />
             <div className="flex-1 flex justify-center px-2">
               <GlobalSearch />
             </div>

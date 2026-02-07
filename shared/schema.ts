@@ -466,8 +466,25 @@ export const calls = pgTable("calls", {
   wasTransferred: boolean("was_transferred").default(false), // Whether call was transferred
   transferredTo: text("transferred_to"), // Number call was transferred to
   transferredAt: timestamp("transferred_at"), // When call was transferred
+  channelType: text("channel_type").default("VOICE"), // VOICE, CHAT, SMS
+  cost: decimal("cost", { precision: 10, scale: 4 }),
+  endReason: text("end_reason"),
+  sessionOutcome: text("session_outcome"),
+  endToEndLatencyMs: integer("end_to_end_latency_ms"),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Call Screening Responses - Stores screening question answers per call session
+export const callResponses = pgTable("call_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  callId: varchar("call_id").notNull().references(() => calls.id, { onDelete: "cascade" }),
+  questionId: text("question_id").notNull(), // Stable key, e.g. "steady_housing"
+  questionText: text("question_text").notNull(),
+  answerType: text("answer_type").notNull().default("BOOLEAN"), // BOOLEAN, MULTISELECT, TEXT, NUMBER
+  answerValue: text("answer_value").notNull(), // Normalized value: "yes"/"no", JSON for multiselect
+  isConcern: boolean("is_concern").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -973,6 +990,10 @@ export const insertCallSchema = createInsertSchema(calls).omit({
   createdAt: true,
 });
 
+export const insertCallResponseSchema = createInsertSchema(callResponses).omit({
+  id: true,
+  createdAt: true,
+});
 
 export const insertCreditTransactionSchema = createInsertSchema(creditTransactions).omit({
   id: true,
@@ -1188,6 +1209,8 @@ export type Contact = typeof contacts.$inferSelect;
 export type InsertContact = z.infer<typeof insertContactSchema>;
 export type Call = typeof calls.$inferSelect;
 export type InsertCall = z.infer<typeof insertCallSchema>;
+export type CallResponse = typeof callResponses.$inferSelect;
+export type InsertCallResponse = z.infer<typeof insertCallResponseSchema>;
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
 export type InsertCreditTransaction = z.infer<typeof insertCreditTransactionSchema>;
 export type Tool = typeof tools.$inferSelect;

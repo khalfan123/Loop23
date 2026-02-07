@@ -21,7 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, ArrowRight, Play, Pause, Download, Loader2, Phone, Clock, Calendar, MessageSquare, PhoneIncoming, PhoneOutgoing, CheckCircle2, XCircle, User, Volume2, Heart, Target, Mail, Bot, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { ArrowLeft, ArrowRight, Play, Pause, Download, Loader2, Phone, Clock, Calendar, MessageSquare, PhoneIncoming, PhoneOutgoing, CheckCircle2, XCircle, User, Volume2, Heart, Target, Mail, Bot, ChevronLeft, ChevronRight, Globe, AlertTriangle, ClipboardCheck, ShieldAlert } from "lucide-react";
 import { format } from "date-fns";
 import { AuthStorage } from "@/lib/auth-storage";
 import { formatSipEndpoint } from "@/lib/formatters";
@@ -65,6 +65,24 @@ interface Call {
   agent?: { id: string; name: string } | null;
   widgetId?: string | null;
   widget?: { id: string; name: string } | null;
+  channelType?: string;
+  cost?: number | null;
+  endReason?: string | null;
+  sessionOutcome?: string | null;
+  endToEndLatencyMs?: number | null;
+  responses?: CallResponse[];
+  concernedQuestionsCount?: number;
+}
+
+interface CallResponse {
+  id: string;
+  callId: string;
+  questionId: string;
+  questionText: string;
+  answerType: string;
+  answerValue: string;
+  isConcern: boolean;
+  createdAt: string;
 }
 
 export default function CallDetail() {
@@ -371,7 +389,7 @@ export default function CallDetail() {
         </div>
 
         {/* Stats Row */}
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50 dark:border-blue-800/30">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -407,6 +425,13 @@ export default function CallDetail() {
               <div className="text-lg font-bold text-sky-700 dark:text-sky-300">{hasRecording ? "Available" : "None"}</div>
             </div>
             <div className="text-sky-600/70 dark:text-sky-400/70 text-sm">Recording</div>
+          </div>
+          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-rose-100/50 dark:border-rose-800/30">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              <div className="text-2xl font-bold text-rose-700 dark:text-rose-300">{call.concernedQuestionsCount || 0}</div>
+            </div>
+            <div className="text-rose-600/70 dark:text-rose-400/70 text-sm">Concerned Questions</div>
           </div>
         </div>
       </div>
@@ -508,6 +533,7 @@ export default function CallDetail() {
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="transcription" data-testid="tab-transcription">Transcription</TabsTrigger>
           <TabsTrigger value="metadata" data-testid="tab-metadata">Client data</TabsTrigger>
+          <TabsTrigger value="screening" data-testid="tab-screening">Screening</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -797,6 +823,83 @@ export default function CallDetail() {
               </div>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="screening" className="space-y-6">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border border-slate-200 dark:border-slate-800 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center">
+                  <ClipboardCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="text-lg font-semibold">Screening Questions</h3>
+              </div>
+              {(call.concernedQuestionsCount ?? 0) > 0 && (
+                <Badge className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20 gap-1">
+                  <ShieldAlert className="h-3 w-3" />
+                  {call.concernedQuestionsCount} Concern{(call.concernedQuestionsCount ?? 0) !== 1 ? 's' : ''}
+                </Badge>
+              )}
+            </div>
+
+            {call.responses && call.responses.length > 0 ? (
+              <div className="space-y-3">
+                {call.responses.map((response, index) => (
+                  <div
+                    key={response.id}
+                    className={`flex items-start gap-4 p-4 rounded-xl border ${
+                      response.isConcern
+                        ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40'
+                        : 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+                    }`}
+                    data-testid={`screening-response-${index}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-foreground">{response.questionText}</span>
+                        {response.isConcern && (
+                          <Badge className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20 text-xs">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Concern
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs font-mono">
+                          {response.answerType}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {response.answerType === 'MULTISELECT' ? (
+                            (() => {
+                              try {
+                                const items = JSON.parse(response.answerValue);
+                                return Array.isArray(items) && items.length > 0 ? items.join(', ') : 'None';
+                              } catch {
+                                return response.answerValue;
+                              }
+                            })()
+                          ) : (
+                            <span className={`font-medium ${
+                              response.isConcern ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                              {response.answerValue}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <ClipboardCheck className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground">
+                  No screening responses recorded for this call.
+                </p>
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

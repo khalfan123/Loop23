@@ -18,7 +18,7 @@
 import { db } from "./db";
 import { nanoid } from "nanoid";
 import { 
-  users, agents, knowledgeBase, campaigns, contacts, calls, 
+  users, agents, knowledgeBase, campaigns, contacts, calls, callResponses,
   creditTransactions, tools, voices, plans, userSubscriptions,
   phoneNumbers, usageRecords, globalSettings, creditPackages,
   webhookSubscriptions, webhookDeliveryLogs, phoneNumberRentals, notifications,
@@ -57,7 +57,8 @@ import {
   type EmailNotificationSettings, type InsertEmailNotificationSettings,
   type BannedWord, type InsertBannedWord,
   type ContentViolation, type InsertContentViolation,
-  type DemoSession, type InsertDemoSession
+  type DemoSession, type InsertDemoSession,
+  type CallResponse, type InsertCallResponse
 } from "@shared/schema";
 import { eq, sql, and, gte, lte, lt, desc, asc, isNull, isNotNull, or, inArray } from "drizzle-orm";
 import { calculateGlobalAnalytics, calculateUserAnalytics, calculateDashboardData } from "./storage/analytics-helpers";
@@ -133,6 +134,13 @@ export interface IStorage {
   getUserCalls(userId: string): Promise<Call[]>;
   createCall(call: InsertCall): Promise<Call>;
   updateCall(id: string, call: Partial<InsertCall>): Promise<void>;
+
+  // Call Responses (Screening Questions)
+  getCallResponses(callId: string): Promise<CallResponse[]>;
+  createCallResponse(response: InsertCallResponse): Promise<CallResponse>;
+  createCallResponses(responses: InsertCallResponse[]): Promise<CallResponse[]>;
+  deleteCallResponses(callId: string): Promise<void>;
+  getConcernedQuestionsCount(callId: string): Promise<number>;
 
   // Credit Transactions
   getCreditTransaction(id: string): Promise<CreditTransaction | undefined>;
@@ -1002,6 +1010,32 @@ export class DbStorage implements IStorage {
 
   async updateCall(id: string, call: Partial<InsertCall>): Promise<void> {
     await db.update(calls).set(call).where(eq(calls.id, id));
+  }
+
+  // Call Responses (Screening Questions)
+  async getCallResponses(callId: string): Promise<CallResponse[]> {
+    return db.select().from(callResponses).where(eq(callResponses.callId, callId));
+  }
+
+  async createCallResponse(response: InsertCallResponse): Promise<CallResponse> {
+    const [created] = await db.insert(callResponses).values(response).returning();
+    return created;
+  }
+
+  async createCallResponses(responses: InsertCallResponse[]): Promise<CallResponse[]> {
+    if (responses.length === 0) return [];
+    return db.insert(callResponses).values(responses).returning();
+  }
+
+  async deleteCallResponses(callId: string): Promise<void> {
+    await db.delete(callResponses).where(eq(callResponses.callId, callId));
+  }
+
+  async getConcernedQuestionsCount(callId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)::int` })
+      .from(callResponses)
+      .where(and(eq(callResponses.callId, callId), eq(callResponses.isConcern, true)));
+    return result[0]?.count || 0;
   }
 
   // Credit Transactions

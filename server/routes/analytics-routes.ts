@@ -18,8 +18,9 @@
 
 import { Router, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { calls, agents, incomingConnections } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { calls, agents, incomingConnections, callResponses } from "@shared/schema";
+import { eq, and, sql } from "drizzle-orm";
+import { z } from "zod";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { getTwilioClient } from "../services/twilio-connector";
@@ -37,10 +38,53 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
   const router = Router();
   const { db, storage, authenticateToken, authenticateHybrid, recordingService, elevenLabsService } = ctx;
 
+  // Concern rules mapping for screening questions
+  const CONCERN_RULES: Record<string, (answer: string) => boolean> = {
+    "steady_housing": (answer) => answer.toLowerCase() === "no",
+    "safe_living": (answer) => answer.toLowerCase() === "no",
+    "home_problems": (answer) => {
+      if (!answer || answer.toLowerCase() === "none" || answer === "[]") return false;
+      try { const arr = JSON.parse(answer); return Array.isArray(arr) && arr.length > 0; } catch { return answer.trim().length > 0; }
+    },
+    "food_insecurity": (answer) => answer.toLowerCase() === "yes",
+    "transportation_issues": (answer) => answer.toLowerCase() === "yes",
+    "employment_status": (answer) => answer.toLowerCase() === "no",
+  };
+
+  function computeIsConcern(questionId: string, answerValue: string): boolean {
+    const rule = CONCERN_RULES[questionId];
+    if (!rule) return false;
+    return rule(answerValue);
+  }
+
   // Get all user calls with pagination support
   router.get("/api/calls", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const enrichedCalls = await storage.getUserCallsWithDetails(req.userId!);
+
+      // Batch-fetch concern counts for all call IDs
+      const allCallIds = enrichedCalls.map((c: any) => c.id);
+      let concernCounts: Record<string, number> = {};
+      if (allCallIds.length > 0) {
+        const counts = await db.select({
+          callId: callResponses.callId,
+          count: sql<number>`count(*)::int`,
+        })
+          .from(callResponses)
+          .where(and(
+            sql`${callResponses.callId} = ANY(${allCallIds})`,
+            eq(callResponses.isConcern, true)
+          ))
+          .groupBy(callResponses.callId);
+        for (const row of counts) {
+          concernCounts[row.callId] = row.count;
+        }
+      }
+
+      const callsWithConcerns = enrichedCalls.map((c: any) => ({
+        ...c,
+        concernedQuestionsCount: concernCounts[c.id] || 0,
+      }));
 
       const requestsPagination = req.query.page !== undefined || req.query.pageSize !== undefined;
       
@@ -49,10 +93,10 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         const pageSize = parseInt(req.query.pageSize as string, 10) || 25;
         const offset = (page - 1) * pageSize;
 
-        const totalItems = enrichedCalls.length;
+        const totalItems = callsWithConcerns.length;
         const totalPages = Math.ceil(totalItems / pageSize);
 
-        const paginatedCalls = enrichedCalls.slice(offset, offset + pageSize);
+        const paginatedCalls = callsWithConcerns.slice(offset, offset + pageSize);
 
         res.json({
           data: paginatedCalls,
@@ -64,7 +108,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           }
         });
       } else {
-        res.json(enrichedCalls);
+        res.json(callsWithConcerns);
       }
     } catch (error: any) {
       console.error("Get calls error:", error);
@@ -72,7 +116,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
     }
   });
 
-  // Get single call details
+  // Get single call details with responses
   router.get("/api/calls/:id", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const callWithDetails = await storage.getCallWithDetails(req.params.id);
@@ -100,10 +144,65 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      res.json(callWithDetails);
+      // Include screening responses and concern count
+      const responses = await storage.getCallResponses(req.params.id);
+      const concernedQuestionsCount = responses.filter(r => r.isConcern).length;
+
+      res.json({
+        ...callWithDetails,
+        responses,
+        concernedQuestionsCount,
+      });
     } catch (error: any) {
       console.error("Get call error:", error);
       res.status(500).json({ error: "Failed to get call" });
+    }
+  });
+
+  // Add/update screening responses for a call session
+  const responseSchema = z.object({
+    responses: z.array(z.object({
+      questionId: z.string(),
+      questionText: z.string(),
+      answerType: z.enum(["BOOLEAN", "MULTISELECT", "TEXT", "NUMBER"]).default("BOOLEAN"),
+      answerValue: z.string(),
+    })),
+  });
+
+  router.post("/api/calls/:id/responses", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const callRecord = await storage.getCallWithDetails(req.params.id);
+      if (!callRecord) {
+        return res.status(404).json({ error: "Call not found" });
+      }
+      if (callRecord.userId !== req.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const parsed = responseSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request body", details: parsed.error.errors });
+      }
+
+      // Delete existing responses then recreate
+      await storage.deleteCallResponses(req.params.id);
+
+      const responsesToInsert = parsed.data.responses.map(r => ({
+        callId: req.params.id,
+        questionId: r.questionId,
+        questionText: r.questionText,
+        answerType: r.answerType,
+        answerValue: r.answerValue,
+        isConcern: computeIsConcern(r.questionId, r.answerValue),
+      }));
+
+      const created = await storage.createCallResponses(responsesToInsert);
+      const concernedQuestionsCount = created.filter(r => r.isConcern).length;
+
+      res.json({ responses: created, concernedQuestionsCount });
+    } catch (error: any) {
+      console.error("Create call responses error:", error);
+      res.status(500).json({ error: "Failed to save responses" });
     }
   });
 

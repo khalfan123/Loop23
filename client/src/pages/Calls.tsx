@@ -37,7 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { Search, Download, Loader2, Phone, Calendar as CalendarIcon, Clock, MessageSquare, Eye, Play, Pause, Volume2, PhoneIncoming, PhoneOutgoing, CheckCircle2, XCircle, Mic, FileText, Sparkles, Globe, Filter, X, Columns3, ChevronDown, LayoutGrid, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, DollarSign } from "lucide-react";
+import { Search, Download, Loader2, Phone, Calendar as CalendarIcon, Clock, MessageSquare, Eye, Play, Pause, Volume2, PhoneIncoming, PhoneOutgoing, CheckCircle2, XCircle, Mic, FileText, Sparkles, Globe, Filter, X, Columns3, ChevronDown, LayoutGrid, LayoutList, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, AlertTriangle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -83,6 +83,8 @@ interface Call {
   widget?: { id: string; name: string } | null;
   cost?: number | null;
   endReason?: string | null;
+  concernedQuestionsCount?: number;
+  channelType?: string;
 }
 
 type DatePreset = 'today' | 'yesterday' | 'last7days' | 'last30days' | 'thisMonth' | 'custom' | 'all';
@@ -96,6 +98,7 @@ const DEFAULT_COLUMNS = {
   cost: false,
   sessionId: false,
   endReason: false,
+  concernedQuestions: true,
   status: true,
   sentiment: true,
   from: true,
@@ -916,6 +919,9 @@ export default function Calls() {
               )}
               {columnVisibility.sessionId && <TableHead className="whitespace-nowrap">Session ID</TableHead>}
               {columnVisibility.endReason && <TableHead className="whitespace-nowrap">End Reason</TableHead>}
+              {columnVisibility.concernedQuestions && (
+                <TableHead className="whitespace-nowrap">Concerns</TableHead>
+              )}
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -977,15 +983,20 @@ export default function Calls() {
                 )}
                 {columnVisibility.channelType && (
                   <TableCell>
-                    {call.widgetId ? (
+                    {(call as any).channelType === 'CHAT' ? (
                       <Badge variant="outline" className="text-xs gap-1">
-                        <Globe className="h-3 w-3" />
-                        Widget
+                        <MessageSquare className="h-3 w-3" />
+                        CHAT
+                      </Badge>
+                    ) : (call as any).channelType === 'SMS' ? (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <FileText className="h-3 w-3" />
+                        SMS
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs">
-                        <Phone className="h-3 w-3 mr-1" />
-                        Phone
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Phone className="h-3 w-3" />
+                        VOICE
                       </Badge>
                     )}
                   </TableCell>
@@ -1007,6 +1018,17 @@ export default function Calls() {
                 {columnVisibility.endReason && (
                   <TableCell className="text-xs whitespace-nowrap">
                     {call.endReason || '-'}
+                  </TableCell>
+                )}
+                {columnVisibility.concernedQuestions && (
+                  <TableCell>
+                    {(call as any).concernedQuestionsCount > 0 ? (
+                      <Badge className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20">
+                        {(call as any).concernedQuestionsCount}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">0</span>
+                    )}
                   </TableCell>
                 )}
                 <TableCell>
@@ -1485,6 +1507,13 @@ export default function Calls() {
               data-testid="checkbox-col-endreason"
             >
               End Reason
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.concernedQuestions}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, concernedQuestions: checked }))}
+              data-testid="checkbox-col-concerns"
+            >
+              Concerned Questions
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               checked={columnVisibility.status}

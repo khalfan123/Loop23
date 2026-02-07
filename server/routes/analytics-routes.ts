@@ -19,7 +19,7 @@
 import { Router, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import { calls, agents, incomingConnections, callResponses } from "@shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
@@ -72,7 +72,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         })
           .from(callResponses)
           .where(and(
-            sql`${callResponses.callId} = ANY(${allCallIds})`,
+            inArray(callResponses.callId, allCallIds),
             eq(callResponses.isConcern, true)
           ))
           .groupBy(callResponses.callId);

@@ -53,6 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AuthStorage } from "@/lib/auth-storage";
 import { formatSipEndpoint } from "@/lib/formatters";
 import { DateRange } from "react-day-picker";
+import CallDetailPanel from "@/pages/CallDetailPanel";
 
 interface Call {
   id: string;
@@ -149,6 +150,19 @@ export default function Calls() {
   });
   const [sortField, setSortField] = useState<SortField>('time');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  const openCallPanel = (callId: string) => {
+    setSelectedCallId(callId);
+    setPanelOpen(true);
+  };
+
+  const closeCallPanel = () => {
+    setPanelOpen(false);
+    setSelectedCallId(null);
+  };
 
   useEffect(() => {
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
@@ -620,7 +634,7 @@ export default function Calls() {
     <Card 
       key={call.id}
       className="group rounded-2xl border-border/30 bg-card/50 hover-elevate transition-all cursor-pointer overflow-visible"
-      onClick={() => setLocation(`/app/calls/${call.id}`)}
+      onClick={() => openCallPanel(call.id)}
       data-testid={`card-call-${testIdPrefix}${call.id}`}
     >
       <CardContent className="p-4">
@@ -792,7 +806,7 @@ export default function Calls() {
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                setLocation(`/app/calls/${call.id}`);
+                openCallPanel(call.id);
               }}
               data-testid={`button-view-details-${testIdPrefix}${call.id}`}
             >
@@ -930,7 +944,7 @@ export default function Calls() {
               <TableRow 
                 key={call.id}
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => setLocation(`/app/calls/${call.id}`)}
+                onClick={() => openCallPanel(call.id)}
                 data-testid={`row-call-${testIdPrefix}${call.id}`}
               >
                 {columnVisibility.time && (
@@ -1037,7 +1051,7 @@ export default function Calls() {
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setLocation(`/app/calls/${call.id}`);
+                      openCallPanel(call.id);
                     }}
                     data-testid={`button-view-${testIdPrefix}${call.id}`}
                   >
@@ -1674,6 +1688,29 @@ export default function Calls() {
         </TabsContent>
       </Tabs>
       </div>
+
+      {selectedCallId && (
+        <CallDetailPanel
+          callId={selectedCallId}
+          open={panelOpen}
+          onClose={closeCallPanel}
+          onNavigatePrev={() => {
+            const idx = sortedCalls.findIndex((c) => c.id === selectedCallId);
+            if (idx > 0) setSelectedCallId(sortedCalls[idx - 1].id);
+          }}
+          onNavigateNext={() => {
+            const idx = sortedCalls.findIndex((c) => c.id === selectedCallId);
+            if (idx >= 0 && idx < sortedCalls.length - 1)
+              setSelectedCallId(sortedCalls[idx + 1].id);
+          }}
+          hasPrev={sortedCalls.findIndex((c) => c.id === selectedCallId) > 0}
+          hasNext={
+            sortedCalls.findIndex((c) => c.id === selectedCallId) >= 0 &&
+            sortedCalls.findIndex((c) => c.id === selectedCallId) <
+            sortedCalls.length - 1
+          }
+        />
+      )}
     </ThreeColumnLayout>
   );
 }

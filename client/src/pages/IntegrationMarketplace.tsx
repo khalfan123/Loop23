@@ -13,26 +13,105 @@ import {
 } from "lucide-react";
 import {
   SiSalesforce, SiHubspot, SiGooglesheets, SiSlack,
-  SiMailchimp, SiAirtable
+  SiMailchimp, SiAirtable, SiTwilio, SiOpenai,
+  SiZapier, SiStripe, SiShopify, SiNotion,
+  SiFirebase, SiDiscord, SiTelegram, SiWhatsapp,
+  SiZendesk, SiIntercom
 } from "react-icons/si";
 import type { IntegrationApp, UserIntegration } from "@shared/schema";
 
 const CATEGORY_OPTIONS = [
   { value: "all", label: "All Categories" },
   { value: "crm", label: "CRM" },
-  { value: "erp", label: "ERP" },
+  { value: "telephony", label: "Telephony & VoIP" },
+  { value: "ai_llm", label: "AI & LLM" },
+  { value: "voice_speech", label: "Voice & Speech" },
+  { value: "marketing", label: "Marketing & Email" },
+  { value: "communication", label: "Communication & Messaging" },
+  { value: "support", label: "Customer Support" },
+  { value: "calendar", label: "Calendar & Scheduling" },
+  { value: "ecommerce", label: "E-Commerce & Payments" },
+  { value: "analytics", label: "Analytics & Reporting" },
+  { value: "automation", label: "Automation & Workflow" },
+  { value: "data_storage", label: "Data & Storage" },
+  { value: "hr_recruiting", label: "HR & Recruiting" },
   { value: "productivity", label: "Productivity" },
-  { value: "marketing", label: "Marketing" },
-  { value: "communication", label: "Communication" },
+  { value: "erp", label: "ERP" },
 ];
 
 const LOGO_MAP: Record<string, React.ReactNode> = {
   salesforce: <SiSalesforce className="w-6 h-6 text-[#00A1E0]" />,
   hubspot: <SiHubspot className="w-6 h-6 text-[#FF7A59]" />,
-  "google-sheets": <SiGooglesheets className="w-6 h-6 text-[#0F9D58]" />,
-  slack: <SiSlack className="w-6 h-6 text-[#4A154B]" />,
+  zoho: <Plug className="w-6 h-6 text-[#C8202B]" />,
+  pipedrive: <Plug className="w-6 h-6 text-[#25292C]" />,
+  freshsales: <Plug className="w-6 h-6 text-[#25C16F]" />,
+  "close-crm": <Plug className="w-6 h-6 text-[#1A1A2E]" />,
+  "copper-crm": <Plug className="w-6 h-6 text-[#F7B731]" />,
+  "gohighlevel": <Plug className="w-6 h-6 text-[#4285F4]" />,
+  keap: <Plug className="w-6 h-6 text-[#2CBA2C]" />,
+  sugarcrm: <Plug className="w-6 h-6 text-[#E61E2A]" />,
+  bitrix24: <Plug className="w-6 h-6 text-[#2FC7F7]" />,
+  insightly: <Plug className="w-6 h-6 text-[#2E86C1]" />,
+  dynamics365: <Plug className="w-6 h-6 text-[#002050]" />,
+  twilio: <SiTwilio className="w-6 h-6 text-[#F22F46]" />,
+  plivo: <Plug className="w-6 h-6 text-[#57BB63]" />,
+  vonage: <Plug className="w-6 h-6 text-[#6B1FAA]" />,
+  bandwidth: <Plug className="w-6 h-6 text-[#079CEE]" />,
+  telnyx: <Plug className="w-6 h-6 text-[#00C08B]" />,
+  "amazon-connect": <Plug className="w-6 h-6 text-[#FF9900]" />,
+  openai: <SiOpenai className="w-6 h-6 text-[#412991]" />,
+  anthropic: <Plug className="w-6 h-6 text-[#D4A574]" />,
+  "google-gemini": <Plug className="w-6 h-6 text-[#4285F4]" />,
+  mistral: <Plug className="w-6 h-6 text-[#F54E42]" />,
+  groq: <Plug className="w-6 h-6 text-[#F55036]" />,
+  cohere: <Plug className="w-6 h-6 text-[#39594D]" />,
+  perplexity: <Plug className="w-6 h-6 text-[#20808D]" />,
+  elevenlabs: <Plug className="w-6 h-6 text-[#000000]" />,
+  deepgram: <Plug className="w-6 h-6 text-[#13EF93]" />,
+  "google-cloud-tts": <Plug className="w-6 h-6 text-[#4285F4]" />,
+  "amazon-polly": <Plug className="w-6 h-6 text-[#FF9900]" />,
+  "azure-speech": <Plug className="w-6 h-6 text-[#0078D4]" />,
+  playht: <Plug className="w-6 h-6 text-[#5C2D91]" />,
+  murf: <Plug className="w-6 h-6 text-[#6C63FF]" />,
   mailchimp: <SiMailchimp className="w-6 h-6 text-[#FFE01B]" />,
+  activecampaign: <Plug className="w-6 h-6 text-[#356AE6]" />,
+  sendgrid: <Plug className="w-6 h-6 text-[#1A82E2]" />,
+  brevo: <Plug className="w-6 h-6 text-[#0B996E]" />,
+  convertkit: <Plug className="w-6 h-6 text-[#FB6970]" />,
+  slack: <SiSlack className="w-6 h-6 text-[#4A154B]" />,
+  "microsoft-teams": <Plug className="w-6 h-6 text-[#6264A7]" />,
+  telegram: <SiTelegram className="w-6 h-6 text-[#0088CC]" />,
+  whatsapp: <SiWhatsapp className="w-6 h-6 text-[#25D366]" />,
+  discord: <SiDiscord className="w-6 h-6 text-[#5865F2]" />,
+  zendesk: <SiZendesk className="w-6 h-6 text-[#03363D]" />,
+  freshdesk: <Plug className="w-6 h-6 text-[#25C16F]" />,
+  intercom: <SiIntercom className="w-6 h-6 text-[#6AFDEF]" />,
+  helpscout: <Plug className="w-6 h-6 text-[#1292EE]" />,
+  front: <Plug className="w-6 h-6 text-[#394EFF]" />,
+  "google-calendar": <Plug className="w-6 h-6 text-[#4285F4]" />,
+  calendly: <Plug className="w-6 h-6 text-[#006BFF]" />,
+  "cal-com": <Plug className="w-6 h-6 text-[#292929]" />,
+  "microsoft-outlook": <Plug className="w-6 h-6 text-[#0078D4]" />,
+  "acuity-scheduling": <Plug className="w-6 h-6 text-[#3C8DD5]" />,
+  stripe: <SiStripe className="w-6 h-6 text-[#635BFF]" />,
+  shopify: <SiShopify className="w-6 h-6 text-[#7AB55C]" />,
+  woocommerce: <Plug className="w-6 h-6 text-[#96588A]" />,
+  "google-analytics": <Plug className="w-6 h-6 text-[#E37400]" />,
+  mixpanel: <Plug className="w-6 h-6 text-[#7856FF]" />,
+  segment: <Plug className="w-6 h-6 text-[#52BD94]" />,
+  zapier: <SiZapier className="w-6 h-6 text-[#FF4F00]" />,
+  make: <Plug className="w-6 h-6 text-[#6D00CC]" />,
+  n8n: <Plug className="w-6 h-6 text-[#EA4B71]" />,
+  "google-sheets": <SiGooglesheets className="w-6 h-6 text-[#0F9D58]" />,
   airtable: <SiAirtable className="w-6 h-6 text-[#18BFFF]" />,
+  notion: <SiNotion className="w-6 h-6 text-[#000000]" />,
+  supabase: <Plug className="w-6 h-6 text-[#3ECF8E]" />,
+  firebase: <SiFirebase className="w-6 h-6 text-[#FFCA28]" />,
+  "aws-s3": <Plug className="w-6 h-6 text-[#569A31]" />,
+  "monday-com": <Plug className="w-6 h-6 text-[#FF3D57]" />,
+  bamboohr: <Plug className="w-6 h-6 text-[#73C41D]" />,
+  greenhouse: <Plug className="w-6 h-6 text-[#3AB549]" />,
+  lever: <Plug className="w-6 h-6 text-[#4C7B68]" />,
 };
 
 function getAppIcon(slug: string) {
@@ -58,10 +137,20 @@ function getStatusBadge(status: string | undefined) {
 function getCategoryLabel(category: string | null) {
   switch (category) {
     case "crm": return "CRM";
-    case "erp": return "ERP";
+    case "telephony": return "Telephony & VoIP";
+    case "ai_llm": return "AI & LLM";
+    case "voice_speech": return "Voice & Speech";
+    case "marketing": return "Marketing & Email";
+    case "communication": return "Communication & Messaging";
+    case "support": return "Customer Support";
+    case "calendar": return "Calendar & Scheduling";
+    case "ecommerce": return "E-Commerce & Payments";
+    case "analytics": return "Analytics & Reporting";
+    case "automation": return "Automation & Workflow";
+    case "data_storage": return "Data & Storage";
+    case "hr_recruiting": return "HR & Recruiting";
     case "productivity": return "Productivity";
-    case "marketing": return "Marketing";
-    case "communication": return "Communication";
+    case "erp": return "ERP";
     default: return category || "Other";
   }
 }

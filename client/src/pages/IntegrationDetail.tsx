@@ -29,6 +29,168 @@ interface IntegrationAppWithOAuth extends IntegrationApp {
   authType?: string;
 }
 
+interface ProviderCredentialConfig {
+  field1Label: string;
+  field1Placeholder: string;
+  field2Label: string;
+  field2Placeholder: string;
+  helpText: string;
+  setupUrl: string;
+  setupLinkText: string;
+  requiresRedirectUri: boolean;
+  scopes?: string[];
+}
+
+const PROVIDER_CREDENTIAL_CONFIG: Record<string, ProviderCredentialConfig> = {
+  salesforce: {
+    field1Label: "Consumer Key",
+    field1Placeholder: "Enter your Salesforce Consumer Key",
+    field2Label: "Consumer Secret",
+    field2Placeholder: "Enter your Salesforce Consumer Secret",
+    helpText: "Create a Connected App in Salesforce: go to Setup > App Manager > New Connected App. Enable OAuth settings and add the callback URL below. Copy the Consumer Key and Consumer Secret from the app details.",
+    setupUrl: "https://login.salesforce.com/",
+    setupLinkText: "Open Salesforce Setup",
+    requiresRedirectUri: true,
+    scopes: ["api", "refresh_token", "full"],
+  },
+  hubspot: {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your HubSpot Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your HubSpot Client Secret",
+    helpText: "Create an app in the HubSpot Developer Portal. Go to your app's Auth settings, add the redirect URL below, and select the required scopes. Copy the Client ID and Client Secret.",
+    setupUrl: "https://developers.hubspot.com/",
+    setupLinkText: "Open HubSpot Developer Portal",
+    requiresRedirectUri: true,
+    scopes: ["crm.objects.contacts.read", "crm.objects.contacts.write", "crm.objects.deals.read", "crm.objects.deals.write"],
+  },
+  zoho: {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Zoho Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Zoho Client Secret",
+    helpText: "Register a Server-based Application in the Zoho API Console. Add the redirect URL below as an authorized redirect URI. Copy the Client ID and Client Secret.",
+    setupUrl: "https://api-console.zoho.com/",
+    setupLinkText: "Open Zoho API Console",
+    requiresRedirectUri: true,
+    scopes: ["ZohoCRM.modules.ALL", "ZohoCRM.settings.ALL"],
+  },
+  "google-sheets": {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Google Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Google Client Secret",
+    helpText: "In Google Cloud Console, create an OAuth 2.0 Client ID (Web application type). Add the redirect URL below as an authorized redirect URI. Enable the Google Sheets API and Google People API for your project.",
+    setupUrl: "https://console.cloud.google.com/apis/credentials",
+    setupLinkText: "Open Google Cloud Console",
+    requiresRedirectUri: true,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"],
+  },
+  pipedrive: {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Pipedrive Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Pipedrive Client Secret",
+    helpText: "Create an app in the Pipedrive Developer Hub (Marketplace Manager). Set the callback URL to the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+    setupUrl: "https://developers.pipedrive.com/",
+    setupLinkText: "Open Pipedrive Developer Hub",
+    requiresRedirectUri: true,
+    scopes: ["deals:full", "contacts:full", "activities:full"],
+  },
+  dynamics365: {
+    field1Label: "Application (Client) ID",
+    field1Placeholder: "Enter your Azure Application (Client) ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Azure Client Secret value",
+    helpText: "Register an application in Azure Portal > App Registrations. Under Authentication, add the redirect URL below as a Web redirect URI. Under Certificates & secrets, create a new Client Secret and copy the value. Grant Dynamics CRM API permissions.",
+    setupUrl: "https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+    setupLinkText: "Open Azure Portal",
+    requiresRedirectUri: true,
+    scopes: ["https://org.crm.dynamics.com/.default", "offline_access"],
+  },
+  freshsales: {
+    field1Label: "API Key",
+    field1Placeholder: "Enter your Freshsales API Key",
+    field2Label: "Domain",
+    field2Placeholder: "e.g. yourcompany.freshsales.io",
+    helpText: "Find your API Key in Freshsales: go to Settings > API Settings > Your API Key. Your domain is the URL you use to access Freshsales (e.g., yourcompany.freshsales.io).",
+    setupUrl: "https://www.freshworks.com/crm/sales/",
+    setupLinkText: "Open Freshsales",
+    requiresRedirectUri: false,
+  },
+  "monday-com": {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Monday.com Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Monday.com Client Secret",
+    helpText: "Create an app at monday.com Developers. Under OAuth settings, add the redirect URL below. Copy the Client ID and Client Secret from the app's Basic Information section.",
+    setupUrl: "https://monday.com/developers/apps",
+    setupLinkText: "Open Monday.com Developers",
+    requiresRedirectUri: true,
+    scopes: ["boards:read", "boards:write"],
+  },
+  airtable: {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Airtable Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Airtable Client Secret",
+    helpText: "Register an OAuth integration at the Airtable Developer Hub. Add the redirect URL below. Select the required scopes (data.records:read, data.records:write, schema.bases:read). Copy the Client ID and Client Secret.",
+    setupUrl: "https://airtable.com/create/oauth",
+    setupLinkText: "Open Airtable Developer Hub",
+    requiresRedirectUri: true,
+    scopes: ["data.records:read", "data.records:write", "schema.bases:read"],
+  },
+  slack: {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Slack Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Slack Client Secret",
+    helpText: "Create a Slack App at api.slack.com/apps. Under OAuth & Permissions, add the redirect URL below. Add the required Bot Token Scopes (chat:write, channels:read, users:read). Copy the Client ID and Client Secret from Basic Information.",
+    setupUrl: "https://api.slack.com/apps",
+    setupLinkText: "Open Slack API",
+    requiresRedirectUri: true,
+    scopes: ["chat:write", "channels:read", "users:read"],
+  },
+  mailchimp: {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Mailchimp Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Mailchimp Client Secret",
+    helpText: "Register an app in the Mailchimp Developer Portal. Add the redirect URL below as a redirect URI. Copy the Client ID and Client Secret from your app settings.",
+    setupUrl: "https://login.mailchimp.com/",
+    setupLinkText: "Open Mailchimp Developer Portal",
+    requiresRedirectUri: true,
+  },
+  intercom: {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Intercom Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Intercom Client Secret",
+    helpText: "Create an app in the Intercom Developer Hub. Under Authentication, add the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+    setupUrl: "https://developers.intercom.com/",
+    setupLinkText: "Open Intercom Developer Hub",
+    requiresRedirectUri: true,
+  },
+};
+
+function getProviderConfig(slug: string): ProviderCredentialConfig {
+  return PROVIDER_CREDENTIAL_CONFIG[slug] || {
+    field1Label: "Client ID",
+    field1Placeholder: "Enter your Client ID",
+    field2Label: "Client Secret",
+    field2Placeholder: "Enter your Client Secret",
+    helpText: "Enter your OAuth app credentials. You can find these in the provider's developer console or admin settings.",
+    setupUrl: "",
+    setupLinkText: "Open Developer Console",
+    requiresRedirectUri: true,
+  };
+}
+
+function getOAuthRedirectUri(): string {
+  const base = window.location.origin;
+  return `${base}/api/integrations/oauth/callback`;
+}
+
 const LOGO_MAP: Record<string, React.ReactNode> = {
   salesforce: <SiSalesforce className="w-8 h-8 text-[#00A1E0]" />,
   hubspot: <SiHubspot className="w-8 h-8 text-[#FF7A59]" />,
@@ -193,8 +355,12 @@ export default function IntegrationDetail() {
     },
   });
 
+  const providerConfig = app ? getProviderConfig(app.slug) : getProviderConfig("");
+  const authType = (app as IntegrationAppWithOAuth)?.authType;
+  const isApiKeyProvider = authType === "api_key";
+
   const handleConnectClick = () => {
-    if (requiresOAuth) {
+    if (requiresOAuth || isApiKeyProvider) {
       setCredentialsDialogOpen(true);
     } else {
       connectMutation.mutate({ clientId: "", clientSecret: "" });
@@ -205,7 +371,7 @@ export default function IntegrationDetail() {
     if (!clientId.trim() || !clientSecret.trim()) {
       toast({
         title: "Missing credentials",
-        description: "Please enter both Client ID and Client Secret.",
+        description: `Please enter both ${providerConfig.field1Label} and ${providerConfig.field2Label}.`,
         variant: "destructive",
       });
       return;
@@ -600,8 +766,8 @@ export default function IntegrationDetail() {
                 {app.description}
               </p>
               <p className="text-xs text-muted-foreground max-w-sm mb-6">
-                {requiresOAuth
-                  ? `You'll need your ${app.name} app credentials (Client ID and Client Secret) to authorize access securely.`
+                {(requiresOAuth || isApiKeyProvider)
+                  ? `You'll need your ${app.name} credentials (${providerConfig.field1Label} and ${providerConfig.field2Label}) to connect securely.`
                   : `Connect your ${app.name} account to start syncing data with Loop9.`}
               </p>
               <Button
@@ -646,33 +812,88 @@ export default function IntegrationDetail() {
         setCredentialsDialogOpen(open);
         if (!open) { setClientId(""); setClientSecret(""); }
       }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {app && getAppIcon(app.slug)} Connect {app?.name}
             </DialogTitle>
             <DialogDescription>
-              Enter your {app?.name} OAuth app credentials. You can find these in your {app?.name} developer console or admin settings.
+              {providerConfig.helpText}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {providerConfig.setupUrl && (
+              <div className="flex items-center gap-2">
+                <a
+                  href={providerConfig.setupUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline flex items-center gap-1.5"
+                  data-testid="link-setup-url"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  {providerConfig.setupLinkText}
+                </a>
+              </div>
+            )}
+
+            {providerConfig.requiresRedirectUri && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Redirect / Callback URL (add this to your {app?.name} app)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={getOAuthRedirectUri()}
+                    className="text-xs font-mono bg-muted"
+                    data-testid="input-redirect-uri"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      navigator.clipboard.writeText(getOAuthRedirectUri());
+                      toast({ title: "Copied", description: "Redirect URL copied to clipboard." });
+                    }}
+                    data-testid="button-copy-redirect-uri"
+                  >
+                    <FileText className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {providerConfig.scopes && providerConfig.scopes.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Required Scopes / Permissions</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {providerConfig.scopes.map((scope) => (
+                    <Badge key={scope} variant="secondary" className="text-xs font-mono no-default-active-elevate">
+                      {scope}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
             <div className="space-y-2">
-              <Label htmlFor="clientId">Client ID</Label>
+              <Label htmlFor="clientId">{providerConfig.field1Label}</Label>
               <Input
                 id="clientId"
                 type="text"
-                placeholder="Enter your Client ID"
+                placeholder={providerConfig.field1Placeholder}
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
                 data-testid="input-client-id"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="clientSecret">Client Secret</Label>
+              <Label htmlFor="clientSecret">{providerConfig.field2Label}</Label>
               <Input
                 id="clientSecret"
-                type="password"
-                placeholder="Enter your Client Secret"
+                type={isApiKeyProvider ? "text" : "password"}
+                placeholder={providerConfig.field2Placeholder}
                 value={clientSecret}
                 onChange={(e) => setClientSecret(e.target.value)}
                 data-testid="input-client-secret"
@@ -680,7 +901,9 @@ export default function IntegrationDetail() {
             </div>
             <div className="rounded-md bg-muted p-3">
               <p className="text-xs text-muted-foreground">
-                Your credentials are encrypted and stored securely. They are used only to authenticate with {app?.name} on your behalf. After entering credentials, you'll be redirected to {app?.name} to authorize access.
+                {isApiKeyProvider
+                  ? `Your ${providerConfig.field1Label} and ${providerConfig.field2Label} are encrypted and stored securely. They are used only to authenticate with ${app?.name} on your behalf.`
+                  : `Your credentials are encrypted and stored securely. After entering them, you'll be redirected to ${app?.name} to authorize access to your account.`}
               </p>
             </div>
           </div>
@@ -694,7 +917,7 @@ export default function IntegrationDetail() {
               data-testid="button-submit-credentials"
             >
               {connectMutation.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-1.5" />}
-              {connectMutation.isPending ? "Connecting..." : "Connect & Authorize"}
+              {connectMutation.isPending ? "Connecting..." : isApiKeyProvider ? "Connect" : "Connect & Authorize"}
             </Button>
           </DialogFooter>
         </DialogContent>

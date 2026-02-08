@@ -160,19 +160,23 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
     const webhookUrl = n8nService.getWebhookUrl(userId, slug);
 
     const requiresOAuth = isOAuthProvider(slug);
+    const provider = getOAuthProvider(slug);
+    const isApiKeyAuth = provider?.authType === 'api_key';
+    const requiresCredentials = requiresOAuth || isApiKeyAuth;
     const userClientId = req.body.clientId?.trim();
     const userClientSecret = req.body.clientSecret?.trim();
 
-    if (requiresOAuth && (!userClientId || !userClientSecret)) {
+    if (requiresCredentials && (!userClientId || !userClientSecret)) {
+      const credLabel = isApiKeyAuth ? 'API Key and Domain' : 'Client ID and Client Secret';
       return res.status(400).json({
-        error: 'OAuth credentials required',
-        message: `To connect ${app.name}, please provide your Client ID and Client Secret from your ${app.name} developer console.`,
+        error: 'Credentials required',
+        message: `To connect ${app.name}, please provide your ${credLabel} from your ${app.name} settings.`,
         requiresCredentials: true,
       });
     }
 
-    const encryptedClientId = requiresOAuth ? oauthService.encryptToken(userClientId) : null;
-    const encryptedClientSecret = requiresOAuth ? oauthService.encryptToken(userClientSecret) : null;
+    const encryptedClientId = requiresCredentials ? oauthService.encryptToken(userClientId) : null;
+    const encryptedClientSecret = requiresCredentials ? oauthService.encryptToken(userClientSecret) : null;
 
     const [integration] = await db
       .insert(userIntegrations)
@@ -182,14 +186,19 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
         n8nWorkflowId: workflow.id,
         n8nCredentialId: credential.id,
         webhookUrl,
-        status: 'pending_auth',
+        status: isApiKeyAuth ? 'active' : 'pending_auth',
         config: {
           ...(req.body.config || {}),
-          ...(requiresOAuth ? {
+          ...(requiresCredentials ? {
             oauthApp: {
               clientId: encryptedClientId,
               clientSecret: encryptedClientSecret,
             },
+          } : {}),
+          ...(isApiKeyAuth ? {
+            apiKey: encryptedClientId,
+            domain: encryptedClientSecret,
+            connectedAt: new Date().toISOString(),
           } : {}),
         },
       })
@@ -210,6 +219,7 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
       },
       oauthUrl,
       requiresOAuth,
+      isApiKeyAuth,
       webhookUrl,
     });
   } catch (error: any) {

@@ -1,0 +1,419 @@
+Here's the updated comprehensive prompt for Replit Agent to build an Integration Marketplace with n8n instead of native OAuth:
+
+Replit Agent Prompt: Build n8n-Powered Integration Marketplace for Loop9
+Overview
+Build a white-labeled Integration Marketplace in Loop9 powered by n8n (self-hosted workflow automation). Users can browse integrations, connect CRMs/ERPs with one click, and set up automated workflows—all within the Loop9 panel. n8n handles OAuth, field mapping, and data sync, while appearing as "Loop9 Integrations" to end users.
+
+Architecture: Loop9 + n8n Integration
+text
+Loop9 (Frontend/UI)
+    ↓
+n8n (Self-hosted workflow engine)
+    ↓
+CRM/ERP APIs (Salesforce, HubSpot, Zoho, etc.)
+Key Benefits:
+
+✅ 400+ pre-built integrations via n8n
+
+✅ 100% white-labeled (zero n8n branding visible)
+
+✅ Self-hosted (full data control)
+
+✅ Visual workflow builder
+
+✅ Unlimited executions
+
+✅ Cost: ~$30-50/month (vs $1,500+ for alternatives)
+
+Phase 1: Deploy n8n Infrastructure
+1.1 Deploy n8n Instance
+Option A: Deploy on Replit alongside Loop9
+
+text
+# Add to your replit.nix or docker-compose.yml
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - N8N_EDITOR_BASE_URL=https://integrations.loop9.com
+      - WEBHOOK_URL=https://integrations.loop9.com
+      - GENERIC_TIMEZONE=Asia/Dubai
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+    volumes:
+      - n8n_data:/home/node/.n8n
+Option B: Deploy on separate VPS (Recommended for production)
+
+Use DigitalOcean, Linode, or Google Cloud
+
+Follow n8n Docker installation guide
+
+Configure reverse proxy (Nginx) with SSL
+
+1.2 Configure White-Labeling
+Add to n8n environment variables:
+
+bash
+# Remove all n8n branding
+N8N_PERSONALIZATION_ENABLED=false
+N8N_VERSION_NOTIFICATIONS_ENABLED=false
+N8N_TEMPLATES_ENABLED=false
+N8N_HIRING_BANNER_ENABLED=false
+
+# Custom branding (coming in n8n Enterprise, or use custom CSS)
+N8N_CUSTOM_THEME='{"primaryColor":"#your-loop9-brand-color"}'
+1.3 Create n8n API Credentials
+bash
+# Generate API key in n8n settings
+# Store in Loop9 environment variables
+N8N_API_KEY=your_n8n_api_key
+N8N_BASE_URL=https://integrations.loop9.com
+Phase 2: Build Loop9 Integration Marketplace UI
+2.1 Create New "Integrations" Section
+Location: Add menu item in sidebar under "SETUP" section
+
+Route: /app/integrations
+
+File Structure:
+
+text
+/app/integrations/
+  ├── page.tsx                    # Main marketplace
+  ├── [slug]/
+  │   └── page.tsx                # Individual app config
+  └── components/
+      ├── AppCard.tsx             # Integration app card
+      ├── WorkflowBuilder.tsx     # Embedded n8n workflow editor
+      ├── ConnectionStatus.tsx    # Status indicator
+      └── SyncLogs.tsx            # Sync history
+2.2 Database Schema
+Create these tables in Supabase:
+
+sql
+-- Integration apps catalog
+CREATE TABLE integration_apps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  description TEXT,
+  logo_url TEXT,
+  category VARCHAR(50), -- 'crm', 'erp', 'marketing', 'sales'
+  n8n_node_name VARCHAR(100), -- e.g., 'Salesforce', 'HubSpot'
+  is_active BOOLEAN DEFAULT true,
+  is_popular BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- User's connected integrations (n8n workflows)
+CREATE TABLE user_integrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  app_id UUID REFERENCES integration_apps(id),
+  n8n_workflow_id VARCHAR(100), -- n8n workflow ID
+  n8n_webhook_url TEXT, -- Unique webhook URL
+  status VARCHAR(20) DEFAULT 'active', -- 'active', 'inactive', 'error'
+  workflow_config JSONB, -- Field mappings and settings
+  last_sync_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, app_id)
+);
+
+-- Integration sync logs
+CREATE TABLE integration_sync_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  integration_id UUID REFERENCES user_integrations(id),
+  n8n_execution_id VARCHAR(100),
+  sync_type VARCHAR(50), -- 'call_completed', 'lead_created'
+  status VARCHAR(20), -- 'success', 'failed', 'pending'
+  records_synced INTEGER DEFAULT 0,
+  error_message TEXT,
+  payload JSONB,
+  synced_at TIMESTAMP DEFAULT NOW()
+);
+2.3 Seed Integration Apps
+javascript
+const integrationApps = [
+  {
+    name: 'Salesforce',
+    slug: 'salesforce',
+    description: 'Sync Loop9 calls with Salesforce CRM - create leads, contacts, and activities automatically.',
+    category: 'crm',
+    logo_url: '/integrations/salesforce.svg',
+    n8n_node_name: 'Salesforce',
+    is_popular: true
+  },
+  {
+    name: 'HubSpot',
+    slug: 'hubspot',
+    description: 'Connect HubSpot CRM to track calls, leads, and customer interactions.',
+    category: 'crm',
+    n8n_node_name: 'HubSpot',
+    is_popular: true
+  },
+  {
+    name: 'Zoho CRM',
+    slug: 'zoho',
+    description: 'Integrate with Zoho CRM to manage customer data and automate workflows.',
+    category: 'crm',
+    n8n_node_name: 'Zoho CRM',
+    is_popular: true
+  },
+  {
+    name: 'Google Sheets',
+    slug: 'google-sheets',
+    description: 'Export call data to Google Sheets for reporting and analysis.',
+    category: 'productivity',
+    n8n_node_name: 'Google Sheets',
+    is_popular: true
+  },
+  {
+    name: 'Pipedrive',
+    slug: 'pipedrive',
+    description: 'Track sales pipeline and deals in Pipedrive automatically.',
+    category: 'crm',
+    n8n_node_name: 'Pipedrive'
+  },
+  {
+    name: 'Microsoft Dynamics 365',
+    slug: 'dynamics365',
+    description: 'Enterprise CRM and ERP integration with Dynamics 365.',
+    category: 'crm',
+    n8n_node_name: 'Microsoft Dynamics CRM'
+  }
+];
+2.4 Marketplace UI Layout
+tsx
+// /app/integrations/page.tsx
+export default function IntegrationsMarketplace() {
+  return (
+    <div className="integrations-marketplace">
+      {/* Header */}
+      <div className="header">
+        <h1>Loop9 Integrations</h1>
+        <p>Connect your business tools to automate workflows</p>
+      </div>
+
+      {/* Search & Filter */}
+      <div className="search-bar">
+        <input 
+          type="text" 
+          placeholder="🔍 Search integrations..." 
+          onChange={handleSearch}
+        />
+        <select onChange={handleCategoryFilter}>
+          <option value="all">All Categories</option>
+          <option value="crm">CRM</option>
+          <option value="erp">ERP</option>
+          <option value="marketing">Marketing</option>
+        </select>
+      </div>
+
+      {/* Popular Integrations */}
+      <section className="popular-integrations">
+        <h2>Popular Integrations</h2>
+        <div className="app-grid">
+          {popularApps.map(app => (
+            <AppCard key={app.id} app={app} />
+          ))}
+        </div>
+      </section>
+
+      {/* All Integrations by Category */}
+      <section className="all-integrations">
+        <h2>CRM Systems</h2>
+        <div className="app-grid">
+          {crmApps.map(app => (
+            <AppCard key={app.id} app={app} />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+AppCard Component:
+
+tsx
+// /app/integrations/components/AppCard.tsx
+function AppCard({ app }) {
+  const isConnected = checkIfConnected(app.id);
+  
+  return (
+    <div className="app-card">
+      <img src={app.logo_url} alt={app.name} />
+      <h3>{app.name}</h3>
+      <p>{app.description}</p>
+      
+      {app.is_popular && <span className="badge">⭐ Popular</span>}
+      
+      <button 
+        className={isConnected ? 'connected' : 'connect'}
+        onClick={() => handleConnect(app.slug)}
+      >
+        {isConnected ? '✓ Connected' : 'Connect'}
+      </button>
+    </div>
+  );
+}
+Phase 3: n8n Integration Logic
+3.1 Backend API Routes
+javascript
+// /api/integrations/apps.ts
+// Get all available integration apps
+GET /api/integrations/apps?category=crm
+
+// Get user's connected integrations
+GET /api/integrations/connected
+
+// Connect new integration (creates n8n workflow)
+POST /api/integrations/:slug/connect
+// Body: { user_id, app_slug }
+// Returns: { workflow_id, webhook_url, auth_url }
+
+// Disconnect integration (deactivates n8n workflow)
+DELETE /api/integrations/:integrationId
+
+// Get sync logs
+GET /api/integrations/:integrationId/logs
+
+// Manual sync trigger
+POST /api/integrations/:integrationId/sync
+3.2 Create n8n Workflow Programmatically
+When user clicks "Connect Salesforce":
+
+javascript
+// Backend: /api/integrations/salesforce/connect
+async function connectSalesforce(userId, appSlug) {
+  // 1. Create workflow in n8n via API
+  const workflow = await createN8nWorkflow({
+    name: `Loop9 → Salesforce (User ${userId})`,
+    nodes: [
+      {
+        // Webhook trigger node
+        type: 'n8n-nodes-base.webhook',
+        parameters: {
+          path: `loop9-${userId}-${appSlug}`,
+          method: 'POST'
+        },
+        name: 'Loop9 Webhook'
+      },
+      {
+        // Salesforce node
+        type: 'n8n-nodes-base.salesforce',
+        parameters: {
+          resource: 'lead',
+          operation: 'create',
+          // Map Loop9 fields to Salesforce
+          additionalFields: {
+            firstName: '={{$json["contact_name"].split(" ")[0]}}',
+            lastName: '={{$json["contact_name"].split(" ")[1]}}',
+            company: '={{$json["customer_name"]}}',
+            phone: '={{$json["phone_number"]}}',
+            description: '={{$json["call_summary"]}}'
+          }
+        },
+        name: 'Create Salesforce Lead',
+        credentials: {
+          // User will authenticate via n8n OAuth
+          salesforceOAuth2Api: 'salesforce_credentials'
+        }
+      }
+    ]
+  });
+
+  // 2. Get webhook URL
+  const webhookUrl = workflow.webhookUrl;
+
+  // 3. Save to database
+  await saveIntegration({
+    user_id: userId,
+    app_slug: appSlug,
+    n8n_workflow_id: workflow.id,
+    n8n_webhook_url: webhookUrl,
+    status: 'active'
+  });
+
+  // 4. Return OAuth URL for user to authenticate
+  return {
+    workflow_id: workflow.id,
+    webhook_url: webhookUrl,
+    auth_url: `https://integrations.loop9.com/oauth/salesforce?workflow_id=${workflow.id}`
+  };
+}
+3.3 Trigger Workflows from Loop9
+When a call completes in Loop9:
+
+javascript
+// Loop9: onCallCompleted event
+async function onCallCompleted(callData, userId) {
+  // Get user's active integrations
+  const integrations = await getUserIntegrations(userId);
+
+  for (const integration of integrations) {
+    // Send data to n8n webhook
+    try {
+      const response = await fetch(integration.n8n_webhook_url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'call_completed',
+          timestamp: new Date().toISOString(),
+          data: {
+            customer_name: callData.customerName,
+            contact_name: callData.contactName,
+            phone_number: callData.phoneNumber,
+            contact_phone: callData.contactPhone,
+            call_summary: callData.summary,
+            case_notes: callData.notes,
+            product_code: callData.productCode,
+            erp_product_id: callData.erpProductId,
+            call_duration: callData.duration,
+            call_recording_url: callData.recordingUrl,
+            lead_score: callData.leadScore
+          }
+        })
+      });
+
+      // Log success
+      await logSync({
+        integration_id: integration.id,
+        n8n_execution_id: response.headers.get('x-n8n-execution-id'),
+        status: 'success',
+        records_synced: 1
+      });
+    } catch (error) {
+      // Log failure
+      await logSync({
+        integration_id: integration.id,
+        status: 'failed',
+        error_message: error.message
+      });
+    }
+  }
+}
+Phase 4: Embedded Workflow Builder (Optional Advanced Feature)
+For users who want custom workflows:
+
+tsx
+// /app/integrations/[slug]/workflow.tsx
+function WorkflowBuilder({ integrationId }) {
+  return (
+    <div className="workflow-builder">
+      <h2>Customize Workflow</h2>
+      
+      {/* Embed n8n editor via iframe */}
+      <iframe
+        src={`https://integrations.loop9.com/workflow/${integrationId}/edit`}
+        width="100%"
+        height="800px"
+        frameBorder="0"
+      />
+      
+      <button onClick={saveWorkflow}>Save Workflow</button>
+    </div>
+  );
+}
+Phase

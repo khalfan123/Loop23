@@ -1,0 +1,652 @@
+build an Integration Marketplace directly within your Loop9 panel where users can integrate CRM/ERP systems with one click:
+
+Integration Marketplace Architecture for Loop9
+1. Marketplace UI Design (inspired by Zapier, Slack, HubSpot)
+Location: Add new section under Settings called "Integrations" or "App Marketplace"
+
+Key Components:
+
+Search bar - Search by app name or category
+
+Category filters - CRM, ERP, Marketing, Sales, Accounting, eCommerce
+
+App cards with:
+
+Logo/icon
+
+App name and description
+
+"Connect" or "Install" button
+
+Connection status (Connected/Not Connected)
+
+Popular/Featured badges
+
+Number of active installations
+
+Visual Layout:
+
+text
+┌─────────────────────────────────────────────────┐
+│  🔍 Search integrations...          [Categories▼]│
+├─────────────────────────────────────────────────┤
+│  Popular Integrations                           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │[SF Logo] │  │[HubSpot] │  │[Zoho CRM]│      │
+│  │Salesforce│  │ HubSpot  │  │  Zoho    │      │
+│  │⭐Popular │  │⭐Popular │  │⭐Popular │      │
+│  │[Connect] │  │[Connect] │  │[Connected]│     │
+│  └──────────┘  └──────────┘  └──────────┘      │
+│                                                  │
+│  CRM Systems                         [View All] │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │Pipedrive │  │Freshsales│  │Dynamics  │      │
+│  └──────────┘  └──────────┘  └──────────┘      │
+└─────────────────────────────────────────────────┘
+2. OAuth 2.0 Authentication Flow
+When user clicks "Connect" on any CRM/ERP app:
+
+Step 1: User clicks "Connect Salesforce" button
+Step 2: Modal opens with OAuth consent screen
+Step 3: User is redirected to Salesforce login page
+Step 4: User authorizes Loop9 to access their Salesforce data
+Step 5: Salesforce redirects back to Loop9 with authorization code
+Step 6: Loop9 exchanges code for access token + refresh token
+Step 7: Tokens are securely stored in Loop9 database (encrypted)
+Step 8: Success screen: "✓ Salesforce Connected Successfully"
+
+Technical Implementation:
+
+javascript
+// OAuth Flow Pseudocode
+const connectCRM = async (appName) => {
+  // 1. Build OAuth URL with client ID, scopes, redirect URI
+  const authUrl = buildOAuthUrl(appName);
+  
+  // 2. Open popup or redirect
+  window.location.href = authUrl;
+  
+  // 3. Handle callback
+  // /api/integrations/callback?code=xxx&state=yyy
+  
+  // 4. Exchange code for tokens
+  const tokens = await exchangeCodeForTokens(code);
+  
+  // 5. Store encrypted tokens
+  await storeTokens(userId, appName, tokens);
+  
+  // 6. Test connection
+  await testConnection(appName, tokens);
+}
+3. Field Mapping Interface
+After connecting an integration, show field mapping screen:
+
+text
+┌─────────────────────────────────────────────────┐
+│  Salesforce Field Mapping                       │
+├─────────────────────────────────────────────────┤
+│  Map Loop9 AI Agent fields to Salesforce:      │
+│                                                  │
+│  Loop9 Field          →    Salesforce Field    │
+│  ─────────────────────────────────────────────  │
+│  Customer Name        →    [Account Name    ▼] │
+│  Contact Name         →    [Contact Name    ▼] │
+│  Phone Number         →    [Phone          ▼] │
+│  Contact Phone        →    [Mobile Phone    ▼] │
+│  Call Summary         →    [Description     ▼] │
+│  Case Notes           →    [Comments        ▼] │
+│  Product Code         →    [Product Code    ▼] │
+│  ERP Product ID       →    [Custom: ERP_ID  ▼] │
+│                                                  │
+│  [Advanced Mapping]  [Test Connection] [Save]  │
+└─────────────────────────────────────────────────┘
+4. Integration Catalog (Start with Top 15)
+Tier 1 - CRM Systems (Build First)
+
+Salesforce - Enterprise standard
+
+HubSpot - SME favorite
+
+Zoho CRM - You already use this!
+
+Pipedrive - Sales-focused
+
+Microsoft Dynamics 365 - Enterprise
+
+Freshsales - Growing market
+
+Tier 2 - ERP Systems
+7. SAP Business One - Enterprise ERP
+8. Microsoft Dynamics 365 Business Central
+9. Oracle NetSuite
+10. Odoo - Open source
+11. QuickBooks Online - SME accounting/ERP
+
+Tier 3 - Popular Business Apps
+12. Google Sheets - Data export
+13. Airtable - Flexible database
+14. Slack - Notifications
+15. Monday.com - Project management
+
+5. Automation Workflows
+Create pre-built automation templates users can enable:
+
+text
+┌─────────────────────────────────────────────────┐
+│  Workflow Templates for Salesforce              │
+├─────────────────────────────────────────────────┤
+│  ☑ When call ends → Create/Update Lead in SF   │
+│  ☑ When appointment booked → Create Event       │
+│  ☑ When hot lead detected → Notify sales rep    │
+│  ☐ When product mentioned → Update opportunity  │
+│  ☐ When call transferred → Create case          │
+│                                                  │
+│  [+ Create Custom Workflow]                     │
+└─────────────────────────────────────────────────┘
+6. Technical Architecture
+Backend Structure:
+
+text
+/api/integrations/
+  ├── GET /apps                    # List all available integrations
+  ├── GET /apps/:appId             # Get app details
+  ├── POST /apps/:appId/connect    # Initiate OAuth flow
+  ├── GET /callback                # OAuth callback handler
+  ├── POST /apps/:appId/disconnect # Disconnect integration
+  ├── GET /apps/:appId/fields      # Get available fields for mapping
+  ├── POST /apps/:appId/mapping    # Save field mapping
+  └── POST /apps/:appId/sync       # Manual sync trigger
+Database Schema:
+
+sql
+-- Integrations table
+CREATE TABLE integrations (
+  id UUID PRIMARY KEY,
+  user_id UUID,
+  app_name VARCHAR(100),
+  access_token TEXT ENCRYPTED,
+  refresh_token TEXT ENCRYPTED,
+  expires_at TIMESTAMP,
+  status VARCHAR(20), -- active, inactive, error
+  field_mapping JSONB,
+  created_at TIMESTAMP
+);
+
+-- Sync logs table
+CREATE TABLE sync_logs (
+  id UUID PRIMARY KEY,
+  integration_id UUID,
+  sync_type VARCHAR(50), -- call_completed, lead_created
+  status VARCHAR(20), -- success, failed
+  records_synced INTEGER,
+  error_message TEXT,
+  synced_at TIMESTAMP
+);
+7. Data Sync Strategy
+Real-time Webhook Triggers:
+
+When call ends → Push to CRM immediately
+
+When lead qualified → Create/update contact
+
+When appointment booked → Create calendar event
+
+When case notes added → Append to CRM record
+
+Payload Structure:
+
+json
+{
+  "event": "call_completed",
+  "timestamp": "2026-02-07T23:00:00Z",
+  "data": {
+    "customer_name": "ABC Company",
+    "contact_name": "John Smith",
+    "phone_number": "+971501234567",
+    "contact_phone": "+971501234567",
+    "call_summary": "Customer interested in eSIM packages for UAE",
+    "case_notes": "Follow up next week. Mentioned 500GB data plan.",
+    "product_code": "ESIM-UAE-500GB",
+    "erp_product_id": "PROD-12345",
+    "call_duration": 420,
+    "call_recording_url": "https://...",
+    "lead_score": "hot"
+  }
+}
+8. Implementation Roadmap
+Phase 1 (Month 1-2): Foundation
+
+Build OAuth 2.0 authentication framework
+
+Create marketplace UI in Loop9 panel
+
+Implement first 3 integrations: Salesforce, HubSpot, Zoho CRM
+
+Basic field mapping interface
+
+Phase 2 (Month 3-4): Expansion
+
+Add 5 more CRM/ERP integrations
+
+Advanced field mapping with transformations
+
+Workflow automation templates
+
+Sync monitoring dashboard
+
+Phase 3 (Month 5-6): Scale
+
+Add remaining integrations (15+ total)
+
+Custom webhook builder for any app
+
+Integration analytics and insights
+
+White-label option for enterprise customers
+
+9. Monetization Strategy
+Free Tier:
+
+1 active integration
+
+Basic field mapping
+
+100 syncs/month
+
+Pro Tier ($49/month):
+
+5 active integrations
+
+Advanced field mapping
+
+Unlimited syncs
+
+Workflow automation
+
+Enterprise Tier (Custom):
+
+Unlimited integrations
+
+Custom integrations built for you
+
+Dedicated support
+
+SLA guarantees
+
+10. User Experience Flow
+User logs into Loop9 → Goes to "Integrations" section
+
+Browses marketplace → Clicks "Connect Salesforce"
+
+OAuth popup → Logs into Salesforce → Authorizes Loop9
+
+Returns to Loop9 → Sees success message
+
+Maps AI agent output fields to Salesforce fields
+
+Enables pre-built workflows or creates custom ones
+
+Saves configuration → Integration is LIVE
+
+All future calls automatically sync to Salesforce!
+
+This approach positions Loop9 as a complete AI call center platform with native CRM/ERP integrations, similar to how Zapier, Slack, and HubSpot have built their integration marketplaces.
+
+The key differentiator: Users can connect their entire tech stack directly from Loop9's panel without needing Zapier or other middleware—making Loop9 a true all-in-one solution for SMEs and enterprises.
+
+write prompt to replit to make the Integration Marketplace
+Here's a comprehensive prompt you can use with Replit Agent to build the Integration Marketplace for Loop9:
+
+Replit Agent Prompt: Build Integration Marketplace for Loop9
+Overview
+Add a complete CRM/ERP Integration Marketplace to Loop9 where users can browse, connect, and configure integrations with popular business apps directly from the panel. This will include OAuth 2.0 authentication, field mapping, and automated data syncing.
+
+1. Create New "Integrations" Section
+Location: Add new menu item in the sidebar under "SETUP" section, between "Batch Call" and "MANAGE"
+
+Route: /app/integrations
+
+UI Structure:
+
+Main marketplace page with search and category filters
+
+Individual app detail/configuration pages
+
+Field mapping interface
+
+Connection status dashboard
+
+2. Database Schema
+Create the following tables in your Supabase database:
+
+sql
+-- Available integration apps catalog
+CREATE TABLE integration_apps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  description TEXT,
+  logo_url TEXT,
+  category VARCHAR(50), -- 'crm', 'erp', 'marketing', 'sales', 'accounting'
+  oauth_config JSONB, -- {client_id, auth_url, token_url, scopes}
+  available_fields JSONB, -- List of fields this app supports
+  is_active BOOLEAN DEFAULT true,
+  is_popular BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- User's connected integrations
+CREATE TABLE user_integrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  app_id UUID REFERENCES integration_apps(id),
+  access_token TEXT, -- Encrypted
+  refresh_token TEXT, -- Encrypted
+  token_expires_at TIMESTAMP,
+  status VARCHAR(20) DEFAULT 'active', -- 'active', 'inactive', 'error'
+  field_mapping JSONB, -- Maps Loop9 fields to CRM/ERP fields
+  workflow_config JSONB, -- Enabled workflows and automation rules
+  last_sync_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, app_id)
+);
+
+-- Integration sync logs
+CREATE TABLE integration_sync_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  integration_id UUID REFERENCES user_integrations(id),
+  sync_type VARCHAR(50), -- 'call_completed', 'lead_created', 'manual'
+  status VARCHAR(20), -- 'success', 'failed', 'pending'
+  records_synced INTEGER DEFAULT 0,
+  error_message TEXT,
+  payload JSONB,
+  synced_at TIMESTAMP DEFAULT NOW()
+);
+3. Seed Initial Integration Apps
+Add these starter integrations to the integration_apps table:
+
+javascript
+const starterApps = [
+  {
+    name: 'Salesforce',
+    slug: 'salesforce',
+    description: 'Connect Loop9 with Salesforce CRM to sync leads, contacts, and call records automatically.',
+    category: 'crm',
+    logo_url: '/integrations/salesforce.svg',
+    is_popular: true,
+    available_fields: ['Account.Name', 'Contact.FirstName', 'Contact.LastName', 'Contact.Phone', 'Contact.MobilePhone', 'Lead.Description', 'Task.Description', 'Product2.ProductCode']
+  },
+  {
+    name: 'HubSpot',
+    slug: 'hubspot',
+    description: 'Sync call data and leads with HubSpot CRM for seamless sales and marketing automation.',
+    category: 'crm',
+    is_popular: true
+  },
+  {
+    name: 'Zoho CRM',
+    slug: 'zoho',
+    description: 'Integrate with Zoho CRM to manage customer relationships and track interactions.',
+    category: 'crm',
+    is_popular: true
+  },
+  {
+    name: 'Pipedrive',
+    slug: 'pipedrive',
+    description: 'Connect Pipedrive to track deals and automate your sales pipeline.',
+    category: 'crm'
+  },
+  {
+    name: 'Microsoft Dynamics 365',
+    slug: 'dynamics365',
+    description: 'Enterprise CRM and ERP integration for Microsoft Dynamics 365.',
+    category: 'crm'
+  },
+  {
+    name: 'Google Sheets',
+    slug: 'google-sheets',
+    description: 'Export call data and analytics to Google Sheets automatically.',
+    category: 'productivity',
+    is_popular: true
+  }
+];
+4. Frontend Components
+A. Marketplace Main Page (/app/integrations)
+Create a new page component with:
+
+Search bar to filter integrations by name
+
+Category tabs: All, CRM, ERP, Marketing, Popular
+
+Grid of app cards showing:
+
+App logo
+
+App name
+
+Brief description
+
+"Connect" button (or "Connected" with green checkmark if already connected)
+
+"Popular" badge for featured apps
+
+Empty state when no integrations match search
+
+B. App Detail/Configuration Page (/app/integrations/:slug)
+When user clicks on an app card:
+
+Show full app description
+
+Display connection status
+
+"Connect" button that initiates OAuth flow
+
+After connection: Show field mapping interface
+
+Save button to update configuration
+
+"Disconnect" button
+
+Connection health indicator
+
+C. Field Mapping Interface
+Create a table/form showing:
+
+text
+Loop9 AI Agent Field          →    CRM/ERP Field
+─────────────────────────────────────────────────
+Customer Name                 →    [Dropdown: Account Name, Company, etc.]
+Contact Name                  →    [Dropdown: Contact Name, Full Name, etc.]
+Phone Number                  →    [Dropdown: Phone, Telephone, etc.]
+Contact Phone                 →    [Dropdown: Mobile, Direct Phone, etc.]
+Call Summary                  →    [Dropdown: Description, Notes, etc.]
+Case Notes                    →    [Dropdown: Comments, Case Notes, etc.]
+Product Code                  →    [Dropdown: Product Code, SKU, etc.]
+ERP Product ID                →    [Dropdown: Item Number, Product ID, etc.]
+Each dropdown should be populated from the available_fields in the integration app config.
+
+D. My Integrations Dashboard
+Show a list of all connected integrations with:
+
+App name and logo
+
+Connection status (Connected, Error, Syncing)
+
+Last sync time
+
+Number of records synced today
+
+"Configure" and "Disconnect" buttons
+
+View sync logs
+
+5. Backend API Routes
+Create these API endpoints in your Express/Node.js backend:
+
+javascript
+// Get all available integration apps
+GET /api/integrations/apps
+// Query params: ?category=crm&search=salesforce
+
+// Get specific app details
+GET /api/integrations/apps/:slug
+
+// Get user's connected integrations
+GET /api/integrations/connected
+
+// Initiate OAuth connection
+POST /api/integrations/:slug/connect
+// Returns: OAuth authorization URL
+
+// OAuth callback handler
+GET /api/integrations/callback
+// Params: ?code=xxx&state=yyy&app=salesforce
+// Exchanges code for tokens, stores in database
+
+// Save field mapping configuration
+PUT /api/integrations/:integrationId/mapping
+// Body: { field_mapping: {...}, workflow_config: {...} }
+
+// Disconnect integration
+DELETE /api/integrations/:integrationId
+
+// Manual sync trigger
+POST /api/integrations/:integrationId/sync
+
+// Get sync logs
+GET /api/integrations/:integrationId/logs
+6. OAuth 2.0 Implementation
+For the OAuth flow, implement:
+
+javascript
+// 1. Generate OAuth URL
+function generateOAuthUrl(app, userId) {
+  const state = generateSecureState(userId, app.slug);
+  const params = new URLSearchParams({
+    client_id: app.oauth_config.client_id,
+    redirect_uri: `${process.env.BASE_URL}/api/integrations/callback`,
+    response_type: 'code',
+    scope: app.oauth_config.scopes.join(' '),
+    state: state
+  });
+  return `${app.oauth_config.auth_url}?${params}`;
+}
+
+// 2. Handle OAuth callback
+async function handleOAuthCallback(code, state, appSlug) {
+  // Verify state token
+  const { userId } = verifyState(state);
+  
+  // Exchange code for tokens
+  const tokens = await exchangeCodeForTokens(appSlug, code);
+  
+  // Store encrypted tokens in database
+  await storeIntegration(userId, appSlug, tokens);
+  
+  // Redirect to success page
+  return `/app/integrations/${appSlug}?status=connected`;
+}
+7. Data Sync Logic
+Create a webhook/event system that triggers when:
+
+Call is completed
+
+Lead is qualified
+
+Appointment is booked
+
+Case notes are added
+
+javascript
+// Webhook handler when call ends
+async function onCallCompleted(callData, userId) {
+  // Get user's active integrations
+  const integrations = await getUserIntegrations(userId);
+  
+  for (const integration of integrations) {
+    // Map Loop9 fields to CRM fields
+    const mappedData = mapFields(callData, integration.field_mapping);
+    
+    // Send to CRM via API
+    try {
+      await syncToCRM(integration, mappedData);
+      await logSync(integration.id, 'call_completed', 'success');
+    } catch (error) {
+      await logSync(integration.id, 'call_completed', 'failed', error.message);
+    }
+  }
+}
+8. UI/UX Requirements
+Use your existing Loop9 design system and components
+
+Match the color scheme and styling from current pages
+
+Add icons for each integration (use simple SVG icons or emoji for now)
+
+Show loading states during OAuth flow
+
+Display success/error toast notifications
+
+Mobile-responsive design
+
+9. Security Requirements
+Encrypt access tokens and refresh tokens using AES-256 before storing in database
+
+Use HTTPS for all OAuth redirects
+
+Validate OAuth state parameter to prevent CSRF attacks
+
+Implement rate limiting on API endpoints
+
+Store only necessary scopes for each integration
+
+10. Implementation Steps
+Step 1: Create database tables and seed initial apps
+Step 2: Build marketplace UI page with app cards
+Step 3: Implement OAuth flow for one app (start with Google Sheets as it's simpler)
+Step 4: Create field mapping interface
+Step 5: Build webhook/sync system
+Step 6: Add remaining integrations
+Step 7: Create sync logs and monitoring dashboard
+Step 8: Test end-to-end flow
+
+Expected Behavior
+After implementation:
+
+User navigates to "Integrations" in sidebar
+
+Sees marketplace with 6+ integration apps
+
+Clicks "Connect" on Salesforce
+
+OAuth popup/redirect to Salesforce login
+
+User authorizes Loop9
+
+Redirected back to Loop9 with success message
+
+Maps AI agent output fields to Salesforce fields
+
+Saves configuration
+
+All future calls automatically sync to Salesforce!
+
+File Structure Suggestion
+text
+/app/integrations/
+  ├── page.tsx                 # Main marketplace page
+  ├── [slug]/
+  │   └── page.tsx             # Individual app config page
+  └── components/
+      ├── AppCard.tsx          # Integration app card component
+      ├── FieldMapping.tsx     # Field mapping interface
+      └── SyncLogs.tsx         # Sync history table
+
+/api/integrations/
+  ├── apps.ts                  # Get available apps
+  ├── connect.ts               # Initiate OAuth
+  ├── callback.ts              # OAuth callback handler
+  └── sync.ts                  # Sync handler
+Start with implementing the basic marketplace UI and OAuth flow for Google Sheets first, then expand to CRM systems like Salesforce, HubSpot, and Zoho CRM.
+
+Let me know when you're ready to start, and I'll help you implement each component step by step!

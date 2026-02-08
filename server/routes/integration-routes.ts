@@ -57,13 +57,13 @@ router.get('/apps', async (req: AuthRequest, res: Response) => {
       );
     }
 
-    const appsWithOAuthStatus = apps.map(app => ({
+    const appsWithAuthInfo = apps.map(app => ({
       ...app,
-      oauthConfigured: isOAuthProvider(app.slug) ? oauthService.isProviderConfigured(app.slug) : false,
+      requiresOAuth: isOAuthProvider(app.slug),
       authType: getOAuthProvider(app.slug)?.authType || 'oauth2',
     }));
 
-    res.json(appsWithOAuthStatus);
+    res.json(appsWithAuthInfo);
   } catch (error: any) {
     console.error('Error fetching integration apps:', error);
     res.status(500).json({ error: 'Failed to fetch integration apps' });
@@ -159,10 +159,20 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
 
     const webhookUrl = n8nService.getWebhookUrl(userId, slug);
 
-    const providerConfigured = oauthService.isProviderConfigured(slug);
-    const useOAuth = isOAuthProvider(slug) && providerConfigured;
-    const useDemoFallback = !providerConfigured && !useOAuth;
-    const initialStatus = useOAuth ? 'pending_auth' : (useDemoFallback ? 'active' : 'pending_auth');
+    const requiresOAuth = isOAuthProvider(slug);
+    const userClientId = req.body.clientId?.trim();
+    const userClientSecret = req.body.clientSecret?.trim();
+
+    if (requiresOAuth && (!userClientId || !userClientSecret)) {
+      return res.status(400).json({
+        error: 'OAuth credentials required',
+        message: `To connect ${app.name}, please provide your Client ID and Client Secret from your ${app.name} developer console.`,
+        requiresCredentials: true,
+      });
+    }
+
+    const encryptedClientId = requiresOAuth ? oauthService.encryptToken(userClientId) : null;
+    const encryptedClientSecret = requiresOAuth ? oauthService.encryptToken(userClientSecret) : null;
 
     const [integration] = await db
       .insert(userIntegrations)
@@ -172,59 +182,34 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
         n8nWorkflowId: workflow.id,
         n8nCredentialId: credential.id,
         webhookUrl,
-        status: initialStatus,
-        config: req.body.config || {},
+        status: 'pending_auth',
+        config: {
+          ...(req.body.config || {}),
+          ...(requiresOAuth ? {
+            oauthApp: {
+              clientId: encryptedClientId,
+              clientSecret: encryptedClientSecret,
+            },
+          } : {}),
+        },
       })
       .returning();
 
-    if (useDemoFallback) {
-      await n8nService.activateWorkflow(workflow.id);
-
-      const testResult = await n8nService.sendWebhook(webhookUrl, 'test_connection', {
-        message: 'Loop9 integration test',
-        timestamp: new Date().toISOString(),
-      });
-
-      const demoAccount = getDemoAccountInfo(slug, app.name);
-
-      await db
-        .update(userIntegrations)
-        .set({
-          lastSyncAt: new Date(),
-          config: {
-            ...(req.body.config || {}),
-            ...demoAccount,
-            connectedAt: new Date().toISOString(),
-          },
-        })
-        .where(eq(userIntegrations.id, integration.id));
-
-      await db.insert(integrationSyncLogs).values({
-        integrationId: integration.id,
-        n8nExecutionId: testResult.executionId || null,
-        eventType: 'test_connection',
-        status: 'success',
-        recordsSynced: 0,
-      });
-    }
-
     let oauthUrl: string | null = null;
-    if (useOAuth) {
-      oauthUrl = oauthService.buildAuthorizationUrl(slug, integration.id, userId);
+    if (requiresOAuth) {
+      oauthUrl = oauthService.buildAuthorizationUrl(slug, integration.id, userId, {
+        clientId: userClientId,
+        clientSecret: userClientSecret,
+      });
     }
 
     res.json({
       integration: {
         ...integration,
-        status: initialStatus,
-        config: useDemoFallback ? {
-          ...(req.body.config || {}),
-          ...getDemoAccountInfo(slug, app.name),
-          connectedAt: new Date().toISOString(),
-        } : integration.config,
+        config: {},
       },
       oauthUrl,
-      requiresOAuth: useOAuth,
+      requiresOAuth,
       webhookUrl,
     });
   } catch (error: any) {
@@ -508,76 +493,5 @@ router.patch('/:id/config', async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Failed to update config' });
   }
 });
-
-function getDemoAccountInfo(slug: string, appName: string): Record<string, any> {
-  const demoAccounts: Record<string, any> = {
-    salesforce: {
-      accountName: 'Demo Salesforce Org',
-      accountEmail: 'admin@demo-org.salesforce.com',
-      accountId: 'demo_sf_001',
-    },
-    hubspot: {
-      accountName: 'Demo HubSpot Portal',
-      accountEmail: 'admin@demo-company.com',
-      accountId: 'demo_hs_12345',
-    },
-    zoho: {
-      accountName: 'Demo Zoho CRM',
-      accountEmail: 'admin@demo-zoho.com',
-      accountId: 'demo_zoho_001',
-    },
-    'google-sheets': {
-      accountName: 'Demo Google Account',
-      accountEmail: 'demo@gmail.com',
-      accountId: 'demo_google_001',
-    },
-    pipedrive: {
-      accountName: 'Demo Pipedrive Account',
-      accountEmail: 'admin@demo-pipedrive.com',
-      accountId: 'demo_pd_001',
-    },
-    dynamics365: {
-      accountName: 'Demo Dynamics 365',
-      accountEmail: 'admin@demo.onmicrosoft.com',
-      accountId: 'demo_d365_001',
-    },
-    freshsales: {
-      accountName: 'Demo Freshsales',
-      accountEmail: 'admin@demo-freshsales.com',
-      accountId: 'demo_fs_001',
-    },
-    'monday-com': {
-      accountName: 'Demo Monday.com',
-      accountEmail: 'admin@demo-monday.com',
-      accountId: 'demo_monday_001',
-    },
-    airtable: {
-      accountName: 'Demo Airtable',
-      accountEmail: 'admin@demo-airtable.com',
-      accountId: 'demo_at_001',
-    },
-    slack: {
-      accountName: 'Demo Slack Workspace',
-      accountEmail: 'admin@demo-slack.com',
-      accountId: 'demo_slack_001',
-    },
-    mailchimp: {
-      accountName: 'Demo Mailchimp',
-      accountEmail: 'admin@demo-mailchimp.com',
-      accountId: 'demo_mc_001',
-    },
-    intercom: {
-      accountName: 'Demo Intercom',
-      accountEmail: 'admin@demo-intercom.com',
-      accountId: 'demo_ic_001',
-    },
-  };
-
-  return demoAccounts[slug] || {
-    accountName: `Demo ${appName}`,
-    accountEmail: `admin@demo-${slug}.com`,
-    accountId: `demo_${slug}_001`,
-  };
-}
 
 export default router;

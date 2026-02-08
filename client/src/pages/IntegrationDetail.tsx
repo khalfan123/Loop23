@@ -25,7 +25,7 @@ import {
 import type { IntegrationApp, UserIntegration, IntegrationSyncLog } from "@shared/schema";
 
 interface IntegrationAppWithOAuth extends IntegrationApp {
-  oauthConfigured?: boolean;
+  requiresOAuth?: boolean;
   authType?: string;
 }
 
@@ -83,6 +83,9 @@ export default function IntegrationDetail() {
   const slug = params?.slug || "";
 
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
+  const [credentialsDialogOpen, setCredentialsDialogOpen] = useState(false);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const [oauthPending, setOauthPending] = useState(false);
 
   const searchParams = new URLSearchParams(searchString);
@@ -103,7 +106,9 @@ export default function IntegrationDetail() {
         missing_params: "The authentication response was incomplete. Please try again.",
         invalid_state: "The authentication session expired or was invalid. Please try again.",
         integration_not_found: "The integration record was not found. Please reconnect.",
-        token_exchange_failed: "Failed to complete authentication with the service. Please try again.",
+        token_exchange_failed: "Failed to complete authentication with the service. Check your credentials and try again.",
+        missing_credentials: "Your stored credentials could not be found. Please reconnect with your Client ID and Client Secret.",
+        credential_error: "There was a problem with your stored credentials. Please reconnect.",
         server_error: "An unexpected error occurred during authentication. Please try again.",
       };
       toast({
@@ -124,7 +129,7 @@ export default function IntegrationDetail() {
   });
 
   const app = apps?.find((a) => a.slug === slug);
-  const isOAuthReady = !!(app as IntegrationAppWithOAuth)?.oauthConfigured;
+  const requiresOAuth = !!(app as IntegrationAppWithOAuth)?.requiresOAuth;
   const connectionInfo = connected?.find((c) => c.app.slug === slug);
   const integration = connectionInfo?.integration;
   const config = integration?.config as IntegrationConfig | undefined;
@@ -142,11 +147,17 @@ export default function IntegrationDetail() {
   });
 
   const connectMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/integrations/${slug}/connect`, {});
+    mutationFn: async (creds: { clientId: string; clientSecret: string }) => {
+      const res = await apiRequest("POST", `/api/integrations/${slug}/connect`, {
+        clientId: creds.clientId,
+        clientSecret: creds.clientSecret,
+      });
       return await res.json();
     },
     onSuccess: (data) => {
+      setCredentialsDialogOpen(false);
+      setClientId("");
+      setClientSecret("");
       queryClient.invalidateQueries({ queryKey: ["/api/integrations/connected"] });
       queryClient.invalidateQueries({ queryKey: ["/api/integrations", data?.integration?.id, "logs"] });
 
@@ -181,6 +192,26 @@ export default function IntegrationDetail() {
       });
     },
   });
+
+  const handleConnectClick = () => {
+    if (requiresOAuth) {
+      setCredentialsDialogOpen(true);
+    } else {
+      connectMutation.mutate({ clientId: "", clientSecret: "" });
+    }
+  };
+
+  const handleCredentialsSubmit = () => {
+    if (!clientId.trim() || !clientSecret.trim()) {
+      toast({
+        title: "Missing credentials",
+        description: "Please enter both Client ID and Client Secret.",
+        variant: "destructive",
+      });
+      return;
+    }
+    connectMutation.mutate({ clientId: clientId.trim(), clientSecret: clientSecret.trim() });
+  };
 
   const activateMutation = useMutation({
     mutationFn: async () => {
@@ -339,12 +370,12 @@ export default function IntegrationDetail() {
                 </>
               ) : (
                 <Button
-                  onClick={() => connectMutation.mutate()}
+                  onClick={handleConnectClick}
                   disabled={connectMutation.isPending || oauthPending}
                   data-testid="button-connect"
                 >
-                  {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : isOAuthReady ? <ExternalLink className="w-4 h-4 mr-1.5" /> : <Plug className="w-4 h-4 mr-1.5" />}
-                  {oauthPending ? "Waiting for authorization..." : isOAuthReady ? `Sign in to ${app.name}` : `Connect ${app.name}`}
+                  {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-1.5" />}
+                  {oauthPending ? "Waiting for authorization..." : `Connect ${app.name}`}
                 </Button>
               )}
             </div>
@@ -403,15 +434,9 @@ export default function IntegrationDetail() {
                   <CardTitle className="text-base flex items-center gap-2">
                     <Shield className="w-4 h-4" /> Connected Account
                   </CardTitle>
-                  {isOAuthReady ? (
-                    <Badge variant="outline" className="no-default-active-elevate gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Authenticated
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="no-default-active-elevate gap-1">
-                      <AlertCircle className="w-3 h-3" /> Demo Account
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className="no-default-active-elevate gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Authenticated
+                  </Badge>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -574,22 +599,18 @@ export default function IntegrationDetail() {
               <p className="text-sm text-muted-foreground max-w-md mb-2">
                 {app.description}
               </p>
-              {isOAuthReady ? (
-                <p className="text-xs text-muted-foreground max-w-sm mb-6">
-                  You'll be redirected to {app.name} to sign in and authorize Loop9 to access your data securely.
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground max-w-sm mb-6">
-                  This will connect using a demo account. To use your own {app.name} account, configure OAuth credentials in your environment settings.
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground max-w-sm mb-6">
+                {requiresOAuth
+                  ? `You'll need your ${app.name} app credentials (Client ID and Client Secret) to authorize access securely.`
+                  : `Connect your ${app.name} account to start syncing data with Loop9.`}
+              </p>
               <Button
-                onClick={() => connectMutation.mutate()}
+                onClick={handleConnectClick}
                 disabled={connectMutation.isPending || oauthPending}
                 data-testid="button-connect-cta"
               >
-                {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : isOAuthReady ? <ExternalLink className="w-4 h-4 mr-1.5" /> : <Plug className="w-4 h-4 mr-1.5" />}
-                {oauthPending ? "Waiting for authorization..." : isOAuthReady ? `Sign in to ${app.name}` : `Connect ${app.name} (Demo)`}
+                {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-1.5" />}
+                {oauthPending ? "Waiting for authorization..." : `Connect ${app.name}`}
               </Button>
             </CardContent>
           </Card>
@@ -616,6 +637,64 @@ export default function IntegrationDetail() {
             >
               {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Unplug className="w-4 h-4 mr-1.5" />}
               Disconnect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={credentialsDialogOpen} onOpenChange={(open) => {
+        setCredentialsDialogOpen(open);
+        if (!open) { setClientId(""); setClientSecret(""); }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {app && getAppIcon(app.slug)} Connect {app?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Enter your {app?.name} OAuth app credentials. You can find these in your {app?.name} developer console or admin settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="clientId">Client ID</Label>
+              <Input
+                id="clientId"
+                type="text"
+                placeholder="Enter your Client ID"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                data-testid="input-client-id"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clientSecret">Client Secret</Label>
+              <Input
+                id="clientSecret"
+                type="password"
+                placeholder="Enter your Client Secret"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                data-testid="input-client-secret"
+              />
+            </div>
+            <div className="rounded-md bg-muted p-3">
+              <p className="text-xs text-muted-foreground">
+                Your credentials are encrypted and stored securely. They are used only to authenticate with {app?.name} on your behalf. After entering credentials, you'll be redirected to {app?.name} to authorize access.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCredentialsDialogOpen(false)} data-testid="button-cancel-credentials">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCredentialsSubmit}
+              disabled={connectMutation.isPending || !clientId.trim() || !clientSecret.trim()}
+              data-testid="button-submit-credentials"
+            >
+              {connectMutation.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-1.5" />}
+              {connectMutation.isPending ? "Connecting..." : "Connect & Authorize"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,9 +1,14 @@
 'use strict';
 import crypto from 'crypto';
-import { getOAuthProvider, isOAuthProvider, getProviderCredentials, type OAuthProviderConfig } from './oauth-providers';
+import { getOAuthProvider, isOAuthProvider, type OAuthProviderConfig } from './oauth-providers';
 
 const OAUTH_STATE_SECRET = process.env.LOOP9_WEBHOOK_SECRET || 'loop9-default-secret';
 const STATE_EXPIRY_MS = 10 * 60 * 1000;
+
+export interface UserOAuthCredentials {
+  clientId: string;
+  clientSecret: string;
+}
 
 interface OAuthState {
   integrationId: string;
@@ -73,12 +78,9 @@ export const oauthService = {
     }
   },
 
-  buildAuthorizationUrl: (slug: string, integrationId: string, userId: string): string | null => {
+  buildAuthorizationUrl: (slug: string, integrationId: string, userId: string, credentials: UserOAuthCredentials): string | null => {
     const provider = getOAuthProvider(slug);
     if (!provider || provider.authType !== 'oauth2') return null;
-
-    const credentials = getProviderCredentials(slug);
-    if (!credentials) return null;
 
     const state = oauthService.generateState(integrationId, userId, slug);
     const redirectUri = oauthService.getRedirectUri();
@@ -106,6 +108,7 @@ export const oauthService = {
   exchangeCodeForTokens: async (
     slug: string,
     code: string,
+    credentials: UserOAuthCredentials,
   ): Promise<{
     accessToken: string;
     refreshToken?: string;
@@ -115,9 +118,6 @@ export const oauthService = {
   } | null> => {
     const provider = getOAuthProvider(slug);
     if (!provider) return null;
-
-    const credentials = getProviderCredentials(slug);
-    if (!credentials) return null;
 
     const redirectUri = oauthService.getRedirectUri();
 
@@ -160,6 +160,7 @@ export const oauthService = {
   refreshAccessToken: async (
     slug: string,
     refreshToken: string,
+    credentials: UserOAuthCredentials,
   ): Promise<{
     accessToken: string;
     refreshToken?: string;
@@ -167,9 +168,6 @@ export const oauthService = {
   } | null> => {
     const provider = getOAuthProvider(slug);
     if (!provider) return null;
-
-    const credentials = getProviderCredentials(slug);
-    if (!credentials) return null;
 
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
@@ -241,12 +239,6 @@ export const oauthService = {
       console.error(`[OAuth] Account info error for ${slug}:`, err);
       return null;
     }
-  },
-
-  isProviderConfigured: (slug: string): boolean => {
-    if (!isOAuthProvider(slug)) return false;
-    const credentials = getProviderCredentials(slug);
-    return !!credentials;
   },
 
   encryptToken: (token: string): string => {

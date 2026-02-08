@@ -38,7 +38,24 @@ router.get('/callback', async (req: Request, res: Response) => {
       return res.redirect('/app/integrations?oauth_error=integration_not_found');
     }
 
-    const tokens = await oauthService.exchangeCodeForTokens(slug, String(code));
+    const config = (integration.config as any) || {};
+    const oauthApp = config.oauthApp;
+    if (!oauthApp?.clientId || !oauthApp?.clientSecret) {
+      console.error('[OAuth] No stored OAuth credentials found for integration:', integrationId);
+      return res.redirect(`/app/integrations/${slug}?oauth_error=missing_credentials`);
+    }
+
+    const userCredentials = {
+      clientId: oauthService.decryptToken(oauthApp.clientId),
+      clientSecret: oauthService.decryptToken(oauthApp.clientSecret),
+    };
+
+    if (!userCredentials.clientId || !userCredentials.clientSecret) {
+      console.error('[OAuth] Failed to decrypt stored OAuth credentials');
+      return res.redirect(`/app/integrations/${slug}?oauth_error=credential_error`);
+    }
+
+    const tokens = await oauthService.exchangeCodeForTokens(slug, String(code), userCredentials);
     if (!tokens) {
       await db
         .update(userIntegrations)
@@ -65,9 +82,8 @@ router.get('/callback', async (req: Request, res: Response) => {
       console.error('[OAuth] Failed to fetch account info:', err);
     }
 
-    const existingConfig = (integration.config as any) || {};
     const updatedConfig = {
-      ...existingConfig,
+      ...config,
       oauth: {
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,

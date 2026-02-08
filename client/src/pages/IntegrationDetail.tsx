@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute, useLocation } from "wouter";
+import { useRoute, useLocation, useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   ArrowLeft, CheckCircle2, AlertCircle, Loader2, Plug, Unplug,
   RefreshCw, Clock, Zap, Settings, FileText, ExternalLink,
-  Play, XCircle, Star, Plug2
+  Play, XCircle, Star, Plug2, User, Mail, Shield
 } from "lucide-react";
 import {
   SiSalesforce, SiHubspot, SiGooglesheets, SiSlack,
@@ -33,8 +33,16 @@ const LOGO_MAP: Record<string, React.ReactNode> = {
   airtable: <SiAirtable className="w-8 h-8 text-[#18BFFF]" />,
 };
 
+interface IntegrationConfig {
+  fieldMapping?: Record<string, string>;
+  accountName?: string | null;
+  accountEmail?: string | null;
+  accountId?: string | null;
+  connectedAt?: string | null;
+}
+
 interface ConnectedInfo {
-  integration: UserIntegration;
+  integration: UserIntegration & { config: IntegrationConfig };
   app: IntegrationApp;
 }
 
@@ -65,10 +73,42 @@ function getStatusInfo(status: string) {
 export default function IntegrationDetail() {
   const [, params] = useRoute("/app/integrations/:slug");
   const [, navigate] = useLocation();
+  const searchString = useSearch();
   const { toast } = useToast();
   const slug = params?.slug || "";
 
   const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
+  const [oauthPending, setOauthPending] = useState(false);
+
+  const searchParams = new URLSearchParams(searchString);
+  const oauthSuccess = searchParams.get("oauth_success");
+  const oauthError = searchParams.get("oauth_error");
+
+  useEffect(() => {
+    if (oauthSuccess === "true") {
+      toast({
+        title: "Account connected",
+        description: "Your account has been authenticated and is now syncing data.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/connected"] });
+      window.history.replaceState({}, "", `/app/integrations/${slug}`);
+    } else if (oauthError) {
+      const errorMessages: Record<string, string> = {
+        access_denied: "You denied access to your account. Please try again to connect.",
+        missing_params: "The authentication response was incomplete. Please try again.",
+        invalid_state: "The authentication session expired or was invalid. Please try again.",
+        integration_not_found: "The integration record was not found. Please reconnect.",
+        token_exchange_failed: "Failed to complete authentication with the service. Please try again.",
+        server_error: "An unexpected error occurred during authentication. Please try again.",
+      };
+      toast({
+        title: "Authentication failed",
+        description: errorMessages[oauthError] || "An error occurred during authentication.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, "", `/app/integrations/${slug}`);
+    }
+  }, [oauthSuccess, oauthError, slug, toast]);
 
   const { data: apps, isLoading: appsLoading } = useQuery<IntegrationApp[]>({
     queryKey: ["/api/integrations/apps"],
@@ -81,6 +121,7 @@ export default function IntegrationDetail() {
   const app = apps?.find((a) => a.slug === slug);
   const connectionInfo = connected?.find((c) => c.app.slug === slug);
   const integration = connectionInfo?.integration;
+  const config = integration?.config as IntegrationConfig | undefined;
 
   const { data: syncLogs, isLoading: logsLoading } = useQuery<IntegrationSyncLog[]>({
     queryKey: ["/api/integrations", integration?.id, "logs"],
@@ -102,14 +143,28 @@ export default function IntegrationDetail() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/integrations/connected"] });
       queryClient.invalidateQueries({ queryKey: ["/api/integrations", data?.integration?.id, "logs"] });
+
       if (data.oauthUrl) {
+        setOauthPending(true);
+        const popup = window.open(data.oauthUrl, "oauth_popup", "width=600,height=700,scrollbars=yes");
+
+        const checkClosed = setInterval(() => {
+          if (popup && popup.closed) {
+            clearInterval(checkClosed);
+            setOauthPending(false);
+            queryClient.invalidateQueries({ queryKey: ["/api/integrations/connected"] });
+          }
+        }, 1000);
+
         toast({
-          title: "Redirecting to authentication",
-          description: "Complete the OAuth process to finish connecting.",
+          title: "Sign in to your account",
+          description: `A new window has opened for you to authorize access to your ${app?.name || "service"} account.`,
         });
-        window.open(data.oauthUrl, "_blank", "width=600,height=700");
       } else {
-        toast({ title: "Integration connected", description: `${app?.name || 'Integration'} is now connected and active.` });
+        toast({
+          title: "Integration connected",
+          description: `${app?.name || "Integration"} is now connected and active.`,
+        });
       }
     },
     onError: (error: any) => {
@@ -279,11 +334,11 @@ export default function IntegrationDetail() {
               ) : (
                 <Button
                   onClick={() => connectMutation.mutate()}
-                  disabled={connectMutation.isPending}
+                  disabled={connectMutation.isPending || oauthPending}
                   data-testid="button-connect"
                 >
-                  {connectMutation.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plug className="w-4 h-4 mr-1.5" />}
-                  Connect {app.name}
+                  {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plug className="w-4 h-4 mr-1.5" />}
+                  {oauthPending ? "Waiting for authorization..." : `Connect ${app.name}`}
                 </Button>
               )}
             </div>
@@ -336,6 +391,56 @@ export default function IntegrationDetail() {
               </Card>
             </div>
 
+            {(config?.accountName || config?.accountEmail) && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="w-4 h-4" /> Connected Account
+                  </CardTitle>
+                  <Badge variant="outline" className="no-default-active-elevate gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Authenticated
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {config.accountName && (
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                          <User className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Account</p>
+                          <p className="text-sm font-medium truncate" data-testid="text-account-name">{config.accountName}</p>
+                        </div>
+                      </div>
+                    )}
+                    {config.accountEmail && (
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Email</p>
+                          <p className="text-sm font-medium truncate" data-testid="text-account-email">{config.accountEmail}</p>
+                        </div>
+                      </div>
+                    )}
+                    {config.connectedAt && (
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Authorized On</p>
+                          <p className="text-sm font-medium truncate" data-testid="text-auth-date">{formatDate(config.connectedAt)}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -351,7 +456,7 @@ export default function IntegrationDetail() {
                     <Label className="text-xs">Contact Name</Label>
                     <Input
                       placeholder="e.g. contact_name"
-                      defaultValue={(integration.config as any)?.fieldMapping?.contactName || "contact_name"}
+                      defaultValue={config?.fieldMapping?.contactName || "contact_name"}
                       readOnly
                       data-testid="input-field-contact-name"
                     />
@@ -360,7 +465,7 @@ export default function IntegrationDetail() {
                     <Label className="text-xs">Phone Number</Label>
                     <Input
                       placeholder="e.g. phone_number"
-                      defaultValue={(integration.config as any)?.fieldMapping?.phoneNumber || "phone_number"}
+                      defaultValue={config?.fieldMapping?.phoneNumber || "phone_number"}
                       readOnly
                       data-testid="input-field-phone"
                     />
@@ -369,7 +474,7 @@ export default function IntegrationDetail() {
                     <Label className="text-xs">Company</Label>
                     <Input
                       placeholder="e.g. company"
-                      defaultValue={(integration.config as any)?.fieldMapping?.company || "company"}
+                      defaultValue={config?.fieldMapping?.company || "company"}
                       readOnly
                       data-testid="input-field-company"
                     />
@@ -378,7 +483,7 @@ export default function IntegrationDetail() {
                     <Label className="text-xs">Call Summary</Label>
                     <Input
                       placeholder="e.g. call_summary"
-                      defaultValue={(integration.config as any)?.fieldMapping?.callSummary || "call_summary"}
+                      defaultValue={config?.fieldMapping?.callSummary || "call_summary"}
                       readOnly
                       data-testid="input-field-summary"
                     />
@@ -454,16 +559,19 @@ export default function IntegrationDetail() {
                 {getAppIcon(app.slug)}
               </div>
               <h3 className="text-lg font-semibold mb-2">Connect {app.name}</h3>
-              <p className="text-sm text-muted-foreground max-w-md mb-6">
+              <p className="text-sm text-muted-foreground max-w-md mb-2">
                 {app.description}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-sm mb-6">
+                You'll be asked to sign in to your {app.name} account to authorize Loop9 to access your data securely.
               </p>
               <Button
                 onClick={() => connectMutation.mutate()}
-                disabled={connectMutation.isPending}
+                disabled={connectMutation.isPending || oauthPending}
                 data-testid="button-connect-cta"
               >
-                {connectMutation.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plug className="w-4 h-4 mr-1.5" />}
-                Connect {app.name}
+                {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plug className="w-4 h-4 mr-1.5" />}
+                {oauthPending ? "Waiting for authorization..." : `Connect ${app.name}`}
               </Button>
             </CardContent>
           </Card>
@@ -475,7 +583,7 @@ export default function IntegrationDetail() {
           <DialogHeader>
             <DialogTitle>Disconnect {app.name}?</DialogTitle>
             <DialogDescription>
-              This will remove the integration, stop all automated syncing, and delete the workflow. This action cannot be undone.
+              This will remove the integration, revoke access to your {app.name} account, stop all automated syncing, and delete the workflow. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

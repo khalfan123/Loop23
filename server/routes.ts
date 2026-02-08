@@ -105,6 +105,7 @@ import { createSubscriptionRoutes } from "./routes/subscription-routes";
 import crmRoutes from "./routes/crm-routes";
 import searchRoutes from "./routes/search-routes";
 import integrationRoutes from "./routes/integration-routes";
+import integrationOAuthCallback from "./routes/integration-oauth-callback";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
 import bcrypt from "bcrypt";
 import multer from "multer";
@@ -1484,6 +1485,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CRM routes - Lead Management (isolated module)
   // Use hybrid auth to allow both users and team members
   app.use("/api/crm", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, crmRoutes);
+
+  // Integration OAuth callback (public - no auth required, receives redirect from OAuth providers)
+  app.use("/api/integrations/oauth", integrationOAuthCallback);
 
   // Integration Marketplace routes (n8n-powered)
   app.use("/api/integrations", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, integrationRoutes);

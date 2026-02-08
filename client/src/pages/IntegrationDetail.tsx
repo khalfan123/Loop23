@@ -880,14 +880,11 @@ export default function IntegrationDetail() {
 
   const providerConfig = app ? getProviderConfig(app.slug) : getProviderConfig("");
   const authType = (app as IntegrationAppWithOAuth)?.authType;
-  const isApiKeyProvider = authType === "api_key";
+  const hasCredentialConfig = !!(app && PROVIDER_CREDENTIAL_CONFIG[app.slug]);
+  const isApiKeyProvider = authType === "api_key" || hasCredentialConfig;
 
   const handleConnectClick = () => {
-    if (requiresOAuth || isApiKeyProvider) {
-      setCredentialsDialogOpen(true);
-    } else {
-      connectMutation.mutate({ clientId: "", clientSecret: "" });
-    }
+    setCredentialsDialogOpen(true);
   };
 
   const handleCredentialsSubmit = () => {

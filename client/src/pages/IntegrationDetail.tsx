@@ -101,6 +101,7 @@ export default function IntegrationDetail() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/integrations/connected"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations", data?.integration?.id, "logs"] });
       if (data.oauthUrl) {
         toast({
           title: "Redirecting to authentication",
@@ -108,7 +109,7 @@ export default function IntegrationDetail() {
         });
         window.open(data.oauthUrl, "_blank", "width=600,height=700");
       } else {
-        toast({ title: "Integration connected", description: "The integration has been set up successfully." });
+        toast({ title: "Integration connected", description: `${app?.name || 'Integration'} is now connected and active.` });
       }
     },
     onError: (error: any) => {
@@ -328,7 +329,7 @@ export default function IntegrationDetail() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Connected Since</p>
-                      <p className="font-semibold text-sm" data-testid="text-connected-since">{formatDate(integration.createdAt as string)}</p>
+                      <p className="font-semibold text-sm" data-testid="text-connected-since">{formatDate(integration.createdAt as unknown as string)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -429,7 +430,7 @@ export default function IntegrationDetail() {
                             <TableCell className="text-sm text-muted-foreground">
                               {log.executionDurationMs ? `${log.executionDurationMs}ms` : "-"}
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{formatDate(log.createdAt as string)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDate(log.createdAt as unknown as string)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

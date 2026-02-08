@@ -3750,3 +3750,69 @@ export const insertMlTrainingStatsSchema = createInsertSchema(mlTrainingStats).o
 });
 export type InsertMlTrainingStats = z.infer<typeof insertMlTrainingStatsSchema>;
 export type MlTrainingStats = typeof mlTrainingStats.$inferSelect;
+
+// ============================================================
+// Integration Marketplace — n8n-Powered Integration Apps
+// ============================================================
+
+export const integrationApps = pgTable("integration_apps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  category: text("category"),
+  logoUrl: text("logo_url"),
+  n8nNodeType: text("n8n_node_type").notNull(),
+  isPopular: boolean("is_popular").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const userIntegrations = pgTable("user_integrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  appId: varchar("app_id").notNull().references(() => integrationApps.id, { onDelete: "cascade" }),
+  n8nWorkflowId: text("n8n_workflow_id").notNull(),
+  n8nCredentialId: text("n8n_credential_id").notNull(),
+  webhookUrl: text("webhook_url").notNull(),
+  status: text("status").notNull().default("inactive"),
+  config: jsonb("config"),
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const integrationSyncLogs = pgTable("integration_sync_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  integrationId: varchar("integration_id").notNull().references(() => userIntegrations.id, { onDelete: "cascade" }),
+  n8nExecutionId: text("n8n_execution_id"),
+  eventType: text("event_type"),
+  status: text("status"),
+  recordsSynced: integer("records_synced").notNull().default(0),
+  errorMessage: text("error_message"),
+  executionDurationMs: integer("execution_duration_ms"),
+  payload: jsonb("payload"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertIntegrationAppSchema = createInsertSchema(integrationApps).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertIntegrationApp = z.infer<typeof insertIntegrationAppSchema>;
+export type IntegrationApp = typeof integrationApps.$inferSelect;
+
+export const insertUserIntegrationSchema = createInsertSchema(userIntegrations).omit({
+  id: true,
+  status: true,
+  lastSyncAt: true,
+  createdAt: true,
+});
+export type InsertUserIntegration = z.infer<typeof insertUserIntegrationSchema>;
+export type UserIntegration = typeof userIntegrations.$inferSelect;
+
+export const insertIntegrationSyncLogSchema = createInsertSchema(integrationSyncLogs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertIntegrationSyncLog = z.infer<typeof insertIntegrationSyncLogSchema>;
+export type IntegrationSyncLog = typeof integrationSyncLogs.$inferSelect;

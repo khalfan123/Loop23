@@ -70,6 +70,8 @@ import IncomingConnections from "@/pages/IncomingConnections";
 import IncomingCallCanvas from "@/pages/IncomingCallCanvas";
 import PromptTemplates from "@/pages/PromptTemplates";
 import TransactionHistory from "@/pages/TransactionHistory";
+import IntegrationMarketplace from "@/pages/IntegrationMarketplace";
+import IntegrationDetail from "@/pages/IntegrationDetail";
 import LoginPage from "@/pages/LoginPage";
 import TeamMemberLogin from "@/pages/TeamMemberLogin";
 import AdminTeamLogin from "@/pages/AdminTeamLogin";
@@ -202,6 +204,8 @@ function UserRouter() {
           <Route path="/app/incoming-connections" component={IncomingCallCanvas} />
           <Route path="/app/voices" component={Voices} />
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
+          <Route path="/app/integrations/:slug" component={IntegrationDetail} />
+          <Route path="/app/integrations" component={IntegrationMarketplace} />
           <Route path="/app/tools" component={() => <div className="text-center py-16 text-muted-foreground">Tools page coming soon</div>} />
           <Route path="/app/flows/new" component={FlowBuilderPage} />
           <Route path="/app/flows/execution" component={FlowExecutionLogsPage} />
@@ -265,6 +269,8 @@ function TeamMemberRouter() {
           <Route path="/app/incoming-connections" component={IncomingCallCanvas} />
           <Route path="/app/voices" component={Voices} />
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
+          <Route path="/app/integrations/:slug" component={IntegrationDetail} />
+          <Route path="/app/integrations" component={IntegrationMarketplace} />
           <Route path="/app/flows/new" component={FlowBuilderPage} />
           <Route path="/app/flows/execution" component={FlowExecutionLogsPage} />
           <Route path="/app/flows/webhooks" component={WebhookConfigPage} />

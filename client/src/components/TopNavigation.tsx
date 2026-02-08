@@ -20,7 +20,7 @@ import {
   CreditCard, TrendingUp, UserCheck, Workflow, Webhook, 
   ClipboardList, Calendar, Layout, FileText, Wrench, Globe, 
   Bot, ContactRound, Building2, ShieldCheck, Brain, Menu, X, 
-  ChevronDown, Zap, Grid3X3, Search, HelpCircle
+  ChevronDown, Zap, Grid3X3, Search, HelpCircle, Plug
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -106,6 +106,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500", description: "Train your AI" },
     { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500", description: "Department management" },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500", description: "Batch calling campaigns" },
+    { title: t('nav.integrations', 'Integrations'), url: "/app/integrations", icon: Plug, iconColor: "text-indigo-500", description: "Connect business tools" },
   ];
 
   const formsAppointmentsItems: NavItem[] = [

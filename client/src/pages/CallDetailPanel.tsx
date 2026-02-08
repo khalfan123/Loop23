@@ -23,11 +23,9 @@ import {
   PhoneOutgoing,
   CheckCircle2,
   XCircle,
-  User,
   Volume2,
   Heart,
   Target,
-  Mail,
   Bot,
   ChevronUp,
   ChevronDown,
@@ -36,8 +34,9 @@ import {
   ClipboardCheck,
   ShieldAlert,
   Copy,
-  Trash2,
-  X,
+  Activity,
+  Zap,
+  DollarSign,
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatSipEndpoint } from "@/lib/formatters";
@@ -260,6 +259,45 @@ export default function CallDetailPanel({
     }
   };
 
+  const getEngineBadge = (engine?: string) => {
+    if (engine === "twilio-openai") {
+      return (
+        <Badge className="bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20">
+          Twilio+OpenAI
+        </Badge>
+      );
+    }
+    if (engine === "plivo-openai") {
+      return (
+        <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20">
+          Plivo+OpenAI
+        </Badge>
+      );
+    }
+    if (engine === "openai") {
+      return (
+        <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
+          OpenAI
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20">
+        ElevenLabs
+      </Badge>
+    );
+  };
+
+  const getWidgetBadge = () => {
+    if (!call?.widgetId) return null;
+    return (
+      <Badge className="bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20 gap-1">
+        <Globe className="h-3 w-3" />
+        Widget
+      </Badge>
+    );
+  };
+
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return "0:00";
     const mins = Math.floor(seconds / 60);
@@ -348,33 +386,56 @@ export default function CallDetailPanel({
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <div className="p-5 space-y-5">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+              <div className="p-5 space-y-4">
+                {/* Header Card */}
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 via-indigo-100/50 to-sky-50 dark:from-blue-950/40 dark:via-indigo-900/30 dark:to-sky-950/40 border border-blue-100 dark:border-blue-900/50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+                      {isIncoming ? (
+                        <PhoneIncoming className="h-5 w-5 text-white" />
+                      ) : (
+                        <PhoneOutgoing className="h-5 w-5 text-white" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-base font-semibold">
-                          {call.startedAt
-                            ? format(
-                                new Date(call.startedAt),
-                                "MM/dd/yyyy HH:mm"
-                              )
-                            : format(
-                                new Date(call.createdAt),
-                                "MM/dd/yyyy HH:mm"
-                              )}
+                        <h2 className="text-lg font-bold text-foreground truncate" data-testid="text-contact-name">
+                          {contactName}
+                        </h2>
+                        {getStatusBadge(call.status)}
+                        {getSentimentBadge(call.sentiment)}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {getEngineBadge(call.engine)}
+                        {getWidgetBadge()}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground flex-wrap">
+                        <span>{isIncoming ? "Incoming" : "Outgoing"}</span>
+                        <span>·</span>
+                        <span className="font-mono text-xs">
+                          {isIncoming ? "From" : "To"}: {primaryNumber}
                         </span>
-                        <span className="text-base text-muted-foreground">
-                          {call.channelType || (isIncoming ? "incoming" : "outgoing")}
-                        </span>
+                        {secondaryNumber !== "Your number" && (
+                          <>
+                            <span>·</span>
+                            <span className="font-mono text-xs">
+                              {isIncoming ? "To" : "From"}: {secondaryNumber}
+                            </span>
+                          </>
+                        )}
                       </div>
                       {call.agent && (
-                        <div className="text-sm text-muted-foreground mt-0.5">
-                          Agent:{call.agent.name} ({call.agent.id.slice(0, 8)}...{call.agent.id.slice(-4)})
+                        <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
+                          <Bot className="h-3 w-3" />
+                          <span>
+                            {call.agent.name}
+                          </span>
+                          <span className="font-mono text-xs">
+                            ({call.agent.id.slice(0, 8)}...)
+                          </span>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="ml-1"
                             onClick={() => copyToClipboard(call.agent!.id)}
                             data-testid="button-copy-agent-id"
                           >
@@ -382,8 +443,22 @@ export default function CallDetailPanel({
                           </Button>
                         </div>
                       )}
-                      <div className="text-sm text-muted-foreground flex items-center gap-1">
-                        Call ID: {call.id.slice(0, 16)}...{call.id.slice(-4)}
+                      {call.campaign && (
+                        <div className="flex items-center gap-1 mt-0.5 text-sm text-muted-foreground">
+                          <Target className="h-3 w-3" />
+                          <span
+                            className="text-sm cursor-pointer text-muted-foreground"
+                            onClick={() =>
+                              setLocation(`/app/campaigns/${call.campaign!.id}`)
+                            }
+                            data-testid="panel-link-campaign"
+                          >
+                            {call.campaign.name}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground font-mono" data-testid="text-call-id">
+                        ID: {call.id.slice(0, 12)}...{call.id.slice(-4)}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -393,165 +468,282 @@ export default function CallDetailPanel({
                           <Copy className="h-3 w-3" />
                         </Button>
                       </div>
-                      {call.startedAt && call.endedAt && (
-                        <div className="text-sm text-muted-foreground">
-                          Duration: {format(new Date(call.startedAt), "MM/dd/yyyy HH:mm")} - {format(new Date(call.endedAt), "MM/dd/yyyy HH:mm")}
-                        </div>
-                      )}
-                      {call.cost != null && (
-                        <div className="text-sm text-muted-foreground">
-                          Cost: ${Number(call.cost).toFixed(4)}
-                        </div>
-                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground"
-                      data-testid="button-delete-call"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
 
-                {hasRecording && (
-                  <div className="bg-muted/30 rounded-xl p-4 border">
-                    {recordingBlobUrl ? (
-                      <div className="flex items-center gap-3">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            if (audioRef.current) {
-                              if (isPlaying) {
-                                audioRef.current.pause();
-                              } else {
-                                audioRef.current.play();
-                              }
-                            }
-                          }}
-                          data-testid="button-play-pause"
-                        >
-                          {isPlaying ? (
-                            <Pause className="h-4 w-4" />
-                          ) : (
-                            <Play className="h-4 w-4" />
-                          )}
-                        </Button>
+                {/* KPI Stats Row */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-blue-100/50 dark:border-blue-800/30">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      <span className="text-lg font-bold text-blue-700 dark:text-blue-300" data-testid="text-duration">
+                        {formatDuration(call.duration)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Duration</div>
+                  </div>
+                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-indigo-100/50 dark:border-indigo-800/30">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300" data-testid="text-date">
+                        {format(new Date(call.startedAt || call.createdAt), "MMM d, h:mm a")}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Date & Time</div>
+                  </div>
+                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-rose-100/50 dark:border-rose-800/30">
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                      <span className="text-lg font-bold text-rose-700 dark:text-rose-300" data-testid="text-concerns">
+                        {call.concernedQuestionsCount || 0}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Concerns</div>
+                  </div>
+                </div>
 
-                        <span className="text-sm font-mono text-muted-foreground">
-                          {formatDuration(Math.floor(currentTime))} /{" "}
-                          {formatDuration(call.duration)}
+                {/* Secondary Stats */}
+                <div className="grid grid-cols-2 gap-2">
+                  {call.cost != null && (
+                    <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-emerald-100/50 dark:border-emerald-800/30">
+                      <div className="flex items-center gap-1.5">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300" data-testid="text-cost">
+                          ${Number(call.cost).toFixed(4)}
                         </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Cost</div>
+                    </div>
+                  )}
+                  {call.endToEndLatencyMs != null && (
+                    <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-amber-100/50 dark:border-amber-800/30">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        <span className="text-sm font-bold text-amber-700 dark:text-amber-300" data-testid="text-latency">
+                          {call.endToEndLatencyMs}ms
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">Latency</div>
+                    </div>
+                  )}
+                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-sky-100/50 dark:border-sky-800/30">
+                    <div className="flex items-center gap-1.5">
+                      {hasRecording ? (
+                        <Volume2 className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-slate-400" />
+                      )}
+                      <span className="text-sm font-bold text-sky-700 dark:text-sky-300">
+                        {hasRecording ? "Available" : "None"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Recording</div>
+                  </div>
+                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-emerald-100/50 dark:border-emerald-800/30">
+                    <div className="flex items-center gap-1.5">
+                      {call.transcript ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-slate-400" />
+                      )}
+                      <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                        {call.transcript ? "Available" : "None"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Transcript</div>
+                  </div>
+                </div>
 
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full transition-all"
-                            style={{
-                              width: `${call.duration ? (currentTime / call.duration) * 100 : 0}%`,
+                {/* Audio Player with Waveform */}
+                {hasRecording && (
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border border-slate-700/50 p-4">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent" />
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Volume2 className="h-4 w-4 text-blue-400" />
+                        <h3 className="text-sm font-medium text-slate-300">Audio Recording</h3>
+                      </div>
+
+                      {recordingBlobUrl ? (
+                        <div className="flex items-center gap-3">
+                          <Button
+                            size="icon"
+                            className="rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30"
+                            onClick={() => {
+                              if (audioRef.current) {
+                                if (isPlaying) {
+                                  audioRef.current.pause();
+                                } else {
+                                  audioRef.current.play();
+                                }
+                              }
                             }}
+                            data-testid="button-play-pause"
+                          >
+                            {isPlaying ? (
+                              <Pause className="h-4 w-4" />
+                            ) : (
+                              <Play className="h-4 w-4 ml-0.5" />
+                            )}
+                          </Button>
+
+                          <div className="flex-1">
+                            <div className="h-12 bg-slate-800/50 rounded-lg flex items-center justify-center px-3 border border-slate-700/30">
+                              <div className="flex items-end gap-[2px] h-9 w-full">
+                                {Array.from({ length: 50 }).map((_, i) => {
+                                  const height =
+                                    25 +
+                                    Math.abs(
+                                      Math.sin(i * 0.35) * 45 +
+                                        Math.cos(i * 0.2) * 25
+                                    );
+                                  const isActive =
+                                    call.duration && currentTime > 0
+                                      ? i < (currentTime / call.duration) * 50
+                                      : false;
+                                  return (
+                                    <div
+                                      key={i}
+                                      className={`flex-1 rounded-full transition-all duration-150 ${
+                                        isActive
+                                          ? "bg-blue-500"
+                                          : "bg-slate-600/60"
+                                      }`}
+                                      style={{ height: `${height}%` }}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-1 px-1">
+                              <span className="text-xs font-mono text-blue-400">
+                                {formatDuration(Math.floor(currentTime))}
+                              </span>
+                              <span className="text-xs font-mono text-slate-500">
+                                {formatDuration(call.duration)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-slate-400"
+                            onClick={() => {
+                              if (recordingBlobUrl) {
+                                const link = document.createElement("a");
+                                link.href = recordingBlobUrl;
+                                link.download = `call-recording-${call.id}.mp3`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }
+                            }}
+                            data-testid="button-download-recording"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+
+                          <audio
+                            ref={audioRef}
+                            src={recordingBlobUrl}
+                            onPlay={() => setIsPlaying(true)}
+                            onPause={() => setIsPlaying(false)}
+                            onEnded={() => setIsPlaying(false)}
+                            onTimeUpdate={(e) =>
+                              setCurrentTime(e.currentTarget.currentTime)
+                            }
                           />
                         </div>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            if (recordingBlobUrl) {
-                              const link = document.createElement("a");
-                              link.href = recordingBlobUrl;
-                              link.download = `call-recording-${call.id}.mp3`;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }
-                          }}
-                          data-testid="button-download-recording"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-
-                        <audio
-                          ref={audioRef}
-                          src={recordingBlobUrl}
-                          onPlay={() => setIsPlaying(true)}
-                          onPause={() => setIsPlaying(false)}
-                          onEnded={() => setIsPlaying(false)}
-                          onTimeUpdate={(e) =>
-                            setCurrentTime(e.currentTarget.currentTime)
-                          }
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 py-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          Loading recording...
-                        </span>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex items-center gap-2 py-3">
+                          <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                          <span className="text-sm text-slate-400">
+                            Loading recording...
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
+                {/* Conversation Analysis */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-primary">
+                  <h4 className="text-sm font-semibold text-foreground" data-testid="text-conversation-analysis-heading">
                     Conversation Analysis
                   </h4>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                  <div className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-2.5">
                     <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                      <span>Call Successful</span>
+                      <CheckCircle2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Call Successful</span>
                     </div>
                     <div className="text-sm">
                       {call.status === "completed" ? (
-                        <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                        <span className="text-green-600 dark:text-green-400">
                           Successful
                         </span>
                       ) : (
-                        <span className="text-red-600 dark:text-red-400 flex items-center gap-1">
+                        <span className="text-red-600 dark:text-red-400">
                           Unsuccessful
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>Call Status</span>
+                      <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Call Status</span>
                     </div>
                     <div className="text-sm">
-                      <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
-                        {call.status.charAt(0).toUpperCase() + call.status.slice(1)}
-                      </span>
+                      {getStatusBadge(call.status)}
                     </div>
 
                     <div className="flex items-center gap-2 text-sm">
-                      <Heart className="h-4 w-4 text-muted-foreground" />
-                      <span>User Sentiment</span>
+                      <Heart className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">User Sentiment</span>
                     </div>
                     <div className="text-sm">
-                      <span
-                        className={`flex items-center gap-1 ${
-                          call.sentiment === "positive"
-                            ? "text-green-600 dark:text-green-400"
-                            : call.sentiment === "negative"
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-green-600 dark:text-green-400"
-                        }`}
-                      >
-                        {call.sentiment
-                          ? call.sentiment.charAt(0).toUpperCase() +
-                            call.sentiment.slice(1)
-                          : "Neutral"}
-                      </span>
+                      {getSentimentBadge(call.sentiment) || (
+                        <span className="text-muted-foreground">N/A</span>
+                      )}
                     </div>
 
+                    {call.classification && (
+                      <>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Target className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-muted-foreground">Classification</span>
+                        </div>
+                        <div className="text-sm">
+                          <Badge variant="outline" className="text-xs">
+                            {call.classification.charAt(0).toUpperCase() +
+                              call.classification.slice(1)}
+                          </Badge>
+                        </div>
+                      </>
+                    )}
+
+                    {call.sessionOutcome && (
+                      <>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Activity className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-muted-foreground">Session Outcome</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium">
+                            {call.sessionOutcome.charAt(0).toUpperCase() +
+                              call.sessionOutcome.slice(1)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+
                     <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>Disconnection Reason</span>
+                      <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Disconnection Reason</span>
                     </div>
                     <div className="text-sm">
-                      <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                      <span className="text-muted-foreground">
                         {call.endReason || "Unknown"}
                       </span>
                     </div>
@@ -559,8 +751,8 @@ export default function CallDetailPanel({
                     {(call.concernedQuestionsCount ?? 0) > 0 && (
                       <>
                         <div className="flex items-center gap-2 text-sm">
-                          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                          <span>Concerned Questions</span>
+                          <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-muted-foreground">Concerned Questions</span>
                         </div>
                         <div className="text-sm">
                           <span className="text-rose-600 dark:text-rose-400 font-medium">
@@ -572,17 +764,24 @@ export default function CallDetailPanel({
                   </div>
                 </div>
 
+                {/* AI Summary */}
                 {call.aiSummary && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold">Summary</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed border-t pt-3">
+                  <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-indigo-50/80 via-blue-50/50 to-slate-50 dark:from-indigo-950/40 dark:via-blue-950/30 dark:to-slate-950/40 border border-indigo-100/50 dark:border-indigo-900/30 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MessageSquare className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      <h4 className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">
+                        AI Summary
+                      </h4>
+                    </div>
+                    <p className="text-sm text-indigo-800/80 dark:text-indigo-200/80 leading-relaxed" data-testid="text-ai-summary">
                       {call.aiSummary}
                     </p>
                   </div>
                 )}
 
+                {/* Tabs */}
                 <Tabs defaultValue="transcription" className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <TabsList>
                       <TabsTrigger
                         value="transcription"
@@ -676,7 +875,10 @@ export default function CallDetailPanel({
                             }
 
                             return (
-                              <div key={index} className="text-sm text-muted-foreground">
+                              <div
+                                key={index}
+                                className="text-sm text-muted-foreground"
+                              >
                                 {line}
                               </div>
                             );
@@ -700,6 +902,15 @@ export default function CallDetailPanel({
                           {call.id}
                         </span>
 
+                        <span className="text-muted-foreground">Direction</span>
+                        <span>{isIncoming ? "Incoming" : "Outgoing"}</span>
+
+                        <span className="text-muted-foreground">Channel</span>
+                        <span>{call.channelType || (isIncoming ? "incoming" : "outgoing")}</span>
+
+                        <span className="text-muted-foreground">Engine</span>
+                        <span>{call.engine || "elevenlabs"}</span>
+
                         {call.contact && (
                           <>
                             <span className="text-muted-foreground">
@@ -712,23 +923,36 @@ export default function CallDetailPanel({
                           </>
                         )}
 
+                        {call.contact?.email && (
+                          <>
+                            <span className="text-muted-foreground">Email</span>
+                            <span>{call.contact.email}</span>
+                          </>
+                        )}
+
+                        {call.contact?.phone && (
+                          <>
+                            <span className="text-muted-foreground">Phone</span>
+                            <span className="font-mono text-xs">{call.contact.phone}</span>
+                          </>
+                        )}
+
                         {call.campaign && (
                           <>
                             <span className="text-muted-foreground">
                               Campaign
                             </span>
-                            <Button
-                              variant="ghost"
-                              className="p-0 h-auto justify-start font-normal underline-offset-4 hover:underline"
+                            <span
+                              className="cursor-pointer text-muted-foreground"
                               onClick={() =>
                                 setLocation(
                                   `/app/campaigns/${call.campaign!.id}`
                                 )
                               }
-                              data-testid="panel-link-campaign"
+                              data-testid="panel-link-campaign-data"
                             >
                               {call.campaign.name}
-                            </Button>
+                            </span>
                           </>
                         )}
 
@@ -742,6 +966,20 @@ export default function CallDetailPanel({
                           )}
                         </span>
 
+                        {call.startedAt && (
+                          <>
+                            <span className="text-muted-foreground">
+                              Started At
+                            </span>
+                            <span>
+                              {format(
+                                new Date(call.startedAt),
+                                "MMM d, yyyy 'at' h:mm:ss a"
+                              )}
+                            </span>
+                          </>
+                        )}
+
                         {call.endedAt && (
                           <>
                             <span className="text-muted-foreground">
@@ -752,6 +990,50 @@ export default function CallDetailPanel({
                                 new Date(call.endedAt),
                                 "MMM d, yyyy 'at' h:mm:ss a"
                               )}
+                            </span>
+                          </>
+                        )}
+
+                        {call.duration != null && (
+                          <>
+                            <span className="text-muted-foreground">Duration</span>
+                            <span>{formatDuration(call.duration)}</span>
+                          </>
+                        )}
+
+                        {call.cost != null && (
+                          <>
+                            <span className="text-muted-foreground">Cost</span>
+                            <span>${Number(call.cost).toFixed(4)}</span>
+                          </>
+                        )}
+
+                        {call.endToEndLatencyMs != null && (
+                          <>
+                            <span className="text-muted-foreground">Latency</span>
+                            <span>{call.endToEndLatencyMs}ms</span>
+                          </>
+                        )}
+
+                        {call.endReason && (
+                          <>
+                            <span className="text-muted-foreground">End Reason</span>
+                            <span>{call.endReason}</span>
+                          </>
+                        )}
+
+                        {call.sessionOutcome && (
+                          <>
+                            <span className="text-muted-foreground">Session Outcome</span>
+                            <span>{call.sessionOutcome}</span>
+                          </>
+                        )}
+
+                        {call.elevenLabsConversationId && (
+                          <>
+                            <span className="text-muted-foreground">Conversation ID</span>
+                            <span className="font-mono text-xs break-all">
+                              {call.elevenLabsConversationId}
                             </span>
                           </>
                         )}

@@ -160,8 +160,9 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
     const webhookUrl = n8nService.getWebhookUrl(userId, slug);
 
     const providerConfigured = oauthService.isProviderConfigured(slug);
-    const useOAuth = isOAuthProvider(slug) && providerConfigured && !n8nService.isLocalMode();
-    const initialStatus = useOAuth ? 'pending_auth' : (n8nService.isLocalMode() ? 'active' : 'pending_auth');
+    const useOAuth = isOAuthProvider(slug) && providerConfigured;
+    const useDemoFallback = !providerConfigured && !useOAuth;
+    const initialStatus = useOAuth ? 'pending_auth' : (useDemoFallback ? 'active' : 'pending_auth');
 
     const [integration] = await db
       .insert(userIntegrations)
@@ -176,7 +177,7 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
       })
       .returning();
 
-    if (n8nService.isLocalMode() && !providerConfigured) {
+    if (useDemoFallback) {
       await n8nService.activateWorkflow(workflow.id);
 
       const testResult = await n8nService.sendWebhook(webhookUrl, 'test_connection', {
@@ -216,7 +217,7 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
       integration: {
         ...integration,
         status: initialStatus,
-        config: n8nService.isLocalMode() ? {
+        config: useDemoFallback ? {
           ...(req.body.config || {}),
           ...getDemoAccountInfo(slug, app.name),
           connectedAt: new Date().toISOString(),

@@ -91,7 +91,11 @@ router.get('/callback', async (req: Request, res: Response) => {
       })
       .where(eq(userIntegrations.id, integrationId));
 
-    await n8nService.activateWorkflow(integration.n8nWorkflowId);
+    try {
+      await n8nService.activateWorkflow(integration.n8nWorkflowId);
+    } catch (err) {
+      console.log('[OAuth] n8n workflow activation skipped (n8n not configured)');
+    }
 
     await db.insert(integrationSyncLogs).values({
       integrationId,
@@ -100,24 +104,28 @@ router.get('/callback', async (req: Request, res: Response) => {
       recordsSynced: 0,
     });
 
-    const testResult = await n8nService.sendWebhook(
-      integration.webhookUrl,
-      'test_connection',
-      {
-        message: 'OAuth connection verified',
-        accountName: accountInfo?.accountName,
-        timestamp: new Date().toISOString(),
-      },
-    );
+    try {
+      const testResult = await n8nService.sendWebhook(
+        integration.webhookUrl,
+        'test_connection',
+        {
+          message: 'OAuth connection verified',
+          accountName: accountInfo?.accountName,
+          timestamp: new Date().toISOString(),
+        },
+      );
 
-    if (testResult.success) {
-      await db.insert(integrationSyncLogs).values({
-        integrationId,
-        n8nExecutionId: testResult.executionId || null,
-        eventType: 'test_connection',
-        status: 'success',
-        recordsSynced: 0,
-      });
+      if (testResult.success) {
+        await db.insert(integrationSyncLogs).values({
+          integrationId,
+          n8nExecutionId: testResult.executionId || null,
+          eventType: 'test_connection',
+          status: 'success',
+          recordsSynced: 0,
+        });
+      }
+    } catch (err) {
+      console.log('[OAuth] n8n webhook test skipped (n8n not configured)');
     }
 
     return res.redirect(`/app/integrations/${slug}?oauth_success=true`);

@@ -24,6 +24,11 @@ import {
 } from "react-icons/si";
 import type { IntegrationApp, UserIntegration, IntegrationSyncLog } from "@shared/schema";
 
+interface IntegrationAppWithOAuth extends IntegrationApp {
+  oauthConfigured?: boolean;
+  authType?: string;
+}
+
 const LOGO_MAP: Record<string, React.ReactNode> = {
   salesforce: <SiSalesforce className="w-8 h-8 text-[#00A1E0]" />,
   hubspot: <SiHubspot className="w-8 h-8 text-[#FF7A59]" />,
@@ -110,7 +115,7 @@ export default function IntegrationDetail() {
     }
   }, [oauthSuccess, oauthError, slug, toast]);
 
-  const { data: apps, isLoading: appsLoading } = useQuery<IntegrationApp[]>({
+  const { data: apps, isLoading: appsLoading } = useQuery<IntegrationAppWithOAuth[]>({
     queryKey: ["/api/integrations/apps"],
   });
 
@@ -119,6 +124,7 @@ export default function IntegrationDetail() {
   });
 
   const app = apps?.find((a) => a.slug === slug);
+  const isOAuthReady = !!(app as IntegrationAppWithOAuth)?.oauthConfigured;
   const connectionInfo = connected?.find((c) => c.app.slug === slug);
   const integration = connectionInfo?.integration;
   const config = integration?.config as IntegrationConfig | undefined;
@@ -337,8 +343,8 @@ export default function IntegrationDetail() {
                   disabled={connectMutation.isPending || oauthPending}
                   data-testid="button-connect"
                 >
-                  {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plug className="w-4 h-4 mr-1.5" />}
-                  {oauthPending ? "Waiting for authorization..." : `Connect ${app.name}`}
+                  {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : isOAuthReady ? <ExternalLink className="w-4 h-4 mr-1.5" /> : <Plug className="w-4 h-4 mr-1.5" />}
+                  {oauthPending ? "Waiting for authorization..." : isOAuthReady ? `Sign in to ${app.name}` : `Connect ${app.name}`}
                 </Button>
               )}
             </div>
@@ -397,9 +403,15 @@ export default function IntegrationDetail() {
                   <CardTitle className="text-base flex items-center gap-2">
                     <Shield className="w-4 h-4" /> Connected Account
                   </CardTitle>
-                  <Badge variant="outline" className="no-default-active-elevate gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Authenticated
-                  </Badge>
+                  {isOAuthReady ? (
+                    <Badge variant="outline" className="no-default-active-elevate gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Authenticated
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="no-default-active-elevate gap-1">
+                      <AlertCircle className="w-3 h-3" /> Demo Account
+                    </Badge>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -562,16 +574,22 @@ export default function IntegrationDetail() {
               <p className="text-sm text-muted-foreground max-w-md mb-2">
                 {app.description}
               </p>
-              <p className="text-xs text-muted-foreground max-w-sm mb-6">
-                You'll be asked to sign in to your {app.name} account to authorize Loop9 to access your data securely.
-              </p>
+              {isOAuthReady ? (
+                <p className="text-xs text-muted-foreground max-w-sm mb-6">
+                  You'll be redirected to {app.name} to sign in and authorize Loop9 to access your data securely.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground max-w-sm mb-6">
+                  This will connect using a demo account. To use your own {app.name} account, configure OAuth credentials in your environment settings.
+                </p>
+              )}
               <Button
                 onClick={() => connectMutation.mutate()}
                 disabled={connectMutation.isPending || oauthPending}
                 data-testid="button-connect-cta"
               >
-                {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plug className="w-4 h-4 mr-1.5" />}
-                {oauthPending ? "Waiting for authorization..." : `Connect ${app.name}`}
+                {(connectMutation.isPending || oauthPending) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : isOAuthReady ? <ExternalLink className="w-4 h-4 mr-1.5" /> : <Plug className="w-4 h-4 mr-1.5" />}
+                {oauthPending ? "Waiting for authorization..." : isOAuthReady ? `Sign in to ${app.name}` : `Connect ${app.name} (Demo)`}
               </Button>
             </CardContent>
           </Card>

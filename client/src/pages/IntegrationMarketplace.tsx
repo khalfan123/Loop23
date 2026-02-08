@@ -35,8 +35,6 @@ const CATEGORY_OPTIONS = [
   { value: "automation", label: "Automation & Workflow" },
   { value: "data_storage", label: "Data & Storage" },
   { value: "hr_recruiting", label: "HR & Recruiting" },
-  { value: "productivity", label: "Productivity" },
-  { value: "erp", label: "ERP" },
 ];
 
 const LOGO_MAP: Record<string, React.ReactNode> = {

@@ -6,14 +6,19 @@
 import { motion } from "framer-motion";
 import { 
   Phone, Mic, Brain, Webhook, Code, Zap,
-  ArrowRight, ExternalLink, Check
+  ArrowRight, ExternalLink, Check, Calendar, ShoppingCart,
+  BarChart3, Database, Users, Bot, Headphones, MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { SEOHead } from "@/components/landing/SEOHead";
 import { Link } from "wouter";
-import { SiTwilio, SiOpenai, SiZapier, SiSlack, SiHubspot, SiSalesforce } from "react-icons/si";
+import { 
+  SiTwilio, SiOpenai, SiZapier, SiSlack, SiHubspot, SiSalesforce,
+  SiStripe, SiShopify, SiNotion, SiFirebase, SiDiscord, SiTelegram,
+  SiWhatsapp, SiZendesk, SiIntercom, SiMailchimp, SiAirtable, SiGooglesheets
+} from "react-icons/si";
 import { useBranding } from "@/components/BrandingProvider";
 import { useSeoSettings } from "@/hooks/useSeoSettings";
 import { useTranslation } from "react-i18next";
@@ -55,65 +60,149 @@ export default function IntegrationsPage() {
   
   const integrations = [
     {
+      icon: <SiSalesforce className="w-6 h-6 text-[#00A1E0]" />,
+      name: "Salesforce",
+      description: "Auto-create leads and log call activities after every AI conversation.",
+      category: "CRM"
+    },
+    {
+      icon: <SiHubspot className="w-6 h-6 text-[#FF7A59]" />,
+      name: "HubSpot",
+      description: "Push call outcomes, create deals, and update contact timelines automatically.",
+      category: "CRM"
+    },
+    {
       icon: <SiTwilio className="w-6 h-6 text-red-500" />,
-      name: t('landing.integrationsPage.integrations.twilio.name'),
-      description: t('landing.integrationsPage.integrations.twilio.description'),
-      category: t('landing.integrationsPage.categories.telephony')
+      name: "Twilio",
+      description: "Phone numbers and SIP trunking for outbound/inbound AI agent calls.",
+      category: "Telephony"
     },
     {
       icon: <Phone className="w-6 h-6 text-green-500" />,
-      name: t('landing.integrationsPage.integrations.plivo.name'),
-      description: t('landing.integrationsPage.integrations.plivo.description'),
-      category: t('landing.integrationsPage.categories.telephony')
+      name: "Plivo",
+      description: "Cost-effective global telephony provider for AI voice calls.",
+      category: "Telephony"
     },
     {
       icon: <SiOpenai className="w-6 h-6 text-slate-900 dark:text-white" />,
-      name: t('landing.integrationsPage.integrations.openai.name'),
-      description: t('landing.integrationsPage.integrations.openai.description'),
-      category: t('landing.integrationsPage.categories.aiLlm')
+      name: "OpenAI",
+      description: "Power AI agents with GPT-4o for natural, intelligent conversations.",
+      category: "AI & LLM"
+    },
+    {
+      icon: <Bot className="w-6 h-6 text-[#D4A574]" />,
+      name: "Anthropic (Claude)",
+      description: "Highly accurate, safety-aware AI agent conversations with Claude models.",
+      category: "AI & LLM"
     },
     {
       icon: <Mic className="w-6 h-6 text-indigo-500" />,
-      name: t('landing.integrationsPage.integrations.elevenlabs.name'),
-      description: t('landing.integrationsPage.integrations.elevenlabs.description'),
-      category: t('landing.integrationsPage.categories.voice')
+      name: "ElevenLabs",
+      description: "Ultra-realistic AI voices for natural-sounding agent conversations.",
+      category: "Voice & Speech"
     },
     {
-      icon: <SiZapier className="w-6 h-6 text-orange-500" />,
-      name: t('landing.integrationsPage.integrations.zapier.name'),
-      description: t('landing.integrationsPage.integrations.zapier.description'),
-      category: t('landing.integrationsPage.categories.automation')
-    },
-    {
-      icon: <Webhook className="w-6 h-6 text-purple-500" />,
-      name: t('landing.integrationsPage.integrations.webhooks.name'),
-      description: t('landing.integrationsPage.integrations.webhooks.description'),
-      category: t('landing.integrationsPage.categories.developer')
+      icon: <Headphones className="w-6 h-6 text-[#13EF93]" />,
+      name: "Deepgram",
+      description: "Real-time speech-to-text with industry-leading accuracy for call transcription.",
+      category: "Voice & Speech"
     },
     {
       icon: <SiSlack className="w-6 h-6 text-[#4A154B]" />,
-      name: t('landing.integrationsPage.integrations.slack.name'),
-      description: t('landing.integrationsPage.integrations.slack.description'),
-      category: t('landing.integrationsPage.categories.communication')
+      name: "Slack",
+      description: "Real-time notifications when AI calls complete or leads are captured.",
+      category: "Communication"
     },
     {
-      icon: <SiHubspot className="w-6 h-6 text-[#ff7a59]" />,
-      name: t('landing.integrationsPage.integrations.hubspot.name'),
-      description: t('landing.integrationsPage.integrations.hubspot.description'),
-      category: t('landing.integrationsPage.categories.crm')
+      icon: <MessageSquare className="w-6 h-6 text-[#6264A7]" />,
+      name: "Microsoft Teams",
+      description: "Post call summaries and alerts to Teams channels for team awareness.",
+      category: "Communication"
     },
     {
-      icon: <SiSalesforce className="w-6 h-6 text-[#00A1E0]" />,
-      name: t('landing.integrationsPage.integrations.salesforce.name'),
-      description: t('landing.integrationsPage.integrations.salesforce.description'),
-      category: t('landing.integrationsPage.categories.crm')
+      icon: <SiWhatsapp className="w-6 h-6 text-[#25D366]" />,
+      name: "WhatsApp Business",
+      description: "Send follow-up messages to contacts after AI agent calls.",
+      category: "Communication"
     },
     {
-      icon: <Code className="w-6 h-6 text-blue-500" />,
-      name: t('landing.integrationsPage.integrations.restApi.name'),
-      description: t('landing.integrationsPage.integrations.restApi.description'),
-      category: t('landing.integrationsPage.categories.developer')
-    }
+      icon: <SiTelegram className="w-6 h-6 text-[#0088CC]" />,
+      name: "Telegram",
+      description: "Receive call alerts and lead notifications via Telegram bot messages.",
+      category: "Communication"
+    },
+    {
+      icon: <SiZendesk className="w-6 h-6 text-[#03363D]" />,
+      name: "Zendesk",
+      description: "Auto-create support tickets from unresolved AI call issues.",
+      category: "Support"
+    },
+    {
+      icon: <SiIntercom className="w-6 h-6 text-[#6AFDEF]" />,
+      name: "Intercom",
+      description: "Create conversations and update profiles from AI call interactions.",
+      category: "Support"
+    },
+    {
+      icon: <Calendar className="w-6 h-6 text-[#4285F4]" />,
+      name: "Google Calendar",
+      description: "Book meetings directly into Google Calendar during live AI calls.",
+      category: "Scheduling"
+    },
+    {
+      icon: <Calendar className="w-6 h-6 text-[#006BFF]" />,
+      name: "Calendly",
+      description: "Schedule appointments when AI agents qualify leads during calls.",
+      category: "Scheduling"
+    },
+    {
+      icon: <SiMailchimp className="w-6 h-6 text-[#FFE01B]" />,
+      name: "Mailchimp",
+      description: "Add call leads to email audiences for automated nurture campaigns.",
+      category: "Marketing"
+    },
+    {
+      icon: <SiStripe className="w-6 h-6 text-[#635BFF]" />,
+      name: "Stripe",
+      description: "Process payments and look up subscription details during AI calls.",
+      category: "Payments"
+    },
+    {
+      icon: <SiShopify className="w-6 h-6 text-[#7AB55C]" />,
+      name: "Shopify",
+      description: "Look up orders and check product availability during customer calls.",
+      category: "E-Commerce"
+    },
+    {
+      icon: <SiGooglesheets className="w-6 h-6 text-[#0F9D58]" />,
+      name: "Google Sheets",
+      description: "Export call data and campaign results for reporting and analysis.",
+      category: "Data"
+    },
+    {
+      icon: <SiAirtable className="w-6 h-6 text-[#18BFFF]" />,
+      name: "Airtable",
+      description: "Sync call records and leads for flexible, visual data management.",
+      category: "Data"
+    },
+    {
+      icon: <SiNotion className="w-6 h-6" />,
+      name: "Notion",
+      description: "Push call summaries and meeting notes to Notion databases.",
+      category: "Data"
+    },
+    {
+      icon: <SiZapier className="w-6 h-6 text-orange-500" />,
+      name: "Zapier",
+      description: "Trigger 5,000+ app automations from AI call events and outcomes.",
+      category: "Automation"
+    },
+    {
+      icon: <Webhook className="w-6 h-6 text-purple-500" />,
+      name: "Webhooks & REST API",
+      description: "Build custom integrations with webhooks and our full REST API.",
+      category: "Developer"
+    },
   ];
 
   const apiFeatures = [

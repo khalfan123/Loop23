@@ -1,0 +1,287 @@
+1. Objective
+
+Build a white-labeled Integration Marketplace inside Loop9 that allows users to connect CRMs, ERPs, and business tools with one-click OAuth, powered by a self-hosted n8n instance.
+
+End users must never see n8n branding or UI.
+n8n acts purely as an internal workflow orchestration engine handling OAuth, API calls, retries, and execution logs.
+
+2. High-Level Architecture
+Loop9 Web App (UI + API)
+        |
+        |  REST + Webhooks
+        v
+Self-Hosted n8n (Private, API-Only)
+        |
+        v
+CRM / ERP APIs
+(Salesforce, HubSpot, Zoho, Dynamics, Sheets, etc.)
+
+Core Principles
+
+Loop9 is the system of record
+
+n8n is headless and hidden
+
+Each Loop9 user has isolated workflows and credentials
+
+OAuth is handled by n8n but orchestrated by Loop9
+
+No shared credentials, no shared workflows
+
+3. Phase 1 — Deploy & Harden n8n
+3.1 Deployment (Production Required)
+
+Deploy n8n on a dedicated VPS (DigitalOcean, GCP, etc).
+
+Use Docker with persistent volumes and HTTPS via reverse proxy.
+
+Required environment variables:
+
+N8N_HOST=integrations.loop9.com
+N8N_PROTOCOL=https
+N8N_PORT=5678
+WEBHOOK_URL=https://integrations.loop9.com
+N8N_EDITOR_BASE_URL=https://integrations.loop9.com
+N8N_ENCRYPTION_KEY=<secure_random>
+GENERIC_TIMEZONE=UTC
+
+3.2 Lock Down n8n (Critical)
+
+n8n must NOT be directly accessible to users.
+
+N8N_USER_MANAGEMENT_DISABLED=true
+N8N_DISABLE_UI=true
+N8N_PERSONALIZATION_ENABLED=false
+N8N_VERSION_NOTIFICATIONS_ENABLED=false
+N8N_TEMPLATES_ENABLED=false
+N8N_HIRING_BANNER_ENABLED=false
+
+
+n8n will be accessed only via API.
+
+3.3 Enable API Access
+
+Generate an n8n API key and store in Loop9 backend:
+
+N8N_API_KEY=<key>
+N8N_BASE_URL=https://integrations.loop9.com
+
+4. Phase 2 — Integration Marketplace UI (Loop9)
+4.1 Add “Integrations” Section
+
+Route:
+
+/app/integrations
+
+
+Sidebar:
+
+SETUP
+ └── Integrations
+
+4.2 Database Schema (Supabase)
+Integration Catalog
+CREATE TABLE integration_apps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  description TEXT,
+  category TEXT,
+  logo_url TEXT,
+  n8n_node_type TEXT NOT NULL,
+  is_popular BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+User Integrations
+CREATE TABLE user_integrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  app_id UUID REFERENCES integration_apps(id),
+  n8n_workflow_id TEXT NOT NULL,
+  n8n_credential_id TEXT NOT NULL,
+  webhook_url TEXT NOT NULL,
+  status TEXT DEFAULT 'inactive',
+  config JSONB,
+  last_sync_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE(user_id, app_id)
+);
+
+Sync Logs
+CREATE TABLE integration_sync_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  integration_id UUID REFERENCES user_integrations(id),
+  n8n_execution_id TEXT,
+  event_type TEXT,
+  status TEXT,
+  records_synced INTEGER DEFAULT 0,
+  error_message TEXT,
+  execution_duration_ms INTEGER,
+  payload JSONB,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+5. Phase 3 — One-Click Integration Flow (Correct OAuth Design)
+5.1 When User Clicks “Connect”
+
+Loop9 backend must perform exactly this sequence:
+
+Step 1 — Create Workflow (Inactive)
+
+Create a workflow in n8n with:
+
+Webhook trigger
+
+Target app node (Salesforce, HubSpot, etc.)
+
+No credentials attached yet
+
+Status: inactive
+
+Step 2 — Create OAuth Credential Shell
+
+Create a credential via n8n API:
+
+POST /api/v1/credentials
+Authorization: Bearer N8N_API_KEY
+
+
+Credential:
+
+Type = app OAuth type
+
+Name = <app>_user_<userId>
+
+Empty data (unauthenticated)
+
+Step 3 — Redirect User to OAuth
+
+Redirect user from Loop9 UI to:
+
+/oauth/<app>?credential_id=XXX&workflow_id=YYY
+
+
+n8n handles OAuth and securely stores tokens.
+
+Step 4 — Attach Credential to Workflow
+
+After OAuth success:
+
+Patch workflow
+
+Attach credential ID to app node
+
+Step 5 — Activate Workflow
+
+Activate workflow via API.
+
+Update user_integrations.status = 'active'.
+
+Step 6 — Fire Test Event
+
+Send a test webhook payload.
+If execution fails:
+
+Mark integration as error
+
+Surface actionable error to user
+
+6. Phase 4 — Event Delivery from Loop9
+6.1 Secure Webhook Calls
+
+Every webhook call from Loop9 → n8n must include:
+
+X-Loop9-Signature: HMAC_SHA256(payload, LOOP9_SECRET)
+
+
+First n8n node must validate signature before processing.
+
+6.2 Example Event Payload
+{
+  "event": "call_completed",
+  "timestamp": "2026-02-08T12:00:00Z",
+  "data": {
+    "contact_name": "John Smith",
+    "phone_number": "+1-555-1234",
+    "company": "Acme Inc",
+    "call_summary": "Interested in demo",
+    "lead_score": 87,
+    "recording_url": "https://..."
+  }
+}
+
+7. Phase 5 — Workflow Logic (Generated, Not User-Edited)
+
+Workflows are generated and maintained by Loop9, not manually edited.
+
+Field mapping:
+
+Stored in user_integrations.config
+
+Applied programmatically when creating or updating workflows
+
+Users do not edit n8n nodes directly.
+
+8. Explicit Non-Goals (Do NOT Build)
+
+❌ No direct n8n login
+❌ No shared workflows
+❌ No shared credentials
+❌ No exposed n8n UI
+❌ No iframe-embedded editor
+❌ No manual workflow editing
+
+9. Success Criteria
+
+The system is complete when:
+
+A user connects Salesforce in under 30 seconds
+
+OAuth feels native to Loop9
+
+No n8n branding is visible
+
+Each user’s data is isolated
+
+Failed syncs are visible with clear errors
+
+Adding a new CRM requires only:
+
+Adding a catalog record
+
+Providing a workflow template
+
+10. Output Expectations for Replit Agent
+
+Replit Agent should deliver:
+
+Backend API routes for integration lifecycle
+
+n8n API client utilities
+
+Secure OAuth orchestration
+
+Marketplace UI pages
+
+Database migrations
+
+Webhook signing + validation
+
+Clear README explaining architecture
+
+Final Instruction
+
+Treat n8n as a private orchestration engine, not a user product.
+Loop9 owns the UX, the logic, and the trust boundary.
+
+If you want, next I can:
+
+Produce a workflow template standard (CRM-agnostic)
+
+Design a credential isolation strategy for enterprise
+
+Or turn this into a technical spec for investors / SOC2 review
+
+

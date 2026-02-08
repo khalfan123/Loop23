@@ -736,7 +736,7 @@ export default function Calls() {
             )}
             {columnVisibility.cost && call.cost !== undefined && call.cost !== null && (
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <span className="font-medium">${call.cost.toFixed(4)}</span>
+                <span className="font-medium">${Number(call.cost).toFixed(4)}</span>
               </div>
             )}
             {columnVisibility.endReason && call.endReason && (
@@ -1004,7 +1004,7 @@ export default function Calls() {
                 {columnVisibility.cost && (
                   <TableCell className="whitespace-nowrap">
                     {call.cost != null ? (
-                      <span className="text-sm font-medium">${call.cost.toFixed(4)}</span>
+                      <span className="text-sm font-medium">${Number(call.cost).toFixed(4)}</span>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}

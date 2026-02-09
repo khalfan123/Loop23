@@ -161,10 +161,12 @@ router.post('/:slug/connect', async (req: AuthRequest, res: Response) => {
 
     const requiresOAuth = isOAuthProvider(slug);
     const provider = getOAuthProvider(slug);
-    const isApiKeyAuth = provider?.authType === 'api_key';
-    const requiresCredentials = requiresOAuth || isApiKeyAuth;
+    const isRegisteredApiKey = provider?.authType === 'api_key';
     const userClientId = req.body.clientId?.trim();
     const userClientSecret = req.body.clientSecret?.trim();
+    const hasUserCredentials = !!(userClientId && userClientSecret);
+    const isApiKeyAuth = isRegisteredApiKey || (!requiresOAuth && hasUserCredentials);
+    const requiresCredentials = requiresOAuth || isApiKeyAuth;
 
     if (requiresCredentials && (!userClientId || !userClientSecret)) {
       const credLabel = isApiKeyAuth ? 'API Key and Domain' : 'Client ID and Client Secret';

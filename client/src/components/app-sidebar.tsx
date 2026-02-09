@@ -145,6 +145,7 @@ export function AppSidebar() {
   };
 
   const overviewItems = [
+    { title: t('nav.webhooks', 'Webhooks'), url: "/app/flows/webhooks" },
     { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm" },
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics" },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls" },

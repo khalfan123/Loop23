@@ -7,7 +7,7 @@ import {
   Settings, LogOut, Coins, Menu, ChevronDown,
   ChevronLeft, ChevronRight, BarChart3, Users, Phone,
   Building2, PhoneCall, PhoneIncoming, PhoneOutgoing,
-  Bot, BookOpen, Calendar, FileText, Home, Plus, Plug,
+  Bot, BookOpen, Calendar, FileText, Home, Plus, Plug, Webhook,
   type LucideIcon
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -108,6 +108,7 @@ export function HybridNavigation({
 
   const topItems: NavItem[] = [
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics", icon: BarChart3 },
+    { title: t('nav.webhooks', 'Webhooks'), url: "/app/flows/webhooks", icon: Webhook },
     { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm", icon: Users },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: PhoneCall },
   ];

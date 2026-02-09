@@ -408,23 +408,21 @@ export default function WebhookConfigPage() {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-50 via-indigo-100/50 to-purple-50 dark:from-violet-950/40 dark:via-indigo-900/30 dark:to-purple-950/40 border border-violet-100 dark:border-violet-900/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="px-6 py-5 space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
-              <Zap className="h-7 w-7 text-white" />
+            <div className="w-12 h-12 rounded-2xl bg-foreground/[0.06] flex items-center justify-center">
+              <Zap className="w-6 h-6 text-foreground/70" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground" data-testid="text-page-title">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-page-title">
                 {t('webhooks.title')}
               </h1>
-              <p className="text-muted-foreground mt-0.5">{t('webhooks.subtitle')}</p>
+              <p className="text-sm text-foreground/50 mt-0.5">{t('webhooks.subtitle')}</p>
             </div>
           </div>
           <Button 
             onClick={() => setCreateDialogOpen(true)} 
-            className="bg-violet-600 hover:bg-violet-700 text-white"
             data-testid="button-create-webhook"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -432,33 +430,24 @@ export default function WebhookConfigPage() {
           </Button>
         </div>
 
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-violet-100/50 dark:border-violet-800/30">
-            <div className="flex items-center gap-2">
-              <WebhookIcon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              <div className="text-2xl font-bold text-violet-700 dark:text-violet-300">{totalWebhooks}</div>
-            </div>
-            <div className="text-violet-600/70 dark:text-violet-400/70 text-sm">{t('webhooks.stats.totalWebhooks')}</div>
+        <div className="flex items-center gap-6">
+          <div className="rounded-2xl bg-foreground/[0.04] p-4 flex-1">
+            <div className="text-xl font-semibold text-foreground">{totalWebhooks}</div>
+            <div className="text-xs text-foreground/50">{t('webhooks.stats.totalWebhooks')}</div>
           </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-emerald-100/50 dark:border-emerald-800/30">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{activeWebhooks}</div>
-            </div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-sm">{t('common.active')}</div>
+          <div className="rounded-2xl bg-foreground/[0.04] p-4 flex-1">
+            <div className="text-xl font-semibold text-foreground">{activeWebhooks}</div>
+            <div className="text-xs text-foreground/50">{t('common.active')}</div>
           </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-indigo-100/50 dark:border-indigo-800/30">
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">{totalEvents}</div>
-            </div>
-            <div className="text-indigo-600/70 dark:text-indigo-400/70 text-sm">{t('webhooks.stats.eventSubscriptions')}</div>
+          <div className="rounded-2xl bg-foreground/[0.04] p-4 flex-1">
+            <div className="text-xl font-semibold text-foreground">{totalEvents}</div>
+            <div className="text-xs text-foreground/50">{t('webhooks.stats.eventSubscriptions')}</div>
           </div>
         </div>
       </div>
 
       {webhooks.length === 0 ? (
-        <Card>
+        <Card className="rounded-2xl border-border/30 bg-card/50">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <WebhookIcon className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">{t('webhooks.empty.title')}</h3>
@@ -475,7 +464,7 @@ export default function WebhookConfigPage() {
         <>
           <div className="grid gap-4">
             {paginatedItems.map((webhook) => (
-              <Card key={webhook.id} className="hover-elevate" data-testid={`card-webhook-${webhook.id}`}>
+              <Card key={webhook.id} className="rounded-2xl border-border/30 bg-card/50 hover-elevate" data-testid={`card-webhook-${webhook.id}`}>
                 <CardHeader className="pb-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1 flex-1 min-w-0">
@@ -957,7 +946,7 @@ export default function WebhookConfigPage() {
                 ) : (
                   <div className="space-y-3 pr-4">
                     {logs.map((log) => (
-                      <Card key={log.id} className={log.success ? "" : "border-destructive/50"}>
+                      <Card key={log.id} className={`rounded-2xl border-border/30 bg-card/50 ${!log.success ? "border-destructive/50" : ""}`}>
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -1026,7 +1015,7 @@ export default function WebhookConfigPage() {
                     {logs
                       .filter((l) => !l.success)
                       .map((log) => (
-                        <Card key={log.id} className="border-destructive/50">
+                        <Card key={log.id} className="rounded-2xl border-border/30 bg-card/50 border-destructive/50">
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">

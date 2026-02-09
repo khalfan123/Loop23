@@ -6,14 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import {
   Search, Zap, ArrowRight, CheckCircle2, AlertCircle, Loader2,
-  LayoutGrid, Star, Globe, Plug, Filter,
+  LayoutGrid, Star, Globe, Plug,
   Phone, Brain, Mic, Mail, MessageSquare, Headphones,
-  Calendar, ShoppingCart, BarChart3, Workflow, Database, Users,
-  ChevronLeft, ChevronRight
+  Calendar, ShoppingCart, BarChart3, Workflow, Database, Users
 } from "lucide-react";
 import {
   SiSalesforce, SiHubspot, SiGooglesheets, SiSlack,
@@ -39,12 +37,6 @@ const CATEGORY_CONFIG: { value: string; label: string; icon: React.ReactNode }[]
   { value: "automation", label: "Automation", icon: <Workflow className="w-4 h-4" /> },
   { value: "data_storage", label: "Data & Storage", icon: <Database className="w-4 h-4" /> },
   { value: "hr_recruiting", label: "HR & Recruiting", icon: <Users className="w-4 h-4" /> },
-];
-
-const STATUS_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "connected", label: "Connected" },
-  { value: "not_connected", label: "Not Connected" },
 ];
 
 const LOGO_MAP: Record<string, React.ReactNode> = {
@@ -160,8 +152,7 @@ interface ConnectedInfo {
 export default function IntegrationMarketplace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "connected" | "not_connected">("all");
   const [, navigate] = useLocation();
 
   const { data: apps, isLoading: appsLoading } = useQuery<IntegrationApp[]>({
@@ -238,162 +229,119 @@ export default function IntegrationMarketplace() {
 
   const isLoading = appsLoading || connectedLoading;
 
-  return (
-    <div className="flex h-full" data-testid="page-integration-marketplace">
-      <div
-        className={`border-r bg-muted/30 flex flex-col shrink-0 transition-all duration-200 ${
-          sidebarCollapsed ? "w-[52px]" : "w-[240px]"
-        }`}
-        data-testid="sidebar-filter-panel"
-      >
-        <div className="flex items-center justify-between gap-2 p-3 border-b">
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-semibold">Filters</span>
-            </div>
-          )}
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            data-testid="button-toggle-filter-sidebar"
-          >
-            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
+  const subPanelContent = (
+    <div className="space-y-1">
+      <SubPanelSection title="CATEGORIES">
+        {CATEGORY_CONFIG.map((cat) => (
+          <SubPanelItem
+            key={cat.value}
+            icon={cat.icon}
+            label={cat.label}
+            isActive={categoryFilter === cat.value}
+            badge={categoryCounts[cat.value] || 0}
+            onClick={() => setCategoryFilter(cat.value)}
+            data-testid={`filter-category-${cat.value}`}
+          />
+        ))}
+      </SubPanelSection>
+
+      <SubPanelSection title="STATUS">
+        <SubPanelItem
+          icon={<LayoutGrid className="w-4 h-4" />}
+          label="All"
+          isActive={statusFilter === "all"}
+          badge={apps?.length || 0}
+          onClick={() => setStatusFilter("all")}
+          data-testid="filter-status-all"
+        />
+        <SubPanelItem
+          icon={<CheckCircle2 className="w-4 h-4" />}
+          label="Connected"
+          isActive={statusFilter === "connected"}
+          badge={connectedAppIds.size}
+          onClick={() => setStatusFilter("connected")}
+          data-testid="filter-status-connected"
+        />
+        <SubPanelItem
+          icon={<Plug className="w-4 h-4" />}
+          label="Not Connected"
+          isActive={statusFilter === "not_connected"}
+          badge={(apps?.length || 0) - connectedAppIds.size}
+          onClick={() => setStatusFilter("not_connected")}
+          data-testid="filter-status-not_connected"
+        />
+      </SubPanelSection>
+
+      <SubPanelSection title="OVERVIEW">
+        <div className="px-3 py-2 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-medium">{apps?.length || 0}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Connected</span>
+            <span className="font-medium text-emerald-600">{connectedAppIds.size}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Available</span>
+            <span className="font-medium text-blue-600">{(apps?.length || 0) - connectedAppIds.size}</span>
+          </div>
         </div>
+      </SubPanelSection>
+    </div>
+  );
 
-        {!sidebarCollapsed && (
-          <ScrollArea className="flex-1">
-            <div className="p-3 space-y-5">
-              <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Categories
-                </h3>
-                <div className="space-y-0.5">
-                  {CATEGORY_CONFIG.map((cat) => {
-                    const count = categoryCounts[cat.value] || 0;
-                    const isActive = categoryFilter === cat.value;
-                    return (
-                      <button
-                        key={cat.value}
-                        onClick={() => setCategoryFilter(cat.value)}
-                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm hover-elevate active-elevate-2 ${
-                          isActive
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-muted-foreground"
-                        }`}
-                        data-testid={`filter-category-${cat.value}`}
-                      >
-                        <span className={isActive ? "text-primary" : "text-muted-foreground"}>
-                          {cat.icon}
-                        </span>
-                        <span className="flex-1 text-left truncate">{cat.label}</span>
-                        <span className={`text-xs tabular-nums ${isActive ? "text-primary" : "text-muted-foreground/60"}`}>
-                          {count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Status
-                </h3>
-                <div className="space-y-0.5">
-                  {STATUS_OPTIONS.map((opt) => {
-                    const isActive = statusFilter === opt.value;
-                    let count = 0;
-                    if (opt.value === "all") count = apps?.length || 0;
-                    else if (opt.value === "connected") count = connectedAppIds.size;
-                    else if (opt.value === "not_connected") count = (apps?.length || 0) - connectedAppIds.size;
-
-                    return (
-                      <button
-                        key={opt.value}
-                        onClick={() => setStatusFilter(opt.value)}
-                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm hover-elevate active-elevate-2 ${
-                          isActive
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-muted-foreground"
-                        }`}
-                        data-testid={`filter-status-${opt.value}`}
-                      >
-                        {opt.value === "connected" && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                        {opt.value === "not_connected" && <Plug className="w-4 h-4" />}
-                        {opt.value === "all" && <LayoutGrid className="w-4 h-4" />}
-                        <span className="flex-1 text-left">{opt.label}</span>
-                        <span className={`text-xs tabular-nums ${isActive ? "text-primary" : "text-muted-foreground/60"}`}>
-                          {count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {(categoryFilter !== "all" || statusFilter !== "all") && (
-                <>
-                  <Separator />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => {
-                      setCategoryFilter("all");
-                      setStatusFilter("all");
-                    }}
-                    data-testid="button-clear-filters"
-                  >
-                    Clear all filters
-                  </Button>
-                </>
-              )}
-            </div>
-          </ScrollArea>
-        )}
-      </div>
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="p-4 md:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight" data-testid="text-marketplace-title">Integrations</h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Connect your business tools to automate workflows
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-1 no-default-active-elevate">
-                  <Zap className="w-3 h-3" />
-                  {connected?.length || 0} Connected
-                </Badge>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search integrations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                  data-testid="input-search-integrations"
-                />
-              </div>
-            </div>
+  return (
+    <ThreeColumnLayout
+      subPanel={subPanelContent}
+      subPanelHeader="Integrations"
+      subPanelWidth="md"
+    >
+      <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="page-integration-marketplace">
+        <div className="flex items-center justify-between gap-2 flex-wrap py-4 px-1">
+          <div className="flex items-center gap-2">
+            <Plug className="h-4 w-4 text-foreground" />
+            <span className="font-medium">
+              {categoryFilter === "all" ? "All Integrations" : getCategoryLabel(categoryFilter)}
+            </span>
+            {(categoryFilter !== "all" || statusFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCategoryFilter("all");
+                  setStatusFilter("all");
+                }}
+                data-testid="button-clear-filters"
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="gap-1 no-default-active-elevate">
+              <Zap className="w-3 h-3" />
+              {connected?.length || 0} Connected
+            </Badge>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-8">
+        <div className="mb-3 px-1">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search integrations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+              data-testid="input-search-integrations"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-y-auto p-4 space-y-6">
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Card key={i}>
                   <CardContent className="p-5 space-y-3">
@@ -414,7 +362,7 @@ export default function IntegrationMarketplace() {
                     <Star className="w-5 h-5 text-amber-500" />
                     <h2 className="text-lg font-semibold" data-testid="text-popular-heading">Popular Integrations</h2>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {popularApps.map((app) => (
                       <AppCard
                         key={app.id}
@@ -436,7 +384,7 @@ export default function IntegrationMarketplace() {
                     </h2>
                     <Badge variant="outline" className="no-default-active-elevate">{catApps.length}</Badge>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {catApps.map((app) => (
                       <AppCard
                         key={app.id}
@@ -477,7 +425,7 @@ export default function IntegrationMarketplace() {
           )}
         </div>
       </div>
-    </div>
+    </ThreeColumnLayout>
   );
 }
 
@@ -490,8 +438,6 @@ function AppCard({
   connection?: UserIntegration;
   onNavigate: () => void;
 }) {
-  const isConnected = connection?.status === "active";
-
   return (
     <Card
       className="hover-elevate cursor-pointer transition-all duration-200"
@@ -527,9 +473,11 @@ function AppCard({
               </Button>
             </div>
           ) : (
-            <Button variant="default" size="sm" className="w-full" data-testid={`button-connect-${app.slug}`}>
-              <Plug className="w-3 h-3 mr-1.5" /> Connect
-            </Button>
+            <div className="flex">
+              <Button variant="default" size="sm" className="flex-1" data-testid={`button-connect-${app.slug}`}>
+                <Plug className="w-3 h-3 mr-1.5" /> Connect
+              </Button>
+            </div>
           )}
         </div>
       </CardContent>

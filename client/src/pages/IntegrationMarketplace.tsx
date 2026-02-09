@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import {
   Search, Zap, ArrowRight, CheckCircle2, AlertCircle, Loader2,
-  LayoutGrid, Star, Globe, Plug,
+  LayoutGrid, Star, Globe, Plug, Webhook,
   Phone, Brain, Mic, Mail, MessageSquare, Headphones,
   Calendar, ShoppingCart, BarChart3, Workflow, Database, Users
 } from "lucide-react";
@@ -153,7 +153,7 @@ export default function IntegrationMarketplace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "connected" | "not_connected">("all");
-  const [, navigate] = useLocation();
+  const [currentLocation, navigate] = useLocation();
 
   const { data: apps, isLoading: appsLoading } = useQuery<IntegrationApp[]>({
     queryKey: ["/api/integrations/apps"],
@@ -231,6 +231,16 @@ export default function IntegrationMarketplace() {
 
   const subPanelContent = (
     <div className="space-y-1">
+      <SubPanelSection title="QUICK ACCESS">
+        <SubPanelItem
+          icon={<Webhook className="w-4 h-4" />}
+          label="Webhooks"
+          isActive={currentLocation === "/app/flows/webhooks"}
+          onClick={() => navigate("/app/flows/webhooks")}
+          data-testid="link-webhooks"
+        />
+      </SubPanelSection>
+
       <SubPanelSection title="CATEGORIES">
         {CATEGORY_CONFIG.map((cat) => (
           <SubPanelItem

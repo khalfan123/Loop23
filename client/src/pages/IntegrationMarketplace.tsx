@@ -5,11 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Search, Zap, ArrowRight, CheckCircle2, AlertCircle, Loader2,
-  LayoutGrid, Star, Globe, FileSpreadsheet, BarChart3, Plug
+  LayoutGrid, Star, Globe, Plug, Filter,
+  Phone, Brain, Mic, Mail, MessageSquare, Headphones,
+  Calendar, ShoppingCart, BarChart3, Workflow, Database, Users,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import {
   SiSalesforce, SiHubspot, SiGooglesheets, SiSlack,
@@ -20,21 +24,27 @@ import {
 } from "react-icons/si";
 import type { IntegrationApp, UserIntegration } from "@shared/schema";
 
-const CATEGORY_OPTIONS = [
-  { value: "all", label: "All Categories" },
-  { value: "crm", label: "CRM" },
-  { value: "telephony", label: "Telephony & VoIP" },
-  { value: "ai_llm", label: "AI & LLM" },
-  { value: "voice_speech", label: "Voice & Speech" },
-  { value: "marketing", label: "Marketing & Email" },
-  { value: "communication", label: "Communication & Messaging" },
-  { value: "support", label: "Customer Support" },
-  { value: "calendar", label: "Calendar & Scheduling" },
-  { value: "ecommerce", label: "E-Commerce & Payments" },
-  { value: "analytics", label: "Analytics & Reporting" },
-  { value: "automation", label: "Automation & Workflow" },
-  { value: "data_storage", label: "Data & Storage" },
-  { value: "hr_recruiting", label: "HR & Recruiting" },
+const CATEGORY_CONFIG: { value: string; label: string; icon: React.ReactNode }[] = [
+  { value: "all", label: "All Integrations", icon: <LayoutGrid className="w-4 h-4" /> },
+  { value: "crm", label: "CRM", icon: <Users className="w-4 h-4" /> },
+  { value: "telephony", label: "Telephony & VoIP", icon: <Phone className="w-4 h-4" /> },
+  { value: "ai_llm", label: "AI & LLM", icon: <Brain className="w-4 h-4" /> },
+  { value: "voice_speech", label: "Voice & Speech", icon: <Mic className="w-4 h-4" /> },
+  { value: "marketing", label: "Marketing & Email", icon: <Mail className="w-4 h-4" /> },
+  { value: "communication", label: "Communication", icon: <MessageSquare className="w-4 h-4" /> },
+  { value: "support", label: "Customer Support", icon: <Headphones className="w-4 h-4" /> },
+  { value: "calendar", label: "Scheduling", icon: <Calendar className="w-4 h-4" /> },
+  { value: "ecommerce", label: "E-Commerce & Payments", icon: <ShoppingCart className="w-4 h-4" /> },
+  { value: "analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" /> },
+  { value: "automation", label: "Automation", icon: <Workflow className="w-4 h-4" /> },
+  { value: "data_storage", label: "Data & Storage", icon: <Database className="w-4 h-4" /> },
+  { value: "hr_recruiting", label: "HR & Recruiting", icon: <Users className="w-4 h-4" /> },
+];
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "connected", label: "Connected" },
+  { value: "not_connected", label: "Not Connected" },
 ];
 
 const LOGO_MAP: Record<string, React.ReactNode> = {
@@ -133,20 +143,9 @@ function getStatusBadge(status: string | undefined) {
 }
 
 function getCategoryLabel(category: string | null) {
+  const found = CATEGORY_CONFIG.find(c => c.value === category);
+  if (found) return found.label;
   switch (category) {
-    case "crm": return "CRM";
-    case "telephony": return "Telephony & VoIP";
-    case "ai_llm": return "AI & LLM";
-    case "voice_speech": return "Voice & Speech";
-    case "marketing": return "Marketing & Email";
-    case "communication": return "Communication & Messaging";
-    case "support": return "Customer Support";
-    case "calendar": return "Calendar & Scheduling";
-    case "ecommerce": return "E-Commerce & Payments";
-    case "analytics": return "Analytics & Reporting";
-    case "automation": return "Automation & Workflow";
-    case "data_storage": return "Data & Storage";
-    case "hr_recruiting": return "HR & Recruiting";
     case "productivity": return "Productivity";
     case "erp": return "ERP";
     default: return category || "Other";
@@ -161,6 +160,8 @@ interface ConnectedInfo {
 export default function IntegrationMarketplace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [, navigate] = useLocation();
 
   const { data: apps, isLoading: appsLoading } = useQuery<IntegrationApp[]>({
@@ -181,10 +182,36 @@ export default function IntegrationMarketplace() {
     return map;
   }, [connected]);
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: 0 };
+    if (apps) {
+      counts.all = apps.length;
+      for (const app of apps) {
+        const cat = app.category || "other";
+        counts[cat] = (counts[cat] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [apps]);
+
+  const connectedAppIds = useMemo(() => {
+    const ids = new Set<string | number>();
+    if (connected) {
+      for (const c of connected) {
+        if (c.integration.status === "active") {
+          ids.add(c.app.id);
+        }
+      }
+    }
+    return ids;
+  }, [connected]);
+
   const filteredApps = useMemo(() => {
     if (!apps) return [];
     return apps.filter((app) => {
       if (categoryFilter !== "all" && app.category !== categoryFilter) return false;
+      if (statusFilter === "connected" && !connectedAppIds.has(app.id)) return false;
+      if (statusFilter === "not_connected" && connectedAppIds.has(app.id)) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
@@ -194,7 +221,7 @@ export default function IntegrationMarketplace() {
       }
       return true;
     });
-  }, [apps, categoryFilter, searchQuery]);
+  }, [apps, categoryFilter, statusFilter, searchQuery, connectedAppIds]);
 
   const popularApps = useMemo(() => filteredApps.filter((a) => a.isPopular), [filteredApps]);
   const otherApps = useMemo(() => filteredApps.filter((a) => !a.isPopular), [filteredApps]);
@@ -212,122 +239,243 @@ export default function IntegrationMarketplace() {
   const isLoading = appsLoading || connectedLoading;
 
   return (
-    <div className="flex flex-col h-full" data-testid="page-integration-marketplace">
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="p-4 md:p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight" data-testid="text-marketplace-title">Integrations</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Connect your business tools to automate workflows
-              </p>
-            </div>
+    <div className="flex h-full" data-testid="page-integration-marketplace">
+      <div
+        className={`border-r bg-muted/30 flex flex-col shrink-0 transition-all duration-200 ${
+          sidebarCollapsed ? "w-[52px]" : "w-[240px]"
+        }`}
+        data-testid="sidebar-filter-panel"
+      >
+        <div className="flex items-center justify-between gap-2 p-3 border-b">
+          {!sidebarCollapsed && (
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="gap-1">
-                <Zap className="w-3 h-3" />
-                {connected?.length || 0} Connected
-              </Badge>
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Filters</span>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search integrations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-                data-testid="input-search-integrations"
-              />
-            </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px]" data-testid="select-category-filter">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} data-testid={`option-category-${opt.value}`}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            data-testid="button-toggle-filter-sidebar"
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </Button>
         </div>
+
+        {!sidebarCollapsed && (
+          <ScrollArea className="flex-1">
+            <div className="p-3 space-y-5">
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Categories
+                </h3>
+                <div className="space-y-0.5">
+                  {CATEGORY_CONFIG.map((cat) => {
+                    const count = categoryCounts[cat.value] || 0;
+                    const isActive = categoryFilter === cat.value;
+                    return (
+                      <button
+                        key={cat.value}
+                        onClick={() => setCategoryFilter(cat.value)}
+                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm hover-elevate active-elevate-2 ${
+                          isActive
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground"
+                        }`}
+                        data-testid={`filter-category-${cat.value}`}
+                      >
+                        <span className={isActive ? "text-primary" : "text-muted-foreground"}>
+                          {cat.icon}
+                        </span>
+                        <span className="flex-1 text-left truncate">{cat.label}</span>
+                        <span className={`text-xs tabular-nums ${isActive ? "text-primary" : "text-muted-foreground/60"}`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Status
+                </h3>
+                <div className="space-y-0.5">
+                  {STATUS_OPTIONS.map((opt) => {
+                    const isActive = statusFilter === opt.value;
+                    let count = 0;
+                    if (opt.value === "all") count = apps?.length || 0;
+                    else if (opt.value === "connected") count = connectedAppIds.size;
+                    else if (opt.value === "not_connected") count = (apps?.length || 0) - connectedAppIds.size;
+
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => setStatusFilter(opt.value)}
+                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm hover-elevate active-elevate-2 ${
+                          isActive
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground"
+                        }`}
+                        data-testid={`filter-status-${opt.value}`}
+                      >
+                        {opt.value === "connected" && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {opt.value === "not_connected" && <Plug className="w-4 h-4" />}
+                        {opt.value === "all" && <LayoutGrid className="w-4 h-4" />}
+                        <span className="flex-1 text-left">{opt.label}</span>
+                        <span className={`text-xs tabular-nums ${isActive ? "text-primary" : "text-muted-foreground/60"}`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {(categoryFilter !== "all" || statusFilter !== "all") && (
+                <>
+                  <Separator />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setCategoryFilter("all");
+                      setStatusFilter("all");
+                    }}
+                    data-testid="button-clear-filters"
+                  >
+                    Clear all filters
+                  </Button>
+                </>
+              )}
+            </div>
+          </ScrollArea>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-8">
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-5 space-y-3">
-                  <Skeleton className="h-10 w-10 rounded-lg" />
-                  <Skeleton className="h-5 w-2/3" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-9 w-full mt-2" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <>
-            {popularApps.length > 0 && (
-              <section>
-                <div className="flex items-center gap-2 mb-4">
-                  <Star className="w-5 h-5 text-amber-500" />
-                  <h2 className="text-lg font-semibold" data-testid="text-popular-heading">Popular Integrations</h2>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {popularApps.map((app) => (
-                    <AppCard
-                      key={app.id}
-                      app={app}
-                      connection={connectedMap[app.id]}
-                      onNavigate={() => navigate(`/app/integrations/${app.slug}`)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {Object.entries(groupedByCategory).map(([category, catApps]) => (
-              <section key={category}>
-                <div className="flex items-center gap-2 mb-4">
-                  <LayoutGrid className="w-5 h-5 text-muted-foreground" />
-                  <h2 className="text-lg font-semibold" data-testid={`text-category-${category}`}>
-                    {getCategoryLabel(category)}
-                  </h2>
-                  <Badge variant="outline" className="no-default-active-elevate">{catApps.length}</Badge>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {catApps.map((app) => (
-                    <AppCard
-                      key={app.id}
-                      app={app}
-                      connection={connectedMap[app.id]}
-                      onNavigate={() => navigate(`/app/integrations/${app.slug}`)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-
-            {filteredApps.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Globe className="w-12 h-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No integrations found</h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  {searchQuery
-                    ? `No integrations match "${searchQuery}". Try a different search term.`
-                    : "No integrations available in this category."}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="p-4 md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight" data-testid="text-marketplace-title">Integrations</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Connect your business tools to automate workflows
                 </p>
               </div>
-            )}
-          </>
-        )}
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="gap-1 no-default-active-elevate">
+                  <Zap className="w-3 h-3" />
+                  {connected?.length || 0} Connected
+                </Badge>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search integrations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-search-integrations"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-8">
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-5 space-y-3">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <Skeleton className="h-5 w-2/3" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-9 w-full mt-2" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <>
+              {popularApps.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Star className="w-5 h-5 text-amber-500" />
+                    <h2 className="text-lg font-semibold" data-testid="text-popular-heading">Popular Integrations</h2>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {popularApps.map((app) => (
+                      <AppCard
+                        key={app.id}
+                        app={app}
+                        connection={connectedMap[app.id]}
+                        onNavigate={() => navigate(`/app/integrations/${app.slug}`)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {Object.entries(groupedByCategory).map(([category, catApps]) => (
+                <section key={category}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <LayoutGrid className="w-5 h-5 text-muted-foreground" />
+                    <h2 className="text-lg font-semibold" data-testid={`text-category-${category}`}>
+                      {getCategoryLabel(category)}
+                    </h2>
+                    <Badge variant="outline" className="no-default-active-elevate">{catApps.length}</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {catApps.map((app) => (
+                      <AppCard
+                        key={app.id}
+                        app={app}
+                        connection={connectedMap[app.id]}
+                        onNavigate={() => navigate(`/app/integrations/${app.slug}`)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+
+              {filteredApps.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Globe className="w-12 h-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No integrations found</h3>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    {searchQuery
+                      ? `No integrations match "${searchQuery}". Try a different search term.`
+                      : "No integrations available with the current filters."}
+                  </p>
+                  {(categoryFilter !== "all" || statusFilter !== "all") && (
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => {
+                        setCategoryFilter("all");
+                        setStatusFilter("all");
+                      }}
+                      data-testid="button-clear-filters-empty"
+                    >
+                      Clear filters
+                    </Button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+const WebhookConfigPage = lazy(() => import("@/pages/WebhookConfigPage"));
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -153,6 +154,7 @@ export default function IntegrationMarketplace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "connected" | "not_connected">("all");
+  const [activeView, setActiveView] = useState<"marketplace" | "webhooks">("marketplace");
   const [currentLocation, navigate] = useLocation();
 
   const { data: apps, isLoading: appsLoading } = useQuery<IntegrationApp[]>({
@@ -235,8 +237,8 @@ export default function IntegrationMarketplace() {
         <SubPanelItem
           icon={<Webhook className="w-4 h-4" />}
           label="Webhooks"
-          isActive={currentLocation === "/app/flows/webhooks"}
-          onClick={() => navigate("/app/flows/webhooks")}
+          isActive={activeView === "webhooks"}
+          onClick={() => setActiveView("webhooks")}
           data-testid="link-webhooks"
         />
       </SubPanelSection>
@@ -247,9 +249,9 @@ export default function IntegrationMarketplace() {
             key={cat.value}
             icon={cat.icon}
             label={cat.label}
-            isActive={categoryFilter === cat.value}
+            isActive={activeView === "marketplace" && categoryFilter === cat.value}
             badge={categoryCounts[cat.value] || 0}
-            onClick={() => setCategoryFilter(cat.value)}
+            onClick={() => { setActiveView("marketplace"); setCategoryFilter(cat.value); }}
             data-testid={`filter-category-${cat.value}`}
           />
         ))}
@@ -259,25 +261,25 @@ export default function IntegrationMarketplace() {
         <SubPanelItem
           icon={<LayoutGrid className="w-4 h-4" />}
           label="All"
-          isActive={statusFilter === "all"}
+          isActive={activeView === "marketplace" && statusFilter === "all"}
           badge={apps?.length || 0}
-          onClick={() => setStatusFilter("all")}
+          onClick={() => { setActiveView("marketplace"); setStatusFilter("all"); }}
           data-testid="filter-status-all"
         />
         <SubPanelItem
           icon={<CheckCircle2 className="w-4 h-4" />}
           label="Connected"
-          isActive={statusFilter === "connected"}
+          isActive={activeView === "marketplace" && statusFilter === "connected"}
           badge={connectedAppIds.size}
-          onClick={() => setStatusFilter("connected")}
+          onClick={() => { setActiveView("marketplace"); setStatusFilter("connected"); }}
           data-testid="filter-status-connected"
         />
         <SubPanelItem
           icon={<Plug className="w-4 h-4" />}
           label="Not Connected"
-          isActive={statusFilter === "not_connected"}
+          isActive={activeView === "marketplace" && statusFilter === "not_connected"}
           badge={(apps?.length || 0) - connectedAppIds.size}
-          onClick={() => setStatusFilter("not_connected")}
+          onClick={() => { setActiveView("marketplace"); setStatusFilter("not_connected"); }}
           data-testid="filter-status-not_connected"
         />
       </SubPanelSection>
@@ -307,6 +309,13 @@ export default function IntegrationMarketplace() {
       subPanelHeader="Integrations"
       subPanelWidth="md"
     >
+      {activeView === "webhooks" ? (
+        <div className="flex flex-col h-[calc(100vh-120px)] overflow-y-auto p-4">
+          <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+            <WebhookConfigPage />
+          </Suspense>
+        </div>
+      ) : (
       <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="page-integration-marketplace">
         <div className="flex items-center justify-between gap-2 flex-wrap py-4 px-1">
           <div className="flex items-center gap-2">
@@ -435,6 +444,7 @@ export default function IntegrationMarketplace() {
           )}
         </div>
       </div>
+      )}
     </ThreeColumnLayout>
   );
 }

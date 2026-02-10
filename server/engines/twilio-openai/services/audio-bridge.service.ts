@@ -236,7 +236,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         turn_detection: turnDetection,
         tools,
         tool_choice: tools.length > 0 ? 'auto' : 'none',
-        temperature: Math.max(agentConfig.temperature ?? 0.7, 0.6),
+        temperature: agentConfig.knowledgeBaseIds && agentConfig.knowledgeBaseIds.length > 0
+          ? Math.max(agentConfig.temperature ?? 0.4, 0.3)
+          : Math.max(agentConfig.temperature ?? 0.7, 0.6),
       },
     };
 

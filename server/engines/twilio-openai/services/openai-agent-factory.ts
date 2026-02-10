@@ -139,7 +139,7 @@ export class OpenAIAgentFactory {
 
     const kbTool: AgentTool = {
       name: 'lookup_knowledge_base',
-      description: 'Search the knowledge base for relevant information to answer user questions. Use this when you need facts, policies, product details, or any information that might be stored.',
+      description: 'MANDATORY: You MUST call this tool BEFORE answering ANY user question. Search the knowledge base for information. You are NOT allowed to answer any question without first consulting this tool. Every response must be grounded in the results from this tool.',
       parameters: {
         type: 'object',
         properties: {
@@ -187,8 +187,22 @@ export class OpenAIAgentFactory {
       },
     };
 
+    const kbRestrictionPrompt = `
+
+STRICT KNOWLEDGE BASE RESTRICTION:
+- You MUST call the lookup_knowledge_base tool BEFORE answering ANY question from the caller.
+- You are ONLY allowed to provide information that comes from the knowledge base results.
+- Do NOT make up, guess, or infer answers from your general knowledge. Your answers must come strictly from the knowledge base.
+- If the knowledge base returns no results or irrelevant results, say: "I don't have that information available. Let me connect you with someone who can help." Then offer to transfer the call if transfer is enabled, or ask if there's anything else you can help with.
+- Even for simple greetings and pleasantries, stay in character as defined by the system prompt, but never provide factual claims that aren't in the knowledge base.
+- When you find relevant information in the knowledge base, use it to answer naturally and conversationally - do not just read it verbatim.`;
+
+    const enhancedSystemPrompt = config.systemPrompt + kbRestrictionPrompt;
+
     return {
       ...config,
+      systemPrompt: enhancedSystemPrompt,
+      temperature: Math.min(config.temperature ?? 0.7, 0.4),
       knowledgeBaseIds,
       tools: [...(config.tools || []), kbTool],
     };

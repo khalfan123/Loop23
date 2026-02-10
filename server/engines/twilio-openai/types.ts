@@ -212,6 +212,7 @@ export interface AudioBridgeSession {
   firstMessageSent: boolean;
   twilioStreamReady: boolean;
   lastUserSpeechTime: number;
+  isResponseActive: boolean;
   fromNumber?: string;
   toNumber?: string;
   callDirection?: CallDirection;

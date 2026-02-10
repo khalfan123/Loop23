@@ -69,6 +69,7 @@ export class TwilioOpenAIAudioBridge {
       firstMessageSent: false,
       twilioStreamReady: false,
       lastUserSpeechTime: Date.now(),
+      isResponseActive: false,
       fromNumber,
       toNumber,
       callDirection,
@@ -397,13 +398,25 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         case 'input_audio_buffer.speech_started':
           session.lastUserSpeechTime = Date.now();
           console.log(`[TwilioOpenAI Bridge] User started speaking (barge-in detected)`);
-          // CRITICAL: Immediately cancel current response and clear audio buffer
-          // This prevents the "rushing through" behavior when user interrupts
-          this.handleBargeIn(session);
+          if (session.isResponseActive) {
+            this.handleBargeIn(session);
+          } else {
+            if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
+              session.twilioWs.send(JSON.stringify({
+                event: 'clear',
+                streamSid: session.streamSid,
+              }));
+            }
+          }
           break;
 
         case 'input_audio_buffer.speech_stopped':
           console.log(`[TwilioOpenAI Bridge] User stopped speaking`);
+          break;
+
+        case 'response.created':
+          session.isResponseActive = true;
+          console.log(`[TwilioOpenAI Bridge] Event: response.created`);
           break;
 
         case 'response.function_call_arguments.done':
@@ -411,6 +424,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           break;
 
         case 'response.done':
+          session.isResponseActive = false;
           if (message.response?.output) {
             for (const item of message.response.output) {
               if (item.type === 'function_call') {
@@ -425,6 +439,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           break;
 
         case 'error':
+          if (message.error?.code === 'response_cancel_not_active') {
+            break;
+          }
           console.error(`[TwilioOpenAI Bridge] OpenAI error for ${callSid}:`, message.error);
           break;
 

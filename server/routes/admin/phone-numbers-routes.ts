@@ -29,7 +29,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
       const authToken = (dbToken?.value as string) || process.env.TWILIO_AUTH_TOKEN;
       
       if (!accountSid || !authToken) {
-        return res.json({ numbers: [], error: 'Twilio not configured' });
+        return res.json([]);
       }
       
       const twilio = (await import('twilio')).default;
@@ -37,17 +37,76 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       const incomingNumbers = await client.incomingPhoneNumbers.list({ limit: 100 });
       
-      res.json({
-        numbers: incomingNumbers.map(n => ({
+      const existingNumbers = await db.select({ phoneNumber: phoneNumbers.phoneNumber }).from(phoneNumbers);
+      const existingSet = new Set(existingNumbers.map(n => n.phoneNumber));
+      
+      const numbers = incomingNumbers
+        .filter(n => !existingSet.has(n.phoneNumber))
+        .map(n => ({
           sid: n.sid,
           phoneNumber: n.phoneNumber,
           friendlyName: n.friendlyName,
           capabilities: n.capabilities
-        }))
-      });
+        }));
+      
+      res.json(numbers);
     } catch (error: any) {
       console.error('Error fetching Twilio numbers:', error);
       res.status(500).json({ error: error.message || 'Failed to fetch Twilio numbers' });
+    }
+  });
+
+  router.get('/phone-numbers/search-available', async (req: AdminRequest, res: Response) => {
+    try {
+      const { country, numberType, areaCode, contains } = req.query;
+      
+      const dbSid = await storage.getGlobalSetting('twilio_account_sid');
+      const dbToken = await storage.getGlobalSetting('twilio_auth_token');
+      
+      const accountSid = (dbSid?.value as string) || process.env.TWILIO_ACCOUNT_SID;
+      const authToken = (dbToken?.value as string) || process.env.TWILIO_AUTH_TOKEN;
+      
+      if (!accountSid || !authToken) {
+        return res.status(400).json({ error: 'Twilio not configured' });
+      }
+      
+      const twilio = (await import('twilio')).default;
+      const client = twilio(accountSid, authToken);
+      
+      const countryCode = (country as string) || 'US';
+      const type = (numberType as string) || 'local';
+      const listOptions: any = { limit: 20 };
+      
+      if (contains) listOptions.contains = contains as string;
+      
+      let numbers: any[] = [];
+      
+      if (type === 'toll_free' || type === 'tollFree') {
+        numbers = await client.availablePhoneNumbers(countryCode).tollFree.list(listOptions);
+      } else if (type === 'mobile') {
+        if (areaCode) listOptions.areaCode = parseInt(areaCode as string, 10);
+        numbers = await client.availablePhoneNumbers(countryCode).mobile.list(listOptions);
+      } else {
+        if (areaCode) listOptions.areaCode = parseInt(areaCode as string, 10);
+        numbers = await client.availablePhoneNumbers(countryCode).local.list(listOptions);
+      }
+      
+      res.json(numbers.map((num: any) => ({
+        phoneNumber: num.phoneNumber,
+        friendlyName: num.friendlyName,
+        locality: num.locality,
+        region: num.region,
+        isoCountry: num.isoCountry,
+        numberType: type,
+        capabilities: {
+          voice: num.capabilities?.voice ?? false,
+          sms: num.capabilities?.sms ?? false,
+          mms: num.capabilities?.mms ?? false,
+        }
+      })));
+    } catch (error: any) {
+      console.error('Error searching available numbers:', error);
+      res.status(500).json({ error: error.message || 'Failed to search available numbers' });
     }
   });
 

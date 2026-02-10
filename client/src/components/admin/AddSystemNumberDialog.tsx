@@ -19,7 +19,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Phone, Loader2, Download, CheckCircle2, Search, Trash2, MapPin } from "lucide-react";
+import { Phone, Loader2, Download, CheckCircle2, Search, Trash2, MapPin, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -32,6 +32,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 import { AuthStorage } from "@/lib/auth-storage";
 
@@ -56,6 +63,8 @@ interface AvailableNumber {
   friendlyName: string;
   locality?: string;
   region?: string;
+  isoCountry?: string;
+  numberType?: string;
   capabilities: {
     voice: boolean;
     sms: boolean;
@@ -68,6 +77,48 @@ interface AddSystemNumberDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const COUNTRIES = [
+  { code: 'US', name: 'United States', prefix: '+1' },
+  { code: 'AE', name: 'UAE', prefix: '+971' },
+  { code: 'GB', name: 'United Kingdom', prefix: '+44' },
+  { code: 'AU', name: 'Australia', prefix: '+61' },
+  { code: 'CA', name: 'Canada', prefix: '+1' },
+  { code: 'DE', name: 'Germany', prefix: '+49' },
+  { code: 'FR', name: 'France', prefix: '+33' },
+  { code: 'IT', name: 'Italy', prefix: '+39' },
+  { code: 'ES', name: 'Spain', prefix: '+34' },
+  { code: 'NL', name: 'Netherlands', prefix: '+31' },
+  { code: 'BE', name: 'Belgium', prefix: '+32' },
+  { code: 'AT', name: 'Austria', prefix: '+43' },
+  { code: 'CH', name: 'Switzerland', prefix: '+41' },
+  { code: 'SE', name: 'Sweden', prefix: '+46' },
+  { code: 'NO', name: 'Norway', prefix: '+47' },
+  { code: 'DK', name: 'Denmark', prefix: '+45' },
+  { code: 'IE', name: 'Ireland', prefix: '+353' },
+  { code: 'PT', name: 'Portugal', prefix: '+351' },
+  { code: 'FI', name: 'Finland', prefix: '+358' },
+  { code: 'PL', name: 'Poland', prefix: '+48' },
+  { code: 'NZ', name: 'New Zealand', prefix: '+64' },
+  { code: 'SG', name: 'Singapore', prefix: '+65' },
+  { code: 'JP', name: 'Japan', prefix: '+81' },
+  { code: 'KR', name: 'South Korea', prefix: '+82' },
+  { code: 'IN', name: 'India', prefix: '+91' },
+  { code: 'BR', name: 'Brazil', prefix: '+55' },
+  { code: 'MX', name: 'Mexico', prefix: '+52' },
+  { code: 'ZA', name: 'South Africa', prefix: '+27' },
+  { code: 'SA', name: 'Saudi Arabia', prefix: '+966' },
+  { code: 'QA', name: 'Qatar', prefix: '+974' },
+  { code: 'BH', name: 'Bahrain', prefix: '+973' },
+  { code: 'OM', name: 'Oman', prefix: '+968' },
+  { code: 'KW', name: 'Kuwait', prefix: '+965' },
+];
+
+const NUMBER_TYPES = [
+  { value: 'local', label: 'Local' },
+  { value: 'toll_free', label: 'Toll-Free' },
+  { value: 'mobile', label: 'Mobile' },
+];
+
 export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDialogProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -76,9 +127,12 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
   const [selectedImportNumber, setSelectedImportNumber] = useState<TwilioNumber | null>(null);
   const [importFriendlyName, setImportFriendlyName] = useState("");
 
-  const [searchAreaCode, setSearchAreaCode] = useState("");
+  const [searchCountry, setSearchCountry] = useState("US");
+  const [searchNumberType, setSearchNumberType] = useState("local");
+  const [searchContains, setSearchContains] = useState("");
   const [selectedPurchaseNumber, setSelectedPurchaseNumber] = useState<AvailableNumber | null>(null);
   const [purchaseFriendlyName, setPurchaseFriendlyName] = useState("");
+  const [searchTriggered, setSearchTriggered] = useState(false);
 
   const { data: twilioNumbers = [], isLoading: loadingNumbers, refetch: refetchTwilio } = useQuery<TwilioNumber[]>({
     queryKey: ["/api/admin/phone-numbers/twilio-active"],
@@ -86,18 +140,24 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
   });
 
   const { data: availableNumbers = [], isLoading: searchLoading, refetch: refetchSearch } = useQuery<AvailableNumber[]>({
-    queryKey: ["/api/admin/phone-numbers/search", searchAreaCode],
+    queryKey: ["/api/admin/phone-numbers/search-available", searchCountry, searchNumberType, searchContains],
     queryFn: async () => {
-      if (!searchAreaCode || searchAreaCode.length !== 3) return [];
+      const params = new URLSearchParams();
+      params.set('country', searchCountry);
+      params.set('numberType', searchNumberType);
+      if (searchContains) params.set('contains', searchContains);
       const headers: Record<string, string> = {};
       const authHeader = AuthStorage.getAuthHeader();
       if (authHeader) {
         headers["Authorization"] = authHeader;
       }
-      const res = await fetch(`/api/admin/phone-numbers/search/${searchAreaCode}`, {
+      const res = await fetch(`/api/admin/phone-numbers/search-available?${params.toString()}`, {
         headers,
       });
-      if (!res.ok) throw new Error("Failed to search numbers");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to search numbers");
+      }
       return res.json();
     },
     enabled: false,
@@ -171,14 +231,11 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
 
   const handleImport = () => {
     if (!selectedImportNumber) return;
-    const isTollFree = /^\+1(800|888|877|866|855|844|833)/.test(selectedImportNumber.phoneNumber) ||
-      /^\+971800/.test(selectedImportNumber.phoneNumber);
     importMutation.mutate({
       phoneNumber: selectedImportNumber.phoneNumber,
       friendlyName: importFriendlyName || selectedImportNumber.friendlyName,
       sid: selectedImportNumber.sid,
       capabilities: selectedImportNumber.capabilities,
-      numberType: isTollFree ? 'toll_free' : 'local',
     });
   };
 
@@ -196,13 +253,20 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
     }
   };
 
+  const handleSearch = () => {
+    setSearchTriggered(true);
+    setSelectedPurchaseNumber(null);
+    refetchSearch();
+  };
+
   const resetAndClose = () => {
     onOpenChange(false);
     setSelectedImportNumber(null);
     setImportFriendlyName("");
     setSelectedPurchaseNumber(null);
     setPurchaseFriendlyName("");
-    setSearchAreaCode("");
+    setSearchContains("");
+    setSearchTriggered(false);
     setActiveTab("import");
   };
 
@@ -217,7 +281,23 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
   const detectNumberType = (phoneNumber: string): string => {
     if (/^\+1(800|888|877|866|855|844|833)/.test(phoneNumber)) return 'Toll-Free';
     if (/^\+971800/.test(phoneNumber)) return 'Toll-Free';
+    if (/^\+44(800|808)/.test(phoneNumber)) return 'Toll-Free';
+    if (/^\+61(1800|1300)/.test(phoneNumber)) return 'Toll-Free';
+    if (/^\+49(800)/.test(phoneNumber)) return 'Toll-Free';
+    if (/^\+33(800|805)/.test(phoneNumber)) return 'Toll-Free';
     return 'Local';
+  };
+
+  const getCountryFlag = (phoneNumber: string): string | null => {
+    if (phoneNumber.startsWith('+971')) return 'AE';
+    if (phoneNumber.startsWith('+966')) return 'SA';
+    if (phoneNumber.startsWith('+974')) return 'QA';
+    if (phoneNumber.startsWith('+44')) return 'GB';
+    if (phoneNumber.startsWith('+61')) return 'AU';
+    if (phoneNumber.startsWith('+49')) return 'DE';
+    if (phoneNumber.startsWith('+33')) return 'FR';
+    if (phoneNumber.startsWith('+1')) return 'US';
+    return null;
   };
 
   return (
@@ -238,7 +318,7 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
 
           <TabsContent value="import" className="space-y-6">
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <Label>{t("admin.systemNumbers.activeTwilioNumbers")}</Label>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -283,13 +363,19 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
                             className="flex-1 space-y-2 cursor-pointer"
                             onClick={() => setSelectedImportNumber(number)}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Phone className="h-4 w-4 text-muted-foreground" />
                               <span className="font-mono font-semibold text-lg">
                                 {formatPhoneNumber(number.phoneNumber)}
                               </span>
+                              {getCountryFlag(number.phoneNumber) && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Globe className="h-3 w-3 mr-1" />
+                                  {getCountryFlag(number.phoneNumber)}
+                                </Badge>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                               <span>{number.friendlyName}</span>
                               {detectNumberType(number.phoneNumber) === 'Toll-Free' && (
                                 <Badge variant="outline" className="text-xs">Toll-Free</Badge>
@@ -308,7 +394,7 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
                               </div>
                             )}
                             {number.capabilities && (
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 flex-wrap">
                                 {number.capabilities.voice && (
                                   <Badge variant="secondary" className="text-xs">{t("admin.systemNumbers.voice")}</Badge>
                                 )}
@@ -371,7 +457,7 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="flex justify-end gap-3 pt-4 border-t flex-wrap">
               <Button
                 variant="outline"
                 onClick={resetAndClose}
@@ -398,46 +484,67 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
           </TabsContent>
 
           <TabsContent value="purchase" className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="area-code">{t("admin.systemNumbers.searchByAreaCode")}</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="area-code"
-                  placeholder={t("admin.systemNumbers.areaCodePlaceholder")}
-                  value={searchAreaCode}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, "").substring(0, 3);
-                    setSearchAreaCode(value);
-                  }}
-                  maxLength={3}
-                  data-testid="input-area-code"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => refetchSearch()}
-                  disabled={searchAreaCode.length !== 3 || searchLoading}
-                  data-testid="button-search"
-                >
-                  {searchLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4 mr-2" />
-                      {t("common.search")}
-                    </>
-                  )}
-                </Button>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label>Country</Label>
+                  <Select value={searchCountry} onValueChange={setSearchCountry}>
+                    <SelectTrigger data-testid="select-country">
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.name} ({c.prefix})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Number Type</Label>
+                  <Select value={searchNumberType} onValueChange={setSearchNumberType}>
+                    <SelectTrigger data-testid="select-number-type">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NUMBER_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Contains (optional)</Label>
+                  <Input
+                    placeholder="e.g. 800"
+                    value={searchContains}
+                    onChange={(e) => setSearchContains(e.target.value)}
+                    data-testid="input-search-contains"
+                  />
+                </div>
               </div>
-              {searchAreaCode.length > 0 && searchAreaCode.length < 3 && (
-                <p className="text-xs text-muted-foreground">
-                  {t("admin.systemNumbers.enter3Digits")}
-                </p>
-              )}
+              <Button
+                variant="outline"
+                onClick={handleSearch}
+                disabled={searchLoading}
+                className="w-full sm:w-auto"
+                data-testid="button-search-numbers"
+              >
+                {searchLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Search className="h-4 w-4 mr-2" />
+                )}
+                Search Available Numbers
+              </Button>
             </div>
 
             {availableNumbers.length > 0 && (
               <div className="space-y-3">
-                <Label>{t("admin.systemNumbers.availableNumbers")}</Label>
+                <Label>{t("admin.systemNumbers.availableNumbers")} ({availableNumbers.length})</Label>
                 <ScrollArea className="h-[300px] border rounded-lg">
                   <div className="p-4 space-y-2">
                     {availableNumbers.map((number) => (
@@ -453,11 +560,20 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Phone className="h-4 w-4 text-muted-foreground" />
                               <span className="font-mono font-semibold text-lg">
-                                {formatPhoneNumber(number.phoneNumber)}
+                                {number.phoneNumber}
                               </span>
+                              {number.numberType === 'toll_free' && (
+                                <Badge variant="outline" className="text-xs">Toll-Free</Badge>
+                              )}
+                              {number.isoCountry && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Globe className="h-3 w-3 mr-1" />
+                                  {number.isoCountry}
+                                </Badge>
+                              )}
                             </div>
                             {(number.locality || number.region) && (
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -467,7 +583,7 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
                                 </span>
                               </div>
                             )}
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               {number.capabilities.voice && (
                                 <Badge variant="secondary" className="text-xs">{t("admin.systemNumbers.voice")}</Badge>
                               )}
@@ -490,6 +606,13 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
               </div>
             )}
 
+            {searchTriggered && availableNumbers.length === 0 && !searchLoading && (
+              <div className="text-center py-6 text-muted-foreground">
+                <Phone className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-sm">No numbers found for this search. Try a different country, type, or pattern.</p>
+              </div>
+            )}
+
             {selectedPurchaseNumber && (
               <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
                 <h4 className="font-semibold">{t("admin.systemNumbers.configureSystemNumber")}</h4>
@@ -497,20 +620,20 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
                   <Label htmlFor="purchase-friendly-name">{t("admin.systemNumbers.friendlyNameOptional")}</Label>
                   <Input
                     id="purchase-friendly-name"
-                    placeholder="e.g., System Pool - West Coast"
+                    placeholder="e.g., System Pool - UAE Toll-Free"
                     value={purchaseFriendlyName}
                     onChange={(e) => setPurchaseFriendlyName(e.target.value)}
                     data-testid="input-purchase-friendly-name"
                   />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p>{t("admin.systemNumbers.selected")} <span className="font-mono font-semibold text-foreground">{formatPhoneNumber(selectedPurchaseNumber.phoneNumber)}</span></p>
+                  <p>{t("admin.systemNumbers.selected")} <span className="font-mono font-semibold text-foreground">{selectedPurchaseNumber.phoneNumber}</span></p>
                   <p className="mt-1">{t("admin.systemNumbers.purchaseNote")}</p>
                 </div>
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="flex justify-end gap-3 pt-4 border-t flex-wrap">
               <Button
                 variant="outline"
                 onClick={resetAndClose}

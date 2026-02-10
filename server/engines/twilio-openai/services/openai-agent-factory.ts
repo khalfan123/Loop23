@@ -137,6 +137,9 @@ export class OpenAIAgentFactory {
 
     console.log(`[Agent Factory] Adding KB tool for ${knowledgeBaseIds.length} knowledge bases`);
 
+    RAGKnowledgeService.processUnchunkedKnowledgeBases(knowledgeBaseIds, userId)
+      .catch(err => console.error(`[Agent Factory] Background KB processing error:`, err.message));
+
     const kbTool: AgentTool = {
       name: 'lookup_knowledge_base',
       description: 'MANDATORY: You MUST call this tool BEFORE answering ANY user question. Search the knowledge base for information. You are NOT allowed to answer any question without first consulting this tool. Every response must be grounded in the results from this tool.',

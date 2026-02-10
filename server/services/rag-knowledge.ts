@@ -353,10 +353,7 @@ export class RAGKnowledgeService {
         return [];
       }
       
-      // Generate embedding for query
-      const queryEmbedding = await generateEmbedding(query);
-      
-      // Fetch all chunks for the specified knowledge bases
+      // Fetch all chunks for the specified knowledge bases first
       const chunks = await db
         .select()
         .from(knowledgeChunks)
@@ -368,11 +365,62 @@ export class RAGKnowledgeService {
         );
       
       if (chunks.length === 0) {
-        console.log(`[RAG] No chunks found for knowledge bases`);
-        return [];
+        console.log(`[RAG] No chunks found - falling back to direct knowledge base content`);
+        
+        const kbEntries = await db
+          .select()
+          .from(knowledgeBase)
+          .where(
+            and(
+              inArray(knowledgeBase.id, knowledgeBaseIds),
+              eq(knowledgeBase.userId, userId)
+            )
+          );
+        
+        if (kbEntries.length === 0) {
+          console.log(`[RAG] No knowledge base entries found either`);
+          return [];
+        }
+        
+        console.log(`[RAG] Found ${kbEntries.length} KB entries for direct content fallback`);
+        
+        const queryLower = query.toLowerCase();
+        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+        
+        const scoredEntries = kbEntries
+          .filter(entry => entry.content && entry.content.trim().length > 0)
+          .map(entry => {
+            const contentLower = (entry.content || '').toLowerCase();
+            const titleLower = (entry.title || '').toLowerCase();
+            let relevanceScore = 0;
+            
+            for (const word of queryWords) {
+              if (contentLower.includes(word)) relevanceScore += 0.15;
+              if (titleLower.includes(word)) relevanceScore += 0.25;
+            }
+            
+            relevanceScore = Math.min(relevanceScore, 0.95);
+            if (relevanceScore === 0) relevanceScore = 0.3;
+            
+            return {
+              chunk: {
+                chunkText: (entry.content || '').substring(0, MAX_CHUNK_CHARS),
+              } as Pick<KnowledgeChunk, 'chunkText'> as KnowledgeChunk,
+              score: relevanceScore,
+              source: entry.id,
+            };
+          })
+          .sort((a, b) => b.score - a.score)
+          .slice(0, maxResults);
+        
+        console.log(`[RAG] Returning ${scoredEntries.length} direct content results`);
+        return scoredEntries;
       }
       
       console.log(`[RAG] Searching ${chunks.length} chunks`);
+      
+      // Generate embedding for query only after confirming chunks exist
+      const queryEmbedding = await generateEmbedding(query);
       
       // Calculate similarity scores
       const scoredChunks = chunks
@@ -506,6 +554,46 @@ export class RAGKnowledgeService {
       .where(eq(knowledgeChunks.knowledgeBaseId, knowledgeBaseId));
     
     return Number(result[0]?.count || 0);
+  }
+
+  private static processingKBs = new Set<string>();
+
+  static async processUnchunkedKnowledgeBases(knowledgeBaseIds: string[], userId: string): Promise<void> {
+    try {
+      for (const kbId of knowledgeBaseIds) {
+        if (this.processingKBs.has(kbId)) continue;
+
+        const chunkCount = await this.getChunkCount(kbId);
+        if (chunkCount > 0) continue;
+
+        const [entry] = await db
+          .select()
+          .from(knowledgeBase)
+          .where(
+            and(
+              eq(knowledgeBase.id, kbId),
+              eq(knowledgeBase.userId, userId)
+            )
+          )
+          .limit(1);
+
+        if (!entry || !entry.content || entry.content.trim().length === 0) continue;
+
+        this.processingKBs.add(kbId);
+        try {
+          console.log(`[RAG] Auto-processing unchunked KB: ${entry.title || kbId}`);
+          await this.processKnowledgeItem(kbId, userId, entry.content, {
+            title: entry.title,
+            type: entry.type,
+            autoProcessed: true,
+          });
+        } finally {
+          this.processingKBs.delete(kbId);
+        }
+      }
+    } catch (error: any) {
+      console.error(`[RAG] Error auto-processing unchunked KBs:`, error.message);
+    }
   }
 }
 

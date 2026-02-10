@@ -807,6 +807,7 @@ function IVRConfigPanel({
 }: IVRConfigPanelProps) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const customizedDeptGreetings = useRef<Set<string>>(new Set());
   
   useEffect(() => {
     audioRef.current = new Audio();
@@ -823,6 +824,26 @@ function IVRConfigPanel({
       setLanguageSelectionGreetingText(generateDefaultLangGreeting(languageOptions, companyDisplayName));
     }
   }, [languageOptions, companyDisplayName]);
+
+  const departmentNodes = nodes.filter((n) => n.type === "department");
+  const deptNames = departmentNodes.map(n => (n.data as any).name || "Department");
+  const deptNamesKey = deptNames.join("||");
+
+  useEffect(() => {
+    if (departmentNodes.length === 0) return;
+    const updatedOptions = languageOptions.map((opt) => {
+      if (customizedDeptGreetings.current.has(opt.id)) return opt;
+      return {
+        ...opt,
+        greeting: generateDeptGreeting(deptNames, opt.language),
+        selectedDepartments: departmentNodes.map(n => n.id),
+      };
+    });
+    const changed = updatedOptions.some((opt, i) => opt.greeting !== languageOptions[i].greeting);
+    if (changed) {
+      setLanguageOptions(updatedOptions);
+    }
+  }, [deptNamesKey, departmentNodes.length]);
 
   const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions, companyDisplayName);
   
@@ -851,7 +872,12 @@ function IVRConfigPanel({
         if (opt.id === id) {
           const updated = { ...opt, ...updates };
           if (updates.language && updates.language !== opt.language) {
-            updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
+            customizedDeptGreetings.current.delete(id);
+            if (departmentNodes.length > 0) {
+              updated.greeting = generateDeptGreeting(deptNames, updates.language);
+            } else {
+              updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
+            }
             updated.voiceId = getDefaultVoiceForLanguage(updates.language);
           }
           return updated;
@@ -862,6 +888,7 @@ function IVRConfigPanel({
   };
   
   const removeLanguageOption = (id: string) => {
+    customizedDeptGreetings.current.delete(id);
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
   
@@ -1090,14 +1117,41 @@ function IVRConfigPanel({
                       </div>
                       
                       <div>
-                        <Label className="text-xs text-muted-foreground">Greeting Message</Label>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <Label className="text-xs text-muted-foreground">Department Menu Greeting</Label>
+                          {customizedDeptGreetings.current.has(opt.id) && departmentNodes.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs"
+                              onClick={() => {
+                                customizedDeptGreetings.current.delete(opt.id);
+                                updateLanguageOption(opt.id, {
+                                  greeting: generateDeptGreeting(deptNames, opt.language),
+                                });
+                              }}
+                              data-testid={`button-reset-dept-greeting-${idx}`}
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                              Reset
+                            </Button>
+                          )}
+                        </div>
                         <Textarea
                           value={opt.greeting}
-                          onChange={(e) => updateLanguageOption(opt.id, { greeting: e.target.value })}
+                          onChange={(e) => {
+                            customizedDeptGreetings.current.add(opt.id);
+                            updateLanguageOption(opt.id, { greeting: e.target.value });
+                          }}
                           rows={2}
                           className="mt-1"
                           data-testid={`input-greeting-${idx}`}
                         />
+                        {departmentNodes.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Auto-generated from departments. Edit to customize.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </Card>

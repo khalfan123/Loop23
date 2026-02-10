@@ -1150,10 +1150,28 @@ export async function handleIvrSelection(req: Request, res: Response) {
       return res.send(response.toString());
     }
     
-    // Try ElevenLabs agent first, then any available agent
+    // Select the best agent based on caller's language, then ElevenLabs preference
+    const langMatchAgents = deptAgentsList.filter(da => {
+      const agentLang = (da.agent?.language || 'en').toLowerCase();
+      return agentLang === langCode.toLowerCase();
+    });
+    
+    const langMatchElevenLabs = langMatchAgents.find(da => da.agent?.elevenLabsAgentId);
+    const langMatchAny = langMatchAgents.find(da => da.agent);
     const elevenLabsAgent = deptAgentsList.find(da => da.agent?.elevenLabsAgentId);
     const anyAgent = deptAgentsList.find(da => da.agent);
-    const selectedAgentEntry = elevenLabsAgent || anyAgent;
+    
+    // Priority: language-matching ElevenLabs > language-matching any > any ElevenLabs > any agent
+    const selectedAgentEntry = langMatchElevenLabs || langMatchAny || elevenLabsAgent || anyAgent;
+    
+    if (selectedAgentEntry?.agent) {
+      const agentLang = (selectedAgentEntry.agent.language || 'en').toLowerCase();
+      if (agentLang !== langCode.toLowerCase()) {
+        console.log(`⚠️ [IVR Selection] No ${langCode}-speaking agent found, using ${agentLang}-speaking agent: ${selectedAgentEntry.agent.name}`);
+      } else {
+        console.log(`✅ [IVR Selection] Found ${langCode}-speaking agent: ${selectedAgentEntry.agent.name}`);
+      }
+    }
     
     if (!selectedAgentEntry || !selectedAgentEntry.agent) {
       saySlow(response, { voice, language: langTag as any }, template.holdMsg);

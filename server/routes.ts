@@ -20,7 +20,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
 import { db } from "./db";
-import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions, twilioOpenaiCalls } from "@shared/schema";
+import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions, twilioOpenaiCalls, globalSettings } from "@shared/schema";
 import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import { authenticateToken, requireRole, generateTokenAsync, checkActiveMembership, checkUserActive, type AuthRequest } from "./middleware/auth";
 import { authRateLimiter, strictRateLimiter, paymentRateLimiter } from "./middleware/rateLimiter";
@@ -1652,13 +1652,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.log(`🔀 [WebSocket] Agent has no elevenLabsAgentId, routing to OpenAI Realtime (agent type: ${agent.type})`);
                 
                 try {
-                  const credential = await OpenAIPoolService.reserveSlot();
+                  let credential = await OpenAIPoolService.reserveSlot();
+                  let openaiCredentialId: string | null = null;
+                  
                   if (!credential) {
-                    console.error(`❌ [WebSocket] No OpenAI credentials available for agent ${agent.id}`);
-                    ws.close(1011, 'No OpenAI credentials available');
-                    return;
+                    console.log(`🔄 [WebSocket] No pool credentials, attempting to use fallback OpenAI API key from global settings/env`);
+                    
+                    let apiKey: string | undefined;
+                    
+                    try {
+                      const [dbSetting] = await db
+                        .select()
+                        .from(globalSettings)
+                        .where(eq(globalSettings.key, "openai_api_key"))
+                        .limit(1);
+                      
+                      if (dbSetting?.value) {
+                        apiKey = (dbSetting.value as string).replace(/^"+|"+$/g, '');
+                      }
+                    } catch (dbError) {
+                      console.warn(`⚠️ [WebSocket] Failed to fetch openai_api_key from global_settings:`, dbError);
+                    }
+                    
+                    if (!apiKey) {
+                      apiKey = process.env.OPENAI_API_KEY;
+                    }
+                    
+                    if (!apiKey) {
+                      apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+                    }
+                    
+                    if (!apiKey) {
+                      console.error(`❌ [WebSocket] No OpenAI credentials available (not in pool, global_settings, or env vars) for agent ${agent.id}`);
+                      ws.close(1011, 'No OpenAI credentials available');
+                      return;
+                    }
+                    
+                    credential = {
+                      id: 'fallback-global-key',
+                      name: 'Global Settings Key (Fallback)',
+                      apiKey: apiKey,
+                      modelTier: 'free',
+                      maxConcurrency: 1,
+                      currentLoad: 0,
+                      totalAssignedAgents: 0,
+                      totalAssignedUsers: 0,
+                      maxAgentsThreshold: 0,
+                      isActive: true,
+                      healthStatus: 'healthy',
+                      lastHealthCheck: new Date(),
+                      metadata: null,
+                      createdAt: new Date(),
+                      updatedAt: new Date(),
+                    } as any;
+                    
+                    openaiCredentialId = null;
+                    console.log(`🔄 [WebSocket] Using fallback OpenAI API key from global settings/env`);
+                  } else {
+                    openaiCredentialId = credential.id;
+                    console.log(`✅ [WebSocket] Reserved OpenAI credential: ${credential.name} (ID: ${credential.id})`);
                   }
-                  console.log(`✅ [WebSocket] Reserved OpenAI credential: ${credential.name} (ID: ${credential.id})`);
                   
                   const openaiModel = agent.openaiModel || 'gpt-4o-realtime-preview';
                   const openaiVoice = agent.openaiVoice || 'alloy';
@@ -1671,7 +1724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     toNumber: customParams.toNumber || '',
                     callDirection: 'inbound',
                     status: 'in-progress',
-                    openaiCredentialId: credential.id,
+                    openaiCredentialId: openaiCredentialId,
                     openaiVoice: openaiVoice,
                     openaiModel: openaiModel,
                     metadata: {

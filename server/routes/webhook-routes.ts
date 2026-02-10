@@ -1177,9 +1177,16 @@ export async function handleIvrSelection(req: Request, res: Response) {
       const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${selectedAgent.elevenLabsAgentId}`;
       console.log(`📞 [IVR Selection] Routing via ElevenLabs: ${elevenLabsUrl}`);
       response.redirect(elevenLabsUrl);
+    } else if (selectedAgent.voiceProvider === 'elevenlabs' && !selectedAgent.elevenLabsAgentId) {
+      console.error(`⚠️ [IVR Selection] Agent "${selectedAgent.name}" is configured for ElevenLabs but has no ElevenLabs Agent ID. Please configure the agent in admin panel.`);
+      saySlow(response, { voice, language: langTag as any }, 'This agent is not fully configured. Please contact the administrator.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
     } else {
       const domain = getDomain(req.headers.host as string);
-      const streamUrl = `wss://${domain}/api/webhooks/twilio/stream`;
+      const domainHost = domain.replace(/^https?:\/\//, '');
+      const streamUrl = `wss://${domainHost}/api/webhooks/twilio/stream`;
       console.log(`📞 [IVR Selection] Routing via OpenAI Realtime (voiceProvider: ${selectedAgent.voiceProvider || 'default'})`);
       console.log(`   Stream URL: ${streamUrl}`);
       
@@ -1394,7 +1401,8 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
       .where(eq(calls.id, callId as string));
 
     const domain = getDomain(req.headers.host as string);
-    const streamUrl = `wss://${domain}/api/webhooks/twilio/stream`;
+    const domainHost = domain.replace(/^https?:\/\//, '');
+    const streamUrl = `wss://${domainHost}/api/webhooks/twilio/stream`;
     
     console.log(`📞 [Voice Webhook] Creating TwiML with stream URL: ${streamUrl}`);
     console.log(`   Parameters: callId=${callId}, agentId=${agentId}, contactName=${contactName || 'N/A'}`);

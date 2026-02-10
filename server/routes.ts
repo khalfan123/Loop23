@@ -1798,7 +1798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   await TwilioOpenAIAudioBridge.createSession({
                     callSid: data.start?.callSid || callId,
-                    openaiApiKey: credential.apiKey,
+                    openaiApiKey: credential!.apiKey,
                     agentConfig,
                     twilioWs: ws,
                     streamSid: data.start?.streamSid || undefined,
@@ -1808,6 +1808,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   });
                   
                   console.log(`✅ [WebSocket] OpenAI Realtime session created for call ${callId}`);
+                  
+                  const bridgeCallSid = data.start?.callSid || callId;
+                  
+                  const openaiMessageHandler = (msg: Buffer) => {
+                    try {
+                      const event = JSON.parse(msg.toString());
+                      TwilioOpenAIAudioBridge.handleTwilioMedia(bridgeCallSid, event);
+                    } catch (err) {
+                      console.error(`❌ [WebSocket] Error forwarding message to OpenAI bridge:`, err);
+                    }
+                  };
+                  ws.on('message', openaiMessageHandler);
+                  
+                  ws.on('close', () => {
+                    console.log(`🔌 [WebSocket] Twilio stream closed for ${bridgeCallSid}`);
+                    TwilioOpenAIAudioBridge.handleTwilioMedia(bridgeCallSid, { event: 'stop' } as any);
+                  });
                   
                   setTimeout(() => {
                     console.log(`📨 [WebSocket] Replaying ${bufferedMessages.length} buffered messages`);

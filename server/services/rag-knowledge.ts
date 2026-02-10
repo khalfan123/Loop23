@@ -36,13 +36,14 @@ import { db } from "../db";
 import { 
   knowledgeBase, 
   knowledgeChunks, 
+  knowledgeFaqs,
   knowledgeProcessingQueue,
   userKnowledgeStorageLimits,
   globalSettings,
   type KnowledgeChunk,
   type KnowledgeBase
 } from "@shared/schema";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, sql, or, ilike } from "drizzle-orm";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025
 // Using text-embedding-3-small for cost-effective embeddings
@@ -347,13 +348,25 @@ export class RAGKnowledgeService {
     maxResults: number = 5
   ): Promise<Array<{ chunk: KnowledgeChunk; score: number; source: string }>> {
     try {
+      if (typeof knowledgeBaseIds === 'string') {
+        console.error(`[RAG] searchKnowledge called with knowledgeBaseIds as string instead of array: "${knowledgeBaseIds}". Returning empty results.`);
+        return [];
+      }
+
       console.log(`[RAG] Searching knowledge for: "${query.substring(0, 50)}..."`);
       
       if (knowledgeBaseIds.length === 0) {
         return [];
       }
+
+      // TIER 1: FAQ matching (highest priority - pre-extracted Q&A pairs)
+      const faqResults = await this.searchFAQs(query, knowledgeBaseIds, userId);
+      if (faqResults.length > 0) {
+        console.log(`[RAG] Found ${faqResults.length} FAQ matches`);
+        return faqResults.slice(0, maxResults);
+      }
       
-      // Fetch all chunks for the specified knowledge bases first
+      // TIER 2: Vector similarity on chunks
       const chunks = await db
         .select()
         .from(knowledgeChunks)
@@ -364,81 +377,178 @@ export class RAGKnowledgeService {
           )
         );
       
-      if (chunks.length === 0) {
-        console.log(`[RAG] No chunks found - falling back to direct knowledge base content`);
+      if (chunks.length > 0) {
+        console.log(`[RAG] Searching ${chunks.length} chunks via vector similarity`);
         
-        const kbEntries = await db
-          .select()
-          .from(knowledgeBase)
-          .where(
-            and(
-              inArray(knowledgeBase.id, knowledgeBaseIds),
-              eq(knowledgeBase.userId, userId)
-            )
-          );
+        const queryEmbedding = await generateEmbedding(query);
         
-        if (kbEntries.length === 0) {
-          console.log(`[RAG] No knowledge base entries found either`);
-          return [];
-        }
-        
-        console.log(`[RAG] Found ${kbEntries.length} KB entries for direct content fallback`);
-        
-        const queryLower = query.toLowerCase();
-        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
-        
-        const scoredEntries = kbEntries
-          .filter(entry => entry.content && entry.content.trim().length > 0)
-          .map(entry => {
-            const contentLower = (entry.content || '').toLowerCase();
-            const titleLower = (entry.title || '').toLowerCase();
-            let relevanceScore = 0;
-            
-            for (const word of queryWords) {
-              if (contentLower.includes(word)) relevanceScore += 0.15;
-              if (titleLower.includes(word)) relevanceScore += 0.25;
-            }
-            
-            relevanceScore = Math.min(relevanceScore, 0.95);
-            if (relevanceScore === 0) relevanceScore = 0.3;
-            
-            return {
-              chunk: {
-                chunkText: (entry.content || '').substring(0, MAX_CHUNK_CHARS),
-              } as Pick<KnowledgeChunk, 'chunkText'> as KnowledgeChunk,
-              score: relevanceScore,
-              source: entry.id,
-            };
-          })
+        const scoredChunks = chunks
+          .filter(chunk => chunk.embedding && Array.isArray(chunk.embedding))
+          .map(chunk => ({
+            chunk,
+            score: cosineSimilarity(queryEmbedding, chunk.embedding as number[]),
+            source: chunk.knowledgeBaseId
+          }))
           .sort((a, b) => b.score - a.score)
           .slice(0, maxResults);
         
-        console.log(`[RAG] Returning ${scoredEntries.length} direct content results`);
-        return scoredEntries;
+        console.log(`[RAG] Found ${scoredChunks.length} relevant chunks (top score: ${scoredChunks[0]?.score.toFixed(3) || 'N/A'})`);
+        return scoredChunks;
       }
       
-      console.log(`[RAG] Searching ${chunks.length} chunks`);
+      // TIER 3: Direct content fallback (no chunks/embeddings available)
+      console.log(`[RAG] No chunks found - falling back to direct knowledge base content`);
       
-      // Generate embedding for query only after confirming chunks exist
-      const queryEmbedding = await generateEmbedding(query);
+      const kbEntries = await db
+        .select()
+        .from(knowledgeBase)
+        .where(
+          and(
+            inArray(knowledgeBase.id, knowledgeBaseIds),
+            eq(knowledgeBase.userId, userId)
+          )
+        );
       
-      // Calculate similarity scores
-      const scoredChunks = chunks
-        .filter(chunk => chunk.embedding && Array.isArray(chunk.embedding))
-        .map(chunk => ({
-          chunk,
-          score: cosineSimilarity(queryEmbedding, chunk.embedding as number[]),
-          source: chunk.knowledgeBaseId
-        }))
+      if (kbEntries.length === 0) {
+        console.log(`[RAG] No knowledge base entries found either`);
+        return [];
+      }
+      
+      console.log(`[RAG] Found ${kbEntries.length} KB entries for direct content fallback`);
+      
+      const queryLower = query.toLowerCase();
+      const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+      
+      const scoredEntries = kbEntries
+        .filter(entry => entry.content && entry.content.trim().length > 0)
+        .map(entry => {
+          const contentLower = (entry.content || '').toLowerCase();
+          const titleLower = (entry.title || '').toLowerCase();
+          let relevanceScore = 0;
+          
+          for (const word of queryWords) {
+            if (contentLower.includes(word)) relevanceScore += 0.15;
+            if (titleLower.includes(word)) relevanceScore += 0.25;
+          }
+          
+          relevanceScore = Math.min(relevanceScore, 0.95);
+          if (relevanceScore === 0) relevanceScore = 0.3;
+          
+          return {
+            chunk: {
+              chunkText: (entry.content || '').substring(0, MAX_CHUNK_CHARS),
+            } as Pick<KnowledgeChunk, 'chunkText'> as KnowledgeChunk,
+            score: relevanceScore,
+            source: entry.id,
+          };
+        })
         .sort((a, b) => b.score - a.score)
         .slice(0, maxResults);
       
-      console.log(`[RAG] Found ${scoredChunks.length} relevant chunks (top score: ${scoredChunks[0]?.score.toFixed(3) || 'N/A'})`);
-      
-      return scoredChunks;
+      console.log(`[RAG] Returning ${scoredEntries.length} direct content results`);
+      return scoredEntries;
       
     } catch (error: any) {
       console.error(`[RAG] Search error:`, error.message);
+      return [];
+    }
+  }
+
+  static async searchFAQs(
+    query: string,
+    knowledgeBaseIds: string[],
+    userId: string
+  ): Promise<Array<{ chunk: KnowledgeChunk; score: number; source: string }>> {
+    try {
+      const queryLowerInit = query.toLowerCase();
+      const keywords = queryLowerInit.split(/\s+/).filter(w => w.length > 2);
+
+      let faqs: (typeof knowledgeFaqs.$inferSelect)[] = [];
+
+      if (keywords.length > 0) {
+        const keywordFilters = keywords.map(kw => ilike(knowledgeFaqs.question, `%${kw}%`));
+        faqs = await db
+          .select()
+          .from(knowledgeFaqs)
+          .where(
+            and(
+              inArray(knowledgeFaqs.knowledgeBaseId, knowledgeBaseIds),
+              eq(knowledgeFaqs.userId, userId),
+              or(...keywordFilters)
+            )
+          );
+      }
+
+      if (faqs.length === 0) {
+        faqs = await db
+          .select()
+          .from(knowledgeFaqs)
+          .where(
+            and(
+              inArray(knowledgeFaqs.knowledgeBaseId, knowledgeBaseIds),
+              eq(knowledgeFaqs.userId, userId)
+            )
+          );
+      }
+      
+      if (faqs.length === 0) return [];
+      
+      const queryLower = query.toLowerCase();
+      const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+      
+      const faqsWithEmbeddings = faqs.filter(f => f.embedding && Array.isArray(f.embedding));
+      
+      let scoredFaqs: Array<{ faq: typeof faqs[0]; score: number }>;
+      
+      if (faqsWithEmbeddings.length > 0) {
+        try {
+          const queryEmbedding = await generateEmbedding(query);
+          scoredFaqs = faqsWithEmbeddings.map(faq => ({
+            faq,
+            score: cosineSimilarity(queryEmbedding, faq.embedding as number[]),
+          }));
+        } catch {
+          scoredFaqs = faqs.map(faq => {
+            const questionLower = faq.question.toLowerCase();
+            let score = 0;
+            for (const word of queryWords) {
+              if (questionLower.includes(word)) score += 0.2;
+            }
+            return { faq, score: Math.min(score, 0.95) };
+          });
+        }
+      } else {
+        scoredFaqs = faqs.map(faq => {
+          const questionLower = faq.question.toLowerCase();
+          const answerLower = faq.answer.toLowerCase();
+          let score = 0;
+          for (const word of queryWords) {
+            if (questionLower.includes(word)) score += 0.2;
+            if (answerLower.includes(word)) score += 0.1;
+          }
+          return { faq, score: Math.min(score, 0.95) };
+        });
+      }
+      
+      const topFaqs = scoredFaqs
+        .filter(f => f.score > 0.3)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+      
+      if (topFaqs.length === 0) return [];
+      
+      console.log(`[RAG FAQ] Top FAQ match: "${topFaqs[0].faq.question}" (score: ${topFaqs[0].score.toFixed(3)})`);
+      
+      return topFaqs.map(f => ({
+        chunk: {
+          chunkText: `Q: ${f.faq.question}\nA: ${f.faq.answer}`,
+        } as Pick<KnowledgeChunk, 'chunkText'> as KnowledgeChunk,
+        score: f.score + 0.05,
+        source: f.faq.knowledgeBaseId || '',
+      }));
+      
+    } catch (error: any) {
+      console.error(`[RAG FAQ] FAQ search error:`, error.message);
       return [];
     }
   }

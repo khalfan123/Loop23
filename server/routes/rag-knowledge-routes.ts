@@ -26,9 +26,10 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
+import { KBEnhancedProcessor } from "../services/kb-enhanced-processor";
 import { storage } from "../storage";
 import { db } from "../db";
-import { knowledgeBase, knowledgeChunks, knowledgeFolders } from "@shared/schema";
+import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowledgeEntities, knowledgeTopics } from "@shared/schema";
 import { eq, and, sql, desc, asc, count } from "drizzle-orm";
 
 // Extend Request to include userId
@@ -873,6 +874,89 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         error: error.message,
         response: "I encountered an error accessing the knowledge base. Please try again."
       });
+    }
+  });
+
+  router.post("/enhanced-reprocess", async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { knowledgeBaseIds, skipIfProcessed = false } = req.body;
+
+      let targetIds: string[] = knowledgeBaseIds;
+
+      if (!targetIds || targetIds.length === 0) {
+        const allEntries = await db
+          .select({ id: knowledgeBase.id })
+          .from(knowledgeBase)
+          .where(eq(knowledgeBase.userId, userId));
+        targetIds = allEntries.map(e => e.id);
+      }
+
+      if (targetIds.length === 0) {
+        return res.json({ message: "No knowledge base entries found", result: null });
+      }
+
+      console.log(`[KB Enhanced Route] Starting enhanced reprocessing for ${targetIds.length} entries`);
+
+      res.json({
+        message: `Enhanced processing started for ${targetIds.length} entries. This runs in the background.`,
+        totalEntries: targetIds.length,
+        status: "processing",
+      });
+
+      KBEnhancedProcessor.processKnowledgeBasesEnhanced(targetIds, userId, { skipIfProcessed })
+        .then(result => {
+          console.log(`[KB Enhanced Route] Processing complete:`, JSON.stringify(result));
+        })
+        .catch(err => {
+          console.error(`[KB Enhanced Route] Processing failed:`, err.message);
+        });
+
+    } catch (error: any) {
+      console.error("[KB Enhanced Route] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.get("/enhanced-status", async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const [chunkStats] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(knowledgeChunks)
+        .where(eq(knowledgeChunks.userId, userId));
+
+      const [faqStats] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(knowledgeFaqs)
+        .where(eq(knowledgeFaqs.userId, userId));
+
+      const [entityStats] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(knowledgeEntities)
+        .where(eq(knowledgeEntities.userId, userId));
+
+      const [topicStats] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(knowledgeTopics)
+        .where(eq(knowledgeTopics.userId, userId));
+
+      res.json({
+        chunks: Number(chunkStats?.count || 0),
+        faqs: Number(faqStats?.count || 0),
+        entities: Number(entityStats?.count || 0),
+        topics: Number(topicStats?.count || 0),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

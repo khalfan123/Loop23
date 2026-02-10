@@ -156,6 +156,7 @@ export class TwilioService {
     if (params.contains) listOptions.contains = params.contains;
     
     let numbers: any[] = [];
+    let actualNumberType = numberType;
     
     if (numberType === 'tollFree' || numberType === 'toll_free') {
       numbers = await client.availablePhoneNumbers(country).tollFree.list(listOptions);
@@ -164,13 +165,37 @@ export class TwilioService {
       if (params.inPostalCode) listOptions.inPostalCode = params.inPostalCode;
       if (params.inLocality) listOptions.inLocality = params.inLocality;
       if (params.inRegion) listOptions.inRegion = params.inRegion;
-      numbers = await client.availablePhoneNumbers(country).mobile.list(listOptions);
+      try {
+        numbers = await client.availablePhoneNumbers(country).mobile.list(listOptions);
+      } catch (err: any) {
+        if (err.code === 20404 || err.status === 404) {
+          console.log(`[Twilio] Mobile numbers not available for ${country}, trying toll-free...`);
+          const tfOptions: any = { limit: listOptions.limit };
+          if (params.contains) tfOptions.contains = params.contains;
+          numbers = await client.availablePhoneNumbers(country).tollFree.list(tfOptions);
+          actualNumberType = 'toll_free';
+        } else {
+          throw err;
+        }
+      }
     } else {
       if (params.areaCode) listOptions.areaCode = parseInt(params.areaCode, 10);
       if (params.inPostalCode) listOptions.inPostalCode = params.inPostalCode;
       if (params.inLocality) listOptions.inLocality = params.inLocality;
       if (params.inRegion) listOptions.inRegion = params.inRegion;
-      numbers = await client.availablePhoneNumbers(country).local.list(listOptions);
+      try {
+        numbers = await client.availablePhoneNumbers(country).local.list(listOptions);
+      } catch (err: any) {
+        if (err.code === 20404 || err.status === 404) {
+          console.log(`[Twilio] Local numbers not available for ${country}, trying toll-free...`);
+          const tfOptions: any = { limit: listOptions.limit };
+          if (params.contains) tfOptions.contains = params.contains;
+          numbers = await client.availablePhoneNumbers(country).tollFree.list(tfOptions);
+          actualNumberType = 'toll_free';
+        } else {
+          throw err;
+        }
+      }
     }
 
     return numbers.map((num: any) => ({
@@ -180,7 +205,7 @@ export class TwilioService {
       region: num.region,
       postalCode: num.postalCode,
       isoCountry: num.isoCountry,
-      numberType: numberType,
+      numberType: actualNumberType,
       addressRequirements: num.addressRequirements,
       capabilities: num.capabilities,
     }));

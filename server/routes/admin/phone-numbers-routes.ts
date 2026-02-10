@@ -80,15 +80,38 @@ export function registerPhoneNumbersRoutes(router: Router) {
       if (contains) listOptions.contains = contains as string;
       
       let numbers: any[] = [];
+      let resolvedType = type;
       
       if (type === 'toll_free' || type === 'tollFree') {
         numbers = await client.availablePhoneNumbers(countryCode).tollFree.list(listOptions);
       } else if (type === 'mobile') {
         if (areaCode) listOptions.areaCode = parseInt(areaCode as string, 10);
-        numbers = await client.availablePhoneNumbers(countryCode).mobile.list(listOptions);
+        try {
+          numbers = await client.availablePhoneNumbers(countryCode).mobile.list(listOptions);
+        } catch (err: any) {
+          if (err.code === 20404 || err.status === 404) {
+            const tfOptions: any = { limit: 20 };
+            if (contains) tfOptions.contains = contains as string;
+            numbers = await client.availablePhoneNumbers(countryCode).tollFree.list(tfOptions);
+            resolvedType = 'toll_free';
+          } else {
+            throw err;
+          }
+        }
       } else {
         if (areaCode) listOptions.areaCode = parseInt(areaCode as string, 10);
-        numbers = await client.availablePhoneNumbers(countryCode).local.list(listOptions);
+        try {
+          numbers = await client.availablePhoneNumbers(countryCode).local.list(listOptions);
+        } catch (err: any) {
+          if (err.code === 20404 || err.status === 404) {
+            const tfOptions: any = { limit: 20 };
+            if (contains) tfOptions.contains = contains as string;
+            numbers = await client.availablePhoneNumbers(countryCode).tollFree.list(tfOptions);
+            resolvedType = 'toll_free';
+          } else {
+            throw err;
+          }
+        }
       }
       
       res.json(numbers.map((num: any) => ({
@@ -97,7 +120,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
         locality: num.locality,
         region: num.region,
         isoCountry: num.isoCountry,
-        numberType: type,
+        numberType: resolvedType,
         capabilities: {
           voice: num.capabilities?.voice ?? false,
           sms: num.capabilities?.sms ?? false,

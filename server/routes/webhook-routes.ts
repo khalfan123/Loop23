@@ -861,29 +861,29 @@ async function handleIvrCall(
         timeout: 10,
       });
       
-      // Play language selection greeting (with slower speech)
-      // The greeting message already includes "Thanks for calling {company}" when set from the UI
-      if (ivrConfig.greetingMessage) {
-        saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, ivrConfig.greetingMessage);
-        console.log(`   Greeting: "${ivrConfig.greetingMessage}"`);
-      } else {
-        // Fallback: if no greeting saved, build one with company name
-        const defaultGreeting = companyName 
-          ? `Thanks for calling ${companyName}. Please select your preferred language.`
-          : 'Please select your preferred language.';
-        saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, defaultGreeting);
-        console.log(`   Greeting: "${defaultGreeting}"`);
-      }
+      // Play language selection greeting
+      const greetingText = ivrConfig.greetingMessage || (companyName 
+        ? `Thanks for calling ${companyName}. Please select your preferred language.`
+        : 'Please select your preferred language.');
       
-      for (let idx = 0; idx < langOptions.length; idx++) {
-        const opt = langOptions[idx];
-        const voice = getVoiceForLanguage(opt.language);
-        const lang = getTwilioLangCode(opt.language);
-        const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
-        const keyNum = idx + 1;
-        
-        saySlow(gather, { voice, language: lang as any }, `${prompt} ${keyNum}.`);
-        console.log(`   Lang option ${keyNum}: ${opt.language} → voice=${voice}, lang=${lang}`);
+      saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, greetingText);
+      console.log(`   Greeting: "${greetingText}"`);
+      
+      // Only append per-language voice prompts if the greeting doesn't already include language press options
+      const greetingLower = greetingText.toLowerCase();
+      const hasLangOptions = greetingLower.includes('press 1') || greetingLower.includes('اضغط') || greetingLower.includes('请按') || greetingLower.includes('दबाएं') || greetingLower.includes('appuyez') || greetingLower.includes('premere');
+      
+      if (!hasLangOptions) {
+        for (let idx = 0; idx < langOptions.length; idx++) {
+          const opt = langOptions[idx];
+          const voice = getVoiceForLanguage(opt.language);
+          const lang = getTwilioLangCode(opt.language);
+          const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
+          const keyNum = idx + 1;
+          
+          saySlow(gather, { voice, language: lang as any }, `${prompt} ${keyNum}.`);
+          console.log(`   Lang option ${keyNum}: ${opt.language} → voice=${voice}, lang=${lang}`);
+        }
       }
       
       saySlow(response, { voice: 'Polly.Joanna' }, 'We did not receive your selection.');
@@ -1143,15 +1143,19 @@ export async function handleIvrSelection(req: Request, res: Response) {
       .where(eq(departmentAgents.departmentId, selectedOption.departmentId));
     
     if (deptAgentsList.length === 0 || !deptAgentsList[0].agent) {
+      console.log(`⚠️ [IVR Selection] No agents found for department: ${selectedOption.departmentId}`);
       saySlow(response, { voice, language: langTag as any }, template.noAgentMsg);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
     }
     
-    const availableAgent = deptAgentsList.find(da => da.agent?.elevenLabsAgentId);
+    // Try ElevenLabs agent first, then any available agent
+    const elevenLabsAgent = deptAgentsList.find(da => da.agent?.elevenLabsAgentId);
+    const anyAgent = deptAgentsList.find(da => da.agent);
+    const selectedAgentEntry = elevenLabsAgent || anyAgent;
     
-    if (!availableAgent || !availableAgent.agent) {
+    if (!selectedAgentEntry || !selectedAgentEntry.agent) {
       saySlow(response, { voice, language: langTag as any }, template.holdMsg);
       const firstAgent = deptAgentsList[0].agent;
       if (firstAgent?.transferPhoneNumber) {
@@ -1164,15 +1168,50 @@ export async function handleIvrSelection(req: Request, res: Response) {
       return res.send(response.toString());
     }
     
-    const selectedAgent = availableAgent.agent;
-    console.log(`📞 [IVR Selection] Connecting to agent: ${selectedAgent.name} (${selectedAgent.id})`);
+    const selectedAgent = selectedAgentEntry.agent;
+    console.log(`📞 [IVR Selection] Connecting to agent: ${selectedAgent.name} (${selectedAgent.id}), voiceProvider: ${selectedAgent.voiceProvider || 'elevenlabs'}`);
     
     saySlow(response, { voice, language: langTag as any }, template.holdMsg);
     
-    const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${selectedAgent.elevenLabsAgentId}`;
-    
-    console.log(`📞 [IVR Selection] Redirecting to ElevenLabs: ${elevenLabsUrl}`);
-    response.redirect(elevenLabsUrl);
+    if (selectedAgent.elevenLabsAgentId) {
+      const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${selectedAgent.elevenLabsAgentId}`;
+      console.log(`📞 [IVR Selection] Routing via ElevenLabs: ${elevenLabsUrl}`);
+      response.redirect(elevenLabsUrl);
+    } else {
+      const domain = getDomain(req.headers.host as string);
+      const streamUrl = `wss://${domain}/api/webhooks/twilio/stream`;
+      console.log(`📞 [IVR Selection] Routing via OpenAI Realtime (voiceProvider: ${selectedAgent.voiceProvider || 'default'})`);
+      console.log(`   Stream URL: ${streamUrl}`);
+      
+      let callRecordId = callSid as string;
+      try {
+        const newCall = await db
+          .insert(calls)
+          .values({
+            userId: selectedAgent.userId,
+            campaignId: null,
+            contactId: null,
+            phoneNumber: caller as string || '',
+            fromNumber: caller as string || '',
+            toNumber: To || '',
+            status: 'in-progress',
+            callDirection: 'incoming',
+            twilioCallSid: callSid as string,
+          })
+          .returning({ id: calls.id });
+        if (newCall.length > 0) {
+          callRecordId = newCall[0].id;
+          console.log(`📞 [IVR Selection] Created call record: ${callRecordId}`);
+        }
+      } catch (callErr) {
+        console.error(`⚠️ [IVR Selection] Failed to create call record:`, callErr);
+      }
+      
+      const connect = response.connect();
+      const stream = connect.stream({ url: streamUrl });
+      stream.parameter({ name: 'agentId', value: selectedAgent.id });
+      stream.parameter({ name: 'callId', value: callRecordId });
+    }
     
     res.type('text/xml');
     return res.send(response.toString());

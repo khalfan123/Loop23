@@ -2269,15 +2269,15 @@ export default function PhoneNumbers() {
                 setAddNumberDialogOpen(false);
                 setImportDialogOpen(true);
               }}
-              data-testid="option-import-existing"
+              data-testid="option-buy-uae"
             >
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-md bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                  <Upload className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                <div className="h-12 w-12 rounded-md bg-emerald-500/10 flex items-center justify-center flex-shrink-0 text-2xl">
+                  <span role="img" aria-label="UAE flag">&#x1F1E6;&#x1F1EA;</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold">UAE</h3>
-                  <p className="text-sm text-muted-foreground">Import a UAE toll-free number from your Twilio account</p>
+                  <h3 className="font-semibold">Buy UAE Number</h3>
+                  <p className="text-sm text-muted-foreground">Purchase a UAE toll-free number (+971)</p>
                 </div>
               </div>
             </div>
@@ -2319,24 +2319,24 @@ export default function PhoneNumbers() {
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              UAE Numbers
+              <span className="text-lg">&#x1F1E6;&#x1F1EA;</span>
+              Buy UAE Number
             </DialogTitle>
             <DialogDescription>
-              Select a UAE number from your Twilio account to import. Only unallocated numbers are shown.
+              Select an available UAE toll-free number to purchase.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {loadingExisting ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">Loading your Twilio numbers...</span>
+                <span className="ml-2 text-muted-foreground">Loading available UAE numbers...</span>
               </div>
             ) : existingTwilioNumbers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No UAE numbers found in your Twilio account.</p>
-                <p className="text-xs mt-1">All UAE numbers may already be allocated.</p>
+                <p>No UAE numbers available for purchase.</p>
+                <p className="text-xs mt-1">All available UAE numbers have been allocated.</p>
               </div>
             ) : (
               <div className="border rounded-md divide-y max-h-96 overflow-y-auto">
@@ -2363,7 +2363,7 @@ export default function PhoneNumbers() {
               </div>
             )}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setImportDialogOpen(false)} data-testid="button-cancel-import">
+              <Button variant="outline" onClick={() => setImportDialogOpen(false)} data-testid="button-cancel-buy-uae">
                 Cancel
               </Button>
               <Button
@@ -2378,17 +2378,17 @@ export default function PhoneNumbers() {
                     });
                   }
                 }}
-                data-testid="button-import-number"
+                data-testid="button-buy-uae-number"
               >
                 {importMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Importing...
+                    Purchasing...
                   </>
                 ) : (
                   <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import Number
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Buy Number
                   </>
                 )}
               </Button>

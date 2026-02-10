@@ -159,7 +159,16 @@ export class TwilioService {
     let actualNumberType = numberType;
     
     if (numberType === 'tollFree' || numberType === 'toll_free') {
-      numbers = await client.availablePhoneNumbers(country).tollFree.list(listOptions);
+      try {
+        numbers = await client.availablePhoneNumbers(country).tollFree.list(listOptions);
+      } catch (err: any) {
+        if (err.code === 20404 || err.status === 404) {
+          console.log(`[Twilio] Toll-free numbers not available for purchase in ${country}.`);
+          numbers = [];
+        } else {
+          throw err;
+        }
+      }
     } else if (numberType === 'mobile') {
       if (params.areaCode) listOptions.areaCode = parseInt(params.areaCode, 10);
       if (params.inPostalCode) listOptions.inPostalCode = params.inPostalCode;
@@ -172,8 +181,17 @@ export class TwilioService {
           console.log(`[Twilio] Mobile numbers not available for ${country}, trying toll-free...`);
           const tfOptions: any = { limit: listOptions.limit };
           if (params.contains) tfOptions.contains = params.contains;
-          numbers = await client.availablePhoneNumbers(country).tollFree.list(tfOptions);
-          actualNumberType = 'toll_free';
+          try {
+            numbers = await client.availablePhoneNumbers(country).tollFree.list(tfOptions);
+            actualNumberType = 'toll_free';
+          } catch (tfErr: any) {
+            if (tfErr.code === 20404 || tfErr.status === 404) {
+              console.log(`[Twilio] Toll-free also not available for ${country}. No purchasable numbers found.`);
+              numbers = [];
+            } else {
+              throw tfErr;
+            }
+          }
         } else {
           throw err;
         }
@@ -190,8 +208,17 @@ export class TwilioService {
           console.log(`[Twilio] Local numbers not available for ${country}, trying toll-free...`);
           const tfOptions: any = { limit: listOptions.limit };
           if (params.contains) tfOptions.contains = params.contains;
-          numbers = await client.availablePhoneNumbers(country).tollFree.list(tfOptions);
-          actualNumberType = 'toll_free';
+          try {
+            numbers = await client.availablePhoneNumbers(country).tollFree.list(tfOptions);
+            actualNumberType = 'toll_free';
+          } catch (tfErr: any) {
+            if (tfErr.code === 20404 || tfErr.status === 404) {
+              console.log(`[Twilio] Toll-free also not available for ${country}. No purchasable numbers found.`);
+              numbers = [];
+            } else {
+              throw tfErr;
+            }
+          }
         } else {
           throw err;
         }

@@ -92,8 +92,16 @@ export function registerPhoneNumbersRoutes(router: Router) {
           if (err.code === 20404 || err.status === 404) {
             const tfOptions: any = { limit: 20 };
             if (contains) tfOptions.contains = contains as string;
-            numbers = await client.availablePhoneNumbers(countryCode).tollFree.list(tfOptions);
-            resolvedType = 'toll_free';
+            try {
+              numbers = await client.availablePhoneNumbers(countryCode).tollFree.list(tfOptions);
+              resolvedType = 'toll_free';
+            } catch (tfErr: any) {
+              if (tfErr.code === 20404 || tfErr.status === 404) {
+                numbers = [];
+              } else {
+                throw tfErr;
+              }
+            }
           } else {
             throw err;
           }
@@ -106,8 +114,16 @@ export function registerPhoneNumbersRoutes(router: Router) {
           if (err.code === 20404 || err.status === 404) {
             const tfOptions: any = { limit: 20 };
             if (contains) tfOptions.contains = contains as string;
-            numbers = await client.availablePhoneNumbers(countryCode).tollFree.list(tfOptions);
-            resolvedType = 'toll_free';
+            try {
+              numbers = await client.availablePhoneNumbers(countryCode).tollFree.list(tfOptions);
+              resolvedType = 'toll_free';
+            } catch (tfErr: any) {
+              if (tfErr.code === 20404 || tfErr.status === 404) {
+                numbers = [];
+              } else {
+                throw tfErr;
+              }
+            }
           } else {
             throw err;
           }

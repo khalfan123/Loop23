@@ -136,7 +136,7 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
 
   const { data: twilioNumbers = [], isLoading: loadingNumbers, refetch: refetchTwilio } = useQuery<TwilioNumber[]>({
     queryKey: ["/api/admin/phone-numbers/twilio-active"],
-    enabled: false,
+    enabled: open,
   });
 
   const { data: availableNumbers = [], isLoading: searchLoading, refetch: refetchSearch } = useQuery<AvailableNumber[]>({
@@ -607,9 +607,19 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
             )}
 
             {searchTriggered && availableNumbers.length === 0 && !searchLoading && (
-              <div className="text-center py-6 text-muted-foreground">
+              <div className="text-center py-6 text-muted-foreground space-y-3">
                 <Phone className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                <p className="text-sm">No numbers found for this search. Try a different country, type, or pattern.</p>
+                <p className="text-sm">No numbers available for purchase in this country/type.</p>
+                <p className="text-sm">If you already have a number provisioned in your Twilio account, switch to the <strong>Import Existing</strong> tab and click <strong>Load from Twilio</strong> to import it.</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab("import")}
+                  data-testid="button-switch-to-import"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Go to Import Existing
+                </Button>
               </div>
             )}
 

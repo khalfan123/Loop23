@@ -1775,8 +1775,9 @@ export default function PhoneNumbers() {
             </div>
 
             {!searchLoading && hasSearched && availableNumbers.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                {t('phoneNumbers.search.noResults')}
+              <div className="text-center py-8 text-muted-foreground space-y-2">
+                <p>{t('phoneNumbers.search.noResults')}</p>
+                <p className="text-xs">If you already own a number in this country, an admin can import it from the Admin Panel under Phone Numbers.</p>
               </div>
             )}
 

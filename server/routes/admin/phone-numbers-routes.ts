@@ -37,8 +37,15 @@ export function registerPhoneNumbersRoutes(router: Router) {
       
       const incomingNumbers = await client.incomingPhoneNumbers.list({ limit: 100 });
       
+      console.log(`[Twilio Active] Found ${incomingNumbers.length} numbers in Twilio account:`);
+      incomingNumbers.forEach(n => {
+        console.log(`  - ${n.phoneNumber} (${n.friendlyName}) SID: ${n.sid}`);
+      });
+      
       const existingNumbers = await db.select({ phoneNumber: phoneNumbers.phoneNumber }).from(phoneNumbers);
       const existingSet = new Set(existingNumbers.map(n => n.phoneNumber));
+      
+      console.log(`[Twilio Active] Already imported numbers: ${Array.from(existingSet).join(', ')}`);
       
       const numbers = incomingNumbers
         .filter(n => !existingSet.has(n.phoneNumber))
@@ -48,6 +55,8 @@ export function registerPhoneNumbersRoutes(router: Router) {
           friendlyName: n.friendlyName,
           capabilities: n.capabilities
         }));
+      
+      console.log(`[Twilio Active] Returning ${numbers.length} available for import`);
       
       res.json(numbers);
     } catch (error: any) {

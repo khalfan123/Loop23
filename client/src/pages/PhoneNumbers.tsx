@@ -261,6 +261,10 @@ export default function PhoneNumbers() {
   // Add number method selection dialog (Buy vs SIP Trunking)
   const [addNumberDialogOpen, setAddNumberDialogOpen] = useState(false);
 
+  // Import existing Twilio number state
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [selectedImportNumber, setSelectedImportNumber] = useState<any>(null);
+
   // Active tab state for controlled Tabs
   const [activeTab, setActiveTab] = useState("owned");
 
@@ -458,6 +462,29 @@ export default function PhoneNumbers() {
     
     return providers;
   }, [tcxcInterconnections]);
+
+  // Existing Twilio numbers for import
+  const { data: existingTwilioNumbers = [], isLoading: loadingExisting, refetch: refetchExisting } = useQuery<any[]>({
+    queryKey: ["/api/phone-numbers/twilio-existing"],
+    enabled: importDialogOpen,
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/phone-numbers/import-existing", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers/twilio-existing"] });
+      setImportDialogOpen(false);
+      setSelectedImportNumber(null);
+      toast({ title: "Number imported successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Import failed", description: error.message, variant: "destructive" });
+    },
+  });
 
   // TCXC my DIDs query
   const { data: tcxcMyDids = [], isLoading: tcxcMyDidsLoading, refetch: refetchTcxcMyDids } = useQuery<TcxcDid[]>({
@@ -2240,6 +2267,25 @@ export default function PhoneNumbers() {
               className="border rounded-md p-4 cursor-pointer hover-elevate transition-all"
               onClick={() => {
                 setAddNumberDialogOpen(false);
+                setImportDialogOpen(true);
+              }}
+              data-testid="option-import-existing"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-md bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                  <Upload className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold">Import Existing Number</h3>
+                  <p className="text-sm text-muted-foreground">Import a number you already own from your Twilio account</p>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              className="border rounded-md p-4 cursor-pointer hover-elevate transition-all"
+              onClick={() => {
+                setAddNumberDialogOpen(false);
                 const sipTab = phoneNumbersTabs.find(tab => tab.id.toLowerCase().includes('sip'));
                 if (sipTab) {
                   setActiveTab(sipTab.id);
@@ -2264,6 +2310,89 @@ export default function PhoneNumbers() {
             <Button variant="outline" onClick={() => setAddNumberDialogOpen(false)} data-testid="button-cancel-add-number">
               {t('common.cancel')}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Existing Number Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Import Existing Number
+            </DialogTitle>
+            <DialogDescription>
+              Select a number from your Twilio account to import. Only numbers not already in the system are shown.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {loadingExisting ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Loading your Twilio numbers...</span>
+              </div>
+            ) : existingTwilioNumbers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No importable numbers found in your Twilio account.</p>
+                <p className="text-xs mt-1">All your Twilio numbers may already be imported.</p>
+              </div>
+            ) : (
+              <div className="border rounded-md divide-y max-h-96 overflow-y-auto">
+                {existingTwilioNumbers.map((number: any) => (
+                  <div
+                    key={number.sid}
+                    className={`p-4 hover-elevate cursor-pointer ${
+                      selectedImportNumber?.sid === number.sid ? "bg-accent" : ""
+                    }`}
+                    onClick={() => setSelectedImportNumber(number)}
+                    data-testid={`import-number-${number.phoneNumber}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{number.phoneNumber}</p>
+                        <p className="text-sm text-muted-foreground">{number.friendlyName}</p>
+                      </div>
+                      {selectedImportNumber?.sid === number.sid && (
+                        <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setImportDialogOpen(false)} data-testid="button-cancel-import">
+                Cancel
+              </Button>
+              <Button
+                disabled={!selectedImportNumber || importMutation.isPending}
+                onClick={() => {
+                  if (selectedImportNumber) {
+                    importMutation.mutate({
+                      phoneNumber: selectedImportNumber.phoneNumber,
+                      twilioSid: selectedImportNumber.sid,
+                      friendlyName: selectedImportNumber.friendlyName,
+                      capabilities: selectedImportNumber.capabilities,
+                    });
+                  }
+                }}
+                data-testid="button-import-number"
+              >
+                {importMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import Number
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

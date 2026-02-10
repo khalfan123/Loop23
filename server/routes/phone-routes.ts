@@ -189,6 +189,228 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
     }
   });
 
+  router.get("/api/phone-numbers/twilio-existing", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const dbSid = await storage.getGlobalSetting('twilio_account_sid');
+      const dbToken = await storage.getGlobalSetting('twilio_auth_token');
+      
+      const accountSid = (dbSid?.value as string) || process.env.TWILIO_ACCOUNT_SID;
+      const authToken = (dbToken?.value as string) || process.env.TWILIO_AUTH_TOKEN;
+      
+      if (!accountSid || !authToken) {
+        return res.json([]);
+      }
+      
+      const twilio = (await import('twilio')).default;
+      const client = twilio(accountSid, authToken);
+      
+      const incomingNumbers = await client.incomingPhoneNumbers.list({ limit: 100 });
+      
+      const existingNumbers = await db.select({ phoneNumber: phoneNumbers.phoneNumber }).from(phoneNumbers);
+      const existingSet = new Set(existingNumbers.map(n => n.phoneNumber));
+      
+      const numbers = incomingNumbers
+        .filter(n => !existingSet.has(n.phoneNumber))
+        .map(n => ({
+          sid: n.sid,
+          phoneNumber: n.phoneNumber,
+          friendlyName: n.friendlyName,
+          capabilities: n.capabilities
+        }));
+      
+      res.json(numbers);
+    } catch (error: any) {
+      console.error('Error fetching existing Twilio numbers:', error);
+      res.json([]);
+    }
+  });
+
+  router.post("/api/phone-numbers/import-existing", authenticateToken, checkActiveMembership(storage), async (req: AuthRequest, res: Response) => {
+    try {
+      const { phoneNumber, twilioSid, friendlyName, capabilities } = req.body;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+
+      const existing = await db.select().from(phoneNumbers).where(eq(phoneNumbers.phoneNumber, phoneNumber));
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Phone number already exists in the system" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { getUserPlanCapabilities } = await import('../services/membership-service');
+      const planCapabilities = await getUserPlanCapabilities(req.userId!);
+      if (!planCapabilities.canPurchaseNumbers) {
+        return res.status(403).json({
+          error: "Plan upgrade required",
+          message: `Your ${planCapabilities.planDisplayName} plan does not allow purchasing phone numbers. Please upgrade to Pro.`,
+          upgradeRequired: true
+        });
+      }
+
+      const twilioKycSetting = await storage.getGlobalSetting('twilio_kyc_required');
+      const twilioKycRequired = twilioKycSetting?.value === true || twilioKycSetting?.value === 'true';
+      
+      if (twilioKycRequired) {
+        const { KycService } = await import('../engines/kyc/services/kyc.service');
+        const kycStatus = await KycService.getUserKycStatus(req.userId!);
+        
+        if (kycStatus.status !== 'approved') {
+          return res.status(403).json({
+            error: "KYC verification required",
+            message: "You must complete KYC verification before importing phone numbers.",
+            kycRequired: true,
+            kycStatus: kycStatus.status
+          });
+        }
+      }
+
+      const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+      
+      if (!isAdmin) {
+        const effectiveLimits = await storage.getUserEffectiveLimits(req.userId!);
+        const currentPhoneCount = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(phoneNumbers)
+          .where(eq(phoneNumbers.userId, req.userId!));
+        
+        const phoneCount = Number(currentPhoneCount[0]?.count || 0);
+        const maxPhoneNumbers = typeof effectiveLimits.maxPhoneNumbers === 'number' ? effectiveLimits.maxPhoneNumbers : 0;
+        if (maxPhoneNumbers !== 999 && maxPhoneNumbers !== -1 && phoneCount >= maxPhoneNumbers) {
+          return res.status(403).json({ 
+            error: "Phone number limit reached", 
+            message: `You have reached your maximum of ${maxPhoneNumbers} phone numbers.`,
+            limit: maxPhoneNumbers,
+            current: phoneCount
+          });
+        }
+      }
+
+      const phoneNumberCostSetting = await storage.getGlobalSetting('phone_number_monthly_credits');
+      const monthlyCredits = (phoneNumberCostSetting?.value as number) || 50;
+
+      if (process.env.NODE_ENV !== 'development') {
+        if ((user.credits || 0) < monthlyCredits) {
+          return res.status(400).json({ 
+            error: `Insufficient credits. Phone number import requires ${monthlyCredits} credits per month. You have ${user.credits || 0} credits.` 
+          });
+        }
+      }
+
+      const detectedCountry = detectCountryFromNumber(phoneNumber);
+      const detectedNumberType = detectNumberTypeFromNumber(phoneNumber);
+
+      const { ElevenLabsPoolService } = await import('../services/elevenlabs-pool');
+      const credentialToUse = await ElevenLabsPoolService.getUserCredential(req.userId!);
+      
+      if (!credentialToUse) {
+        return res.status(500).json({ error: 'No active ElevenLabs API keys available in pool' });
+      }
+
+      let dbPhoneNumber;
+      const nextBillingDate = new Date();
+      nextBillingDate.setDate(nextBillingDate.getDate() + 30);
+
+      if (process.env.NODE_ENV !== 'development') {
+        await db.transaction(async (tx) => {
+          await tx.insert(creditTransactions).values({
+            userId: req.userId!,
+            type: 'debit',
+            amount: monthlyCredits,
+            description: `Phone number import: ${phoneNumber}`,
+          });
+
+          await tx.execute(sql`
+            UPDATE users 
+            SET credits = COALESCE(credits, 0) - ${monthlyCredits}
+            WHERE id = ${req.userId!}
+          `);
+
+          const [phoneNumberRecord] = await tx.insert(phoneNumbers).values({
+            userId: req.userId!,
+            phoneNumber: phoneNumber,
+            twilioSid: twilioSid || 'imported-' + Date.now(),
+            friendlyName: friendlyName || phoneNumber,
+            country: detectedCountry,
+            capabilities: capabilities || null,
+            numberType: detectedNumberType,
+            status: "active",
+            isSystemPool: false,
+            monthlyCredits: monthlyCredits,
+            nextBillingDate: nextBillingDate,
+            elevenLabsCredentialId: credentialToUse.id,
+          }).returning();
+
+          dbPhoneNumber = phoneNumberRecord;
+
+          await tx.insert(phoneNumberRentals).values({
+            phoneNumberId: phoneNumberRecord.id,
+            userId: req.userId!,
+            creditsCharged: monthlyCredits,
+            status: 'success',
+          });
+        });
+      } else {
+        const [devPhoneNumber] = await db.insert(phoneNumbers).values({
+          userId: req.userId!,
+          phoneNumber: phoneNumber,
+          twilioSid: twilioSid || 'imported-' + Date.now(),
+          friendlyName: friendlyName || phoneNumber,
+          country: detectedCountry,
+          capabilities: capabilities || null,
+          numberType: detectedNumberType,
+          status: "active",
+          isSystemPool: false,
+          monthlyCredits: monthlyCredits,
+          nextBillingDate: nextBillingDate,
+          elevenLabsCredentialId: credentialToUse.id,
+        }).returning();
+        
+        dbPhoneNumber = devPhoneNumber;
+      }
+
+      if (dbPhoneNumber) {
+        try {
+          const { ElevenLabsService } = await import('../services/elevenlabs');
+          const elevenLabsService = new ElevenLabsService(credentialToUse.apiKey);
+          
+          const { getTwilioAccountSid, getTwilioAuthToken } = await import('../services/twilio-connector');
+          const twilioAccountSid = await getTwilioAccountSid();
+          const twilioAuthToken = await getTwilioAuthToken();
+          
+          const elevenLabsResult = await elevenLabsService.syncPhoneNumberToElevenLabs({
+            phoneNumber: phoneNumber,
+            twilioAccountSid,
+            twilioAuthToken,
+            label: friendlyName || phoneNumber,
+          });
+          
+          await db.update(phoneNumbers)
+            .set({ 
+              elevenLabsPhoneNumberId: elevenLabsResult.phone_number_id,
+              elevenLabsCredentialId: credentialToUse.id,
+            })
+            .where(eq(phoneNumbers.id, dbPhoneNumber.id));
+          
+          dbPhoneNumber.elevenLabsPhoneNumberId = elevenLabsResult.phone_number_id;
+          dbPhoneNumber.elevenLabsCredentialId = credentialToUse.id;
+        } catch (elevenLabsError: any) {
+          console.error('⚠️  [Import] Failed to sync imported number to ElevenLabs:', elevenLabsError.message);
+        }
+      }
+
+      res.json(dbPhoneNumber);
+    } catch (error: any) {
+      console.error("Import phone number error:", error);
+      res.status(500).json({ error: error.message || "Failed to import phone number" });
+    }
+  });
+
   router.post("/api/phone-numbers/buy", authenticateToken, checkActiveMembership(storage), async (req: AuthRequest, res: Response) => {
     try {
       const { phoneNumber, friendlyName, addressSid, bundleSid, country, numberType: reqNumberType } = req.body;

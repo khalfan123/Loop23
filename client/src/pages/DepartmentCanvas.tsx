@@ -2,24 +2,6 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import {
-  ReactFlow,
-  ReactFlowProvider,
-  Background,
-  Controls,
-  MiniMap,
-  addEdge,
-  useNodesState,
-  useEdgesState,
-  type Connection,
-  type Edge,
-  type Node,
-  type NodeTypes,
-  Handle,
-  Position,
-  MarkerType,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,12 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
@@ -54,8 +30,6 @@ import {
   CalendarCheck,
   Settings,
   Plus,
-  ZoomIn,
-  ZoomOut,
   Save,
   Trash2,
   Loader2,
@@ -68,6 +42,9 @@ import {
   Square,
   Circle,
   RotateCcw,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -253,18 +230,11 @@ const generateDefaultLangGreeting = (langOpts: LanguageOption[], companyName?: s
   return `${intro} ${langLines.join('. ')}.`;
 };
 
-interface CanvasPhoneNode {
-  id: string;
-  phoneNumber: PhoneNumber;
-}
-
 interface CanvasDepartment {
   id: string;
   type: "sales" | "support" | "scheduling" | "custom";
   name: string;
   description: string;
-  assignedPhoneId?: string;
-  assignedPhoneNumber?: string;
   languageAgents?: LanguageAgent[];
   enableTransfer?: boolean;
   transferNumber?: string;
@@ -307,21 +277,176 @@ const departmentTemplates = [
   },
 ];
 
-interface DepartmentConfigPanelProps {
-  selectedNode: Node;
-  agents: Agent[];
-  updateDepartmentConfig: (nodeId: string, config: Partial<CanvasDepartment>) => void;
-  deleteNode: (nodeId: string) => void;
+const WIZARD_STEPS = [
+  { id: 1, title: "Phone Numbers", icon: Phone },
+  { id: 2, title: "Departments", icon: Building2 },
+  { id: 3, title: "IVR Router", icon: GitBranch },
+];
+
+function StepIndicator({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="flex items-center justify-center gap-0 py-6" data-testid="step-indicator">
+      {WIZARD_STEPS.map((step, idx) => {
+        const isCompleted = currentStep > step.id;
+        const isCurrent = currentStep === step.id;
+        const StepIcon = step.icon;
+
+        return (
+          <div key={step.id} className="flex items-center">
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={`flex items-center justify-center w-9 h-9 rounded-full border-2 transition-colors ${
+                  isCompleted
+                    ? "bg-primary border-primary text-primary-foreground"
+                    : isCurrent
+                    ? "border-primary text-primary bg-primary/10"
+                    : "border-muted-foreground/30 text-muted-foreground"
+                }`}
+                data-testid={`step-circle-${step.id}`}
+              >
+                {isCompleted ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <StepIcon className="h-4 w-4" />
+                )}
+              </div>
+              <span
+                className={`text-xs font-medium ${
+                  isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {step.title}
+              </span>
+            </div>
+            {idx < WIZARD_STEPS.length - 1 && (
+              <div
+                className={`w-16 md:w-24 h-0.5 mx-2 mb-5 ${
+                  currentStep > step.id ? "bg-primary" : "bg-muted-foreground/20"
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
-function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, deleteNode }: DepartmentConfigPanelProps) {
-  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+function PhoneSelectionStep({
+  phoneNumbers,
+  selectedPhoneIds,
+  onTogglePhone,
+}: {
+  phoneNumbers: PhoneNumber[];
+  selectedPhoneIds: string[];
+  onTogglePhone: (id: string) => void;
+}) {
+  const [, setLocation] = useLocation();
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold" data-testid="text-step1-title">Select Phone Numbers</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Choose the phone numbers that will receive inbound calls for this IVR system
+        </p>
+      </div>
+
+      {selectedPhoneIds.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Badge variant="default" data-testid="badge-selected-count">
+            {selectedPhoneIds.length} selected
+          </Badge>
+        </div>
+      )}
+
+      {phoneNumbers.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+          <Phone className="h-8 w-8 mx-auto mb-3 opacity-50" />
+          <p className="text-sm">No phone numbers available</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => setLocation("/app/phone-numbers")}
+            data-testid="button-buy-numbers"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Buy Phone Numbers
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {phoneNumbers.map((phone) => {
+              const isSelected = selectedPhoneIds.includes(phone.id);
+              return (
+                <Card
+                  key={phone.id}
+                  className={`cursor-pointer toggle-elevate ${isSelected ? "toggle-elevated border-green-500" : ""}`}
+                  onClick={() => onTogglePhone(phone.id)}
+                  data-testid={`card-phone-${phone.id}`}
+                >
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className={`p-2 rounded-md ${isSelected ? "bg-green-100 dark:bg-green-900/30" : "bg-muted"}`}>
+                      <Phone className={`h-4 w-4 ${isSelected ? "text-green-600" : "text-muted-foreground"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{phone.phoneNumber}</div>
+                      <div className="text-xs text-muted-foreground">{phone.provider}</div>
+                      {phone.friendlyName && (
+                        <div className="text-xs text-muted-foreground truncate">{phone.friendlyName}</div>
+                      )}
+                    </div>
+                    {isSelected && (
+                      <div className="p-1 bg-green-500 rounded-full">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={() => setLocation("/app/phone-numbers")}
+            data-testid="button-buy-more-numbers"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Buy More Numbers
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DepartmentCard({
+  dept,
+  agents,
+  isExpanded,
+  onToggleExpand,
+  onUpdate,
+  onDelete,
+  toast,
+}: {
+  dept: CanvasDepartment;
+  agents: Agent[];
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onUpdate: (updates: Partial<CanvasDepartment>) => void;
+  onDelete: () => void;
+  toast: ReturnType<typeof useToast>["toast"];
+}) {
   const [activeTabIdx, setActiveTabIdx] = useState(0);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
-  const nodeData = selectedNode.data as unknown as CanvasDepartment;
-  const languageAgents = nodeData.languageAgents || [];
-  
+
+  const languageAgents = dept.languageAgents || [];
+
   useEffect(() => {
     audioRef.current = new Audio();
     return () => {
@@ -331,19 +456,27 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
       }
     };
   }, []);
-  
+
+  const icons: Record<string, any> = {
+    sales: ShoppingCart,
+    support: Headphones,
+    scheduling: Calendar,
+    custom: Building2,
+  };
+  const Icon = icons[dept.type] || Building2;
+
   const getAgentsForLanguage = (langCode: string) => {
     return agents.filter((agent) => {
       const agentLang = (agent.language || "en").toLowerCase();
       return agentLang === langCode.toLowerCase();
     });
   };
-  
+
   const addLanguageAgent = () => {
     const usedLangs = languageAgents.map((la) => la.language);
     const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
     if (!availableLang) return;
-    
+
     const newLangAgent: LanguageAgent = {
       id: `la-${Date.now()}`,
       language: availableLang.code,
@@ -353,28 +486,26 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
       voiceId: null,
       voiceTone: null,
     };
-    
-    updateDepartmentConfig(selectedNode.id, {
-      languageAgents: [...languageAgents, newLangAgent],
-    });
+
+    onUpdate({ languageAgents: [...languageAgents, newLangAgent] });
     setActiveTabIdx(languageAgents.length);
   };
-  
+
   const removeLanguageAgent = (id: string) => {
     const newList = languageAgents.filter((la) => la.id !== id);
-    updateDepartmentConfig(selectedNode.id, { languageAgents: newList });
+    onUpdate({ languageAgents: newList });
     if (activeTabIdx >= newList.length) {
       setActiveTabIdx(Math.max(0, newList.length - 1));
     }
   };
-  
+
   const updateLanguageAgent = (id: string, updates: Partial<LanguageAgent>) => {
-    const newList = languageAgents.map((la) => 
+    const newList = languageAgents.map((la) =>
       la.id === id ? { ...la, ...updates } : la
     );
-    updateDepartmentConfig(selectedNode.id, { languageAgents: newList });
+    onUpdate({ languageAgents: newList });
   };
-  
+
   const handleSelectAgent = (langAgentId: string, agentId: string) => {
     const agent = agents.find((a) => a.id === agentId);
     if (agent) {
@@ -387,444 +518,656 @@ function DepartmentConfigPanel({ selectedNode, agents, updateDepartmentConfig, d
       });
     }
   };
-  
+
   const handlePlayVoice = async (voiceId: string) => {
     if (!audioRef.current) return;
-    
+
     if (playingVoiceId === voiceId) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       setPlayingVoiceId(null);
       return;
     }
-    
+
     if (isElevenLabsVoice(voiceId)) {
       setPlayingVoiceId(voiceId);
       return;
     }
-    
+
     const previewUrl = VOICE_PREVIEWS[voiceId];
     if (!previewUrl) return;
-    
+
     audioRef.current.src = previewUrl;
     audioRef.current.play();
     setPlayingVoiceId(voiceId);
     audioRef.current.onended = () => setPlayingVoiceId(null);
     audioRef.current.onerror = () => setPlayingVoiceId(null);
   };
-  
+
   const activeLangAgent = languageAgents[activeTabIdx];
   const availableAgentsForActive = activeLangAgent ? getAgentsForLanguage(activeLangAgent.language) : [];
-  
+
   return (
-    <div className="mt-6 space-y-4">
-      <div>
-        <Label>Department Name</Label>
-        <Input
-          value={nodeData.name || ""}
-          onChange={(e) => updateDepartmentConfig(selectedNode.id, { name: e.target.value })}
-          className="mt-1.5"
-          data-testid="input-dept-name"
-        />
+    <Card data-testid={`card-dept-${dept.id}`}>
+      <div
+        className="flex items-center justify-between gap-3 p-4 cursor-pointer"
+        onClick={onToggleExpand}
+        data-testid={`button-expand-dept-${dept.id}`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 bg-muted rounded-md">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium text-sm truncate">{dept.name}</div>
+            <div className="text-xs text-muted-foreground truncate">{dept.description}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className="text-xs">
+            {languageAgents.length} lang
+          </Badge>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            data-testid={`button-quick-delete-dept-${dept.id}`}
+          >
+            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </div>
       </div>
-      
+
+      {isExpanded && (
+        <CardContent className="px-4 pb-4 pt-0 space-y-4 border-t">
+          <div className="pt-4">
+            <Label>Department Name</Label>
+            <Input
+              value={dept.name || ""}
+              onChange={(e) => onUpdate({ name: e.target.value })}
+              className="mt-1.5"
+              data-testid="input-dept-name"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <Label>Language Agents</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addLanguageAgent}
+                disabled={languageAgents.length >= SUPPORTED_LANGUAGES.length}
+                data-testid="button-add-language"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add Language
+              </Button>
+            </div>
+
+            {languageAgents.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {languageAgents.map((la, idx) => (
+                  <Badge
+                    key={la.id}
+                    variant={idx === activeTabIdx ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setActiveTabIdx(idx)}
+                    data-testid={`badge-lang-${la.language}`}
+                  >
+                    {SUPPORTED_LANGUAGES.find((l) => l.code === la.language)?.label || la.language}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {languageAgents.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+                Click "Add Language" to configure agents
+              </div>
+            )}
+          </div>
+
+          {activeLangAgent && (
+            <div className="p-4 space-y-4 border rounded-lg bg-muted/30">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Select
+                  value={activeLangAgent.language}
+                  onValueChange={(val) => {
+                    updateLanguageAgent(activeLangAgent.id, {
+                      language: val,
+                      agentId: null,
+                      agentName: null,
+                      systemPrompt: null,
+                      voiceId: null,
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-32" data-testid="select-lang-tab">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <SelectItem
+                        key={lang.code}
+                        value={lang.code}
+                        disabled={languageAgents.some((la) => la.id !== activeLangAgent.id && la.language === lang.code)}
+                      >
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeLanguageAgent(activeLangAgent.id)}
+                  data-testid="button-remove-lang-agent"
+                >
+                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </div>
+
+              <div>
+                <Label>Agent Name</Label>
+                {availableAgentsForActive.length === 0 ? (
+                  <p className="text-sm text-muted-foreground mt-1.5">
+                    No agents configured for {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
+                  </p>
+                ) : (
+                  <Select
+                    value={activeLangAgent.agentId || ""}
+                    onValueChange={(val) => handleSelectAgent(activeLangAgent.id, val)}
+                  >
+                    <SelectTrigger className="mt-1.5" data-testid="select-agent-name">
+                      <SelectValue placeholder="Select an agent..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableAgentsForActive.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              <div>
+                <Label>System Prompt</Label>
+                <Textarea
+                  value={activeLangAgent.systemPrompt || ""}
+                  onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}
+                  rows={4}
+                  className="mt-1.5"
+                  placeholder="Instructions for the AI agent..."
+                  data-testid="input-agent-prompt"
+                />
+              </div>
+
+              <div>
+                <Label>Voice</Label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Select
+                    value={activeLangAgent.voiceId || ""}
+                    onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceId: val })}
+                  >
+                    <SelectTrigger className="flex-1" data-testid="select-voice">
+                      <SelectValue placeholder="Select a voice..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getVoicesForLanguage(activeLangAgent.language).length > 0 ? (
+                        <>
+                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">OpenAI Voices</div>
+                          {getVoicesForLanguage(activeLangAgent.language)
+                            .filter(v => !v.id.startsWith("el_"))
+                            .map((voice) => (
+                              <SelectItem key={voice.id} value={voice.id}>
+                                {voice.name} - {voice.gender}, {voice.style}
+                              </SelectItem>
+                            ))}
+                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-2">ElevenLabs Voices</div>
+                          {getVoicesForLanguage(activeLangAgent.language)
+                            .filter(v => v.id.startsWith("el_"))
+                            .map((voice) => (
+                              <SelectItem key={voice.id} value={voice.id}>
+                                {voice.name} - {voice.gender}, {voice.style}
+                              </SelectItem>
+                            ))}
+                        </>
+                      ) : (
+                        <div className="px-2 py-2 text-sm text-muted-foreground">No voices available for this language</div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {activeLangAgent.voiceId && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handlePlayVoice(activeLangAgent.voiceId!)}
+                      data-testid="button-preview-voice"
+                    >
+                      {playingVoiceId === activeLangAgent.voiceId ? (
+                        <Square className="h-4 w-4" />
+                      ) : (
+                        <Volume2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Voice Tone</Label>
+                  <Select
+                    value={activeLangAgent.voiceTone || ""}
+                    onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceTone: val })}
+                  >
+                    <SelectTrigger className="mt-1.5" data-testid="select-voice-tone">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="professional">Professional</SelectItem>
+                      <SelectItem value="friendly">Friendly</SelectItem>
+                      <SelectItem value="casual">Casual</SelectItem>
+                      <SelectItem value="formal">Formal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Language</Label>
+                  <div className="mt-1.5 p-2 bg-muted rounded text-sm">
+                    {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="pt-2">
+            <Label className="text-sm font-medium">Agent Features</Label>
+            <div className="space-y-3 mt-3">
+              <div className="p-3 space-y-3 border rounded-lg">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <PhoneForwarded className="h-4 w-4 text-blue-500" />
+                    <div>
+                      <Label className="text-sm">Enable Call Transfer</Label>
+                      <p className="text-xs text-muted-foreground">Transfer to human operators</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={dept.enableTransfer}
+                    onCheckedChange={(val) => onUpdate({ enableTransfer: val })}
+                    data-testid="switch-dept-transfer"
+                  />
+                </div>
+                {dept.enableTransfer && (
+                  <div className="space-y-2 pl-6 border-l-2 border-blue-200">
+                    <div>
+                      <Label className="text-xs">Transfer Number</Label>
+                      <Input
+                        value={dept.transferNumber || ""}
+                        onChange={(e) => onUpdate({ transferNumber: e.target.value })}
+                        placeholder="+1 (555) 123-4567"
+                        className="mt-1"
+                        data-testid="input-transfer-number"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Transfer Message</Label>
+                      <Input
+                        value={dept.transferMessage || ""}
+                        onChange={(e) => onUpdate({ transferMessage: e.target.value })}
+                        placeholder="Please hold while I transfer you..."
+                        className="mt-1"
+                        data-testid="input-transfer-message"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 space-y-3 border rounded-lg">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Languages className="h-4 w-4 text-green-500" />
+                    <div>
+                      <Label className="text-sm">Enable Language Detection</Label>
+                      <p className="text-xs text-muted-foreground">Auto-detect caller's language (99 languages)</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={dept.enableLanguageDetection}
+                    onCheckedChange={(val) => onUpdate({ enableLanguageDetection: val })}
+                    data-testid="switch-lang-detection"
+                  />
+                </div>
+                {dept.enableLanguageDetection && (
+                  <div className="pl-6 border-l-2 border-green-200">
+                    <p className="text-xs text-muted-foreground">
+                      AI will automatically detect the caller's language and respond accordingly.
+                      Supports 99 languages including English, Spanish, French, German, Chinese, Japanese, Arabic, Hindi, and more.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 space-y-3 border rounded-lg">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <PhoneOff className="h-4 w-4 text-orange-500" />
+                    <div>
+                      <Label className="text-sm">Enable End Conversation</Label>
+                      <p className="text-xs text-muted-foreground">Intelligently end calls when appropriate</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={dept.enableEndConversation}
+                    onCheckedChange={(val) => onUpdate({ enableEndConversation: val })}
+                    data-testid="switch-end-conversation"
+                  />
+                </div>
+                {dept.enableEndConversation && (
+                  <div className="pl-6 border-l-2 border-orange-200">
+                    <Label className="text-xs">End Conversation Triggers</Label>
+                    <Textarea
+                      value={(dept.endConversationPhrases || ["goodbye", "thank you for calling", "have a nice day"]).join("\n")}
+                      onChange={(e) => onUpdate({
+                        endConversationPhrases: e.target.value.split("\n").filter(p => p.trim())
+                      })}
+                      placeholder={"goodbye\nthank you\nhave a nice day"}
+                      rows={3}
+                      className="mt-1 text-xs"
+                      data-testid="input-end-phrases"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">One phrase per line</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 space-y-3 border rounded-lg">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <CalendarCheck className="h-4 w-4 text-purple-500" />
+                    <div>
+                      <Label className="text-sm">Enable Appointment Booking</Label>
+                      <p className="text-xs text-muted-foreground">Book appointments during calls</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={dept.enableAppointmentBooking}
+                    onCheckedChange={(val) => onUpdate({ enableAppointmentBooking: val })}
+                    data-testid="switch-appointment"
+                  />
+                </div>
+                {dept.enableAppointmentBooking && (
+                  <div className="space-y-2 pl-6 border-l-2 border-purple-200">
+                    <div>
+                      <Label className="text-xs">Calendar/Booking URL</Label>
+                      <Input
+                        value={dept.calendarUrl || ""}
+                        onChange={(e) => onUpdate({ calendarUrl: e.target.value })}
+                        placeholder="https://calendly.com/your-calendar"
+                        className="mt-1"
+                        data-testid="input-calendar-url"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Booking Instructions</Label>
+                      <Textarea
+                        value={dept.bookingInstructions || ""}
+                        onChange={(e) => onUpdate({ bookingInstructions: e.target.value })}
+                        placeholder="Collect name, email, preferred date/time, and reason for appointment..."
+                        rows={2}
+                        className="mt-1 text-xs"
+                        data-testid="input-booking-instructions"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 space-y-3 border rounded-lg">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Circle className="h-4 w-4 text-red-500" />
+                    <div>
+                      <Label className="text-sm">Enable Call Recording</Label>
+                      <p className="text-xs text-muted-foreground">Record for quality and training</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={dept.enableRecording}
+                    onCheckedChange={(val) => onUpdate({ enableRecording: val })}
+                    data-testid="switch-dept-recording"
+                  />
+                </div>
+                {dept.enableRecording && (
+                  <div className="pl-6 border-l-2 border-red-200">
+                    <p className="text-xs text-muted-foreground">
+                      Calls will be recorded and stored securely. A disclosure message will be played at the start of each call.
+                    </p>
+                    <Badge variant="outline" className="mt-2 text-[10px]">
+                      Recording disclosure enabled
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onDelete}
+              data-testid="button-delete-dept"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remove Department
+            </Button>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function DepartmentsStep({
+  canvasDepartments,
+  setCanvasDepartments,
+  agents,
+  toast,
+}: {
+  canvasDepartments: CanvasDepartment[];
+  setCanvasDepartments: (fn: (prev: CanvasDepartment[]) => CanvasDepartment[]) => void;
+  agents: Agent[];
+  toast: ReturnType<typeof useToast>["toast"];
+}) {
+  const [customDeptName, setCustomDeptName] = useState("");
+  const [expandedDeptIds, setExpandedDeptIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedDeptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const addDepartment = (template: typeof departmentTemplates[0] | { type: "custom"; name: string }) => {
+    const defaultPrompt = template.type !== "custom" ? (template as any).defaultPrompt : "";
+    const newDeptId = `dept-${Date.now()}`;
+    const newDept: CanvasDepartment = {
+      id: newDeptId,
+      type: template.type as any,
+      name: template.name,
+      description: template.type === "custom" ? "Custom department" : (template as any).description || "",
+      languageAgents: [{
+        id: `la-${Date.now()}`,
+        language: "en",
+        agentId: null,
+        agentName: null,
+        systemPrompt: defaultPrompt,
+        voiceId: null,
+        voiceTone: null,
+      }],
+      enableTransfer: true,
+      enableRecording: false,
+      enableLanguageDetection: false,
+    };
+
+    setCanvasDepartments((prev) => [...prev, newDept]);
+    setExpandedDeptIds((prev) => {
+      const next = new Set(Array.from(prev));
+      next.add(newDeptId);
+      return next;
+    });
+
+    toast({
+      title: "Department Added",
+      description: `${template.name} department created`,
+    });
+  };
+
+  const updateDepartment = (deptId: string, updates: Partial<CanvasDepartment>) => {
+    setCanvasDepartments((prev) =>
+      prev.map((dept) => (dept.id === deptId ? { ...dept, ...updates } : dept))
+    );
+  };
+
+  const deleteDepartment = (deptId: string) => {
+    setCanvasDepartments((prev) => prev.filter((d) => d.id !== deptId));
+    setExpandedDeptIds((prev) => {
+      const next = new Set(prev);
+      next.delete(deptId);
+      return next;
+    });
+    toast({
+      title: "Department Removed",
+      description: "Department has been deleted",
+    });
+  };
+
+  return (
+    <div className="space-y-6">
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <Label>Language Agents</Label>
+        <h2 className="text-xl font-semibold" data-testid="text-step2-title">Configure Departments</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Add departments and assign AI agents for each language
+        </p>
+      </div>
+
+      <div>
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 block">
+          Quick Add Templates
+        </Label>
+        <div className="flex flex-wrap gap-2">
+          {departmentTemplates.map((template) => (
+            <Button
+              key={template.type}
+              variant="outline"
+              size="sm"
+              onClick={() => addDepartment(template)}
+              data-testid={`button-add-dept-${template.type}`}
+            >
+              <template.icon className="h-3.5 w-3.5 mr-1.5" />
+              {template.name}
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <Input
+            placeholder="Custom department name..."
+            value={customDeptName}
+            onChange={(e) => setCustomDeptName(e.target.value)}
+            className="text-sm"
+            data-testid="input-custom-dept"
+          />
           <Button
             variant="outline"
             size="sm"
-            onClick={addLanguageAgent}
-            disabled={languageAgents.length >= SUPPORTED_LANGUAGES.length}
-            data-testid="button-add-language"
+            onClick={() => {
+              if (customDeptName.trim()) {
+                addDepartment({ type: "custom", name: customDeptName.trim() });
+                setCustomDeptName("");
+              }
+            }}
+            disabled={!customDeptName.trim()}
+            data-testid="button-add-custom"
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Add Language
+            Add
           </Button>
         </div>
-        
-        {languageAgents.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {languageAgents.map((la, idx) => (
-              <Badge
-                key={la.id}
-                variant={idx === activeTabIdx ? "default" : "outline"}
-                className="cursor-pointer"
-                onClick={() => setActiveTabIdx(idx)}
-                data-testid={`badge-lang-${la.language}`}
-              >
-                {SUPPORTED_LANGUAGES.find((l) => l.code === la.language)?.label || la.language}
-              </Badge>
-            ))}
-          </div>
-        )}
-        
-        {languageAgents.length === 0 && (
-          <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-            Click "Add Language" to configure agents
-          </div>
-        )}
       </div>
-      
-      {activeLangAgent && (
-        <Card className="p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <Select
-              value={activeLangAgent.language}
-              onValueChange={(val) => {
-                updateLanguageAgent(activeLangAgent.id, { 
-                  language: val,
-                  agentId: null,
-                  agentName: null,
-                  systemPrompt: null,
-                  voiceId: null,
-                });
-              }}
-            >
-              <SelectTrigger className="w-32" data-testid="select-lang-tab">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SUPPORTED_LANGUAGES.map((lang) => (
-                  <SelectItem
-                    key={lang.code}
-                    value={lang.code}
-                    disabled={languageAgents.some((la) => la.id !== activeLangAgent.id && la.language === lang.code)}
-                  >
-                    {lang.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => removeLanguageAgent(activeLangAgent.id)}
-              data-testid="button-remove-lang-agent"
-            >
-              <Trash2 className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </div>
-          
-          <div>
-            <Label>Agent Name</Label>
-            {availableAgentsForActive.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-1.5">
-                No agents configured for {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
-              </p>
-            ) : (
-              <Select
-                value={activeLangAgent.agentId || ""}
-                onValueChange={(val) => handleSelectAgent(activeLangAgent.id, val)}
-              >
-                <SelectTrigger className="mt-1.5" data-testid="select-agent-name">
-                  <SelectValue placeholder="Select an agent..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableAgentsForActive.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          
-          <div>
-            <Label>System Prompt</Label>
-            <Textarea
-              value={activeLangAgent.systemPrompt || ""}
-              onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}
-              rows={4}
-              className="mt-1.5"
-              placeholder="Instructions for the AI agent..."
-              data-testid="input-agent-prompt"
-            />
-          </div>
-          
-          <div>
-            <Label>Voice</Label>
-            <div className="flex items-center gap-2 mt-1.5">
-              <Select
-                value={activeLangAgent.voiceId || ""}
-                onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceId: val })}
-              >
-                <SelectTrigger className="flex-1" data-testid="select-voice">
-                  <SelectValue placeholder="Select a voice..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {OPENAI_VOICES.map((voice) => (
-                    <SelectItem key={voice.id} value={voice.id}>
-                      {voice.name} - {voice.gender}, {voice.style}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {activeLangAgent.voiceId && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePlayVoice(activeLangAgent.voiceId!)}
-                  data-testid="button-preview-voice"
-                >
-                  {playingVoiceId === activeLangAgent.voiceId ? (
-                    <Square className="h-4 w-4" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Voice Tone</Label>
-              <Select
-                value={activeLangAgent.voiceTone || ""}
-                onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceTone: val })}
-              >
-                <SelectTrigger className="mt-1.5" data-testid="select-voice-tone">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="friendly">Friendly</SelectItem>
-                  <SelectItem value="casual">Casual</SelectItem>
-                  <SelectItem value="formal">Formal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Language</Label>
-              <div className="mt-1.5 p-2 bg-muted rounded text-sm">
-                {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-      
-      <div className="pt-2">
-        <Label className="text-sm font-medium">Agent Features</Label>
-        <div className="space-y-4 mt-3">
-          <Card className="p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <PhoneForwarded className="h-4 w-4 text-blue-500" />
-                <div>
-                  <Label className="text-sm">Enable Call Transfer</Label>
-                  <p className="text-xs text-muted-foreground">Transfer to human operators</p>
-                </div>
-              </div>
-              <Switch
-                checked={nodeData.enableTransfer}
-                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableTransfer: val })}
-                data-testid="switch-dept-transfer"
-              />
-            </div>
-            {nodeData.enableTransfer && (
-              <div className="space-y-2 pl-6 border-l-2 border-blue-200">
-                <div>
-                  <Label className="text-xs">Transfer Number</Label>
-                  <Input
-                    value={nodeData.transferNumber || ""}
-                    onChange={(e) => updateDepartmentConfig(selectedNode.id, { transferNumber: e.target.value })}
-                    placeholder="+1 (555) 123-4567"
-                    className="mt-1"
-                    data-testid="input-transfer-number"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Transfer Message</Label>
-                  <Input
-                    value={nodeData.transferMessage || ""}
-                    onChange={(e) => updateDepartmentConfig(selectedNode.id, { transferMessage: e.target.value })}
-                    placeholder="Please hold while I transfer you..."
-                    className="mt-1"
-                    data-testid="input-transfer-message"
-                  />
-                </div>
-              </div>
-            )}
-          </Card>
-          
-          <Card className="p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Languages className="h-4 w-4 text-green-500" />
-                <div>
-                  <Label className="text-sm">Enable Language Detection</Label>
-                  <p className="text-xs text-muted-foreground">Auto-detect caller's language (99 languages)</p>
-                </div>
-              </div>
-              <Switch
-                checked={nodeData.enableLanguageDetection}
-                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableLanguageDetection: val })}
-                data-testid="switch-lang-detection"
-              />
-            </div>
-            {nodeData.enableLanguageDetection && (
-              <div className="pl-6 border-l-2 border-green-200">
-                <p className="text-xs text-muted-foreground">
-                  AI will automatically detect the caller's language and respond accordingly. 
-                  Supports 99 languages including English, Spanish, French, German, Chinese, Japanese, Arabic, Hindi, and more.
-                </p>
-              </div>
-            )}
-          </Card>
-          
-          <Card className="p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <PhoneOff className="h-4 w-4 text-orange-500" />
-                <div>
-                  <Label className="text-sm">Enable End Conversation</Label>
-                  <p className="text-xs text-muted-foreground">Intelligently end calls when appropriate</p>
-                </div>
-              </div>
-              <Switch
-                checked={nodeData.enableEndConversation}
-                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableEndConversation: val })}
-                data-testid="switch-end-conversation"
-              />
-            </div>
-            {nodeData.enableEndConversation && (
-              <div className="pl-6 border-l-2 border-orange-200">
-                <Label className="text-xs">End Conversation Triggers</Label>
-                <Textarea
-                  value={(nodeData.endConversationPhrases || ["goodbye", "thank you for calling", "have a nice day"]).join("\n")}
-                  onChange={(e) => updateDepartmentConfig(selectedNode.id, { 
-                    endConversationPhrases: e.target.value.split("\n").filter(p => p.trim()) 
-                  })}
-                  placeholder="goodbye&#10;thank you&#10;have a nice day"
-                  rows={3}
-                  className="mt-1 text-xs"
-                  data-testid="input-end-phrases"
-                />
-                <p className="text-[10px] text-muted-foreground mt-1">One phrase per line</p>
-              </div>
-            )}
-          </Card>
-          
-          <Card className="p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarCheck className="h-4 w-4 text-purple-500" />
-                <div>
-                  <Label className="text-sm">Enable Appointment Booking</Label>
-                  <p className="text-xs text-muted-foreground">Book appointments during calls</p>
-                </div>
-              </div>
-              <Switch
-                checked={nodeData.enableAppointmentBooking}
-                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableAppointmentBooking: val })}
-                data-testid="switch-appointment"
-              />
-            </div>
-            {nodeData.enableAppointmentBooking && (
-              <div className="space-y-2 pl-6 border-l-2 border-purple-200">
-                <div>
-                  <Label className="text-xs">Calendar/Booking URL</Label>
-                  <Input
-                    value={nodeData.calendarUrl || ""}
-                    onChange={(e) => updateDepartmentConfig(selectedNode.id, { calendarUrl: e.target.value })}
-                    placeholder="https://calendly.com/your-calendar"
-                    className="mt-1"
-                    data-testid="input-calendar-url"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Booking Instructions</Label>
-                  <Textarea
-                    value={nodeData.bookingInstructions || ""}
-                    onChange={(e) => updateDepartmentConfig(selectedNode.id, { bookingInstructions: e.target.value })}
-                    placeholder="Collect name, email, preferred date/time, and reason for appointment..."
-                    rows={2}
-                    className="mt-1 text-xs"
-                    data-testid="input-booking-instructions"
-                  />
-                </div>
-              </div>
-            )}
-          </Card>
-          
-          <Card className="p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Circle className="h-4 w-4 text-red-500" />
-                <div>
-                  <Label className="text-sm">Enable Call Recording</Label>
-                  <p className="text-xs text-muted-foreground">Record for quality and training</p>
-                </div>
-              </div>
-              <Switch
-                checked={nodeData.enableRecording}
-                onCheckedChange={(val) => updateDepartmentConfig(selectedNode.id, { enableRecording: val })}
-                data-testid="switch-dept-recording"
-              />
-            </div>
-            {nodeData.enableRecording && (
-              <div className="pl-6 border-l-2 border-red-200">
-                <p className="text-xs text-muted-foreground">
-                  Calls will be recorded and stored securely. A disclosure message will be played at the start of each call.
-                </p>
-                <Badge variant="outline" className="mt-2 text-[10px]">
-                  Recording disclosure enabled
-                </Badge>
-              </div>
-            )}
-          </Card>
+
+      {canvasDepartments.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+          <Building2 className="h-8 w-8 mx-auto mb-3 opacity-50" />
+          <p className="text-sm">No departments added yet</p>
+          <p className="text-xs mt-1">Use the templates above or add a custom department</p>
         </div>
-      </div>
-      
-      <div className="pt-4">
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => deleteNode(selectedNode.id)}
-          data-testid="button-delete-dept"
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Remove Department
-        </Button>
-      </div>
+      ) : (
+        <div className="space-y-3">
+          {canvasDepartments.map((dept) => (
+            <DepartmentCard
+              key={dept.id}
+              dept={dept}
+              agents={agents}
+              isExpanded={expandedDeptIds.has(dept.id)}
+              onToggleExpand={() => toggleExpand(dept.id)}
+              onUpdate={(updates) => updateDepartment(dept.id, updates)}
+              onDelete={() => deleteDepartment(dept.id)}
+              toast={toast}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-interface IVRConfigPanelProps {
-  ivrEnabled: boolean;
-  setIvrEnabled: (val: boolean) => void;
-  multiLangEnabled: boolean;
-  setMultiLangEnabled: (val: boolean) => void;
-  languageOptions: LanguageOption[];
-  setLanguageOptions: (opts: LanguageOption[]) => void;
-  nodes: Node[];
-  languageSelectionGreetingText: string;
-  setLanguageSelectionGreetingText: (val: string) => void;
-  isGreetingCustomized: React.MutableRefObject<boolean>;
-  companyDisplayName: string;
-}
-
-function IVRConfigPanel({
+function IVRRouterStep({
   ivrEnabled,
   setIvrEnabled,
   multiLangEnabled,
   setMultiLangEnabled,
   languageOptions,
   setLanguageOptions,
-  nodes,
   languageSelectionGreetingText,
   setLanguageSelectionGreetingText,
   isGreetingCustomized,
   companyDisplayName,
-}: IVRConfigPanelProps) {
+  canvasDepartments,
+  selectedPhoneIds,
+  toast,
+}: {
+  ivrEnabled: boolean;
+  setIvrEnabled: (val: boolean) => void;
+  multiLangEnabled: boolean;
+  setMultiLangEnabled: (val: boolean) => void;
+  languageOptions: LanguageOption[];
+  setLanguageOptions: (opts: LanguageOption[]) => void;
+  languageSelectionGreetingText: string;
+  setLanguageSelectionGreetingText: (val: string) => void;
+  isGreetingCustomized: React.MutableRefObject<boolean>;
+  companyDisplayName: string;
+  canvasDepartments: CanvasDepartment[];
+  selectedPhoneIds: string[];
+  toast: ReturnType<typeof useToast>["toast"];
+}) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const customizedDeptGreetings = useRef<Set<string>>(new Set());
-  
+
   useEffect(() => {
     audioRef.current = new Audio();
     return () => {
@@ -834,44 +1177,40 @@ function IVRConfigPanel({
       }
     };
   }, []);
-  
+
   useEffect(() => {
     if (!isGreetingCustomized.current) {
       setLanguageSelectionGreetingText(generateDefaultLangGreeting(languageOptions, companyDisplayName));
     }
   }, [languageOptions, companyDisplayName]);
 
-  const departmentNodes = nodes.filter((n) => n.type === "department");
-  const deptNames = departmentNodes.map(n => (n.data as any).name || "Department");
+  const deptNames = canvasDepartments.map(d => d.name || "Department");
   const deptNamesKey = deptNames.join("||");
 
   useEffect(() => {
-    if (departmentNodes.length === 0) return;
+    if (canvasDepartments.length === 0) return;
     const updatedOptions = languageOptions.map((opt) => {
       if (customizedDeptGreetings.current.has(opt.id)) return opt;
       return {
         ...opt,
         greeting: generateDeptGreeting(deptNames, opt.language),
-        selectedDepartments: departmentNodes.map(n => n.id),
+        selectedDepartments: canvasDepartments.map(d => d.id),
       };
     });
     const changed = updatedOptions.some((opt, i) => opt.greeting !== languageOptions[i].greeting);
     if (changed) {
       setLanguageOptions(updatedOptions);
     }
-  }, [deptNamesKey, departmentNodes.length]);
+  }, [deptNamesKey, canvasDepartments.length]);
 
-  const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions, companyDisplayName);
-  
   const addLanguageOption = () => {
     const usedLangs = languageOptions.map((o) => o.language);
     const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
     if (!availableLang) return;
-    
-    const departmentNodes = nodes.filter((n) => n.type === "department");
-    const allDeptIds = departmentNodes.map(n => n.id);
-    const allDeptNames = departmentNodes.map(n => (n.data as any).name || "Department");
-    
+
+    const allDeptIds = canvasDepartments.map(d => d.id);
+    const allDeptNames = canvasDepartments.map(d => d.name || "Department");
+
     const newOption: LanguageOption = {
       id: `lang-${Date.now()}`,
       language: availableLang.code,
@@ -881,7 +1220,7 @@ function IVRConfigPanel({
     };
     setLanguageOptions([...languageOptions, newOption]);
   };
-  
+
   const updateLanguageOption = (id: string, updates: Partial<LanguageOption>) => {
     setLanguageOptions(
       languageOptions.map((opt) => {
@@ -889,7 +1228,7 @@ function IVRConfigPanel({
           const updated = { ...opt, ...updates };
           if (updates.language && updates.language !== opt.language) {
             customizedDeptGreetings.current.delete(id);
-            if (departmentNodes.length > 0) {
+            if (canvasDepartments.length > 0) {
               updated.greeting = generateDeptGreeting(deptNames, updates.language);
             } else {
               updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
@@ -902,38 +1241,38 @@ function IVRConfigPanel({
       })
     );
   };
-  
+
   const removeLanguageOption = (id: string) => {
     customizedDeptGreetings.current.delete(id);
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
-  
+
   const handlePlayVoice = async (voiceId: string, text?: string) => {
     if (!audioRef.current) return;
-    
+
     if (playingVoiceId === voiceId) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       setPlayingVoiceId(null);
       return;
     }
-    
+
     if (text) {
       try {
         setPlayingVoiceId(voiceId);
         const response = await apiRequest("POST", "/api/departments/voice-preview", { voiceId, text });
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          toast({ 
-            title: "Preview not available", 
-            description: errorData.error || "Failed to generate voice preview", 
-            variant: "destructive" 
+          toast({
+            title: "Preview not available",
+            description: errorData.error || "Failed to generate voice preview",
+            variant: "destructive",
           });
           setPlayingVoiceId(null);
           return;
         }
-        
+
         const blob = await response.blob();
         const audioUrl = URL.createObjectURL(blob);
         audioRef.current.src = audioUrl;
@@ -952,23 +1291,38 @@ function IVRConfigPanel({
       }
       return;
     }
-    
+
     const previewUrl = VOICE_PREVIEWS[voiceId];
     if (!previewUrl) {
       toast({ title: "Preview not available", description: "No preview available for this voice", variant: "destructive" });
       return;
     }
-    
+
     audioRef.current.src = previewUrl;
     audioRef.current.play();
     setPlayingVoiceId(voiceId);
     audioRef.current.onended = () => setPlayingVoiceId(null);
     audioRef.current.onerror = () => setPlayingVoiceId(null);
   };
-  
+
+  const configuredLanguages = useMemo(() => {
+    const langSet = new Set<string>();
+    canvasDepartments.forEach(d => {
+      (d.languageAgents || []).forEach(la => langSet.add(la.language));
+    });
+    return Array.from(langSet);
+  }, [canvasDepartments]);
+
   return (
-    <div className="mt-6 space-y-5">
-      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold" data-testid="text-step3-title">IVR Router Setup</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure your Interactive Voice Response system and greeting messages
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 flex-wrap p-3 bg-muted/50 rounded-lg">
         <div>
           <Label className="font-medium">Enable IVR</Label>
           <p className="text-xs text-muted-foreground">Play menu when calls connect</p>
@@ -979,10 +1333,10 @@ function IVRConfigPanel({
           data-testid="switch-ivr-enabled"
         />
       </div>
-      
+
       {ivrEnabled && (
         <>
-          <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+          <div className="flex items-center justify-between gap-3 flex-wrap p-3 bg-primary/5 border border-primary/20 rounded-lg">
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-primary" />
               <div>
@@ -996,7 +1350,7 @@ function IVRConfigPanel({
               data-testid="switch-ivr-multilang"
             />
           </div>
-          
+
           {multiLangEnabled && (
             <>
               <div className="space-y-2">
@@ -1030,9 +1384,9 @@ function IVRConfigPanel({
                   This greeting plays when callers first connect. Your company name from your profile is used automatically.
                 </p>
               </div>
-              
+
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <Label>Language Options</Label>
                   <Button
                     variant="outline"
@@ -1045,10 +1399,10 @@ function IVRConfigPanel({
                     Add
                   </Button>
                 </div>
-                
+
                 {languageOptions.map((opt, idx) => (
-                  <Card key={opt.id} className="p-4">
-                    <div className="flex items-center justify-between mb-3">
+                  <div key={opt.id} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="font-mono">Press {idx + 1}</Badge>
                         <Select
@@ -1080,99 +1434,97 @@ function IVRConfigPanel({
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </div>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Voice</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Select
-                            value={opt.voiceId}
-                            onValueChange={(val) => updateLanguageOption(opt.id, { voiceId: val })}
-                          >
-                            <SelectTrigger className="flex-1" data-testid={`select-voice-${idx}`}>
-                              <SelectValue placeholder="Select a voice..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {getVoicesForLanguage(opt.language).length > 0 ? (
-                                <>
-                                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">OpenAI Voices</div>
-                                  {getVoicesForLanguage(opt.language)
-                                    .filter(v => v.id.startsWith("el_") === false)
-                                    .map((voice) => (
-                                      <SelectItem key={voice.id} value={voice.id}>
-                                        {voice.name} - {voice.gender}, {voice.style}
-                                      </SelectItem>
-                                    ))}
-                                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-2">ElevenLabs Voices</div>
-                                  {getVoicesForLanguage(opt.language)
-                                    .filter(v => v.id.startsWith("el_"))
-                                    .map((voice) => (
-                                      <SelectItem key={voice.id} value={voice.id}>
-                                        {voice.name} - {voice.gender}, {voice.style}
-                                      </SelectItem>
-                                    ))}
-                                </>
-                              ) : (
-                                <div className="px-2 py-2 text-sm text-muted-foreground">No voices available for this language</div>
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handlePlayVoice(opt.voiceId, opt.greeting)}
-                            data-testid={`button-preview-voice-${idx}`}
-                          >
-                            {playingVoiceId === opt.voiceId ? (
-                              <Square className="h-4 w-4" />
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Voice</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Select
+                          value={opt.voiceId}
+                          onValueChange={(val) => updateLanguageOption(opt.id, { voiceId: val })}
+                        >
+                          <SelectTrigger className="flex-1" data-testid={`select-voice-${idx}`}>
+                            <SelectValue placeholder="Select a voice..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getVoicesForLanguage(opt.language).length > 0 ? (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">OpenAI Voices</div>
+                                {getVoicesForLanguage(opt.language)
+                                  .filter(v => v.id.startsWith("el_") === false)
+                                  .map((voice) => (
+                                    <SelectItem key={voice.id} value={voice.id}>
+                                      {voice.name} - {voice.gender}, {voice.style}
+                                    </SelectItem>
+                                  ))}
+                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-2">ElevenLabs Voices</div>
+                                {getVoicesForLanguage(opt.language)
+                                  .filter(v => v.id.startsWith("el_"))
+                                  .map((voice) => (
+                                    <SelectItem key={voice.id} value={voice.id}>
+                                      {voice.name} - {voice.gender}, {voice.style}
+                                    </SelectItem>
+                                  ))}
+                              </>
                             ) : (
-                              <Volume2 className="h-4 w-4" />
+                              <div className="px-2 py-2 text-sm text-muted-foreground">No voices available for this language</div>
                             )}
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <Label className="text-xs text-muted-foreground">Department Menu Greeting</Label>
-                          {customizedDeptGreetings.current.has(opt.id) && departmentNodes.length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 text-xs"
-                              onClick={() => {
-                                customizedDeptGreetings.current.delete(opt.id);
-                                updateLanguageOption(opt.id, {
-                                  greeting: generateDeptGreeting(deptNames, opt.language),
-                                });
-                              }}
-                              data-testid={`button-reset-dept-greeting-${idx}`}
-                            >
-                              <RotateCcw className="h-3 w-3 mr-1" />
-                              Reset
-                            </Button>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handlePlayVoice(opt.voiceId, opt.greeting)}
+                          data-testid={`button-preview-voice-${idx}`}
+                        >
+                          {playingVoiceId === opt.voiceId ? (
+                            <Square className="h-4 w-4" />
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
                           )}
-                        </div>
-                        <Textarea
-                          value={opt.greeting}
-                          onChange={(e) => {
-                            customizedDeptGreetings.current.add(opt.id);
-                            updateLanguageOption(opt.id, { greeting: e.target.value });
-                          }}
-                          rows={2}
-                          className="mt-1"
-                          data-testid={`input-greeting-${idx}`}
-                        />
-                        {departmentNodes.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Auto-generated from departments. Edit to customize.
-                          </p>
-                        )}
+                        </Button>
                       </div>
                     </div>
-                  </Card>
+
+                    <div>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <Label className="text-xs text-muted-foreground">Department Menu Greeting</Label>
+                        {customizedDeptGreetings.current.has(opt.id) && canvasDepartments.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={() => {
+                              customizedDeptGreetings.current.delete(opt.id);
+                              updateLanguageOption(opt.id, {
+                                greeting: generateDeptGreeting(deptNames, opt.language),
+                              });
+                            }}
+                            data-testid={`button-reset-dept-greeting-${idx}`}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Reset
+                          </Button>
+                        )}
+                      </div>
+                      <Textarea
+                        value={opt.greeting}
+                        onChange={(e) => {
+                          customizedDeptGreetings.current.add(opt.id);
+                          updateLanguageOption(opt.id, { greeting: e.target.value });
+                        }}
+                        rows={2}
+                        className="mt-1"
+                        data-testid={`input-greeting-${idx}`}
+                      />
+                      {canvasDepartments.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Auto-generated from departments. Edit to customize.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 ))}
-                
+
                 {languageOptions.length === 0 && (
                   <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
                     Click "Add" to configure language options
@@ -1181,7 +1533,7 @@ function IVRConfigPanel({
               </div>
             </>
           )}
-          
+
           {!multiLangEnabled && (
             <div>
               <Label>Default Greeting Message</Label>
@@ -1208,177 +1560,46 @@ function IVRConfigPanel({
           )}
         </>
       )}
+
+      <Card data-testid="card-summary">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Configuration Summary</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">Phone Numbers</span>
+            <Badge variant="outline">{selectedPhoneIds.length}</Badge>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">Departments</span>
+            <Badge variant="outline">{canvasDepartments.length}</Badge>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">Languages</span>
+            <Badge variant="outline">
+              {configuredLanguages.map(lc => SUPPORTED_LANGUAGES.find(l => l.code === lc)?.label || lc).join(", ") || "None"}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-const PhoneContainerNode = ({ data }: { data: any }) => {
-  const phones = data.phones || [];
-  const hasPhones = phones.length > 0;
-  
-  return (
-    <div className={`border-2 border-dashed ${hasPhones ? 'border-green-400 bg-green-50/50 dark:bg-green-900/10' : 'border-red-400 bg-red-50/50 dark:bg-red-900/10'} rounded-lg p-2 min-w-[140px] shadow-sm`}>
-      <Handle type="source" position={Position.Bottom} className="!bg-green-500 !w-2 !h-2" />
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <Phone className={`h-3 w-3 ${hasPhones ? 'text-green-600' : 'text-red-500'}`} />
-        <span className="font-semibold text-[10px]">Inbound Numbers</span>
-      </div>
-      {hasPhones ? (
-        <div className="space-y-1">
-          {phones.slice(0, 3).map((phone: any) => (
-            <div key={phone.id} className="flex items-center gap-1 text-[9px] bg-white dark:bg-gray-800 rounded px-1.5 py-0.5">
-              <Phone className="h-2.5 w-2.5 text-green-500" />
-              <span className="truncate">{phone.phoneNumber}</span>
-            </div>
-          ))}
-          {phones.length > 3 && (
-            <div className="text-[8px] text-muted-foreground">+{phones.length - 3} more</div>
-          )}
-        </div>
-      ) : (
-        <div className="text-[9px] text-red-500 italic text-center py-1">
-          No numbers assigned
-        </div>
-      )}
-    </div>
-  );
-};
-
-const PhoneNodeComponent = ({ data }: { data: any }) => {
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-green-400 rounded p-1.5 min-w-[80px] shadow-sm">
-      <Handle type="source" position={Position.Bottom} className="!bg-green-500 !w-2 !h-2" />
-      <div className="flex items-center gap-1.5">
-        <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded">
-          <Phone className="h-3 w-3 text-green-600" />
-        </div>
-        <div>
-          <div className="font-medium text-[10px] leading-tight">{data.phoneNumber}</div>
-          <div className="text-[8px] text-muted-foreground">{data.provider}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const IVRNodeComponent = ({ data, selected }: { data: any; selected: boolean }) => {
-  return (
-    <div className={`bg-amber-50 dark:bg-amber-900/20 border ${selected ? 'border-amber-600' : 'border-amber-400'} rounded-lg p-2 min-w-[100px] shadow-sm`}>
-      <Handle type="target" position={Position.Top} className="!bg-amber-500 !w-2 !h-2" />
-      <Handle type="source" position={Position.Bottom} className="!bg-amber-500 !w-2 !h-2" />
-      <div className="flex items-center justify-center gap-1.5">
-        <div className="p-1.5 bg-amber-200 dark:bg-amber-800 rounded">
-          <GitBranch className="h-3 w-3 text-amber-700 dark:text-amber-300" />
-        </div>
-        <div className="text-center">
-          <div className="font-semibold text-xs">IVR Router</div>
-          <Badge variant="outline" className="text-[8px] px-1 py-0 bg-green-100 text-green-700 border-green-300">
-            Active
-          </Badge>
-        </div>
-      </div>
-      <div className="mt-1.5 text-[8px] text-muted-foreground text-center">
-        {data.inputCount || 0} lines
-      </div>
-    </div>
-  );
-};
-
-const DepartmentNodeComponent = ({ data, selected }: { data: any; selected: boolean }) => {
-  const icons: Record<string, any> = {
-    sales: ShoppingCart,
-    support: Headphones,
-    scheduling: Calendar,
-    custom: Building2,
-  };
-  const colors: Record<string, string> = {
-    sales: "bg-green-100 dark:bg-green-900/30 text-green-600 border-green-400",
-    support: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 border-blue-400",
-    scheduling: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 border-purple-400",
-    custom: "bg-gray-100 dark:bg-gray-800 text-gray-600 border-gray-400",
-  };
-  const Icon = icons[data.type] || Building2;
-  const colorClass = colors[data.type] || colors.custom;
-  const languageAgents = data.languageAgents || [];
-
-  return (
-    <div className={`bg-white dark:bg-gray-800 border ${selected ? 'border-primary' : colorClass.split(' ').pop()} rounded p-1.5 min-w-[100px] max-w-[130px] shadow-sm`}>
-      <Handle type="target" position={Position.Top} className="!bg-primary !w-2 !h-2" />
-      <div className="flex items-center gap-1.5">
-        <div className={`p-1 rounded ${colorClass.split(' ').slice(0, 2).join(' ')}`}>
-          <Icon className={`h-3 w-3 ${colorClass.split(' ')[2]}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-[10px] truncate leading-tight">{data.name}</div>
-          <div className="text-[8px] text-muted-foreground truncate">
-            {data.description}
-          </div>
-        </div>
-      </div>
-      
-      {languageAgents.length > 0 && (
-        <div className="mt-1 pt-1 border-t border-dashed space-y-0.5">
-          {languageAgents.slice(0, 2).map((la: any) => (
-            <div key={la.id} className="flex items-center gap-1 text-[8px]">
-              <Badge variant="outline" className="text-[7px] px-1 py-0 font-mono shrink-0">
-                {la.language.toUpperCase()}
-              </Badge>
-              <span className="text-muted-foreground truncate">{la.agentName || "-"}</span>
-            </div>
-          ))}
-          {languageAgents.length > 2 && (
-            <div className="text-[7px] text-muted-foreground">
-              +{languageAgents.length - 2} more
-            </div>
-          )}
-        </div>
-      )}
-      
-      {languageAgents.length === 0 && (
-        <div className="mt-1 text-[8px] text-muted-foreground italic">
-          No agents
-        </div>
-      )}
-    </div>
-  );
-};
-
-const nodeTypes: NodeTypes = {
-  phoneContainer: PhoneContainerNode,
-  phone: PhoneNodeComponent,
-  ivr: IVRNodeComponent,
-  department: DepartmentNodeComponent,
-};
-
-function DepartmentCanvasContent() {
+export default function DepartmentCanvas() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [configPanelOpen, setConfigPanelOpen] = useState(false);
-  
-  // Derive selectedNode from nodes to always get the latest data
-  const selectedNode = useMemo(() => {
-    if (!selectedNodeId) return null;
-    return nodes.find((n) => n.id === selectedNodeId) || null;
-  }, [nodes, selectedNodeId]);
-  const [customDeptName, setCustomDeptName] = useState("");
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedPhoneIds, setSelectedPhoneIds] = useState<string[]>([]);
+  const [canvasDepartments, setCanvasDepartments] = useState<CanvasDepartment[]>([]);
   const [ivrEnabled, setIvrEnabled] = useState(true);
   const [multiLangEnabled, setMultiLangEnabled] = useState(false);
   const [languageOptions, setLanguageOptions] = useState<LanguageOption[]>([
-    { id: "default", language: "en", voiceId: "nova", greeting: DEFAULT_GREETINGS.en }
+    { id: "default", language: "en", voiceId: "nova", greeting: DEFAULT_GREETINGS.en },
   ]);
   const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
   const isGreetingCustomized = useRef(false);
-  const [saving, setSaving] = useState(false);
-
-  const [canvasPhones, setCanvasPhones] = useState<string[]>([]);
-  const [canvasDepartments, setCanvasDepartments] = useState<CanvasDepartment[]>([]);
 
   const { data: userProfile } = useQuery<{ company?: string; name?: string }>({
     queryKey: ["/api/auth/me"],
@@ -1397,222 +1618,40 @@ function DepartmentCanvasContent() {
     queryKey: ["/api/knowledge-base"],
   });
 
-  const availablePhones = useMemo(() => {
-    return phoneNumbers.filter((p) => !canvasPhones.includes(p.id));
-  }, [phoneNumbers, canvasPhones]);
+  const selectedPhones = useMemo(() => {
+    return phoneNumbers.filter((p) => selectedPhoneIds.includes(p.id));
+  }, [phoneNumbers, selectedPhoneIds]);
 
-  useEffect(() => {
-    const phoneContainerNode: Node = {
-      id: "phone-container",
-      type: "phoneContainer",
-      position: { x: 140, y: 20 },
-      data: { phones: [] },
-      draggable: false,
-    };
-    const ivrNode: Node = {
-      id: "ivr-main",
-      type: "ivr",
-      position: { x: 175, y: 130 },
-      data: { inputCount: 0 },
-    };
-    const containerToIvrEdge: Edge = {
-      id: "edge-container-ivr",
-      source: "phone-container",
-      target: "ivr-main",
-      type: "smoothstep",
-      animated: true,
-      style: { stroke: "#22c55e", strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#22c55e" },
-    };
-    setNodes([phoneContainerNode, ivrNode]);
-    setEdges([containerToIvrEdge]);
+  const togglePhone = useCallback((phoneId: string) => {
+    setSelectedPhoneIds((prev) =>
+      prev.includes(phoneId)
+        ? prev.filter((id) => id !== phoneId)
+        : [...prev, phoneId]
+    );
   }, []);
 
-  const assignedPhones = useMemo(() => {
-    return phoneNumbers.filter((p) => canvasPhones.includes(p.id));
-  }, [phoneNumbers, canvasPhones]);
-
-  useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === "phone-container") {
-          return { ...node, data: { ...node.data, phones: assignedPhones } };
-        }
-        if (node.id === "ivr-main") {
-          return { ...node, data: { ...node.data, inputCount: assignedPhones.length } };
-        }
-        return node;
-      })
-    );
-  }, [assignedPhones, setNodes]);
-
-  const onConnect = useCallback(
-    (params: Connection) => {
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...params,
-            type: "smoothstep",
-            animated: true,
-            style: { stroke: "#f59e0b", strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b" },
-          },
-          eds
-        )
-      );
-    },
-    [setEdges]
-  );
-
-  const onNodeClick = useCallback((_: any, node: Node) => {
-    if (node.type === "ivr" || node.type === "department" || node.type === "phoneContainer") {
-      setSelectedNodeId(node.id);
-      setConfigPanelOpen(true);
-    }
-  }, []);
-
-  const addPhoneToCanvas = (phone: PhoneNumber) => {
-    setCanvasPhones((prev) => [...prev, phone.id]);
-    toast({
-      title: "Phone Added",
-      description: `${phone.phoneNumber} assigned to inbound numbers`,
-    });
-  };
-  
-  const removePhoneFromCanvas = (phoneId: string) => {
-    setCanvasPhones((prev) => prev.filter((id) => id !== phoneId));
-  };
-
-  const addDepartmentToCanvas = (template: typeof departmentTemplates[0] | { type: "custom"; name: string }) => {
-    const defaultPrompt = template.type !== "custom" ? (template as any).defaultPrompt : "";
-    const newDeptId = `dept-${Date.now()}`;
-    const newDept: CanvasDepartment = {
-      id: newDeptId,
-      type: template.type,
-      name: template.name,
-      description: template.type === "custom" ? "Custom department" : (template as any).description || "",
-      languageAgents: [{
-        id: `la-${Date.now()}`,
-        language: "en",
-        agentId: null,
-        agentName: null,
-        systemPrompt: defaultPrompt,
-        voiceId: null,
-        voiceTone: null,
-      }],
-      enableTransfer: true,
-      enableRecording: false,
-      enableLanguageDetection: false,
-    };
-
-    setNodes((nds) => {
-      const deptCount = nds.filter((n) => n.type === "department").length;
-      const dialKey = String(deptCount + 1);
-      const xOffset = 50 + deptCount * 180;
-      
-      const newNode: Node = {
-        id: newDeptId,
-        type: "department",
-        position: { x: xOffset, y: 270 },
-        data: {
-          ...newDept,
-          dialKey,
-        },
-      };
-      
-      return [...nds, newNode];
-    });
-    
-    setEdges((eds) => {
-      const deptCount = eds.filter((e) => e.source === "ivr-main" && e.target.startsWith("dept-")).length;
-      const dialKey = String(deptCount + 1);
-      
-      const newEdge: Edge = {
-        id: `edge-ivr-${newDeptId}`,
-        source: "ivr-main",
-        target: newDeptId,
-        type: "smoothstep",
-        animated: true,
-        style: { stroke: "#f59e0b", strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b" },
-        label: `Press ${dialKey}`,
-        labelStyle: { fontSize: 11, fontWeight: 600 },
-        labelBgStyle: { fill: "#fef3c7", fillOpacity: 0.95 },
-      };
-      
-      return [...eds, newEdge];
-    });
-    
-    setCanvasDepartments((prev) => [...prev, newDept]);
-    
-    setTimeout(() => {
-      if (reactFlowInstance) {
-        reactFlowInstance.fitView({ padding: 0.3, duration: 300 });
-      }
-    }, 50);
-    
-    toast({
-      title: "Department Added",
-      description: `${template.name} department created`,
-    });
-  };
-
-  const updateDepartmentConfig = (nodeId: string, updates: Partial<CanvasDepartment>) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, ...updates } };
-        }
-        return node;
-      })
-    );
-    setCanvasDepartments((prev) =>
-      prev.map((dept) => {
-        if (dept.id === nodeId) {
-          return { ...dept, ...updates };
-        }
-        return dept;
-      })
-    );
-  };
-
-  const deleteNode = (nodeId: string) => {
-    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-
-    if (nodeId.startsWith("dept-")) {
-      setCanvasDepartments((prev) => prev.filter((d) => d.id !== nodeId));
-      toast({
-        title: "Department Removed",
-        description: "Department has been deleted from canvas",
-      });
-    }
-
-    setConfigPanelOpen(false);
-    setSelectedNodeId(null);
-  };
+  const canGoNext = useMemo(() => {
+    if (currentStep === 1) return selectedPhoneIds.length > 0;
+    if (currentStep === 2) return canvasDepartments.length > 0;
+    return true;
+  }, [currentStep, selectedPhoneIds.length, canvasDepartments.length]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const departmentNodes = nodes.filter((n) => n.type === "department");
-
       const canvasToDbIdMap = new Map<string, string>();
 
-      for (const deptNode of departmentNodes) {
-        const deptData = deptNode.data as unknown as CanvasDepartment & { dialKey: string };
-
+      for (const dept of canvasDepartments) {
         const deptResponse = await apiRequest("POST", "/api/departments", {
-          name: deptData.name,
-          description: deptData.description,
-          icon: deptData.type,
-          color: deptData.type === "sales" ? "#22c55e" : deptData.type === "support" ? "#3b82f6" : deptData.type === "scheduling" ? "#a855f7" : "#6b7280",
+          name: dept.name,
+          description: dept.description,
+          icon: dept.type,
+          color: dept.type === "sales" ? "#22c55e" : dept.type === "support" ? "#3b82f6" : dept.type === "scheduling" ? "#a855f7" : "#6b7280",
           isActive: true,
         });
         const deptResult = await deptResponse.json();
+        canvasToDbIdMap.set(dept.id, deptResult.id);
 
-        canvasToDbIdMap.set(deptNode.id, deptResult.id);
-
-        const langAgents = deptData.languageAgents || [];
+        const langAgents = dept.languageAgents || [];
         for (let i = 0; i < langAgents.length; i++) {
           const la = langAgents[i];
           if (la.agentId) {
@@ -1625,18 +1664,18 @@ function DepartmentCanvasContent() {
         }
       }
 
-      if (assignedPhones.length > 0 && departmentNodes.length > 0) {
-        const menuOptions = departmentNodes.map((node, idx) => ({
+      if (selectedPhones.length > 0 && canvasDepartments.length > 0) {
+        const menuOptions = canvasDepartments.map((dept, idx) => ({
           key: String(idx + 1),
-          label: (node.data as any).name,
-          departmentId: canvasToDbIdMap.get(node.id) || node.id,
+          label: dept.name,
+          departmentId: canvasToDbIdMap.get(dept.id) || dept.id,
         }));
 
         const greetingMessage = multiLangEnabled && languageOptions.length > 0
           ? languageSelectionGreetingText || generateDefaultLangGreeting(languageOptions, companyDisplayName)
           : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
-        
-        for (const phone of assignedPhones) {
+
+        for (const phone of selectedPhones) {
           await apiRequest("POST", "/api/departments/ivr", {
             phoneNumberId: phone.id,
             name: "Auto Distribution",
@@ -1655,7 +1694,7 @@ function DepartmentCanvasContent() {
       queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers"] });
       toast({
-        title: "Canvas Saved",
+        title: "Configuration Saved",
         description: "All departments and routing have been created successfully.",
       });
       setLocation("/app/departments");
@@ -1663,18 +1702,17 @@ function DepartmentCanvasContent() {
     onError: (error: any) => {
       toast({
         title: "Save Failed",
-        description: error.message || "Failed to save canvas configuration",
+        description: error.message || "Failed to save configuration",
         variant: "destructive",
       });
     },
   });
 
   const handleSave = () => {
-    const deptCount = nodes.filter((n) => n.type === "department").length;
-    if (deptCount === 0) {
+    if (canvasDepartments.length === 0) {
       toast({
         title: "No Departments",
-        description: "Please add at least one department to the canvas.",
+        description: "Please add at least one department.",
         variant: "destructive",
       });
       return;
@@ -1682,312 +1720,94 @@ function DepartmentCanvasContent() {
     saveMutation.mutate();
   };
 
-  const phoneCount = assignedPhones.length;
-  const deptCount = nodes.filter((n) => n.type === "department").length;
-  const connectionCount = edges.length;
-
   return (
-    <div className="h-screen flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-background">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setLocation("/app/departments")} data-testid="button-back">
+    <div className="min-h-[80vh]">
+      <div className="max-w-3xl mx-auto px-4 pb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLocation("/app/departments")}
+            data-testid="button-back"
+          >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
-          <div>
-            <h1 className="font-semibold">Department Canvas</h1>
-            <p className="text-xs text-muted-foreground">Design your call flow visually</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => reactFlowInstance?.zoomOut()} data-testid="button-zoom-out">
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <span className="text-sm text-muted-foreground min-w-[50px] text-center">
-            {Math.round((reactFlowInstance?.getZoom() || 1) * 100)}%
-          </span>
-          <Button variant="outline" size="sm" onClick={() => reactFlowInstance?.zoomIn()} data-testid="button-zoom-in">
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save">
-            {saveMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save & Deploy
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex-1 flex">
-        <div className="w-64 border-r bg-muted/30 flex flex-col">
-          <ScrollArea className="flex-1">
-            <div className="p-4 space-y-6">
-              <div>
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  <Phone className="h-3.5 w-3.5" />
-                  Available Phone Numbers
-                </div>
-                {availablePhones.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No available numbers</p>
-                ) : (
-                  <div className="space-y-2">
-                    {availablePhones.map((phone) => (
-                      <Card
-                        key={phone.id}
-                        className="cursor-pointer hover-elevate"
-                        onClick={() => addPhoneToCanvas(phone)}
-                        data-testid={`card-phone-${phone.id}`}
-                      >
-                        <CardContent className="p-3 flex items-center gap-2">
-                          <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded">
-                            <Phone className="h-3.5 w-3.5 text-green-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm truncate">{phone.phoneNumber}</div>
-                            <div className="text-xs text-muted-foreground">{phone.provider}</div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full mt-2 text-muted-foreground"
-                  onClick={() => setLocation("/app/phone-numbers")}
-                  data-testid="button-buy-numbers"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Buy More Numbers
-                </Button>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  <Building2 className="h-3.5 w-3.5" />
-                  Add Department
-                </div>
-                <div className="space-y-2">
-                  {departmentTemplates.map((template) => (
-                    <Card
-                      key={template.type}
-                      className="cursor-pointer hover-elevate"
-                      onClick={() => addDepartmentToCanvas(template)}
-                      data-testid={`card-dept-${template.type}`}
-                    >
-                      <CardContent className="p-3 flex items-center gap-2">
-                        <div className={`p-1.5 rounded ${template.color} bg-opacity-20`}>
-                          <template.icon className={`h-3.5 w-3.5 text-${template.color.replace('bg-', '').replace('-500', '-600')}`} />
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">{template.name}</div>
-                          <div className="text-xs text-muted-foreground">{template.description}</div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-
-                  <div className="pt-2">
-                    <Input
-                      placeholder="Custom department name..."
-                      value={customDeptName}
-                      onChange={(e) => setCustomDeptName(e.target.value)}
-                      className="text-sm"
-                      data-testid="input-custom-dept"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full mt-2 text-muted-foreground"
-                      onClick={() => {
-                        if (customDeptName.trim()) {
-                          addDepartmentToCanvas({ type: "custom", name: customDeptName.trim() });
-                          setCustomDeptName("");
-                        }
-                      }}
-                      disabled={!customDeptName.trim()}
-                      data-testid="button-add-custom"
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Add Custom
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                  Canvas Stats
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Phone Numbers</span>
-                    <span className="font-medium">{phoneCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Departments</span>
-                    <span className="font-medium">{deptCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Connections</span>
-                    <span className="font-medium">{connectionCount}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </ScrollArea>
         </div>
 
-        <div ref={reactFlowWrapper} className="flex-1 bg-gray-50 dark:bg-gray-900">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onInit={setReactFlowInstance}
-            nodeTypes={nodeTypes}
-            fitView
-            snapToGrid
-            snapGrid={[15, 15]}
-          >
-            <Background gap={20} size={1} color="#e5e7eb" />
-            <Controls showInteractive={false} />
-            <MiniMap
-              nodeStrokeColor={(n) => {
-                if (n.type === "phone") return "#22c55e";
-                if (n.type === "ivr") return "#f59e0b";
-                return "#6b7280";
-              }}
-              nodeColor={(n) => {
-                if (n.type === "phone") return "#dcfce7";
-                if (n.type === "ivr") return "#fef3c7";
-                return "#f3f4f6";
-              }}
+        <StepIndicator currentStep={currentStep} />
+
+        <div className="mt-2">
+          {currentStep === 1 && (
+            <PhoneSelectionStep
+              phoneNumbers={phoneNumbers}
+              selectedPhoneIds={selectedPhoneIds}
+              onTogglePhone={togglePhone}
             />
-          </ReactFlow>
+          )}
+          {currentStep === 2 && (
+            <DepartmentsStep
+              canvasDepartments={canvasDepartments}
+              setCanvasDepartments={setCanvasDepartments}
+              agents={agents}
+              toast={toast}
+            />
+          )}
+          {currentStep === 3 && (
+            <IVRRouterStep
+              ivrEnabled={ivrEnabled}
+              setIvrEnabled={setIvrEnabled}
+              multiLangEnabled={multiLangEnabled}
+              setMultiLangEnabled={setMultiLangEnabled}
+              languageOptions={languageOptions}
+              setLanguageOptions={setLanguageOptions}
+              languageSelectionGreetingText={languageSelectionGreetingText}
+              setLanguageSelectionGreetingText={setLanguageSelectionGreetingText}
+              isGreetingCustomized={isGreetingCustomized}
+              companyDisplayName={companyDisplayName}
+              canvasDepartments={canvasDepartments}
+              selectedPhoneIds={selectedPhoneIds}
+              toast={toast}
+            />
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 mt-8 pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentStep((s) => Math.max(1, s - 1))}
+            disabled={currentStep === 1}
+            data-testid="button-previous"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+
+          {currentStep < 3 ? (
+            <Button
+              onClick={() => setCurrentStep((s) => Math.min(3, s + 1))}
+              disabled={!canGoNext}
+              data-testid="button-next"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+              data-testid="button-save"
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save & Deploy
+            </Button>
+          )}
         </div>
       </div>
-
-      <Sheet open={configPanelOpen} onOpenChange={setConfigPanelOpen}>
-        <SheetContent className="w-[400px] sm:w-[540px] flex flex-col p-0">
-          <SheetHeader className="px-6 pt-6 pb-2">
-            <SheetTitle>
-              {selectedNode?.type === "phoneContainer" && "Inbound Phone Numbers"}
-              {selectedNode?.type === "ivr" && "IVR Configuration"}
-              {selectedNode?.type === "department" && "Department Configuration"}
-            </SheetTitle>
-          </SheetHeader>
-
-          <ScrollArea className="flex-1 px-6 pb-6">
-            {selectedNode?.type === "phoneContainer" && (
-              <div className="mt-4 space-y-4">
-                <div className={`p-4 rounded-lg border-2 border-dashed ${assignedPhones.length > 0 ? 'border-green-300 bg-green-50/50' : 'border-red-300 bg-red-50/50'}`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Phone className={`h-5 w-5 ${assignedPhones.length > 0 ? 'text-green-600' : 'text-red-500'}`} />
-                    <span className="font-medium">
-                      {assignedPhones.length > 0 ? `${assignedPhones.length} number(s) assigned` : 'No numbers assigned'}
-                    </span>
-                  </div>
-                  
-                  {assignedPhones.length > 0 && (
-                    <div className="space-y-2 mb-4">
-                      {assignedPhones.map((phone) => (
-                        <div key={phone.id} className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg p-2 border">
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-green-600" />
-                            <div>
-                              <div className="font-medium text-sm">{phone.phoneNumber}</div>
-                              {phone.friendlyName && (
-                                <div className="text-xs text-muted-foreground">{phone.friendlyName}</div>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removePhoneFromCanvas(phone.id)}
-                            data-testid={`button-remove-phone-${phone.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {availablePhones.length > 0 && (
-                    <div>
-                      <Label className="text-sm mb-2 block">Add Phone Number</Label>
-                      <Select onValueChange={(val) => {
-                        const phone = availablePhones.find(p => p.id === val);
-                        if (phone) addPhoneToCanvas(phone);
-                      }}>
-                        <SelectTrigger data-testid="select-add-phone">
-                          <SelectValue placeholder="Select a phone number..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availablePhones.map((phone) => (
-                            <SelectItem key={phone.id} value={phone.id}>
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-3 w-3 text-green-600" />
-                                <span>{phone.phoneNumber}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  
-                  {availablePhones.length === 0 && assignedPhones.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      No phone numbers available. Purchase phone numbers first.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {selectedNode?.type === "ivr" && (
-              <IVRConfigPanel
-                ivrEnabled={ivrEnabled}
-                setIvrEnabled={setIvrEnabled}
-                multiLangEnabled={multiLangEnabled}
-                setMultiLangEnabled={setMultiLangEnabled}
-                languageOptions={languageOptions}
-                setLanguageOptions={setLanguageOptions}
-                nodes={nodes}
-                languageSelectionGreetingText={languageSelectionGreetingText}
-                setLanguageSelectionGreetingText={setLanguageSelectionGreetingText}
-                isGreetingCustomized={isGreetingCustomized}
-                companyDisplayName={companyDisplayName}
-              />
-            )}
-
-            {selectedNode?.type === "department" && (
-              <DepartmentConfigPanel
-                selectedNode={selectedNode}
-                agents={agents}
-                updateDepartmentConfig={updateDepartmentConfig}
-                deleteNode={deleteNode}
-              />
-            )}
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
     </div>
-  );
-}
-
-export default function DepartmentCanvas() {
-  return (
-    <ReactFlowProvider>
-      <DepartmentCanvasContent />
-    </ReactFlowProvider>
   );
 }

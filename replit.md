@@ -20,7 +20,7 @@ The application follows a client-server architecture.
 - **Real-time Communication**: Employs WebSocket connections for real-time voice streaming.
 - **Background Processing**: Schedulers handle campaign execution, billing, and cleanup tasks.
 - **Modular Design**: Feature modules and engine integrations are organized within the `server/modules/` and `server/engines/` directories, respectively.
-- **Department Management System**: Includes robust features for organizing agents and IVR configurations within departments, supported by a visual call flow builder using React Flow.
+- **Department Management System**: Includes robust features for organizing agents and IVR configurations within departments, supported by a 3-step wizard (Phone Numbers > Departments > IVR Router) at `/app/departments/canvas`.
 - **Knowledge Base & AI Intelligence**: Provides an integrated experience for managing knowledge base content, performing AI-powered topic analysis, and generating content, utilizing a folder-based navigation system.
 - **Provider DID Marketplace**: Integrates a marketplace for browsing and renting DIDs from various carrier providers, with routing capabilities for outbound calling.
 

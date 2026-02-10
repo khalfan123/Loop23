@@ -1177,17 +1177,14 @@ export async function handleIvrSelection(req: Request, res: Response) {
       const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${selectedAgent.elevenLabsAgentId}`;
       console.log(`📞 [IVR Selection] Routing via ElevenLabs: ${elevenLabsUrl}`);
       response.redirect(elevenLabsUrl);
-    } else if (selectedAgent.voiceProvider === 'elevenlabs' && !selectedAgent.elevenLabsAgentId) {
-      console.error(`⚠️ [IVR Selection] Agent "${selectedAgent.name}" is configured for ElevenLabs but has no ElevenLabs Agent ID. Please configure the agent in admin panel.`);
-      saySlow(response, { voice, language: langTag as any }, 'This agent is not fully configured. Please contact the administrator.');
-      response.hangup();
-      res.type('text/xml');
-      return res.send(response.toString());
     } else {
+      if (selectedAgent.voiceProvider === 'elevenlabs' && !selectedAgent.elevenLabsAgentId) {
+        console.warn(`⚠️ [IVR Selection] Agent "${selectedAgent.name}" is configured for ElevenLabs but has no Agent ID - falling back to OpenAI Realtime`);
+      }
       const domain = getDomain(req.headers.host as string);
       const domainHost = domain.replace(/^https?:\/\//, '');
       const streamUrl = `wss://${domainHost}/api/webhooks/twilio/stream`;
-      console.log(`📞 [IVR Selection] Routing via OpenAI Realtime (voiceProvider: ${selectedAgent.voiceProvider || 'default'})`);
+      console.log(`📞 [IVR Selection] Routing via OpenAI Realtime (fallback for voiceProvider: ${selectedAgent.voiceProvider || 'default'})`);
       console.log(`   Stream URL: ${streamUrl}`);
       
       let callRecordId = callSid as string;

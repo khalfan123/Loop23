@@ -20,7 +20,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
 import { db } from "./db";
-import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions } from "@shared/schema";
+import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions, twilioOpenaiCalls } from "@shared/schema";
 import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import { authenticateToken, requireRole, generateTokenAsync, checkActiveMembership, checkUserActive, type AuthRequest } from "./middleware/auth";
 import { authRateLimiter, strictRateLimiter, paymentRateLimiter } from "./middleware/rateLimiter";
@@ -123,6 +123,9 @@ import { webhookDeliveryService } from "./services/webhook-delivery";
 import { webhookTestService } from "./services/webhook-test-service";
 import { contactUploadService, PlanLimitExceededError } from "./services/contact-upload-service";
 import { recordingService } from "./services/recording-service";
+import { TwilioOpenAIAudioBridge } from "./engines/twilio-openai/services/audio-bridge.service";
+import { OpenAIPoolService } from "./engines/plivo/services/openai-pool.service";
+import { OpenAIAgentFactory } from "./engines/twilio-openai/services/openai-agent-factory";
 import { CampaignScheduler } from "./services/campaign-scheduler";
 import { emailService } from "./services/email-service";
 import { generateRefundNoteForRefund, refundNoteService } from "./services/refund-note-service";
@@ -1631,25 +1634,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               };
               
-              // Route all agents to ElevenLabs handler
-              // Both Natural and Flow Agents now execute through ElevenLabs
-              // Flow Agents have their workflows synced to ElevenLabs
-              console.log(`🔀 [WebSocket] Routing to ElevenLabs handler (agent type: ${agent.type})`);
-              if (agent.type === 'flow') {
-                console.log(`   Flow context: flowId=${flowId}, executionId=${executionId}`);
-              }
-              handleTwilioStreamWebSocket(ws, mockReq);
-              
-              // Delay replay slightly to allow handlers to attach listeners
-              // Then replay all buffered messages as raw Buffers
-              setTimeout(() => {
-                console.log(`📨 [WebSocket] Replaying ${bufferedMessages.length} buffered messages`);
-                for (const bufferedMsg of bufferedMessages) {
-                  ws.emit('message', bufferedMsg);
+              if (agent.elevenLabsAgentId) {
+                console.log(`🔀 [WebSocket] Routing to ElevenLabs handler (agent type: ${agent.type})`);
+                if (agent.type === 'flow') {
+                  console.log(`   Flow context: flowId=${flowId}, executionId=${executionId}`);
                 }
-                // Clear buffer after replay to prevent double-processing
-                bufferedMessages.length = 0;
-              }, 100); // 100ms delay
+                handleTwilioStreamWebSocket(ws, mockReq);
+                
+                setTimeout(() => {
+                  console.log(`📨 [WebSocket] Replaying ${bufferedMessages.length} buffered messages`);
+                  for (const bufferedMsg of bufferedMessages) {
+                    ws.emit('message', bufferedMsg);
+                  }
+                  bufferedMessages.length = 0;
+                }, 100);
+              } else {
+                console.log(`🔀 [WebSocket] Agent has no elevenLabsAgentId, routing to OpenAI Realtime (agent type: ${agent.type})`);
+                
+                try {
+                  const credential = await OpenAIPoolService.reserveSlot();
+                  if (!credential) {
+                    console.error(`❌ [WebSocket] No OpenAI credentials available for agent ${agent.id}`);
+                    ws.close(1011, 'No OpenAI credentials available');
+                    return;
+                  }
+                  console.log(`✅ [WebSocket] Reserved OpenAI credential: ${credential.name} (ID: ${credential.id})`);
+                  
+                  const openaiModel = agent.openaiModel || 'gpt-4o-realtime-preview';
+                  const openaiVoice = agent.openaiVoice || 'alloy';
+                  
+                  const [twilioOpenaiCall] = await db.insert(twilioOpenaiCalls).values({
+                    twilioCallSid: data.start?.callSid || callId,
+                    agentId: agent.id,
+                    userId: agent.userId,
+                    fromNumber: fromPhone || '',
+                    toNumber: customParams.toNumber || '',
+                    callDirection: 'inbound',
+                    status: 'in-progress',
+                    openaiCredentialId: credential.id,
+                    openaiVoice: openaiVoice,
+                    openaiModel: openaiModel,
+                    metadata: {
+                      systemPrompt: agent.systemPrompt || 'You are a helpful AI assistant.',
+                      firstMessage: agent.firstMessage || undefined,
+                      temperature: agent.temperature || 0.7,
+                      language: agent.language || 'en',
+                      transferEnabled: agent.transferEnabled,
+                      transferPhoneNumber: agent.transferPhoneNumber,
+                      endConversationEnabled: agent.endConversationEnabled,
+                      detectLanguageEnabled: agent.detectLanguageEnabled,
+                      knowledgeBaseIds: agent.knowledgeBaseIds || [],
+                      appointmentBookingEnabled: agent.appointmentBookingEnabled,
+                    },
+                  }).returning();
+                  
+                  console.log(`✅ [WebSocket] Created twilioOpenaiCalls record: ${twilioOpenaiCall.id}`);
+                  
+                  let agentConfig = OpenAIAgentFactory.createAgentConfig({
+                    voice: openaiVoice as any,
+                    model: openaiModel as any,
+                    systemPrompt: agent.systemPrompt || 'You are a helpful AI assistant.',
+                    firstMessage: agent.firstMessage || undefined,
+                    temperature: agent.temperature || 0.7,
+                    toolContext: {
+                      userId: agent.userId,
+                      agentId: agent.id,
+                      callId: twilioOpenaiCall.id,
+                    },
+                    language: agent.language || 'en',
+                  });
+                  
+                  if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
+                    agentConfig = OpenAIAgentFactory.addKnowledgeBaseTool(
+                      agentConfig,
+                      agent.knowledgeBaseIds,
+                      agent.userId
+                    );
+                  }
+                  
+                  if (agent.appointmentBookingEnabled && agent.userId) {
+                    agentConfig = OpenAIAgentFactory.addAppointmentTool(
+                      agentConfig,
+                      agent.userId,
+                      agent.id,
+                      twilioOpenaiCall.id
+                    );
+                  }
+                  
+                  if (agent.transferEnabled && agent.transferPhoneNumber) {
+                    agentConfig = OpenAIAgentFactory.addTransferTool(
+                      agentConfig,
+                      agent.transferPhoneNumber,
+                      undefined
+                    );
+                  }
+                  
+                  if (agent.endConversationEnabled) {
+                    agentConfig = OpenAIAgentFactory.addEndCallTool(agentConfig);
+                  }
+                  
+                  if (agent.detectLanguageEnabled) {
+                    agentConfig = OpenAIAgentFactory.enableLanguageDetection(agentConfig);
+                  }
+                  
+                  if (!agentConfig.tools?.some((t: any) => t.name === 'end_call')) {
+                    agentConfig = OpenAIAgentFactory.addEndCallTool(agentConfig);
+                  }
+                  
+                  console.log(`✅ [WebSocket] OpenAI agent config ready with ${agentConfig.tools?.length || 0} tools`);
+                  
+                  await TwilioOpenAIAudioBridge.createSession({
+                    callSid: data.start?.callSid || callId,
+                    openaiApiKey: credential.apiKey,
+                    agentConfig,
+                    twilioWs: ws,
+                    streamSid: data.start?.streamSid || undefined,
+                    fromNumber: fromPhone || '',
+                    toNumber: customParams.toNumber || '',
+                    callDirection: 'inbound',
+                  });
+                  
+                  console.log(`✅ [WebSocket] OpenAI Realtime session created for call ${callId}`);
+                  
+                  setTimeout(() => {
+                    console.log(`📨 [WebSocket] Replaying ${bufferedMessages.length} buffered messages`);
+                    for (const bufferedMsg of bufferedMessages) {
+                      ws.emit('message', bufferedMsg);
+                    }
+                    bufferedMessages.length = 0;
+                  }, 100);
+                } catch (openaiError) {
+                  console.error(`❌ [WebSocket] Failed to initialize OpenAI Realtime session:`, openaiError);
+                  ws.close(1011, 'Failed to initialize OpenAI session');
+                }
+              }
               
             } catch (error) {
               console.error('❌ [WebSocket] Error during routing:', error);

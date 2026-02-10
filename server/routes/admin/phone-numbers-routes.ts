@@ -53,7 +53,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
 
   router.post('/phone-numbers/import', async (req: AdminRequest, res: Response) => {
     try {
-      const { phoneNumber, twilioSid, provider } = req.body;
+      const { phoneNumber, twilioSid, provider, friendlyName, capabilities, numberType } = req.body;
       
       if (!phoneNumber) {
         return res.status(400).json({ error: 'Phone number is required' });
@@ -63,11 +63,46 @@ export function registerPhoneNumbersRoutes(router: Router) {
       if (existing.length > 0) {
         return res.status(400).json({ error: 'Phone number already exists' });
       }
+
+      const countryPrefixMap: Record<string, string> = {
+        '+971': 'AE', '+966': 'SA', '+974': 'QA', '+973': 'BH', '+968': 'OM', '+965': 'KW',
+        '+353': 'IE', '+351': 'PT', '+358': 'FI',
+        '+61': 'AU', '+44': 'GB', '+49': 'DE', '+33': 'FR', '+39': 'IT',
+        '+34': 'ES', '+31': 'NL', '+32': 'BE', '+43': 'AT', '+41': 'CH',
+        '+46': 'SE', '+47': 'NO', '+45': 'DK',
+        '+48': 'PL', '+64': 'NZ', '+65': 'SG', '+81': 'JP', '+82': 'KR',
+        '+91': 'IN', '+86': 'CN', '+55': 'BR', '+52': 'MX',
+        '+27': 'ZA', '+60': 'MY', '+63': 'PH', '+66': 'TH',
+        '+1': 'US',
+      };
+      let detectedCountry = 'US';
+      const sortedPrefixes = Object.keys(countryPrefixMap).sort((a, b) => b.length - a.length);
+      for (const prefix of sortedPrefixes) {
+        if (phoneNumber.startsWith(prefix)) {
+          detectedCountry = countryPrefixMap[prefix];
+          break;
+        }
+      }
+
+      let detectedNumberType = numberType || 'local';
+      if (!numberType || numberType === 'local') {
+        if (/^\+1(800|888|877|866|855|844|833)/.test(phoneNumber)) detectedNumberType = 'toll_free';
+        else if (/^\+971800/.test(phoneNumber)) detectedNumberType = 'toll_free';
+        else if (/^\+44(800|808)/.test(phoneNumber)) detectedNumberType = 'toll_free';
+        else if (/^\+61(1800|1300)/.test(phoneNumber)) detectedNumberType = 'toll_free';
+        else if (/^\+49(800)/.test(phoneNumber)) detectedNumberType = 'toll_free';
+        else if (/^\+33(800|805)/.test(phoneNumber)) detectedNumberType = 'toll_free';
+      }
       
       const [newNumber] = await db.insert(phoneNumbers).values({
         phoneNumber: phoneNumber,
         twilioSid: twilioSid || 'imported-' + Date.now(),
-        status: 'active'
+        friendlyName: friendlyName || phoneNumber,
+        country: detectedCountry,
+        capabilities: capabilities || null,
+        numberType: detectedNumberType,
+        status: 'active',
+        isSystemPool: true,
       }).returning();
       
       res.json({ success: true, phoneNumber: newNumber });
@@ -115,6 +150,7 @@ export function registerPhoneNumbersRoutes(router: Router) {
           userId: phoneNumbers.userId,
           twilioSid: phoneNumbers.twilioSid,
           country: phoneNumbers.country,
+          numberType: phoneNumbers.numberType,
           createdAt: phoneNumbers.createdAt,
           userName: users.name,
           userEmail: users.email

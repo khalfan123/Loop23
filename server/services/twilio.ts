@@ -52,6 +52,7 @@ interface AvailablePhoneNumber {
   region?: string;
   postalCode?: string;
   isoCountry: string;
+  numberType?: string;
   addressRequirements?: string;
   capabilities: {
     voice: boolean;
@@ -104,9 +105,9 @@ export class TwilioService {
     inPostalCode?: string;
     inLocality?: string;
     inRegion?: string;
+    numberType?: string;
     limit?: number;
   }): Promise<AvailablePhoneNumber[]> {
-    // Use mock numbers in mock mode
     if (this.shouldMock) {
       console.log("Mock mode: Returning mock phone numbers");
       const areaCode = params.areaCode || "415";
@@ -121,6 +122,7 @@ export class TwilioService {
           region: region,
           postalCode: postalCode,
           isoCountry: params.country || "US",
+          numberType: params.numberType || 'local',
           capabilities: {
             voice: true,
             sms: true,
@@ -134,6 +136,7 @@ export class TwilioService {
           region: region,
           postalCode: String(parseInt(postalCode, 10) + 1),
           isoCountry: params.country || "US",
+          numberType: params.numberType || 'local',
           capabilities: {
             voice: true,
             sms: true,
@@ -143,20 +146,32 @@ export class TwilioService {
       ];
     }
     
-    // Use real Twilio connector
     const client = await this.getTwilioClientInstance();
     const country = params.country || "US";
+    const numberType = params.numberType || 'local';
     
     const listOptions: any = {
       limit: params.limit || 20,
     };
-    if (params.areaCode) listOptions.areaCode = parseInt(params.areaCode, 10);
     if (params.contains) listOptions.contains = params.contains;
-    if (params.inPostalCode) listOptions.inPostalCode = params.inPostalCode;
-    if (params.inLocality) listOptions.inLocality = params.inLocality;
-    if (params.inRegion) listOptions.inRegion = params.inRegion;
     
-    const numbers = await client.availablePhoneNumbers(country).local.list(listOptions);
+    let numbers: any[] = [];
+    
+    if (numberType === 'tollFree' || numberType === 'toll_free') {
+      numbers = await client.availablePhoneNumbers(country).tollFree.list(listOptions);
+    } else if (numberType === 'mobile') {
+      if (params.areaCode) listOptions.areaCode = parseInt(params.areaCode, 10);
+      if (params.inPostalCode) listOptions.inPostalCode = params.inPostalCode;
+      if (params.inLocality) listOptions.inLocality = params.inLocality;
+      if (params.inRegion) listOptions.inRegion = params.inRegion;
+      numbers = await client.availablePhoneNumbers(country).mobile.list(listOptions);
+    } else {
+      if (params.areaCode) listOptions.areaCode = parseInt(params.areaCode, 10);
+      if (params.inPostalCode) listOptions.inPostalCode = params.inPostalCode;
+      if (params.inLocality) listOptions.inLocality = params.inLocality;
+      if (params.inRegion) listOptions.inRegion = params.inRegion;
+      numbers = await client.availablePhoneNumbers(country).local.list(listOptions);
+    }
 
     return numbers.map((num: any) => ({
       phoneNumber: num.phoneNumber,
@@ -165,6 +180,7 @@ export class TwilioService {
       region: num.region,
       postalCode: num.postalCode,
       isoCountry: num.isoCountry,
+      numberType: numberType,
       addressRequirements: num.addressRequirements,
       capabilities: num.capabilities,
     }));
@@ -489,22 +505,31 @@ export class TwilioService {
     try {
       const client = await this.getTwilioClientInstance();
       
-      // Determine country from phone number (default to US)
-      // Format: +1 (US), +44 (UK), +61 (AU), etc.
       let isoCountry = 'US';
-      if (phoneNumber.startsWith('+1')) {
-        isoCountry = 'US';
-      } else if (phoneNumber.startsWith('+44')) {
-        isoCountry = 'GB';
-      } else if (phoneNumber.startsWith('+61')) {
-        isoCountry = 'AU';
+      const countryPrefixMap: Record<string, string> = {
+        '+971': 'AE', '+966': 'SA', '+974': 'QA', '+973': 'BH', '+968': 'OM', '+965': 'KW',
+        '+353': 'IE', '+351': 'PT', '+358': 'FI',
+        '+61': 'AU', '+44': 'GB', '+49': 'DE', '+33': 'FR', '+39': 'IT',
+        '+34': 'ES', '+31': 'NL', '+32': 'BE', '+43': 'AT', '+41': 'CH',
+        '+46': 'SE', '+47': 'NO', '+45': 'DK',
+        '+48': 'PL', '+64': 'NZ', '+65': 'SG', '+81': 'JP', '+82': 'KR',
+        '+91': 'IN', '+86': 'CN', '+55': 'BR', '+52': 'MX',
+        '+27': 'ZA', '+60': 'MY', '+63': 'PH', '+66': 'TH',
+        '+1': 'US',
+      };
+      const sortedPrefixes = Object.keys(countryPrefixMap).sort((a, b) => b.length - a.length);
+      for (const prefix of sortedPrefixes) {
+        if (phoneNumber.startsWith(prefix)) {
+          isoCountry = countryPrefixMap[prefix];
+          break;
+        }
       }
-      // Add more country mappings as needed
 
-      // Determine phone number type (local, toll-free, mobile)
-      // US toll-free: +1 (800|888|877|866|855|844|833)
       let numberType = 'local';
       if (isoCountry === 'US' && /^\+1(800|888|877|866|855|844|833)/.test(phoneNumber)) {
+        numberType = 'toll free';
+      }
+      if (isoCountry === 'AE' && /^\+971800/.test(phoneNumber)) {
         numberType = 'toll free';
       }
 

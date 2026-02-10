@@ -357,6 +357,7 @@ export const phoneNumbers = pgTable("phone_numbers", {
   friendlyName: text("friendly_name"),
   country: text("country").notNull().default("US"),
   capabilities: jsonb("capabilities"),
+  numberType: text("number_type").default("local"),
   status: text("status").notNull().default("active"),
   isSystemPool: boolean("is_system_pool").notNull().default(false), // For free plan numbers
   purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }),

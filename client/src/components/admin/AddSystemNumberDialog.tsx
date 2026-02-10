@@ -104,8 +104,8 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
   });
 
   const importMutation = useMutation({
-    mutationFn: async ({ phoneNumber, friendlyName, sid }: { phoneNumber: string; friendlyName?: string; sid: string }) => {
-      const res = await apiRequest("POST", "/api/admin/phone-numbers/import", { phoneNumber, friendlyName, sid });
+    mutationFn: async ({ phoneNumber, friendlyName, sid, capabilities, numberType }: { phoneNumber: string; friendlyName?: string; sid: string; capabilities?: any; numberType?: string }) => {
+      const res = await apiRequest("POST", "/api/admin/phone-numbers/import", { phoneNumber, friendlyName, twilioSid: sid, capabilities, numberType });
       return res.json();
     },
     onSuccess: () => {
@@ -171,10 +171,14 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
 
   const handleImport = () => {
     if (!selectedImportNumber) return;
+    const isTollFree = /^\+1(800|888|877|866|855|844|833)/.test(selectedImportNumber.phoneNumber) ||
+      /^\+971800/.test(selectedImportNumber.phoneNumber);
     importMutation.mutate({
       phoneNumber: selectedImportNumber.phoneNumber,
       friendlyName: importFriendlyName || selectedImportNumber.friendlyName,
       sid: selectedImportNumber.sid,
+      capabilities: selectedImportNumber.capabilities,
+      numberType: isTollFree ? 'toll_free' : 'local',
     });
   };
 
@@ -208,6 +212,12 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
       return `+1 (${cleaned.substring(1, 4)}) ${cleaned.substring(4, 7)}-${cleaned.substring(7)}`;
     }
     return phone;
+  };
+
+  const detectNumberType = (phoneNumber: string): string => {
+    if (/^\+1(800|888|877|866|855|844|833)/.test(phoneNumber)) return 'Toll-Free';
+    if (/^\+971800/.test(phoneNumber)) return 'Toll-Free';
+    return 'Local';
   };
 
   return (
@@ -279,8 +289,11 @@ export function AddSystemNumberDialog({ open, onOpenChange }: AddSystemNumberDia
                                 {formatPhoneNumber(number.phoneNumber)}
                               </span>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              {number.friendlyName}
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>{number.friendlyName}</span>
+                              {detectNumberType(number.phoneNumber) === 'Toll-Free' && (
+                                <Badge variant="outline" className="text-xs">Toll-Free</Badge>
+                              )}
                             </div>
                             {number.pricing && (
                               <div className="text-sm space-y-1">

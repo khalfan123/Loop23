@@ -41,6 +41,8 @@ interface PhoneNumber {
   userName?: string;
   purchasePrice?: number;
   monthlyPrice?: number;
+  numberType?: string;
+  country?: string;
   createdAt: string;
 }
 
@@ -565,7 +567,15 @@ export default function PhoneNumbers() {
                     <TableRow key={phone.id}>
                       <TableCell className="font-mono">{phone.phoneNumber}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">System Pool</Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="secondary">System Pool</Badge>
+                          {(phone.numberType === 'toll_free' || phone.numberType === 'tollFree') && (
+                            <Badge variant="outline" className="text-xs">Toll-Free</Badge>
+                          )}
+                          {phone.country && phone.country !== 'US' && (
+                            <Badge variant="outline" className="text-xs">{phone.country}</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>${phone.purchasePrice ? parseFloat(phone.purchasePrice as any).toFixed(2) : "0.00"}</TableCell>
                       <TableCell>${phone.monthlyPrice ? parseFloat(phone.monthlyPrice as any).toFixed(2) : "0.00"}</TableCell>

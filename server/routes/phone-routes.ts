@@ -21,6 +21,38 @@ import { RouteContext, AuthRequest } from "./common";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { phoneNumbers, creditTransactions, phoneNumberRentals } from "@shared/schema";
 
+const COUNTRY_PREFIX_MAP: Record<string, string> = {
+  '+971': 'AE', '+966': 'SA', '+974': 'QA', '+973': 'BH', '+968': 'OM', '+965': 'KW',
+  '+353': 'IE', '+351': 'PT', '+358': 'FI',
+  '+61': 'AU', '+44': 'GB', '+49': 'DE', '+33': 'FR', '+39': 'IT',
+  '+34': 'ES', '+31': 'NL', '+32': 'BE', '+43': 'AT', '+41': 'CH',
+  '+46': 'SE', '+47': 'NO', '+45': 'DK',
+  '+48': 'PL', '+64': 'NZ', '+65': 'SG', '+81': 'JP', '+82': 'KR',
+  '+91': 'IN', '+86': 'CN', '+55': 'BR', '+52': 'MX',
+  '+27': 'ZA', '+60': 'MY', '+63': 'PH', '+66': 'TH',
+  '+1': 'US',
+};
+const SORTED_PREFIXES = Object.keys(COUNTRY_PREFIX_MAP).sort((a, b) => b.length - a.length);
+
+function detectCountryFromNumber(phoneNumber: string): string {
+  for (const prefix of SORTED_PREFIXES) {
+    if (phoneNumber.startsWith(prefix)) {
+      return COUNTRY_PREFIX_MAP[prefix];
+    }
+  }
+  return 'US';
+}
+
+function detectNumberTypeFromNumber(phoneNumber: string): string {
+  if (/^\+1(800|888|877|866|855|844|833)/.test(phoneNumber)) return 'toll_free';
+  if (/^\+971800/.test(phoneNumber)) return 'toll_free';
+  if (/^\+44(800|808)/.test(phoneNumber)) return 'toll_free';
+  if (/^\+61(1800|1300)/.test(phoneNumber)) return 'toll_free';
+  if (/^\+49(800)/.test(phoneNumber)) return 'toll_free';
+  if (/^\+33(800|805)/.test(phoneNumber)) return 'toll_free';
+  return 'local';
+}
+
 export function createPhoneRoutes(ctx: RouteContext): Router {
   const router = Router();
   const { db, storage, authenticateToken, authenticateHybrid, requireRole, checkActiveMembership, twilioService } = ctx;
@@ -96,9 +128,8 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
   router.get("/api/phone-numbers/search", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      const { country, areaCode, postalCode, locality, region, contains } = req.query;
+      const { country, areaCode, postalCode, locality, region, contains, numberType } = req.query;
       
-      // Country is required, but other filters are optional
       if (!country) {
         return res.status(400).json({ error: "Country is required" });
       }
@@ -110,6 +141,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         inPostalCode: postalCode as string,
         inLocality: locality as string,
         inRegion: region as string,
+        numberType: (numberType as string) || 'local',
         limit: 20,
       });
 
@@ -159,7 +191,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
   router.post("/api/phone-numbers/buy", authenticateToken, checkActiveMembership(storage), async (req: AuthRequest, res: Response) => {
     try {
-      const { phoneNumber, friendlyName, addressSid, bundleSid, country } = req.body;
+      const { phoneNumber, friendlyName, addressSid, bundleSid, country, numberType: reqNumberType } = req.body;
 
       if (!phoneNumber) {
         return res.status(400).json({ error: "Phone number is required" });
@@ -351,13 +383,15 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
             const nextBillingDate = new Date();
             nextBillingDate.setDate(nextBillingDate.getDate() + 30);
 
+            const finalNumberType = reqNumberType || detectNumberTypeFromNumber(twilioNumber.phoneNumber);
             const [phoneNumberRecord] = await tx.insert(phoneNumbers).values({
               userId: req.userId!,
               phoneNumber: twilioNumber.phoneNumber,
               twilioSid: twilioNumber.sid,
               friendlyName: twilioNumber.friendlyName,
-              country: "US",
+              country: phoneCountry || "US",
               capabilities: twilioNumber.capabilities,
+              numberType: finalNumberType,
               status: "active",
               purchasePrice: pricing.purchasePrice,
               monthlyPrice: pricing.monthlyPrice,
@@ -402,13 +436,15 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         const nextBillingDate = new Date();
         nextBillingDate.setDate(nextBillingDate.getDate() + 30);
 
+        const finalNumberType = reqNumberType || detectNumberTypeFromNumber(twilioNumber.phoneNumber);
         const [devPhoneNumber] = await db.insert(phoneNumbers).values({
           userId: req.userId!,
           phoneNumber: twilioNumber.phoneNumber,
           twilioSid: twilioNumber.sid,
           friendlyName: twilioNumber.friendlyName,
-          country: "US",
+          country: phoneCountry || "US",
           capabilities: twilioNumber.capabilities,
+          numberType: finalNumberType,
           status: "active",
           purchasePrice: pricing.purchasePrice,
           monthlyPrice: pricing.monthlyPrice,
@@ -571,13 +607,16 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
   router.get("/api/admin/phone-numbers/search/:areaCode", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
     try {
       const { areaCode } = req.params;
+      const { country, numberType } = req.query;
       
-      if (!areaCode || areaCode.length !== 3) {
-        return res.status(400).json({ error: "Area code must be exactly 3 digits" });
+      if (!country && (!areaCode || areaCode.length !== 3)) {
+        return res.status(400).json({ error: "Area code must be exactly 3 digits, or provide country and numberType" });
       }
 
       const availableNumbers = await twilioService.searchAvailableNumbers({
-        areaCode,
+        country: (country as string) || 'US',
+        areaCode: areaCode !== 'all' ? areaCode : undefined,
+        numberType: (numberType as string) || 'local',
         limit: 20,
       });
 
@@ -590,11 +629,16 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
 
   router.post("/api/admin/phone-numbers/buy-system", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
     try {
-      const { phoneNumber, friendlyName } = req.body;
+      const { phoneNumber, friendlyName, country: reqCountry, numberType: reqNumberType } = req.body;
 
       if (!phoneNumber) {
         return res.status(400).json({ error: "Phone number is required" });
       }
+
+      const detectedCountry = detectCountryFromNumber(phoneNumber);
+      const detectedNumberType = detectNumberTypeFromNumber(phoneNumber);
+      const finalCountry = reqCountry || detectedCountry;
+      const finalNumberType = reqNumberType || detectedNumberType;
 
       const twilioNumber = await twilioService.buyPhoneNumber(
         phoneNumber,
@@ -608,8 +652,9 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
         phoneNumber: twilioNumber.phoneNumber,
         twilioSid: twilioNumber.sid,
         friendlyName: twilioNumber.friendlyName,
-        country: "US",
+        country: finalCountry,
         capabilities: twilioNumber.capabilities,
+        numberType: finalNumberType,
         status: "active",
         isSystemPool: true,
         purchasePrice: pricing.purchasePrice,

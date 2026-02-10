@@ -222,10 +222,19 @@ interface LanguageOption {
 }
 
 const generateDefaultLangGreeting = (langOpts: LanguageOption[], companyName?: string): string => {
-  if (companyName) {
-    return `Thanks for calling ${companyName}. Please select your preferred language.`;
-  }
-  return 'Please select your preferred language.';
+  const intro = companyName
+    ? `Thanks for calling ${companyName}. Please select your preferred language.`
+    : 'Please select your preferred language.';
+
+  if (langOpts.length === 0) return intro;
+
+  const langLines = langOpts.map((opt, idx) => {
+    const langInfo = SUPPORTED_LANGUAGES.find(l => l.code === opt.language);
+    const langName = langInfo?.label || opt.language;
+    return `For ${langName}, press ${idx + 1}`;
+  });
+
+  return `${intro} ${langLines.join('. ')}.`;
 };
 
 interface CanvasPhoneNode {

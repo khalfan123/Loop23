@@ -188,11 +188,26 @@ const LANGUAGE_SELECTION_PROMPTS: Record<string, string> = {
 
 const DEPT_MENU_TEMPLATES: Record<string, { prefix: string; pressKey: string; separator: string }> = {
   en: { prefix: "For", pressKey: "press", separator: ", " },
-  fr: { prefix: "Pour", pressKey: "appuyez sur", separator: ", " },
+  fr: { prefix: "Pour le", pressKey: "appuyez sur", separator: ", " },
   it: { prefix: "Per", pressKey: "premere", separator: ", " },
   zh: { prefix: "如需", pressKey: "请按", separator: "，" },
   hi: { prefix: "के लिए", pressKey: "दबाएं", separator: ", " },
-  ar: { prefix: "من أجل", pressKey: "اضغط", separator: "، " },
+  ar: { prefix: "لقسم", pressKey: "اضغط", separator: "، " },
+};
+
+const DEPT_NAME_TRANSLATIONS: Record<string, Record<string, string>> = {
+  en: { Sales: "Sales", Support: "Customer Support", Scheduling: "Scheduling" },
+  fr: { Sales: "service commercial", Support: "service client", Scheduling: "prise de rendez-vous" },
+  it: { Sales: "reparto vendite", Support: "assistenza clienti", Scheduling: "prenotazioni" },
+  zh: { Sales: "销售部门", Support: "客户支持", Scheduling: "预约服务" },
+  hi: { Sales: "बिक्री विभाग", Support: "ग्राहक सहायता", Scheduling: "अपॉइंटमेंट शेड्यूलिंग" },
+  ar: { Sales: "المبيعات", Support: "خدمة العملاء", Scheduling: "المواعيد" },
+};
+
+const translateDeptName = (name: string, langCode: string): string => {
+  const translations = DEPT_NAME_TRANSLATIONS[langCode];
+  if (!translations) return name;
+  return translations[name] || name;
 };
 
 const generateDeptGreeting = (deptNames: string[], langCode: string): string => {
@@ -200,14 +215,15 @@ const generateDeptGreeting = (deptNames: string[], langCode: string): string => 
   if (deptNames.length === 0) return DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
   
   const menuItems = deptNames.map((name, idx) => {
+    const translatedName = translateDeptName(name, langCode);
     if (langCode === "ar") {
-      return `${template.prefix} ${name} ${template.pressKey} ${idx + 1}`;
+      return `${template.prefix} ${translatedName} ${template.pressKey} ${idx + 1}`;
     } else if (langCode === "zh") {
-      return `${template.prefix}${name}${template.pressKey}${idx + 1}`;
+      return `${template.prefix}${translatedName}${template.pressKey}${idx + 1}`;
     } else if (langCode === "hi") {
-      return `${name} ${template.prefix} ${idx + 1} ${template.pressKey}`;
+      return `${translatedName} ${template.prefix} ${idx + 1} ${template.pressKey}`;
     }
-    return `${template.prefix} ${name} ${template.pressKey} ${idx + 1}`;
+    return `${template.prefix} ${translatedName} ${template.pressKey} ${idx + 1}`;
   });
   
   return menuItems.join(template.separator) + ".";

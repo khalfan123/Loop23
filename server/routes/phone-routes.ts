@@ -210,7 +210,7 @@ export function createPhoneRoutes(ctx: RouteContext): Router {
       const existingSet = new Set(existingNumbers.map(n => n.phoneNumber));
       
       const numbers = incomingNumbers
-        .filter(n => !existingSet.has(n.phoneNumber))
+        .filter(n => n.phoneNumber.startsWith('+971') && !existingSet.has(n.phoneNumber))
         .map(n => ({
           sid: n.sid,
           phoneNumber: n.phoneNumber,

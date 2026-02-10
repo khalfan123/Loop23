@@ -2276,8 +2276,8 @@ export default function PhoneNumbers() {
                   <Upload className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold">Import Existing Number</h3>
-                  <p className="text-sm text-muted-foreground">Import a number you already own from your Twilio account</p>
+                  <h3 className="font-semibold">UAE</h3>
+                  <p className="text-sm text-muted-foreground">Import a UAE toll-free number from your Twilio account</p>
                 </div>
               </div>
             </div>
@@ -2314,16 +2314,16 @@ export default function PhoneNumbers() {
         </DialogContent>
       </Dialog>
 
-      {/* Import Existing Number Dialog */}
+      {/* UAE Number Import Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Import Existing Number
+              UAE Numbers
             </DialogTitle>
             <DialogDescription>
-              Select a number from your Twilio account to import. Only numbers not already in the system are shown.
+              Select a UAE number from your Twilio account to import. Only unallocated numbers are shown.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -2335,8 +2335,8 @@ export default function PhoneNumbers() {
             ) : existingTwilioNumbers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No importable numbers found in your Twilio account.</p>
-                <p className="text-xs mt-1">All your Twilio numbers may already be imported.</p>
+                <p>No UAE numbers found in your Twilio account.</p>
+                <p className="text-xs mt-1">All UAE numbers may already be allocated.</p>
               </div>
             ) : (
               <div className="border rounded-md divide-y max-h-96 overflow-y-auto">

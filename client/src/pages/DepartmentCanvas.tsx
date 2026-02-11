@@ -164,47 +164,152 @@ const LANGUAGE_SELECTION_PROMPTS: Record<string, string> = {
   ar: "للعربية",
 };
 
-const DEPT_MENU_TEMPLATES: Record<string, { prefix: string; pressKey: string; separator: string }> = {
-  en: { prefix: "For", pressKey: "press", separator: ", " },
-  fr: { prefix: "Pour le", pressKey: "appuyez sur", separator: ", " },
-  it: { prefix: "Per", pressKey: "premere", separator: ", " },
-  zh: { prefix: "如需", pressKey: "请按", separator: "，" },
-  hi: { prefix: "के लिए", pressKey: "दबाएं", separator: ", " },
-  ar: { prefix: "لقسم", pressKey: "اضغط", separator: "، " },
+const DEPT_MENU_SEPARATORS: Record<string, string> = {
+  en: ", ",
+  fr: ", ",
+  it: ", ",
+  zh: "，",
+  hi: ", ",
+  ar: "، ",
+  es: ", ",
+  de: ", ",
+  ja: "、",
+  ko: ", ",
+  pt: ", ",
+  ru: ", ",
+  tr: ", ",
+  nl: ", ",
+  pl: ", ",
+  sv: ", ",
+  th: ", ",
+  vi: ", ",
+  id: ", ",
+  ms: ", ",
+  tl: ", ",
+  ur: "، ",
+  bn: ", ",
+  ta: ", ",
+  te: ", ",
+  fa: "، ",
+  he: ", ",
 };
 
-const DEPT_NAME_TRANSLATIONS: Record<string, Record<string, string>> = {
-  en: { Sales: "Sales", Support: "Customer Support", Scheduling: "Scheduling" },
-  fr: { Sales: "service commercial", Support: "service client", Scheduling: "prise de rendez-vous" },
-  it: { Sales: "reparto vendite", Support: "assistenza clienti", Scheduling: "prenotazioni" },
-  zh: { Sales: "销售部门", Support: "客户支持", Scheduling: "预约服务" },
-  hi: { Sales: "बिक्री विभाग", Support: "ग्राहक सहायता", Scheduling: "अपॉइंटमेंट शेड्यूलिंग" },
-  ar: { Sales: "المبيعات", Support: "خدمة العملاء", Scheduling: "المواعيد" },
+const DEPT_MENU_TRANSLATIONS: Record<string, Record<string, Record<string, string>>> = {
+  en: {
+    Sales: { menuItem: "For Sales, press" },
+    Support: { menuItem: "For Customer Support, press" },
+    Scheduling: { menuItem: "For Scheduling, press" },
+  },
+  fr: {
+    Sales: { menuItem: "Pour les ventes, appuyez sur le" },
+    Support: { menuItem: "Pour le service client, appuyez sur le" },
+    Scheduling: { menuItem: "Pour la prise de rendez-vous, appuyez sur le" },
+  },
+  it: {
+    Sales: { menuItem: "Per il reparto vendite, premere" },
+    Support: { menuItem: "Per l'assistenza clienti, premere" },
+    Scheduling: { menuItem: "Per le prenotazioni, premere" },
+  },
+  zh: {
+    Sales: { menuItem: "销售部门请按" },
+    Support: { menuItem: "客户支持请按" },
+    Scheduling: { menuItem: "预约服务请按" },
+  },
+  hi: {
+    Sales: { menuItem: "बिक्री विभाग के लिए दबाएं" },
+    Support: { menuItem: "ग्राहक सहायता के लिए दबाएं" },
+    Scheduling: { menuItem: "अपॉइंटमेंट शेड्यूलिंग के लिए दबाएं" },
+  },
+  ar: {
+    Sales: { menuItem: "لقسم المبيعات، اضغط" },
+    Support: { menuItem: "لخدمة العملاء، اضغط" },
+    Scheduling: { menuItem: "لحجز المواعيد، اضغط" },
+  },
+  es: {
+    Sales: { menuItem: "Para ventas, presione" },
+    Support: { menuItem: "Para atención al cliente, presione" },
+    Scheduling: { menuItem: "Para agendar una cita, presione" },
+  },
+  de: {
+    Sales: { menuItem: "Für den Vertrieb, drücken Sie" },
+    Support: { menuItem: "Für den Kundendienst, drücken Sie" },
+    Scheduling: { menuItem: "Für die Terminvereinbarung, drücken Sie" },
+  },
+  ja: {
+    Sales: { menuItem: "営業部門は" },
+    Support: { menuItem: "カスタマーサポートは" },
+    Scheduling: { menuItem: "予約は" },
+  },
+  ko: {
+    Sales: { menuItem: "영업부는" },
+    Support: { menuItem: "고객 지원은" },
+    Scheduling: { menuItem: "예약은" },
+  },
+  pt: {
+    Sales: { menuItem: "Para vendas, pressione" },
+    Support: { menuItem: "Para atendimento ao cliente, pressione" },
+    Scheduling: { menuItem: "Para agendamento, pressione" },
+  },
+  ru: {
+    Sales: { menuItem: "Для отдела продаж нажмите" },
+    Support: { menuItem: "Для службы поддержки нажмите" },
+    Scheduling: { menuItem: "Для записи на приём нажмите" },
+  },
+  tr: {
+    Sales: { menuItem: "Satış için" },
+    Support: { menuItem: "Müşteri destek için" },
+    Scheduling: { menuItem: "Randevu almak için" },
+  },
+  ur: {
+    Sales: { menuItem: "سیلز کے لیے دبائیں" },
+    Support: { menuItem: "کسٹمر سپورٹ کے لیے دبائیں" },
+    Scheduling: { menuItem: "اپائنٹمنٹ کے لیے دبائیں" },
+  },
+};
+
+const translateDeptMenuItem = (name: string, langCode: string, keyNum: number): string => {
+  const langTranslations = DEPT_MENU_TRANSLATIONS[langCode];
+  if (langTranslations && langTranslations[name]) {
+    const item = langTranslations[name].menuItem;
+    if (langCode === "ja") return `${item}${keyNum}を押してください`;
+    if (langCode === "ko") return `${item} ${keyNum}번을 눌러주세요`;
+    if (langCode === "tr") return `${item} ${keyNum} tuşuna basınız`;
+    return `${item} ${keyNum}`;
+  }
+  return `For ${name}, press ${keyNum}`;
 };
 
 const translateDeptName = (name: string, langCode: string): string => {
-  const translations = DEPT_NAME_TRANSLATIONS[langCode];
-  if (!translations) return name;
-  return translations[name] || name;
+  const langTranslations = DEPT_MENU_TRANSLATIONS[langCode];
+  if (!langTranslations) return name;
+  const deptNameMap: Record<string, Record<string, string>> = {
+    en: { Sales: "Sales", Support: "Customer Support", Scheduling: "Scheduling" },
+    fr: { Sales: "ventes", Support: "service client", Scheduling: "prise de rendez-vous" },
+    it: { Sales: "vendite", Support: "assistenza clienti", Scheduling: "prenotazioni" },
+    zh: { Sales: "销售部门", Support: "客户支持", Scheduling: "预约服务" },
+    hi: { Sales: "बिक्री विभाग", Support: "ग्राहक सहायता", Scheduling: "अपॉइंटमेंट शेड्यूलिंग" },
+    ar: { Sales: "المبيعات", Support: "خدمة العملاء", Scheduling: "المواعيد" },
+    es: { Sales: "ventas", Support: "atención al cliente", Scheduling: "citas" },
+    de: { Sales: "Vertrieb", Support: "Kundendienst", Scheduling: "Terminvereinbarung" },
+    ja: { Sales: "営業", Support: "カスタマーサポート", Scheduling: "予約" },
+    ko: { Sales: "영업", Support: "고객 지원", Scheduling: "예약" },
+    pt: { Sales: "vendas", Support: "atendimento ao cliente", Scheduling: "agendamento" },
+    ru: { Sales: "продажи", Support: "поддержка", Scheduling: "запись на приём" },
+    tr: { Sales: "satış", Support: "müşteri destek", Scheduling: "randevu" },
+    ur: { Sales: "سیلز", Support: "کسٹمر سپورٹ", Scheduling: "اپائنٹمنٹ" },
+  };
+  return deptNameMap[langCode]?.[name] || name;
 };
 
 const generateDeptGreeting = (deptNames: string[], langCode: string): string => {
-  const template = DEPT_MENU_TEMPLATES[langCode] || DEPT_MENU_TEMPLATES.en;
   if (deptNames.length === 0) return DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
-  
-  const menuItems = deptNames.map((name, idx) => {
-    const translatedName = translateDeptName(name, langCode);
-    if (langCode === "ar") {
-      return `${template.prefix} ${translatedName} ${template.pressKey} ${idx + 1}`;
-    } else if (langCode === "zh") {
-      return `${template.prefix}${translatedName}${template.pressKey}${idx + 1}`;
-    } else if (langCode === "hi") {
-      return `${translatedName} ${template.prefix} ${idx + 1} ${template.pressKey}`;
-    }
-    return `${template.prefix} ${translatedName} ${template.pressKey} ${idx + 1}`;
-  });
-  
-  return menuItems.join(template.separator) + ".";
+  const separator = DEPT_MENU_SEPARATORS[langCode] || ", ";
+
+  const menuItems = deptNames.map((name, idx) =>
+    translateDeptMenuItem(name, langCode, idx + 1)
+  );
+
+  return menuItems.join(separator) + ".";
 };
 
 interface LanguageOption {

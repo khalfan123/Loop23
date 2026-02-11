@@ -1020,8 +1020,11 @@ function DepartmentsStep({
         voiceTone: null,
       }],
       enableTransfer: true,
-      enableRecording: false,
-      enableLanguageDetection: false,
+      enableRecording: true,
+      enableLanguageDetection: true,
+      enableEndConversation: true,
+      endConversationPhrases: ["goodbye", "thank you for calling", "have a nice day"],
+      enableAppointmentBooking: true,
     };
 
     setCanvasDepartments((prev) => [...prev, newDept]);

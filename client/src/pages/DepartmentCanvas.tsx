@@ -1201,6 +1201,8 @@ function IVRRouterStep({
   setLanguageOptions,
   languageSelectionGreetingText,
   setLanguageSelectionGreetingText,
+  languageSelectionGreetingVoice,
+  setLanguageSelectionGreetingVoice,
   isGreetingCustomized,
   companyDisplayName,
   canvasDepartments,
@@ -1215,6 +1217,8 @@ function IVRRouterStep({
   setLanguageOptions: (opts: LanguageOption[]) => void;
   languageSelectionGreetingText: string;
   setLanguageSelectionGreetingText: (val: string) => void;
+  languageSelectionGreetingVoice: string;
+  setLanguageSelectionGreetingVoice: (val: string) => void;
   isGreetingCustomized: React.MutableRefObject<boolean>;
   companyDisplayName: string;
   canvasDepartments: CanvasDepartment[];
@@ -1440,6 +1444,45 @@ function IVRRouterStep({
                 <p className="text-xs text-muted-foreground">
                   This greeting plays when callers first connect. Your company name from your profile is used automatically.
                 </p>
+                <div className="mt-2">
+                  <Label className="text-xs text-muted-foreground">Greeting Voice</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Select
+                      value={languageSelectionGreetingVoice}
+                      onValueChange={setLanguageSelectionGreetingVoice}
+                    >
+                      <SelectTrigger className="flex-1" data-testid="select-greeting-voice">
+                        <SelectValue placeholder="Select a voice..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">OpenAI Voices</div>
+                        {OPENAI_VOICES.map((voice) => (
+                          <SelectItem key={voice.id} value={voice.id}>
+                            {voice.name} - {voice.gender}, {voice.style}
+                          </SelectItem>
+                        ))}
+                        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-2">ElevenLabs Voices</div>
+                        {ELEVENLABS_VOICES.filter(v => v.languages.includes("en")).map((voice) => (
+                          <SelectItem key={voice.id} value={voice.id}>
+                            {voice.name} - {voice.gender}, {voice.style}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handlePlayVoice(languageSelectionGreetingVoice, languageSelectionGreetingText)}
+                      data-testid="button-preview-greeting-voice"
+                    >
+                      {playingVoiceId === languageSelectionGreetingVoice ? (
+                        <Square className="h-4 w-4" />
+                      ) : (
+                        <Volume2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -1656,6 +1699,7 @@ export default function DepartmentCanvas() {
     { id: "default", language: "en", voiceId: "nova", greeting: DEFAULT_GREETINGS.en },
   ]);
   const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
+  const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('nova');
   const isGreetingCustomized = useRef(false);
 
   const { data: userProfile } = useQuery<{ company?: string; name?: string }>({
@@ -1738,6 +1782,7 @@ export default function DepartmentCanvas() {
             name: "Auto Distribution",
             isActive: ivrEnabled,
             greetingMessage,
+            greetingVoiceId: multiLangEnabled ? languageSelectionGreetingVoice : undefined,
             menuOptions,
             languageOptions: multiLangEnabled ? languageOptions : undefined,
           });
@@ -1820,6 +1865,8 @@ export default function DepartmentCanvas() {
               setLanguageOptions={setLanguageOptions}
               languageSelectionGreetingText={languageSelectionGreetingText}
               setLanguageSelectionGreetingText={setLanguageSelectionGreetingText}
+              languageSelectionGreetingVoice={languageSelectionGreetingVoice}
+              setLanguageSelectionGreetingVoice={setLanguageSelectionGreetingVoice}
               isGreetingCustomized={isGreetingCustomized}
               companyDisplayName={companyDisplayName}
               canvasDepartments={canvasDepartments}

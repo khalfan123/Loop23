@@ -444,6 +444,7 @@ function DepartmentCard({
 }) {
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>("auto");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const languageAgents = dept.languageAgents || [];
@@ -466,20 +467,32 @@ function DepartmentCard({
   };
   const Icon = icons[dept.type] || Building2;
 
-  const deptTypeToCategories: Record<string, string[]> = {
-    sales: ["sales"],
-    support: ["support"],
-    scheduling: ["appointment"],
-    custom: ["sales", "support", "appointment", "survey", "general", "agent_preset"],
+  const deptTypeToDefaultCategory: Record<string, string> = {
+    sales: "sales",
+    support: "support",
+    scheduling: "appointment",
+    custom: "all",
   };
 
+  const AGENT_CATEGORIES = [
+    { value: "all", label: "All Categories" },
+    { value: "sales", label: "Sales" },
+    { value: "support", label: "Support" },
+    { value: "appointment", label: "Appointment" },
+    { value: "survey", label: "Survey" },
+    { value: "general", label: "General" },
+  ];
+
+  const effectiveCategory = categoryFilter === "auto"
+    ? (deptTypeToDefaultCategory[dept.type] || "all")
+    : categoryFilter;
+
   const getAgentsForLanguage = (langCode: string) => {
-    const allowedCategories = deptTypeToCategories[dept.type] || deptTypeToCategories.custom;
     return agents.filter((agent) => {
       const agentLang = (agent.language || "en").toLowerCase();
       const agentCategory = (agent.category || "general").toLowerCase();
       const langMatch = agentLang === langCode.toLowerCase();
-      const categoryMatch = allowedCategories.includes(agentCategory) || agentCategory === "general";
+      const categoryMatch = effectiveCategory === "all" || agentCategory === effectiveCategory;
       return langMatch && categoryMatch;
     });
   };
@@ -682,10 +695,33 @@ function DepartmentCard({
               </div>
 
               <div>
-                <Label>Agent Name</Label>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label>Agent Name</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Category:</Label>
+                    <Select
+                      value={categoryFilter}
+                      onValueChange={(val) => setCategoryFilter(val)}
+                    >
+                      <SelectTrigger className="h-7 w-[130px] text-xs" data-testid="select-category-filter">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">
+                          Auto ({deptTypeToDefaultCategory[dept.type] || "all"})
+                        </SelectItem>
+                        {AGENT_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 {availableAgentsForActive.length === 0 ? (
                   <p className="text-sm text-muted-foreground mt-1.5">
-                    No agents configured for {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
+                    No {effectiveCategory !== "all" ? effectiveCategory + " " : ""}agents configured for {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
                   </p>
                 ) : (
                   <Select
@@ -698,7 +734,10 @@ function DepartmentCard({
                     <SelectContent>
                       {availableAgentsForActive.map((agent) => (
                         <SelectItem key={agent.id} value={agent.id}>
-                          {agent.name}
+                          <div className="flex items-center gap-2">
+                            <span>{agent.name}</span>
+                            <span className="text-xs text-muted-foreground">({agent.category || "general"})</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>

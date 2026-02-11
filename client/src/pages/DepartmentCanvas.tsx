@@ -146,6 +146,33 @@ const getDefaultVoiceForLanguage = (langCode: string) => {
   return voices[0]?.id || "nova";
 };
 
+const getBestVoiceForDept = (deptType: string, langCode: string): string => {
+  const voices = getVoicesForLanguage(langCode);
+  if (voices.length === 0) return "nova";
+
+  const stylePreference: Record<string, string[]> = {
+    sales: ["warm", "friendly", "expressive"],
+    support: ["professional", "calm", "balanced"],
+    scheduling: ["professional", "clear", "balanced"],
+  };
+  const preferred = stylePreference[deptType] || stylePreference.support;
+
+  for (const style of preferred) {
+    const match = voices.find(v => v.style === style);
+    if (match) return match.id;
+  }
+  return voices[0]?.id || "nova";
+};
+
+const getBestToneForDept = (deptType: string): string => {
+  switch (deptType) {
+    case "sales": return "friendly";
+    case "support": return "professional";
+    case "scheduling": return "professional";
+    default: return "professional";
+  }
+};
+
 const DEFAULT_GREETINGS: Record<string, string> = {
   en: "Thank you for calling. How may I assist you today?",
   fr: "Merci d'avoir appelé. Comment puis-je vous aider aujourd'hui?",
@@ -653,7 +680,7 @@ function DepartmentCard({
     onUpdate({ languageAgents: newList });
   };
 
-  const generatePromptForAgent = async (langAgentId: string, agentName: string, language: string) => {
+  const generatePromptForAgent = async (langAgentId: string, agentName: string, language: string, preserveUpdates?: Partial<LanguageAgent>) => {
     setIsGeneratingPrompt(true);
     try {
       const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === language)?.label || "English";
@@ -673,7 +700,7 @@ function DepartmentCard({
       });
       const data = await response.json();
       if (data.prompt) {
-        updateLanguageAgent(langAgentId, { systemPrompt: data.prompt });
+        updateLanguageAgent(langAgentId, { ...preserveUpdates, systemPrompt: data.prompt });
         toast({
           title: "Prompt Generated",
           description: `AI-generated system prompt for ${translatedDeptName} (${langLabel})`,
@@ -695,14 +722,17 @@ function DepartmentCard({
     if (agent) {
       const langAgent = languageAgents.find(la => la.id === langAgentId);
       const language = langAgent?.language || "en";
-      updateLanguageAgent(langAgentId, {
+      const bestVoice = getBestVoiceForDept(dept.type, language);
+      const bestTone = getBestToneForDept(dept.type);
+      const agentUpdates: Partial<LanguageAgent> = {
         agentId: agent.id,
         agentName: agent.name,
         systemPrompt: agent.systemPrompt || null,
-        voiceId: agent.openaiVoice || agent.voiceName || null,
-        voiceTone: agent.voiceTone || null,
-      });
-      generatePromptForAgent(langAgentId, agent.name, language);
+        voiceId: bestVoice,
+        voiceTone: bestTone,
+      };
+      updateLanguageAgent(langAgentId, agentUpdates);
+      generatePromptForAgent(langAgentId, agent.name, language, agentUpdates);
     }
   };
 

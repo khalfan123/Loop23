@@ -653,9 +653,48 @@ function DepartmentCard({
     onUpdate({ languageAgents: newList });
   };
 
+  const generatePromptForAgent = async (langAgentId: string, agentName: string, language: string) => {
+    setIsGeneratingPrompt(true);
+    try {
+      const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === language)?.label || "English";
+      const translatedDeptName = translateDeptName(dept.name, dept.type, language);
+      const response = await apiRequest("POST", "/api/departments/generate-prompt", {
+        departmentType: dept.type,
+        departmentName: translatedDeptName,
+        language: langLabel,
+        agentName: agentName,
+        features: {
+          enableLanguageDetection: dept.enableLanguageDetection,
+          enableEndConversation: dept.enableEndConversation,
+          enableAppointmentBooking: dept.enableAppointmentBooking,
+          enableRecording: dept.enableRecording,
+          enableTransfer: dept.enableTransfer,
+        },
+      });
+      const data = await response.json();
+      if (data.prompt) {
+        updateLanguageAgent(langAgentId, { systemPrompt: data.prompt });
+        toast({
+          title: "Prompt Generated",
+          description: `AI-generated system prompt for ${translatedDeptName} (${langLabel})`,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Generation Failed",
+        description: err.message || "Could not generate prompt",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  };
+
   const handleSelectAgent = (langAgentId: string, agentId: string) => {
     const agent = agents.find((a) => a.id === agentId);
     if (agent) {
+      const langAgent = languageAgents.find(la => la.id === langAgentId);
+      const language = langAgent?.language || "en";
       updateLanguageAgent(langAgentId, {
         agentId: agent.id,
         agentName: agent.name,
@@ -663,6 +702,7 @@ function DepartmentCard({
         voiceId: agent.openaiVoice || agent.voiceName || null,
         voiceTone: agent.voiceTone || null,
       });
+      generatePromptForAgent(langAgentId, agent.name, language);
     }
   };
 
@@ -848,43 +888,7 @@ function DepartmentCard({
                     variant="outline"
                     size="sm"
                     disabled={isGeneratingPrompt}
-                    onClick={async () => {
-                      setIsGeneratingPrompt(true);
-                      try {
-                        const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === activeLangAgent.language)?.label || "English";
-                        const translatedDeptName = translateDeptName(dept.name, dept.type, activeLangAgent.language);
-                        const agentName = activeLangAgent.agentName || "";
-                        const response = await apiRequest("POST", "/api/departments/generate-prompt", {
-                          departmentType: dept.type,
-                          departmentName: translatedDeptName,
-                          language: langLabel,
-                          agentName: agentName,
-                          features: {
-                            enableLanguageDetection: dept.enableLanguageDetection,
-                            enableEndConversation: dept.enableEndConversation,
-                            enableAppointmentBooking: dept.enableAppointmentBooking,
-                            enableRecording: dept.enableRecording,
-                            enableTransfer: dept.enableTransfer,
-                          },
-                        });
-                        const data = await response.json();
-                        if (data.prompt) {
-                          updateLanguageAgent(activeLangAgent.id, { systemPrompt: data.prompt });
-                          toast({
-                            title: "Prompt Generated",
-                            description: `AI-generated system prompt for ${translatedDeptName} (${langLabel})`,
-                          });
-                        }
-                      } catch (err: any) {
-                        toast({
-                          title: "Generation Failed",
-                          description: err.message || "Could not generate prompt",
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setIsGeneratingPrompt(false);
-                      }
-                    }}
+                    onClick={() => generatePromptForAgent(activeLangAgent.id, activeLangAgent.agentName || "", activeLangAgent.language)}
                     data-testid="button-generate-prompt"
                   >
                     {isGeneratingPrompt ? (

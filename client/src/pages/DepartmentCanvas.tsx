@@ -1635,27 +1635,84 @@ function IVRRouterStep({
           )}
 
           {!multiLangEnabled && (
-            <div>
-              <Label>Default Greeting Message</Label>
-              <Textarea
-                value={languageOptions[0]?.greeting || DEFAULT_GREETINGS.en}
-                onChange={(e) => {
-                  if (languageOptions.length === 0) {
-                    setLanguageOptions([{
-                      id: "default",
-                      language: "en",
-                      voiceId: "nova",
-                      greeting: e.target.value,
-                    }]);
-                  } else {
-                    updateLanguageOption(languageOptions[0].id, { greeting: e.target.value });
-                  }
-                }}
-                rows={3}
-                className="mt-1.5"
-                placeholder="Thank you for calling..."
-                data-testid="input-ivr-greeting"
-              />
+            <div className="space-y-4">
+              <div>
+                <Label>Default Greeting Message</Label>
+                <Textarea
+                  value={languageOptions[0]?.greeting || DEFAULT_GREETINGS.en}
+                  onChange={(e) => {
+                    if (languageOptions.length === 0) {
+                      setLanguageOptions([{
+                        id: "default",
+                        language: "en",
+                        voiceId: "nova",
+                        greeting: e.target.value,
+                      }]);
+                    } else {
+                      updateLanguageOption(languageOptions[0].id, { greeting: e.target.value });
+                    }
+                  }}
+                  rows={3}
+                  className="mt-1.5"
+                  placeholder="Thank you for calling..."
+                  data-testid="input-ivr-greeting"
+                />
+              </div>
+
+              <div>
+                <Label>Greeting Voice</Label>
+                <p className="text-xs text-muted-foreground mb-1.5">Select the voice used to speak the greeting to callers</p>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={languageOptions[0]?.voiceId || "nova"}
+                    onValueChange={(val) => {
+                      if (languageOptions.length === 0) {
+                        setLanguageOptions([{
+                          id: "default",
+                          language: "en",
+                          voiceId: val,
+                          greeting: DEFAULT_GREETINGS.en,
+                        }]);
+                      } else {
+                        updateLanguageOption(languageOptions[0].id, { voiceId: val });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="flex-1" data-testid="select-default-voice">
+                      <SelectValue placeholder="Select a voice..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">OpenAI Voices</div>
+                      {OPENAI_VOICES.map((voice) => (
+                        <SelectItem key={voice.id} value={voice.id}>
+                          {voice.name} - {voice.gender}, {voice.style}
+                        </SelectItem>
+                      ))}
+                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-2">ElevenLabs Voices</div>
+                      {ELEVENLABS_VOICES.filter(v => v.languages.includes("en")).map((voice) => (
+                        <SelectItem key={voice.id} value={voice.id}>
+                          {voice.name} - {voice.gender}, {voice.style}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handlePlayVoice(
+                      languageOptions[0]?.voiceId || "nova",
+                      languageOptions[0]?.greeting || DEFAULT_GREETINGS.en
+                    )}
+                    data-testid="button-preview-default-voice"
+                  >
+                    {playingVoiceId === (languageOptions[0]?.voiceId || "nova") ? (
+                      <Square className="h-4 w-4" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </>

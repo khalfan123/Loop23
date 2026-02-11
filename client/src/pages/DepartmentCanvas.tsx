@@ -63,6 +63,7 @@ interface Agent {
   openaiVoice: string | null;
   systemPrompt: string | null;
   voiceTone: string | null;
+  category: string | null;
 }
 
 interface LanguageAgent {
@@ -465,10 +466,21 @@ function DepartmentCard({
   };
   const Icon = icons[dept.type] || Building2;
 
+  const deptTypeToCategories: Record<string, string[]> = {
+    sales: ["sales"],
+    support: ["support"],
+    scheduling: ["appointment"],
+    custom: ["sales", "support", "appointment", "survey", "general", "agent_preset"],
+  };
+
   const getAgentsForLanguage = (langCode: string) => {
+    const allowedCategories = deptTypeToCategories[dept.type] || deptTypeToCategories.custom;
     return agents.filter((agent) => {
       const agentLang = (agent.language || "en").toLowerCase();
-      return agentLang === langCode.toLowerCase();
+      const agentCategory = (agent.category || "general").toLowerCase();
+      const langMatch = agentLang === langCode.toLowerCase();
+      const categoryMatch = allowedCategories.includes(agentCategory) || agentCategory === "general";
+      return langMatch && categoryMatch;
     });
   };
 

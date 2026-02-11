@@ -205,7 +205,7 @@ STRICT KNOWLEDGE BASE RESTRICTION:
     return {
       ...config,
       systemPrompt: enhancedSystemPrompt,
-      temperature: Math.min(config.temperature ?? 0.7, 0.4),
+      temperature: Math.max(Math.min(config.temperature ?? 0.7, 0.8), 0.6),
       knowledgeBaseIds,
       tools: [...(config.tools || []), kbTool],
     };

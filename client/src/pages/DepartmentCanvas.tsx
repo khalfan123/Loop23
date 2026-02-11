@@ -445,7 +445,6 @@ function DepartmentCard({
 }) {
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string>("auto");
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -469,32 +468,20 @@ function DepartmentCard({
   };
   const Icon = icons[dept.type] || Building2;
 
-  const deptTypeToDefaultCategory: Record<string, string> = {
-    sales: "sales",
-    support: "support",
-    scheduling: "appointment",
-    custom: "all",
+  const deptTypeToCategories: Record<string, string[]> = {
+    sales: ["sales"],
+    support: ["support"],
+    scheduling: ["appointment"],
+    custom: ["sales", "support", "appointment", "survey", "general", "agent_preset"],
   };
 
-  const AGENT_CATEGORIES = [
-    { value: "all", label: "All Categories" },
-    { value: "sales", label: "Sales" },
-    { value: "support", label: "Support" },
-    { value: "appointment", label: "Appointment" },
-    { value: "survey", label: "Survey" },
-    { value: "general", label: "General" },
-  ];
-
-  const effectiveCategory = categoryFilter === "auto"
-    ? (deptTypeToDefaultCategory[dept.type] || "all")
-    : categoryFilter;
-
   const getAgentsForLanguage = (langCode: string) => {
+    const allowedCategories = deptTypeToCategories[dept.type] || deptTypeToCategories.custom;
     return agents.filter((agent) => {
       const agentLang = (agent.language || "en").toLowerCase();
       const agentCategory = (agent.category || "general").toLowerCase();
       const langMatch = agentLang === langCode.toLowerCase();
-      const categoryMatch = effectiveCategory === "all" || agentCategory === effectiveCategory;
+      const categoryMatch = allowedCategories.includes(agentCategory);
       return langMatch && categoryMatch;
     });
   };
@@ -697,33 +684,10 @@ function DepartmentCard({
               </div>
 
               <div>
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <Label>Agent Name</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Label className="text-xs text-muted-foreground">Category:</Label>
-                    <Select
-                      value={categoryFilter}
-                      onValueChange={(val) => setCategoryFilter(val)}
-                    >
-                      <SelectTrigger className="h-7 w-[130px] text-xs" data-testid="select-category-filter">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">
-                          Auto ({deptTypeToDefaultCategory[dept.type] || "all"})
-                        </SelectItem>
-                        {AGENT_CATEGORIES.map((cat) => (
-                          <SelectItem key={cat.value} value={cat.value}>
-                            {cat.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                <Label>Agent Name</Label>
                 {availableAgentsForActive.length === 0 ? (
                   <p className="text-sm text-muted-foreground mt-1.5">
-                    No {effectiveCategory !== "all" ? effectiveCategory + " " : ""}agents configured for {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
+                    No agents configured for {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
                   </p>
                 ) : (
                   <Select
@@ -736,10 +700,7 @@ function DepartmentCard({
                     <SelectContent>
                       {availableAgentsForActive.map((agent) => (
                         <SelectItem key={agent.id} value={agent.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{agent.name}</span>
-                            <span className="text-xs text-muted-foreground">({agent.category || "general"})</span>
-                          </div>
+                          {agent.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -758,10 +719,13 @@ function DepartmentCard({
                       setIsGeneratingPrompt(true);
                       try {
                         const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === activeLangAgent.language)?.label || "English";
+                        const translatedDeptName = translateDeptName(dept.name, activeLangAgent.language);
+                        const agentName = activeLangAgent.agentName || "";
                         const response = await apiRequest("POST", "/api/departments/generate-prompt", {
                           departmentType: dept.type,
-                          departmentName: dept.name,
+                          departmentName: translatedDeptName,
                           language: langLabel,
+                          agentName: agentName,
                           features: {
                             enableLanguageDetection: dept.enableLanguageDetection,
                             enableEndConversation: dept.enableEndConversation,
@@ -775,7 +739,7 @@ function DepartmentCard({
                           updateLanguageAgent(activeLangAgent.id, { systemPrompt: data.prompt });
                           toast({
                             title: "Prompt Generated",
-                            description: `AI-generated system prompt for ${dept.name} (${langLabel})`,
+                            description: `AI-generated system prompt for ${translatedDeptName} (${langLabel})`,
                           });
                         }
                       } catch (err: any) {

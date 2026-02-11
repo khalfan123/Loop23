@@ -827,7 +827,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
 
   router.post("/generate-prompt", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { departmentType, departmentName, language, features } = req.body;
+      const { departmentType, departmentName, language, agentName, features } = req.body;
 
       if (!departmentType || !departmentName) {
         return res.status(400).json({ error: "departmentType and departmentName are required" });
@@ -845,6 +845,10 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         ? `\nThe agent has these features enabled: ${featuresList.join(", ")}.`
         : "";
 
+      const agentNameContext = agentName
+        ? `\nThe agent's name is "${agentName}". Use this name when the agent introduces itself. The name should appear naturally in the language of the prompt.`
+        : "";
+
       const openai = await getOpenAIClient();
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -852,21 +856,22 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         messages: [
           {
             role: "system",
-            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent. The prompt should be specific to the department's purpose and include behavioral guidelines, tone instructions, and handling procedures. Output ONLY the system prompt text, no explanations or markdown.`
+            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent. The prompt should be specific to the department's purpose and include behavioral guidelines, tone instructions, and handling procedures. The entire prompt MUST be written in ${langLabel}. Output ONLY the system prompt text, no explanations or markdown.`
           },
           {
             role: "user",
             content: `Generate a system prompt for a "${departmentName}" department agent.
 Department type: ${departmentType}
-Primary language: ${langLabel}${featuresContext}
+Primary language: ${langLabel}${agentNameContext}${featuresContext}
 
 The prompt should:
 - Define the agent's role clearly for a ${departmentType} department
+- Use the department name "${departmentName}" as it is (already translated to ${langLabel})
 - Set the appropriate tone and communication style
 - Include specific handling procedures for ${departmentType} scenarios
 - Provide guidelines for common ${departmentType} situations
 - Be professional yet conversational
-- Be written in ${langLabel}`
+- The ENTIRE prompt must be written in ${langLabel}`
           }
         ],
       });

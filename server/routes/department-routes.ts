@@ -9,6 +9,7 @@ import { getDomain } from "../utils/domain";
 import { textToSpeech } from "../replit_integrations/audio/client";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { nanoid } from "nanoid";
+import { getOpenAIClient } from "../services/openai-modelfarm";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -821,6 +822,60 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
     } catch (error: any) {
       console.error("[Departments] Voice preview error:", error);
       res.status(500).json({ error: error.message || "Failed to generate voice preview" });
+    }
+  });
+
+  router.post("/generate-prompt", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { departmentType, departmentName, language, features } = req.body;
+
+      if (!departmentType || !departmentName) {
+        return res.status(400).json({ error: "departmentType and departmentName are required" });
+      }
+
+      const langLabel = language || "English";
+      const featuresList: string[] = [];
+      if (features?.enableLanguageDetection) featuresList.push("auto-detect caller language and respond in their language");
+      if (features?.enableEndConversation) featuresList.push("intelligently end conversations when appropriate using farewell phrases");
+      if (features?.enableAppointmentBooking) featuresList.push("book appointments during calls");
+      if (features?.enableRecording) featuresList.push("inform callers that the call is being recorded for quality and training");
+      if (features?.enableTransfer) featuresList.push("transfer calls to human operators when needed");
+
+      const featuresContext = featuresList.length > 0
+        ? `\nThe agent has these features enabled: ${featuresList.join(", ")}.`
+        : "";
+
+      const openai = await getOpenAIClient();
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_completion_tokens: 1024,
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent. The prompt should be specific to the department's purpose and include behavioral guidelines, tone instructions, and handling procedures. Output ONLY the system prompt text, no explanations or markdown.`
+          },
+          {
+            role: "user",
+            content: `Generate a system prompt for a "${departmentName}" department agent.
+Department type: ${departmentType}
+Primary language: ${langLabel}${featuresContext}
+
+The prompt should:
+- Define the agent's role clearly for a ${departmentType} department
+- Set the appropriate tone and communication style
+- Include specific handling procedures for ${departmentType} scenarios
+- Provide guidelines for common ${departmentType} situations
+- Be professional yet conversational
+- Be written in ${langLabel}`
+          }
+        ],
+      });
+
+      const generatedPrompt = response.choices[0]?.message?.content?.trim() || "";
+      res.json({ prompt: generatedPrompt });
+    } catch (error: any) {
+      console.error("[Departments] Generate prompt error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate prompt" });
     }
   });
 

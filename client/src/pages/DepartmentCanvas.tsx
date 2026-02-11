@@ -45,6 +45,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -445,6 +446,7 @@ function DepartmentCard({
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("auto");
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const languageAgents = dept.languageAgents || [];
@@ -746,7 +748,56 @@ function DepartmentCard({
               </div>
 
               <div>
-                <Label>System Prompt</Label>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label>System Prompt</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isGeneratingPrompt}
+                    onClick={async () => {
+                      setIsGeneratingPrompt(true);
+                      try {
+                        const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === activeLangAgent.language)?.label || "English";
+                        const response = await apiRequest("POST", "/api/departments/generate-prompt", {
+                          departmentType: dept.type,
+                          departmentName: dept.name,
+                          language: langLabel,
+                          features: {
+                            enableLanguageDetection: dept.enableLanguageDetection,
+                            enableEndConversation: dept.enableEndConversation,
+                            enableAppointmentBooking: dept.enableAppointmentBooking,
+                            enableRecording: dept.enableRecording,
+                            enableTransfer: dept.enableTransfer,
+                          },
+                        });
+                        const data = await response.json();
+                        if (data.prompt) {
+                          updateLanguageAgent(activeLangAgent.id, { systemPrompt: data.prompt });
+                          toast({
+                            title: "Prompt Generated",
+                            description: `AI-generated system prompt for ${dept.name} (${langLabel})`,
+                          });
+                        }
+                      } catch (err: any) {
+                        toast({
+                          title: "Generation Failed",
+                          description: err.message || "Could not generate prompt",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsGeneratingPrompt(false);
+                      }
+                    }}
+                    data-testid="button-generate-prompt"
+                  >
+                    {isGeneratingPrompt ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    {isGeneratingPrompt ? "Generating..." : "AI Generate"}
+                  </Button>
+                </div>
                 <Textarea
                   value={activeLangAgent.systemPrompt || ""}
                   onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}

@@ -267,21 +267,56 @@ const DEPT_MENU_TRANSLATIONS: Record<string, Record<string, Record<string, strin
   },
 };
 
-const translateDeptMenuItem = (name: string, langCode: string, keyNum: number): string => {
+const DEPT_TYPE_TO_KEY: Record<string, string> = {
+  sales: "Sales",
+  support: "Support",
+  scheduling: "Scheduling",
+  custom: "custom",
+};
+
+const normalizeDeptKey = (name: string, type?: string): string => {
+  if (type && DEPT_TYPE_TO_KEY[type] && DEPT_TYPE_TO_KEY[type] !== "custom") {
+    return DEPT_TYPE_TO_KEY[type];
+  }
+  const lower = name.toLowerCase().trim();
+  if (lower.includes("sales") || lower.includes("sale")) return "Sales";
+  if (lower.includes("support") || lower.includes("customer")) return "Support";
+  if (lower.includes("schedul") || lower.includes("appointment") || lower.includes("booking")) return "Scheduling";
+  return name;
+};
+
+const translateDeptMenuItem = (name: string, type: string, langCode: string, keyNum: number): string => {
+  const key = normalizeDeptKey(name, type);
   const langTranslations = DEPT_MENU_TRANSLATIONS[langCode];
-  if (langTranslations && langTranslations[name]) {
-    const item = langTranslations[name].menuItem;
+  if (langTranslations && langTranslations[key]) {
+    const item = langTranslations[key].menuItem;
     if (langCode === "ja") return `${item}${keyNum}を押してください`;
     if (langCode === "ko") return `${item} ${keyNum}번을 눌러주세요`;
     if (langCode === "tr") return `${item} ${keyNum} tuşuna basınız`;
     return `${item} ${keyNum}`;
   }
-  return `For ${name}, press ${keyNum}`;
+  const fallbackTemplates: Record<string, (deptName: string, num: number) => string> = {
+    en: (d, n) => `For ${d}, press ${n}`,
+    fr: (d, n) => `Pour ${d}, appuyez sur le ${n}`,
+    it: (d, n) => `Per ${d}, premere ${n}`,
+    zh: (d, n) => `${d}请按${n}`,
+    hi: (d, n) => `${d} के लिए ${n} दबाएं`,
+    ar: (d, n) => `لقسم ${d}، اضغط ${n}`,
+    es: (d, n) => `Para ${d}, presione ${n}`,
+    de: (d, n) => `Für ${d}, drücken Sie ${n}`,
+    ja: (d, n) => `${d}は${n}を押してください`,
+    ko: (d, n) => `${d}은 ${n}번을 눌러주세요`,
+    pt: (d, n) => `Para ${d}, pressione ${n}`,
+    ru: (d, n) => `Для ${d} нажмите ${n}`,
+    tr: (d, n) => `${d} için ${n} tuşuna basınız`,
+    ur: (d, n) => `${d} کے لیے ${n} دبائیں`,
+  };
+  const fallback = fallbackTemplates[langCode] || fallbackTemplates.en;
+  return fallback(name, keyNum);
 };
 
-const translateDeptName = (name: string, langCode: string): string => {
-  const langTranslations = DEPT_MENU_TRANSLATIONS[langCode];
-  if (!langTranslations) return name;
+const translateDeptName = (name: string, type: string, langCode: string): string => {
+  const key = normalizeDeptKey(name, type);
   const deptNameMap: Record<string, Record<string, string>> = {
     en: { Sales: "Sales", Support: "Customer Support", Scheduling: "Scheduling" },
     fr: { Sales: "ventes", Support: "service client", Scheduling: "prise de rendez-vous" },
@@ -298,15 +333,20 @@ const translateDeptName = (name: string, langCode: string): string => {
     tr: { Sales: "satış", Support: "müşteri destek", Scheduling: "randevu" },
     ur: { Sales: "سیلز", Support: "کسٹمر سپورٹ", Scheduling: "اپائنٹمنٹ" },
   };
-  return deptNameMap[langCode]?.[name] || name;
+  return deptNameMap[langCode]?.[key] || name;
 };
 
-const generateDeptGreeting = (deptNames: string[], langCode: string): string => {
-  if (deptNames.length === 0) return DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
+interface DeptInfo {
+  name: string;
+  type: string;
+}
+
+const generateDeptGreeting = (departments: DeptInfo[], langCode: string): string => {
+  if (departments.length === 0) return DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
   const separator = DEPT_MENU_SEPARATORS[langCode] || ", ";
 
-  const menuItems = deptNames.map((name, idx) =>
-    translateDeptMenuItem(name, langCode, idx + 1)
+  const menuItems = departments.map((dept, idx) =>
+    translateDeptMenuItem(dept.name, dept.type, langCode, idx + 1)
   );
 
   return menuItems.join(separator) + ".";
@@ -812,7 +852,7 @@ function DepartmentCard({
                       setIsGeneratingPrompt(true);
                       try {
                         const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === activeLangAgent.language)?.label || "English";
-                        const translatedDeptName = translateDeptName(dept.name, activeLangAgent.language);
+                        const translatedDeptName = translateDeptName(dept.name, dept.type, activeLangAgent.language);
                         const agentName = activeLangAgent.agentName || "";
                         const response = await apiRequest("POST", "/api/departments/generate-prompt", {
                           departmentType: dept.type,
@@ -1350,8 +1390,8 @@ function IVRRouterStep({
     }
   }, [languageOptions, companyDisplayName]);
 
-  const deptNames = canvasDepartments.map(d => d.name || "Department");
-  const deptNamesKey = deptNames.join("||");
+  const deptInfos: DeptInfo[] = canvasDepartments.map(d => ({ name: d.name || "Department", type: d.type }));
+  const deptNamesKey = deptInfos.map(d => `${d.name}:${d.type}`).join("||");
 
   useEffect(() => {
     if (canvasDepartments.length === 0) return;
@@ -1359,7 +1399,7 @@ function IVRRouterStep({
       if (customizedDeptGreetings.current.has(opt.id)) return opt;
       return {
         ...opt,
-        greeting: generateDeptGreeting(deptNames, opt.language),
+        greeting: generateDeptGreeting(deptInfos, opt.language),
         selectedDepartments: canvasDepartments.map(d => d.id),
       };
     });
@@ -1375,13 +1415,12 @@ function IVRRouterStep({
     if (!availableLang) return;
 
     const allDeptIds = canvasDepartments.map(d => d.id);
-    const allDeptNames = canvasDepartments.map(d => d.name || "Department");
 
     const newOption: LanguageOption = {
       id: `lang-${Date.now()}`,
       language: availableLang.code,
       voiceId: getDefaultVoiceForLanguage(availableLang.code),
-      greeting: generateDeptGreeting(allDeptNames, availableLang.code),
+      greeting: generateDeptGreeting(deptInfos, availableLang.code),
       selectedDepartments: allDeptIds,
     };
     setLanguageOptions([...languageOptions, newOption]);
@@ -1395,7 +1434,7 @@ function IVRRouterStep({
           if (updates.language && updates.language !== opt.language) {
             customizedDeptGreetings.current.delete(id);
             if (canvasDepartments.length > 0) {
-              updated.greeting = generateDeptGreeting(deptNames, updates.language);
+              updated.greeting = generateDeptGreeting(deptInfos, updates.language);
             } else {
               updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
             }
@@ -1701,7 +1740,7 @@ function IVRRouterStep({
                             onClick={() => {
                               customizedDeptGreetings.current.delete(opt.id);
                               updateLanguageOption(opt.id, {
-                                greeting: generateDeptGreeting(deptNames, opt.language),
+                                greeting: generateDeptGreeting(deptInfos, opt.language),
                               });
                             }}
                             data-testid={`button-reset-dept-greeting-${idx}`}

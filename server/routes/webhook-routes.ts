@@ -778,6 +778,20 @@ function getVoiceForLanguage(langCode: string): any {
   return TWILIO_LANGUAGE_VOICES[langCode]?.voice || 'Polly.Joanna';
 }
 
+function isNonPollyVoice(voiceId: string | null | undefined): boolean {
+  if (!voiceId) return false;
+  return !voiceId.startsWith('Polly.');
+}
+
+function playOrSay(parent: any, voiceId: string, text: string, ivrId: string, domain: string, pollyAttrs?: Record<string, any>) {
+  if (isNonPollyVoice(voiceId)) {
+    const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrId}?voiceId=${encodeURIComponent(voiceId)}&text=${encodeURIComponent(text)}`;
+    parent.play(audioUrl);
+  } else {
+    saySlow(parent, pollyAttrs || { voice: voiceId || 'Polly.Joanna' }, text);
+  }
+}
+
 function getTwilioLangCode(langCode: string): string {
   return TWILIO_LANGUAGE_VOICES[langCode]?.lang || 'en-US';
 }
@@ -866,8 +880,15 @@ async function handleIvrCall(
         ? `Thanks for calling ${companyName}. Please select your preferred language.`
         : 'Please select your preferred language.');
       
-      saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, greetingText);
-      console.log(`   Greeting: "${greetingText}"`);
+      const domain = getDomain(req.headers.host as string);
+      const mainVoiceId = ivrConfig.voiceId || null;
+      
+      if (isNonPollyVoice(mainVoiceId)) {
+        gather.play(`${domain}/api/departments/ivr-greeting-audio/${ivrConfig.id}`);
+      } else {
+        saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, greetingText);
+      }
+      console.log(`   Greeting: "${greetingText}" (voice: ${mainVoiceId || 'Polly default'})`);
       
       // Only append per-language voice prompts if the greeting doesn't already include language press options
       const greetingLower = greetingText.toLowerCase();
@@ -876,17 +897,28 @@ async function handleIvrCall(
       if (!hasLangOptions) {
         for (let idx = 0; idx < langOptions.length; idx++) {
           const opt = langOptions[idx];
+          const optVoiceId = opt.voiceId || null;
           const voice = getVoiceForLanguage(opt.language);
           const lang = getTwilioLangCode(opt.language);
           const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
           const keyNum = idx + 1;
+          const promptText = `${prompt} ${keyNum}.`;
           
-          saySlow(gather, { voice, language: lang as any }, `${prompt} ${keyNum}.`);
-          console.log(`   Lang option ${keyNum}: ${opt.language} → voice=${voice}, lang=${lang}`);
+          if (isNonPollyVoice(optVoiceId)) {
+            playOrSay(gather, optVoiceId!, promptText, ivrConfig.id, domain);
+          } else {
+            saySlow(gather, { voice, language: lang as any }, promptText);
+          }
+          console.log(`   Lang option ${keyNum}: ${opt.language} → voice=${optVoiceId || voice}, lang=${lang}`);
         }
       }
       
-      saySlow(response, { voice: 'Polly.Joanna' }, 'We did not receive your selection.');
+      const noSelectionMsg = 'We did not receive your selection.';
+      if (isNonPollyVoice(ivrConfig.voiceId)) {
+        playOrSay(response, ivrConfig.voiceId, noSelectionMsg, ivrConfig.id, domain);
+      } else {
+        saySlow(response, { voice: 'Polly.Joanna' }, noSelectionMsg);
+      }
       response.redirect(`/api/webhooks/twilio/incoming`);
       
       res.type('text/xml');
@@ -896,6 +928,7 @@ async function handleIvrCall(
 
     // Single language mode: go straight to department menu
     const langCode = langOptions?.[0]?.language || 'en';
+    const singleVoiceId = langOptions?.[0]?.voiceId || ivrConfig.voiceId || null;
     const voice = getVoiceForLanguage(langCode);
     const lang = getTwilioLangCode(langCode);
     
@@ -909,10 +942,20 @@ async function handleIvrCall(
       timeout: 10,
     });
     
-    saySlow(gather, { voice, language: lang as any }, deptMenuPrompt);
+    if (isNonPollyVoice(singleVoiceId)) {
+      const domain = getDomain(req.headers.host as string);
+      playOrSay(gather, singleVoiceId!, deptMenuPrompt, ivrConfig.id, domain);
+    } else {
+      saySlow(gather, { voice, language: lang as any }, deptMenuPrompt);
+    }
 
     const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
-    saySlow(response, { voice, language: lang as any }, template.noInputMsg);
+    if (isNonPollyVoice(singleVoiceId)) {
+      const domainForNoInput = getDomain(req.headers.host as string);
+      playOrSay(response, singleVoiceId!, template.noInputMsg, ivrConfig.id, domainForNoInput);
+    } else {
+      saySlow(response, { voice, language: lang as any }, template.noInputMsg);
+    }
     response.redirect(`/api/webhooks/twilio/incoming`);
 
     res.type('text/xml');
@@ -973,8 +1016,15 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     
     if (!selectedLang) {
       console.log(`⚠️ [IVR Language] Invalid digit: ${Digits}`);
-      const invalidVoice = getVoiceForLanguage('en');
-      response.say({ voice: invalidVoice }, 'Invalid selection.');
+      const langSelVoiceId = ivrConfig[0].voiceId || null;
+      const langSelDomain = getDomain(req.headers.host as string);
+      
+      if (isNonPollyVoice(langSelVoiceId)) {
+        playOrSay(response, langSelVoiceId!, 'Invalid selection.', ivrId as string, langSelDomain);
+      } else {
+        const invalidVoice = getVoiceForLanguage('en');
+        response.say({ voice: invalidVoice }, 'Invalid selection.');
+      }
       
       const gather = response.gather({
         numDigits: 1,
@@ -985,23 +1035,34 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       
       for (let idx = 0; idx < langOptions.length; idx++) {
         const opt = langOptions[idx];
+        const optVoiceId = opt.voiceId || null;
         const voice = getVoiceForLanguage(opt.language);
         const lang = getTwilioLangCode(opt.language);
         const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
-        saySlow(gather, { voice, language: lang as any }, `${prompt} ${idx + 1}.`);
+        const promptText = `${prompt} ${idx + 1}.`;
+        if (isNonPollyVoice(optVoiceId)) {
+          playOrSay(gather, optVoiceId!, promptText, ivrId as string, langSelDomain);
+        } else {
+          saySlow(gather, { voice, language: lang as any }, promptText);
+        }
       }
       
-      saySlow(response, { voice: 'Polly.Joanna' }, 'Goodbye.');
+      if (isNonPollyVoice(langSelVoiceId)) {
+        playOrSay(response, langSelVoiceId!, 'Goodbye.', ivrId as string, langSelDomain);
+      } else {
+        saySlow(response, { voice: 'Polly.Joanna' }, 'Goodbye.');
+      }
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
     }
     
     const langCode = selectedLang.language;
+    const selectedVoiceId = selectedLang.voiceId || null;
     const voice = getVoiceForLanguage(langCode);
     const lang = getTwilioLangCode(langCode);
     
-    console.log(`📞 [IVR Language] Selected language: ${langCode}, voice: ${voice}`);
+    console.log(`📞 [IVR Language] Selected language: ${langCode}, voice: ${selectedVoiceId || voice}`);
     
     // Filter departments to only those selected for this language (if configured)
     let filteredMenuOptions = menuOptions;
@@ -1028,10 +1089,20 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       timeout: 10,
     });
     
-    saySlow(gather, { voice, language: lang as any }, deptMenuPrompt);
+    if (isNonPollyVoice(selectedVoiceId)) {
+      const domain = getDomain(req.headers.host as string);
+      playOrSay(gather, selectedVoiceId!, deptMenuPrompt, ivrId as string, domain);
+    } else {
+      saySlow(gather, { voice, language: lang as any }, deptMenuPrompt);
+    }
     
     const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
-    saySlow(response, { voice, language: lang as any }, template.noInputMsg);
+    if (isNonPollyVoice(selectedVoiceId)) {
+      const domain = getDomain(req.headers.host as string);
+      playOrSay(response, selectedVoiceId!, template.noInputMsg, ivrId as string, domain);
+    } else {
+      saySlow(response, { voice, language: lang as any }, template.noInputMsg);
+    }
     response.redirect(`/api/webhooks/twilio/incoming`);
     
     res.type('text/xml');
@@ -1081,6 +1152,19 @@ export async function handleIvrSelection(req: Request, res: Response) {
       return res.send(response.toString());
     }
     
+    const selLangOptions = ivrConfig[0].languageOptions as { id: string; language: string; voiceId: string; greeting: string }[] | null;
+    const selLangOpt = selLangOptions?.find(lo => lo.language === langCode);
+    const selVoiceId = selLangOpt?.voiceId || ivrConfig[0].voiceId || null;
+    const selDomain = getDomain(req.headers.host as string);
+    
+    const sayWithVoice = (parent: any, text: string) => {
+      if (isNonPollyVoice(selVoiceId)) {
+        playOrSay(parent, selVoiceId!, text, ivrId as string, selDomain);
+      } else {
+        saySlow(parent, { voice, language: langTag as any }, text);
+      }
+    };
+    
     if (ivrConfig[0].phoneNumberId) {
       const phoneCheck = await db
         .select({ phoneNumber: phoneNumbers.phoneNumber })
@@ -1090,7 +1174,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
       
       if (phoneCheck.length > 0 && To && phoneCheck[0].phoneNumber !== To) {
         console.error(`❌ [IVR Selection] Phone number mismatch - IVR phone: ${phoneCheck[0].phoneNumber}, Called: ${To}`);
-        saySlow(response, { voice, language: langTag as any }, template.invalidMsg);
+        sayWithVoice(response, template.invalidMsg);
         response.hangup();
         res.type('text/xml');
         return res.send(response.toString());
@@ -1102,7 +1186,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
     
     if (!selectedOption) {
       console.log(`⚠️ [IVR Selection] Invalid digit: ${Digits}`);
-      saySlow(response, { voice, language: langTag as any }, template.invalidMsg);
+      sayWithVoice(response, template.invalidMsg);
       
       const deptNames = menuOptions.map((opt: any) => opt.label);
       const deptMenuPrompt = buildDeptMenuPrompt(deptNames, langCode);
@@ -1112,7 +1196,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
         method: 'POST',
         timeout: 10,
       });
-      saySlow(gather, { voice, language: langTag as any }, deptMenuPrompt);
+      sayWithVoice(gather, deptMenuPrompt);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
@@ -1127,7 +1211,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
       .limit(1);
     
     if (!dept.length) {
-      saySlow(response, { voice, language: langTag as any }, template.noAgentMsg);
+      sayWithVoice(response, template.noAgentMsg);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
@@ -1147,7 +1231,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
     
     if (deptAgentsList.length === 0 || !deptAgentsList[0].agent) {
       console.log(`⚠️ [IVR Selection] No agents found for department: ${selectedOption.departmentId}`);
-      saySlow(response, { voice, language: langTag as any }, template.noAgentMsg);
+      sayWithVoice(response, template.noAgentMsg);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
@@ -1178,12 +1262,12 @@ export async function handleIvrSelection(req: Request, res: Response) {
     }
     
     if (!selectedAgentEntry || !selectedAgentEntry.agent) {
-      saySlow(response, { voice, language: langTag as any }, template.holdMsg);
+      sayWithVoice(response, template.holdMsg);
       const firstAgent = deptAgentsList[0].agent;
       if (firstAgent?.transferPhoneNumber) {
         response.dial().number(firstAgent.transferPhoneNumber);
       } else {
-        saySlow(response, { voice, language: langTag as any }, template.noAgentMsg);
+        sayWithVoice(response, template.noAgentMsg);
         response.hangup();
       }
       res.type('text/xml');
@@ -1193,7 +1277,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
     const selectedAgent = selectedAgentEntry.agent;
     console.log(`📞 [IVR Selection] Connecting to agent: ${selectedAgent.name} (${selectedAgent.id}), voiceProvider: ${selectedAgent.voiceProvider || 'elevenlabs'}`);
     
-    saySlow(response, { voice, language: langTag as any }, template.holdMsg);
+    sayWithVoice(response, template.holdMsg);
     
     if (selectedAgent.elevenLabsAgentId) {
       const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${selectedAgent.elevenLabsAgentId}`;

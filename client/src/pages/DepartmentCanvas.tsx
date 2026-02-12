@@ -2020,9 +2020,9 @@ export default function DepartmentCanvas() {
             name: "Auto Distribution",
             isActive: ivrEnabled,
             greetingMessage,
-            greetingVoiceId: multiLangEnabled ? languageSelectionGreetingVoice : undefined,
+            voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'nova'),
             menuOptions,
-            languageOptions: multiLangEnabled ? languageOptions : undefined,
+            languageOptions: multiLangEnabled ? languageOptions : languageOptions,
           });
         }
       }

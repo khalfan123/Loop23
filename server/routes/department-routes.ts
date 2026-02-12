@@ -903,6 +903,107 @@ The prompt should:
   return router;
 }
 
+const ttsAudioCache = new Map<string, { buffer: Buffer; timestamp: number }>();
+const TTS_CACHE_TTL = 10 * 60 * 1000;
+
+function hashText(text: string): string {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    const chr = text.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0;
+  }
+  return hash.toString(36);
+}
+
+export function createIvrAudioRoutes() {
+  const router = Router();
+
+  router.get("/ivr-greeting-audio/:ivrId", async (req: Request, res: Response) => {
+    try {
+      const { ivrId } = req.params;
+      const textParam = req.query.text as string | undefined;
+      const voiceIdParam = req.query.voiceId as string | undefined;
+      const langIdx = req.query.idx as string | undefined;
+
+      const ivrConfig = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(eq(ivrConfigurations.id, ivrId))
+        .limit(1);
+
+      if (!ivrConfig.length) {
+        return res.status(404).json({ error: "IVR configuration not found" });
+      }
+
+      const config = ivrConfig[0];
+      let voiceId = voiceIdParam || config.voiceId || "nova";
+      let text = textParam || config.greetingMessage || "Thank you for calling.";
+
+      if (langIdx !== undefined) {
+        const langOptions = config.languageOptions as { voiceId?: string; greeting?: string }[] | null;
+        const idx = parseInt(langIdx, 10);
+        if (langOptions && langOptions[idx]) {
+          if (!voiceIdParam && langOptions[idx].voiceId) {
+            voiceId = langOptions[idx].voiceId!;
+          }
+          if (!textParam && langOptions[idx].greeting) {
+            text = langOptions[idx].greeting!;
+          }
+        }
+      }
+
+      const cacheKey = `${ivrId}-${voiceId}-${hashText(text)}`;
+      const cached = ttsAudioCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp) < TTS_CACHE_TTL) {
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Cache-Control", "public, max-age=600");
+        return res.send(cached.buffer);
+      }
+
+      let audioBuffer: Buffer;
+      const isElevenLabsVoice = voiceId.startsWith("el_");
+
+      if (isElevenLabsVoice) {
+        const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+        if (!elevenLabsApiKey) {
+          return res.status(500).json({ error: "ElevenLabs API key not configured" });
+        }
+        const elevenLabsVoiceId = getElevenLabsVoiceId(voiceId);
+        if (!elevenLabsVoiceId) {
+          return res.status(400).json({ error: "Invalid ElevenLabs voice ID" });
+        }
+        const elService = new ElevenLabsService(elevenLabsApiKey);
+        audioBuffer = await elService.generateVoicePreview({ voiceId: elevenLabsVoiceId, text });
+      } else {
+        const validOpenAIVoices = ["alloy", "echo", "shimmer", "ash", "coral", "sage", "verse", "nova", "fable", "onyx"];
+        const voice = validOpenAIVoices.includes(voiceId) ? voiceId : "nova";
+        audioBuffer = await textToSpeech(text, voice as any, "mp3");
+      }
+
+      ttsAudioCache.set(cacheKey, { buffer: audioBuffer, timestamp: Date.now() });
+
+      if (ttsAudioCache.size > 100) {
+        const now = Date.now();
+        for (const [key, val] of ttsAudioCache) {
+          if (now - val.timestamp > TTS_CACHE_TTL) {
+            ttsAudioCache.delete(key);
+          }
+        }
+      }
+
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "public, max-age=600");
+      res.send(audioBuffer);
+    } catch (error: any) {
+      console.error("[IVR Audio] Error generating TTS audio:", error);
+      res.status(500).json({ error: error.message || "Failed to generate audio" });
+    }
+  });
+
+  return router;
+}
+
 /**
  * Map internal ElevenLabs voice IDs to actual ElevenLabs voice IDs
  */

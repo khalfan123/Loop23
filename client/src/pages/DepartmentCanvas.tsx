@@ -1995,6 +1995,9 @@ export default function DepartmentCanvas() {
               agentId: la.agentId,
               language: la.language || "en",
               isPrimary: i === 0,
+              systemPrompt: la.systemPrompt || undefined,
+              voiceTone: la.voiceTone || undefined,
+              voiceId: la.voiceId || undefined,
             });
           }
         }

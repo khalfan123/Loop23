@@ -1137,6 +1137,9 @@ export async function handleIvrSelection(req: Request, res: Response) {
       .select({
         agentId: departmentAgents.agentId,
         agent: agents,
+        deptSystemPrompt: departmentAgents.systemPrompt,
+        deptVoiceTone: departmentAgents.voiceTone,
+        deptLanguage: departmentAgents.language,
       })
       .from(departmentAgents)
       .leftJoin(agents, eq(departmentAgents.agentId, agents.id))
@@ -1151,9 +1154,10 @@ export async function handleIvrSelection(req: Request, res: Response) {
     }
     
     // Select the best agent based on caller's language, then ElevenLabs preference
+    // Use the department-level language assignment (from canvas) first, fallback to agent's own language
     const langMatchAgents = deptAgentsList.filter(da => {
-      const agentLang = (da.agent?.language || 'en').toLowerCase();
-      return agentLang === langCode.toLowerCase();
+      const deptLang = (da.deptLanguage || da.agent?.language || 'en').toLowerCase();
+      return deptLang === langCode.toLowerCase();
     });
     
     const langMatchElevenLabs = langMatchAgents.find(da => da.agent?.elevenLabsAgentId);

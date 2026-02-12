@@ -385,7 +385,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
   router.post("/:id/agents", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const { agentId, language, isPrimary, systemPrompt, voiceTone } = req.body;
+      const { agentId, language, isPrimary, systemPrompt, voiceTone, voiceId } = req.body;
 
       if (!agentId) {
         return res.status(400).json({ error: "agentId is required" });
@@ -424,6 +424,22 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
           voiceTone: voiceTone || null,
         })
         .returning();
+
+      // Sync the canvas-generated prompt and voice settings to the agent record
+      // This ensures the agent uses the updated prompt during actual calls
+      if (systemPrompt || voiceId || voiceTone) {
+        const agentUpdate: Record<string, any> = {};
+        if (systemPrompt) agentUpdate.systemPrompt = systemPrompt;
+        if (voiceId) agentUpdate.openaiVoice = voiceId;
+        if (voiceTone) agentUpdate.voiceTone = voiceTone;
+
+        await db
+          .update(agents)
+          .set(agentUpdate)
+          .where(and(eq(agents.id, agentId), eq(agents.userId, req.userId!)));
+
+        console.log(`[Departments] Synced agent ${agentId} with canvas config: prompt=${!!systemPrompt}, voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}`);
+      }
 
       res.status(201).json(newDeptAgent[0]);
     } catch (error: any) {

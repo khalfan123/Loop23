@@ -106,7 +106,6 @@ export const n8nService = {
         nodes,
         connections,
         settings: { executionOrder: 'v1' },
-        active: false,
       }),
     });
   },

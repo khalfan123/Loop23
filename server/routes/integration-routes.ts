@@ -500,7 +500,9 @@ router.post('/:id/use-cases/execute', async (req: AuthRequest, res: Response) =>
     const config = integration.config as any || {};
     const webhookUrl = config.n8nWebhookUrl || integration.webhookUrl;
 
+    const startTime = Date.now();
     let executionResult = { success: true, executionId: undefined as string | undefined };
+    let warning: string | undefined;
 
     if (webhookUrl) {
       executionResult = await n8nService.sendWebhook(
@@ -515,13 +517,17 @@ router.post('/:id/use-cases/execute', async (req: AuthRequest, res: Response) =>
           timestamp: new Date().toISOString(),
         }
       );
+    } else {
+      warning = 'n8n webhook URL is not configured. The use case was logged but no workflow was triggered.';
     }
+
+    const duration = Date.now() - startTime;
 
     await db.update(integrationSyncLogs)
       .set({
         status: executionResult.success ? 'success' : 'failed',
         n8nExecutionId: executionResult.executionId || null,
-        executionDurationMs: 0,
+        executionDurationMs: duration,
         recordsSynced: executionResult.success ? 1 : 0,
       })
       .where(eq(integrationSyncLogs.id, logEntry.id));
@@ -531,6 +537,7 @@ router.post('/:id/use-cases/execute', async (req: AuthRequest, res: Response) =>
       message: executionResult.success
         ? `Use case "${templateName}" triggered successfully${executionResult.executionId ? ` (Execution: ${executionResult.executionId})` : ''}.`
         : 'Failed to execute the use case template. Check your n8n webhook configuration.',
+      warning,
       executionId: executionResult.executionId,
       logId: logEntry.id,
     });

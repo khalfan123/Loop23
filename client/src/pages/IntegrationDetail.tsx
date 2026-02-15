@@ -19,7 +19,7 @@ import {
   RefreshCw, Clock, Zap, Settings, FileText, ExternalLink,
   Play, XCircle, Plug2, User, Mail, Shield,
   Code, Filter, ChevronDown, ChevronRight,
-  Copy, Terminal, ListChecks
+  Copy, Terminal, ListChecks, Workflow
 } from "lucide-react";
 import {
   SiSalesforce, SiHubspot, SiGooglesheets, SiSlack,
@@ -927,6 +927,446 @@ interface SetupStep {
 
 const PROVIDER_SETUP_GUIDE: Record<string, SetupStep[]> = {};
 
+interface ProviderUseCase {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  n8nTemplateName: string;
+  n8nTemplateDescription: string;
+  triggerEvent: string;
+  expectedOutcome: string;
+}
+
+const PROVIDER_USE_CASES: Record<string, ProviderUseCase[]> = {
+  salesforce: [
+    { id: "sf-log-calls", title: "Auto-log calls as activities", description: "Automatically create activity records in Salesforce for every completed call with full transcript and outcome data.", category: "CRM", n8nTemplateName: "Salesforce Call Logger", n8nTemplateDescription: "Logs call data as Salesforce Task activities", triggerEvent: "call.completed", expectedOutcome: "New Task activity created in Salesforce with call details" },
+    { id: "sf-create-leads", title: "Create leads from new callers", description: "Automatically create new Lead records when unknown callers are detected during conversations.", category: "CRM", n8nTemplateName: "Salesforce Lead Creator", n8nTemplateDescription: "Creates leads from unrecognized phone numbers", triggerEvent: "call.new_caller", expectedOutcome: "New Lead record created with caller information" },
+    { id: "sf-sync-contacts", title: "Sync contact data after conversations", description: "Update Salesforce Contact records with latest conversation insights and extracted data points.", category: "CRM", n8nTemplateName: "Salesforce Contact Sync", n8nTemplateDescription: "Syncs conversation data to contact records", triggerEvent: "call.analyzed", expectedOutcome: "Contact record updated with latest conversation data" },
+    { id: "sf-update-opps", title: "Update opportunity stages", description: "Automatically advance or update Opportunity stages based on call outcomes and AI analysis.", category: "CRM", n8nTemplateName: "Salesforce Opportunity Updater", n8nTemplateDescription: "Updates opportunity stages from call results", triggerEvent: "call.outcome_determined", expectedOutcome: "Opportunity stage updated based on call analysis" },
+  ],
+  hubspot: [
+    { id: "hs-create-deals", title: "Create deals from qualified calls", description: "Automatically create new deals in HubSpot when calls are identified as sales-qualified opportunities.", category: "CRM", n8nTemplateName: "HubSpot Deal Creator", n8nTemplateDescription: "Creates deals from qualified call outcomes", triggerEvent: "call.qualified", expectedOutcome: "New deal created in HubSpot pipeline" },
+    { id: "hs-push-notes", title: "Push call notes to timeline", description: "Add detailed call notes and transcripts to the HubSpot contact timeline for complete interaction history.", category: "CRM", n8nTemplateName: "HubSpot Timeline Logger", n8nTemplateDescription: "Pushes call notes to contact timeline", triggerEvent: "call.completed", expectedOutcome: "Call notes added to contact timeline in HubSpot" },
+    { id: "hs-sync-contacts", title: "Sync contacts bi-directionally", description: "Keep contact information synchronized between your calling platform and HubSpot in both directions.", category: "CRM", n8nTemplateName: "HubSpot Contact Sync", n8nTemplateDescription: "Bi-directional contact synchronization", triggerEvent: "contact.updated", expectedOutcome: "Contact data synced between platforms" },
+    { id: "hs-followup", title: "Trigger follow-up sequences", description: "Automatically enroll contacts into HubSpot email sequences based on call outcomes and qualification status.", category: "CRM", n8nTemplateName: "HubSpot Sequence Trigger", n8nTemplateDescription: "Enrolls contacts in follow-up sequences", triggerEvent: "call.followup_needed", expectedOutcome: "Contact enrolled in appropriate follow-up sequence" },
+  ],
+  zoho: [
+    { id: "zoho-log-calls", title: "Log call activities", description: "Create call activity records in Zoho CRM with complete conversation details and outcomes.", category: "CRM", n8nTemplateName: "Zoho Call Logger", n8nTemplateDescription: "Logs calls as Zoho activities", triggerEvent: "call.completed", expectedOutcome: "Call activity logged in Zoho CRM" },
+    { id: "zoho-sync-leads", title: "Sync leads after conversations", description: "Synchronize lead data and conversation insights to Zoho CRM lead records.", category: "CRM", n8nTemplateName: "Zoho Lead Sync", n8nTemplateDescription: "Syncs lead data post-conversation", triggerEvent: "call.analyzed", expectedOutcome: "Lead record updated in Zoho CRM" },
+    { id: "zoho-update-deals", title: "Update deal stages", description: "Advance deal stages in Zoho CRM based on call outcomes and qualification criteria.", category: "CRM", n8nTemplateName: "Zoho Deal Updater", n8nTemplateDescription: "Updates deal stages from call results", triggerEvent: "call.outcome_determined", expectedOutcome: "Deal stage updated in Zoho CRM" },
+    { id: "zoho-create-tasks", title: "Create follow-up tasks", description: "Automatically create follow-up tasks in Zoho CRM based on action items from calls.", category: "CRM", n8nTemplateName: "Zoho Task Creator", n8nTemplateDescription: "Creates tasks from call action items", triggerEvent: "call.action_items", expectedOutcome: "Follow-up task created in Zoho CRM" },
+  ],
+  pipedrive: [
+    { id: "pd-create-activities", title: "Create activities from calls", description: "Log call activities in Pipedrive with detailed notes and outcome tracking.", category: "CRM", n8nTemplateName: "Pipedrive Activity Creator", n8nTemplateDescription: "Creates activities from completed calls", triggerEvent: "call.completed", expectedOutcome: "Activity created in Pipedrive" },
+    { id: "pd-update-deals", title: "Update deal progress", description: "Move deals through pipeline stages based on call outcomes and buyer signals.", category: "CRM", n8nTemplateName: "Pipedrive Deal Updater", n8nTemplateDescription: "Updates deal stages from call analysis", triggerEvent: "call.outcome_determined", expectedOutcome: "Deal stage updated in Pipedrive" },
+    { id: "pd-sync-persons", title: "Sync person data", description: "Keep person records in Pipedrive synchronized with caller information.", category: "CRM", n8nTemplateName: "Pipedrive Person Sync", n8nTemplateDescription: "Syncs caller data to person records", triggerEvent: "contact.updated", expectedOutcome: "Person record updated in Pipedrive" },
+    { id: "pd-push-outcomes", title: "Push call outcomes", description: "Record call outcomes and dispositions directly to Pipedrive deal and activity records.", category: "CRM", n8nTemplateName: "Pipedrive Outcome Logger", n8nTemplateDescription: "Pushes call outcomes to Pipedrive", triggerEvent: "call.outcome_determined", expectedOutcome: "Call outcome recorded in Pipedrive" },
+  ],
+  freshsales: [
+    { id: "fs-log-outcomes", title: "Log call outcomes", description: "Record call outcomes and dispositions in Freshsales for complete activity tracking.", category: "CRM", n8nTemplateName: "Freshsales Call Logger", n8nTemplateDescription: "Logs call outcomes in Freshsales", triggerEvent: "call.completed", expectedOutcome: "Call outcome logged in Freshsales" },
+    { id: "fs-update-scores", title: "Update lead scores", description: "Automatically adjust lead scores in Freshsales based on call engagement and outcomes.", category: "CRM", n8nTemplateName: "Freshsales Score Updater", n8nTemplateDescription: "Updates lead scores from call data", triggerEvent: "call.analyzed", expectedOutcome: "Lead score updated in Freshsales" },
+    { id: "fs-create-tasks", title: "Create tasks from calls", description: "Generate follow-up tasks in Freshsales from action items identified during calls.", category: "CRM", n8nTemplateName: "Freshsales Task Creator", n8nTemplateDescription: "Creates tasks from call action items", triggerEvent: "call.action_items", expectedOutcome: "Task created in Freshsales" },
+    { id: "fs-sync-contacts", title: "Sync contact data", description: "Synchronize contact information between your calling platform and Freshsales.", category: "CRM", n8nTemplateName: "Freshsales Contact Sync", n8nTemplateDescription: "Syncs contact data bi-directionally", triggerEvent: "contact.updated", expectedOutcome: "Contact synced in Freshsales" },
+  ],
+  dynamics365: [
+    { id: "d365-create-calls", title: "Create phone call activities", description: "Create Phone Call activity records in Dynamics 365 for every completed conversation.", category: "CRM", n8nTemplateName: "Dynamics 365 Call Creator", n8nTemplateDescription: "Creates phone call activities", triggerEvent: "call.completed", expectedOutcome: "Phone Call activity created in Dynamics 365" },
+    { id: "d365-sync-leads", title: "Sync leads", description: "Synchronize lead data between your calling platform and Dynamics 365.", category: "CRM", n8nTemplateName: "Dynamics 365 Lead Sync", n8nTemplateDescription: "Syncs lead records", triggerEvent: "call.new_caller", expectedOutcome: "Lead synced in Dynamics 365" },
+    { id: "d365-update-quals", title: "Update lead qualifications", description: "Update lead qualification status in Dynamics 365 based on call analysis results.", category: "CRM", n8nTemplateName: "Dynamics 365 Qualification Updater", n8nTemplateDescription: "Updates lead qualification from calls", triggerEvent: "call.qualified", expectedOutcome: "Lead qualification updated in Dynamics 365" },
+    { id: "d365-log-outcomes", title: "Log conversation outcomes", description: "Record detailed conversation outcomes and notes in Dynamics 365 activity records.", category: "CRM", n8nTemplateName: "Dynamics 365 Outcome Logger", n8nTemplateDescription: "Logs conversation outcomes", triggerEvent: "call.outcome_determined", expectedOutcome: "Outcome logged in Dynamics 365" },
+  ],
+  "close-crm": [
+    { id: "close-log-calls", title: "Auto-log calls", description: "Automatically log all call activities in Close CRM with transcripts and outcomes.", category: "CRM", n8nTemplateName: "Close CRM Call Logger", n8nTemplateDescription: "Logs calls in Close CRM", triggerEvent: "call.completed", expectedOutcome: "Call logged in Close CRM" },
+    { id: "close-update-leads", title: "Update lead statuses", description: "Update lead status in Close CRM based on call outcomes and engagement levels.", category: "CRM", n8nTemplateName: "Close CRM Lead Updater", n8nTemplateDescription: "Updates lead statuses from calls", triggerEvent: "call.outcome_determined", expectedOutcome: "Lead status updated in Close CRM" },
+    { id: "close-sync-contacts", title: "Sync contact info", description: "Keep contact information synchronized between your calling platform and Close CRM.", category: "CRM", n8nTemplateName: "Close CRM Contact Sync", n8nTemplateDescription: "Syncs contact data", triggerEvent: "contact.updated", expectedOutcome: "Contact synced in Close CRM" },
+    { id: "close-create-tasks", title: "Create tasks", description: "Generate follow-up tasks in Close CRM from call action items.", category: "CRM", n8nTemplateName: "Close CRM Task Creator", n8nTemplateDescription: "Creates tasks from calls", triggerEvent: "call.action_items", expectedOutcome: "Task created in Close CRM" },
+  ],
+  "copper-crm": [
+    { id: "copper-push-summaries", title: "Push call summaries", description: "Push AI-generated call summaries to Copper CRM contact and opportunity records.", category: "CRM", n8nTemplateName: "Copper Call Summary Pusher", n8nTemplateDescription: "Pushes call summaries to Copper", triggerEvent: "call.summarized", expectedOutcome: "Call summary added to Copper record" },
+    { id: "copper-create-contacts", title: "Create contacts from callers", description: "Automatically create new contacts in Copper CRM from unrecognized callers.", category: "CRM", n8nTemplateName: "Copper Contact Creator", n8nTemplateDescription: "Creates contacts from new callers", triggerEvent: "call.new_caller", expectedOutcome: "Contact created in Copper CRM" },
+    { id: "copper-sync-activities", title: "Sync activities", description: "Synchronize call activities between your platform and Copper CRM.", category: "CRM", n8nTemplateName: "Copper Activity Sync", n8nTemplateDescription: "Syncs call activities", triggerEvent: "call.completed", expectedOutcome: "Activity synced in Copper CRM" },
+    { id: "copper-update-opps", title: "Update opportunities", description: "Update opportunity records in Copper CRM based on call outcomes.", category: "CRM", n8nTemplateName: "Copper Opportunity Updater", n8nTemplateDescription: "Updates opportunities from calls", triggerEvent: "call.outcome_determined", expectedOutcome: "Opportunity updated in Copper CRM" },
+  ],
+  gohighlevel: [
+    { id: "ghl-trigger-workflows", title: "Trigger follow-up workflows", description: "Trigger automated follow-up workflows in GoHighLevel based on call outcomes.", category: "CRM", n8nTemplateName: "GHL Workflow Trigger", n8nTemplateDescription: "Triggers follow-up workflows", triggerEvent: "call.followup_needed", expectedOutcome: "Follow-up workflow triggered in GoHighLevel" },
+    { id: "ghl-sync-contacts", title: "Sync contacts", description: "Synchronize contact data between your calling platform and GoHighLevel.", category: "CRM", n8nTemplateName: "GHL Contact Sync", n8nTemplateDescription: "Syncs contact records", triggerEvent: "contact.updated", expectedOutcome: "Contact synced in GoHighLevel" },
+    { id: "ghl-update-pipeline", title: "Update pipeline stages", description: "Move opportunities through GoHighLevel pipeline stages based on call analysis.", category: "CRM", n8nTemplateName: "GHL Pipeline Updater", n8nTemplateDescription: "Updates pipeline stages", triggerEvent: "call.outcome_determined", expectedOutcome: "Pipeline stage updated in GoHighLevel" },
+    { id: "ghl-send-sms", title: "Send follow-up SMS", description: "Send automated SMS follow-ups via GoHighLevel after call completion.", category: "CRM", n8nTemplateName: "GHL SMS Sender", n8nTemplateDescription: "Sends follow-up SMS messages", triggerEvent: "call.completed", expectedOutcome: "Follow-up SMS sent via GoHighLevel" },
+  ],
+  keap: [
+    { id: "keap-tag-leads", title: "Tag leads based on call outcome", description: "Automatically apply tags to Keap contacts based on call disposition and outcomes.", category: "CRM", n8nTemplateName: "Keap Lead Tagger", n8nTemplateDescription: "Tags contacts from call outcomes", triggerEvent: "call.outcome_determined", expectedOutcome: "Tags applied to contact in Keap" },
+    { id: "keap-create-contacts", title: "Create contacts", description: "Create new contacts in Keap from unrecognized callers.", category: "CRM", n8nTemplateName: "Keap Contact Creator", n8nTemplateDescription: "Creates contacts from new callers", triggerEvent: "call.new_caller", expectedOutcome: "Contact created in Keap" },
+    { id: "keap-trigger-campaigns", title: "Trigger campaigns", description: "Trigger Keap marketing campaigns based on call outcomes and lead qualification.", category: "CRM", n8nTemplateName: "Keap Campaign Trigger", n8nTemplateDescription: "Triggers campaigns from call results", triggerEvent: "call.qualified", expectedOutcome: "Campaign triggered in Keap" },
+    { id: "keap-log-activities", title: "Log call activities", description: "Log call activities in Keap contact records for complete interaction history.", category: "CRM", n8nTemplateName: "Keap Activity Logger", n8nTemplateDescription: "Logs call activities", triggerEvent: "call.completed", expectedOutcome: "Activity logged in Keap" },
+  ],
+  sugarcrm: [
+    { id: "sugar-log-calls", title: "Log call activities", description: "Create call activity records in SugarCRM with conversation details.", category: "CRM", n8nTemplateName: "SugarCRM Call Logger", n8nTemplateDescription: "Logs calls in SugarCRM", triggerEvent: "call.completed", expectedOutcome: "Call activity logged in SugarCRM" },
+    { id: "sugar-sync-leads", title: "Sync leads", description: "Synchronize lead data between your calling platform and SugarCRM.", category: "CRM", n8nTemplateName: "SugarCRM Lead Sync", n8nTemplateDescription: "Syncs lead records", triggerEvent: "call.new_caller", expectedOutcome: "Lead synced in SugarCRM" },
+    { id: "sugar-update-opps", title: "Update opportunities", description: "Update opportunity stages in SugarCRM based on call outcomes.", category: "CRM", n8nTemplateName: "SugarCRM Opportunity Updater", n8nTemplateDescription: "Updates opportunities from calls", triggerEvent: "call.outcome_determined", expectedOutcome: "Opportunity updated in SugarCRM" },
+    { id: "sugar-create-tasks", title: "Create follow-up tasks", description: "Generate follow-up tasks in SugarCRM from call action items.", category: "CRM", n8nTemplateName: "SugarCRM Task Creator", n8nTemplateDescription: "Creates tasks from calls", triggerEvent: "call.action_items", expectedOutcome: "Task created in SugarCRM" },
+  ],
+  bitrix24: [
+    { id: "bitrix-push-calls", title: "Push call data", description: "Push call data and recordings to Bitrix24 CRM activities.", category: "CRM", n8nTemplateName: "Bitrix24 Call Pusher", n8nTemplateDescription: "Pushes call data to Bitrix24", triggerEvent: "call.completed", expectedOutcome: "Call data pushed to Bitrix24" },
+    { id: "bitrix-sync-leads", title: "Sync leads", description: "Synchronize lead records between your platform and Bitrix24.", category: "CRM", n8nTemplateName: "Bitrix24 Lead Sync", n8nTemplateDescription: "Syncs lead data", triggerEvent: "call.new_caller", expectedOutcome: "Lead synced in Bitrix24" },
+    { id: "bitrix-create-activities", title: "Create activities", description: "Create activity records in Bitrix24 from call events.", category: "CRM", n8nTemplateName: "Bitrix24 Activity Creator", n8nTemplateDescription: "Creates activities from calls", triggerEvent: "call.completed", expectedOutcome: "Activity created in Bitrix24" },
+    { id: "bitrix-update-deals", title: "Update deals", description: "Update deal stages in Bitrix24 based on call outcomes.", category: "CRM", n8nTemplateName: "Bitrix24 Deal Updater", n8nTemplateDescription: "Updates deals from call results", triggerEvent: "call.outcome_determined", expectedOutcome: "Deal updated in Bitrix24" },
+  ],
+  insightly: [
+    { id: "insightly-create-leads", title: "Create leads from calls", description: "Create new lead records in Insightly from incoming call data.", category: "CRM", n8nTemplateName: "Insightly Lead Creator", n8nTemplateDescription: "Creates leads from calls", triggerEvent: "call.new_caller", expectedOutcome: "Lead created in Insightly" },
+    { id: "insightly-log-notes", title: "Log call notes", description: "Add call notes and transcripts to Insightly contact records.", category: "CRM", n8nTemplateName: "Insightly Note Logger", n8nTemplateDescription: "Logs call notes", triggerEvent: "call.completed", expectedOutcome: "Notes logged in Insightly" },
+    { id: "insightly-sync-contacts", title: "Sync contacts", description: "Synchronize contact information between platforms and Insightly.", category: "CRM", n8nTemplateName: "Insightly Contact Sync", n8nTemplateDescription: "Syncs contact data", triggerEvent: "contact.updated", expectedOutcome: "Contact synced in Insightly" },
+    { id: "insightly-update-pipelines", title: "Update pipelines", description: "Update pipeline stages in Insightly based on call analysis.", category: "CRM", n8nTemplateName: "Insightly Pipeline Updater", n8nTemplateDescription: "Updates pipelines from calls", triggerEvent: "call.outcome_determined", expectedOutcome: "Pipeline updated in Insightly" },
+  ],
+  twilio: [
+    { id: "twilio-sms-followup", title: "Send SMS follow-up after calls", description: "Automatically send SMS follow-up messages via Twilio after call completion.", category: "Telephony", n8nTemplateName: "Twilio SMS Follow-up", n8nTemplateDescription: "Sends post-call SMS messages", triggerEvent: "call.completed", expectedOutcome: "SMS follow-up sent via Twilio" },
+    { id: "twilio-route-calls", title: "Route calls based on AI analysis", description: "Intelligently route incoming calls using AI analysis of caller intent.", category: "Telephony", n8nTemplateName: "Twilio Call Router", n8nTemplateDescription: "Routes calls with AI analysis", triggerEvent: "call.incoming", expectedOutcome: "Call routed to appropriate destination" },
+    { id: "twilio-track-metrics", title: "Track call metrics", description: "Track and aggregate call metrics and analytics via Twilio.", category: "Telephony", n8nTemplateName: "Twilio Metrics Tracker", n8nTemplateDescription: "Tracks call performance metrics", triggerEvent: "call.completed", expectedOutcome: "Call metrics recorded and aggregated" },
+    { id: "twilio-verify", title: "Verify phone numbers", description: "Verify caller phone numbers using Twilio Lookup API.", category: "Telephony", n8nTemplateName: "Twilio Number Verifier", n8nTemplateDescription: "Verifies phone numbers", triggerEvent: "call.incoming", expectedOutcome: "Phone number verified via Twilio" },
+  ],
+  plivo: [
+    { id: "plivo-sms", title: "Send post-call SMS", description: "Send follow-up SMS messages via Plivo after call completion.", category: "Telephony", n8nTemplateName: "Plivo SMS Sender", n8nTemplateDescription: "Sends post-call SMS", triggerEvent: "call.completed", expectedOutcome: "SMS sent via Plivo" },
+    { id: "plivo-analytics", title: "Track call analytics", description: "Track and analyze call performance metrics through Plivo.", category: "Telephony", n8nTemplateName: "Plivo Analytics Tracker", n8nTemplateDescription: "Tracks call analytics", triggerEvent: "call.completed", expectedOutcome: "Analytics data recorded in Plivo" },
+    { id: "plivo-route", title: "Route international calls", description: "Route international calls through optimal Plivo carriers.", category: "Telephony", n8nTemplateName: "Plivo Call Router", n8nTemplateDescription: "Routes international calls", triggerEvent: "call.incoming", expectedOutcome: "Call routed through Plivo" },
+    { id: "plivo-verify", title: "Number verification", description: "Verify and validate phone numbers using Plivo.", category: "Telephony", n8nTemplateName: "Plivo Number Verifier", n8nTemplateDescription: "Verifies phone numbers", triggerEvent: "call.incoming", expectedOutcome: "Number verified via Plivo" },
+  ],
+  vonage: [
+    { id: "vonage-sms", title: "Send SMS notifications", description: "Send SMS notifications via Vonage for call events and outcomes.", category: "Telephony", n8nTemplateName: "Vonage SMS Notifier", n8nTemplateDescription: "Sends SMS notifications", triggerEvent: "call.completed", expectedOutcome: "SMS notification sent via Vonage" },
+    { id: "vonage-quality", title: "Track call quality", description: "Monitor and track call quality metrics through Vonage.", category: "Telephony", n8nTemplateName: "Vonage Quality Tracker", n8nTemplateDescription: "Tracks call quality", triggerEvent: "call.completed", expectedOutcome: "Quality metrics recorded" },
+    { id: "vonage-route", title: "Route calls", description: "Route calls through Vonage with intelligent call distribution.", category: "Telephony", n8nTemplateName: "Vonage Call Router", n8nTemplateDescription: "Routes calls", triggerEvent: "call.incoming", expectedOutcome: "Call routed via Vonage" },
+    { id: "vonage-lookup", title: "Number lookup", description: "Look up phone number details using Vonage Number Insight.", category: "Telephony", n8nTemplateName: "Vonage Number Lookup", n8nTemplateDescription: "Looks up number info", triggerEvent: "call.incoming", expectedOutcome: "Number details retrieved" },
+  ],
+  bandwidth: [
+    { id: "bw-sms", title: "SMS follow-up", description: "Send SMS follow-up messages via Bandwidth after calls.", category: "Telephony", n8nTemplateName: "Bandwidth SMS Sender", n8nTemplateDescription: "Sends follow-up SMS", triggerEvent: "call.completed", expectedOutcome: "SMS sent via Bandwidth" },
+    { id: "bw-tracking", title: "Call tracking", description: "Track call events and metrics through Bandwidth.", category: "Telephony", n8nTemplateName: "Bandwidth Call Tracker", n8nTemplateDescription: "Tracks call data", triggerEvent: "call.completed", expectedOutcome: "Call data tracked in Bandwidth" },
+    { id: "bw-numbers", title: "Number management", description: "Manage phone numbers and provisioning through Bandwidth.", category: "Telephony", n8nTemplateName: "Bandwidth Number Manager", n8nTemplateDescription: "Manages phone numbers", triggerEvent: "system.provision", expectedOutcome: "Numbers managed via Bandwidth" },
+    { id: "bw-routing", title: "Call routing", description: "Route calls through Bandwidth network with custom logic.", category: "Telephony", n8nTemplateName: "Bandwidth Call Router", n8nTemplateDescription: "Routes calls", triggerEvent: "call.incoming", expectedOutcome: "Call routed via Bandwidth" },
+  ],
+  telnyx: [
+    { id: "telnyx-messaging", title: "Post-call messaging", description: "Send post-call messages via Telnyx messaging API.", category: "Telephony", n8nTemplateName: "Telnyx Messenger", n8nTemplateDescription: "Sends post-call messages", triggerEvent: "call.completed", expectedOutcome: "Message sent via Telnyx" },
+    { id: "telnyx-analytics", title: "Call analytics", description: "Track call analytics and performance through Telnyx.", category: "Telephony", n8nTemplateName: "Telnyx Analytics", n8nTemplateDescription: "Tracks call analytics", triggerEvent: "call.completed", expectedOutcome: "Analytics recorded in Telnyx" },
+    { id: "telnyx-provision", title: "Number provisioning", description: "Provision and manage phone numbers through Telnyx.", category: "Telephony", n8nTemplateName: "Telnyx Number Provisioner", n8nTemplateDescription: "Provisions numbers", triggerEvent: "system.provision", expectedOutcome: "Numbers provisioned via Telnyx" },
+    { id: "telnyx-sip", title: "SIP routing", description: "Configure SIP routing through Telnyx for advanced call handling.", category: "Telephony", n8nTemplateName: "Telnyx SIP Router", n8nTemplateDescription: "Configures SIP routing", triggerEvent: "call.incoming", expectedOutcome: "SIP routing configured via Telnyx" },
+  ],
+  "amazon-connect": [
+    { id: "ac-route-agents", title: "Route to live agents", description: "Route calls to live agents in Amazon Connect based on AI analysis.", category: "Telephony", n8nTemplateName: "Amazon Connect Agent Router", n8nTemplateDescription: "Routes to live agents", triggerEvent: "call.escalation", expectedOutcome: "Call routed to live agent" },
+    { id: "ac-track-metrics", title: "Track call metrics", description: "Track and report on call center metrics through Amazon Connect.", category: "Telephony", n8nTemplateName: "Amazon Connect Metrics", n8nTemplateDescription: "Tracks call metrics", triggerEvent: "call.completed", expectedOutcome: "Metrics tracked in Amazon Connect" },
+    { id: "ac-queue", title: "Queue management", description: "Manage call queues and routing in Amazon Connect.", category: "Telephony", n8nTemplateName: "Amazon Connect Queue Manager", n8nTemplateDescription: "Manages call queues", triggerEvent: "call.incoming", expectedOutcome: "Queue managed in Amazon Connect" },
+    { id: "ac-surveys", title: "Post-call surveys", description: "Trigger post-call surveys through Amazon Connect.", category: "Telephony", n8nTemplateName: "Amazon Connect Survey", n8nTemplateDescription: "Sends post-call surveys", triggerEvent: "call.completed", expectedOutcome: "Survey triggered via Amazon Connect" },
+  ],
+  openai: [
+    { id: "oai-summaries", title: "Generate call summaries", description: "Use OpenAI to generate concise, structured summaries of call transcripts.", category: "AI & LLM", n8nTemplateName: "OpenAI Call Summarizer", n8nTemplateDescription: "Generates AI call summaries", triggerEvent: "call.transcribed", expectedOutcome: "AI-generated call summary created" },
+    { id: "oai-sentiment", title: "Sentiment analysis of transcripts", description: "Analyze caller sentiment throughout the conversation using OpenAI.", category: "AI & LLM", n8nTemplateName: "OpenAI Sentiment Analyzer", n8nTemplateDescription: "Analyzes transcript sentiment", triggerEvent: "call.transcribed", expectedOutcome: "Sentiment scores generated for call" },
+    { id: "oai-action-items", title: "Extract action items", description: "Extract and categorize action items from call transcripts using OpenAI.", category: "AI & LLM", n8nTemplateName: "OpenAI Action Extractor", n8nTemplateDescription: "Extracts action items from calls", triggerEvent: "call.transcribed", expectedOutcome: "Action items extracted and categorized" },
+    { id: "oai-classify", title: "Classify call intents", description: "Classify caller intent and call purpose using OpenAI models.", category: "AI & LLM", n8nTemplateName: "OpenAI Intent Classifier", n8nTemplateDescription: "Classifies call intents", triggerEvent: "call.transcribed", expectedOutcome: "Call intent classified" },
+  ],
+  anthropic: [
+    { id: "anth-summarize", title: "Summarize conversations", description: "Use Anthropic Claude to create detailed conversation summaries.", category: "AI & LLM", n8nTemplateName: "Anthropic Summarizer", n8nTemplateDescription: "Summarizes conversations", triggerEvent: "call.transcribed", expectedOutcome: "Conversation summary generated" },
+    { id: "anth-intent", title: "Analyze caller intent", description: "Analyze and categorize caller intent using Anthropic Claude.", category: "AI & LLM", n8nTemplateName: "Anthropic Intent Analyzer", n8nTemplateDescription: "Analyzes caller intent", triggerEvent: "call.transcribed", expectedOutcome: "Caller intent analyzed" },
+    { id: "anth-emails", title: "Generate follow-up emails", description: "Generate personalized follow-up emails based on call content.", category: "AI & LLM", n8nTemplateName: "Anthropic Email Generator", n8nTemplateDescription: "Generates follow-up emails", triggerEvent: "call.completed", expectedOutcome: "Follow-up email draft generated" },
+    { id: "anth-quality", title: "Quality scoring", description: "Score call quality and agent performance using Anthropic.", category: "AI & LLM", n8nTemplateName: "Anthropic Quality Scorer", n8nTemplateDescription: "Scores call quality", triggerEvent: "call.transcribed", expectedOutcome: "Quality score generated" },
+  ],
+  "google-gemini": [
+    { id: "gemini-transcript", title: "Transcript analysis", description: "Analyze call transcripts using Google Gemini for insights.", category: "AI & LLM", n8nTemplateName: "Gemini Transcript Analyzer", n8nTemplateDescription: "Analyzes transcripts", triggerEvent: "call.transcribed", expectedOutcome: "Transcript analysis completed" },
+    { id: "gemini-multilang", title: "Multi-language summarization", description: "Summarize calls in multiple languages using Gemini.", category: "AI & LLM", n8nTemplateName: "Gemini Multi-lang Summarizer", n8nTemplateDescription: "Multi-language summaries", triggerEvent: "call.transcribed", expectedOutcome: "Multi-language summary generated" },
+    { id: "gemini-intent", title: "Intent extraction", description: "Extract caller intents from conversations using Gemini.", category: "AI & LLM", n8nTemplateName: "Gemini Intent Extractor", n8nTemplateDescription: "Extracts caller intents", triggerEvent: "call.transcribed", expectedOutcome: "Intents extracted from call" },
+    { id: "gemini-knowledge", title: "Knowledge retrieval", description: "Retrieve relevant knowledge base articles using Gemini.", category: "AI & LLM", n8nTemplateName: "Gemini Knowledge Retriever", n8nTemplateDescription: "Retrieves knowledge articles", triggerEvent: "call.incoming", expectedOutcome: "Relevant knowledge retrieved" },
+  ],
+  mistral: [
+    { id: "mistral-summarize", title: "Call summarization", description: "Generate concise call summaries using Mistral AI models.", category: "AI & LLM", n8nTemplateName: "Mistral Summarizer", n8nTemplateDescription: "Summarizes calls", triggerEvent: "call.transcribed", expectedOutcome: "Call summary generated" },
+    { id: "mistral-topics", title: "Topic extraction", description: "Extract key topics and themes from conversations using Mistral.", category: "AI & LLM", n8nTemplateName: "Mistral Topic Extractor", n8nTemplateDescription: "Extracts conversation topics", triggerEvent: "call.transcribed", expectedOutcome: "Topics extracted from call" },
+    { id: "mistral-sentiment", title: "Sentiment scoring", description: "Score call sentiment using Mistral AI analysis.", category: "AI & LLM", n8nTemplateName: "Mistral Sentiment Scorer", n8nTemplateDescription: "Scores sentiment", triggerEvent: "call.transcribed", expectedOutcome: "Sentiment score generated" },
+    { id: "mistral-suggestions", title: "Response suggestions", description: "Generate real-time response suggestions using Mistral.", category: "AI & LLM", n8nTemplateName: "Mistral Response Suggester", n8nTemplateDescription: "Suggests responses", triggerEvent: "call.active", expectedOutcome: "Response suggestions generated" },
+  ],
+  groq: [
+    { id: "groq-realtime", title: "Real-time transcript processing", description: "Process transcripts in real-time using Groq for ultra-fast inference.", category: "AI & LLM", n8nTemplateName: "Groq Real-time Processor", n8nTemplateDescription: "Real-time transcript processing", triggerEvent: "call.active", expectedOutcome: "Transcript processed in real-time" },
+    { id: "groq-sentiment", title: "Fast sentiment analysis", description: "Perform instant sentiment analysis on calls using Groq.", category: "AI & LLM", n8nTemplateName: "Groq Sentiment Analyzer", n8nTemplateDescription: "Fast sentiment analysis", triggerEvent: "call.transcribed", expectedOutcome: "Sentiment analyzed instantly" },
+    { id: "groq-classify", title: "Intent classification", description: "Classify call intents at high speed using Groq inference.", category: "AI & LLM", n8nTemplateName: "Groq Intent Classifier", n8nTemplateDescription: "Classifies intents quickly", triggerEvent: "call.transcribed", expectedOutcome: "Intent classified" },
+    { id: "groq-summarize", title: "Quick summarization", description: "Generate rapid call summaries using Groq models.", category: "AI & LLM", n8nTemplateName: "Groq Quick Summarizer", n8nTemplateDescription: "Quick call summaries", triggerEvent: "call.transcribed", expectedOutcome: "Summary generated quickly" },
+  ],
+  cohere: [
+    { id: "cohere-search", title: "Semantic search over transcripts", description: "Search across call transcripts using Cohere semantic search.", category: "AI & LLM", n8nTemplateName: "Cohere Transcript Search", n8nTemplateDescription: "Semantic transcript search", triggerEvent: "search.query", expectedOutcome: "Relevant transcripts found" },
+    { id: "cohere-cluster", title: "Topic clustering", description: "Cluster calls by topic using Cohere embedding models.", category: "AI & LLM", n8nTemplateName: "Cohere Topic Clusterer", n8nTemplateDescription: "Clusters call topics", triggerEvent: "call.transcribed", expectedOutcome: "Calls clustered by topic" },
+    { id: "cohere-summarize", title: "Summarization", description: "Summarize call transcripts using Cohere summarization models.", category: "AI & LLM", n8nTemplateName: "Cohere Summarizer", n8nTemplateDescription: "Summarizes transcripts", triggerEvent: "call.transcribed", expectedOutcome: "Transcript summarized" },
+    { id: "cohere-classify", title: "Classification", description: "Classify calls using Cohere classification models.", category: "AI & LLM", n8nTemplateName: "Cohere Classifier", n8nTemplateDescription: "Classifies calls", triggerEvent: "call.transcribed", expectedOutcome: "Call classified" },
+  ],
+  perplexity: [
+    { id: "pplx-research", title: "Research caller background", description: "Research caller and company background using Perplexity.", category: "AI & LLM", n8nTemplateName: "Perplexity Caller Research", n8nTemplateDescription: "Researches caller background", triggerEvent: "call.incoming", expectedOutcome: "Caller background research completed" },
+    { id: "pplx-insights", title: "Industry insights", description: "Get real-time industry insights for conversations using Perplexity.", category: "AI & LLM", n8nTemplateName: "Perplexity Industry Insights", n8nTemplateDescription: "Provides industry insights", triggerEvent: "call.active", expectedOutcome: "Industry insights generated" },
+    { id: "pplx-competitive", title: "Competitive analysis", description: "Perform competitive analysis during sales calls using Perplexity.", category: "AI & LLM", n8nTemplateName: "Perplexity Competitive Analysis", n8nTemplateDescription: "Analyzes competition", triggerEvent: "call.active", expectedOutcome: "Competitive analysis delivered" },
+    { id: "pplx-factcheck", title: "Real-time fact checking", description: "Fact-check claims made during calls using Perplexity.", category: "AI & LLM", n8nTemplateName: "Perplexity Fact Checker", n8nTemplateDescription: "Fact-checks in real-time", triggerEvent: "call.active", expectedOutcome: "Facts verified in real-time" },
+  ],
+  elevenlabs: [
+    { id: "el-clone-voice", title: "Clone brand voice", description: "Clone and use your brand voice for consistent AI agent responses.", category: "Voice & Speech", n8nTemplateName: "ElevenLabs Voice Cloner", n8nTemplateDescription: "Clones brand voice", triggerEvent: "voice.setup", expectedOutcome: "Brand voice cloned and ready" },
+    { id: "el-multilang", title: "Multi-language TTS", description: "Generate speech in multiple languages using ElevenLabs.", category: "Voice & Speech", n8nTemplateName: "ElevenLabs Multi-lang TTS", n8nTemplateDescription: "Multi-language speech", triggerEvent: "call.tts_request", expectedOutcome: "Multi-language speech generated" },
+    { id: "el-quality", title: "Voice quality optimization", description: "Optimize voice output quality settings for ElevenLabs.", category: "Voice & Speech", n8nTemplateName: "ElevenLabs Quality Optimizer", n8nTemplateDescription: "Optimizes voice quality", triggerEvent: "voice.optimize", expectedOutcome: "Voice quality optimized" },
+    { id: "el-pronunciations", title: "Custom pronunciations", description: "Configure custom pronunciations for names and terms.", category: "Voice & Speech", n8nTemplateName: "ElevenLabs Pronunciation Config", n8nTemplateDescription: "Configures pronunciations", triggerEvent: "voice.setup", expectedOutcome: "Custom pronunciations configured" },
+  ],
+  deepgram: [
+    { id: "dg-realtime", title: "Real-time transcription", description: "Transcribe calls in real-time using Deepgram speech-to-text.", category: "Voice & Speech", n8nTemplateName: "Deepgram Real-time STT", n8nTemplateDescription: "Real-time transcription", triggerEvent: "call.active", expectedOutcome: "Real-time transcript generated" },
+    { id: "dg-diarization", title: "Speaker diarization", description: "Identify and separate speakers in call recordings using Deepgram.", category: "Voice & Speech", n8nTemplateName: "Deepgram Speaker Diarizer", n8nTemplateDescription: "Identifies speakers", triggerEvent: "call.completed", expectedOutcome: "Speakers identified and separated" },
+    { id: "dg-keywords", title: "Keyword detection", description: "Detect specific keywords and phrases in real-time.", category: "Voice & Speech", n8nTemplateName: "Deepgram Keyword Detector", n8nTemplateDescription: "Detects keywords", triggerEvent: "call.active", expectedOutcome: "Keywords detected in conversation" },
+    { id: "dg-sentiment", title: "Sentiment from voice", description: "Analyze sentiment from voice tone using Deepgram.", category: "Voice & Speech", n8nTemplateName: "Deepgram Voice Sentiment", n8nTemplateDescription: "Analyzes voice sentiment", triggerEvent: "call.completed", expectedOutcome: "Voice sentiment analyzed" },
+  ],
+  "google-cloud-tts": [
+    { id: "gctts-multilang", title: "Multi-language synthesis", description: "Synthesize speech in multiple languages using Google Cloud TTS.", category: "Voice & Speech", n8nTemplateName: "Google TTS Multi-lang", n8nTemplateDescription: "Multi-language synthesis", triggerEvent: "call.tts_request", expectedOutcome: "Multi-language speech synthesized" },
+    { id: "gctts-profiles", title: "Custom voice profiles", description: "Create custom voice profiles for different use cases.", category: "Voice & Speech", n8nTemplateName: "Google TTS Voice Profiles", n8nTemplateDescription: "Creates voice profiles", triggerEvent: "voice.setup", expectedOutcome: "Voice profile created" },
+    { id: "gctts-ssml", title: "SSML formatting", description: "Use SSML formatting for advanced speech control.", category: "Voice & Speech", n8nTemplateName: "Google TTS SSML Formatter", n8nTemplateDescription: "SSML speech control", triggerEvent: "call.tts_request", expectedOutcome: "SSML-formatted speech generated" },
+    { id: "gctts-adapt", title: "Voice adaptation", description: "Adapt voice output to different contexts and scenarios.", category: "Voice & Speech", n8nTemplateName: "Google TTS Voice Adapter", n8nTemplateDescription: "Adapts voice output", triggerEvent: "voice.optimize", expectedOutcome: "Voice adapted to context" },
+  ],
+  "amazon-polly": [
+    { id: "polly-prompts", title: "Generate voice prompts", description: "Generate voice prompts and IVR messages using Amazon Polly.", category: "Voice & Speech", n8nTemplateName: "Amazon Polly Prompt Generator", n8nTemplateDescription: "Generates voice prompts", triggerEvent: "call.tts_request", expectedOutcome: "Voice prompts generated" },
+    { id: "polly-multilang", title: "Multi-language support", description: "Support multiple languages for voice synthesis.", category: "Voice & Speech", n8nTemplateName: "Amazon Polly Multi-lang", n8nTemplateDescription: "Multi-language TTS", triggerEvent: "call.tts_request", expectedOutcome: "Multi-language audio generated" },
+    { id: "polly-neural", title: "Neural voice synthesis", description: "Use neural voice models for natural-sounding speech.", category: "Voice & Speech", n8nTemplateName: "Amazon Polly Neural Voice", n8nTemplateDescription: "Neural voice synthesis", triggerEvent: "call.tts_request", expectedOutcome: "Neural voice audio generated" },
+    { id: "polly-lexicons", title: "Custom lexicons", description: "Configure custom lexicons for pronunciation rules.", category: "Voice & Speech", n8nTemplateName: "Amazon Polly Lexicon Config", n8nTemplateDescription: "Configures lexicons", triggerEvent: "voice.setup", expectedOutcome: "Custom lexicon configured" },
+  ],
+  "azure-speech": [
+    { id: "azure-neural", title: "Custom neural voices", description: "Create and use custom neural voice models via Azure.", category: "Voice & Speech", n8nTemplateName: "Azure Custom Neural Voice", n8nTemplateDescription: "Custom neural voices", triggerEvent: "voice.setup", expectedOutcome: "Custom neural voice created" },
+    { id: "azure-translate", title: "Real-time translation", description: "Translate speech in real-time during calls.", category: "Voice & Speech", n8nTemplateName: "Azure Real-time Translator", n8nTemplateDescription: "Real-time translation", triggerEvent: "call.active", expectedOutcome: "Real-time translation active" },
+    { id: "azure-pronunciation", title: "Pronunciation tuning", description: "Fine-tune pronunciation for specific terms and names.", category: "Voice & Speech", n8nTemplateName: "Azure Pronunciation Tuner", n8nTemplateDescription: "Tunes pronunciation", triggerEvent: "voice.setup", expectedOutcome: "Pronunciation tuning applied" },
+    { id: "azure-profiles", title: "Voice profiles", description: "Create and manage voice profiles for different scenarios.", category: "Voice & Speech", n8nTemplateName: "Azure Voice Profiles", n8nTemplateDescription: "Manages voice profiles", triggerEvent: "voice.setup", expectedOutcome: "Voice profile configured" },
+  ],
+  playht: [
+    { id: "playht-realistic", title: "Ultra-realistic voices", description: "Generate ultra-realistic voice output using PlayHT.", category: "Voice & Speech", n8nTemplateName: "PlayHT Realistic Voice", n8nTemplateDescription: "Ultra-realistic TTS", triggerEvent: "call.tts_request", expectedOutcome: "Realistic voice audio generated" },
+    { id: "playht-clone", title: "Voice cloning", description: "Clone voices for personalized AI agent responses.", category: "Voice & Speech", n8nTemplateName: "PlayHT Voice Cloner", n8nTemplateDescription: "Clones voices", triggerEvent: "voice.setup", expectedOutcome: "Voice cloned successfully" },
+    { id: "playht-emotion", title: "Emotion control", description: "Control emotional tone in voice synthesis.", category: "Voice & Speech", n8nTemplateName: "PlayHT Emotion Controller", n8nTemplateDescription: "Controls voice emotion", triggerEvent: "call.tts_request", expectedOutcome: "Emotional tone applied to voice" },
+    { id: "playht-accents", title: "Multi-accent support", description: "Support multiple accents and speaking styles.", category: "Voice & Speech", n8nTemplateName: "PlayHT Accent Selector", n8nTemplateDescription: "Multi-accent support", triggerEvent: "voice.setup", expectedOutcome: "Accent configured for voice" },
+  ],
+  murf: [
+    { id: "murf-voiceovers", title: "Studio-quality voiceovers", description: "Generate studio-quality voiceovers using Murf AI.", category: "Voice & Speech", n8nTemplateName: "Murf Studio Voiceover", n8nTemplateDescription: "Studio-quality voiceovers", triggerEvent: "call.tts_request", expectedOutcome: "Studio-quality voiceover generated" },
+    { id: "murf-brand", title: "Brand voice creation", description: "Create consistent brand voices using Murf.", category: "Voice & Speech", n8nTemplateName: "Murf Brand Voice Creator", n8nTemplateDescription: "Creates brand voice", triggerEvent: "voice.setup", expectedOutcome: "Brand voice created" },
+    { id: "murf-script", title: "Script to speech", description: "Convert scripts to natural-sounding speech.", category: "Voice & Speech", n8nTemplateName: "Murf Script to Speech", n8nTemplateDescription: "Converts scripts to speech", triggerEvent: "call.tts_request", expectedOutcome: "Script converted to speech" },
+    { id: "murf-pronunciation", title: "Pronunciation editor", description: "Edit and customize pronunciation for specific terms.", category: "Voice & Speech", n8nTemplateName: "Murf Pronunciation Editor", n8nTemplateDescription: "Edits pronunciation", triggerEvent: "voice.setup", expectedOutcome: "Pronunciation customized" },
+  ],
+  slack: [
+    { id: "slack-summaries", title: "Post call summaries to channels", description: "Automatically post AI-generated call summaries to designated Slack channels.", category: "Communication", n8nTemplateName: "Slack Call Summary Poster", n8nTemplateDescription: "Posts call summaries to Slack", triggerEvent: "call.summarized", expectedOutcome: "Call summary posted to Slack channel" },
+    { id: "slack-alerts", title: "Alert on high-priority calls", description: "Send instant Slack alerts for high-priority or escalated calls.", category: "Communication", n8nTemplateName: "Slack Priority Alert", n8nTemplateDescription: "Alerts on priority calls", triggerEvent: "call.escalation", expectedOutcome: "Priority alert sent to Slack" },
+    { id: "slack-reports", title: "Daily campaign reports", description: "Send daily campaign performance reports to Slack channels.", category: "Communication", n8nTemplateName: "Slack Daily Report", n8nTemplateDescription: "Daily campaign reports", triggerEvent: "report.daily", expectedOutcome: "Daily report posted to Slack" },
+    { id: "slack-realtime", title: "Real-time call notifications", description: "Send real-time notifications to Slack for call events.", category: "Communication", n8nTemplateName: "Slack Real-time Notifier", n8nTemplateDescription: "Real-time call notifications", triggerEvent: "call.started", expectedOutcome: "Real-time notification sent" },
+  ],
+  "microsoft-teams": [
+    { id: "teams-outcomes", title: "Share call outcomes", description: "Share call outcomes and summaries in Microsoft Teams channels.", category: "Communication", n8nTemplateName: "Teams Outcome Sharer", n8nTemplateDescription: "Shares call outcomes", triggerEvent: "call.completed", expectedOutcome: "Call outcome shared in Teams" },
+    { id: "teams-alerts", title: "Campaign alerts", description: "Send campaign performance alerts to Teams channels.", category: "Communication", n8nTemplateName: "Teams Campaign Alert", n8nTemplateDescription: "Campaign performance alerts", triggerEvent: "campaign.alert", expectedOutcome: "Campaign alert sent to Teams" },
+    { id: "teams-notifications", title: "Team notifications", description: "Send team-wide notifications for important call events.", category: "Communication", n8nTemplateName: "Teams Notifier", n8nTemplateDescription: "Team notifications", triggerEvent: "call.important", expectedOutcome: "Team notification sent" },
+    { id: "teams-followups", title: "Meeting follow-ups", description: "Send meeting follow-up messages after calls.", category: "Communication", n8nTemplateName: "Teams Meeting Follow-up", n8nTemplateDescription: "Meeting follow-ups", triggerEvent: "call.completed", expectedOutcome: "Follow-up message sent in Teams" },
+  ],
+  telegram: [
+    { id: "tg-alerts", title: "Send call alerts", description: "Send instant call alerts to Telegram groups or channels.", category: "Communication", n8nTemplateName: "Telegram Call Alert", n8nTemplateDescription: "Sends call alerts", triggerEvent: "call.started", expectedOutcome: "Call alert sent to Telegram" },
+    { id: "tg-status", title: "Campaign status updates", description: "Send campaign status updates to Telegram.", category: "Communication", n8nTemplateName: "Telegram Status Updater", n8nTemplateDescription: "Campaign status updates", triggerEvent: "campaign.update", expectedOutcome: "Status update sent to Telegram" },
+    { id: "tg-leads", title: "Lead notifications", description: "Notify team about new leads via Telegram.", category: "Communication", n8nTemplateName: "Telegram Lead Notifier", n8nTemplateDescription: "Lead notifications", triggerEvent: "lead.created", expectedOutcome: "Lead notification sent to Telegram" },
+    { id: "tg-reports", title: "Daily reports", description: "Send daily performance reports to Telegram.", category: "Communication", n8nTemplateName: "Telegram Daily Report", n8nTemplateDescription: "Daily reports", triggerEvent: "report.daily", expectedOutcome: "Daily report sent to Telegram" },
+  ],
+  whatsapp: [
+    { id: "wa-followup", title: "Send follow-up messages", description: "Send personalized follow-up messages via WhatsApp after calls.", category: "Communication", n8nTemplateName: "WhatsApp Follow-up", n8nTemplateDescription: "Sends follow-up messages", triggerEvent: "call.completed", expectedOutcome: "Follow-up message sent via WhatsApp" },
+    { id: "wa-recordings", title: "Share call recordings", description: "Share call recording summaries via WhatsApp.", category: "Communication", n8nTemplateName: "WhatsApp Recording Sharer", n8nTemplateDescription: "Shares call recordings", triggerEvent: "call.recorded", expectedOutcome: "Recording summary shared via WhatsApp" },
+    { id: "wa-appointments", title: "Appointment confirmations", description: "Send appointment confirmation messages via WhatsApp.", category: "Communication", n8nTemplateName: "WhatsApp Appointment Confirmer", n8nTemplateDescription: "Confirms appointments", triggerEvent: "appointment.booked", expectedOutcome: "Appointment confirmation sent via WhatsApp" },
+    { id: "wa-nurture", title: "Lead nurture messages", description: "Send lead nurture messages via WhatsApp.", category: "Communication", n8nTemplateName: "WhatsApp Lead Nurturer", n8nTemplateDescription: "Nurtures leads", triggerEvent: "lead.nurture", expectedOutcome: "Nurture message sent via WhatsApp" },
+  ],
+  discord: [
+    { id: "discord-updates", title: "Post call updates", description: "Post call updates and summaries to Discord channels.", category: "Communication", n8nTemplateName: "Discord Call Updater", n8nTemplateDescription: "Posts call updates", triggerEvent: "call.completed", expectedOutcome: "Call update posted to Discord" },
+    { id: "discord-campaign", title: "Campaign alerts", description: "Send campaign performance alerts to Discord.", category: "Communication", n8nTemplateName: "Discord Campaign Alert", n8nTemplateDescription: "Campaign alerts", triggerEvent: "campaign.alert", expectedOutcome: "Campaign alert posted to Discord" },
+    { id: "discord-team", title: "Team notifications", description: "Send team notifications for important events to Discord.", category: "Communication", n8nTemplateName: "Discord Team Notifier", n8nTemplateDescription: "Team notifications", triggerEvent: "call.important", expectedOutcome: "Team notification sent to Discord" },
+    { id: "discord-leads", title: "Lead alerts", description: "Alert team about new leads in Discord channels.", category: "Communication", n8nTemplateName: "Discord Lead Alert", n8nTemplateDescription: "Lead alerts", triggerEvent: "lead.created", expectedOutcome: "Lead alert posted to Discord" },
+  ],
+  zendesk: [
+    { id: "zd-create-tickets", title: "Create tickets from calls", description: "Automatically create Zendesk support tickets from customer calls.", category: "Customer Support", n8nTemplateName: "Zendesk Ticket Creator", n8nTemplateDescription: "Creates tickets from calls", triggerEvent: "call.support_request", expectedOutcome: "Support ticket created in Zendesk" },
+    { id: "zd-update-status", title: "Update ticket status", description: "Update Zendesk ticket status based on call resolution.", category: "Customer Support", n8nTemplateName: "Zendesk Status Updater", n8nTemplateDescription: "Updates ticket status", triggerEvent: "call.resolved", expectedOutcome: "Ticket status updated in Zendesk" },
+    { id: "zd-escalate", title: "Escalate issues", description: "Escalate high-priority issues to Zendesk support teams.", category: "Customer Support", n8nTemplateName: "Zendesk Issue Escalator", n8nTemplateDescription: "Escalates issues", triggerEvent: "call.escalation", expectedOutcome: "Issue escalated in Zendesk" },
+    { id: "zd-transcripts", title: "Log call transcripts", description: "Attach call transcripts to Zendesk tickets.", category: "Customer Support", n8nTemplateName: "Zendesk Transcript Logger", n8nTemplateDescription: "Logs transcripts to tickets", triggerEvent: "call.transcribed", expectedOutcome: "Transcript attached to Zendesk ticket" },
+  ],
+  freshdesk: [
+    { id: "fd-create-tickets", title: "Auto-create tickets", description: "Automatically create Freshdesk tickets from support calls.", category: "Customer Support", n8nTemplateName: "Freshdesk Ticket Creator", n8nTemplateDescription: "Creates tickets automatically", triggerEvent: "call.support_request", expectedOutcome: "Ticket created in Freshdesk" },
+    { id: "fd-update-status", title: "Update support status", description: "Update Freshdesk ticket status after call resolution.", category: "Customer Support", n8nTemplateName: "Freshdesk Status Updater", n8nTemplateDescription: "Updates support status", triggerEvent: "call.resolved", expectedOutcome: "Support status updated" },
+    { id: "fd-assign", title: "Assign agents", description: "Assign agents to Freshdesk tickets based on call routing.", category: "Customer Support", n8nTemplateName: "Freshdesk Agent Assigner", n8nTemplateDescription: "Assigns agents", triggerEvent: "call.routed", expectedOutcome: "Agent assigned to ticket" },
+    { id: "fd-log", title: "Log interactions", description: "Log call interactions in Freshdesk conversation history.", category: "Customer Support", n8nTemplateName: "Freshdesk Interaction Logger", n8nTemplateDescription: "Logs interactions", triggerEvent: "call.completed", expectedOutcome: "Interaction logged in Freshdesk" },
+  ],
+  intercom: [
+    { id: "ic-create-convs", title: "Create conversations", description: "Create Intercom conversations from inbound calls.", category: "Customer Support", n8nTemplateName: "Intercom Conversation Creator", n8nTemplateDescription: "Creates conversations", triggerEvent: "call.completed", expectedOutcome: "Conversation created in Intercom" },
+    { id: "ic-update-contacts", title: "Update contact data", description: "Update Intercom contact data with call insights.", category: "Customer Support", n8nTemplateName: "Intercom Contact Updater", n8nTemplateDescription: "Updates contact data", triggerEvent: "call.analyzed", expectedOutcome: "Contact data updated in Intercom" },
+    { id: "ic-trigger", title: "Trigger workflows", description: "Trigger Intercom workflows based on call outcomes.", category: "Customer Support", n8nTemplateName: "Intercom Workflow Trigger", n8nTemplateDescription: "Triggers workflows", triggerEvent: "call.outcome_determined", expectedOutcome: "Workflow triggered in Intercom" },
+    { id: "ic-notes", title: "Log call notes", description: "Add call notes to Intercom conversation records.", category: "Customer Support", n8nTemplateName: "Intercom Note Logger", n8nTemplateDescription: "Logs call notes", triggerEvent: "call.completed", expectedOutcome: "Notes logged in Intercom" },
+  ],
+  helpscout: [
+    { id: "hs-create-convs", title: "Create conversations", description: "Create Help Scout conversations from support calls.", category: "Customer Support", n8nTemplateName: "Help Scout Conversation Creator", n8nTemplateDescription: "Creates conversations", triggerEvent: "call.support_request", expectedOutcome: "Conversation created in Help Scout" },
+    { id: "hs-add-notes", title: "Add call notes", description: "Add call notes and transcripts to Help Scout conversations.", category: "Customer Support", n8nTemplateName: "Help Scout Note Adder", n8nTemplateDescription: "Adds call notes", triggerEvent: "call.completed", expectedOutcome: "Notes added to Help Scout" },
+    { id: "hs-update-mailbox", title: "Update mailbox", description: "Update Help Scout mailbox with call-related information.", category: "Customer Support", n8nTemplateName: "Help Scout Mailbox Updater", n8nTemplateDescription: "Updates mailbox", triggerEvent: "call.completed", expectedOutcome: "Mailbox updated in Help Scout" },
+    { id: "hs-followup", title: "Customer follow-up", description: "Send customer follow-up messages through Help Scout.", category: "Customer Support", n8nTemplateName: "Help Scout Follow-up", n8nTemplateDescription: "Customer follow-up", triggerEvent: "call.followup_needed", expectedOutcome: "Follow-up sent via Help Scout" },
+  ],
+  front: [
+    { id: "front-create-convs", title: "Create conversations", description: "Create Front conversations from call interactions.", category: "Customer Support", n8nTemplateName: "Front Conversation Creator", n8nTemplateDescription: "Creates conversations", triggerEvent: "call.completed", expectedOutcome: "Conversation created in Front" },
+    { id: "front-route", title: "Route messages", description: "Route call-related messages to appropriate Front inboxes.", category: "Customer Support", n8nTemplateName: "Front Message Router", n8nTemplateDescription: "Routes messages", triggerEvent: "call.routed", expectedOutcome: "Message routed in Front" },
+    { id: "front-context", title: "Add call context", description: "Add call context and notes to Front conversations.", category: "Customer Support", n8nTemplateName: "Front Context Adder", n8nTemplateDescription: "Adds call context", triggerEvent: "call.completed", expectedOutcome: "Call context added to Front" },
+    { id: "front-assign", title: "Team assignments", description: "Assign Front conversations to team members based on call routing.", category: "Customer Support", n8nTemplateName: "Front Team Assigner", n8nTemplateDescription: "Assigns to teams", triggerEvent: "call.routed", expectedOutcome: "Conversation assigned in Front" },
+  ],
+  "google-calendar": [
+    { id: "gcal-book", title: "Book appointments during calls", description: "Book appointments on Google Calendar during live calls.", category: "Scheduling", n8nTemplateName: "Google Calendar Booker", n8nTemplateDescription: "Books appointments", triggerEvent: "appointment.request", expectedOutcome: "Appointment booked on Google Calendar" },
+    { id: "gcal-availability", title: "Check availability", description: "Check Google Calendar availability during scheduling calls.", category: "Scheduling", n8nTemplateName: "Google Calendar Availability Checker", n8nTemplateDescription: "Checks availability", triggerEvent: "appointment.check", expectedOutcome: "Availability checked on Google Calendar" },
+    { id: "gcal-reminders", title: "Send reminders", description: "Send appointment reminders via Google Calendar.", category: "Scheduling", n8nTemplateName: "Google Calendar Reminder", n8nTemplateDescription: "Sends reminders", triggerEvent: "appointment.reminder", expectedOutcome: "Reminder sent via Google Calendar" },
+    { id: "gcal-block", title: "Block time slots", description: "Block time slots on Google Calendar after booking.", category: "Scheduling", n8nTemplateName: "Google Calendar Blocker", n8nTemplateDescription: "Blocks time slots", triggerEvent: "appointment.booked", expectedOutcome: "Time slot blocked on Google Calendar" },
+  ],
+  calendly: [
+    { id: "calendly-links", title: "Generate scheduling links", description: "Generate Calendly scheduling links during calls.", category: "Scheduling", n8nTemplateName: "Calendly Link Generator", n8nTemplateDescription: "Generates scheduling links", triggerEvent: "appointment.request", expectedOutcome: "Scheduling link generated" },
+    { id: "calendly-availability", title: "Check availability", description: "Check Calendly availability for scheduling.", category: "Scheduling", n8nTemplateName: "Calendly Availability Checker", n8nTemplateDescription: "Checks availability", triggerEvent: "appointment.check", expectedOutcome: "Availability checked on Calendly" },
+    { id: "calendly-confirm", title: "Confirm bookings", description: "Confirm Calendly bookings after call scheduling.", category: "Scheduling", n8nTemplateName: "Calendly Booking Confirmer", n8nTemplateDescription: "Confirms bookings", triggerEvent: "appointment.booked", expectedOutcome: "Booking confirmed on Calendly" },
+    { id: "calendly-reminders", title: "Send reminders", description: "Send appointment reminders through Calendly.", category: "Scheduling", n8nTemplateName: "Calendly Reminder", n8nTemplateDescription: "Sends reminders", triggerEvent: "appointment.reminder", expectedOutcome: "Reminder sent via Calendly" },
+  ],
+  "cal-com": [
+    { id: "calcom-book", title: "Create bookings", description: "Create Cal.com bookings from call conversations.", category: "Scheduling", n8nTemplateName: "Cal.com Booking Creator", n8nTemplateDescription: "Creates bookings", triggerEvent: "appointment.request", expectedOutcome: "Booking created on Cal.com" },
+    { id: "calcom-slots", title: "Check slots", description: "Check available time slots on Cal.com.", category: "Scheduling", n8nTemplateName: "Cal.com Slot Checker", n8nTemplateDescription: "Checks time slots", triggerEvent: "appointment.check", expectedOutcome: "Available slots checked on Cal.com" },
+    { id: "calcom-confirm", title: "Send confirmations", description: "Send booking confirmations through Cal.com.", category: "Scheduling", n8nTemplateName: "Cal.com Confirmation Sender", n8nTemplateDescription: "Sends confirmations", triggerEvent: "appointment.booked", expectedOutcome: "Confirmation sent via Cal.com" },
+    { id: "calcom-sync", title: "Sync calendars", description: "Sync Cal.com bookings with external calendars.", category: "Scheduling", n8nTemplateName: "Cal.com Calendar Sync", n8nTemplateDescription: "Syncs calendars", triggerEvent: "appointment.booked", expectedOutcome: "Calendars synced with Cal.com" },
+  ],
+  "microsoft-outlook": [
+    { id: "outlook-schedule", title: "Schedule meetings", description: "Schedule meetings in Microsoft Outlook during calls.", category: "Scheduling", n8nTemplateName: "Outlook Meeting Scheduler", n8nTemplateDescription: "Schedules meetings", triggerEvent: "appointment.request", expectedOutcome: "Meeting scheduled in Outlook" },
+    { id: "outlook-availability", title: "Check availability", description: "Check Outlook calendar availability.", category: "Scheduling", n8nTemplateName: "Outlook Availability Checker", n8nTemplateDescription: "Checks availability", triggerEvent: "appointment.check", expectedOutcome: "Availability checked in Outlook" },
+    { id: "outlook-invites", title: "Send invites", description: "Send meeting invitations via Outlook.", category: "Scheduling", n8nTemplateName: "Outlook Invite Sender", n8nTemplateDescription: "Sends meeting invites", triggerEvent: "appointment.booked", expectedOutcome: "Meeting invite sent via Outlook" },
+    { id: "outlook-sync", title: "Calendar sync", description: "Sync calendar events with Microsoft Outlook.", category: "Scheduling", n8nTemplateName: "Outlook Calendar Sync", n8nTemplateDescription: "Syncs calendar events", triggerEvent: "appointment.booked", expectedOutcome: "Calendar synced with Outlook" },
+  ],
+  "acuity-scheduling": [
+    { id: "acuity-book", title: "Book appointments", description: "Book appointments through Acuity Scheduling during calls.", category: "Scheduling", n8nTemplateName: "Acuity Appointment Booker", n8nTemplateDescription: "Books appointments", triggerEvent: "appointment.request", expectedOutcome: "Appointment booked on Acuity" },
+    { id: "acuity-openings", title: "Check openings", description: "Check available openings on Acuity Scheduling.", category: "Scheduling", n8nTemplateName: "Acuity Opening Checker", n8nTemplateDescription: "Checks openings", triggerEvent: "appointment.check", expectedOutcome: "Openings checked on Acuity" },
+    { id: "acuity-confirm", title: "Send confirmations", description: "Send booking confirmations through Acuity.", category: "Scheduling", n8nTemplateName: "Acuity Confirmation Sender", n8nTemplateDescription: "Sends confirmations", triggerEvent: "appointment.booked", expectedOutcome: "Confirmation sent via Acuity" },
+    { id: "acuity-reschedule", title: "Manage reschedules", description: "Handle appointment reschedules through Acuity.", category: "Scheduling", n8nTemplateName: "Acuity Reschedule Manager", n8nTemplateDescription: "Manages reschedules", triggerEvent: "appointment.reschedule", expectedOutcome: "Reschedule managed on Acuity" },
+  ],
+  stripe: [
+    { id: "stripe-payments", title: "Process payments", description: "Process payments during calls using Stripe.", category: "E-Commerce & Payments", n8nTemplateName: "Stripe Payment Processor", n8nTemplateDescription: "Processes payments", triggerEvent: "payment.request", expectedOutcome: "Payment processed via Stripe" },
+    { id: "stripe-invoices", title: "Create invoices", description: "Create and send invoices through Stripe after calls.", category: "E-Commerce & Payments", n8nTemplateName: "Stripe Invoice Creator", n8nTemplateDescription: "Creates invoices", triggerEvent: "call.completed", expectedOutcome: "Invoice created in Stripe" },
+    { id: "stripe-subscriptions", title: "Look up subscriptions", description: "Look up customer subscription details during calls.", category: "E-Commerce & Payments", n8nTemplateName: "Stripe Subscription Lookup", n8nTemplateDescription: "Looks up subscriptions", triggerEvent: "customer.lookup", expectedOutcome: "Subscription details retrieved" },
+    { id: "stripe-refunds", title: "Handle refunds", description: "Process refund requests during support calls.", category: "E-Commerce & Payments", n8nTemplateName: "Stripe Refund Handler", n8nTemplateDescription: "Handles refunds", triggerEvent: "refund.request", expectedOutcome: "Refund processed via Stripe" },
+  ],
+  shopify: [
+    { id: "shopify-orders", title: "Look up orders", description: "Look up customer orders in Shopify during calls.", category: "E-Commerce & Payments", n8nTemplateName: "Shopify Order Lookup", n8nTemplateDescription: "Looks up orders", triggerEvent: "customer.lookup", expectedOutcome: "Order details retrieved from Shopify" },
+    { id: "shopify-inventory", title: "Check inventory", description: "Check product inventory levels in Shopify.", category: "E-Commerce & Payments", n8nTemplateName: "Shopify Inventory Checker", n8nTemplateDescription: "Checks inventory", triggerEvent: "product.check", expectedOutcome: "Inventory checked in Shopify" },
+    { id: "shopify-returns", title: "Process returns", description: "Process return requests through Shopify.", category: "E-Commerce & Payments", n8nTemplateName: "Shopify Return Processor", n8nTemplateDescription: "Processes returns", triggerEvent: "return.request", expectedOutcome: "Return processed in Shopify" },
+    { id: "shopify-customers", title: "Customer account lookup", description: "Look up customer account details in Shopify.", category: "E-Commerce & Payments", n8nTemplateName: "Shopify Customer Lookup", n8nTemplateDescription: "Looks up customers", triggerEvent: "customer.lookup", expectedOutcome: "Customer details retrieved from Shopify" },
+  ],
+  woocommerce: [
+    { id: "woo-orders", title: "Order tracking", description: "Track and look up orders in WooCommerce during calls.", category: "E-Commerce & Payments", n8nTemplateName: "WooCommerce Order Tracker", n8nTemplateDescription: "Tracks orders", triggerEvent: "customer.lookup", expectedOutcome: "Order tracked in WooCommerce" },
+    { id: "woo-products", title: "Product availability", description: "Check product availability in WooCommerce.", category: "E-Commerce & Payments", n8nTemplateName: "WooCommerce Product Checker", n8nTemplateDescription: "Checks products", triggerEvent: "product.check", expectedOutcome: "Product availability checked" },
+    { id: "woo-process", title: "Process orders", description: "Process new orders through WooCommerce.", category: "E-Commerce & Payments", n8nTemplateName: "WooCommerce Order Processor", n8nTemplateDescription: "Processes orders", triggerEvent: "order.create", expectedOutcome: "Order processed in WooCommerce" },
+    { id: "woo-customers", title: "Customer lookup", description: "Look up customer information in WooCommerce.", category: "E-Commerce & Payments", n8nTemplateName: "WooCommerce Customer Lookup", n8nTemplateDescription: "Looks up customers", triggerEvent: "customer.lookup", expectedOutcome: "Customer info retrieved" },
+  ],
+  mailchimp: [
+    { id: "mc-add-contacts", title: "Add contacts to lists", description: "Add caller contacts to Mailchimp audience lists.", category: "Marketing", n8nTemplateName: "Mailchimp Contact Adder", n8nTemplateDescription: "Adds contacts to lists", triggerEvent: "contact.created", expectedOutcome: "Contact added to Mailchimp list" },
+    { id: "mc-tag", title: "Tag based on call outcome", description: "Tag Mailchimp contacts based on call outcomes.", category: "Marketing", n8nTemplateName: "Mailchimp Outcome Tagger", n8nTemplateDescription: "Tags contacts by outcome", triggerEvent: "call.outcome_determined", expectedOutcome: "Contact tagged in Mailchimp" },
+    { id: "mc-sequences", title: "Trigger email sequences", description: "Trigger Mailchimp email automation sequences from calls.", category: "Marketing", n8nTemplateName: "Mailchimp Sequence Trigger", n8nTemplateDescription: "Triggers email sequences", triggerEvent: "call.completed", expectedOutcome: "Email sequence triggered in Mailchimp" },
+    { id: "mc-sync", title: "Sync subscriber data", description: "Sync subscriber data between platforms and Mailchimp.", category: "Marketing", n8nTemplateName: "Mailchimp Subscriber Sync", n8nTemplateDescription: "Syncs subscriber data", triggerEvent: "contact.updated", expectedOutcome: "Subscriber data synced in Mailchimp" },
+  ],
+  activecampaign: [
+    { id: "ac-add-contacts", title: "Add contacts", description: "Add new contacts to ActiveCampaign from calls.", category: "Marketing", n8nTemplateName: "ActiveCampaign Contact Adder", n8nTemplateDescription: "Adds contacts", triggerEvent: "contact.created", expectedOutcome: "Contact added to ActiveCampaign" },
+    { id: "ac-tags", title: "Apply tags", description: "Apply tags to ActiveCampaign contacts based on call data.", category: "Marketing", n8nTemplateName: "ActiveCampaign Tag Applier", n8nTemplateDescription: "Applies tags", triggerEvent: "call.outcome_determined", expectedOutcome: "Tags applied in ActiveCampaign" },
+    { id: "ac-automations", title: "Trigger automations", description: "Trigger ActiveCampaign automations from call events.", category: "Marketing", n8nTemplateName: "ActiveCampaign Automation Trigger", n8nTemplateDescription: "Triggers automations", triggerEvent: "call.completed", expectedOutcome: "Automation triggered in ActiveCampaign" },
+    { id: "ac-deals", title: "Update deal stages", description: "Update deal stages in ActiveCampaign based on call outcomes.", category: "Marketing", n8nTemplateName: "ActiveCampaign Deal Updater", n8nTemplateDescription: "Updates deal stages", triggerEvent: "call.outcome_determined", expectedOutcome: "Deal stage updated in ActiveCampaign" },
+  ],
+  sendgrid: [
+    { id: "sg-transactional", title: "Send transactional emails", description: "Send transactional emails via SendGrid after calls.", category: "Marketing", n8nTemplateName: "SendGrid Transactional Email", n8nTemplateDescription: "Sends transactional emails", triggerEvent: "call.completed", expectedOutcome: "Transactional email sent via SendGrid" },
+    { id: "sg-followup", title: "Follow-up sequences", description: "Trigger follow-up email sequences through SendGrid.", category: "Marketing", n8nTemplateName: "SendGrid Follow-up Sequence", n8nTemplateDescription: "Follow-up sequences", triggerEvent: "call.followup_needed", expectedOutcome: "Follow-up sequence started" },
+    { id: "sg-notifications", title: "Email notifications", description: "Send email notifications for call events via SendGrid.", category: "Marketing", n8nTemplateName: "SendGrid Email Notifier", n8nTemplateDescription: "Email notifications", triggerEvent: "call.important", expectedOutcome: "Email notification sent" },
+    { id: "sg-templates", title: "Template management", description: "Manage and use SendGrid email templates for communications.", category: "Marketing", n8nTemplateName: "SendGrid Template Manager", n8nTemplateDescription: "Manages templates", triggerEvent: "template.update", expectedOutcome: "Template configured in SendGrid" },
+  ],
+  brevo: [
+    { id: "brevo-contacts", title: "Add contacts", description: "Add contacts to Brevo from call interactions.", category: "Marketing", n8nTemplateName: "Brevo Contact Adder", n8nTemplateDescription: "Adds contacts", triggerEvent: "contact.created", expectedOutcome: "Contact added to Brevo" },
+    { id: "brevo-emails", title: "Send emails", description: "Send emails through Brevo after calls.", category: "Marketing", n8nTemplateName: "Brevo Email Sender", n8nTemplateDescription: "Sends emails", triggerEvent: "call.completed", expectedOutcome: "Email sent via Brevo" },
+    { id: "brevo-workflows", title: "Trigger workflows", description: "Trigger Brevo automation workflows from call events.", category: "Marketing", n8nTemplateName: "Brevo Workflow Trigger", n8nTemplateDescription: "Triggers workflows", triggerEvent: "call.completed", expectedOutcome: "Workflow triggered in Brevo" },
+    { id: "brevo-segments", title: "Segment contacts", description: "Segment contacts in Brevo based on call outcomes.", category: "Marketing", n8nTemplateName: "Brevo Contact Segmenter", n8nTemplateDescription: "Segments contacts", triggerEvent: "call.outcome_determined", expectedOutcome: "Contact segmented in Brevo" },
+  ],
+  convertkit: [
+    { id: "ck-subscribers", title: "Add subscribers", description: "Add new subscribers to ConvertKit from calls.", category: "Marketing", n8nTemplateName: "ConvertKit Subscriber Adder", n8nTemplateDescription: "Adds subscribers", triggerEvent: "contact.created", expectedOutcome: "Subscriber added to ConvertKit" },
+    { id: "ck-tags", title: "Apply tags", description: "Apply tags to ConvertKit subscribers based on call data.", category: "Marketing", n8nTemplateName: "ConvertKit Tag Applier", n8nTemplateDescription: "Applies tags", triggerEvent: "call.outcome_determined", expectedOutcome: "Tags applied in ConvertKit" },
+    { id: "ck-sequences", title: "Trigger sequences", description: "Trigger ConvertKit email sequences from call events.", category: "Marketing", n8nTemplateName: "ConvertKit Sequence Trigger", n8nTemplateDescription: "Triggers sequences", triggerEvent: "call.completed", expectedOutcome: "Sequence triggered in ConvertKit" },
+    { id: "ck-fields", title: "Update custom fields", description: "Update custom fields on ConvertKit subscribers.", category: "Marketing", n8nTemplateName: "ConvertKit Field Updater", n8nTemplateDescription: "Updates custom fields", triggerEvent: "contact.updated", expectedOutcome: "Custom fields updated in ConvertKit" },
+  ],
+  zapier: [
+    { id: "zapier-trigger", title: "Trigger zaps from calls", description: "Trigger Zapier zaps with call data for cross-app automation.", category: "Automation", n8nTemplateName: "Zapier Zap Trigger", n8nTemplateDescription: "Triggers zaps", triggerEvent: "call.completed", expectedOutcome: "Zap triggered in Zapier" },
+    { id: "zapier-multi", title: "Multi-step workflows", description: "Execute multi-step Zapier workflows from call events.", category: "Automation", n8nTemplateName: "Zapier Multi-step Workflow", n8nTemplateDescription: "Multi-step workflows", triggerEvent: "call.completed", expectedOutcome: "Multi-step workflow executed" },
+    { id: "zapier-cross", title: "Cross-app automation", description: "Automate cross-app workflows triggered by calls.", category: "Automation", n8nTemplateName: "Zapier Cross-app Automation", n8nTemplateDescription: "Cross-app automation", triggerEvent: "call.completed", expectedOutcome: "Cross-app automation triggered" },
+    { id: "zapier-routing", title: "Conditional routing", description: "Route call data conditionally through Zapier paths.", category: "Automation", n8nTemplateName: "Zapier Conditional Router", n8nTemplateDescription: "Conditional routing", triggerEvent: "call.outcome_determined", expectedOutcome: "Data routed conditionally" },
+  ],
+  make: [
+    { id: "make-scenarios", title: "Trigger scenarios", description: "Trigger Make (Integromat) scenarios from call events.", category: "Automation", n8nTemplateName: "Make Scenario Trigger", n8nTemplateDescription: "Triggers scenarios", triggerEvent: "call.completed", expectedOutcome: "Scenario triggered in Make" },
+    { id: "make-complex", title: "Complex workflows", description: "Execute complex multi-module workflows in Make.", category: "Automation", n8nTemplateName: "Make Complex Workflow", n8nTemplateDescription: "Complex workflows", triggerEvent: "call.completed", expectedOutcome: "Complex workflow executed" },
+    { id: "make-transform", title: "Data transformation", description: "Transform call data using Make data processing modules.", category: "Automation", n8nTemplateName: "Make Data Transformer", n8nTemplateDescription: "Transforms data", triggerEvent: "call.completed", expectedOutcome: "Data transformed in Make" },
+    { id: "make-multi", title: "Multi-app integration", description: "Integrate multiple apps through Make scenarios.", category: "Automation", n8nTemplateName: "Make Multi-app Integration", n8nTemplateDescription: "Multi-app integration", triggerEvent: "call.completed", expectedOutcome: "Multi-app integration executed" },
+  ],
+  n8n: [
+    { id: "n8n-templates", title: "Execute workflow templates", description: "Execute pre-built n8n workflow templates for common tasks.", category: "Automation", n8nTemplateName: "n8n Template Executor", n8nTemplateDescription: "Executes workflow templates", triggerEvent: "call.completed", expectedOutcome: "Workflow template executed" },
+    { id: "n8n-custom", title: "Custom automation flows", description: "Run custom n8n automation flows triggered by call events.", category: "Automation", n8nTemplateName: "n8n Custom Flow", n8nTemplateDescription: "Custom automation flows", triggerEvent: "call.completed", expectedOutcome: "Custom flow executed" },
+    { id: "n8n-processing", title: "Data processing", description: "Process call data through n8n data transformation nodes.", category: "Automation", n8nTemplateName: "n8n Data Processor", n8nTemplateDescription: "Data processing", triggerEvent: "call.completed", expectedOutcome: "Data processed in n8n" },
+    { id: "n8n-multi", title: "Multi-step integrations", description: "Execute multi-step integration workflows in n8n.", category: "Automation", n8nTemplateName: "n8n Multi-step Integration", n8nTemplateDescription: "Multi-step integrations", triggerEvent: "call.completed", expectedOutcome: "Multi-step integration completed" },
+  ],
+  notion: [
+    { id: "notion-pages", title: "Create pages from call notes", description: "Create Notion pages from call notes and transcripts.", category: "Automation", n8nTemplateName: "Notion Page Creator", n8nTemplateDescription: "Creates pages from calls", triggerEvent: "call.completed", expectedOutcome: "Page created in Notion" },
+    { id: "notion-databases", title: "Update databases", description: "Update Notion databases with call records and data.", category: "Automation", n8nTemplateName: "Notion Database Updater", n8nTemplateDescription: "Updates databases", triggerEvent: "call.completed", expectedOutcome: "Database updated in Notion" },
+    { id: "notion-meetings", title: "Log meetings", description: "Log meeting notes and call summaries in Notion.", category: "Automation", n8nTemplateName: "Notion Meeting Logger", n8nTemplateDescription: "Logs meetings", triggerEvent: "call.completed", expectedOutcome: "Meeting logged in Notion" },
+    { id: "notion-kb", title: "Knowledge base updates", description: "Update Notion knowledge base with insights from calls.", category: "Automation", n8nTemplateName: "Notion KB Updater", n8nTemplateDescription: "Updates knowledge base", triggerEvent: "call.analyzed", expectedOutcome: "Knowledge base updated in Notion" },
+  ],
+  "google-sheets": [
+    { id: "gsheets-export", title: "Export call data", description: "Export call data and metrics to Google Sheets.", category: "Data & Storage", n8nTemplateName: "Google Sheets Data Exporter", n8nTemplateDescription: "Exports call data", triggerEvent: "call.completed", expectedOutcome: "Call data exported to Google Sheets" },
+    { id: "gsheets-import", title: "Import contact lists", description: "Import contact lists from Google Sheets for campaigns.", category: "Data & Storage", n8nTemplateName: "Google Sheets Contact Importer", n8nTemplateDescription: "Imports contacts", triggerEvent: "campaign.setup", expectedOutcome: "Contacts imported from Google Sheets" },
+    { id: "gsheets-reports", title: "Campaign reporting", description: "Generate campaign reports in Google Sheets.", category: "Data & Storage", n8nTemplateName: "Google Sheets Report Generator", n8nTemplateDescription: "Generates reports", triggerEvent: "report.generate", expectedOutcome: "Report generated in Google Sheets" },
+    { id: "gsheets-dashboards", title: "Analytics dashboards", description: "Create analytics dashboards in Google Sheets.", category: "Data & Storage", n8nTemplateName: "Google Sheets Dashboard", n8nTemplateDescription: "Creates dashboards", triggerEvent: "report.generate", expectedOutcome: "Dashboard created in Google Sheets" },
+  ],
+  airtable: [
+    { id: "at-sync", title: "Sync call records", description: "Sync call records to Airtable bases.", category: "Data & Storage", n8nTemplateName: "Airtable Record Sync", n8nTemplateDescription: "Syncs call records", triggerEvent: "call.completed", expectedOutcome: "Records synced to Airtable" },
+    { id: "at-update", title: "Update bases", description: "Update Airtable bases with call data and outcomes.", category: "Data & Storage", n8nTemplateName: "Airtable Base Updater", n8nTemplateDescription: "Updates bases", triggerEvent: "call.completed", expectedOutcome: "Base updated in Airtable" },
+    { id: "at-campaigns", title: "Campaign tracking", description: "Track campaign performance in Airtable.", category: "Data & Storage", n8nTemplateName: "Airtable Campaign Tracker", n8nTemplateDescription: "Tracks campaigns", triggerEvent: "campaign.update", expectedOutcome: "Campaign tracked in Airtable" },
+    { id: "at-contacts", title: "Contact management", description: "Manage contacts in Airtable from call interactions.", category: "Data & Storage", n8nTemplateName: "Airtable Contact Manager", n8nTemplateDescription: "Manages contacts", triggerEvent: "contact.updated", expectedOutcome: "Contact managed in Airtable" },
+  ],
+  firebase: [
+    { id: "fb-store", title: "Store call data", description: "Store call data and transcripts in Firebase.", category: "Data & Storage", n8nTemplateName: "Firebase Data Store", n8nTemplateDescription: "Stores call data", triggerEvent: "call.completed", expectedOutcome: "Data stored in Firebase" },
+    { id: "fb-realtime", title: "Real-time sync", description: "Sync call data in real-time using Firebase.", category: "Data & Storage", n8nTemplateName: "Firebase Real-time Sync", n8nTemplateDescription: "Real-time data sync", triggerEvent: "call.active", expectedOutcome: "Data synced in real-time" },
+    { id: "fb-analytics", title: "User analytics", description: "Track user analytics and call metrics in Firebase.", category: "Data & Storage", n8nTemplateName: "Firebase Analytics Tracker", n8nTemplateDescription: "Tracks analytics", triggerEvent: "call.completed", expectedOutcome: "Analytics tracked in Firebase" },
+    { id: "fb-push", title: "Push notifications", description: "Send push notifications for call events via Firebase.", category: "Data & Storage", n8nTemplateName: "Firebase Push Notifier", n8nTemplateDescription: "Sends push notifications", triggerEvent: "call.important", expectedOutcome: "Push notification sent" },
+  ],
+  supabase: [
+    { id: "supa-transcripts", title: "Store transcripts", description: "Store call transcripts in Supabase database.", category: "Data & Storage", n8nTemplateName: "Supabase Transcript Store", n8nTemplateDescription: "Stores transcripts", triggerEvent: "call.transcribed", expectedOutcome: "Transcript stored in Supabase" },
+    { id: "supa-realtime", title: "Real-time data", description: "Sync call data in real-time using Supabase.", category: "Data & Storage", n8nTemplateName: "Supabase Real-time Sync", n8nTemplateDescription: "Real-time data sync", triggerEvent: "call.active", expectedOutcome: "Data synced in Supabase" },
+    { id: "supa-users", title: "User management", description: "Manage user data and preferences in Supabase.", category: "Data & Storage", n8nTemplateName: "Supabase User Manager", n8nTemplateDescription: "Manages users", triggerEvent: "user.updated", expectedOutcome: "User data managed in Supabase" },
+    { id: "supa-analytics", title: "Analytics storage", description: "Store analytics and metrics data in Supabase.", category: "Data & Storage", n8nTemplateName: "Supabase Analytics Store", n8nTemplateDescription: "Stores analytics", triggerEvent: "call.completed", expectedOutcome: "Analytics stored in Supabase" },
+  ],
+  "aws-s3": [
+    { id: "s3-recordings", title: "Store recordings", description: "Store call recordings in AWS S3 buckets.", category: "Data & Storage", n8nTemplateName: "S3 Recording Store", n8nTemplateDescription: "Stores recordings", triggerEvent: "call.recorded", expectedOutcome: "Recording stored in S3" },
+    { id: "s3-transcripts", title: "Archive transcripts", description: "Archive call transcripts in AWS S3.", category: "Data & Storage", n8nTemplateName: "S3 Transcript Archiver", n8nTemplateDescription: "Archives transcripts", triggerEvent: "call.transcribed", expectedOutcome: "Transcript archived in S3" },
+    { id: "s3-backup", title: "Backup data", description: "Backup call data and configurations to AWS S3.", category: "Data & Storage", n8nTemplateName: "S3 Data Backup", n8nTemplateDescription: "Backs up data", triggerEvent: "backup.scheduled", expectedOutcome: "Data backed up to S3" },
+    { id: "s3-media", title: "Media management", description: "Manage media files and assets in AWS S3.", category: "Data & Storage", n8nTemplateName: "S3 Media Manager", n8nTemplateDescription: "Manages media", triggerEvent: "media.upload", expectedOutcome: "Media managed in S3" },
+  ],
+  "google-analytics": [
+    { id: "ga-events", title: "Track call events", description: "Track call events in Google Analytics for attribution.", category: "Analytics", n8nTemplateName: "GA Call Event Tracker", n8nTemplateDescription: "Tracks call events", triggerEvent: "call.completed", expectedOutcome: "Call event tracked in GA" },
+    { id: "ga-attribution", title: "Conversion attribution", description: "Attribute conversions to specific calls in Google Analytics.", category: "Analytics", n8nTemplateName: "GA Conversion Attributor", n8nTemplateDescription: "Attributes conversions", triggerEvent: "call.converted", expectedOutcome: "Conversion attributed in GA" },
+    { id: "ga-campaigns", title: "Campaign analytics", description: "Track campaign performance analytics in Google Analytics.", category: "Analytics", n8nTemplateName: "GA Campaign Analyzer", n8nTemplateDescription: "Campaign analytics", triggerEvent: "campaign.update", expectedOutcome: "Campaign analytics updated in GA" },
+    { id: "ga-behavior", title: "User behavior", description: "Track user behavior patterns related to calls.", category: "Analytics", n8nTemplateName: "GA Behavior Tracker", n8nTemplateDescription: "Tracks user behavior", triggerEvent: "call.completed", expectedOutcome: "Behavior tracked in GA" },
+  ],
+  mixpanel: [
+    { id: "mp-events", title: "Track call events", description: "Track call events and user actions in Mixpanel.", category: "Analytics", n8nTemplateName: "Mixpanel Event Tracker", n8nTemplateDescription: "Tracks call events", triggerEvent: "call.completed", expectedOutcome: "Event tracked in Mixpanel" },
+    { id: "mp-funnels", title: "Funnel analysis", description: "Analyze call-to-conversion funnels in Mixpanel.", category: "Analytics", n8nTemplateName: "Mixpanel Funnel Analyzer", n8nTemplateDescription: "Analyzes funnels", triggerEvent: "call.completed", expectedOutcome: "Funnel analysis updated in Mixpanel" },
+    { id: "mp-segments", title: "User segmentation", description: "Segment users based on call behavior in Mixpanel.", category: "Analytics", n8nTemplateName: "Mixpanel User Segmenter", n8nTemplateDescription: "Segments users", triggerEvent: "call.analyzed", expectedOutcome: "Users segmented in Mixpanel" },
+    { id: "mp-ab", title: "A/B testing", description: "Track A/B test results for call scripts in Mixpanel.", category: "Analytics", n8nTemplateName: "Mixpanel A/B Tracker", n8nTemplateDescription: "A/B test tracking", triggerEvent: "call.completed", expectedOutcome: "A/B results tracked in Mixpanel" },
+  ],
+  segment: [
+    { id: "seg-events", title: "Event tracking", description: "Track call events through Segment for data routing.", category: "Analytics", n8nTemplateName: "Segment Event Tracker", n8nTemplateDescription: "Tracks events", triggerEvent: "call.completed", expectedOutcome: "Event tracked in Segment" },
+    { id: "seg-identify", title: "User identification", description: "Identify and track users through Segment.", category: "Analytics", n8nTemplateName: "Segment User Identifier", n8nTemplateDescription: "Identifies users", triggerEvent: "contact.identified", expectedOutcome: "User identified in Segment" },
+    { id: "seg-cross", title: "Cross-platform analytics", description: "Route call analytics across platforms via Segment.", category: "Analytics", n8nTemplateName: "Segment Cross-platform Router", n8nTemplateDescription: "Cross-platform routing", triggerEvent: "call.completed", expectedOutcome: "Analytics routed via Segment" },
+    { id: "seg-routing", title: "Data routing", description: "Route call data to multiple destinations through Segment.", category: "Analytics", n8nTemplateName: "Segment Data Router", n8nTemplateDescription: "Routes data", triggerEvent: "call.completed", expectedOutcome: "Data routed through Segment" },
+  ],
+  bamboohr: [
+    { id: "bamboo-sync", title: "Sync employee data", description: "Sync employee data from BambooHR for internal calls.", category: "HR & Recruiting", n8nTemplateName: "BambooHR Employee Sync", n8nTemplateDescription: "Syncs employee data", triggerEvent: "contact.updated", expectedOutcome: "Employee data synced from BambooHR" },
+    { id: "bamboo-interviews", title: "Log interviews", description: "Log interview call details in BambooHR.", category: "HR & Recruiting", n8nTemplateName: "BambooHR Interview Logger", n8nTemplateDescription: "Logs interviews", triggerEvent: "call.completed", expectedOutcome: "Interview logged in BambooHR" },
+    { id: "bamboo-candidates", title: "Update candidate status", description: "Update candidate status in BambooHR after interview calls.", category: "HR & Recruiting", n8nTemplateName: "BambooHR Candidate Updater", n8nTemplateDescription: "Updates candidate status", triggerEvent: "call.outcome_determined", expectedOutcome: "Candidate status updated" },
+    { id: "bamboo-followups", title: "Schedule follow-ups", description: "Schedule follow-up activities in BambooHR.", category: "HR & Recruiting", n8nTemplateName: "BambooHR Follow-up Scheduler", n8nTemplateDescription: "Schedules follow-ups", triggerEvent: "call.followup_needed", expectedOutcome: "Follow-up scheduled in BambooHR" },
+  ],
+  greenhouse: [
+    { id: "gh-log-interviews", title: "Log interview calls", description: "Log interview call details and scores in Greenhouse.", category: "HR & Recruiting", n8nTemplateName: "Greenhouse Interview Logger", n8nTemplateDescription: "Logs interview calls", triggerEvent: "call.completed", expectedOutcome: "Interview logged in Greenhouse" },
+    { id: "gh-update-stage", title: "Update candidate stage", description: "Update candidate pipeline stage in Greenhouse after interviews.", category: "HR & Recruiting", n8nTemplateName: "Greenhouse Stage Updater", n8nTemplateDescription: "Updates candidate stage", triggerEvent: "call.outcome_determined", expectedOutcome: "Candidate stage updated" },
+    { id: "gh-sync-jobs", title: "Sync job data", description: "Sync job data and requirements from Greenhouse.", category: "HR & Recruiting", n8nTemplateName: "Greenhouse Job Sync", n8nTemplateDescription: "Syncs job data", triggerEvent: "system.sync", expectedOutcome: "Job data synced from Greenhouse" },
+    { id: "gh-schedule", title: "Schedule interviews", description: "Schedule interview calls through Greenhouse.", category: "HR & Recruiting", n8nTemplateName: "Greenhouse Interview Scheduler", n8nTemplateDescription: "Schedules interviews", triggerEvent: "appointment.request", expectedOutcome: "Interview scheduled in Greenhouse" },
+  ],
+  lever: [
+    { id: "lever-calls", title: "Track candidate calls", description: "Track and log candidate call interactions in Lever.", category: "HR & Recruiting", n8nTemplateName: "Lever Call Tracker", n8nTemplateDescription: "Tracks candidate calls", triggerEvent: "call.completed", expectedOutcome: "Call tracked in Lever" },
+    { id: "lever-pipeline", title: "Update pipeline", description: "Update candidate pipeline stages in Lever.", category: "HR & Recruiting", n8nTemplateName: "Lever Pipeline Updater", n8nTemplateDescription: "Updates pipeline", triggerEvent: "call.outcome_determined", expectedOutcome: "Pipeline updated in Lever" },
+    { id: "lever-contacts", title: "Sync contacts", description: "Sync candidate contact information with Lever.", category: "HR & Recruiting", n8nTemplateName: "Lever Contact Sync", n8nTemplateDescription: "Syncs contacts", triggerEvent: "contact.updated", expectedOutcome: "Contact synced in Lever" },
+    { id: "lever-activities", title: "Log activities", description: "Log call activities and notes in Lever.", category: "HR & Recruiting", n8nTemplateName: "Lever Activity Logger", n8nTemplateDescription: "Logs activities", triggerEvent: "call.completed", expectedOutcome: "Activity logged in Lever" },
+  ],
+};
+
 function buildOAuthSetupGuide(slug: string, config: ProviderCredentialConfig): SetupStep[] {
   return [
     {
@@ -1124,6 +1564,7 @@ export default function IntegrationDetail() {
   const [logFilter, setLogFilter] = useState("all");
   const [actionToggles, setActionToggles] = useState<Record<string, boolean>>({});
   const [expandedLogRows, setExpandedLogRows] = useState<Set<string | number>>(new Set());
+  const [executingUseCase, setExecutingUseCase] = useState<string | null>(null);
 
   const searchParams = new URLSearchParams(searchString);
   const oauthSuccess = searchParams.get("oauth_success");
@@ -1310,6 +1751,34 @@ export default function IntegrationDetail() {
     },
   });
 
+  const executeUseCaseMutation = useMutation({
+    mutationFn: async (useCase: ProviderUseCase) => {
+      const res = await apiRequest("POST", `/api/integrations/${integration!.id}/use-cases/execute`, {
+        useCaseId: useCase.id,
+        templateName: useCase.n8nTemplateName,
+        triggerEvent: useCase.triggerEvent,
+      });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      setExecutingUseCase(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations", integration?.id, "logs"] });
+      toast({
+        title: data.success ? "Template executed" : "Execution failed",
+        description: data.message || (data.success ? "The n8n workflow template was triggered successfully." : "Failed to execute the template."),
+        variant: data.success ? "default" : "destructive",
+      });
+    },
+    onError: (error: any) => {
+      setExecutingUseCase(null);
+      toast({
+        title: "Execution failed",
+        description: error.message || "Failed to execute the use case template",
+        variant: "destructive",
+      });
+    },
+  });
+
   const isLoading = appsLoading || connectedLoading;
 
   if (isLoading) {
@@ -1408,6 +1877,7 @@ export default function IntegrationDetail() {
 
   const tabItems = [
     { key: "functions", label: "Functions" },
+    { key: "use-cases", label: "Use Cases" },
     { key: "settings", label: "Settings" },
     { key: "setup-guide", label: "API setup guide", hasExternal: true },
     { key: "logs", label: "Logs", hasExternal: true },
@@ -1613,6 +2083,78 @@ export default function IntegrationDetail() {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === "use-cases" && (
+              <div data-testid="tab-content-use-cases">
+                {(() => {
+                  const useCases = PROVIDER_USE_CASES[slug] || [];
+                  return useCases.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Workflow className="w-5 h-5 text-muted-foreground" />
+                        <h3 className="text-base font-semibold" data-testid="text-use-cases-header">Use Cases for {app.name}</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {useCases.map((uc) => (
+                          <div
+                            key={uc.id}
+                            className="border rounded-md p-4 space-y-3"
+                            data-testid={`card-use-case-${uc.id}`}
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <h4 className="text-sm font-semibold" data-testid={`text-use-case-title-${uc.id}`}>{uc.title}</h4>
+                              <Badge variant="secondary" className="no-default-active-elevate text-xs" data-testid={`badge-use-case-category-${uc.id}`}>
+                                {uc.category}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground" data-testid={`text-use-case-desc-${uc.id}`}>{uc.description}</p>
+                            <div className="rounded-md bg-muted p-3 space-y-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <Zap className="w-3 h-3 text-muted-foreground shrink-0" />
+                                <span className="text-xs font-medium" data-testid={`text-template-name-${uc.id}`}>{uc.n8nTemplateName}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-medium">Trigger:</span> {uc.triggerEvent}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-medium">Outcome:</span> {uc.expectedOutcome}
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full"
+                              disabled={!integration || integration.status !== "active" || executingUseCase === uc.id}
+                              onClick={() => {
+                                setExecutingUseCase(uc.id);
+                                executeUseCaseMutation.mutate(uc);
+                              }}
+                              data-testid={`button-execute-${uc.id}`}
+                            >
+                              {executingUseCase === uc.id ? (
+                                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                              ) : (
+                                <Play className="w-4 h-4 mr-1.5" />
+                              )}
+                              {!integration || integration.status !== "active"
+                                ? "Connect first"
+                                : executingUseCase === uc.id
+                                  ? "Executing..."
+                                  : "Execute Template"}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Workflow className="w-8 h-8 text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground">No use cases available for {app.name} yet.</p>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

@@ -465,6 +465,81 @@ router.post('/:id/sync', async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.post('/:id/use-cases/execute', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const id = String(req.params.id);
+    const { useCaseId, templateName, triggerEvent } = req.body;
+
+    if (!useCaseId || !templateName) {
+      return res.status(400).json({ error: 'Missing useCaseId or templateName' });
+    }
+
+    const [integration] = await db
+      .select()
+      .from(userIntegrations)
+      .where(and(eq(userIntegrations.id, id), eq(userIntegrations.userId, userId)));
+
+    if (!integration) return res.status(404).json({ error: 'Integration not found' });
+    if (integration.status !== 'active') return res.status(400).json({ error: 'Integration is not active' });
+
+    const [app] = await db
+      .select()
+      .from(integrationApps)
+      .where(eq(integrationApps.id, integration.appId));
+
+    const [logEntry] = await db.insert(integrationSyncLogs).values({
+      integrationId: integration.id,
+      eventType: `use_case:${useCaseId}`,
+      status: 'in_progress',
+      recordsSynced: 0,
+    }).returning();
+
+    const config = integration.config as any || {};
+    const webhookUrl = config.n8nWebhookUrl || integration.webhookUrl;
+
+    let executionResult = { success: true, executionId: undefined as string | undefined };
+
+    if (webhookUrl) {
+      executionResult = await n8nService.sendWebhook(
+        webhookUrl,
+        triggerEvent || `use_case.${useCaseId}`,
+        {
+          useCaseId,
+          templateName,
+          integrationSlug: app?.slug,
+          integrationName: app?.name,
+          userId,
+          timestamp: new Date().toISOString(),
+        }
+      );
+    }
+
+    await db.update(integrationSyncLogs)
+      .set({
+        status: executionResult.success ? 'success' : 'failed',
+        n8nExecutionId: executionResult.executionId || null,
+        executionDurationMs: 0,
+        recordsSynced: executionResult.success ? 1 : 0,
+      })
+      .where(eq(integrationSyncLogs.id, logEntry.id));
+
+    res.json({
+      success: executionResult.success,
+      message: executionResult.success
+        ? `Use case "${templateName}" triggered successfully${executionResult.executionId ? ` (Execution: ${executionResult.executionId})` : ''}.`
+        : 'Failed to execute the use case template. Check your n8n webhook configuration.',
+      executionId: executionResult.executionId,
+      logId: logEntry.id,
+    });
+  } catch (error: any) {
+    console.error('Error executing use case:', error);
+    res.status(500).json({ error: 'Failed to execute use case template' });
+  }
+});
+
 router.patch('/:id/config', async (req: AuthRequest, res: Response) => {
   try {
     const userId = getUserId(req);

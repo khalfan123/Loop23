@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing } from "lucide-react";
+import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, FileText } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -270,6 +270,15 @@ export default function Campaigns() {
         />
       </SubPanelSection>
       
+      <SubPanelSection title={t('campaigns.tools', 'TOOLS')}>
+        <SubPanelItem
+          icon={<FileText className="w-4 h-4" />}
+          label={t('nav.forms', 'Forms')}
+          isActive={false}
+          onClick={() => setLocation('/app/flows/forms')}
+        />
+      </SubPanelSection>
+
       <SubPanelSection title={t('campaigns.status.title', 'STATUS')}>
         <div className="px-2.5 py-2 space-y-2">
           <div className="flex items-center justify-between text-sm">

@@ -160,7 +160,6 @@ export function AppSidebar() {
   const manageItems = [
     { title: t('nav.leads', 'Leads'), url: "/app/crm" },
     { title: t('nav.appointments'), url: "/app/flows/appointments" },
-    { title: t('nav.forms'), url: "/app/flows/forms" },
   ];
 
   const { data: user, isLoading: userLoading } = useQuery<User>({

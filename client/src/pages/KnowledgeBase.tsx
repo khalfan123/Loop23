@@ -56,7 +56,8 @@ import {
   HelpCircle,
   Lightbulb,
   Square,
-  Phone
+  Phone,
+  GraduationCap
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -983,14 +984,14 @@ export default function KnowledgeBase() {
             data-testid="button-dashboard"
           >
             <LayoutDashboard className="h-4 w-4" />
-            Dashboard
+            Library Overview
           </button>
         </div>
 
         {/* Folders Section */}
         <div className="px-3 py-2">
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            <span>Folders</span>
+            <span>Study Materials</span>
             <Button
               variant="ghost"
               size="icon"
@@ -1081,7 +1082,7 @@ export default function KnowledgeBase() {
                 data-testid="folder-uncategorized"
               >
                 <Folder className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                <span className="truncate flex-1 text-left">Index</span>
+                <span className="truncate flex-1 text-left">Uncategorized</span>
                 <span className="text-xs text-muted-foreground">
                   {folderStats.uncategorized}
                 </span>
@@ -1207,7 +1208,7 @@ export default function KnowledgeBase() {
         {storageUsage && (
           <div className="p-3 border-t">
             <div className="text-xs text-muted-foreground mb-1">
-              Storage: {formatBytes(storageUsage.usedStorageBytes)} / {formatBytes(storageUsage.maxStorageBytes)}
+              Library Capacity: {formatBytes(storageUsage.usedStorageBytes)} / {formatBytes(storageUsage.maxStorageBytes)}
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
               <div 
@@ -1226,12 +1227,12 @@ export default function KnowledgeBase() {
           <div className="flex items-center justify-between p-4 gap-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Brain className="h-5 w-5 text-primary" />
+                <GraduationCap className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold">Knowledge Base</h1>
+                <h1 className="text-lg font-semibold">Professor's Knowledge Library</h1>
                 <p className="text-xs text-muted-foreground">
-                  {dashboardStats?.totalResources || 0} resources · {dashboardStats?.totalChunks || 0} chunks
+                  {dashboardStats?.totalResources || 0} study materials · {dashboardStats?.totalChunks || 0} knowledge chunks indexed
                 </p>
               </div>
             </div>
@@ -1315,6 +1316,11 @@ export default function KnowledgeBase() {
           {/* Intelligence Stats Bar */}
           <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 overflow-x-auto">
             <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
+              <GraduationCap className="h-3.5 w-3.5 text-primary" />
+              <span className="font-medium text-foreground">Professor's Expertise:</span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
               <Globe className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-muted-foreground">Crawl Jobs</span>
               <span className="font-semibold">{intelligenceStats?.crawlJobs || 0}</span>
@@ -1357,7 +1363,7 @@ export default function KnowledgeBase() {
           <div className="relative max-w-xl">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search knowledge base..."
+              placeholder="Search the professor's library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"

@@ -127,39 +127,159 @@ function cosineSimilarity(a: number[], b: number[]): number {
 function chunkText(text: string, maxChars: number = MAX_CHUNK_CHARS, overlapChars: number = 200): string[] {
   const chunks: string[] = [];
   
-  // Clean and normalize text
-  const cleanText = text.replace(/\s+/g, ' ').trim();
+  const cleanText = text.replace(/\r\n/g, '\n').trim();
   
   if (cleanText.length <= maxChars) {
     return [cleanText];
   }
   
-  let start = 0;
-  while (start < cleanText.length) {
-    let end = start + maxChars;
+  const sections = splitIntoSections(cleanText);
+  
+  let currentHeading = '';
+  
+  for (const section of sections) {
+    if (section.heading) {
+      currentHeading = section.heading;
+    }
     
-    // Try to break at sentence boundary
-    if (end < cleanText.length) {
-      const lastPeriod = cleanText.lastIndexOf('.', end);
-      const lastNewline = cleanText.lastIndexOf('\n', end);
-      const breakPoint = Math.max(lastPeriod, lastNewline);
-      
-      if (breakPoint > start + maxChars / 2) {
-        end = breakPoint + 1;
+    const content = section.content.trim();
+    if (!content) continue;
+    
+    const prefix = currentHeading ? `[${currentHeading}]\n` : '';
+    const prefixedContent = prefix + content;
+    
+    if (prefixedContent.length <= maxChars) {
+      chunks.push(prefixedContent);
+    } else {
+      const qaBlocks = splitQAPairs(content);
+      if (qaBlocks.length > 1) {
+        let currentBlock = prefix;
+        for (const block of qaBlocks) {
+          if ((currentBlock + block).length > maxChars && currentBlock.length > prefix.length) {
+            chunks.push(currentBlock.trim());
+            currentBlock = prefix + block;
+          } else {
+            currentBlock += block;
+          }
+        }
+        if (currentBlock.length > prefix.length) {
+          chunks.push(currentBlock.trim());
+        }
+      } else {
+        let start = 0;
+        while (start < content.length) {
+          let end = start + maxChars - prefix.length;
+          
+          if (end < content.length) {
+            const searchWindow = content.substring(Math.max(start, end - 300), end);
+            const lastDoubleNewline = searchWindow.lastIndexOf('\n\n');
+            const lastPeriodSpace = searchWindow.lastIndexOf('. ');
+            const lastNewline = searchWindow.lastIndexOf('\n');
+            
+            let breakAt = -1;
+            if (lastDoubleNewline !== -1) {
+              breakAt = Math.max(start, end - 300) + lastDoubleNewline + 2;
+            } else if (lastPeriodSpace !== -1) {
+              breakAt = Math.max(start, end - 300) + lastPeriodSpace + 2;
+            } else if (lastNewline !== -1) {
+              breakAt = Math.max(start, end - 300) + lastNewline + 1;
+            }
+            
+            if (breakAt > start + maxChars / 3) {
+              end = breakAt;
+            }
+          } else {
+            end = content.length;
+          }
+          
+          const chunk = content.slice(start, end).trim();
+          if (chunk.length > 0) {
+            chunks.push(prefix + chunk);
+          }
+          
+          start = end - (end < content.length ? overlapChars : 0);
+          if (start >= content.length) break;
+        }
       }
     }
-    
-    const chunk = cleanText.slice(start, end).trim();
-    if (chunk.length > 0) {
-      chunks.push(chunk);
-    }
-    
-    // Move start with overlap
-    start = end - overlapChars;
-    if (start >= cleanText.length) break;
   }
   
   return chunks;
+}
+
+function splitQAPairs(text: string): string[] {
+  const blocks: string[] = [];
+  const lines = text.split('\n');
+  let currentBlock = '';
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    const isQStart = /^(Q:|Question:)/i.test(trimmed);
+    
+    if (isQStart && currentBlock.trim()) {
+      blocks.push(currentBlock);
+      currentBlock = line + '\n';
+    } else {
+      currentBlock += line + '\n';
+    }
+  }
+  
+  if (currentBlock.trim()) {
+    blocks.push(currentBlock);
+  }
+  
+  return blocks;
+}
+
+function splitIntoSections(text: string): Array<{ heading: string; content: string }> {
+  const sections: Array<{ heading: string; content: string }> = [];
+  const lines = text.split('\n');
+  
+  let currentHeading = '';
+  let currentContent: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    
+    const isHeading = 
+      /^#{1,4}\s+/.test(trimmed) ||
+      (/^[A-Z][A-Z\s]{3,}$/.test(trimmed) && trimmed.length < 80) ||
+      (/^[A-Z][\w\s]+:$/.test(trimmed) && trimmed.length < 80);
+    
+    const isQAStart = /^(Q:|A:|Question:|Answer:)/i.test(trimmed);
+    
+    if ((isHeading || (isQAStart && currentContent.length > 0)) && currentContent.length > 0) {
+      sections.push({
+        heading: currentHeading,
+        content: currentContent.join('\n'),
+      });
+      currentContent = [];
+      if (isHeading) {
+        currentHeading = trimmed.replace(/^#+\s*/, '').replace(/:$/, '');
+      } else {
+        currentHeading = '';
+      }
+    } else if (isHeading) {
+      currentHeading = trimmed.replace(/^#+\s*/, '').replace(/:$/, '');
+    }
+    
+    currentContent.push(line);
+  }
+  
+  if (currentContent.length > 0) {
+    sections.push({
+      heading: currentHeading,
+      content: currentContent.join('\n'),
+    });
+  }
+  
+  if (sections.length === 0) {
+    sections.push({ heading: '', content: text });
+  }
+  
+  return sections;
 }
 
 /**
@@ -359,14 +479,13 @@ export class RAGKnowledgeService {
         return [];
       }
 
-      // TIER 1: FAQ matching (highest priority - pre-extracted Q&A pairs)
       const faqResults = await this.searchFAQs(query, knowledgeBaseIds, userId);
       if (faqResults.length > 0) {
         console.log(`[RAG] Found ${faqResults.length} FAQ matches`);
-        return faqResults.slice(0, maxResults);
       }
       
-      // TIER 2: Vector similarity on chunks
+      let chunkResults: Array<{ chunk: KnowledgeChunk; score: number; source: string }> = [];
+      
       const chunks = await db
         .select()
         .from(knowledgeChunks)
@@ -382,7 +501,7 @@ export class RAGKnowledgeService {
         
         const queryEmbedding = await generateEmbedding(query);
         
-        const scoredChunks = chunks
+        chunkResults = chunks
           .filter(chunk => chunk.embedding && Array.isArray(chunk.embedding))
           .map(chunk => ({
             chunk,
@@ -392,8 +511,16 @@ export class RAGKnowledgeService {
           .sort((a, b) => b.score - a.score)
           .slice(0, maxResults);
         
-        console.log(`[RAG] Found ${scoredChunks.length} relevant chunks (top score: ${scoredChunks[0]?.score.toFixed(3) || 'N/A'})`);
-        return scoredChunks;
+        console.log(`[RAG] Found ${chunkResults.length} relevant chunks (top score: ${chunkResults[0]?.score.toFixed(3) || 'N/A'})`);
+      }
+      
+      const combined = [...faqResults, ...chunkResults]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, maxResults);
+      
+      if (combined.length > 0) {
+        console.log(`[RAG] Returning ${combined.length} combined results (${faqResults.length} FAQs + ${chunkResults.length} chunks)`);
+        return combined;
       }
       
       // TIER 3: Direct content fallback (no chunks/embeddings available)
@@ -558,31 +685,48 @@ export class RAGKnowledgeService {
    */
   static formatResultsForAgent(
     results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
-    maxTokens: number = 500
+    maxTokens: number = 800
   ): string {
     if (results.length === 0) {
       return "No relevant information found in the knowledge base.";
     }
     
-    let output = "Based on the knowledge base:\n\n";
+    let output = "KNOWLEDGE BASE RESULTS:\n\n";
     let totalTokens = estimateTokens(output);
+    let resultIndex = 1;
     
     for (const result of results) {
-      const chunkTokens = estimateTokens(result.chunk.chunkText);
+      const chunkText = result.chunk.chunkText;
+      const isFAQ = chunkText.startsWith('Q:') || chunkText.startsWith('Question:');
+      const hasSection = chunkText.startsWith('[');
       
-      if (totalTokens + chunkTokens > maxTokens) {
-        // Truncate to fit
-        const remainingTokens = maxTokens - totalTokens - 10;
-        if (remainingTokens > 50) {
+      let label = '';
+      if (isFAQ) {
+        label = `[FAQ Match - Relevance: ${Math.round(result.score * 100)}%]\n`;
+      } else if (hasSection) {
+        label = `[Document Section - Relevance: ${Math.round(result.score * 100)}%]\n`;
+      } else {
+        label = `[Knowledge Base - Relevance: ${Math.round(result.score * 100)}%]\n`;
+      }
+      
+      const entry = `--- Result ${resultIndex} ---\n${label}${chunkText}\n\n`;
+      const entryTokens = estimateTokens(entry);
+      
+      if (totalTokens + entryTokens > maxTokens) {
+        const remainingTokens = maxTokens - totalTokens - 20;
+        if (remainingTokens > 80) {
           const truncatedChars = remainingTokens * 4;
-          output += `• ${result.chunk.chunkText.substring(0, truncatedChars)}...\n`;
+          output += `--- Result ${resultIndex} ---\n${label}${chunkText.substring(0, truncatedChars)}...\n\n`;
         }
         break;
       }
       
-      output += `• ${result.chunk.chunkText}\n\n`;
-      totalTokens += chunkTokens + 5;
+      output += entry;
+      totalTokens += entryTokens;
+      resultIndex++;
     }
+    
+    output += "---\nUse the above information to answer the user's question naturally and conversationally.";
     
     return output.trim();
   }

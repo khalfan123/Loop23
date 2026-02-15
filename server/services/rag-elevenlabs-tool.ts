@@ -154,7 +154,7 @@ export async function handleAskKnowledgeToolCall(
       query,
       knowledgeBaseIds,
       userId,
-      3 // Top 3 results for concise response
+      5
     );
 
     if (results.length === 0) {
@@ -164,7 +164,7 @@ export async function handleAskKnowledgeToolCall(
       };
     }
 
-    const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
+    const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 800);
 
     return {
       response: formattedResponse,

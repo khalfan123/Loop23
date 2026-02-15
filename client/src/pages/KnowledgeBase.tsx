@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -265,6 +265,8 @@ export default function KnowledgeBase() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const [testQuery, setTestQuery] = useState("");
   const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
@@ -665,6 +667,13 @@ export default function KnowledgeBase() {
         description: error.message || "Failed to move item",
         variant: "destructive",
       });
+    },
+  });
+
+  const testAgentReadingMutation = useMutation({
+    mutationFn: async (data: { query: string; knowledgeBaseIds: string[] }) => {
+      const res = await apiRequest('POST', '/api/rag-knowledge/search', data);
+      return res.json();
     },
   });
 
@@ -1252,6 +1261,16 @@ export default function KnowledgeBase() {
               <FileText className="h-4 w-4" />
               Files
             </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
+              onClick={() => setTextDialogOpen(true)}
+              data-testid="button-add-text"
+            >
+              <Type className="h-4 w-4" />
+              Text
+            </Button>
           </div>
           </div>
 
@@ -1530,6 +1549,76 @@ export default function KnowledgeBase() {
                   </CardContent>
                 </Card>
 
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <div className="h-5 w-5 rounded bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                        <Search className="h-3 w-3 text-indigo-500" />
+                      </div>
+                      Test Agent Reading
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">Preview what the AI agent sees when answering questions</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Ask a question to test..."
+                          value={testQuery}
+                          onChange={(e) => setTestQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && testQuery.trim()) {
+                              testAgentReadingMutation.mutate({
+                                query: testQuery,
+                                knowledgeBaseIds: knowledgeBase.map(kb => kb.id),
+                              });
+                            }
+                          }}
+                          data-testid="input-test-query"
+                        />
+                        <Button
+                          size="sm"
+                          disabled={!testQuery.trim() || testAgentReadingMutation.isPending || knowledgeBase.length === 0}
+                          onClick={() => {
+                            testAgentReadingMutation.mutate({
+                              query: testQuery,
+                              knowledgeBaseIds: knowledgeBase.map(kb => kb.id),
+                            });
+                          }}
+                          data-testid="button-test-reading"
+                        >
+                          {testAgentReadingMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Search className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {testAgentReadingMutation.data && (
+                        <div className="space-y-2">
+                          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Agent would receive:
+                          </div>
+                          <div className="bg-muted/50 rounded-md border p-3 max-h-[300px] overflow-auto">
+                            <pre className="text-sm whitespace-pre-wrap font-mono">
+                              {testAgentReadingMutation.data.formattedResponse || 'No results found.'}
+                            </pre>
+                          </div>
+                          {testAgentReadingMutation.data.results && testAgentReadingMutation.data.results.length > 0 && (
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span>{testAgentReadingMutation.data.results.length} results found</span>
+                              <span>Top relevance: {Math.round((testAgentReadingMutation.data.results[0]?.score || 0) * 100)}%</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {knowledgeBase.length === 0 && (
+                        <p className="text-xs text-muted-foreground">Add content to your knowledge base first to test agent reading.</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* All Items Table */}
                 {knowledgeBase.length > 0 && (
                   <Card>
@@ -1550,79 +1639,116 @@ export default function KnowledgeBase() {
                         </TableHeader>
                         <TableBody>
                           {paginatedItems.map((item) => (
-                            <TableRow key={item.id} data-testid={`row-kb-item-${item.id}`}>
-                              <TableCell className="font-medium">
-                                <div className="flex items-start gap-2">
-                                  <div className="mt-0.5">{getTypeIcon(item.type)}</div>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="truncate max-w-[200px]">{item.title}</span>
-                                    {item.type === "url" && item.url && (
-                                      <a 
-                                        href={item.url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-muted-foreground hover:text-primary truncate max-w-[250px]"
-                                        onClick={(e) => e.stopPropagation()}
-                                        data-testid={`link-url-index-${item.id}`}
-                                      >
-                                        {item.url}
-                                      </a>
-                                    )}
+                            <Fragment key={item.id}>
+                              <TableRow 
+                                data-testid={`row-kb-item-${item.id}`}
+                                className="cursor-pointer"
+                                onClick={() => setExpandedItemId(expandedItemId === item.id ? null : item.id)}
+                              >
+                                <TableCell className="font-medium">
+                                  <div className="flex items-start gap-2">
+                                    <div className="mt-0.5">{getTypeIcon(item.type)}</div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="truncate max-w-[200px]">{item.title}</span>
+                                      {item.type === "url" && item.url && (
+                                        <a 
+                                          href={item.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-muted-foreground hover:text-primary truncate max-w-[250px]"
+                                          onClick={(e) => e.stopPropagation()}
+                                          data-testid={`link-url-index-${item.id}`}
+                                        >
+                                          {item.url}
+                                        </a>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant={getTypeBadgeVariant(item.type)}>
-                                  {item.type}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={item.folderId || "uncategorized"}
-                                  onValueChange={(value) => {
-                                    assignFolderMutation.mutate({
-                                      id: item.id,
-                                      folderId: value === "uncategorized" ? null : value,
-                                    });
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8 w-[140px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="uncategorized">Index</SelectItem>
-                                    {folders.map((folder) => (
-                                      <SelectItem key={folder.id} value={folder.id}>
-                                        {folder.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell className="hidden md:table-cell">
-                                <div className="flex items-center gap-2">
-                                  {getStatusIcon(item.ragStatus)}
-                                  <span className="text-sm text-muted-foreground">
-                                    {item.ragStatus === 'completed' ? 'Ready' : 
-                                     item.ragStatus === 'processing' ? 'Processing' : 
-                                     item.ragStatus === 'failed' ? 'Failed' : 'Pending'}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground hidden lg:table-cell">
-                                {new Date(item.createdAt).toLocaleDateString()}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setDeletingItem(item)}
-                                  data-testid={`button-delete-${item.id}`}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={getTypeBadgeVariant(item.type)}>
+                                    {item.type}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                  <Select
+                                    value={item.folderId || "uncategorized"}
+                                    onValueChange={(value) => {
+                                      assignFolderMutation.mutate({
+                                        id: item.id,
+                                        folderId: value === "uncategorized" ? null : value,
+                                      });
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 w-[140px]">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="uncategorized">Index</SelectItem>
+                                      {folders.map((folder) => (
+                                        <SelectItem key={folder.id} value={folder.id}>
+                                          {folder.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="hidden md:table-cell">
+                                  <div className="flex items-center gap-2">
+                                    {getStatusIcon(item.ragStatus)}
+                                    <div className="flex flex-col">
+                                      <span className="text-sm text-muted-foreground">
+                                        {item.ragStatus === 'completed' ? 'Ready' : 
+                                         item.ragStatus === 'processing' ? 'Processing' : 
+                                         item.ragStatus === 'failed' ? 'Failed' : 'Pending'}
+                                      </span>
+                                      {item.chunkCount && item.chunkCount > 0 && (
+                                        <span className="text-xs text-muted-foreground">{item.chunkCount} chunks</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground hidden lg:table-cell">
+                                  {new Date(item.createdAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => { e.stopPropagation(); setDeletingItem(item); }}
+                                    data-testid={`button-delete-${item.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                              {expandedItemId === item.id && (
+                                <TableRow>
+                                  <TableCell colSpan={6} className="bg-muted/30 p-0">
+                                    <div className="p-4 space-y-2">
+                                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                        <BookOpen className="h-3 w-3" />
+                                        Content Preview (What the AI agent reads)
+                                      </div>
+                                      <div className="bg-background rounded-md border p-3 max-h-[200px] overflow-auto">
+                                        <pre className="text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                                          {item.content 
+                                            ? item.content.substring(0, 1000) + (item.content.length > 1000 ? '\n\n... [truncated]' : '')
+                                            : item.url 
+                                              ? `Source URL: ${item.url}\n\nContent is processed into ${item.chunkCount || 0} searchable chunks.`
+                                              : 'No content preview available.'}
+                                        </pre>
+                                      </div>
+                                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                        <span>Size: {item.storageSize ? `${(item.storageSize / 1024).toFixed(1)} KB` : 'N/A'}</span>
+                                        <span>Chunks: {item.chunkCount || 0}</span>
+                                        <span>Status: {item.ragStatus === 'completed' ? 'Ready for AI' : item.ragStatus || 'Pending'}</span>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
                           ))}
                         </TableBody>
                       </Table>
@@ -1648,6 +1774,10 @@ export default function KnowledgeBase() {
                         <Button variant="outline" onClick={() => setFileDialogOpen(true)}>
                           <Upload className="h-4 w-4 mr-2" />
                           Upload File
+                        </Button>
+                        <Button variant="outline" onClick={() => setTextDialogOpen(true)}>
+                          <Type className="h-4 w-4 mr-2" />
+                          Add Text
                         </Button>
                       </div>
                     </div>
@@ -1709,54 +1839,96 @@ export default function KnowledgeBase() {
                           </TableHeader>
                           <TableBody>
                             {paginatedItems.map((item) => (
-                              <TableRow key={item.id} data-testid={`row-kb-item-${item.id}`}>
-                                <TableCell className="font-medium">
-                                  <div className="flex items-start gap-2">
-                                    <div className="mt-0.5">{getTypeIcon(item.type)}</div>
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="truncate max-w-[200px]">{item.title}</span>
-                                      {item.type === "url" && item.url && (
-                                        <a 
-                                          href={item.url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="text-xs text-muted-foreground hover:text-primary truncate max-w-[250px]"
-                                          onClick={(e) => e.stopPropagation()}
-                                          data-testid={`link-url-${item.id}`}
-                                        >
-                                          {item.url}
-                                        </a>
-                                      )}
+                              <Fragment key={item.id}>
+                                <TableRow 
+                                  data-testid={`row-kb-item-${item.id}`}
+                                  className="cursor-pointer"
+                                  onClick={() => setExpandedItemId(expandedItemId === item.id ? null : item.id)}
+                                >
+                                  <TableCell className="font-medium">
+                                    <div className="flex items-start gap-2">
+                                      <div className="mt-0.5">{getTypeIcon(item.type)}</div>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="truncate max-w-[200px]">{item.title}</span>
+                                        {item.type === "url" && item.url && (
+                                          <a 
+                                            href={item.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-muted-foreground hover:text-primary truncate max-w-[250px]"
+                                            onClick={(e) => e.stopPropagation()}
+                                            data-testid={`link-url-${item.id}`}
+                                          >
+                                            {item.url}
+                                          </a>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant={getTypeBadgeVariant(item.type)}>
-                                    {item.type}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="hidden md:table-cell">
-                                  <div className="flex items-center gap-2">
-                                    {getStatusIcon(item.ragStatus)}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-muted-foreground hidden sm:table-cell">
-                                  {formatBytes(item.storageSize)}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground hidden lg:table-cell">
-                                  {new Date(item.createdAt).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setDeletingItem(item)}
-                                    data-testid={`button-delete-${item.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={getTypeBadgeVariant(item.type)}>
+                                      {item.type}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="hidden md:table-cell">
+                                    <div className="flex items-center gap-2">
+                                      {getStatusIcon(item.ragStatus)}
+                                      <div className="flex flex-col">
+                                        <span className="text-sm text-muted-foreground">
+                                          {item.ragStatus === 'completed' ? 'Ready' : 
+                                           item.ragStatus === 'processing' ? 'Processing' : 
+                                           item.ragStatus === 'failed' ? 'Failed' : 'Pending'}
+                                        </span>
+                                        {item.chunkCount && item.chunkCount > 0 && (
+                                          <span className="text-xs text-muted-foreground">{item.chunkCount} chunks</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground hidden sm:table-cell">
+                                    {formatBytes(item.storageSize)}
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground hidden lg:table-cell">
+                                    {new Date(item.createdAt).toLocaleDateString()}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => { e.stopPropagation(); setDeletingItem(item); }}
+                                      data-testid={`button-delete-${item.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                                {expandedItemId === item.id && (
+                                  <TableRow>
+                                    <TableCell colSpan={6} className="bg-muted/30 p-0">
+                                      <div className="p-4 space-y-2">
+                                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                          <BookOpen className="h-3 w-3" />
+                                          Content Preview (What the AI agent reads)
+                                        </div>
+                                        <div className="bg-background rounded-md border p-3 max-h-[200px] overflow-auto">
+                                          <pre className="text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                                            {item.content 
+                                              ? item.content.substring(0, 1000) + (item.content.length > 1000 ? '\n\n... [truncated]' : '')
+                                              : item.url 
+                                                ? `Source URL: ${item.url}\n\nContent is processed into ${item.chunkCount || 0} searchable chunks.`
+                                                : 'No content preview available.'}
+                                          </pre>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                          <span>Size: {item.storageSize ? `${(item.storageSize / 1024).toFixed(1)} KB` : 'N/A'}</span>
+                                          <span>Chunks: {item.chunkCount || 0}</span>
+                                          <span>Status: {item.ragStatus === 'completed' ? 'Ready for AI' : item.ragStatus || 'Pending'}</span>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </Fragment>
                             ))}
                           </TableBody>
                         </Table>

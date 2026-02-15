@@ -75,7 +75,7 @@ export const TWILIO_COUNTRIES_SEED_DATA = [
     code: "NL",
     name: "Netherlands",
     dialCode: "+31",
-    isActive: true,
+    isActive: false,
     sortOrder: 9,
   },
   {

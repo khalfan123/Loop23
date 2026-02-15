@@ -995,13 +995,6 @@ export default function DepartmentManagement() {
           onClick={() => setActiveTab('org-map')}
         />
         <SubPanelItem
-          icon={<LayoutGrid className="w-4 h-4" />}
-          label="Departments"
-          isActive={activeTab === 'departments'}
-          badge={departments.length}
-          onClick={() => setActiveTab('departments')}
-        />
-        <SubPanelItem
           icon={<PhoneIncoming className="w-4 h-4" />}
           label="Incoming Connections"
           isActive={activeTab === 'incoming-connections'}

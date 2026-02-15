@@ -14,12 +14,13 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
+import FormsPage from "@/pages/FormsPage";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,7 +82,7 @@ interface DeduplicatedContact {
   callCount: number;
 }
 
-type ViewMode = 'batch' | 'contacts';
+type ViewMode = 'batch' | 'contacts' | 'forms';
 
 export default function Campaigns() {
   const [, setLocation] = useLocation();
@@ -274,8 +275,8 @@ export default function Campaigns() {
         <SubPanelItem
           icon={<FileText className="w-4 h-4" />}
           label={t('nav.forms', 'Forms')}
-          isActive={false}
-          onClick={() => setLocation('/app/flows/forms')}
+          isActive={activeView === 'forms'}
+          onClick={() => setActiveView('forms')}
         />
       </SubPanelSection>
 
@@ -602,7 +603,11 @@ export default function Campaigns() {
       subPanelWidth="sm"
       subPanelHeader={<span className="font-medium text-sm">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>}
     >
-      {activeView === 'batch' ? renderBatchCallView() : renderContactsView()}
+      {activeView === 'batch' ? renderBatchCallView() : activeView === 'forms' ? (
+        <div className="p-6 overflow-auto h-[calc(100vh-120px)]">
+          <FormsPage />
+        </div>
+      ) : renderContactsView()}
     </ThreeColumnLayout>
   );
 }

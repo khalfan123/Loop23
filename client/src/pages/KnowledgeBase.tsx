@@ -286,6 +286,7 @@ export default function KnowledgeBase() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [deletingItem, setDeletingItem] = useState<KnowledgeBaseItem | null>(null);
+  const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
   
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [folderName, setFolderName] = useState("");
@@ -543,6 +544,31 @@ export default function KnowledgeBase() {
       toast({
         title: t('common.error'),
         description: t('knowledgeBase.toast.deleteFailed'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const purgeAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('DELETE', '/api/rag-knowledge/purge-all');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
+      setPurgeDialogOpen(false);
+      toast({
+        title: "All Resources Deleted",
+        description: `Successfully removed ${data.deletedCount} resource(s) and their chunks.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete all resources. Please try again.",
         variant: "destructive",
       });
     },
@@ -1271,6 +1297,18 @@ export default function KnowledgeBase() {
               <Type className="h-4 w-4" />
               Text
             </Button>
+            {knowledgeBase.length > 0 && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="gap-1.5"
+                onClick={() => setPurgeDialogOpen(true)}
+                data-testid="button-delete-all"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete All
+              </Button>
+            )}
           </div>
           </div>
 
@@ -2262,6 +2300,28 @@ export default function KnowledgeBase() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteFolderMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={purgeDialogOpen} onOpenChange={setPurgeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Resources</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all {knowledgeBase.length} resource(s) and their associated chunks from your knowledge base. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-purge">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => purgeAllMutation.mutate()}
+              disabled={purgeAllMutation.isPending}
+              className="bg-destructive text-destructive-foreground"
+              data-testid="button-confirm-purge"
+            >
+              {purgeAllMutation.isPending ? "Deleting..." : "Delete All"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

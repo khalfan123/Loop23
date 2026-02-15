@@ -497,6 +497,25 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
   });
 
   /**
+   * Delete ALL knowledge base items for user
+   */
+  router.delete("/purge-all", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const items = await storage.getUserKnowledgeBase(req.userId!);
+      
+      for (const item of items) {
+        await RAGKnowledgeService.deleteKnowledgeChunks(item.id, req.userId!);
+        await storage.deleteKnowledgeBaseItem(item.id);
+      }
+      
+      res.json({ success: true, deletedCount: items.length });
+    } catch (error: any) {
+      console.error("[RAG Routes] Purge all error:", error);
+      res.status(500).json({ error: "Failed to delete all resources" });
+    }
+  });
+
+  /**
    * Delete knowledge base item
    */
   router.delete("/:id", authenticateToken, async (req: AuthRequest, res: Response) => {

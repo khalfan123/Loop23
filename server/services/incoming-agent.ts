@@ -61,10 +61,10 @@ export interface IncomingAgentCreateParams {
   detectLanguageEnabled?: boolean;
   endConversationEnabled?: boolean;
   appointmentBookingEnabled?: boolean;
+  knowledgeBaseOnly?: boolean;
   voiceStability?: number;
   voiceSimilarityBoost?: number;
   voiceSpeed?: number;
-  // Database agent ID (needed for webhook tool URLs when creating with appointment booking)
   databaseAgentId?: string;
 }
 
@@ -82,10 +82,10 @@ export interface IncomingAgentUpdateParams {
   detectLanguageEnabled?: boolean;
   endConversationEnabled?: boolean;
   appointmentBookingEnabled?: boolean;
+  knowledgeBaseOnly?: boolean;
   voiceStability?: number;
   voiceSimilarityBoost?: number;
   voiceSpeed?: number;
-  // Database agent ID (needed for webhook tool URLs)
   databaseAgentId?: string;
 }
 
@@ -256,8 +256,8 @@ export class IncomingAgentService {
       endConversationEnabled: params.endConversationEnabled || false,
       // Appointment booking webhook tool
       appointmentBookingEnabled: params.appointmentBookingEnabled || false,
+      knowledgeBaseOnly: params.knowledgeBaseOnly || false,
       databaseAgentId: params.databaseAgentId,
-      // Voice fine-tuning settings
       voiceStability: params.voiceStability,
       voiceSimilarityBoost: params.voiceSimilarityBoost,
       voiceSpeed: params.voiceSpeed,
@@ -406,7 +406,10 @@ export class IncomingAgentService {
       ? params.appointmentBookingEnabled 
       : currentAgent.appointmentBookingEnabled;
     elevenLabsUpdates.appointmentBookingEnabled = effectiveAppointmentBooking;
-    // Pass database agent ID for webhook URL generation
+    const effectiveKnowledgeBaseOnly = params.knowledgeBaseOnly !== undefined 
+      ? params.knowledgeBaseOnly 
+      : currentAgent.knowledgeBaseOnly;
+    elevenLabsUpdates.knowledgeBaseOnly = effectiveKnowledgeBaseOnly;
     elevenLabsUpdates.databaseAgentId = params.databaseAgentId || agentId;
     
     console.log(`🔧 [Incoming] System tools:`, {
@@ -474,6 +477,7 @@ export class IncomingAgentService {
             detectLanguageEnabled: effectiveDetectLanguage ?? currentAgent.detectLanguageEnabled ?? false,
             endConversationEnabled: effectiveEndConversation ?? currentAgent.endConversationEnabled ?? false,
             appointmentBookingEnabled: effectiveAppointmentBooking ?? currentAgent.appointmentBookingEnabled ?? false,
+            knowledgeBaseOnly: effectiveKnowledgeBaseOnly ?? currentAgent.knowledgeBaseOnly ?? false,
             voiceStability: params.voiceStability ?? currentAgent.voiceStability ?? 0.55,
             voiceSimilarityBoost: params.voiceSimilarityBoost ?? currentAgent.voiceSimilarityBoost ?? 0.85,
             voiceSpeed: params.voiceSpeed ?? currentAgent.voiceSpeed ?? 1.0,

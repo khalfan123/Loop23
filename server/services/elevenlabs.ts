@@ -105,7 +105,7 @@ interface CreateAgentParams {
   detectLanguageEnabled?: boolean;
   endConversationEnabled?: boolean;
   appointmentBookingEnabled?: boolean;
-  // Database agent ID (needed for appointment webhook tool URL)
+  knowledgeBaseOnly?: boolean;
   databaseAgentId?: string;
   // Skip workflow creation for incoming agents (workflows cause "Invalid message received" errors)
   skipWorkflow?: boolean;
@@ -447,6 +447,7 @@ export class ElevenLabsService {
       endConversationEnabled?: boolean;
       hasKnowledgeBase?: boolean;
       appointmentBookingEnabled?: boolean;
+      knowledgeBaseOnly?: boolean;
     }
   ): string {
     const toolInstructions: string[] = [];
@@ -480,6 +481,17 @@ INCORRECT BEHAVIOR: User asks "What are your pricing plans?" → Say "Let me che
 
 Remember: EXECUTE the tool first, THEN speak. Never speak about searching - just DO IT.`
       );
+
+      if (agentConfig.knowledgeBaseOnly) {
+        toolInstructions.push(
+          `STRICT KNOWLEDGE BASE RESTRICTION:
+- You are ONLY allowed to provide information that comes from the knowledge base results and your system prompt.
+- Do NOT make up, guess, or infer answers from your general training knowledge. Your answers must come strictly from the knowledge base.
+- If the knowledge base returns no results or irrelevant results, say: "I don't have that information available. Let me connect you with someone who can help." Then offer to transfer the call if transfer is enabled, or ask if there's anything else you can help with.
+- Even for simple greetings and pleasantries, stay in character as defined by the system prompt, but never provide factual claims that aren't in the knowledge base.
+- When you find relevant information in the knowledge base, use it to answer naturally and conversationally - do not just read it verbatim.`
+        );
+      }
     }
 
     // Add language detection instructions if enabled
@@ -553,9 +565,9 @@ IMPORTANT: Do NOT just say you will book the appointment - you MUST actually cal
       endConversationEnabled: params.endConversationEnabled,
       hasKnowledgeBase,
       appointmentBookingEnabled: params.appointmentBookingEnabled,
+      knowledgeBaseOnly: params.knowledgeBaseOnly,
     });
     
-    // Build system tools as ARRAY for prompt.tools (per ElevenLabs API docs)
     const systemTools = this.buildSystemTools({
       transferEnabled: params.transferEnabled,
       transferPhoneNumber: params.transferPhoneNumber,
@@ -1440,6 +1452,7 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
           endConversationEnabled: params.endConversationEnabled,
           hasKnowledgeBase,
           appointmentBookingEnabled: params.appointmentBookingEnabled,
+          knowledgeBaseOnly: params.knowledgeBaseOnly,
         });
         promptConfig.prompt = enhancedPrompt;
       }

@@ -119,6 +119,7 @@ interface Agent {
   detectLanguageEnabled: boolean | null;
   endConversationEnabled: boolean | null;
   appointmentBookingEnabled: boolean | null;
+  knowledgeBaseOnly: boolean | null;
   telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
   openaiVoice: string | null;
   sourceTemplateId: string | null;
@@ -284,6 +285,7 @@ export default function Agents() {
     detectLanguageEnabled: false,
     endConversationEnabled: false,
     appointmentBookingEnabled: false,
+    knowledgeBaseOnly: false,
     // Flow Agent specific fields
     flowId: "",
     maxDurationSeconds: 600,
@@ -618,6 +620,7 @@ export default function Agents() {
       detectLanguageEnabled: false,
       endConversationEnabled: false,
       appointmentBookingEnabled: false,
+      knowledgeBaseOnly: false,
       flowId: "",
       maxDurationSeconds: 600,
       voiceStability: 0.55,
@@ -734,6 +737,7 @@ export default function Agents() {
       detectLanguageEnabled: agent.detectLanguageEnabled ?? false,
       endConversationEnabled: agent.endConversationEnabled ?? false,
       appointmentBookingEnabled: agent.appointmentBookingEnabled ?? false,
+      knowledgeBaseOnly: agent.knowledgeBaseOnly ?? false,
       flowId: agent.flowId || "",
       maxDurationSeconds: agent.maxDurationSeconds ?? 600,
       voiceStability: agent.voiceStability ?? 0.55,
@@ -2837,7 +2841,25 @@ export default function Agents() {
               </p>
             </div>
 
-            {/* System Tools Section - Only for Incoming Agents */}
+            {formData.knowledgeBaseIds.length > 0 && (
+              <label className="flex items-center gap-3 cursor-pointer" data-testid="label-enable-kb-only">
+                <Checkbox
+                  checked={formData.knowledgeBaseOnly}
+                  onCheckedChange={(checked) => setFormData({ ...formData, knowledgeBaseOnly: checked as boolean })}
+                  data-testid="checkbox-enable-kb-only"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-medium">Knowledge Base Only</span>
+                    <InfoTooltip content="When enabled, the AI will ONLY answer questions using information from the knowledge base and system prompt. It will not use any outside knowledge." />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Restrict AI responses strictly to knowledge base content
+                  </p>
+                </div>
+              </label>
+            )}
+
             {formData.type === 'incoming' && (
               <div className="space-y-4 pt-4">
                 {/* System Tools Section Header */}

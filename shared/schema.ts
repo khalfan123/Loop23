@@ -170,6 +170,7 @@ export const agents = pgTable("agents", {
   detectLanguageEnabled: boolean("detect_language_enabled").default(false),
   endConversationEnabled: boolean("end_conversation_enabled").default(false),
   appointmentBookingEnabled: boolean("appointment_booking_enabled").default(false),
+  knowledgeBaseOnly: boolean("knowledge_base_only").default(false),
   
   // Knowledge Base (for incoming agents)
   knowledgeBaseIds: text("knowledge_base_ids").array(),

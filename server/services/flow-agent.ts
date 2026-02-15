@@ -74,6 +74,7 @@ export interface FlowAgentCreateParams {
   voiceSpeed?: number;
   detectLanguageEnabled?: boolean;
   knowledgeBaseIds?: string[];
+  knowledgeBaseOnly?: boolean;
 }
 
 export interface FlowAgentUpdateParams {
@@ -88,6 +89,7 @@ export interface FlowAgentUpdateParams {
   maxDurationSeconds?: number;
   detectLanguageEnabled?: boolean;
   knowledgeBaseIds?: string[];
+  knowledgeBaseOnly?: boolean;
   voiceStability?: number;
   voiceSimilarityBoost?: number;
   voiceSpeed?: number;
@@ -1029,8 +1031,11 @@ When using a tool:
       voiceUpdates.hasRAGKnowledgeBases = params.knowledgeBaseIds.length > 0 && isRAGEnabled();
     }
 
+    if (params.knowledgeBaseOnly !== undefined) {
+      voiceUpdates.knowledgeBaseOnly = params.knowledgeBaseOnly;
+    }
+
     if (Object.keys(voiceUpdates).length > 0) {
-      // CRITICAL: skipWorkflowRebuild prevents any workflow from being added
       await elevenLabsService.updateAgent(elevenLabsAgentId, {
         ...voiceUpdates,
         skipWorkflowRebuild: true

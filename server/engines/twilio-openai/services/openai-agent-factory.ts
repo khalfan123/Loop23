@@ -128,7 +128,8 @@ export class OpenAIAgentFactory {
   static addKnowledgeBaseTool(
     config: AgentConfigWithContext, 
     knowledgeBaseIds: string[],
-    userId: string
+    userId: string,
+    knowledgeBaseOnly?: boolean
   ): AgentConfigWithContext {
     if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
       console.log(`[Agent Factory] No knowledge bases to add`);
@@ -190,7 +191,10 @@ export class OpenAIAgentFactory {
       },
     };
 
-    const kbRestrictionPrompt = `
+    let enhancedSystemPrompt = config.systemPrompt;
+
+    if (knowledgeBaseOnly) {
+      const kbRestrictionPrompt = `
 
 STRICT KNOWLEDGE BASE RESTRICTION:
 - You MUST call the lookup_knowledge_base tool BEFORE answering ANY question from the caller.
@@ -200,7 +204,8 @@ STRICT KNOWLEDGE BASE RESTRICTION:
 - Even for simple greetings and pleasantries, stay in character as defined by the system prompt, but never provide factual claims that aren't in the knowledge base.
 - When you find relevant information in the knowledge base, use it to answer naturally and conversationally - do not just read it verbatim.`;
 
-    const enhancedSystemPrompt = config.systemPrompt + kbRestrictionPrompt;
+      enhancedSystemPrompt = config.systemPrompt + kbRestrictionPrompt;
+    }
 
     return {
       ...config,
@@ -1528,6 +1533,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       openaiModel?: string | null;
       temperature?: number | null;
       knowledgeBaseIds?: string[] | null;
+      knowledgeBaseOnly?: boolean | null;
       transferEnabled?: boolean | null;
       transferPhoneNumber?: string | null;
       transferMessage?: string | null;
@@ -1577,7 +1583,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
 
     // Add knowledge base tool if configured
     if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
-      config = this.addKnowledgeBaseTool(config, agent.knowledgeBaseIds, agent.userId);
+      config = this.addKnowledgeBaseTool(config, agent.knowledgeBaseIds, agent.userId, agent.knowledgeBaseOnly ?? undefined);
     }
 
     // Add transfer tool if enabled

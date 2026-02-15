@@ -105,6 +105,7 @@ import { createSubscriptionRoutes } from "./routes/subscription-routes";
 import crmRoutes from "./routes/crm-routes";
 import searchRoutes from "./routes/search-routes";
 import integrationRoutes from "./routes/integration-routes";
+import adminIntegrationTestsRouter from "./routes/admin-integration-tests";
 import integrationOAuthCallback from "./routes/integration-oauth-callback";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
 import bcrypt from "bcrypt";
@@ -1421,6 +1422,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin Refunds routes
   app.use("/api/admin/refunds", refundRouter);
+
+  // Admin Integration Tests routes
+  app.use("/api/admin/integration-tests", authenticateToken, requireRole("admin", "superadmin"), adminIntegrationTestsRouter);
 
   // User-accessible refund note download (separate from admin routes)
   app.get("/api/refunds/:id/download", authenticateToken, async (req: AuthRequest, res: Response) => {

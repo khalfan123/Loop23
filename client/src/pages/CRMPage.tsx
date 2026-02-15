@@ -1310,13 +1310,13 @@ export default function CRMPage() {
   const { toast } = useToast();
   const queryClientRef = useQueryClient();
   const searchString = useSearch();
-  const validViews = ["kanban", "list", "analytics"] as const;
+  const validViews = ["list", "analytics"] as const;
   const urlViewRaw = new URLSearchParams(searchString).get('view');
-  const urlViewParam = validViews.includes(urlViewRaw as any) ? (urlViewRaw as "kanban" | "list" | "analytics") : null;
-  const [viewMode, setViewMode] = useState<"kanban" | "list" | "analytics">(urlViewParam || "kanban");
+  const urlViewParam = validViews.includes(urlViewRaw as any) ? (urlViewRaw as "list" | "analytics") : null;
+  const [viewMode, setViewMode] = useState<"list" | "analytics">(urlViewParam || "list");
   
   useEffect(() => {
-    setViewMode(urlViewParam || "kanban");
+    setViewMode(urlViewParam || "list");
   }, [urlViewParam]);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -1973,12 +1973,6 @@ export default function CRMPage() {
     <div className="space-y-1">
       <SubPanelSection title="VIEWS">
         <SubPanelItem
-          icon={<BarChart3 className="w-4 h-4" />}
-          label="Kanban"
-          isActive={viewMode === 'kanban'}
-          onClick={() => setViewMode('kanban')}
-        />
-        <SubPanelItem
           icon={<ClipboardCheck className="w-4 h-4" />}
           label="List"
           isActive={viewMode === 'list'}
@@ -2011,7 +2005,7 @@ export default function CRMPage() {
     <ThreeColumnLayout 
       subPanel={subPanelContent} 
       subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">Quick CRM</span>}
+      subPanelHeader={<span className="font-medium text-sm">Leads</span>}
     >
       <div className="flex flex-col h-full bg-background" data-testid="crm-page">
         {/* iOS 18 Style Header */}
@@ -2197,18 +2191,6 @@ export default function CRMPage() {
           
           {/* iOS 18 Style View Toggle Pills */}
           <div className="flex items-center rounded-2xl bg-foreground/[0.04] p-1 gap-0.5">
-            <button
-              className={`flex items-center justify-center h-8 w-8 rounded-xl transition-all ${
-                viewMode === "kanban" 
-                  ? "bg-background shadow-sm text-foreground" 
-                  : "text-foreground/50 hover:text-foreground"
-              }`}
-              onClick={() => setViewMode("kanban")}
-              data-testid="view-kanban"
-              title="Kanban View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
             <button
               className={`flex items-center justify-center h-8 w-8 rounded-xl transition-all ${
                 viewMode === "list" 
@@ -2471,97 +2453,6 @@ export default function CRMPage() {
               )}
             </div>
           </ScrollArea>
-        ) : viewMode === "kanban" ? (
-          <div className="flex gap-4 p-6 overflow-x-auto h-full">
-            {aiKanbanLoading || preferencesLoading ? (
-              <div className="flex items-center justify-center w-full py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : aiKanbanData ? (
-              <>
-                {orderedCategories.map((cat) => {
-                  const columnData = aiKanbanData.columns?.[cat.id];
-                  const isHighlighted = aiCategoryFilter === "all" || aiCategoryFilter === cat.id;
-                  const columnSort = categoryPreferences?.columnSortPreferences?.[cat.id];
-                  
-                  // Apply client-side filtering for search and tags
-                  let columnLeads = [...(columnData?.leads || [])];
-                  
-                  // Filter by search query
-                  if (searchQuery) {
-                    const query = searchQuery.toLowerCase();
-                    columnLeads = columnLeads.filter(lead => {
-                      const phone = lead.phone?.toLowerCase() || '';
-                      const firstName = lead.firstName?.toLowerCase() || '';
-                      const lastName = lead.lastName?.toLowerCase() || '';
-                      const email = lead.email?.toLowerCase() || '';
-                      return phone.includes(query) ||
-                        firstName.includes(query) ||
-                        lastName.includes(query) ||
-                        email.includes(query) ||
-                        (lead.tags?.some(tag => tag.toLowerCase().includes(query)) ?? false);
-                    });
-                  }
-                  
-                  // Filter by tag
-                  if (tagFilter !== "all") {
-                    columnLeads = columnLeads.filter(lead => lead.tags?.includes(tagFilter));
-                  }
-                  
-                  // Apply client-side sorting based on saved preference
-                  switch (columnSort) {
-                    case 'oldest':
-                      columnLeads.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                      break;
-                    case 'score-high':
-                      columnLeads.sort((a, b) => (b.leadScore || 0) - (a.leadScore || 0));
-                      break;
-                    case 'score-low':
-                      columnLeads.sort((a, b) => (a.leadScore || 0) - (b.leadScore || 0));
-                      break;
-                    case 'newest':
-                    default:
-                      columnLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                      break;
-                  }
-                  
-                  return (
-                    <AIKanbanColumn
-                      key={cat.id}
-                      category={{ id: cat.id, label: cat.label, color: cat.color }}
-                      leads={columnLeads}
-                      total={columnData?.total || 0}
-                      onLeadClick={setSelectedLead}
-                      selectedLeadIds={selectedLeadIds}
-                      onToggleSelect={toggleLeadSelection}
-                      highlighted={isHighlighted}
-                      sortBy={columnSort}
-                      onSortChange={(sortBy) => updateColumnSortMutation.mutate({ categoryId: cat.id, sortBy })}
-                      onColorChange={(color) => updateCategoryColorMutation.mutate({ categoryId: cat.id, color })}
-                      onLeadDrop={handleLeadDrop}
-                      isDragging={draggingColumnId === cat.id}
-                      isDragOver={dragOverColumnId === cat.id}
-                      onDragStart={(e) => handleColumnDragStart(e, cat.id)}
-                      onDragOver={(e) => handleColumnDragOver(e, cat.id)}
-                      onDragLeave={handleColumnDragLeave}
-                      onDrop={(e) => handleColumnDrop(e, cat.id)}
-                      onDragEnd={handleColumnDragEnd}
-                    />
-                  );
-                })}
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center w-full py-20">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Zap className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No Qualified Leads</h3>
-                <p className="text-muted-foreground text-center max-w-md">
-                  Leads will appear here when they're categorized by AI during calls.
-                </p>
-              </div>
-            )}
-          </div>
         ) : (
           <div className="flex flex-col h-full">
             <ScrollArea className="flex-1">

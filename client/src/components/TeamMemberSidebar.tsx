@@ -95,7 +95,7 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
     { url: "/app/contacts", icon: UserCheck, label: "All Contacts", group: "evaluate", iconColor: "text-teal-500" },
   ],
   crm: [
-    { url: "/app/crm", icon: ContactRound, label: "Quick CRM", group: "evaluate", iconColor: "text-cyan-500" },
+    { url: "/app/crm", icon: ContactRound, label: "Leads", group: "evaluate", iconColor: "text-cyan-500" },
   ],
   calls: [
     { url: "/app/calls", icon: Phone, label: "Call History", group: "evaluate", iconColor: "text-blue-500" },

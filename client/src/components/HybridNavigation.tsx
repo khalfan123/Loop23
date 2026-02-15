@@ -108,7 +108,6 @@ export function HybridNavigation({
 
   const topItems: NavItem[] = [
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics", icon: BarChart3 },
-    { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm", icon: Users },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: PhoneCall },
   ];
   
@@ -128,6 +127,7 @@ export function HybridNavigation({
   ];
 
   const manageItems: NavItem[] = [
+    { title: t('nav.leads', 'Leads'), url: "/app/crm", icon: Users },
     { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar },
     { title: t('nav.forms'), url: "/app/flows/forms", icon: FileText },
   ];

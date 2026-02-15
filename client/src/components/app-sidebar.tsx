@@ -145,7 +145,6 @@ export function AppSidebar() {
   };
 
   const overviewItems = [
-    { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm" },
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics" },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls" },
   ];
@@ -159,6 +158,7 @@ export function AppSidebar() {
   ];
 
   const manageItems = [
+    { title: t('nav.leads', 'Leads'), url: "/app/crm" },
     { title: t('nav.appointments'), url: "/app/flows/appointments" },
     { title: t('nav.forms'), url: "/app/flows/forms" },
   ];

@@ -108,7 +108,6 @@ export function HybridNavigation({
 
   const topItems: NavItem[] = [
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics", icon: BarChart3 },
-    { title: t('nav.webhooks', 'Webhooks'), url: "/app/flows/webhooks", icon: Webhook },
     { title: t('nav.quickCrm', 'Quick CRM'), url: "/app/crm", icon: Users },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: PhoneCall },
   ];

@@ -21,7 +21,7 @@ The application follows a client-server architecture.
 - **Background Processing**: Schedulers handle campaign execution, billing, and cleanup tasks.
 - **Modular Design**: Feature modules and engine integrations are organized within the `server/modules/` and `server/engines/` directories, respectively.
 - **Department Management System**: Includes robust features for organizing agents and IVR configurations within departments, supported by a 3-step wizard (Phone Numbers > Departments > IVR Router) at `/app/departments/canvas`.
-- **Knowledge Base & AI Intelligence**: Provides an integrated experience for managing knowledge base content, performing AI-powered topic analysis, and generating content, utilizing a folder-based navigation system.
+- **Knowledge Base & AI Intelligence**: Provides an integrated experience for managing knowledge base content, performing AI-powered topic analysis, and generating content, utilizing a folder-based navigation system. Supports "Knowledge Base Only" mode (`knowledgeBaseOnly` flag on agents) that restricts AI responses strictly to KB content and system prompt, preventing use of general training knowledge. This applies across both ElevenLabs and OpenAI Realtime engines.
 - **Provider DID Marketplace**: Integrates a marketplace for browsing and renting DIDs from various carrier providers, with routing capabilities for outbound calling.
 
 ## External Dependencies

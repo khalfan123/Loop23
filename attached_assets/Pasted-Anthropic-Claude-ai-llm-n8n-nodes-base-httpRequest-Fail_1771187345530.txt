@@ -1,0 +1,35 @@
+Anthropic (Claude)	ai_llm	n8n-nodes-base.httpRequest	
+Failed
+n8n API error (404): <!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <title>Error</title> </head> <body> <pre>Cannot POST /api/v1/workflows</pre> </body> </html>
+Test
+Cohere	ai_llm	n8n-nodes-base.httpRequest	
+Failed
+n8n API error (500): Internal Server Error
+Test
+Google Gemini	ai_llm	n8n-nodes-base.httpRequest	
+Failed
+n8n API error (503): {"code":503,"message":"Database is not ready!","stacktrace":"ResponseError: Database is not ready!\n at /home/runner/workspace/node_modules/n8n/src/abstract-server.ts:152:34\n at Layer.handleRequest (/home/runner/workspace/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/router/index.js:342:13)\n at /home/runner/workspace/node_modules/router/index.js:297:9\n at processParams (/home/runner/workspace/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/router/index.js:291:5)\n at Function.handle (/home/runner/workspace/node_modules/router/index.js:186:3)\n at Function.handle (/home/runner/workspace/node_modules/n8n/node_modules/express/lib/application.js:177:15)\n at Server.app (/home/runner/workspace/node_modules/n8n/node_modules/express/lib/express.js:38:9)\n at Server.emit (node:events:524:28)"}
+Test
+Groq	ai_llm	n8n-nodes-base.httpRequest	
+Failed
+n8n API error (503): {"code":503,"message":"Database is not ready!","stacktrace":"ResponseError: Database is not ready!\n at /home/runner/workspace/node_modules/n8n/src/abstract-server.ts:152:34\n at Layer.handleRequest (/home/runner/workspace/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/router/index.js:342:13)\n at /home/runner/workspace/node_modules/router/index.js:297:9\n at processParams (/home/runner/workspace/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/router/index.js:291:5)\n at Function.handle (/home/runner/workspace/node_modules/router/index.js:186:3)\n at Function.handle (/home/runner/workspace/node_modules/n8n/node_modules/express/lib/application.js:177:15)\n at Server.app (/home/runner/workspace/node_modules/n8n/node_modules/express/lib/express.js:38:9)\n at Server.emit (node:events:524:28)"}
+Test
+Mistral AI	ai_llm	n8n-nodes-base.httpRequest	
+Failed
+n8n API error (503): {"code":503,"message":"Database is not ready!","stacktrace":"ResponseError: Database is not ready!\n at /home/runner/workspace/node_modules/n8n/src/abstract-server.ts:152:34\n at Layer.handleRequest (/home/runner/workspace/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/router/index.js:342:13)\n at /home/runner/workspace/node_modules/router/index.js:297:9\n at processParams (/home/runner/workspace/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/router/index.js:291:5)\n at Function.handle (/home/runner/workspace/node_modules/router/index.js:186:3)\n at Function.handle (/home/runner/workspace/node_modules/n8n/node_modules/express/lib/application.js:177:15)\n at Server.app (/home/runner/workspace/node_modules/n8n/node_modules/express/lib/express.js:38:9)\n at Server.emit (node:events:524:28)"}
+Test
+OpenAI	ai_llm	n8n-nodes-base.openAi	
+Failed
+n8n API error (503): {"code":503,"message":"Database is not ready!","stacktrace":"ResponseError: Database is not ready!\n at /home/runner/workspace/node_modules/n8n/src/abstract-server.ts:152:34\n at Layer.handleRequest (/home/runner/workspace/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/router/index.js:342:13)\n at /home/runner/workspace/node_modules/router/index.js:297:9\n at processParams (/home/runner/workspace/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/router/index.js:291:5)\n at Function.handle (/home/runner/workspace/node_modules/router/index.js:186:3)\n at Function.handle (/home/runner/workspace/node_modules/n8n/node_modules/express/lib/application.js:177:15)\n at Server.app (/home/runner/workspace/node_modules/n8n/node_modules/express/lib/express.js:38:9)\n at Server.emit (node:events:524:28)"}
+Test
+Perplexity AI	ai_llm	n8n-nodes-base.httpRequest	
+Failed
+n8n API error (404): <!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <title>Error</title> </head> <body> <pre>Cannot POST /api/v1/workflows</pre> </body> </html>
+Test
+Google Analytics	analytics	n8n-nodes-base.googleAnalytics	
+Failed
+n8n API error (404): <!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <title>Error</title> </head> <body> <pre>Cannot POST /api/v1/workflows</pre> </body> </html>
+Test
+Mixpanel	analytics	n8n-nodes-base.httpRequest	
+Failed
+n8n API error (404): <!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <title>Error</title> </head> <body> <pre>Cannot POST /api/v1/workflows</pre> </body> </html>

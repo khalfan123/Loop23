@@ -8,27 +8,73 @@ import { n8nService } from '../services/n8n';
 const N8N_BASE_URL = process.env.N8N_BASE_URL || '';
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
 
+async function checkN8nHealth(): Promise<{ ready: boolean; error?: string }> {
+  if (!N8N_BASE_URL || !N8N_API_KEY) {
+    return { ready: false, error: 'n8n is not configured (missing N8N_BASE_URL or N8N_API_KEY)' };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const url = `${N8N_BASE_URL}/api/v1/workflows?limit=1`;
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-N8N-API-KEY': N8N_API_KEY,
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { ready: false, error: `n8n returned ${response.status}: ${errorText.substring(0, 200)}` };
+    }
+
+    return { ready: true };
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return { ready: false, error: 'n8n health check timed out after 10 seconds' };
+    }
+    return { ready: false, error: `Cannot reach n8n: ${error.message}` };
+  }
+}
+
 async function n8nFetch(path: string, options: RequestInit = {}): Promise<any> {
   if (!N8N_BASE_URL || !N8N_API_KEY) {
     throw new Error('n8n is not configured — running in local mode');
   }
 
   const url = `${N8N_BASE_URL}/api/v1${path}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-N8N-API-KEY': N8N_API_KEY,
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  const response = await fetch(url, { ...options, headers });
+  try {
+    const response = await fetch(url, { ...options, headers, signal: controller.signal });
+    clearTimeout(timeout);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`n8n API error (${response.status}): ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`n8n API error (${response.status}): ${errorText}`);
+    }
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+  } catch (error: any) {
+    clearTimeout(timeout);
+    if (error.name === 'AbortError') {
+      throw new Error('n8n API request timed out after 15 seconds');
+    }
+    throw error;
   }
-
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
 }
 
 async function createTestWorkflow(slug: string, name: string, n8nNodeType: string) {
@@ -54,17 +100,22 @@ async function createTestWorkflow(slug: string, name: string, n8nNodeType: strin
     'Loop9 Webhook': { main: [[{ node: name, type: 'main', index: 0 }]] },
   };
 
-  const result = await n8nFetch('/workflows', {
-    method: 'POST',
-    body: JSON.stringify({
-      name: `[TEST] Loop9 → ${name}`,
-      nodes,
-      connections,
-      settings: { executionOrder: 'v1' },
-    }),
+  const body = JSON.stringify({
+    name: `[TEST] Loop9 → ${name}`,
+    nodes,
+    connections,
+    settings: { executionOrder: 'v1' },
   });
 
-  return result;
+  try {
+    return await n8nFetch('/workflows', { method: 'POST', body });
+  } catch (error: any) {
+    if (error.message && error.message.includes('(503)')) {
+      await new Promise(r => setTimeout(r, 2000));
+      return await n8nFetch('/workflows', { method: 'POST', body });
+    }
+    throw error;
+  }
 }
 
 const router = Router();
@@ -98,6 +149,11 @@ router.post('/run', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'slug, name, and n8nNodeType are required' });
     }
 
+    const health = await checkN8nHealth();
+    if (!health.ready) {
+      return res.json({ status: 'skipped', error: health.error || 'n8n service is not available' });
+    }
+
     const result = await createTestWorkflow(slug, name, n8nNodeType);
     res.json({ status: 'success', workflowId: result.id });
   } catch (error: any) {
@@ -108,11 +164,24 @@ router.post('/run', async (req: Request, res: Response) => {
 
 router.post('/run-all', async (_req: Request, res: Response) => {
   try {
+    const health = await checkN8nHealth();
+
     const apps = await db
       .select()
       .from(integrationApps)
       .where(eq(integrationApps.isActive, true))
       .orderBy(asc(integrationApps.category), asc(integrationApps.name));
+
+    if (!health.ready) {
+      const results = apps.map(app => ({
+        name: app.name,
+        slug: app.slug,
+        category: app.category,
+        status: 'skipped' as string,
+        error: health.error || 'n8n service is not available',
+      }));
+      return res.json(results);
+    }
 
     const results: { name: string; slug: string; category: string | null; status: string; workflowId?: string; error?: string }[] = [];
 
@@ -181,12 +250,8 @@ router.get('/n8n-status', async (_req: Request, res: Response) => {
       return res.json({ configured: false, connected: false });
     }
 
-    try {
-      await n8nFetch('/workflows?limit=1');
-      res.json({ configured: true, connected: true });
-    } catch (error: any) {
-      res.json({ configured: true, connected: false, error: error.message });
-    }
+    const health = await checkN8nHealth();
+    res.json({ configured: true, connected: health.ready, error: health.ready ? undefined : health.error });
   } catch (error: any) {
     res.status(500).json({ configured: false, connected: false, error: error.message });
   }

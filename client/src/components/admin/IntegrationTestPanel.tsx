@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { CheckCircle, XCircle, Loader2, RefreshCw, Trash2, Play, Zap, Wifi, WifiOff } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, RefreshCw, Trash2, Play, Zap, Wifi, WifiOff, AlertTriangle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,7 +19,7 @@ interface IntegrationApp {
 }
 
 interface TestResult {
-  status: "success" | "failed";
+  status: "success" | "failed" | "skipped";
   workflowId?: string;
   error?: string;
 }
@@ -102,7 +102,7 @@ export default function IntegrationTestPanel() {
 
       for (const r of results) {
         newResults[r.slug] = {
-          status: r.status === "success" ? "success" : "failed",
+          status: r.status === "success" ? "success" : r.status === "skipped" ? "skipped" : "failed",
           workflowId: r.workflowId,
           error: r.error,
         };
@@ -116,10 +116,13 @@ export default function IntegrationTestPanel() {
 
       const passed = results.filter((r) => r.status === "success").length;
       const failed = results.filter((r) => r.status === "failed").length;
+      const skipped = results.filter((r) => r.status === "skipped").length;
 
       toast({
-        title: "Tests Complete",
-        description: `${passed}/${results.length} passed, ${failed} failed`,
+        title: skipped === results.length ? "Tests Skipped" : "Tests Complete",
+        description: skipped > 0
+          ? `${skipped} skipped (n8n unavailable)${passed > 0 ? `, ${passed} passed` : ""}${failed > 0 ? `, ${failed} failed` : ""}`
+          : `${passed}/${results.length} passed, ${failed} failed`,
       });
     } catch (error: any) {
       toast({
@@ -145,7 +148,7 @@ export default function IntegrationTestPanel() {
       setTestResults((prev) => ({
         ...prev,
         [app.slug]: {
-          status: result.status === "success" ? "success" : "failed",
+          status: result.status === "success" ? "success" : result.status === "skipped" ? "skipped" : "failed",
           workflowId: result.workflowId,
           error: result.error,
         },
@@ -156,9 +159,9 @@ export default function IntegrationTestPanel() {
       }
 
       toast({
-        title: result.status === "success" ? "Test Passed" : "Test Failed",
+        title: result.status === "success" ? "Test Passed" : result.status === "skipped" ? "Test Skipped" : "Test Failed",
         description: result.status === "success" ? `${app.name} workflow created` : result.error,
-        variant: result.status === "success" ? "default" : "destructive",
+        variant: result.status === "success" ? "default" : result.status === "skipped" ? "default" : "destructive",
       });
     } catch (error: any) {
       setTestResults((prev) => ({
@@ -182,6 +185,7 @@ export default function IntegrationTestPanel() {
   const testedCount = Object.keys(testResults).length;
   const passedCount = Object.values(testResults).filter((r) => r.status === "success").length;
   const failedCount = Object.values(testResults).filter((r) => r.status === "failed").length;
+  const skippedCount = Object.values(testResults).filter((r) => r.status === "skipped").length;
 
   const getCategoryBadgeClass = (category: string | null) => {
     if (!category) return "";
@@ -283,6 +287,12 @@ export default function IntegrationTestPanel() {
                 {failedCount} failed
               </span>
             )}
+            {skippedCount > 0 && (
+              <span className="flex items-center gap-1">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                {skippedCount} skipped
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -347,6 +357,18 @@ export default function IntegrationTestPanel() {
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Passed
                             </Badge>
+                          ) : result.status === "skipped" ? (
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" data-testid={`badge-status-${app.slug}`}>
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                Skipped
+                              </Badge>
+                              {result.error && (
+                                <span className="text-xs text-amber-600 dark:text-amber-400 max-w-[200px] truncate" title={result.error} data-testid={`text-error-${app.slug}`}>
+                                  {result.error}
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <div className="flex flex-col gap-1">
                               <Badge variant="destructive" data-testid={`badge-status-${app.slug}`}>

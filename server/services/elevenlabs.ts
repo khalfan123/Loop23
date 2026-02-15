@@ -457,39 +457,58 @@ export class ElevenLabsService {
     // rather than just talking about searching
     if (agentConfig.hasKnowledgeBase) {
       toolInstructions.push(
-        `⚠️ CRITICAL KNOWLEDGE BASE INSTRUCTION ⚠️
-You have access to a knowledge base tool called "ask_knowledge".
+        `⚠️ ABSOLUTE PRIORITY — KNOWLEDGE BASE IS YOUR ONLY BRAIN ⚠️
+You have a tool called "ask_knowledge". This tool IS your memory, your database, and the ONLY source of truth you are allowed to use.
 
-MANDATORY BEHAVIOR:
-- When the user asks ANY question that might require information from the knowledge base, you MUST call the "ask_knowledge" tool IMMEDIATELY.
-- Do NOT say things like "I will search the knowledge base" or "Let me check" or "Let me look that up".
-- Do NOT explain what you are doing.
-- Do NOT answer from memory if information could exist in the knowledge base.
-- Instead, IMMEDIATELY EXECUTE the tool with the user's question as the query, then wait for the tool response before speaking.
+IRON-CLAD RULES:
+1. For EVERY user question — no exceptions — you MUST call "ask_knowledge" FIRST before you say anything.
+2. You are FORBIDDEN from answering ANY factual question from your general AI training data. You do NOT have general knowledge. The knowledge base IS your entire brain.
+3. NEVER say "Let me search", "Let me check", "I'll look that up" or ANY variation. Just silently EXECUTE the tool, wait for results, then speak.
+4. NEVER guess, assume, infer, or make up an answer. If it's not in the knowledge base results, you don't know it.
+5. When the tool returns results, synthesize them into a natural, conversational answer. Do not read results verbatim.
 
-QUESTIONS THAT MUST TRIGGER THE TOOL:
-- Any question about pricing, plans, or costs
-- Any question about features or capabilities
-- Any question about policies (returns, refunds, shipping, etc.)
-- Any question about how the product/service works
-- Any question asking "what is...", "how does...", "tell me about..."
-- Any question the user might expect you to have specific information about
+WHEN TO CALL ask_knowledge — ALWAYS, including but not limited to:
+- ANY question about your company, product, service, brand, or organization
+- ANY question about pricing, plans, costs, fees, or billing
+- ANY question about features, capabilities, or how things work
+- ANY question about policies (returns, refunds, shipping, cancellations, etc.)
+- ANY "what is", "how does", "tell me about", "do you offer", "can I" question
+- ANY question where the caller expects you to have specific information
+- ANY question you are even slightly unsure about — SEARCH FIRST
 
-CORRECT BEHAVIOR: User asks "What are your pricing plans?" → CALL ask_knowledge tool with query "pricing plans" → Wait for response → Answer based on tool response.
+EXECUTION PATTERN:
+User speaks → You IMMEDIATELY call ask_knowledge with their question → Tool returns results → You answer ONLY from those results.
 
-INCORRECT BEHAVIOR: User asks "What are your pricing plans?" → Say "Let me check our pricing for you" → Never call the tool.
+WHEN THE KNOWLEDGE BASE HAS NO ANSWER:
+- Say clearly: "I don't have that specific information available right now."
+- Offer to transfer the call to a human if transfer is enabled.
+- Or ask: "Is there something else I can help you with?"
+- NEVER fabricate an answer or fill gaps with general knowledge.
 
-Remember: EXECUTE the tool first, THEN speak. Never speak about searching - just DO IT.`
+CONVERSATIONAL BEHAVIOR:
+- Greetings, small talk, and pleasantries are fine — stay in character as defined by your system prompt.
+- But ANY factual claim, detail, number, policy, or specific information MUST come from the knowledge base.
+- You may rephrase and present knowledge base information naturally, but never add facts that aren't in the results.`
       );
 
       if (agentConfig.knowledgeBaseOnly) {
         toolInstructions.push(
-          `STRICT KNOWLEDGE BASE RESTRICTION:
-- You are ONLY allowed to provide information that comes from the knowledge base results and your system prompt.
-- Do NOT make up, guess, or infer answers from your general training knowledge. Your answers must come strictly from the knowledge base.
-- If the knowledge base returns no results or irrelevant results, say: "I don't have that information available. Let me connect you with someone who can help." Then offer to transfer the call if transfer is enabled, or ask if there's anything else you can help with.
-- Even for simple greetings and pleasantries, stay in character as defined by the system prompt, but never provide factual claims that aren't in the knowledge base.
-- When you find relevant information in the knowledge base, use it to answer naturally and conversationally - do not just read it verbatim.`
+          `🔒 STRICT KNOWLEDGE-BASE-ONLY MODE — MAXIMUM RESTRICTION 🔒
+This agent is in STRICT knowledge-base-only mode. This means:
+
+ABSOLUTE RESTRICTIONS:
+- You have ZERO general knowledge. Treat yourself as if you were trained ONLY on the knowledge base content.
+- You are ONLY allowed to provide information that comes directly from ask_knowledge tool results and your system prompt instructions.
+- If the knowledge base returns no results or irrelevant results for a question, you MUST say: "I don't have that information available. Would you like me to connect you with someone who can help?"
+- Do NOT make up, guess, estimate, or infer ANY answer — not even partially.
+- Do NOT say "generally speaking", "typically", "usually", or any hedging language that implies you're drawing from outside knowledge.
+- Do NOT provide industry-standard information, common knowledge, or obvious facts unless they appear in the knowledge base results.
+- EVERY factual statement you make must be traceable to a knowledge base result.
+
+HANDLING EDGE CASES:
+- If a user asks something conversational (greetings, thanks, goodbye), respond naturally per your system prompt persona.
+- If a user asks a factual question and the knowledge base has partial information, share ONLY what the knowledge base contains and acknowledge the limitation.
+- If a user insists on getting an answer you don't have in the knowledge base, firmly but politely decline and offer to connect them with a human.`
         );
       }
     }

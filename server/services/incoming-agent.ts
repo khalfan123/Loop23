@@ -256,7 +256,7 @@ export class IncomingAgentService {
       endConversationEnabled: params.endConversationEnabled || false,
       // Appointment booking webhook tool
       appointmentBookingEnabled: params.appointmentBookingEnabled || false,
-      knowledgeBaseOnly: params.knowledgeBaseOnly || false,
+      knowledgeBaseOnly: (params.knowledgeBaseIds && params.knowledgeBaseIds.length > 0) ? (params.knowledgeBaseOnly !== undefined ? params.knowledgeBaseOnly : true) : false,
       databaseAgentId: params.databaseAgentId,
       voiceStability: params.voiceStability,
       voiceSimilarityBoost: params.voiceSimilarityBoost,

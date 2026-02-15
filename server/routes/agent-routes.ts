@@ -277,7 +277,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
             transferPhoneNumber: transferPhoneNumber || undefined,
             detectLanguageEnabled: detectLanguageEnabled || false,
             endConversationEnabled: endConversationEnabled || false,
-            knowledgeBaseOnly: knowledgeBaseOnly || false,
+            knowledgeBaseOnly: (knowledgeBaseIds && knowledgeBaseIds.length > 0) ? (knowledgeBaseOnly !== undefined ? knowledgeBaseOnly : true) : false,
             voiceStability: voiceStability ?? 0.55,
             voiceSimilarityBoost: voiceSimilarityBoost ?? 0.85,
             voiceSpeed: voiceSpeed ?? 1.0,
@@ -348,7 +348,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               voiceSpeed: voiceSpeed ?? 1.0,
               detectLanguageEnabled: detectLanguageEnabled || false,
               knowledgeBaseIds: knowledgeBaseIds || undefined,
-              knowledgeBaseOnly: knowledgeBaseOnly || false,
+              knowledgeBaseOnly: (knowledgeBaseIds && knowledgeBaseIds.length > 0) ? (knowledgeBaseOnly !== undefined ? knowledgeBaseOnly : true) : false,
             });
             
             elevenLabsAgentId = result.elevenLabsAgentId;
@@ -388,7 +388,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         detectLanguageEnabled: (type === 'incoming' || type === 'flow') ? (detectLanguageEnabled || false) : false,
         endConversationEnabled: type === 'incoming' ? (endConversationEnabled || false) : false,
         appointmentBookingEnabled: type === 'incoming' ? (appointmentBookingEnabled || false) : false,
-        knowledgeBaseOnly: knowledgeBaseOnly || false,
+        knowledgeBaseOnly: (knowledgeBaseIds && knowledgeBaseIds.length > 0) ? (knowledgeBaseOnly !== undefined ? knowledgeBaseOnly : true) : false,
         flowId: type === 'flow' ? flowId : null,
         maxDurationSeconds: type === 'flow' ? (maxDurationSeconds || 600) : null,
         voiceStability: (type === 'incoming' || type === 'flow') ? (voiceStability ?? 0.55) : null,

@@ -685,7 +685,7 @@ export class RAGKnowledgeService {
    */
   static formatResultsForAgent(
     results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
-    maxTokens: number = 800
+    maxTokens: number = 1500
   ): string {
     if (results.length === 0) {
       return "No relevant information found in the knowledge base.";

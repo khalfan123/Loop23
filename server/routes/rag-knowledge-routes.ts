@@ -873,10 +873,10 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         query,
         knowledge_base_ids,
         user_id,
-        3 // Limit to 3 results for concise response
+        5 // Return more results for richer agent context
       );
 
-      const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
+      const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 1500);
 
       console.log(`[RAG Tool] Found ${results.length} results, returning formatted response`);
 

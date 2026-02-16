@@ -269,6 +269,7 @@ export default function KnowledgeBase() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
   const [testQuery, setTestQuery] = useState("");
   const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations">("dashboard");
   
@@ -980,71 +981,154 @@ export default function KnowledgeBase() {
       </SubPanelSection>
 
       <SubPanelSection title="Study Materials">
-          {folders.map((folder) => (
-            <div key={folder.id} className="group relative">
-              <button
-                onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-left transition-colors rounded-lg",
-                  selectedFolderId === folder.id && viewMode === "folder"
-                    ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
-                    : "text-zinc-600 dark:text-zinc-400 hover-elevate"
+          {folders.map((folder) => {
+            const isExpanded = expandedFolderIds.has(folder.id);
+            const isActive = selectedFolderId === folder.id && viewMode === "folder";
+            const folderItems = knowledgeBase.filter(item => item.folderId === folder.id);
+            const itemCount = folderStats?.folders[folder.id] || 0;
+            return (
+              <div key={folder.id}>
+                <div className="group relative flex items-center">
+                  <button
+                    onClick={() => {
+                      setExpandedFolderIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(folder.id)) next.delete(folder.id);
+                        else next.add(folder.id);
+                        return next;
+                      });
+                    }}
+                    className="flex-shrink-0 p-1 ml-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                    data-testid={`button-toggle-folder-${folder.id}`}
+                  >
+                    <ChevronRight className={cn("h-3 w-3 transition-transform duration-150", isExpanded && "rotate-90")} />
+                  </button>
+                  <button
+                    onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
+                    className={cn(
+                      "flex-1 flex items-center gap-2 px-1.5 py-1.5 text-[13px] text-left transition-colors rounded-lg",
+                      isActive
+                        ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
+                        : "text-zinc-600 dark:text-zinc-400 hover-elevate"
+                    )}
+                    data-testid={`folder-${folder.id}`}
+                  >
+                    <Folder className="h-3.5 w-3.5 flex-shrink-0" style={{ color: folder.color || 'var(--muted-foreground)' }} />
+                    <span className="flex-1 truncate">{folder.name}</span>
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{itemCount}</span>
+                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 flex-shrink-0 mr-1 invisible group-hover:visible"
+                      >
+                        <MoreHorizontal className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {
+                        setEditingFolder(folder);
+                        setFolderName(folder.name);
+                        setFolderColor(folder.color || '#3b82f6');
+                        setFolderDialogOpen(true);
+                      }}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => setDeletingFolder(folder)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                {isExpanded && (
+                  <div className="ml-5 border-l border-zinc-200 dark:border-zinc-700/50">
+                    {folderItems.length === 0 ? (
+                      <p className="px-3 py-1.5 text-[11px] text-zinc-400 dark:text-zinc-500 italic">No items</p>
+                    ) : (
+                      folderItems.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); setExpandedItemId(item.id); }}
+                          className="w-full flex items-center gap-2 px-3 py-1 text-[12px] text-left text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors truncate"
+                          data-testid={`folder-item-${item.id}`}
+                        >
+                          <FileText className="h-3 w-3 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
+                          <span className="truncate">{item.title}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 )}
-                data-testid={`folder-${folder.id}`}
-              >
-                <Folder className="h-3.5 w-3.5 flex-shrink-0" style={{ color: folder.color || 'var(--muted-foreground)' }} />
-                <span className="flex-1 truncate">{folder.name}</span>
-                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{folderStats?.folders[folder.id] || 0}</span>
-              </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 absolute right-1 top-1/2 -translate-y-1/2 invisible group-hover:visible"
-                  >
-                    <MoreHorizontal className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => {
-                    setEditingFolder(folder);
-                    setFolderName(folder.name);
-                    setFolderColor(folder.color || '#3b82f6');
-                    setFolderDialogOpen(true);
-                  }}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => setDeletingFolder(folder)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ))}
+              </div>
+            );
+          })}
 
-          {folderStats && folderStats.uncategorized > 0 && (
-            <button
-              onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-left transition-colors rounded-lg",
-                selectedFolderId === null && viewMode === "folder"
-                  ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
-                  : "text-zinc-600 dark:text-zinc-400 hover-elevate"
-              )}
-              data-testid="folder-uncategorized"
-            >
-              <Folder className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
-              <span className="flex-1 truncate">Uncategorized</span>
-              <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{folderStats.uncategorized}</span>
-            </button>
-          )}
+          {folderStats && folderStats.uncategorized > 0 && (() => {
+            const isExpanded = expandedFolderIds.has("__uncategorized__");
+            const isActive = selectedFolderId === null && viewMode === "folder";
+            const uncategorizedItems = knowledgeBase.filter(item => !item.folderId);
+            return (
+              <div>
+                <div className="flex items-center">
+                  <button
+                    onClick={() => {
+                      setExpandedFolderIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has("__uncategorized__")) next.delete("__uncategorized__");
+                        else next.add("__uncategorized__");
+                        return next;
+                      });
+                    }}
+                    className="flex-shrink-0 p-1 ml-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                    data-testid="button-toggle-folder-uncategorized"
+                  >
+                    <ChevronRight className={cn("h-3 w-3 transition-transform duration-150", isExpanded && "rotate-90")} />
+                  </button>
+                  <button
+                    onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
+                    className={cn(
+                      "flex-1 flex items-center gap-2 px-1.5 py-1.5 text-[13px] text-left transition-colors rounded-lg",
+                      isActive
+                        ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
+                        : "text-zinc-600 dark:text-zinc-400 hover-elevate"
+                    )}
+                    data-testid="folder-uncategorized"
+                  >
+                    <Folder className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
+                    <span className="flex-1 truncate">Uncategorized</span>
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{folderStats.uncategorized}</span>
+                  </button>
+                </div>
+                {isExpanded && (
+                  <div className="ml-5 border-l border-zinc-200 dark:border-zinc-700/50">
+                    {uncategorizedItems.length === 0 ? (
+                      <p className="px-3 py-1.5 text-[11px] text-zinc-400 dark:text-zinc-500 italic">No items</p>
+                    ) : (
+                      uncategorizedItems.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => { setViewMode("folder"); setSelectedFolderId(null); setExpandedItemId(item.id); }}
+                          className="w-full flex items-center gap-2 px-3 py-1 text-[12px] text-left text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors truncate"
+                          data-testid={`folder-item-${item.id}`}
+                        >
+                          <FileText className="h-3 w-3 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
+                          <span className="truncate">{item.title}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <button
             onClick={() => {

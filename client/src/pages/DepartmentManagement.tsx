@@ -1236,6 +1236,18 @@ export default function DepartmentManagement() {
                 </div>
                 <span className="text-sm font-medium">Departments</span>
                 <span className="text-xs text-muted-foreground mt-0.5">{departments.length} Active</span>
+                {departments.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-1 mt-1.5 max-w-full">
+                    {departments.slice(0, 3).map((dept) => (
+                      <Badge key={dept.id} variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {dept.name}
+                      </Badge>
+                    ))}
+                    {departments.length > 3 && (
+                      <span className="text-[10px] text-muted-foreground">+{departments.length - 3}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="hidden md:flex items-center justify-center px-1">
@@ -1252,7 +1264,7 @@ export default function DepartmentManagement() {
                   <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
                 <span className="text-sm font-medium">AI Agents</span>
-                <span className="text-xs text-muted-foreground mt-0.5">Voice Enabled</span>
+                <span className="text-xs text-muted-foreground mt-0.5">{agents?.length || 0} Enabled</span>
               </div>
 
               <div className="hidden md:flex items-center justify-center px-1">

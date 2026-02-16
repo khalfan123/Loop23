@@ -213,28 +213,231 @@ async function fetchUrlWithLimits(url: string): Promise<{ content: string; conte
 }
 
 /**
- * Extract text from HTML content
+ * Extract text from HTML content with preserved structure
+ * Extracts tables, lists, headings, and pricing information
  */
 function extractTextFromHtml(html: string): string {
-  // Remove script and style tags
-  let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-  
-  // Remove HTML tags
-  text = text.replace(/<[^>]+>/g, ' ');
-  
-  // Decode HTML entities
-  text = text.replace(/&nbsp;/g, ' ');
-  text = text.replace(/&amp;/g, '&');
-  text = text.replace(/&lt;/g, '<');
-  text = text.replace(/&gt;/g, '>');
-  text = text.replace(/&quot;/g, '"');
-  text = text.replace(/&#39;/g, "'");
-  
-  // Normalize whitespace
-  text = text.replace(/\s+/g, ' ').trim();
-  
-  return text;
+  // Helper function to decode HTML entities
+  function decodeHtmlEntities(text: string): string {
+    return text
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#x27;/g, "'")
+      .replace(/&#x2F;/g, '/');
+  }
+
+  // Helper function to strip HTML tags
+  function stripHtml(text: string): string {
+    return text.replace(/<[^>]+>/g, ' ').trim();
+  }
+
+  // Helper function to normalize whitespace
+  function normalizeWhitespace(text: string): string {
+    return text.replace(/\s+/g, ' ').trim();
+  }
+
+  // Helper function to check if element is in a pricing section
+  function isPricingSection(elementHtml: string): boolean {
+    const pricingKeywords = ['price', 'pricing', 'plan', 'product', 'package', 'bundle', 'tariff', 'rate', 'cost', 'subscription'];
+    const classIdMatch = elementHtml.match(/(?:class|id)=["']([^"']*?)["']/gi);
+    
+    if (classIdMatch) {
+      const fullText = classIdMatch.join(' ').toLowerCase();
+      return pricingKeywords.some(keyword => fullText.includes(keyword));
+    }
+    return false;
+  }
+
+  // Helper function to extract tables
+  function extractTables(text: string): string {
+    let result = '';
+    const tablePattern = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+    let match;
+
+    while ((match = tablePattern.exec(text)) !== null) {
+      const tableHtml = match[1];
+      const headers: string[] = [];
+      const rows: string[][] = [];
+
+      // Extract headers from <th> tags
+      const thPattern = /<th[^>]*>([\s\S]*?)<\/th>/gi;
+      let thMatch;
+      while ((thMatch = thPattern.exec(tableHtml)) !== null) {
+        headers.push(normalizeWhitespace(decodeHtmlEntities(stripHtml(thMatch[1]))));
+      }
+
+      // Extract rows from <tr> tags
+      const trPattern = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+      let trMatch;
+      while ((trMatch = trPattern.exec(tableHtml)) !== null) {
+        const rowHtml = trMatch[1];
+        const cells: string[] = [];
+
+        // Extract cells from <td> tags
+        const tdPattern = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+        let tdMatch;
+        while ((tdMatch = tdPattern.exec(rowHtml)) !== null) {
+          cells.push(normalizeWhitespace(decodeHtmlEntities(stripHtml(tdMatch[1]))));
+        }
+
+        if (cells.length > 0) {
+          rows.push(cells);
+        }
+      }
+
+      // Format table as structured text
+      if (headers.length > 0 || rows.length > 0) {
+        result += '\n[Pricing Table]\n';
+        
+        if (headers.length > 0 && rows.length > 0) {
+          // Header-based format: "Header: Value"
+          for (const row of rows) {
+            const pairs: string[] = [];
+            for (let i = 0; i < headers.length && i < row.length; i++) {
+              pairs.push(`${headers[i]}: ${row[i]}`);
+            }
+            result += pairs.join(' | ') + '\n';
+          }
+        } else if (rows.length > 0) {
+          // No headers, pipe-separated format
+          for (const row of rows) {
+            result += row.join(' | ') + '\n';
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // Helper function to extract lists
+  function extractLists(text: string): string {
+    let result = '';
+
+    // Extract unordered lists
+    const ulPattern = /<ul[^>]*>([\s\S]*?)<\/ul>/gi;
+    let match;
+    while ((match = ulPattern.exec(text)) !== null) {
+      const listHtml = match[1];
+      const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+      let liMatch;
+      let listItems = '';
+
+      while ((liMatch = liPattern.exec(listHtml)) !== null) {
+        const itemText = normalizeWhitespace(decodeHtmlEntities(stripHtml(liMatch[1])));
+        if (itemText) {
+          listItems += '• ' + itemText + '\n';
+        }
+      }
+
+      if (listItems) {
+        result += '\n' + listItems;
+      }
+    }
+
+    // Extract ordered lists
+    const olPattern = /<ol[^>]*>([\s\S]*?)<\/ol>/gi;
+    let olMatch;
+    let olCounter = 1;
+    while ((olMatch = olPattern.exec(text)) !== null) {
+      const listHtml = olMatch[1];
+      const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+      let liMatch;
+      let listItems = '';
+      olCounter = 1;
+
+      while ((liMatch = liPattern.exec(listHtml)) !== null) {
+        const itemText = normalizeWhitespace(decodeHtmlEntities(stripHtml(liMatch[1])));
+        if (itemText) {
+          listItems += olCounter + '. ' + itemText + '\n';
+          olCounter++;
+        }
+      }
+
+      if (listItems) {
+        result += '\n' + listItems;
+      }
+    }
+
+    return result;
+  }
+
+  // Helper function to extract headings
+  function extractHeadings(text: string): string {
+    let result = '';
+
+    for (let level = 1; level <= 6; level++) {
+      const hPattern = new RegExp(`<h${level}[^>]*>([\\s\\S]*?)<\\/h${level}>`, 'gi');
+      let match;
+
+      while ((match = hPattern.exec(text)) !== null) {
+        const headingText = normalizeWhitespace(decodeHtmlEntities(stripHtml(match[1])));
+        if (headingText) {
+          result += '\n[Section: ' + headingText + ']\n';
+        }
+      }
+    }
+
+    return result;
+  }
+
+  let content = html;
+
+  // Step 1: Remove boilerplate elements
+  const boilerplatePatterns = [
+    /<script[^>]*>[\s\S]*?<\/script>/gi,
+    /<style[^>]*>[\s\S]*?<\/style>/gi,
+    /<noscript[^>]*>[\s\S]*?<\/noscript>/gi,
+    /<nav[^>]*>[\s\S]*?<\/nav>/gi,
+    /<footer[^>]*>[\s\S]*?<\/footer>/gi,
+    /<header[^>]*>[\s\S]*?<\/header>/gi,
+    /<[^>]+class=["']([^"']*?)(?:cookie|popup|modal|newsletter|sidebar|menu|breadcrumb)[^"']*?["'][^>]*>[\s\S]*?<\/[^>]+>/gi,
+    /<[^>]+id=["']([^"']*?)(?:cookie|popup|modal|newsletter|sidebar|menu|breadcrumb)[^"']*?["'][^>]*>[\s\S]*?<\/[^>]+>/gi,
+  ];
+
+  for (const pattern of boilerplatePatterns) {
+    content = content.replace(pattern, '');
+  }
+
+  let result = '';
+
+  // Step 2: Check if this is a pricing section and add prefix
+  const isPricing = isPricingSection(content);
+  if (isPricing) {
+    result += '[Product/Pricing Information]\n';
+  }
+
+  // Step 3: Extract structured elements (tables, lists, headings) in order
+  const tableResults = extractTables(content);
+  const listResults = extractLists(content);
+  const headingResults = extractHeadings(content);
+
+  // Step 4: Remove extracted elements from content
+  let textContent = content
+    .replace(/<table[^>]*>[\s\S]*?<\/table>/gi, '')
+    .replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '')
+    .replace(/<ol[^>]*>[\s\S]*?<\/ol>/gi, '')
+    .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, '');
+
+  // Step 5: Strip remaining HTML tags and decode entities
+  textContent = stripHtml(textContent);
+  textContent = decodeHtmlEntities(textContent);
+  textContent = normalizeWhitespace(textContent);
+
+  // Step 6: Combine all parts
+  result += headingResults + tableResults + listResults + textContent;
+
+  // Step 7: Normalize final output - preserve paragraph breaks but clean up excessive whitespace
+  result = result
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s*\n\s*/g, '\n')
+    .trim();
+
+  return result;
 }
 
 export function createRAGKnowledgeRoutes(authenticateToken: any): Router {

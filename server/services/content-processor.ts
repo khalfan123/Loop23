@@ -298,9 +298,39 @@ function countWords(text: string): number {
 /**
  * Process HTML content into structured data
  */
+function formatTablesAsText(tables: { headers: string[]; rows: string[][] }[]): string {
+  if (tables.length === 0) return '';
+  
+  const parts: string[] = [];
+  for (const table of tables) {
+    if (table.headers.length > 0) {
+      const formatted = table.rows.map(row => 
+        row.map((cell, i) => 
+          table.headers[i] ? `${table.headers[i]}: ${cell}` : cell
+        ).join(' | ')
+      ).join('\n');
+      parts.push(`[Pricing/Product Table]\n${formatted}`);
+    } else if (table.rows.length > 0) {
+      const formatted = table.rows.map(row => row.join(' | ')).join('\n');
+      parts.push(`[Table]\n${formatted}`);
+    }
+  }
+  return parts.join('\n\n');
+}
+
+function formatListsAsText(lists: { type: string; items: string[] }[]): string {
+  if (lists.length === 0) return '';
+  return lists.map(list => 
+    list.items.map((item, i) => list.type === 'ordered' ? `${i + 1}. ${item}` : `• ${item}`).join('\n')
+  ).join('\n\n');
+}
+
+function formatHeadingsAsText(headings: { level: number; text: string }[]): string {
+  return headings.map(h => `[Section: ${h.text}]`).join('\n');
+}
+
 export function processHtmlContent(html: string): ProcessedContent {
   const mainContent = extractMainContent(html);
-  const cleanText = normalizeText(stripHtml(mainContent));
   
   const structure: StructureData = {
     headings: extractHeadings(mainContent),
@@ -309,6 +339,25 @@ export function processHtmlContent(html: string): ProcessedContent {
     codeBlocks: extractCodeBlocks(mainContent),
     links: extractLinksWithText(mainContent)
   };
+
+  // Remove tables and lists from content before stripping HTML to avoid duplication
+  let contentForText = mainContent;
+  contentForText = contentForText.replace(/<table[^>]*>[\s\S]*?<\/table>/gi, '');
+  contentForText = contentForText.replace(/<ul[^>]*>[\s\S]*?<\/ul>/gi, '');
+  contentForText = contentForText.replace(/<ol[^>]*>[\s\S]*?<\/ol>/gi, '');
+  
+  let cleanText = normalizeText(stripHtml(contentForText));
+  
+  // Append structured data as formatted text
+  const tableText = formatTablesAsText(structure.tables);
+  const listText = formatListsAsText(structure.lists);
+  
+  if (tableText) {
+    cleanText = cleanText + '\n\n' + tableText;
+  }
+  if (listText) {
+    cleanText = cleanText + '\n\n' + listText;
+  }
   
   const language = detectLanguage(cleanText);
   const wordCount = countWords(cleanText);

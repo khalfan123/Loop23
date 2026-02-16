@@ -996,7 +996,7 @@ export default function DepartmentManagement() {
         />
         <SubPanelItem
           icon={<PhoneIncoming className="w-4 h-4" />}
-          label="Incoming Connections"
+          label="Assign Agent"
           isActive={activeTab === 'incoming-connections'}
           onClick={() => setActiveTab('incoming-connections')}
         />
@@ -1048,17 +1048,6 @@ export default function DepartmentManagement() {
                 >
                   <LayoutGrid className="h-4 w-4 mr-2" />
                   Design Canvas
-                </Button>
-                <Button 
-                  onClick={() => {
-                    setSelectedDepartment(null);
-                    setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
-                    setShowCreateDialog(true);
-                  }}
-                  data-testid="button-setup-new"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Setup New Call Center
                 </Button>
               </div>
             </div>

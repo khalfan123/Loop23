@@ -2503,19 +2503,31 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               
               <div className="py-4">
                 <div 
-                  className="prose prose-sm dark:prose-invert max-w-none"
+                  className="prose prose-sm dark:prose-invert max-w-none [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-md [&_pre]:overflow-x-auto [&_pre]:text-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_pre_code]:bg-transparent [&_pre_code]:p-0"
                   dangerouslySetInnerHTML={{ 
-                    __html: selectedArticle.content
-                      ?.replace(/\n\n/g, '</p><p>')
-                      .replace(/\n/g, '<br/>')
-                      .replace(/^/, '<p>')
-                      .replace(/$/, '</p>')
-                      .replace(/## (.*?)(<br\/>|<\/p>)/g, '</p><h3 class="text-lg font-semibold mt-4 mb-2">$1</h3><p>')
-                      .replace(/### (.*?)(<br\/>|<\/p>)/g, '</p><h4 class="font-medium mt-3 mb-1">$1</h4><p>')
-                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                      .replace(/- (.*?)(<br\/>|<\/p>)/g, '<li>$1</li>')
-                      || "No content available" 
+                    __html: (() => {
+                      let html = selectedArticle.content || "No content available";
+                      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m: string, lang: string, code: string) => {
+                        const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        return `<pre><code class="language-${lang || 'text'}">${escaped.trim()}</code></pre>`;
+                      });
+                      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+                      html = html.replace(/^# (.*?)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>');
+                      html = html.replace(/^## (.*?)$/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>');
+                      html = html.replace(/^### (.*?)$/gm, '<h4 class="font-medium mt-3 mb-1">$1</h4>');
+                      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                      html = html.replace(/^- (.*?)$/gm, '<li>$1</li>');
+                      html = html.replace(/(<li>.*?<\/li>\n?)+/gs, (match: string) => `<ul>${match}</ul>`);
+                      html = html.replace(/^\d+\. (.*?)$/gm, '<li>$1</li>');
+                      html = html.replace(/\n\n/g, '</p><p>');
+                      html = html.replace(/\n/g, '<br/>');
+                      html = '<p>' + html + '</p>';
+                      html = html.replace(/<p>\s*(<h[2-4]|<pre|<ul|<ol)/g, '$1');
+                      html = html.replace(/(<\/h[2-4]>|<\/pre>|<\/ul>|<\/ol>)\s*<\/p>/g, '$1');
+                      html = html.replace(/<p>\s*<\/p>/g, '');
+                      return html;
+                    })()
                   }}
                 />
               </div>

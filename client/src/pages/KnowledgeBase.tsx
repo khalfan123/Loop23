@@ -970,7 +970,11 @@ export default function KnowledgeBase() {
 
   const subPanelContent = (
     <>
-      <SubPanelSection title="AI Knowledge Engine">
+      <SubPanelSection>
+        <div className="px-3 mb-2 flex items-center gap-2">
+          <Brain className="h-4 w-4 text-blue-500" />
+          <span className="text-[12px] font-bold text-zinc-700 dark:text-zinc-300 tracking-tight">AI Knowledge Engine</span>
+        </div>
         <SubPanelItem
           icon={<LayoutDashboard className="h-4 w-4" />}
           label="Library Overview"
@@ -979,7 +983,10 @@ export default function KnowledgeBase() {
           data-testid="button-dashboard"
         />
 
-        <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mt-3 mb-1 px-2 font-medium">Knowledge Sources</p>
+        <div className="mt-3 mb-1.5 px-3 flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">Knowledge Sources</span>
+          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700/50" />
+        </div>
 
           {folders.map((folder) => {
             const isExpanded = expandedFolderIds.has(folder.id);
@@ -1144,7 +1151,10 @@ export default function KnowledgeBase() {
             New Folder
           </button>
 
-        <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mt-3 mb-1 px-2 font-medium">AI Engine</p>
+        <div className="mt-3 mb-1.5 px-3 flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">AI Engine</span>
+          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700/50" />
+        </div>
 
         <SubPanelItem icon={<Globe className="h-4 w-4" />} label="Web Crawler" isActive={viewMode === "web-crawler"} onClick={() => { setViewMode("web-crawler"); setSelectedFolderId(null); }} data-testid="folder-web-crawler" />
         <SubPanelItem icon={<Brain className="h-4 w-4" />} label="AI Insights" isActive={viewMode === "ai-insights"} onClick={() => { setViewMode("ai-insights"); setSelectedFolderId(null); }} data-testid="folder-ai-insights" />

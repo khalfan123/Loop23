@@ -142,6 +142,16 @@ interface LanguageAgentConfig {
   voiceTone: string | null;
 }
 
+interface NewAgentConfig {
+  id: string;
+  agentId: string;
+  agentName: string;
+  language: string;
+  voiceId: string;
+  voiceTone: string;
+  systemPrompt: string;
+}
+
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
   { code: "fr", label: "French" },
@@ -200,6 +210,7 @@ const ELEVENLABS_VOICES = [
 ];
 
 const ALL_IVR_VOICES = [...OPENAI_VOICES, ...ELEVENLABS_VOICES];
+
 
 const getVoicesForLanguage = (languageCode: string) => {
   return ALL_IVR_VOICES.filter(voice => voice.languages.includes(languageCode));
@@ -382,6 +393,9 @@ export default function DepartmentManagement() {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
+  const [newAgents, setNewAgents] = useState<NewAgentConfig[]>([]);
+  const [expandedNewAgents, setExpandedNewAgents] = useState<Set<string>>(new Set());
+  
   const [deptFeatures, setDeptFeatures] = useState({
     enableTransfer: false,
     transferNumber: "",
@@ -433,13 +447,31 @@ export default function DepartmentManagement() {
 
   const createDepartmentMutation = useMutation({
     mutationFn: async (data: typeof newDepartment) => {
-      return apiRequest("POST", "/api/departments", data);
+      const response = await apiRequest("POST", "/api/departments", data);
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async (dept: any) => {
+      for (const agent of newAgents) {
+        if (agent.agentId) {
+          try {
+            await apiRequest("POST", `/api/departments/${dept.id}/agents`, {
+              agentId: agent.agentId,
+              language: agent.language,
+              systemPrompt: agent.systemPrompt || undefined,
+              voiceTone: agent.voiceTone || undefined,
+              voiceId: agent.voiceId || undefined,
+            });
+          } catch (e) {
+            console.error("Failed to add agent:", e);
+          }
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       setShowCreateDialog(false);
       setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
+      setNewAgents([]);
+      setExpandedNewAgents(new Set());
       toast({ title: "Department created successfully" });
     },
     onError: (error: any) => {
@@ -748,6 +780,33 @@ export default function DepartmentManagement() {
       } else {
         next.add(id);
       }
+      return next;
+    });
+  };
+
+  const addNewAgentConfig = () => {
+    const id = `new-${Date.now()}`;
+    setNewAgents(prev => [...prev, {
+      id,
+      agentId: "",
+      agentName: "",
+      language: "en",
+      voiceId: "",
+      voiceTone: "",
+      systemPrompt: "",
+    }]);
+    setExpandedNewAgents(prev => new Set(prev).add(id));
+  };
+
+  const updateNewAgent = (id: string, updates: Partial<NewAgentConfig>) => {
+    setNewAgents(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+  };
+
+  const toggleAgentExpanded = (id: string) => {
+    setExpandedNewAgents(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -1227,6 +1286,8 @@ export default function DepartmentManagement() {
                   onClick={() => {
                     setSelectedDepartment(null);
                     setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
+                    setNewAgents([]);
+                    setExpandedNewAgents(new Set());
                     setShowCreateDialog(true);
                   }}
                   data-testid="add-department-card"
@@ -1328,6 +1389,8 @@ export default function DepartmentManagement() {
                 onClick={() => {
                   setSelectedDepartment(null);
                   setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
+                  setNewAgents([]);
+                  setExpandedNewAgents(new Set());
                   setShowCreateDialog(true);
                 }}
                 data-testid="button-add-department"
@@ -1362,6 +1425,8 @@ export default function DepartmentManagement() {
                 onClick={() => {
                   setSelectedDepartment(null);
                   setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
+                  setNewAgents([]);
+                  setExpandedNewAgents(new Set());
                   setShowCreateDialog(true);
                 }}
                 data-testid="add-department-card-tab"
@@ -1379,8 +1444,14 @@ export default function DepartmentManagement() {
           </div>
         )}
 
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent data-testid="dialog-create-department">
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open);
+        if (!open) {
+          setNewAgents([]);
+          setExpandedNewAgents(new Set());
+        }
+      }}>
+        <DialogContent className={!selectedDepartment ? "max-w-2xl max-h-[85vh] overflow-y-auto" : ""} data-testid="dialog-create-department">
           <DialogHeader>
             <DialogTitle>
               {selectedDepartment ? "Edit Department" : "Create New Department"}
@@ -1388,7 +1459,7 @@ export default function DepartmentManagement() {
             <DialogDescription>
               {selectedDepartment 
                 ? "Update your department settings" 
-                : "Add a new department to your AI call center"}
+                : "Add a new department with AI agents to your call center"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1459,9 +1530,200 @@ export default function DepartmentManagement() {
                 </Select>
               </div>
             </div>
+
+            {!selectedDepartment && (
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Mic className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-sm font-medium">Language Agents</Label>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addNewAgentConfig}
+                    data-testid="button-add-new-agent"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add Agent
+                  </Button>
+                </div>
+
+                {newAgents.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground text-sm border-2 border-dashed rounded-lg" data-testid="empty-agents-placeholder">
+                    No agents configured yet. Click "Add Agent" to assign AI agents to this department.
+                  </div>
+                )}
+
+                {newAgents.map((agent, idx) => (
+                  <div key={agent.id} className="border rounded-lg p-4 space-y-3" data-testid={`new-agent-config-${idx}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Mic className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium truncate">{agent.agentName || `Agent ${idx + 1}`}</span>
+                        {agent.language && (
+                          <Badge variant="secondary" className="text-xs shrink-0">
+                            {SUPPORTED_LANGUAGES.find(l => l.code === agent.language)?.label}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => toggleAgentExpanded(agent.id)}
+                          data-testid={`button-toggle-agent-${idx}`}
+                        >
+                          {expandedNewAgents.has(agent.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-destructive"
+                          onClick={() => setNewAgents(prev => prev.filter(a => a.id !== agent.id))}
+                          data-testid={`button-remove-agent-${idx}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {expandedNewAgents.has(agent.id) && (
+                      <div className="space-y-3 pt-2 border-t">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Language</Label>
+                            <Select value={agent.language} onValueChange={(v) => updateNewAgent(agent.id, { language: v, voiceId: "", agentId: "", agentName: "" })}>
+                              <SelectTrigger data-testid={`select-agent-language-${idx}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {SUPPORTED_LANGUAGES.map(lang => (
+                                  <SelectItem key={lang.code} value={lang.code}>{lang.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Select Agent</Label>
+                            <Select 
+                              value={agent.agentId} 
+                              onValueChange={(v) => {
+                                const selectedAgentData = agents?.find(a => a.id === v);
+                                if (selectedAgentData) {
+                                  updateNewAgent(agent.id, { 
+                                    agentId: selectedAgentData.id, 
+                                    agentName: selectedAgentData.name,
+                                    voiceId: selectedAgentData.openaiVoice || selectedAgentData.voiceName || "",
+                                    voiceTone: selectedAgentData.voiceTone || "",
+                                    systemPrompt: selectedAgentData.systemPrompt || "",
+                                  });
+                                }
+                              }}
+                            >
+                              <SelectTrigger data-testid={`select-agent-id-${idx}`}>
+                                <SelectValue placeholder="Select an agent..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {agents?.filter(a => a.language === agent.language).map(existingAgent => (
+                                  <SelectItem key={existingAgent.id} value={existingAgent.id}>
+                                    {existingAgent.name}
+                                  </SelectItem>
+                                ))}
+                                {(agents?.filter(a => a.language === agent.language).length || 0) === 0 && (
+                                  <div className="px-3 py-2 text-xs text-muted-foreground">No agents for this language</div>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Voice</Label>
+                          <div className="flex items-center gap-1">
+                            <Select value={agent.voiceId} onValueChange={(v) => {
+                              const voice = ALL_IVR_VOICES.find(voice => voice.id === v);
+                              updateNewAgent(agent.id, { voiceId: v, voiceTone: voice?.style || "" });
+                            }}>
+                              <SelectTrigger className="flex-1" data-testid={`select-agent-voice-${idx}`}>
+                                <SelectValue placeholder="Select voice..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ALL_IVR_VOICES.filter(v => v.languages.includes(agent.language)).map(voice => (
+                                  <SelectItem key={voice.id} value={voice.id}>
+                                    {voice.name} - {voice.gender}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {agent.voiceId && (
+                              <Button variant="outline" size="icon" onClick={() => handlePlayVoice(agent.voiceId)} data-testid={`button-preview-voice-${idx}`}>
+                                {playingVoiceId === agent.voiceId ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Voice Tone</Label>
+                          <Select value={agent.voiceTone} onValueChange={(v) => updateNewAgent(agent.id, { voiceTone: v })}>
+                            <SelectTrigger data-testid={`select-agent-tone-${idx}`}>
+                              <SelectValue placeholder="Select tone..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="professional">Professional</SelectItem>
+                              <SelectItem value="friendly">Friendly</SelectItem>
+                              <SelectItem value="warm">Warm</SelectItem>
+                              <SelectItem value="calm">Calm</SelectItem>
+                              <SelectItem value="balanced">Balanced</SelectItem>
+                              <SelectItem value="expressive">Expressive</SelectItem>
+                              <SelectItem value="authoritative">Authoritative</SelectItem>
+                              <SelectItem value="empathetic">Empathetic</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs">System Prompt</Label>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const lang = SUPPORTED_LANGUAGES.find(l => l.code === agent.language)?.label || "English";
+                                const voice = ALL_IVR_VOICES.find(v => v.id === agent.voiceId);
+                                const voiceStyle = voice?.style || agent.voiceTone || "professional";
+                                const autoPrompt = `You are a ${voiceStyle} AI assistant for the ${newDepartment.name || "department"}. You speak ${lang} fluently and help callers with their inquiries. Be helpful, clear, and efficient in your responses. Always maintain a ${voiceStyle} tone throughout the conversation.`;
+                                updateNewAgent(agent.id, { systemPrompt: autoPrompt });
+                              }}
+                              data-testid={`button-auto-prompt-${idx}`}
+                            >
+                              <Sparkles className="h-3 w-3 mr-1" />
+                              Auto
+                            </Button>
+                          </div>
+                          <Textarea
+                            value={agent.systemPrompt}
+                            onChange={(e) => updateNewAgent(agent.id, { systemPrompt: e.target.value })}
+                            placeholder="Enter instructions for the AI agent..."
+                            rows={3}
+                            data-testid={`textarea-agent-prompt-${idx}`}
+                          />
+                        </div>
+
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)} data-testid="button-cancel">
+            <Button variant="outline" onClick={() => {
+              setShowCreateDialog(false);
+              setNewAgents([]);
+              setExpandedNewAgents(new Set());
+            }} data-testid="button-cancel">
               Cancel
             </Button>
             <Button 
@@ -1529,7 +1791,7 @@ export default function DepartmentManagement() {
                 <Select
                   value={selectedAgent.voiceId}
                   onValueChange={(v) => {
-                    const voice = OPENAI_VOICES.find(voice => voice.id === v);
+                    const voice = ALL_IVR_VOICES.find(voice => voice.id === v);
                     setSelectedAgent({ 
                       ...selectedAgent, 
                       voiceId: v,
@@ -1541,7 +1803,7 @@ export default function DepartmentManagement() {
                     <SelectValue placeholder="Select a voice..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {OPENAI_VOICES.map((voice) => (
+                    {ALL_IVR_VOICES.filter(v => v.languages.includes(selectedAgent.language)).map((voice) => (
                       <SelectItem key={voice.id} value={voice.id}>
                         {voice.name} - {voice.gender}, {voice.style}
                       </SelectItem>
@@ -1593,7 +1855,7 @@ export default function DepartmentManagement() {
                   size="sm"
                   onClick={() => {
                     const lang = languages.find(l => l.value === selectedAgent.language)?.label || "English";
-                    const voice = OPENAI_VOICES.find(v => v.id === selectedAgent.voiceId);
+                    const voice = ALL_IVR_VOICES.find(v => v.id === selectedAgent.voiceId);
                     const voiceStyle = voice?.style || "professional";
                     const autoPrompt = `You are a ${voiceStyle} AI assistant for the ${selectedDepartment?.name || "department"}. You speak ${lang} fluently and help callers with their inquiries. Be helpful, clear, and efficient in your responses. Always maintain a ${voiceStyle} tone throughout the conversation.`;
                     setSelectedAgent({ ...selectedAgent, systemPrompt: autoPrompt });
@@ -1903,7 +2165,7 @@ export default function DepartmentManagement() {
                             <SelectValue placeholder="Select a voice..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {OPENAI_VOICES.map((voice) => (
+                            {getVoicesForLanguage(activeLangAgent.language).map((voice) => (
                               <SelectItem key={voice.id} value={voice.id}>
                                 {voice.name} - {voice.gender}, {voice.style}
                               </SelectItem>

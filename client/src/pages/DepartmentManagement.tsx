@@ -1143,8 +1143,8 @@ export default function DepartmentManagement() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-7 gap-0 items-center" data-testid="call-center-org-card">
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-xl bg-muted/40 dark:bg-muted/20">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 flex items-center justify-center mb-2">
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-card border border-border/60">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center mb-2">
                   <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <span className="text-sm font-medium">Inbound</span>
@@ -1156,17 +1156,17 @@ export default function DepartmentManagement() {
                 )}
               </div>
 
-              <div className="hidden md:flex items-center justify-center">
-                <div className="w-full h-px bg-border/40 relative">
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 absolute -right-1.5 top-1/2 -translate-y-1/2" />
+              <div className="hidden md:flex items-center justify-center px-1">
+                <div className="w-full border-t border-dashed border-border relative">
+                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
               <div className="flex md:hidden items-center justify-center py-1">
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-xl bg-muted/40 dark:bg-muted/20">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center mb-2">
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-card border border-border/60">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center mb-2">
                   <GitBranch className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 {editingIvrName && ivrConfigurations.length > 0 ? (
@@ -1220,34 +1220,34 @@ export default function DepartmentManagement() {
                 )}
               </div>
 
-              <div className="hidden md:flex items-center justify-center">
-                <div className="w-full h-px bg-border/40 relative">
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 absolute -right-1.5 top-1/2 -translate-y-1/2" />
+              <div className="hidden md:flex items-center justify-center px-1">
+                <div className="w-full border-t border-dashed border-border relative">
+                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
               <div className="flex md:hidden items-center justify-center py-1">
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-xl bg-muted/40 dark:bg-muted/20">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center mb-2">
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-card border border-border/60">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center mb-2">
                   <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
                 <span className="text-sm font-medium">Departments</span>
                 <span className="text-xs text-muted-foreground mt-0.5">{departments.length} Active</span>
               </div>
 
-              <div className="hidden md:flex items-center justify-center">
-                <div className="w-full h-px bg-border/40 relative">
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 absolute -right-1.5 top-1/2 -translate-y-1/2" />
+              <div className="hidden md:flex items-center justify-center px-1">
+                <div className="w-full border-t border-dashed border-border relative">
+                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
               <div className="flex md:hidden items-center justify-center py-1">
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-xl bg-muted/40 dark:bg-muted/20">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/15 flex items-center justify-center mb-2">
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-card border border-border/60">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center mb-2">
                   <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
                 <span className="text-sm font-medium">AI Agents</span>
@@ -1281,7 +1281,7 @@ export default function DepartmentManagement() {
                 ))}
 
                 <div 
-                  className="rounded-xl border border-dashed border-border/40 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
+                  className="rounded-2xl border border-dashed border-border/60 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
                   onClick={() => {
                     setSelectedDepartment(null);
                     setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
@@ -1422,7 +1422,7 @@ export default function DepartmentManagement() {
               ))}
               
               <div 
-                className="rounded-xl border border-dashed border-border/40 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
+                className="rounded-2xl border border-dashed border-border/60 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
                 onClick={() => {
                   setSelectedDepartment(null);
                   setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
@@ -2683,7 +2683,7 @@ function DepartmentCard({
 
   return (
     <div 
-      className="rounded-xl bg-muted/40 dark:bg-muted/20 p-4 space-y-3"
+      className="rounded-2xl bg-card border border-border/60 p-4 space-y-3"
       data-testid={`department-card-${department.id}`}
     >
       <div className="flex items-start justify-between gap-2">

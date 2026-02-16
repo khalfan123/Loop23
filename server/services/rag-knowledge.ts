@@ -59,9 +59,9 @@ const MAX_CHUNK_CHARS = 2000; // approximate chars per chunk
 const DEFAULT_STORAGE_LIMIT_BYTES = 20 * 1024 * 1024;
 
 // Minimum relevance thresholds for filtering low-quality results
-const MIN_VECTOR_RELEVANCE = 0.62; // Minimum cosine similarity for vector search results
-const MIN_FAQ_RELEVANCE = 0.40; // FAQs can have lower threshold (keyword-based)
-const MIN_FALLBACK_RELEVANCE = 0.35; // Direct content fallback threshold
+const MIN_VECTOR_RELEVANCE = 0.72; // Minimum cosine similarity for vector search results
+const MIN_FAQ_RELEVANCE = 0.50; // FAQs can have lower threshold (keyword-based)
+const MIN_FALLBACK_RELEVANCE = 0.45; // Direct content fallback threshold
 
 // Initialize OpenAI client
 let openaiClient: OpenAI | null = null;
@@ -735,7 +735,7 @@ export class RAGKnowledgeService {
       resultIndex++;
     }
     
-    output += "---\nUse the above information to answer the user's question naturally and conversationally.";
+    output += "---\nIMPORTANT: Use ONLY the above information to answer the user's question naturally and conversationally. If a result appears to be about internal company matters (careers, hiring, HR policies, employee benefits, work culture) but the user is asking about products or services, IGNORE that result and focus only on product/service-related information. If none of the results are relevant to the user's actual question, say you don't have that information available.";
     
     return output.trim();
   }

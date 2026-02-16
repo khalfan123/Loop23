@@ -19,6 +19,7 @@ import {
   generatedArticles,
   contentAuditLog,
   knowledgeBase,
+  knowledgeFolders,
   knowledgePipelineJobs,
   mlAnalysisJobs,
   mlConversationAnalyses,
@@ -27,6 +28,7 @@ import {
   mlTrainingStats,
   calls
 } from "@shared/schema";
+import { RAGKnowledgeService } from "../services/rag-knowledge";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { createCrawler } from "../services/knowledge-crawler";
 import { createContentProcessor } from "../services/content-processor";
@@ -1863,6 +1865,162 @@ router.get("/training-insights", async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error("Error fetching training insights:", error);
     res.status(500).json({ error: "Failed to fetch training insights" });
+  }
+});
+
+// ============================================================
+// GENERATE KB ARTICLES (AI-powered bulk article generation)
+// ============================================================
+
+router.post("/generate-kb-articles", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const existingItems = await db.select().from(knowledgeBase)
+      .where(eq(knowledgeBase.userId, req.userId));
+
+    const folders = await db.select().from(knowledgeFolders)
+      .where(eq(knowledgeFolders.userId, req.userId));
+
+    if (folders.length === 0) {
+      return res.status(400).json({ error: "No knowledge folders found. Please create folders first." });
+    }
+
+    const folderItemCounts = new Map<string, number>();
+    for (const folder of folders) {
+      folderItemCounts.set(folder.id, 0);
+    }
+    for (const item of existingItems) {
+      if (item.folderId && folderItemCounts.has(item.folderId)) {
+        folderItemCounts.set(item.folderId, (folderItemCounts.get(item.folderId) || 0) + 1);
+      }
+    }
+
+    const existingContentSummary = existingItems
+      .slice(0, 10)
+      .map(item => `- ${item.title}: ${(item.content || '').substring(0, 200)}`)
+      .join('\n');
+
+    const folderAssignments: { folderName: string; folderId: string; articlesToGenerate: number }[] = [];
+    let totalArticles = 0;
+
+    for (const folder of folders) {
+      const itemCount = folderItemCounts.get(folder.id) || 0;
+      let articlesToGenerate = 0;
+      if (itemCount === 0) {
+        articlesToGenerate = totalArticles < 13 ? 2 : 1;
+      } else {
+        articlesToGenerate = 1;
+      }
+      if (totalArticles + articlesToGenerate > 15) {
+        articlesToGenerate = 15 - totalArticles;
+      }
+      if (articlesToGenerate > 0) {
+        folderAssignments.push({ folderName: folder.name, folderId: folder.id, articlesToGenerate });
+        totalArticles += articlesToGenerate;
+      }
+      if (totalArticles >= 15) break;
+    }
+
+    const folderInstructions = folderAssignments
+      .map(f => `- "${f.folderName}": generate exactly ${f.articlesToGenerate} article(s)`)
+      .join('\n');
+
+    const prompt = `You are a professional knowledge base content writer for Tejwal eSIM, an eSIM marketplace for travelers offering global connectivity in 200+ countries. Generate exactly ${totalArticles} knowledge base articles for a customer support team.
+
+Here is existing knowledge base content for context:
+${existingContentSummary || 'No existing content yet.'}
+
+Generate articles for these folders (generate the exact number specified for each):
+${folderInstructions}
+
+Requirements:
+- Each article should be 500-800 words
+- Content should be professional, helpful, and specific to the Tejwal eSIM platform
+- Articles should cover common customer support scenarios, policies, and procedures
+- Include practical information that support agents can reference during calls
+- Make content specific to eSIM technology, international travel connectivity, and the Tejwal platform
+
+Return ONLY a valid JSON array with objects containing: folderName, title, content
+Example format: [{"folderName": "FAQs", "title": "...", "content": "..."}]`;
+
+    const { getOpenAIClient } = await import("../services/openai-modelfarm");
+    const openai = await getOpenAIClient(req.userId);
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a professional knowledge base content writer. Always respond with valid JSON only, no markdown formatting or code blocks." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 16000,
+    });
+
+    const responseText = completion.choices[0]?.message?.content || '[]';
+    const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    let generatedArticles: Array<{ folderName: string; title: string; content: string }>;
+    try {
+      generatedArticles = JSON.parse(cleanedResponse);
+    } catch (parseError) {
+      console.error("Failed to parse OpenAI response:", cleanedResponse.substring(0, 500));
+      return res.status(500).json({ error: "Failed to parse AI-generated content" });
+    }
+
+    if (!Array.isArray(generatedArticles) || generatedArticles.length === 0) {
+      return res.status(500).json({ error: "AI returned empty or invalid response" });
+    }
+
+    const folderNameToId = new Map<string, string>();
+    for (const folder of folders) {
+      folderNameToId.set(folder.name.toLowerCase(), folder.id);
+    }
+
+    const createdItems: any[] = [];
+
+    for (const article of generatedArticles) {
+      const folderId = folderNameToId.get(article.folderName?.toLowerCase() || '');
+      if (!folderId) {
+        console.warn(`Skipping article "${article.title}" - folder "${article.folderName}" not found`);
+        continue;
+      }
+
+      const contentText = article.content || '';
+      const storageSize = Buffer.byteLength(contentText, 'utf8');
+
+      const [inserted] = await db.insert(knowledgeBase).values({
+        userId: req.userId,
+        folderId,
+        type: 'text',
+        title: article.title,
+        content: contentText,
+        url: null,
+        fileUrl: null,
+        elevenLabsDocId: null,
+        metadata: { ragEnabled: true, aiGenerated: true },
+        storageSize,
+      }).returning();
+
+      createdItems.push(inserted);
+
+      RAGKnowledgeService.processKnowledgeItem(
+        inserted.id,
+        req.userId!,
+        contentText,
+        { source: 'text' }
+      ).catch(err => console.error(`[KB Gen] RAG processing error for ${inserted.id}:`, err));
+    }
+
+    res.status(201).json({
+      message: `Successfully generated ${createdItems.length} knowledge base articles`,
+      articles: createdItems,
+    });
+  } catch (error: any) {
+    console.error("Error generating KB articles:", error);
+    res.status(500).json({ error: error.message || "Failed to generate knowledge base articles" });
   }
 });
 

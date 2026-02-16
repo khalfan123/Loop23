@@ -109,6 +109,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -965,263 +966,124 @@ export default function KnowledgeBase() {
 
   const processingCount = knowledgeBase.filter(item => item.ragStatus === 'processing').length;
 
-  return (
-    <div className="flex h-screen w-full overflow-hidden">
-      {/* Left Sidebar */}
-      <div className="w-[260px] border-r flex-shrink-0 bg-muted/20 flex flex-col">
-        {/* Dashboard Button */}
-        <div className="p-3">
-          <button
+  const subPanelContent = (
+    <>
+      <SubPanelSection>
+        <SubPanelItem
+          icon={<LayoutDashboard className="h-4 w-4" />}
+          label="Library Overview"
+          isActive={viewMode === "dashboard"}
+          onClick={() => { setViewMode("dashboard"); setSelectedFolderId(null); }}
+          data-testid="button-dashboard"
+        />
+      </SubPanelSection>
+
+      <SubPanelSection title="Study Materials">
+        <div className="flex items-center justify-end px-1 mb-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
             onClick={() => {
-              setViewMode("dashboard");
-              setSelectedFolderId(null);
+              setEditingFolder(null);
+              setFolderName('');
+              setFolderColor('#3b82f6');
+              setFolderDialogOpen(true);
             }}
-            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              viewMode === "dashboard" 
-                ? "bg-primary text-primary-foreground" 
-                : "hover-elevate"
-            }`}
-            data-testid="button-dashboard"
+            data-testid="button-new-folder"
           >
-            <LayoutDashboard className="h-4 w-4" />
-            Library Overview
-          </button>
+            <Plus className="h-3 w-3" />
+          </Button>
         </div>
 
-        {/* Folders Section */}
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            <span>Study Materials</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              onClick={() => {
-                setEditingFolder(null);
-                setFolderName('');
-                setFolderColor('#3b82f6');
-                setFolderDialogOpen(true);
-              }}
-              data-testid="button-new-folder"
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
-
-        <ScrollArea className="flex-1">
-          <div className="px-3 space-y-1">
-            {folders.map((folder) => (
-              <div key={folder.id} className="group relative">
-                <button
-                  onClick={() => {
-                    setViewMode("folder");
-                    setSelectedFolderId(folder.id);
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                    selectedFolderId === folder.id && viewMode === "folder"
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "hover-elevate"
-                  }`}
-                  data-testid={`folder-${folder.id}`}
+        {folders.map((folder) => (
+          <div key={folder.id} className="group relative">
+            <SubPanelItem
+              icon={<Folder className="h-4 w-4" style={{ color: folder.color || '#3b82f6' }} />}
+              label={folder.name}
+              isActive={selectedFolderId === folder.id && viewMode === "folder"}
+              onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
+              badge={folderStats?.folders[folder.id] || 0}
+              data-testid={`folder-${folder.id}`}
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 absolute right-1 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <Folder 
-                    className="h-4 w-4 flex-shrink-0" 
-                    style={{ color: folder.color || '#3b82f6' }}
-                  />
-                  <span className="truncate flex-1 text-left">{folder.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {folderStats?.folders[folder.id] || 0}
-                  </span>
-                </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 absolute right-1 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreHorizontal className="h-3 w-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => {
-                      setEditingFolder(folder);
-                      setFolderName(folder.name);
-                      setFolderColor(folder.color || '#3b82f6');
-                      setFolderDialogOpen(true);
-                    }}>
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      className="text-destructive"
-                      onClick={() => setDeletingFolder(folder)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
-
-            {/* Index */}
-            {folderStats && folderStats.uncategorized > 0 && (
-              <button
-                onClick={() => {
-                  setViewMode("folder");
-                  setSelectedFolderId(null);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  selectedFolderId === null && viewMode === "folder"
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "hover-elevate"
-                }`}
-                data-testid="folder-uncategorized"
-              >
-                <Folder className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                <span className="truncate flex-1 text-left">Uncategorized</span>
-                <span className="text-xs text-muted-foreground">
-                  {folderStats.uncategorized}
-                </span>
-              </button>
-            )}
-
-            {/* AI Intelligence - Integrated */}
-            <div className="mt-4 pt-3 border-t border-dashed">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
-                <Sparkles className="h-3 w-3" />
-                AI Intelligence
-              </div>
-              <button
-                onClick={() => {
-                  setViewMode("ai-insights");
-                  setSelectedFolderId(null);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === "ai-insights"
-                    ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium"
-                    : "hover-elevate"
-                }`}
-                data-testid="folder-ai-insights"
-              >
-                <Brain className="h-4 w-4 flex-shrink-0 text-purple-500" />
-                <span className="truncate flex-1 text-left">AI Insights</span>
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode("content-studio");
-                  setSelectedFolderId(null);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === "content-studio"
-                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
-                    : "hover-elevate"
-                }`}
-                data-testid="folder-content-studio"
-              >
-                <Sparkles className="h-4 w-4 flex-shrink-0 text-amber-500" />
-                <span className="truncate flex-1 text-left">Content Studio</span>
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode("entities");
-                  setSelectedFolderId(null);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === "entities"
-                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
-                    : "hover-elevate"
-                }`}
-                data-testid="folder-entities"
-              >
-                <Tags className="h-4 w-4 flex-shrink-0 text-blue-500" />
-                <span className="truncate flex-1 text-left">Entities</span>
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode("topic-clusters");
-                  setSelectedFolderId(null);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === "topic-clusters"
-                    ? "bg-green-500/10 text-green-600 dark:text-green-400 font-medium"
-                    : "hover-elevate"
-                }`}
-                data-testid="folder-topic-clusters"
-              >
-                <Layers className="h-4 w-4 flex-shrink-0 text-green-500" />
-                <span className="truncate flex-1 text-left">Topics</span>
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode("faqs");
-                  setSelectedFolderId(null);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === "faqs"
-                    ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 font-medium"
-                    : "hover-elevate"
-                }`}
-                data-testid="folder-faqs"
-              >
-                <HelpCircle className="h-4 w-4 flex-shrink-0 text-orange-500" />
-                <span className="truncate flex-1 text-left">FAQs</span>
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode("content-gaps");
-                  setSelectedFolderId(null);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === "content-gaps"
-                    ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 font-medium"
-                    : "hover-elevate"
-                }`}
-                data-testid="folder-content-gaps"
-              >
-                <Lightbulb className="h-4 w-4 flex-shrink-0 text-yellow-500" />
-                <span className="truncate flex-1 text-left">Content Gaps</span>
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode("ml-conversations");
-                  setSelectedFolderId(null);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  viewMode === "ml-conversations"
-                    ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-medium"
-                    : "hover-elevate"
-                }`}
-                data-testid="folder-ml-conversations"
-              >
-                <Phone className="h-4 w-4 flex-shrink-0 text-cyan-500" />
-                <span className="truncate flex-1 text-left">ML Conversations</span>
-              </button>
-            </div>
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {
+                  setEditingFolder(folder);
+                  setFolderName(folder.name);
+                  setFolderColor(folder.color || '#3b82f6');
+                  setFolderDialogOpen(true);
+                }}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => setDeletingFolder(folder)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </ScrollArea>
+        ))}
 
-        {/* Storage Usage */}
-        {storageUsage && (
-          <div className="p-3 border-t">
-            <div className="text-xs text-muted-foreground mb-1">
-              Library Capacity: {formatBytes(storageUsage.usedStorageBytes)} / {formatBytes(storageUsage.maxStorageBytes)}
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all" 
-                style={{ width: `${Math.min(storageUsage.usagePercent, 100)}%` }}
-              />
-            </div>
-          </div>
+        {folderStats && folderStats.uncategorized > 0 && (
+          <SubPanelItem
+            icon={<Folder className="h-4 w-4" />}
+            label="Uncategorized"
+            isActive={selectedFolderId === null && viewMode === "folder"}
+            onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
+            badge={folderStats.uncategorized}
+            data-testid="folder-uncategorized"
+          />
         )}
-      </div>
+      </SubPanelSection>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-background overflow-hidden">
+      <SubPanelSection title="AI Intelligence">
+        <SubPanelItem icon={<Brain className="h-4 w-4" />} label="AI Insights" isActive={viewMode === "ai-insights"} onClick={() => { setViewMode("ai-insights"); setSelectedFolderId(null); }} data-testid="folder-ai-insights" />
+        <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="Content Studio" isActive={viewMode === "content-studio"} onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }} data-testid="folder-content-studio" />
+        <SubPanelItem icon={<Tags className="h-4 w-4" />} label="Entities" isActive={viewMode === "entities"} onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }} data-testid="folder-entities" />
+        <SubPanelItem icon={<Layers className="h-4 w-4" />} label="Topics" isActive={viewMode === "topic-clusters"} onClick={() => { setViewMode("topic-clusters"); setSelectedFolderId(null); }} data-testid="folder-topic-clusters" />
+        <SubPanelItem icon={<HelpCircle className="h-4 w-4" />} label="FAQs" isActive={viewMode === "faqs"} onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }} data-testid="folder-faqs" />
+        <SubPanelItem icon={<Lightbulb className="h-4 w-4" />} label="Content Gaps" isActive={viewMode === "content-gaps"} onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }} data-testid="folder-content-gaps" />
+        <SubPanelItem icon={<BarChart3 className="h-4 w-4" />} label="ML Conversations" isActive={viewMode === "ml-conversations"} onClick={() => { setViewMode("ml-conversations"); setSelectedFolderId(null); }} data-testid="folder-ml-conversations" />
+      </SubPanelSection>
+
+      {storageUsage && (
+        <div className="px-3 pt-3 border-t">
+          <div className="text-xs text-muted-foreground mb-1">
+            Library Capacity: {formatBytes(storageUsage.usedStorageBytes)} / {formatBytes(storageUsage.maxStorageBytes)}
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${Math.min(storageUsage.usagePercent, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <ThreeColumnLayout
+      subPanel={subPanelContent}
+      subPanelWidth="sm"
+      subPanelHeader={<span className="font-medium text-sm">Knowledge Library</span>}
+    >
+      <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
         {/* Header */}
         <div className="border-b">
           <div className="flex items-center justify-between p-4 gap-4">
@@ -2477,6 +2339,6 @@ export default function KnowledgeBase() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </ThreeColumnLayout>
   );
 }

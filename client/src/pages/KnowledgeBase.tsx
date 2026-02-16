@@ -982,6 +982,8 @@ export default function KnowledgeBase() {
           onClick={() => { setViewMode("dashboard"); setSelectedFolderId(null); }}
           data-testid="button-dashboard"
         />
+        <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="ML Insights" isActive={viewMode === "ml-insights"} onClick={() => { setViewMode("ml-insights"); setSelectedFolderId(null); }} data-testid="folder-ml-insights" />
+        <SubPanelItem icon={<Activity className="h-4 w-4" />} label="ML Operations" isActive={viewMode === "ml-operations"} onClick={() => { setViewMode("ml-operations"); setSelectedFolderId(null); }} data-testid="folder-ml-operations" />
 
         <div className="mt-3 mb-1.5 px-3 flex items-center gap-2">
           <span className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">Knowledge Sources</span>
@@ -1164,8 +1166,6 @@ export default function KnowledgeBase() {
         <SubPanelItem icon={<HelpCircle className="h-4 w-4" />} label="FAQs" isActive={viewMode === "faqs"} onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }} data-testid="folder-faqs" />
         <SubPanelItem icon={<Lightbulb className="h-4 w-4" />} label="Content Gaps" isActive={viewMode === "content-gaps"} onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }} data-testid="folder-content-gaps" />
         <SubPanelItem icon={<BarChart3 className="h-4 w-4" />} label="ML Conversations" isActive={viewMode === "ml-conversations"} onClick={() => { setViewMode("ml-conversations"); setSelectedFolderId(null); }} data-testid="folder-ml-conversations" />
-        <SubPanelItem icon={<Activity className="h-4 w-4" />} label="ML Operations" isActive={viewMode === "ml-operations"} onClick={() => { setViewMode("ml-operations"); setSelectedFolderId(null); }} data-testid="folder-ml-operations" />
-        <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="ML Insights" isActive={viewMode === "ml-insights"} onClick={() => { setViewMode("ml-insights"); setSelectedFolderId(null); }} data-testid="folder-ml-insights" />
       </SubPanelSection>
 
       {storageUsage && (

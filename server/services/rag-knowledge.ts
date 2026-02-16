@@ -58,6 +58,11 @@ const MAX_CHUNK_CHARS = 2000; // approximate chars per chunk
 // Default storage limit per user (20MB)
 const DEFAULT_STORAGE_LIMIT_BYTES = 20 * 1024 * 1024;
 
+// Minimum relevance thresholds for filtering low-quality results
+const MIN_VECTOR_RELEVANCE = 0.62; // Minimum cosine similarity for vector search results
+const MIN_FAQ_RELEVANCE = 0.40; // FAQs can have lower threshold (keyword-based)
+const MIN_FALLBACK_RELEVANCE = 0.35; // Direct content fallback threshold
+
 // Initialize OpenAI client
 let openaiClient: OpenAI | null = null;
 let lastApiKey: string | null = null;
@@ -501,17 +506,21 @@ export class RAGKnowledgeService {
         
         const queryEmbedding = await generateEmbedding(query);
         
-        chunkResults = chunks
+        const allScoredChunks = chunks
           .filter(chunk => chunk.embedding && Array.isArray(chunk.embedding))
           .map(chunk => ({
             chunk,
             score: cosineSimilarity(queryEmbedding, chunk.embedding as number[]),
             source: chunk.knowledgeBaseId
           }))
-          .sort((a, b) => b.score - a.score)
+          .sort((a, b) => b.score - a.score);
+        
+        const preFilterCount = allScoredChunks.length;
+        chunkResults = allScoredChunks
+          .filter(r => r.score >= MIN_VECTOR_RELEVANCE)
           .slice(0, maxResults);
         
-        console.log(`[RAG] Found ${chunkResults.length} relevant chunks (top score: ${chunkResults[0]?.score.toFixed(3) || 'N/A'})`);
+        console.log(`[RAG] Found ${chunkResults.length}/${preFilterCount} chunks above ${MIN_VECTOR_RELEVANCE} threshold (top score: ${allScoredChunks[0]?.score.toFixed(3) || 'N/A'}, cutoff filtered: ${preFilterCount - chunkResults.length})`);
       }
       
       const combined = [...faqResults, ...chunkResults]
@@ -559,7 +568,6 @@ export class RAGKnowledgeService {
           }
           
           relevanceScore = Math.min(relevanceScore, 0.95);
-          if (relevanceScore === 0) relevanceScore = 0.3;
           
           return {
             chunk: {
@@ -569,6 +577,7 @@ export class RAGKnowledgeService {
             source: entry.id,
           };
         })
+        .filter(e => e.score >= MIN_FALLBACK_RELEVANCE)
         .sort((a, b) => b.score - a.score)
         .slice(0, maxResults);
       
@@ -658,7 +667,7 @@ export class RAGKnowledgeService {
       }
       
       const topFaqs = scoredFaqs
-        .filter(f => f.score > 0.3)
+        .filter(f => f.score >= MIN_FAQ_RELEVANCE)
         .sort((a, b) => b.score - a.score)
         .slice(0, 3);
       

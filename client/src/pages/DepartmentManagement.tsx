@@ -1143,8 +1143,8 @@ export default function DepartmentManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-9 gap-0 items-center" data-testid="call-center-org-card">
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-9 gap-0 items-stretch" data-testid="call-center-org-card">
+              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center mb-2">
                   <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
@@ -1166,7 +1166,7 @@ export default function DepartmentManagement() {
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center mb-2">
                   <GitBranch className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
@@ -1230,7 +1230,7 @@ export default function DepartmentManagement() {
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center mb-2">
                   <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
@@ -1259,7 +1259,7 @@ export default function DepartmentManagement() {
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center mb-2">
                   <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
@@ -1276,7 +1276,7 @@ export default function DepartmentManagement() {
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center mb-2">
                   <BookOpen className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                 </div>

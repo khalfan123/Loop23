@@ -95,6 +95,14 @@ interface IncomingConnection {
   };
 }
 
+interface IvrConfigConnection {
+  id: string;
+  name: string;
+  phoneNumberId: string | null;
+  isActive: boolean;
+  menuOptions?: { key: string; label: string; departmentId: string; }[];
+}
+
 interface TwilioCountry {
   id: string;
   code: string;
@@ -739,6 +747,14 @@ export default function PhoneNumbers() {
     return plivoConnections.find(c => c.phoneNumberId === phoneNumberId);
   };
 
+  const { data: ivrConfigs = [] } = useQuery<IvrConfigConnection[]>({
+    queryKey: ["/api/departments/ivr/all"],
+  });
+
+  const getIvrConfig = (phoneNumberId: string) => {
+    return ivrConfigs.find(c => c.phoneNumberId === phoneNumberId);
+  };
+
   const isCountryValid = countries.some(c => c.code === searchCountry);
 
   const buildSearchQuery = () => {
@@ -1003,7 +1019,12 @@ export default function PhoneNumbers() {
 
   const totalNumbers = ownedNumbers.length + plivoNumbers.length;
   const activeNumbers = ownedNumbers.filter(n => n.status === 'active').length + plivoNumbers.filter(n => n.status === 'active').length;
-  const connectedNumbers = allConnections.length + plivoConnections.length;
+  const agentPhoneIds = new Set([
+    ...allConnections.map(c => c.phoneNumberId),
+    ...plivoConnections.map(c => c.phoneNumberId),
+  ]);
+  const ivrOnlyCount = ivrConfigs.filter(c => c.phoneNumberId && !agentPhoneIds.has(c.phoneNumberId)).length;
+  const connectedNumbers = allConnections.length + plivoConnections.length + ivrOnlyCount;
   const availableForConnection = totalNumbers - connectedNumbers;
 
   const {
@@ -1274,11 +1295,34 @@ export default function PhoneNumbers() {
                   <span className="text-sm text-muted-foreground">{t('phoneNumbers.status.connectedTo')}</span>
                   <span className="text-sm font-medium text-foreground">{plivoConn.agent.name}</span>
                 </div>
-              ) : (
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-sm text-muted-foreground">{t('phoneNumbers.status.notConnected')}</span>
-                </div>
-              )}
+              ) : (() => {
+                const ivrConfig = type === 'twilio' ? getIvrConfig((data as PhoneNumber).id) : null;
+                if (ivrConfig) {
+                  return (
+                    <div className="mt-1.5 space-y-1.5">
+                      <div className="flex items-center gap-2" data-testid={`connection-status-ivr-${(data as PhoneNumber).id}`}>
+                        <LinkIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm text-muted-foreground">Assigned to IVR:</span>
+                        <span className="text-sm font-medium text-foreground">{ivrConfig.name}</span>
+                      </div>
+                      {ivrConfig.menuOptions && ivrConfig.menuOptions.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 ml-5">
+                          {ivrConfig.menuOptions.map((opt) => (
+                            <Badge key={opt.key} variant="secondary" className="text-xs">
+                              Press {opt.key}: {opt.label}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-sm text-muted-foreground">{t('phoneNumbers.status.notConnected')}</span>
+                  </div>
+                );
+              })()}
             </div>
 
             {type === 'plivo' && (data as PlivoPhoneNumber).kycRejectionReason && (

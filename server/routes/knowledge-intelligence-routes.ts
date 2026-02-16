@@ -1888,135 +1888,150 @@ router.post("/generate-kb-articles", async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ error: "No knowledge folders found. Please create folders first." });
     }
 
-    const folderItemCounts = new Map<string, number>();
-    for (const folder of folders) {
-      folderItemCounts.set(folder.id, 0);
-    }
-    for (const item of existingItems) {
-      if (item.folderId && folderItemCounts.has(item.folderId)) {
-        folderItemCounts.set(item.folderId, (folderItemCounts.get(item.folderId) || 0) + 1);
-      }
-    }
-
     const existingContentSummary = existingItems
+      .filter(item => !((item.metadata as any)?.aiGenerated))
       .slice(0, 10)
-      .map(item => `- ${item.title}: ${(item.content || '').substring(0, 200)}`)
+      .map(item => `- ${item.title}: ${(item.content || '').substring(0, 300)}`)
       .join('\n');
-
-    const folderAssignments: { folderName: string; folderId: string; articlesToGenerate: number }[] = [];
-    let totalArticles = 0;
-
-    for (const folder of folders) {
-      const itemCount = folderItemCounts.get(folder.id) || 0;
-      let articlesToGenerate = 0;
-      if (itemCount === 0) {
-        articlesToGenerate = totalArticles < 13 ? 2 : 1;
-      } else {
-        articlesToGenerate = 1;
-      }
-      if (totalArticles + articlesToGenerate > 15) {
-        articlesToGenerate = 15 - totalArticles;
-      }
-      if (articlesToGenerate > 0) {
-        folderAssignments.push({ folderName: folder.name, folderId: folder.id, articlesToGenerate });
-        totalArticles += articlesToGenerate;
-      }
-      if (totalArticles >= 15) break;
-    }
-
-    const folderInstructions = folderAssignments
-      .map(f => `- "${f.folderName}": generate exactly ${f.articlesToGenerate} article(s)`)
-      .join('\n');
-
-    const prompt = `You are a professional knowledge base content writer for Tejwal eSIM, an eSIM marketplace for travelers offering global connectivity in 200+ countries. Generate exactly ${totalArticles} knowledge base articles for a customer support team.
-
-Here is existing knowledge base content for context:
-${existingContentSummary || 'No existing content yet.'}
-
-Generate articles for these folders (generate the exact number specified for each):
-${folderInstructions}
-
-Requirements:
-- Each article should be 500-800 words
-- Content should be professional, helpful, and specific to the Tejwal eSIM platform
-- Articles should cover common customer support scenarios, policies, and procedures
-- Include practical information that support agents can reference during calls
-- Make content specific to eSIM technology, international travel connectivity, and the Tejwal platform
-
-Return ONLY a valid JSON array with objects containing: folderName, title, content
-Example format: [{"folderName": "FAQs", "title": "...", "content": "..."}]`;
 
     const { getOpenAIClient } = await import("../services/openai-modelfarm");
     const openai = await getOpenAIClient(req.userId);
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a professional knowledge base content writer. Always respond with valid JSON only, no markdown formatting or code blocks." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.7,
-      max_tokens: 16000,
-    });
+    const categoryArticleCounts: Record<string, number> = {
+      "Products": 15,
+      "Technical Support": 14,
+      "FAQs": 14,
+      "Billing & Payments": 13,
+      "Account Management": 12,
+      "Orders": 12,
+      "Policies": 12,
+      "Security & Privacy": 12,
+      "Delivery": 11,
+      "Glossary": 11,
+      "Escalation": 10,
+      "Contact Info": 10,
+    };
 
-    const responseText = completion.choices[0]?.message?.content || '[]';
-    const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const allCreatedItems: any[] = [];
+    const folderResults: Record<string, number> = {};
 
-    let generatedArticles: Array<{ folderName: string; title: string; content: string }>;
-    try {
-      generatedArticles = JSON.parse(cleanedResponse);
-    } catch (parseError) {
-      console.error("Failed to parse OpenAI response:", cleanedResponse.substring(0, 500));
-      return res.status(500).json({ error: "Failed to parse AI-generated content" });
-    }
-
-    if (!Array.isArray(generatedArticles) || generatedArticles.length === 0) {
-      return res.status(500).json({ error: "AI returned empty or invalid response" });
-    }
-
-    const folderNameToId = new Map<string, string>();
     for (const folder of folders) {
-      folderNameToId.set(folder.name.toLowerCase(), folder.id);
-    }
+      const targetCount = categoryArticleCounts[folder.name] || 12;
+      const existingInFolder = existingItems.filter(i => i.folderId === folder.id && !((i.metadata as any)?.aiGenerated)).length;
 
-    const createdItems: any[] = [];
+      console.log(`[KB Gen] Generating ${targetCount} articles for "${folder.name}" (has ${existingInFolder} existing)...`);
 
-    for (const article of generatedArticles) {
-      const folderId = folderNameToId.get(article.folderName?.toLowerCase() || '');
-      if (!folderId) {
-        console.warn(`Skipping article "${article.title}" - folder "${article.folderName}" not found`);
-        continue;
+      const topicGuidance: Record<string, string> = {
+        "Products": "eSIM product details, data plan comparisons, regional vs global plans, compatible devices, plan features, prepaid vs postpaid, data speeds, coverage maps, multi-device support, family plans, business plans, special offers, seasonal promotions, bundle packages, product specifications",
+        "Technical Support": "eSIM installation troubleshooting, activation issues, connectivity problems, APN settings, device compatibility, network switching, signal strength, VPN usage, hotspot functionality, dual SIM configuration, QR code scanning issues, data not working abroad, slow speeds, roaming settings, firmware updates",
+        "FAQs": "what is an eSIM, how eSIM works, eSIM vs physical SIM, supported devices, how to activate, data usage tracking, plan expiration, multiple eSIMs, sharing data, coverage availability, refund eligibility, account recovery, language support, payment security, customer support channels",
+        "Billing & Payments": "payment methods, pricing tiers, currency support, invoice generation, auto-renewal, refund process, promo codes, subscription management, payment failures, transaction history, tax information, enterprise billing, credit system, payment security, dispute resolution",
+        "Account Management": "account creation, profile updates, password reset, email verification, two-factor authentication, account deletion, notification preferences, login issues, session management, linked devices, account security, data export, subscription status, account upgrade, team accounts",
+        "Orders": "placing an order, order confirmation, order tracking, order cancellation, order modifications, bulk orders, gift purchases, order history, reorder process, international orders, express activation, order status notifications, failed orders, order receipts, enterprise orders",
+        "Policies": "terms of service, privacy policy, acceptable use policy, fair usage policy, data retention, GDPR compliance, cookie policy, refund policy, cancellation policy, service level agreement, content policy, intellectual property, liability limitations, dispute resolution, age requirements",
+        "Security & Privacy": "data encryption, account security measures, fraud prevention, phishing awareness, secure payments, privacy controls, data sharing, breach notification, compliance certifications, VPN recommendations, public WiFi safety, identity verification, suspicious activity, security updates, privacy rights",
+        "Delivery": "eSIM delivery process, instant activation, QR code delivery, email delivery, activation timeline, delivery confirmation, redelivery requests, delivery troubleshooting, bulk delivery, scheduled delivery, delivery to multiple recipients, delivery status tracking, pre-arrival setup, airport pickup alternatives, delayed delivery resolution",
+        "Glossary": "eSIM terminology, telecom glossary, APN definition, IMEI explained, LTE/5G bands, roaming definitions, MNO vs MVNO, SIM lock/unlock, data throttling, fair usage, QR provisioning, SM-DP+ server, EID number, carrier aggregation, VoLTE explained",
+        "Escalation": "escalation triggers, supervisor handoff, complaint handling, SLA breaches, priority levels, escalation workflow, customer retention, compensation guidelines, executive escalation, regulatory complaints, social media escalation, legal escalation, technical escalation tiers, feedback loops, post-escalation follow-up",
+        "Contact Info": "support channels, business hours, emergency contact, social media links, office locations, email support, live chat availability, phone support numbers, regional contacts, partner contacts, enterprise support, accessibility support, language-specific support, holiday schedule, response time expectations",
+      };
+
+      const topics = topicGuidance[folder.name] || "general customer support topics relevant to the category";
+
+      const prompt = `You are a professional knowledge base writer for Tejwal eSIM — an eSIM marketplace for travelers providing instant global connectivity in 200+ countries starting from $3.30.
+
+Business context from existing knowledge base:
+${existingContentSummary || 'Tejwal eSIM offers instant eSIM activation, no physical SIM needed, covering 200+ countries with 500K+ happy travelers, 4.9/5 rating, and 24/7 support.'}
+
+Generate exactly ${targetCount} knowledge base articles for the "${folder.name}" category.
+
+Topic areas to cover (one article per topic, prioritized by customer importance):
+${topics}
+
+Requirements:
+- Each article must be 400-700 words
+- Write in a professional, clear support-agent style
+- Include specific details relevant to Tejwal eSIM (pricing starting from $3.30, 200+ countries, instant activation, QR code delivery, etc.)
+- Each article should have a clear, descriptive title
+- Content should help customer support agents handle real customer inquiries
+- Include step-by-step instructions where applicable
+- Mention specific features, processes, and policies
+
+Return ONLY a valid JSON array: [{"title": "...", "content": "..."}]
+Do NOT include any markdown, code blocks, or extra text.`;
+
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations." },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 16000,
+        });
+
+        const responseText = completion.choices[0]?.message?.content || '[]';
+        const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        let articles: Array<{ title: string; content: string }>;
+        try {
+          articles = JSON.parse(cleanedResponse);
+        } catch {
+          console.error(`[KB Gen] Failed to parse response for "${folder.name}":`, cleanedResponse.substring(0, 200));
+          folderResults[folder.name] = 0;
+          continue;
+        }
+
+        if (!Array.isArray(articles)) {
+          folderResults[folder.name] = 0;
+          continue;
+        }
+
+        let insertedCount = 0;
+        for (const article of articles) {
+          if (!article.title || !article.content) continue;
+
+          const contentText = article.content;
+          const storageSize = Buffer.byteLength(contentText, 'utf8');
+
+          const [inserted] = await db.insert(knowledgeBase).values({
+            userId: req.userId,
+            folderId: folder.id,
+            type: 'text',
+            title: article.title,
+            content: contentText,
+            url: null,
+            fileUrl: null,
+            elevenLabsDocId: null,
+            metadata: { ragEnabled: true, aiGenerated: true },
+            storageSize,
+          }).returning();
+
+          allCreatedItems.push({ id: inserted.id, title: inserted.title, folder: folder.name });
+          insertedCount++;
+
+          RAGKnowledgeService.processKnowledgeItem(
+            inserted.id,
+            req.userId!,
+            contentText,
+            { source: 'text' }
+          ).catch(err => console.error(`[KB Gen] RAG error for ${inserted.id}:`, err));
+        }
+
+        folderResults[folder.name] = insertedCount;
+        console.log(`[KB Gen] Created ${insertedCount} articles for "${folder.name}"`);
+      } catch (folderError: any) {
+        console.error(`[KB Gen] Error generating for "${folder.name}":`, folderError.message);
+        folderResults[folder.name] = 0;
       }
-
-      const contentText = article.content || '';
-      const storageSize = Buffer.byteLength(contentText, 'utf8');
-
-      const [inserted] = await db.insert(knowledgeBase).values({
-        userId: req.userId,
-        folderId,
-        type: 'text',
-        title: article.title,
-        content: contentText,
-        url: null,
-        fileUrl: null,
-        elevenLabsDocId: null,
-        metadata: { ragEnabled: true, aiGenerated: true },
-        storageSize,
-      }).returning();
-
-      createdItems.push(inserted);
-
-      RAGKnowledgeService.processKnowledgeItem(
-        inserted.id,
-        req.userId!,
-        contentText,
-        { source: 'text' }
-      ).catch(err => console.error(`[KB Gen] RAG processing error for ${inserted.id}:`, err));
     }
 
     res.status(201).json({
-      message: `Successfully generated ${createdItems.length} knowledge base articles`,
-      articles: createdItems,
+      message: `Successfully generated ${allCreatedItems.length} knowledge base articles across ${Object.keys(folderResults).length} categories`,
+      summary: folderResults,
+      totalArticles: allCreatedItems.length,
+      articles: allCreatedItems,
     });
   } catch (error: any) {
     console.error("Error generating KB articles:", error);

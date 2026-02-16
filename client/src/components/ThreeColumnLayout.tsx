@@ -28,7 +28,7 @@ export function ThreeColumnLayout({
   };
 
   return (
-    <div className={cn("flex w-full -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6", className)} style={{ height: 'calc(100vh - 48px)', minHeight: 'calc(100vh - 48px)' }}>
+    <div className={cn("flex w-[calc(100%+2rem)] md:w-[calc(100%+4rem)] lg:w-[calc(100%+6rem)] -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6", className)} style={{ height: 'calc(100vh - 48px)', minHeight: 'calc(100vh - 48px)' }}>
       {subPanel && (
         <>
           <aside

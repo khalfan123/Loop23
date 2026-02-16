@@ -1151,6 +1151,7 @@ export default function KnowledgeBase() {
         <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="Content Studio" isActive={viewMode === "content-studio"} onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }} data-testid="folder-content-studio" />
         <SubPanelItem icon={<Tags className="h-4 w-4" />} label="Entities" isActive={viewMode === "entities"} onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }} data-testid="folder-entities" />
         <SubPanelItem icon={<Layers className="h-4 w-4" />} label="Topics" isActive={viewMode === "topic-clusters"} onClick={() => { setViewMode("topic-clusters"); setSelectedFolderId(null); }} data-testid="folder-topic-clusters" />
+        <SubPanelItem icon={<HelpCircle className="h-4 w-4" />} label="FAQs" isActive={viewMode === "faqs"} onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }} data-testid="folder-faqs" />
         <SubPanelItem icon={<Lightbulb className="h-4 w-4" />} label="Content Gaps" isActive={viewMode === "content-gaps"} onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }} data-testid="folder-content-gaps" />
         <SubPanelItem icon={<BarChart3 className="h-4 w-4" />} label="ML Conversations" isActive={viewMode === "ml-conversations"} onClick={() => { setViewMode("ml-conversations"); setSelectedFolderId(null); }} data-testid="folder-ml-conversations" />
       </SubPanelSection>

@@ -1064,20 +1064,11 @@ export default function DepartmentManagement() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowIvrSettingsDialog(true)}
-                  data-testid="button-settings"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  IVR Settings
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/app/departments/canvas")}
                   data-testid="button-open-canvas"
                 >
                   <LayoutGrid className="h-4 w-4 mr-2" />
-                  Design Canvas
+                  Setup Call Center
                 </Button>
                 <Button
                   variant="destructive"

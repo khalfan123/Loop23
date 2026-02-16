@@ -1646,6 +1646,226 @@ Respond in JSON format:
   }
 }
 
+router.get("/knowledge-recommendations", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const topicsList = await db.select().from(knowledgeTopics)
+      .where(eq(knowledgeTopics.userId, req.userId))
+      .orderBy(desc(knowledgeTopics.documentCount))
+      .limit(20);
+
+    const faqsList = await db.select().from(knowledgeFaqs)
+      .where(eq(knowledgeFaqs.userId, req.userId))
+      .limit(50);
+
+    const entitiesList = await db.select().from(knowledgeEntities)
+      .where(eq(knowledgeEntities.userId, req.userId))
+      .limit(50);
+
+    const articlesList = await db.select().from(generatedArticles)
+      .where(eq(generatedArticles.userId, req.userId));
+
+    const kbItems = await db.select({
+      id: knowledgeBase.id,
+      type: knowledgeBase.type,
+      title: knowledgeBase.title,
+      createdAt: knowledgeBase.createdAt,
+    }).from(knowledgeBase)
+      .where(eq(knowledgeBase.userId, req.userId));
+
+    const recommendations: Array<{
+      id: string;
+      type: "expand_topic" | "fill_gap" | "update_stale" | "add_faq" | "cross_reference";
+      priority: "high" | "medium" | "low";
+      title: string;
+      description: string;
+      actionLabel: string;
+      relatedTopics: string[];
+    }> = [];
+
+    topicsList.filter(t => t.documentCount < 3).forEach((topic, idx) => {
+      recommendations.push({
+        id: `expand-${topic.id}`,
+        type: "expand_topic",
+        priority: idx < 3 ? "high" : "medium",
+        title: `Expand coverage on "${topic.name}"`,
+        description: `This topic only has ${topic.documentCount} document(s). Adding more content will strengthen the AI's knowledge in this area.`,
+        actionLabel: "Add Content",
+        relatedTopics: [topic.name],
+      });
+    });
+
+    const topicsWithFaqs = new Set(faqsList.map(f => f.question?.toLowerCase().split(' ').slice(0, 3).join(' ')));
+    topicsList.filter(t => !topicsWithFaqs.has(t.name.toLowerCase().split(' ').slice(0, 3).join(' '))).slice(0, 5).forEach(topic => {
+      recommendations.push({
+        id: `faq-${topic.id}`,
+        type: "add_faq",
+        priority: "medium",
+        title: `Create FAQ coverage for "${topic.name}"`,
+        description: `No FAQ entries found related to this topic. Adding Q&A pairs improves AI response accuracy.`,
+        actionLabel: "Generate FAQ",
+        relatedTopics: [topic.name],
+      });
+    });
+
+    const entityGroups = new Map<string, typeof entitiesList>();
+    entitiesList.forEach(e => {
+      const group = entityGroups.get(e.entityType) || [];
+      group.push(e);
+      entityGroups.set(e.entityType, group);
+    });
+    
+    entityGroups.forEach((entities, type) => {
+      if (entities.length > 3) {
+        recommendations.push({
+          id: `crossref-${type}`,
+          type: "cross_reference",
+          priority: "low",
+          title: `Cross-reference ${entities.length} ${type} entities`,
+          description: `Multiple ${type} entities detected. Creating connections between them strengthens the knowledge graph.`,
+          actionLabel: "Analyze Links",
+          relatedTopics: entities.slice(0, 3).map(e => e.name),
+        });
+      }
+    });
+
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    recommendations.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+    res.json({
+      recommendations: recommendations.slice(0, 12),
+      summary: {
+        totalTopics: topicsList.length,
+        totalEntities: entitiesList.length,
+        totalFaqs: faqsList.length,
+        totalArticles: articlesList.length,
+        totalSources: kbItems.length,
+        coverageScore: Math.min(100, Math.round(
+          ((topicsList.length > 0 ? 25 : 0) + 
+           (entitiesList.length > 5 ? 25 : entitiesList.length * 5) +
+           (faqsList.length > 10 ? 25 : faqsList.length * 2.5) +
+           (articlesList.length > 5 ? 25 : articlesList.length * 5))
+        )),
+      }
+    });
+  } catch (error) {
+    console.error("Error generating recommendations:", error);
+    res.status(500).json({ error: "Failed to generate recommendations" });
+  }
+});
+
+router.get("/training-insights", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const approvedSamples = await db.select({ count: count() })
+      .from(mlTrainingSamples)
+      .where(and(
+        eq(mlTrainingSamples.userId, req.userId),
+        eq(mlTrainingSamples.isApproved, true)
+      ));
+
+    const totalSamples = await db.select({ count: count() })
+      .from(mlTrainingSamples)
+      .where(eq(mlTrainingSamples.userId, req.userId));
+
+    const kbCount = await db.select({ count: count() })
+      .from(knowledgeBase)
+      .where(eq(knowledgeBase.userId, req.userId));
+
+    const topicsCount = await db.select({ count: count() })
+      .from(knowledgeTopics)
+      .where(eq(knowledgeTopics.userId, req.userId));
+
+    const entitiesCount = await db.select({ count: count() })
+      .from(knowledgeEntities)
+      .where(eq(knowledgeEntities.userId, req.userId));
+
+    const faqsCount = await db.select({ count: count() })
+      .from(knowledgeFaqs)
+      .where(eq(knowledgeFaqs.userId, req.userId));
+
+    const articlesCount = await db.select({ count: count() })
+      .from(generatedArticles)
+      .where(eq(generatedArticles.userId, req.userId));
+
+    const graphNodesCount = await db.select({ count: count() })
+      .from(knowledgeGraphNodes)
+      .where(eq(knowledgeGraphNodes.userId, req.userId));
+
+    const sources = kbCount[0]?.count || 0;
+    const topics = topicsCount[0]?.count || 0;
+    const entities = entitiesCount[0]?.count || 0;
+    const faqs = faqsCount[0]?.count || 0;
+    const articles = articlesCount[0]?.count || 0;
+    const graphNodes = graphNodesCount[0]?.count || 0;
+    const approved = approvedSamples[0]?.count || 0;
+    const total = totalSamples[0]?.count || 0;
+
+    const dimensions = [
+      {
+        name: "Data Ingestion",
+        score: Math.min(100, sources * 10),
+        description: `${sources} knowledge sources ingested`,
+        status: sources >= 10 ? "excellent" : sources >= 5 ? "good" : sources > 0 ? "developing" : "not_started",
+      },
+      {
+        name: "Topic Coverage",
+        score: Math.min(100, topics * 8),
+        description: `${topics} topics identified`,
+        status: topics >= 12 ? "excellent" : topics >= 5 ? "good" : topics > 0 ? "developing" : "not_started",
+      },
+      {
+        name: "Entity Recognition",
+        score: Math.min(100, entities * 4),
+        description: `${entities} entities extracted`,
+        status: entities >= 25 ? "excellent" : entities >= 10 ? "good" : entities > 0 ? "developing" : "not_started",
+      },
+      {
+        name: "FAQ Readiness",
+        score: Math.min(100, faqs * 5),
+        description: `${faqs} FAQ pairs detected`,
+        status: faqs >= 20 ? "excellent" : faqs >= 8 ? "good" : faqs > 0 ? "developing" : "not_started",
+      },
+      {
+        name: "Content Generation",
+        score: Math.min(100, articles * 10),
+        description: `${articles} articles generated`,
+        status: articles >= 10 ? "excellent" : articles >= 3 ? "good" : articles > 0 ? "developing" : "not_started",
+      },
+      {
+        name: "Knowledge Graph",
+        score: Math.min(100, graphNodes * 3),
+        description: `${graphNodes} graph nodes connected`,
+        status: graphNodes >= 30 ? "excellent" : graphNodes >= 10 ? "good" : graphNodes > 0 ? "developing" : "not_started",
+      },
+      {
+        name: "Training Samples",
+        score: total > 0 ? Math.round((approved / total) * 100) : 0,
+        description: `${approved}/${total} samples approved`,
+        status: approved >= 50 ? "excellent" : approved >= 20 ? "good" : approved > 0 ? "developing" : "not_started",
+      },
+    ];
+
+    const overallScore = Math.round(dimensions.reduce((sum, d) => sum + d.score, 0) / dimensions.length);
+
+    res.json({
+      overallScore,
+      dimensions,
+      overallStatus: overallScore >= 80 ? "production_ready" : overallScore >= 50 ? "training" : overallScore > 0 ? "early_stage" : "not_started",
+      totalDataPoints: sources + topics + entities + faqs + articles + graphNodes,
+    });
+  } catch (error) {
+    console.error("Error fetching training insights:", error);
+    res.status(500).json({ error: "Failed to fetch training insights" });
+  }
+});
+
 export function createKnowledgeIntelligenceRoutes(): Router {
   return router;
 }

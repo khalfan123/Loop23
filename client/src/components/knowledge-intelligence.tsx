@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { 
   Globe, 
   Brain, 
@@ -54,14 +55,19 @@ import {
   BarChart3,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Activity,
+  Target,
+  Zap,
+  Timer,
+  Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface KnowledgeIntelligenceProps {
-  section?: "crawl" | "insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "all";
+  section?: "crawl" | "insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "ml-operations" | "ml-insights" | "all";
 }
 
 interface CrawlJob {
@@ -164,6 +170,89 @@ interface PipelineJob {
   createdAt: string;
   completedAt?: string;
   errorMessage?: string;
+}
+
+interface PipelineAnalytics {
+  totalPipelines: number;
+  completedPipelines: number;
+  failedPipelines: number;
+  averageDuration: number;
+  totalArticlesGenerated: number;
+  totalPagesProcessed: number;
+}
+
+interface ContentCluster {
+  id: string;
+  name: string;
+  items: string[];
+}
+
+interface ContentClusters {
+  clusters: ContentCluster[];
+  unclustered: string[];
+}
+
+interface StaleContent {
+  id: string;
+  title: string;
+  url?: string;
+  lastUpdated: string;
+  staleDays: number;
+}
+
+interface PipelineHistoryItem {
+  id: string;
+  name: string;
+  status: string;
+  currentStage: string;
+  overallProgress: number;
+  createdAt: string;
+  completedAt?: string;
+  stageDetails?: {
+    crawling: { pagesDiscovered: number; pagesCrawled: number };
+    analyzing: { entitiesFound: number; topicsFound: number; faqsFound: number };
+    generating: { articlesGenerated: number };
+    websiteNature?: { industry: string; productCategory: string };
+    topicMining?: { topicsDiscovered: number; topicsSelected: number; clusters: number };
+  };
+}
+
+interface Recommendation {
+  id: string;
+  type: "expand_topic" | "fill_gap" | "update_stale" | "add_faq" | "cross_reference";
+  priority: "high" | "medium" | "low";
+  title: string;
+  description: string;
+  actionLabel: string;
+  relatedTopics: string[];
+}
+
+interface RecommendationsSummary {
+  totalTopics: number;
+  totalEntities: number;
+  totalFaqs: number;
+  totalArticles: number;
+  totalSources: number;
+  coverageScore: number;
+}
+
+interface RecommendationsResponse {
+  recommendations: Recommendation[];
+  summary: RecommendationsSummary;
+}
+
+interface TrainingDimension {
+  name: string;
+  score: number;
+  description: string;
+  status: "excellent" | "good" | "developing" | "not_started";
+}
+
+interface TrainingInsights {
+  overallScore: number;
+  dimensions: TrainingDimension[];
+  overallStatus: "production_ready" | "training" | "early_stage" | "not_started";
+  totalDataPoints: number;
 }
 
 export default function KnowledgeIntelligence({ section = "all" }: KnowledgeIntelligenceProps) {
@@ -279,6 +368,36 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
   const { data: topicGaps = [] } = useQuery<TopicGap[]>({
     queryKey: ["/api/knowledge-intelligence/topic-gaps"],
     enabled: (stats?.topics || 0) > 0,
+  });
+
+  const { data: pipelineAnalytics, isLoading: analyticsLoading } = useQuery<PipelineAnalytics>({
+    queryKey: ["/api/knowledge-intelligence/pipeline-analytics"],
+    enabled: section === "ml-operations" || section === "all",
+  });
+
+  const { data: contentClusters, isLoading: clustersLoading } = useQuery<ContentClusters>({
+    queryKey: ["/api/knowledge-intelligence/content-clusters"],
+    enabled: section === "ml-operations" || section === "all",
+  });
+
+  const { data: staleContent = [], isLoading: staleLoading } = useQuery<StaleContent[]>({
+    queryKey: ["/api/knowledge-intelligence/stale-content"],
+    enabled: section === "ml-operations" || section === "all",
+  });
+
+  const { data: pipelineHistory = [], isLoading: historyLoading } = useQuery<PipelineHistoryItem[]>({
+    queryKey: ["/api/knowledge-intelligence/pipeline-history"],
+    enabled: section === "ml-operations" || section === "all",
+  });
+
+  const { data: recommendations, isLoading: recommendationsLoading } = useQuery<RecommendationsResponse>({
+    queryKey: ["/api/knowledge-intelligence/knowledge-recommendations"],
+    enabled: section === "ml-insights" || section === "all",
+  });
+
+  const { data: trainingInsights, isLoading: trainingInsightsLoading } = useQuery<TrainingInsights>({
+    queryKey: ["/api/knowledge-intelligence/training-insights"],
+    enabled: section === "ml-insights" || section === "all",
   });
 
   const createCrawlMutation = useMutation({
@@ -2345,6 +2464,643 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                 </div>
               </CardContent>
             </Card>
+          )}
+        </div>
+      ) : section === "ml-operations" ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-2xl font-bold" data-testid="text-ml-operations-title">ML Operations</h2>
+              <p className="text-muted-foreground">Monitor your knowledge base ML capabilities</p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/intelligence-stats"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/pipeline-analytics"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/content-clusters"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/stale-content"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/pipeline-history"] });
+                toast({ title: "Dashboard Refreshed" });
+              }}
+              data-testid="button-refresh-ml-operations"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card data-testid="card-ml-stat-pages">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pages Processed</p>
+                    {analyticsLoading ? (
+                      <Skeleton className="h-8 w-16 mt-1" />
+                    ) : (
+                      <p className="text-2xl font-bold" data-testid="text-ml-pages-processed">
+                        {pipelineAnalytics?.totalPagesProcessed || 0}
+                      </p>
+                    )}
+                  </div>
+                  <Globe className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-ml-stat-articles">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Articles Generated</p>
+                    {analyticsLoading ? (
+                      <Skeleton className="h-8 w-16 mt-1" />
+                    ) : (
+                      <p className="text-2xl font-bold" data-testid="text-ml-articles-generated">
+                        {pipelineAnalytics?.totalArticlesGenerated || 0}
+                      </p>
+                    )}
+                  </div>
+                  <Sparkles className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-ml-stat-pipelines">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Success Rate</p>
+                    {analyticsLoading ? (
+                      <Skeleton className="h-8 w-16 mt-1" />
+                    ) : (
+                      <p className="text-2xl font-bold" data-testid="text-ml-success-rate">
+                        {pipelineAnalytics && pipelineAnalytics.totalPipelines > 0
+                          ? Math.round((pipelineAnalytics.completedPipelines / pipelineAnalytics.totalPipelines) * 100)
+                          : 0}%
+                      </p>
+                    )}
+                  </div>
+                  <Target className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-ml-stat-duration">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Avg Duration</p>
+                    {analyticsLoading ? (
+                      <Skeleton className="h-8 w-16 mt-1" />
+                    ) : (
+                      <p className="text-2xl font-bold" data-testid="text-ml-avg-duration">
+                        {(() => {
+                          const seconds = pipelineAnalytics?.averageDuration || 0;
+                          if (seconds < 60) return `${seconds}s`;
+                          if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+                          return `${Math.round(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`;
+                        })()}
+                      </p>
+                    )}
+                  </div>
+                  <Timer className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2" data-testid="card-ml-knowledge-metrics">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  Knowledge Metrics
+                </CardTitle>
+                <CardDescription>AI-extracted intelligence from your content</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {statsLoading ? (
+                  <div className="grid grid-cols-3 gap-4">
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                      <Skeleton key={i} className="h-20" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-lg bg-muted/50" data-testid="ml-metric-entities">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Network className="h-4 w-4 text-blue-500" />
+                        <span className="text-sm font-medium">Entities</span>
+                      </div>
+                      <p className="text-2xl font-bold">{stats?.entities || 0}</p>
+                      <p className="text-xs text-muted-foreground">People, products, concepts</p>
+                    </div>
+
+                    <div className="p-4 rounded-lg bg-muted/50" data-testid="ml-metric-topics">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Layers className="h-4 w-4 text-green-500" />
+                        <span className="text-sm font-medium">Topics</span>
+                      </div>
+                      <p className="text-2xl font-bold">{stats?.topics || 0}</p>
+                      <p className="text-xs text-muted-foreground">Content categories</p>
+                    </div>
+
+                    <div className="p-4 rounded-lg bg-muted/50" data-testid="ml-metric-faqs">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="h-4 w-4 text-purple-500" />
+                        <span className="text-sm font-medium">FAQs</span>
+                      </div>
+                      <p className="text-2xl font-bold">{stats?.faqs || 0}</p>
+                      <p className="text-xs text-muted-foreground">Auto-detected Q&A</p>
+                    </div>
+
+                    <div className="p-4 rounded-lg bg-muted/50" data-testid="ml-metric-articles">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="h-4 w-4 text-orange-500" />
+                        <span className="text-sm font-medium">Articles</span>
+                      </div>
+                      <p className="text-2xl font-bold">{stats?.articles || 0}</p>
+                      <p className="text-xs text-muted-foreground">Generated content</p>
+                    </div>
+
+                    <div className="p-4 rounded-lg bg-muted/50" data-testid="ml-metric-crawls">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Globe className="h-4 w-4 text-cyan-500" />
+                        <span className="text-sm font-medium">Crawl Jobs</span>
+                      </div>
+                      <p className="text-2xl font-bold">{stats?.crawlJobs || 0}</p>
+                      <p className="text-xs text-muted-foreground">Data sources</p>
+                    </div>
+
+                    <div className="p-4 rounded-lg bg-muted/50" data-testid="ml-metric-graph">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BarChart3 className="h-4 w-4 text-pink-500" />
+                        <span className="text-sm font-medium">Graph Nodes</span>
+                      </div>
+                      <p className="text-2xl font-bold">{stats?.graphNodes || 0}</p>
+                      <p className="text-xs text-muted-foreground">Knowledge graph</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-ml-content-clusters">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Layers className="h-5 w-5" />
+                  Content Clusters
+                </CardTitle>
+                <CardDescription>Related content groups</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {clustersLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : contentClusters && contentClusters.clusters.length > 0 ? (
+                  <ScrollArea className="h-[200px]">
+                    <div className="space-y-2">
+                      {contentClusters.clusters.slice(0, 8).map((cluster) => (
+                        <div
+                          key={cluster.id}
+                          className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                          data-testid={`ml-cluster-${cluster.id}`}
+                        >
+                          <span className="text-sm font-medium truncate flex-1">{cluster.name}</span>
+                          <Badge variant="secondary" className="ml-2">
+                            {cluster.items.length} items
+                          </Badge>
+                        </div>
+                      ))}
+                      {contentClusters.unclustered.length > 0 && (
+                        <div className="text-xs text-muted-foreground mt-2">
+                          + {contentClusters.unclustered.length} unclustered items
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No clusters detected yet</p>
+                    <p className="text-xs">Add more content to enable clustering</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-6">
+            <Card data-testid="card-ml-pipeline-history">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Pipeline History
+                </CardTitle>
+                <CardDescription>Recent automation runs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {historyLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+                  </div>
+                ) : pipelineHistory.length > 0 ? (
+                  <ScrollArea className="h-[250px]">
+                    <div className="space-y-3">
+                      {pipelineHistory.slice(0, 10).map((pipeline) => (
+                        <div
+                          key={pipeline.id}
+                          className="p-3 rounded-lg border"
+                          data-testid={`ml-pipeline-history-${pipeline.id}`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              {pipeline.status === 'completed' ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : pipeline.status === 'failed' ? (
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              ) : ['running', 'crawling', 'analyzing', 'generating'].includes(pipeline.status) ? (
+                                <Activity className="h-4 w-4 text-blue-500 animate-pulse" />
+                              ) : (
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                              )}
+                              <span className="font-medium text-sm">{pipeline.name}</span>
+                            </div>
+                            <Badge
+                              variant={pipeline.status === 'completed' ? 'default' :
+                                       pipeline.status === 'failed' ? 'destructive' : 'secondary'}
+                            >
+                              {pipeline.status}
+                            </Badge>
+                          </div>
+                          {pipeline.status !== 'pending' && pipeline.status !== 'failed' && (
+                            <Progress value={pipeline.overallProgress} className="h-1 mb-2" />
+                          )}
+                          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground flex-wrap">
+                            <span>{new Date(pipeline.createdAt).toLocaleDateString()}</span>
+                            {pipeline.stageDetails && (
+                              <div className="flex gap-3">
+                                {pipeline.stageDetails.crawling && (
+                                  <span>{pipeline.stageDetails.crawling.pagesCrawled} pages</span>
+                                )}
+                                {pipeline.stageDetails.generating && (
+                                  <span>{pipeline.stageDetails.generating.articlesGenerated} articles</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Zap className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No pipelines run yet</p>
+                    <p className="text-xs">Start a new pipeline to automate content generation</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-ml-stale-content">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  Content Freshness
+                </CardTitle>
+                <CardDescription>Content that may need updates</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {staleLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : staleContent.length > 0 ? (
+                  <ScrollArea className="h-[250px]">
+                    <div className="space-y-2">
+                      {staleContent.map((content) => (
+                        <div
+                          key={content.id}
+                          className="flex items-center justify-between p-3 rounded-lg border"
+                          data-testid={`ml-stale-content-${content.id}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{content.title}</p>
+                            {content.url && (
+                              <p className="text-xs text-muted-foreground truncate">{content.url}</p>
+                            )}
+                          </div>
+                          <Badge
+                            variant={content.staleDays > 60 ? 'destructive' :
+                                     content.staleDays > 30 ? 'default' : 'secondary'}
+                            className="ml-2"
+                          >
+                            {content.staleDays}d old
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500 opacity-50" />
+                    <p className="text-sm">All content is fresh</p>
+                    <p className="text-xs">No outdated content detected</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card data-testid="card-ml-capabilities">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                ML Capabilities
+              </CardTitle>
+              <CardDescription>Automated intelligence features</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg border hover-elevate">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className="h-5 w-5 text-blue-500" />
+                    <span className="font-medium">Web Crawling</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Sitemap parsing, robots.txt compliance, incremental crawling with change detection
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg border hover-elevate">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Brain className="h-5 w-5 text-purple-500" />
+                    <span className="font-medium">AI Analysis</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Entity extraction, topic clustering, FAQ detection, knowledge graph construction
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg border hover-elevate">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-5 w-5 text-green-500" />
+                    <span className="font-medium">Topic Intelligence</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Website nature analysis, topic mining, expansion, scoring, and auto-selection
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg border hover-elevate">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="h-5 w-5 text-orange-500" />
+                    <span className="font-medium">Content Generation</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Intent-based templates, SEO optimization, editorial QA, citation injection
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : section === "ml-insights" ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                ML Intelligence Insights
+              </h3>
+              <p className="text-sm text-muted-foreground">AI-powered analysis and recommendations for your knowledge base</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/knowledge-recommendations"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/training-insights"] });
+              }}
+              data-testid="button-refresh-ml-insights"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+
+          <Card data-testid="card-training-readiness">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5" />
+                AI Training Readiness
+              </CardTitle>
+              <CardDescription>
+                Overall model readiness score based on knowledge base completeness
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {trainingInsightsLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-24 w-full" />
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[1,2,3,4].map(i => <Skeleton key={i} className="h-16" />)}
+                  </div>
+                </div>
+              ) : trainingInsights ? (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-6">
+                    <div className="relative h-24 w-24 flex-shrink-0">
+                      <svg className="h-24 w-24 -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/30" />
+                        <circle
+                          cx="50" cy="50" r="40" fill="none"
+                          stroke="currentColor" strokeWidth="8"
+                          strokeDasharray={`${trainingInsights.overallScore * 2.51} 251`}
+                          strokeLinecap="round"
+                          className={
+                            trainingInsights.overallScore >= 80 ? "text-green-500" :
+                            trainingInsights.overallScore >= 50 ? "text-blue-500" :
+                            trainingInsights.overallScore > 0 ? "text-yellow-500" : "text-muted-foreground"
+                          }
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-bold" data-testid="text-overall-score">{trainingInsights.overallScore}%</span>
+                      </div>
+                    </div>
+                    <div>
+                      <Badge
+                        variant={trainingInsights.overallStatus === "production_ready" ? "default" : "secondary"}
+                        className="mb-2"
+                        data-testid="badge-overall-status"
+                      >
+                        {trainingInsights.overallStatus === "production_ready" ? "Production Ready" :
+                         trainingInsights.overallStatus === "training" ? "In Training" :
+                         trainingInsights.overallStatus === "early_stage" ? "Early Stage" : "Not Started"}
+                      </Badge>
+                      <p className="text-sm text-muted-foreground">
+                        {trainingInsights.totalDataPoints} total data points across all dimensions
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {trainingInsights.dimensions.map((dim) => (
+                      <div key={dim.name} className="p-3 rounded-lg border" data-testid={`dimension-${dim.name.toLowerCase().replace(/\s/g, '-')}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">{dim.name}</span>
+                          <Badge
+                            variant={dim.status === "excellent" ? "default" : dim.status === "good" ? "secondary" : "outline"}
+                          >
+                            {dim.status === "not_started" ? "Pending" : dim.status}
+                          </Badge>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden mb-1.5">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              dim.score >= 80 ? "bg-green-500" :
+                              dim.score >= 50 ? "bg-blue-500" :
+                              dim.score > 0 ? "bg-yellow-500" : "bg-muted-foreground/30"
+                            )}
+                            style={{ width: `${dim.score}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">{dim.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No training data available</p>
+                  <p className="text-xs">Add knowledge sources and run analysis to see insights</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-recommendations">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5 text-yellow-500" />
+                    Smart Recommendations
+                  </CardTitle>
+                  <CardDescription>
+                    AI-suggested actions to improve your knowledge base coverage
+                  </CardDescription>
+                </div>
+                {recommendations?.summary && (
+                  <Badge variant="outline" data-testid="badge-coverage-score">
+                    Coverage: {recommendations.summary.coverageScore}%
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {recommendationsLoading ? (
+                <div className="space-y-3">
+                  {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 w-full" />)}
+                </div>
+              ) : recommendations && recommendations.recommendations.length > 0 ? (
+                <ScrollArea className="max-h-[500px]">
+                  <div className="space-y-3">
+                    {recommendations.recommendations.map((rec) => (
+                      <div
+                        key={rec.id}
+                        className="p-4 rounded-lg border hover-elevate"
+                        data-testid={`recommendation-${rec.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <Badge
+                                variant={rec.priority === "high" ? "destructive" : rec.priority === "medium" ? "default" : "secondary"}
+                              >
+                                {rec.priority}
+                              </Badge>
+                              <Badge variant="outline" className="capitalize">
+                                {rec.type.replace(/_/g, " ")}
+                              </Badge>
+                            </div>
+                            <h4 className="font-medium text-sm">{rec.title}</h4>
+                            <p className="text-xs text-muted-foreground mt-1">{rec.description}</p>
+                            {rec.relatedTopics.length > 0 && (
+                              <div className="flex gap-1.5 mt-2 flex-wrap">
+                                {rec.relatedTopics.map((topic, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">
+                                    {topic}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No recommendations yet</p>
+                  <p className="text-xs">Add more content and run analysis to get AI-powered suggestions</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {recommendations?.summary && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <Card data-testid="card-summary-sources">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">{recommendations.summary.totalSources}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Knowledge Sources</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-summary-topics">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">{recommendations.summary.totalTopics}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Topics Identified</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-summary-entities">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">{recommendations.summary.totalEntities}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Entities Extracted</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-summary-faqs">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">{recommendations.summary.totalFaqs}</p>
+                    <p className="text-xs text-muted-foreground mt-1">FAQ Pairs</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-summary-articles">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">{recommendations.summary.totalArticles}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Articles Generated</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       ) : null}

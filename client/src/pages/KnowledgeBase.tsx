@@ -57,7 +57,7 @@ import {
   Lightbulb,
   Square,
   Phone,
-  GraduationCap
+  Activity
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -271,7 +271,7 @@ export default function KnowledgeBase() {
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
   const [testQuery, setTestQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "ml-operations" | "ml-insights">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -980,7 +980,7 @@ export default function KnowledgeBase() {
         />
       </SubPanelSection>
 
-      <SubPanelSection title="Study Materials">
+      <SubPanelSection title="Knowledge Sources">
           {folders.map((folder) => {
             const isExpanded = expandedFolderIds.has(folder.id);
             const isActive = selectedFolderId === folder.id && viewMode === "folder";
@@ -1145,7 +1145,7 @@ export default function KnowledgeBase() {
           </button>
       </SubPanelSection>
 
-      <SubPanelSection title="AI Intelligence">
+      <SubPanelSection title="AI Engine">
         <SubPanelItem icon={<Globe className="h-4 w-4" />} label="Web Crawler" isActive={viewMode === "web-crawler"} onClick={() => { setViewMode("web-crawler"); setSelectedFolderId(null); }} data-testid="folder-web-crawler" />
         <SubPanelItem icon={<Brain className="h-4 w-4" />} label="AI Insights" isActive={viewMode === "ai-insights"} onClick={() => { setViewMode("ai-insights"); setSelectedFolderId(null); }} data-testid="folder-ai-insights" />
         <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="Content Studio" isActive={viewMode === "content-studio"} onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }} data-testid="folder-content-studio" />
@@ -1154,12 +1154,14 @@ export default function KnowledgeBase() {
         <SubPanelItem icon={<HelpCircle className="h-4 w-4" />} label="FAQs" isActive={viewMode === "faqs"} onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }} data-testid="folder-faqs" />
         <SubPanelItem icon={<Lightbulb className="h-4 w-4" />} label="Content Gaps" isActive={viewMode === "content-gaps"} onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }} data-testid="folder-content-gaps" />
         <SubPanelItem icon={<BarChart3 className="h-4 w-4" />} label="ML Conversations" isActive={viewMode === "ml-conversations"} onClick={() => { setViewMode("ml-conversations"); setSelectedFolderId(null); }} data-testid="folder-ml-conversations" />
+        <SubPanelItem icon={<Activity className="h-4 w-4" />} label="ML Operations" isActive={viewMode === "ml-operations"} onClick={() => { setViewMode("ml-operations"); setSelectedFolderId(null); }} data-testid="folder-ml-operations" />
+        <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="ML Insights" isActive={viewMode === "ml-insights"} onClick={() => { setViewMode("ml-insights"); setSelectedFolderId(null); }} data-testid="folder-ml-insights" />
       </SubPanelSection>
 
       {storageUsage && (
         <div className="px-3 pt-3 border-t">
           <div className="text-xs text-muted-foreground mb-1">
-            Library Capacity: {formatBytes(storageUsage.usedStorageBytes)} / {formatBytes(storageUsage.maxStorageBytes)}
+            Storage: {formatBytes(storageUsage.usedStorageBytes)} / {formatBytes(storageUsage.maxStorageBytes)}
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
             <div
@@ -1176,7 +1178,7 @@ export default function KnowledgeBase() {
     <ThreeColumnLayout
       subPanel={subPanelContent}
       subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">Knowledge Library</span>}
+      subPanelHeader={<span className="font-medium text-sm">Knowledge Engine</span>}
     >
       <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
         {/* Header */}
@@ -1184,12 +1186,12 @@ export default function KnowledgeBase() {
           <div className="flex items-center justify-between p-4 gap-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <GraduationCap className="h-5 w-5 text-primary" />
+                <Brain className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold">Professor's Knowledge Library</h1>
+                <h1 className="text-lg font-semibold">AI Knowledge Engine</h1>
                 <p className="text-xs text-muted-foreground">
-                  {dashboardStats?.totalResources || 0} study materials · {dashboardStats?.totalChunks || 0} knowledge chunks indexed
+                  {dashboardStats?.totalResources || 0} knowledge sources · {dashboardStats?.totalChunks || 0} knowledge chunks indexed
                 </p>
               </div>
             </div>
@@ -1273,8 +1275,8 @@ export default function KnowledgeBase() {
           {/* Intelligence Stats Bar */}
           <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 overflow-x-auto">
             <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-              <GraduationCap className="h-3.5 w-3.5 text-primary" />
-              <span className="font-medium text-foreground">Professor's Expertise:</span>
+              <Brain className="h-3.5 w-3.5 text-primary" />
+              <span className="font-medium text-foreground">AI Readiness:</span>
             </div>
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
@@ -1320,7 +1322,7 @@ export default function KnowledgeBase() {
           <div className="relative max-w-xl">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search the professor's library..."
+              placeholder="Search knowledge sources..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -1348,6 +1350,10 @@ export default function KnowledgeBase() {
               <KnowledgeIntelligence section="content-gaps" />
             ) : viewMode === "ml-conversations" ? (
               <KnowledgeIntelligence section="ml-conversations" />
+            ) : viewMode === "ml-operations" ? (
+              <KnowledgeIntelligence section="ml-operations" />
+            ) : viewMode === "ml-insights" ? (
+              <KnowledgeIntelligence section="ml-insights" />
             ) : isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1556,11 +1562,11 @@ export default function KnowledgeBase() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                       <div className="h-5 w-5 rounded bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                        <GraduationCap className="h-3 w-3 text-emerald-500" />
+                        <Brain className="h-3 w-3 text-emerald-500" />
                       </div>
-                      Professor's Expertise Level
+                      AI Knowledge Readiness
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground">How well-equipped your professor is to answer questions</p>
+                    <p className="text-xs text-muted-foreground">How well-equipped your AI is to answer questions</p>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -1598,14 +1604,14 @@ export default function KnowledgeBase() {
                           </div>
                           <div className="flex items-center justify-between mt-1">
                             <span className="text-xs text-muted-foreground">{dashboardStats?.totalChunks || 0} knowledge chunks</span>
-                            <span className="text-xs text-muted-foreground">{dashboardStats?.totalResources || 0} study materials</span>
+                            <span className="text-xs text-muted-foreground">{dashboardStats?.totalResources || 0} knowledge sources</span>
                           </div>
                         </div>
                       </div>
                       {(intelligenceStats?.topics || 0) > 0 && (
                         <div>
                           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                            Topics the professor can discuss
+                            Topics the AI can discuss
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             <Badge variant="secondary" className="text-xs">
@@ -1629,7 +1635,7 @@ export default function KnowledgeBase() {
                       )}
                       {(dashboardStats?.totalResources || 0) === 0 && (
                         <div className="text-center py-2">
-                          <p className="text-sm text-muted-foreground">Add study materials to build the professor's expertise</p>
+                          <p className="text-sm text-muted-foreground">Add content to build the AI's expertise</p>
                           <div className="flex items-center justify-center gap-2 mt-2">
                             <Button variant="outline" size="sm" onClick={() => setUrlDialogOpen(true)} data-testid="button-expertise-add-url">
                               <Link className="h-3.5 w-3.5 mr-1.5" />
@@ -1650,17 +1656,17 @@ export default function KnowledgeBase() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                       <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center">
-                        <GraduationCap className="h-3 w-3 text-primary" />
+                        <Brain className="h-3 w-3 text-primary" />
                       </div>
-                      Ask the Professor
+                      Ask the AI
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground">Test what the professor knows from the study materials</p>
+                    <p className="text-xs text-muted-foreground">Test what the AI knows from your knowledge sources</p>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Ask the professor a question..."
+                          placeholder="Ask a question..."
                           value={testQuery}
                           onChange={(e) => setTestQuery(e.target.value)}
                           onKeyDown={(e) => {
@@ -1695,12 +1701,12 @@ export default function KnowledgeBase() {
                         <div className="space-y-3">
                           <div>
                             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                              <GraduationCap className="h-3 w-3" />
-                              Professor's Answer
+                              <Brain className="h-3 w-3" />
+                              AI Answer
                             </div>
                             <div className="bg-primary/5 rounded-md border border-primary/20 p-3 max-h-[300px] overflow-auto">
                               <p className="text-sm leading-relaxed" data-testid="text-professor-answer">
-                                {testAgentReadingMutation.data.aiAnswer || testAgentReadingMutation.data.formattedResponse || 'The professor has no relevant study materials for this question.'}
+                                {testAgentReadingMutation.data.aiAnswer || testAgentReadingMutation.data.formattedResponse || 'No relevant knowledge sources found for this question.'}
                               </p>
                             </div>
                           </div>
@@ -1746,7 +1752,7 @@ export default function KnowledgeBase() {
                         </div>
                       )}
                       {knowledgeBase.length === 0 && (
-                        <p className="text-xs text-muted-foreground">The professor needs study materials first. Add content to build their expertise.</p>
+                        <p className="text-xs text-muted-foreground">Add knowledge sources first to enable AI responses.</p>
                       )}
                     </div>
                   </CardContent>
@@ -1893,15 +1899,15 @@ export default function KnowledgeBase() {
                   <Card className="p-12">
                     <div className="flex flex-col items-center justify-center text-center">
                       <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
-                        <GraduationCap className="h-10 w-10 text-primary" />
+                        <Brain className="h-10 w-10 text-primary" />
                       </div>
-                      <h3 className="text-xl font-semibold mb-2" data-testid="text-empty-library">The Professor's Library is Empty</h3>
+                      <h3 className="text-xl font-semibold mb-2" data-testid="text-empty-library">No Knowledge Sources Yet</h3>
                       <p className="text-muted-foreground mb-2 max-w-lg">
-                        Your AI professor has no study materials yet. Add reference documents, lecture notes, 
-                        URLs, or any content you want the professor to learn and teach from.
+                        No knowledge sources added yet. Upload documents, add URLs,
+                        or paste content to build your AI's knowledge base.
                       </p>
                       <p className="text-xs text-muted-foreground mb-6 max-w-md">
-                        The professor will only answer questions based on these materials -- never from general knowledge.
+                        The AI will only answer questions based on these sources -- never from general knowledge.
                       </p>
                       <div className="flex flex-wrap items-center justify-center gap-3">
                         <Button 

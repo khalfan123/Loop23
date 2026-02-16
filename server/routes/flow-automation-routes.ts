@@ -30,7 +30,8 @@ import {
   phoneNumbers, calls, agents, contacts,
   incomingConnections, campaigns,
   plivoPhoneNumbers, plivoCalls,
-  sipPhoneNumbers, sipCalls, twilioOpenaiCalls
+  sipPhoneNumbers, sipCalls, twilioOpenaiCalls,
+  departments, departmentAgents
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -183,6 +184,34 @@ router.get("/flows/:id", async (req: AuthRequest, res: Response) => {
     
     if (!flow) {
       return res.status(404).json({ error: "Flow not found" });
+    }
+
+    // If flow has no agent, check if it belongs to a department and auto-link the department's agent
+    if (!flow.agentId) {
+      const [dept] = await db
+        .select()
+        .from(departments)
+        .where(and(eq(departments.flowId, id), eq(departments.userId, userId)))
+        .limit(1);
+
+      if (dept) {
+        const allDeptAgents = await db
+          .select()
+          .from(departmentAgents)
+          .where(eq(departmentAgents.departmentId, dept.id));
+
+        const primaryAgent = allDeptAgents.find(a => a.isPrimary);
+        const deptAgent = primaryAgent || allDeptAgents[0];
+
+        if (deptAgent?.agentId) {
+          await db
+            .update(flows)
+            .set({ agentId: deptAgent.agentId, updatedAt: new Date() })
+            .where(eq(flows.id, id));
+          flow.agentId = deptAgent.agentId;
+          console.log(`[Flows] Auto-linked agent ${deptAgent.agentId} to flow ${id} from department ${dept.name}`);
+        }
+      }
     }
     
     res.json(flow);

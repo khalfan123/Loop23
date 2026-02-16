@@ -441,6 +441,31 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         console.log(`[Departments] Synced agent ${agentId} with canvas config: prompt=${!!systemPrompt}, voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}`);
       }
 
+      // Sync agent to department's flow so the flow shows the correct voice/agent
+      const deptData = existingDept[0];
+      if (deptData.flowId) {
+        if (isPrimary) {
+          await db
+            .update(flows)
+            .set({ agentId, updatedAt: new Date() })
+            .where(eq(flows.id, deptData.flowId));
+          console.log(`[Departments] Synced flow ${deptData.flowId} with primary agent ${agentId}`);
+        } else {
+          const [currentFlow] = await db
+            .select()
+            .from(flows)
+            .where(eq(flows.id, deptData.flowId))
+            .limit(1);
+          if (currentFlow && !currentFlow.agentId) {
+            await db
+              .update(flows)
+              .set({ agentId, updatedAt: new Date() })
+              .where(eq(flows.id, deptData.flowId));
+            console.log(`[Departments] Synced flow ${deptData.flowId} with agent ${agentId} (no previous agent)`);
+          }
+        }
+      }
+
       res.status(201).json(newDeptAgent[0]);
     } catch (error: any) {
       console.error("[Departments] Add agent error:", error);
@@ -472,6 +497,32 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
           eq(departmentAgents.departmentId, id),
           eq(departmentAgents.agentId, agentId)
         ));
+
+      // Sync flow agentId after removing the agent
+      const deptData = existingDept[0];
+      if (deptData.flowId) {
+        const [currentFlow] = await db
+          .select()
+          .from(flows)
+          .where(eq(flows.id, deptData.flowId))
+          .limit(1);
+
+        if (currentFlow && currentFlow.agentId === agentId) {
+          const remainingAgents = await db
+            .select()
+            .from(departmentAgents)
+            .where(eq(departmentAgents.departmentId, id));
+
+          const primaryAgent = remainingAgents.find(a => a.isPrimary);
+          const replacementAgentId = primaryAgent?.agentId || remainingAgents[0]?.agentId || null;
+
+          await db
+            .update(flows)
+            .set({ agentId: replacementAgentId, updatedAt: new Date() })
+            .where(eq(flows.id, deptData.flowId));
+          console.log(`[Departments] Updated flow ${deptData.flowId} agentId to ${replacementAgentId} after removing agent ${agentId}`);
+        }
+      }
 
       res.json({ success: true });
     } catch (error: any) {

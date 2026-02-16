@@ -1143,12 +1143,12 @@ export default function DepartmentManagement() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-7 gap-0 items-center" data-testid="call-center-org-card">
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
-                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center mb-2">
-                  <Phone className="h-5 w-5 text-white" />
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-xl bg-muted/40 dark:bg-muted/20">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 flex items-center justify-center mb-2">
+                  <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <span className="font-semibold text-sm">Inbound</span>
-                <span className="text-xs text-muted-foreground font-mono mt-1">{activePhoneNumber?.phoneNumber || "No number"}</span>
+                <span className="text-sm font-medium">Inbound</span>
+                <span className="text-xs text-muted-foreground mt-0.5 font-mono">{activePhoneNumber?.phoneNumber || "No number"}</span>
                 {unassignedPhones.length > 0 && (
                   <Badge variant="outline" className="text-xs mt-1 cursor-pointer" onClick={() => setShowIvrSettingsDialog(true)} data-testid="unassigned-numbers-panel">
                     {unassignedPhones.length} unassigned
@@ -1157,17 +1157,17 @@ export default function DepartmentManagement() {
               </div>
 
               <div className="hidden md:flex items-center justify-center">
-                <div className="w-full h-px bg-border relative">
-                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
+                <div className="w-full h-px bg-border/40 relative">
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 absolute -right-1.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
               <div className="flex md:hidden items-center justify-center py-1">
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-                <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center mb-2">
-                  <GitBranch className="h-5 w-5 text-white" />
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-xl bg-muted/40 dark:bg-muted/20">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center mb-2">
+                  <GitBranch className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 {editingIvrName && ivrConfigurations.length > 0 ? (
                   <div className="flex items-center gap-1 w-full">
@@ -1201,7 +1201,7 @@ export default function DepartmentManagement() {
                   </div>
                 ) : (
                   <span
-                    className="font-semibold text-sm cursor-pointer"
+                    className="text-sm font-medium cursor-pointer"
                     onClick={() => {
                       const activeIvrItem = ivrConfigurations.find(i => i.isActive);
                       if (activeIvrItem) {
@@ -1214,51 +1214,50 @@ export default function DepartmentManagement() {
                     IVR Router
                   </span>
                 )}
-                <span className="text-xs text-muted-foreground mt-1">{ivrConfigurations.find(i => i.isActive)?.name || "Auto Distribution"}</span>
+                <span className="text-xs text-muted-foreground mt-0.5">{ivrConfigurations.find(i => i.isActive)?.name || "Auto Distribution"}</span>
                 {multiLangEnabled && languageOptions.length > 1 && (
                   <Badge variant="outline" className="text-xs mt-1">{languageOptions.length} Languages</Badge>
                 )}
               </div>
 
               <div className="hidden md:flex items-center justify-center">
-                <div className="w-full h-px bg-border relative">
-                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
+                <div className="w-full h-px bg-border/40 relative">
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 absolute -right-1.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
               <div className="flex md:hidden items-center justify-center py-1">
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-                <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center mb-2">
-                  <Building2 className="h-5 w-5 text-white" />
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-xl bg-muted/40 dark:bg-muted/20">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center mb-2">
+                  <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
-                <span className="font-semibold text-sm">Departments</span>
-                <span className="text-xs text-muted-foreground mt-1">{departments.length} Active</span>
+                <span className="text-sm font-medium">Departments</span>
+                <span className="text-xs text-muted-foreground mt-0.5">{departments.length} Active</span>
               </div>
 
               <div className="hidden md:flex items-center justify-center">
-                <div className="w-full h-px bg-border relative">
-                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
+                <div className="w-full h-px bg-border/40 relative">
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 absolute -right-1.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
               <div className="flex md:hidden items-center justify-center py-1">
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
-                <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center mb-2">
-                  <Mic className="h-5 w-5 text-white" />
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-xl bg-muted/40 dark:bg-muted/20">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/15 flex items-center justify-center mb-2">
+                  <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
-                <span className="font-semibold text-sm">AI Agents</span>
-                <span className="text-xs text-muted-foreground mt-1">Voice Enabled</span>
+                <span className="text-sm font-medium">AI Agents</span>
+                <span className="text-xs text-muted-foreground mt-0.5">Voice Enabled</span>
               </div>
             </div>
 
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">Departments & AI Agents</span>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-medium tracking-wide text-muted-foreground/60 uppercase">Departments & AI Agents</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {departments.map((dept, idx) => (
@@ -1281,8 +1280,8 @@ export default function DepartmentManagement() {
                   />
                 ))}
 
-                <Card
-                  className="border-dashed hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
+                <div 
+                  className="rounded-xl border border-dashed border-border/40 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
                   onClick={() => {
                     setSelectedDepartment(null);
                     setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
@@ -1292,9 +1291,11 @@ export default function DepartmentManagement() {
                   }}
                   data-testid="add-department-card"
                 >
-                  <Plus className="h-8 w-8 text-muted-foreground mb-2" />
-                  <span className="text-muted-foreground">Add Department</span>
-                </Card>
+                  <div className="w-9 h-9 rounded-xl bg-muted/40 flex items-center justify-center mb-2">
+                    <Plus className="h-4 w-4 text-muted-foreground/60" />
+                  </div>
+                  <span className="text-xs text-muted-foreground/60">Add Department</span>
+                </div>
               </div>
             </div>
 
@@ -1420,8 +1421,8 @@ export default function DepartmentManagement() {
                 />
               ))}
               
-              <Card 
-                className="border-dashed hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
+              <div 
+                className="rounded-xl border border-dashed border-border/40 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
                 onClick={() => {
                   setSelectedDepartment(null);
                   setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
@@ -1431,9 +1432,11 @@ export default function DepartmentManagement() {
                 }}
                 data-testid="add-department-card-tab"
               >
-                <Plus className="h-8 w-8 text-muted-foreground mb-2" />
-                <span className="text-muted-foreground">Add Department</span>
-              </Card>
+                <div className="w-9 h-9 rounded-xl bg-muted/40 flex items-center justify-center mb-2">
+                  <Plus className="h-4 w-4 text-muted-foreground/60" />
+                </div>
+                <span className="text-xs text-muted-foreground/60">Add Department</span>
+              </div>
             </div>
           </div>
         )}
@@ -2679,131 +2682,120 @@ function DepartmentCard({
   const agents = department.assignedAgents || [];
 
   return (
-    <Card 
-      className="relative overflow-visible group"
+    <div 
+      className="rounded-xl bg-muted/40 dark:bg-muted/20 p-4 space-y-3"
       data-testid={`department-card-${department.id}`}
     >
-      <div 
-        className="absolute top-0 left-0 right-0 h-1 rounded-t-lg"
-        style={{ backgroundColor: department.color }}
-      />
-      
-      <CardHeader className="pb-3 pt-4 gap-0">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div 
-              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" 
-              style={{ backgroundColor: `${department.color}15` }}
-            >
-              <IconComponent className="h-5 w-5" style={{ color: department.color }} />
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div 
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" 
+            style={{ backgroundColor: `${department.color}12` }}
+          >
+            <IconComponent className="h-4 w-4" style={{ color: department.color }} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium truncate">{department.name}</span>
+              <span className="text-[11px] text-muted-foreground/60 shrink-0">#{index}</span>
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-base truncate">{department.name}</CardTitle>
-                <span className="text-xs text-muted-foreground shrink-0" data-testid={`dept-index-${department.id}`}>#{index}</span>
-              </div>
-              {department.description && (
-                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{department.description}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button variant="ghost" size="icon" onClick={onEdit} data-testid={`button-edit-${department.id}`}>
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete} className="text-destructive" data-testid={`button-delete-${department.id}`}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="space-y-3 pt-0">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1" data-testid={`badge-ivr-active-${department.id}`}>
-            <div className={`w-2 h-2 rounded-full ${department.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
-            <span>{department.isActive ? "Active" : "Inactive"}</span>
-          </div>
-          <span className="text-border">|</span>
-          <div className="flex items-center gap-1" data-testid={`badge-ai-voice-${department.id}`}>
-            <Mic className="h-3 w-3" />
-            <span>{agentCount} Agent{agentCount !== 1 ? 's' : ''}</span>
-          </div>
-          <span className="text-border">|</span>
-          <div className="flex items-center gap-1">
-            <Globe className="h-3 w-3" />
-            <span>{langCount} Lang{langCount !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
-
-        <div 
-          className="flex items-center gap-1 cursor-pointer hover-elevate rounded p-2 -mx-2 bg-muted/30" 
-          onClick={onToggleExpand}
-          data-testid={`toggle-expand-${department.id}`}
-        >
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          )}
-          <span className="text-sm text-muted-foreground flex-1">
-            {agentCount > 0 ? `${agentCount} assigned agent${agentCount !== 1 ? 's' : ''}` : 'No agents assigned'}
-          </span>
-          {agentCount > 0 && (
-            <div className="flex -space-x-1">
-              {agents.slice(0, 3).map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
-                <div 
-                  key={agent.id} 
-                  className="w-5 h-5 rounded-full bg-muted border-2 border-card flex items-center justify-center"
-                  title={agent.agentName}
-                >
-                  <span className="text-[8px] font-medium text-foreground">{agent.agentName.charAt(0).toUpperCase()}</span>
-                </div>
-              ))}
-              {agents.length > 3 && (
-                <div className="w-5 h-5 rounded-full bg-muted border-2 border-card flex items-center justify-center">
-                  <span className="text-[8px] font-medium text-muted-foreground">+{agents.length - 3}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        
-        {isExpanded && (
-          <div className="space-y-1.5 pt-1" data-testid={`agent-list-${department.id}`}>
-            {agents.length > 0 ? (
-              agents.map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
-                <div key={agent.id} className="flex items-center gap-2 text-sm p-1.5 rounded bg-muted/30">
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <Mic className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                  <span className="font-medium truncate flex-1">{agent.agentName}</span>
-                  <Badge variant="secondary" className="text-xs shrink-0">
-                    {languages.find(l => l.value === agent.language)?.label || agent.language}
-                  </Badge>
-                </div>
-              ))
-            ) : (
-              <div className="text-sm text-muted-foreground text-center py-2">No agents assigned yet</div>
+            {department.description && (
+              <p className="text-xs text-muted-foreground/70 line-clamp-1 mt-0.5">{department.description}</p>
             )}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full justify-center" 
-              onClick={onAddAgent}
-              data-testid={`button-add-agent-${department.id}`}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Agent
-            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button variant="ghost" size="icon" onClick={onEdit} data-testid={`button-edit-${department.id}`}>
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onDelete} className="text-destructive" data-testid={`button-delete-${department.id}`}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 text-[11px] text-muted-foreground/70">
+        <div className="flex items-center gap-1.5" data-testid={`badge-ivr-active-${department.id}`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${department.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
+          <span>{department.isActive ? "Active" : "Inactive"}</span>
+        </div>
+        <div className="flex items-center gap-1" data-testid={`badge-ai-voice-${department.id}`}>
+          <Mic className="h-3 w-3" />
+          <span>{agentCount} Agent{agentCount !== 1 ? 's' : ''}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Globe className="h-3 w-3" />
+          <span>{langCount} Lang{langCount !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+
+      <div 
+        className="flex items-center gap-1.5 cursor-pointer rounded-lg p-2 -mx-1 hover-elevate" 
+        onClick={onToggleExpand}
+        data-testid={`toggle-expand-${department.id}`}
+      >
+        {isExpanded ? (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+        )}
+        <span className="text-xs text-muted-foreground/70 flex-1">
+          {agentCount > 0 ? `${agentCount} assigned agent${agentCount !== 1 ? 's' : ''}` : 'No agents assigned'}
+        </span>
+        {agentCount > 0 && (
+          <div className="flex -space-x-1">
+            {agents.slice(0, 3).map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
+              <div 
+                key={agent.id} 
+                className="w-5 h-5 rounded-full bg-background border border-border/50 flex items-center justify-center"
+                title={agent.agentName}
+              >
+                <span className="text-[8px] font-medium text-foreground/70">{agent.agentName.charAt(0).toUpperCase()}</span>
+              </div>
+            ))}
+            {agents.length > 3 && (
+              <div className="w-5 h-5 rounded-full bg-background border border-border/50 flex items-center justify-center">
+                <span className="text-[8px] font-medium text-muted-foreground">+{agents.length - 3}</span>
+              </div>
+            )}
           </div>
         )}
+      </div>
+      
+      {isExpanded && (
+        <div className="space-y-1.5" data-testid={`agent-list-${department.id}`}>
+          {agents.length > 0 ? (
+            agents.map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
+              <div key={agent.id} className="flex items-center gap-2 text-sm p-2 rounded-lg bg-background/60 dark:bg-background/30">
+                <div className="w-6 h-6 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+                  <Mic className="h-3 w-3 text-muted-foreground/60" />
+                </div>
+                <span className="text-sm font-medium truncate flex-1">{agent.agentName}</span>
+                <Badge variant="secondary" className="text-[10px] shrink-0">
+                  {languages.find(l => l.value === agent.language)?.label || agent.language}
+                </Badge>
+              </div>
+            ))
+          ) : (
+            <div className="text-xs text-muted-foreground/60 text-center py-3">No agents assigned yet</div>
+          )}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full justify-center text-xs" 
+            onClick={onAddAgent}
+            data-testid={`button-add-agent-${department.id}`}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add Agent
+          </Button>
+        </div>
+      )}
 
-        <Button variant="outline" size="sm" onClick={onFlow} className="w-full" data-testid={`button-flow-${department.id}`}>
-          <GitBranch className="h-4 w-4 mr-2" />
-          View Flow
-        </Button>
-      </CardContent>
-    </Card>
+      <Button variant="ghost" size="sm" onClick={onFlow} className="w-full text-xs text-muted-foreground" data-testid={`button-flow-${department.id}`}>
+        <GitBranch className="h-3.5 w-3.5 mr-1.5" />
+        View Flow
+      </Button>
+    </div>
   );
 }

@@ -270,7 +270,7 @@ export default function KnowledgeBase() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [testQuery, setTestQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -1066,6 +1066,7 @@ export default function KnowledgeBase() {
       </SubPanelSection>
 
       <SubPanelSection title="AI Intelligence">
+        <SubPanelItem icon={<Globe className="h-4 w-4" />} label="Web Crawler" isActive={viewMode === "web-crawler"} onClick={() => { setViewMode("web-crawler"); setSelectedFolderId(null); }} data-testid="folder-web-crawler" />
         <SubPanelItem icon={<Brain className="h-4 w-4" />} label="AI Insights" isActive={viewMode === "ai-insights"} onClick={() => { setViewMode("ai-insights"); setSelectedFolderId(null); }} data-testid="folder-ai-insights" />
         <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="Content Studio" isActive={viewMode === "content-studio"} onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }} data-testid="folder-content-studio" />
         <SubPanelItem icon={<Tags className="h-4 w-4" />} label="Entities" isActive={viewMode === "entities"} onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }} data-testid="folder-entities" />
@@ -1251,7 +1252,9 @@ export default function KnowledgeBase() {
         {/* Content */}
         <ScrollArea className="flex-1">
           <div className="p-4">
-            {viewMode === "ai-insights" ? (
+            {viewMode === "web-crawler" ? (
+              <KnowledgeIntelligence section="crawl" />
+            ) : viewMode === "ai-insights" ? (
               <KnowledgeIntelligence section="insights" />
             ) : viewMode === "content-studio" ? (
               <KnowledgeIntelligence section="content-studio" />

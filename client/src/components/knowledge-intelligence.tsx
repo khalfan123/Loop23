@@ -57,7 +57,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface KnowledgeIntelligenceProps {
-  section?: "insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "all";
+  section?: "crawl" | "insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "all";
 }
 
 interface CrawlJob {
@@ -1391,6 +1391,101 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
           )}
         </TabsContent>
       </Tabs>
+      ) : section === "crawl" ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Web Crawl Jobs</h3>
+            <Button onClick={() => setCrawlDialogOpen(true)} data-testid="button-new-crawl">
+              <Globe className="h-4 w-4 mr-2" />
+              New Crawl Job
+            </Button>
+          </div>
+
+          {crawlJobs.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <Globe className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h4 className="font-medium mb-2">No Crawl Jobs Yet</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Start crawling websites to automatically import content into your knowledge base.
+                </p>
+                <Button onClick={() => setCrawlDialogOpen(true)}>Create Your First Crawl</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {crawlJobs.map((job) => (
+                <Card key={job.id} data-testid={`card-crawl-job-${job.id}`}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium truncate" data-testid={`text-crawl-job-name-${job.id}`}>{job.name}</h4>
+                          <Badge variant={
+                            job.status === "completed" ? "default" :
+                            job.status === "running" ? "secondary" :
+                            job.status === "failed" ? "destructive" : "outline"
+                          } data-testid={`badge-crawl-job-status-${job.id}`}>
+                            {job.status}
+                          </Badge>
+                          <Badge variant="outline">{job.crawlType}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate mt-1" data-testid={`text-crawl-job-url-${job.id}`}>{job.startUrl}</p>
+                        <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                          <span data-testid={`text-crawl-pages-discovered-${job.id}`}>Discovered: {job.pagesDiscovered}</span>
+                          <span data-testid={`text-crawl-pages-crawled-${job.id}`}>Crawled: {job.pagesCrawled}</span>
+                          <span data-testid={`text-crawl-pages-processed-${job.id}`}>Processed: {job.pagesProcessed}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {job.status === "pending" && (
+                          <Button 
+                            size="sm" 
+                            onClick={() => startCrawlMutation.mutate(job.id)}
+                            disabled={startCrawlMutation.isPending}
+                            data-testid={`button-start-crawl-${job.id}`}
+                          >
+                            <Play className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {job.status === "completed" && job.pagesCrawled > job.pagesProcessed && (
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            onClick={() => processCrawlMutation.mutate(job.id)}
+                            disabled={processCrawlMutation.isPending}
+                            data-testid={`button-process-crawl-${job.id}`}
+                          >
+                            <RefreshCw className="h-4 w-4 mr-1" />
+                            Process
+                          </Button>
+                        )}
+                        {job.status === "running" && (
+                          <Button size="sm" variant="outline" disabled data-testid={`button-running-crawl-${job.id}`}>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </Button>
+                        )}
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          onClick={() => {
+                            if (confirm("Delete this crawl job and all associated data?")) {
+                              deleteCrawlJobMutation.mutate(job.id);
+                            }
+                          }}
+                          disabled={deleteCrawlJobMutation.isPending || job.status === "running"}
+                          data-testid={`button-delete-crawl-${job.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       ) : section === "insights" ? (
         /* Direct render of Insights when section="insights" */
         <div className="space-y-4">

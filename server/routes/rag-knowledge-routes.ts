@@ -381,7 +381,13 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         contentType = result.contentType;
         contentSize = result.size;
       } catch (fetchError: any) {
-        return res.status(400).json({ error: `Failed to fetch URL: ${fetchError.message}` });
+        console.error("[RAG Routes] URL fetch error:", fetchError.message, fetchError.cause || '');
+        const userMessage = fetchError.message?.includes('fetch failed') || fetchError.message?.includes('ENOTFOUND')
+          ? `Could not reach this URL. Please check the address and try again.`
+          : fetchError.message?.includes('abort')
+          ? `The URL took too long to respond (30s timeout). Try again later.`
+          : `Failed to fetch URL: ${fetchError.message}`;
+        return res.status(400).json({ error: userMessage });
       }
 
       // Extract text from HTML if needed

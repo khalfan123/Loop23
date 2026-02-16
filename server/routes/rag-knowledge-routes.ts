@@ -1116,6 +1116,55 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
   });
 
   /**
+   * Update article title and/or content
+   */
+  router.patch("/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { title, content } = req.body;
+
+      if (!title && content === undefined) {
+        return res.status(400).json({ error: "At least title or content must be provided" });
+      }
+
+      const existingItem = await db
+        .select()
+        .from(knowledgeBase)
+        .where(and(eq(knowledgeBase.id, id), eq(knowledgeBase.userId, req.userId!)))
+        .limit(1);
+
+      if (existingItem.length === 0) {
+        return res.status(404).json({ error: "Item not found" });
+      }
+
+      const updateData: Record<string, any> = {};
+      if (title !== undefined) {
+        updateData.title = title;
+      }
+      if (content !== undefined) {
+        updateData.content = content;
+        updateData.storageSize = Buffer.byteLength(content, 'utf8');
+      }
+
+      const [updatedItem] = await db
+        .update(knowledgeBase)
+        .set(updateData)
+        .where(and(eq(knowledgeBase.id, id), eq(knowledgeBase.userId, req.userId!)))
+        .returning();
+
+      if (content !== undefined) {
+        await db.delete(knowledgeChunks).where(and(eq(knowledgeChunks.knowledgeBaseId, id), eq(knowledgeChunks.userId, req.userId!)));
+        RAGKnowledgeService.processKnowledgeItem(id, req.userId!, content).catch(err => console.error("[RAG Routes] Re-processing error:", err));
+      }
+
+      res.json(updatedItem);
+    } catch (error: any) {
+      console.error("[RAG Routes] Update item error:", error);
+      res.status(500).json({ error: "Failed to update item" });
+    }
+  });
+
+  /**
    * Assign item to folder
    */
   router.patch("/:id/folder", authenticateToken, async (req: AuthRequest, res: Response) => {

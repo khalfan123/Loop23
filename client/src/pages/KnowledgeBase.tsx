@@ -290,6 +290,9 @@ export default function KnowledgeBase() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [deletingItem, setDeletingItem] = useState<KnowledgeBaseItem | null>(null);
+  const [editingItem, setEditingItem] = useState<KnowledgeBaseItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
   
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
@@ -548,6 +551,32 @@ export default function KnowledgeBase() {
       toast({
         title: t('common.error'),
         description: t('knowledgeBase.toast.deleteFailed'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: async (data: { id: string; title?: string; content?: string }) => {
+      const res = await apiRequest('PATCH', `/api/rag-knowledge/${data.id}`, { title: data.title, content: data.content });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
+      setEditingItem(null);
+      setEditTitle('');
+      setEditContent('');
+      toast({
+        title: "Article Updated",
+        description: "The article has been updated and re-indexed for AI search.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update the article.",
         variant: "destructive",
       });
     },
@@ -1861,14 +1890,29 @@ export default function KnowledgeBase() {
                                   {new Date(item.createdAt).toLocaleDateString()}
                                 </TableCell>
                                 <TableCell>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => { e.stopPropagation(); setDeletingItem(item); }}
-                                    data-testid={`button-delete-${item.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingItem(item);
+                                        setEditTitle(item.title);
+                                        setEditContent(item.content || '');
+                                      }}
+                                      data-testid={`button-edit-${item.id}`}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => { e.stopPropagation(); setDeletingItem(item); }}
+                                      data-testid={`button-delete-${item.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                               {expandedItemId === item.id && (
@@ -2056,14 +2100,29 @@ export default function KnowledgeBase() {
                                     {new Date(item.createdAt).toLocaleDateString()}
                                   </TableCell>
                                   <TableCell>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={(e) => { e.stopPropagation(); setDeletingItem(item); }}
-                                      data-testid={`button-delete-${item.id}`}
-                                    >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingItem(item);
+                                          setEditTitle(item.title);
+                                          setEditContent(item.content || '');
+                                        }}
+                                        data-testid={`button-edit-${item.id}`}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => { e.stopPropagation(); setDeletingItem(item); }}
+                                        data-testid={`button-delete-${item.id}`}
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                                 {expandedItemId === item.id && (
@@ -2381,6 +2440,82 @@ export default function KnowledgeBase() {
               data-testid="button-save-folder"
             >
               {(createFolderMutation.isPending || updateFolderMutation.isPending) ? "Saving..." : (editingFolder ? "Update" : "Create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Item Dialog */}
+      <Dialog open={!!editingItem} onOpenChange={(open) => {
+        if (!open) {
+          setEditingItem(null);
+          setEditTitle('');
+          setEditContent('');
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Article</DialogTitle>
+            <DialogDescription>
+              Update the title and content of this knowledge base article. Changes will be re-indexed for AI search.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                placeholder="Article title..."
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                data-testid="input-edit-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-content">Content</Label>
+              <Textarea
+                id="edit-content"
+                placeholder="Article content..."
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={15}
+                className="resize-none font-mono text-sm"
+                data-testid="input-edit-content"
+              />
+              <p className="text-xs text-muted-foreground">
+                {editContent.length.toLocaleString()} characters
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setEditingItem(null);
+              setEditTitle('');
+              setEditContent('');
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editingItem) {
+                  updateItemMutation.mutate({
+                    id: editingItem.id,
+                    title: editTitle,
+                    content: editContent,
+                  });
+                }
+              }}
+              disabled={updateItemMutation.isPending || !editTitle.trim()}
+              data-testid="button-submit-edit"
+            >
+              {updateItemMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Save Changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

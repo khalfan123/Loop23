@@ -139,13 +139,28 @@ async function fetchUrlWithLimits(url: string): Promise<{ content: string; conte
   const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
   
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Platform-Knowledge-Bot/1.0',
-        'Accept': 'text/html, text/plain, application/json, text/markdown, */*',
-      },
-    });
+    let response: globalThis.Response;
+    try {
+      response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Platform-Knowledge-Bot/1.0',
+          'Accept': 'text/html, text/plain, application/json, text/markdown, */*',
+        },
+      });
+    } catch (firstErr: any) {
+      const certErrors = ['CERT_HAS_EXPIRED', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'ERR_TLS_CERT_ALTNAME_INVALID', 'SELF_SIGNED_CERT_IN_CHAIN'];
+      const isCertError = certErrors.some(code => firstErr?.cause?.code === code) || firstErr?.message?.includes('certificate');
+      if (isCertError) {
+        console.log(`[RAG Routes] SSL cert issue for ${url}, retrying with curl -k...`);
+        const { execSync } = await import('child_process');
+        const safeUrl = url.replace(/["`$\\]/g, '');
+        const html = execSync(`curl -sSLk --max-time 25 -H "User-Agent: Platform-Knowledge-Bot/1.0" "${safeUrl}"`, { encoding: 'utf-8', maxBuffer: MAX_URL_CONTENT_SIZE });
+        clearTimeout(timeout);
+        return { content: html, contentType: 'text/html', size: Buffer.byteLength(html) };
+      }
+      throw firstErr;
+    }
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);

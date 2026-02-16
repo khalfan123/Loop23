@@ -585,6 +585,8 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         return res.status(400).json({ error: "Knowledge base IDs are required" });
       }
 
+      console.log(`[RAG Routes] Search query: "${query}"`);
+
       const results = await RAGKnowledgeService.searchKnowledge(
         query,
         knowledgeBaseIds,

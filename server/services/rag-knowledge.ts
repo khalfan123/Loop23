@@ -59,9 +59,9 @@ const MAX_CHUNK_CHARS = 2000; // approximate chars per chunk
 const DEFAULT_STORAGE_LIMIT_BYTES = 20 * 1024 * 1024;
 
 // Minimum relevance thresholds for filtering low-quality results
-const MIN_VECTOR_RELEVANCE = 0.72; // Minimum cosine similarity for vector search results
+const MIN_VECTOR_RELEVANCE = 0.65; // Minimum cosine similarity for vector search results
 const MIN_FAQ_RELEVANCE = 0.50; // FAQs can have lower threshold (keyword-based)
-const MIN_FALLBACK_RELEVANCE = 0.45; // Direct content fallback threshold
+const MIN_FALLBACK_RELEVANCE = 0.40; // Direct content fallback threshold
 
 const HR_CAREER_INDICATORS = [
   'career progression', 'open positions', 'view open positions', 'join us',
@@ -343,6 +343,62 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
+async function expandQuery(query: string): Promise<string[]> {
+  try {
+    const openai = await getOpenAIClient();
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a query expansion assistant. Given a user's casual/incomplete question, generate 2-3 focused search queries that would help find relevant information in a knowledge base about products and services.
+
+Return ONLY the search queries, one per line. No numbering, no explanations. Focus on extracting the user's intent and adding relevant product/service terms.`
+        },
+        {
+          role: "user",
+          content: query
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 150,
+    });
+
+    const content = response.choices[0]?.message?.content?.trim();
+    if (!content) return [query];
+
+    const expandedQueries = content
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0 && line.length < 200);
+
+    if (expandedQueries.length === 0) return [query];
+
+    console.log(`[RAG] Expanded query "${query}" into ${expandedQueries.length} queries: ${expandedQueries.join(' | ')}`);
+    return expandedQueries;
+  } catch (error: any) {
+    console.error(`[RAG] Query expansion failed, using original:`, error.message);
+    return [query];
+  }
+}
+
+function needsQueryExpansion(query: string): boolean {
+  if (query.length > 80) return false;
+  const words = query.split(/\s+/).filter(w => w.length > 1);
+  if (words.length > 15) return false;
+  const hasProductTerms = PRODUCT_SERVICE_KEYWORDS.some(kw => query.toLowerCase().includes(kw));
+  const conversationalPatterns = [
+    /^i('m| am| want| need| would)/i,
+    /^(hey|hi|hello|can you|could you|please)/i,
+    /^(tell me|show me|help me|i('d| would) like)/i,
+    /^(looking for|interested in|thinking about)/i,
+  ];
+  const isConversational = conversationalPatterns.some(p => p.test(query.trim()));
+  if (isConversational) return true;
+  if (words.length <= 6 && !hasProductTerms) return true;
+  return false;
+}
+
 export class RAGKnowledgeService {
   
   /**
@@ -518,6 +574,11 @@ export class RAGKnowledgeService {
         return [];
       }
 
+      let expandedQueries: string[] | null = null;
+      if (needsQueryExpansion(query)) {
+        expandedQueries = await expandQuery(query);
+      }
+
       const faqResults = await this.searchFAQs(query, knowledgeBaseIds, userId);
       if (faqResults.length > 0) {
         console.log(`[RAG] Found ${faqResults.length} FAQ matches`);
@@ -538,15 +599,30 @@ export class RAGKnowledgeService {
       if (chunks.length > 0) {
         console.log(`[RAG] Searching ${chunks.length} chunks via vector similarity`);
         
-        const queryEmbedding = await generateEmbedding(query);
+        const allQueries = [query, ...(expandedQueries || [])];
+        const queryEmbeddings = await Promise.all(
+          allQueries.map(q => generateEmbedding(q))
+        );
         
-        const allScoredChunks = chunks
-          .filter(chunk => chunk.embedding && Array.isArray(chunk.embedding))
-          .map(chunk => ({
-            chunk,
-            score: cosineSimilarity(queryEmbedding, chunk.embedding as number[]),
-            source: chunk.knowledgeBaseId
-          }))
+        const chunksWithEmbeddings = chunks.filter(chunk => chunk.embedding && Array.isArray(chunk.embedding));
+        
+        const scoreMap = new Map<string, { chunk: KnowledgeChunk; score: number; source: string }>();
+        
+        for (const embedding of queryEmbeddings) {
+          for (const chunk of chunksWithEmbeddings) {
+            const score = cosineSimilarity(embedding, chunk.embedding as number[]);
+            const existing = scoreMap.get(chunk.id);
+            if (!existing || score > existing.score) {
+              scoreMap.set(chunk.id, {
+                chunk,
+                score,
+                source: chunk.knowledgeBaseId
+              });
+            }
+          }
+        }
+        
+        const allScoredChunks = Array.from(scoreMap.values())
           .sort((a, b) => b.score - a.score);
         
         const preFilterCount = allScoredChunks.length;
@@ -554,7 +630,7 @@ export class RAGKnowledgeService {
           .filter(r => r.score >= MIN_VECTOR_RELEVANCE)
           .slice(0, maxResults);
         
-        console.log(`[RAG] Found ${chunkResults.length}/${preFilterCount} chunks above ${MIN_VECTOR_RELEVANCE} threshold (top score: ${allScoredChunks[0]?.score.toFixed(3) || 'N/A'}, cutoff filtered: ${preFilterCount - chunkResults.length})`);
+        console.log(`[RAG] Found ${chunkResults.length}/${preFilterCount} chunks above ${MIN_VECTOR_RELEVANCE} threshold (top score: ${allScoredChunks[0]?.score.toFixed(3) || 'N/A'}, cutoff filtered: ${preFilterCount - chunkResults.length}, expanded: ${expandedQueries ? 'yes' : 'no'})`);
       }
       
       let combined = [...faqResults, ...chunkResults]

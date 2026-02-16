@@ -365,6 +365,7 @@ export default function DepartmentManagement() {
   const [editingIvrName, setEditingIvrName] = useState<string | null>(null);
   const [editIvrNameValue, setEditIvrNameValue] = useState<string>("");
   
+  const [showFlowDetails, setShowFlowDetails] = useState(false);
   const [ivrConfigOpen, setIvrConfigOpen] = useState(false);
   const [ivrEnabled, setIvrEnabled] = useState(true);
   const [multiLangEnabled, setMultiLangEnabled] = useState(false);
@@ -1026,23 +1027,166 @@ export default function DepartmentManagement() {
       <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="department-management-page">
         {activeTab === 'org-map' && (
           <div className="space-y-6 p-4">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Network className="h-4 w-4 text-foreground" />
-                <span className="font-medium">Call Center Organization</span>
+            <div className="flex items-center gap-2 mb-2">
+              <Network className="h-4 w-4 text-foreground" />
+              <span className="font-medium">Call Center Organization</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-0 items-center" data-testid="call-center-org-card">
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center mb-2">
+                  <Phone className="h-5 w-5 text-white" />
+                </div>
+                <span className="font-semibold text-sm">Inbound</span>
+                <span className="text-xs text-muted-foreground font-mono mt-1">{activePhoneNumber?.phoneNumber || "No number"}</span>
+                {unassignedPhones.length > 0 && (
+                  <Badge variant="outline" className="text-xs mt-1 cursor-pointer" onClick={() => setShowIvrSettingsDialog(true)} data-testid="unassigned-numbers-panel">
+                    {unassignedPhones.length} unassigned
+                  </Badge>
+                )}
               </div>
+
+              <div className="hidden md:flex items-center justify-center">
+                <div className="w-full h-px bg-border relative">
+                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+              <div className="flex md:hidden items-center justify-center py-1">
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </div>
+
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center mb-2">
+                  <GitBranch className="h-5 w-5 text-white" />
+                </div>
+                {editingIvrName && ivrConfigurations.length > 0 ? (
+                  <div className="flex items-center gap-1 w-full">
+                    <Input
+                      value={editIvrNameValue}
+                      onChange={(e) => setEditIvrNameValue(e.target.value)}
+                      className="h-6 text-sm text-center"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && editIvrNameValue.trim()) {
+                          updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
+                        } else if (e.key === "Escape") {
+                          setEditingIvrName(null);
+                          setEditIvrNameValue("");
+                        }
+                      }}
+                      data-testid="input-edit-ivr-name"
+                    />
+                    <Button 
+                      size="icon" 
+                      variant="ghost"
+                      onClick={() => {
+                        if (editIvrNameValue.trim()) {
+                          updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
+                        }
+                      }}
+                      data-testid="button-confirm-ivr-name"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <span
+                    className="font-semibold text-sm cursor-pointer"
+                    onClick={() => {
+                      const activeIvrItem = ivrConfigurations.find(i => i.isActive);
+                      if (activeIvrItem) {
+                        setEditingIvrName(activeIvrItem.id);
+                        setEditIvrNameValue(activeIvrItem.name || "Auto Distribution");
+                      }
+                    }}
+                    data-testid="ivr-name-editable"
+                  >
+                    IVR Router
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground mt-1">{ivrConfigurations.find(i => i.isActive)?.name || "Auto Distribution"}</span>
+                {multiLangEnabled && languageOptions.length > 1 && (
+                  <Badge variant="outline" className="text-xs mt-1">{languageOptions.length} Languages</Badge>
+                )}
+              </div>
+
+              <div className="hidden md:flex items-center justify-center">
+                <div className="w-full h-px bg-border relative">
+                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+              <div className="flex md:hidden items-center justify-center py-1">
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </div>
+
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center mb-2">
+                  <Building2 className="h-5 w-5 text-white" />
+                </div>
+                <span className="font-semibold text-sm">Departments</span>
+                <span className="text-xs text-muted-foreground mt-1">{departments.length} Active</span>
+              </div>
+
+              <div className="hidden md:flex items-center justify-center">
+                <div className="w-full h-px bg-border relative">
+                  <ChevronRight className="h-4 w-4 text-muted-foreground absolute -right-2 top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+              <div className="flex md:hidden items-center justify-center py-1">
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </div>
+
+              <div className="md:col-span-1 flex flex-col items-center text-center p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+                <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center mb-2">
+                  <Mic className="h-5 w-5 text-white" />
+                </div>
+                <span className="font-semibold text-sm">AI Agents</span>
+                <span className="text-xs text-muted-foreground mt-1">Voice Enabled</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
-                <Button 
-                  variant="destructive" 
-                  onClick={() => setShowDeleteAllDialog(true)}
-                  disabled={departments.length === 0}
-                  data-testid="button-delete-all"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete All
-                </Button>
-                <Button 
+                <Button
                   variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const activeIvrItem = ivrConfigurations.find(i => i.isActive);
+                    if (activeIvrItem) {
+                      setIvrEnabled(activeIvrItem.isActive);
+                      const savedLangOptions = activeIvrItem.languageOptions as LanguageOption[] | null;
+                      if (savedLangOptions && savedLangOptions.length > 0) {
+                        setMultiLangEnabled(savedLangOptions.length > 1);
+                        setLanguageOptions(savedLangOptions);
+                      } else {
+                        setMultiLangEnabled(false);
+                        setLanguageOptions([{
+                          id: "default",
+                          language: "en",
+                          voiceId: "nova",
+                          greeting: activeIvrItem.greetingMessage || DEFAULT_GREETINGS.en,
+                        }]);
+                      }
+                    }
+                    setIvrConfigOpen(true);
+                  }}
+                  data-testid="button-configure-ivr"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configure IVR
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowIvrSettingsDialog(true)}
+                  data-testid="button-settings"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  IVR Settings
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setLocation("/app/departments/canvas")}
                   data-testid="button-open-canvas"
                 >
@@ -1050,291 +1194,23 @@ export default function DepartmentManagement() {
                   Design Canvas
                 </Button>
               </div>
-            </div>
-          <Card data-testid="call-center-org-card">
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Network className="h-5 w-5" />
-                <div>
-                  <CardTitle className="text-lg">Call Center Organization</CardTitle>
-                  <p className="text-sm text-muted-foreground">Visual map showing how calls flow through your departments</p>
-                </div>
-              </div>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="destructive"
                 size="sm"
-                onClick={() => setShowIvrSettingsDialog(true)}
-                data-testid="button-settings"
+                onClick={() => setShowDeleteAllDialog(true)}
+                disabled={departments.length === 0}
+                data-testid="button-delete-all"
               >
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete All
               </Button>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex flex-col items-center gap-4 py-4">
-                {activePhoneNumber && (
-                  <>
-                    <div className="relative">
-                      <div className="bg-emerald-500 text-white px-6 py-3 rounded-xl flex items-center gap-3 shadow-lg">
-                        <Phone className="h-5 w-5" />
-                        <div>
-                          <div className="font-semibold">{activePhoneNumber.phoneNumber}</div>
-                          <div className="text-xs text-emerald-100">Inbound Number</div>
-                        </div>
-                      </div>
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-emerald-500 rotate-45" />
-                    </div>
-                    <div className="w-px h-6 bg-gradient-to-b from-emerald-500 to-blue-500" />
-                    <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-4 py-2">
-                      <PhoneIncoming className="h-4 w-4 mr-2" />
-                      Caller Dials
-                    </Badge>
-                    <div className="w-px h-6 bg-gradient-to-b from-blue-500 to-amber-500" />
-                    
-                    {multiLangEnabled && languageOptions.length > 1 ? (
-                      <Card className="border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 min-w-[300px]">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Globe className="h-5 w-5 text-amber-600" />
-                          <span className="font-semibold text-amber-700 dark:text-amber-300">Language Selection</span>
-                        </div>
-                        <div className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 rounded p-2 mb-2 italic">
-                          <div className="flex items-center gap-1 mb-1">
-                            <Volume2 className="h-3 w-3 text-amber-500 shrink-0" />
-                            <span className="text-xs font-medium text-amber-600 not-italic">Greeting</span>
-                          </div>
-                          "{languageSelectionGreeting}"
-                        </div>
-                        <p className="text-xs text-amber-700/70 dark:text-amber-300/70 mb-2">Then each option spoken in its native voice</p>
-                        <div className="space-y-1 mb-3">
-                          {languageOptions.map((opt, idx) => {
-                            const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
-                            const nativePrompt = LANGUAGE_SELECTION_PROMPTS[opt.language] || `For ${opt.language}`;
-                            return (
-                              <div key={opt.id} className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 rounded p-2 flex items-center gap-2">
-                                <span className="font-mono text-amber-600 font-semibold shrink-0">{idx + 1}</span>
-                                <span className="italic flex-1">"{nativePrompt}, {idx + 1}"</span>
-                                <Badge variant="outline" className="text-xs border-amber-400 shrink-0">
-                                  <Volume2 className="h-3 w-3 mr-1" />
-                                  {langLabel}
-                                </Badge>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </Card>
-                    ) : (
-                      <Card className="border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-4 min-w-[280px]">
-                        <div className="flex items-center gap-2 mb-2">
-                          <GitBranch className="h-5 w-5 text-amber-600" />
-                          <span className="font-semibold text-amber-700 dark:text-amber-300">IVR Menu</span>
-                        </div>
-                        <div className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-gray-800 rounded p-2 italic">
-                          "{languageOptions[0]?.greeting || DEFAULT_GREETINGS.en}"
-                        </div>
-                      </Card>
-                    )}
-                    <div className="w-px h-6 bg-gradient-to-b from-amber-500 to-blue-500" />
-                    
-                    {multiLangEnabled && languageOptions.length > 1 && (
-                      <>
-                        <Card className="border-blue-400 bg-blue-50 dark:bg-blue-900/20 p-4 min-w-[300px]">
-                          <div className="flex items-center gap-2 mb-3">
-                            <GitBranch className="h-5 w-5 text-blue-600" />
-                            <span className="font-semibold text-blue-700 dark:text-blue-300">Department Selection</span>
-                          </div>
-                          <p className="text-xs text-blue-700/70 dark:text-blue-300/70 mb-2">Menu plays in the caller's selected language</p>
-                          <div className="space-y-1 mb-2">
-                            {departments.slice(0, 4).map((dept, idx) => (
-                              <div key={dept.id} className="text-sm text-blue-800 dark:text-blue-200 bg-white dark:bg-gray-800 rounded p-2 flex items-center gap-2">
-                                <span className="font-mono text-blue-600 font-semibold shrink-0">{idx + 1}</span>
-                                <span className="flex-1">{dept.name}</span>
-                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: dept.color }} />
-                              </div>
-                            ))}
-                            {departments.length > 4 && (
-                              <div className="text-xs text-blue-600 text-center">+{departments.length - 4} more</div>
-                            )}
-                          </div>
-                        </Card>
-                        <div className="w-px h-6 bg-gradient-to-b from-blue-500 to-purple-500" />
-                        <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-4 py-2">
-                          <Mic className="h-4 w-4 mr-2" />
-                          Connected to AI Agent
-                        </Badge>
-                        <div className="w-px h-6 bg-gradient-to-b from-purple-500 to-border" />
-                      </>
-                    )}
-                  </>
-                )}
-                
-                {(unassignedPhones.length > 0 || !phoneNumbers || phoneNumbers.length === 0) && (
-                  <Card 
-                    className="w-64 border-dashed border-orange-300 cursor-pointer hover-elevate transition-all"
-                    onClick={() => setShowIvrSettingsDialog(true)}
-                    data-testid="unassigned-numbers-panel"
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-orange-500" />
-                          <CardTitle className="text-sm">Unassigned</CardTitle>
-                        </div>
-                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
-                          {unassignedPhones.length}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-1 pt-0">
-                      {unassignedPhones.length > 0 ? (
-                        <>
-                          {unassignedPhones.slice(0, 3).map((phone) => (
-                            <div 
-                              key={phone.id} 
-                              className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 transition-colors"
-                              data-testid={`phone-item-${phone.id}`}
-                            >
-                              <Phone className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-xs font-mono truncate">{phone.phoneNumber}</span>
-                            </div>
-                          ))}
-                          {unassignedPhones.length > 3 && (
-                            <p className="text-xs text-muted-foreground text-center pt-1">
-                              +{unassignedPhones.length - 3} more
-                            </p>
-                          )}
-                          <p className="text-xs text-blue-500 text-center pt-2">Click to assign</p>
-                        </>
-                      ) : (
-                        <Link href="/app/phone-numbers">
-                          <Button variant="outline" size="sm" className="w-full text-xs" data-testid="button-buy-number">
-                            <Plus className="h-3 w-3 mr-1" />
-                            Buy Number
-                          </Button>
-                        </Link>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-                
-                <div className="h-6 w-px bg-border" />
-                
-                <Card className="w-64" data-testid="ivr-panel">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <GitBranch className="h-4 w-4 shrink-0" />
-                        {editingIvrName && ivrConfigurations.length > 0 ? (
-                          <div className="flex items-center gap-1 flex-1">
-                            <Input
-                              value={editIvrNameValue}
-                              onChange={(e) => setEditIvrNameValue(e.target.value)}
-                              className="h-6 text-sm"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && editIvrNameValue.trim()) {
-                                  updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
-                                } else if (e.key === "Escape") {
-                                  setEditingIvrName(null);
-                                  setEditIvrNameValue("");
-                                }
-                              }}
-                              data-testid="input-edit-ivr-name"
-                            />
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-6 w-6"
-                              onClick={() => {
-                                if (editIvrNameValue.trim()) {
-                                  updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
-                                }
-                              }}
-                            >
-                              <Check className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <CardTitle 
-                            className="text-sm cursor-pointer hover:text-primary truncate"
-                            onClick={() => {
-                              const activeIvr = ivrConfigurations.find(i => i.isActive);
-                              if (activeIvr) {
-                                setEditingIvrName(activeIvr.id);
-                                setEditIvrNameValue(activeIvr.name || "Auto Distribution");
-                              }
-                            }}
-                            data-testid="ivr-name-editable"
-                          >
-                            {ivrConfigurations.find(i => i.isActive)?.name || "Auto Distribution"}
-                          </CardTitle>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="text-xs shrink-0">
-                        {ivrConfigurations.filter(i => i.isActive).length} Active
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2 pt-0">
-                    {activePhoneNumber && (
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs">{activePhoneNumber.phoneNumber}</span>
-                        <Badge className="bg-green-500 text-xs">On</Badge>
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-1">
-                      {departments.slice(0, 2).map((dept, idx) => (
-                        <Badge 
-                          key={dept.id} 
-                          variant="outline" 
-                          className="text-xs"
-                          style={{ borderColor: dept.color }}
-                          data-testid={`dept-badge-${dept.id}`}
-                        >
-                          {dept.name}
-                        </Badge>
-                      ))}
-                      {departments.length > 2 && (
-                        <Badge variant="outline" className="text-xs">+{departments.length - 2}</Badge>
-                      )}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-xs mt-2"
-                      onClick={() => {
-                        const activeIvr = ivrConfigurations.find(i => i.isActive);
-                        if (activeIvr) {
-                          setIvrEnabled(activeIvr.isActive);
-                          const savedLangOptions = activeIvr.languageOptions as LanguageOption[] | null;
-                          if (savedLangOptions && savedLangOptions.length > 0) {
-                            setMultiLangEnabled(savedLangOptions.length > 1);
-                            setLanguageOptions(savedLangOptions);
-                          } else {
-                            setMultiLangEnabled(false);
-                            setLanguageOptions([{
-                              id: "default",
-                              language: "en",
-                              voiceId: "nova",
-                              greeting: activeIvr.greetingMessage || DEFAULT_GREETINGS.en,
-                            }]);
-                          }
-                        }
-                        setIvrConfigOpen(true);
-                      }}
-                      data-testid="button-configure-ivr"
-                    >
-                      <Settings className="h-3 w-3 mr-1" />
-                      Configure IVR
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+            </div>
 
-              <div className="text-center text-sm text-muted-foreground">
-                <Building2 className="h-4 w-4 inline mr-1" />
-                Departments & AI Agents
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Departments & AI Agents</span>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {departments.map((dept, idx) => (
                   <DepartmentCard
@@ -1355,8 +1231,8 @@ export default function DepartmentManagement() {
                     }}
                   />
                 ))}
-                
-                <Card 
+
+                <Card
                   className="border-dashed hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
                   onClick={() => {
                     setSelectedDepartment(null);
@@ -1369,99 +1245,62 @@ export default function DepartmentManagement() {
                   <span className="text-muted-foreground">Add Department</span>
                 </Card>
               </div>
-            </CardContent>
-          </Card>
-          
-          {multiLangEnabled && languageOptions.length > 1 && departments.length > 0 && (
-            <Card data-testid="auto-greetings-table">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Languages className="h-5 w-5 text-primary" />
-                  <div>
-                    <CardTitle className="text-lg">Auto-Generated Department Greetings</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Greetings are automatically translated when you add a language
-                    </p>
+            </div>
+
+            {multiLangEnabled && languageOptions.length > 1 && departments.length > 0 && (
+              <div className="border rounded-lg" data-testid="auto-greetings-table">
+                <button
+                  onClick={() => setShowFlowDetails(!showFlowDetails)}
+                  className="w-full flex items-center justify-between gap-2 p-4 hover-elevate rounded-lg text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Languages className="h-4 w-4" />
+                    <span className="font-medium text-sm">Language & Greeting Details</span>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="px-4 py-3 text-left font-medium">Language</th>
-                          <th className="px-4 py-3 text-left font-medium">Generated Greeting</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {languageOptions.map((opt) => {
-                          const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label || opt.language;
-                          return (
-                            <tr key={opt.id} className="hover:bg-muted/30">
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline">{langLabel}</Badge>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="text-muted-foreground italic">"{opt.greeting}"</div>
-                              </td>
+                  {showFlowDetails ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                </button>
+                {showFlowDetails && (
+                  <div className="p-4 pt-0 space-y-4">
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-medium">Language</th>
+                              <th className="px-4 py-3 text-left font-medium">Generated Greeting</th>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {activePhoneNumber && departments.length > 0 && (
-            <Card data-testid="call-flow-preview">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <GitBranch className="h-5 w-5 text-primary" />
-                  <div>
-                    <CardTitle className="text-lg">Call Flow Preview</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Complete caller journey through your IVR system
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                      <span className="text-emerald-600 font-semibold text-sm">1</span>
-                    </div>
-                    <div className="flex-1 pt-1">
-                      <p className="font-medium">Caller dials {activePhoneNumber.phoneNumber}</p>
-                      <p className="text-sm text-muted-foreground">Call connects to your IVR system</p>
-                    </div>
-                  </div>
-                  
-                  {multiLangEnabled && languageOptions.length > 1 && (
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-                        <span className="text-amber-600 font-semibold text-sm">2</span>
+                          </thead>
+                          <tbody className="divide-y">
+                            {languageOptions.map((opt) => {
+                              const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label || opt.language;
+                              return (
+                                <tr key={opt.id}>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline">{langLabel}</Badge>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="text-muted-foreground italic">"{opt.greeting}"</div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                      <div className="flex-1 pt-1">
-                        <p className="font-medium">Language Selection Greeting & Options</p>
-                        <div className="bg-muted/50 rounded p-2 mt-2 mb-2">
-                          <div className="flex items-center gap-1 mb-1">
-                            <Volume2 className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs font-medium">Greeting plays first</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground italic">
-                            "{languageSelectionGreeting}"
-                          </p>
+                    </div>
+
+                    {activePhoneNumber && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Volume2 className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-muted-foreground">Language Selection Greeting</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 mb-1">Then each option is spoken in its native voice</p>
-                        <div className="space-y-1 mt-1">
+                        <div className="bg-muted/50 rounded-lg p-3">
+                          <p className="text-sm text-muted-foreground italic">"{languageSelectionGreeting}"</p>
+                        </div>
+                        <div className="space-y-1">
                           {languageOptions.map((opt, idx) => {
                             const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
                             const nativePrompt = LANGUAGE_SELECTION_PROMPTS[opt.language] || `For ${opt.language}`;
@@ -1480,99 +1319,11 @@ export default function DepartmentManagement() {
                           })}
                         </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                      <span className="text-blue-600 font-semibold text-sm">{multiLangEnabled && languageOptions.length > 1 ? "3" : "2"}</span>
-                    </div>
-                    <div className="flex-1 pt-1">
-                      <p className="font-medium">Department Selection Plays</p>
-                      {multiLangEnabled && languageOptions.length > 1 ? (
-                        <>
-                          <p className="text-xs text-muted-foreground mt-0.5">Department menu plays in the caller's selected language</p>
-                          <div className="space-y-2 mt-2">
-                            {languageOptions.map((opt) => {
-                              const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label;
-                              return (
-                                <div key={opt.id} className="bg-muted/50 rounded p-2">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge variant="outline" className="text-xs">{langLabel}</Badge>
-                                    <Volume2 className="h-3 w-3 text-muted-foreground" />
-                                  </div>
-                                  <div className="text-sm text-muted-foreground italic">"{opt.greeting}"</div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-sm text-muted-foreground bg-muted/50 rounded p-2 mt-1 italic">
-                          "{languageOptions[0]?.greeting || generateDeptGreeting(departments.map(d => d.name), "en")}"
-                        </div>
-                      )}
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {departments.map((dept, idx) => (
-                          <Badge 
-                            key={dept.id} 
-                            variant="outline" 
-                            className="text-xs"
-                            style={{ borderColor: dept.color, color: dept.color }}
-                          >
-                            Press {idx + 1}: {dept.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
+                    )}
                   </div>
-                  
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
-                      <span className="text-purple-600 font-semibold text-sm">{multiLangEnabled && languageOptions.length > 1 ? "4" : "3"}</span>
-                    </div>
-                    <div className="flex-1 pt-1">
-                      <p className="font-medium">Connected to AI Agent</p>
-                      <p className="text-sm text-muted-foreground">
-                        Caller is connected to the department's AI agent in their selected language
-                      </p>
-                      {multiLangEnabled && languageOptions.length > 1 && departments.length > 0 && (
-                        <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                              AI Agents Created (Sample Preview)
-                            </p>
-                            <Badge variant="secondary" className="text-xs">
-                              {departments.length * languageOptions.length} total
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            {departments.slice(0, 2).flatMap(dept => 
-                              languageOptions.slice(0, 2).map(opt => (
-                                <Badge 
-                                  key={`${dept.id}-${opt.language}`} 
-                                  variant="outline" 
-                                  className="text-xs justify-start"
-                                >
-                                  <Mic className="h-3 w-3 mr-1" />
-                                  {dept.name} ({SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label})
-                                </Badge>
-                              ))
-                            )}
-                            {(departments.length * languageOptions.length) > 4 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{(departments.length * languageOptions.length) - 4} more
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -2671,98 +2422,122 @@ function DepartmentCard({
   onAddAgent,
 }: DepartmentCardProps) {
   const IconComponent = departmentIcons.find(i => i.value === department.icon)?.icon || Building2;
+  const agentCount = department.agentCount || 0;
+  const langCount = (department.languages || []).length || 1;
+  const agents = department.assignedAgents || [];
 
   return (
     <Card 
-      className="relative overflow-visible"
-      style={{ borderTopColor: department.color, borderTopWidth: '3px' }}
+      className="relative overflow-visible group"
       data-testid={`department-card-${department.id}`}
     >
-      <Badge 
-        className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-xs"
+      <div 
+        className="absolute top-0 left-0 right-0 h-1 rounded-t-lg"
         style={{ backgroundColor: department.color }}
-        data-testid={`dept-index-${department.id}`}
-      >
-        #{index}
-      </Badge>
+      />
       
-      <CardHeader className="pb-2 gap-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
+      <CardHeader className="pb-3 pt-4 gap-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
             <div 
-              className="w-8 h-8 rounded-lg flex items-center justify-center" 
-              style={{ backgroundColor: `${department.color}20` }}
+              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" 
+              style={{ backgroundColor: `${department.color}15` }}
             >
-              <IconComponent className="h-4 w-4" style={{ color: department.color }} />
+              <IconComponent className="h-5 w-5" style={{ color: department.color }} />
             </div>
-            <div>
-              <CardTitle className="text-base">{department.name}</CardTitle>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base truncate">{department.name}</CardTitle>
+                <span className="text-xs text-muted-foreground shrink-0" data-testid={`dept-index-${department.id}`}>#{index}</span>
+              </div>
               {department.description && (
-                <p className="text-xs text-muted-foreground line-clamp-1">{department.description}</p>
+                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{department.description}</p>
               )}
             </div>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs" data-testid={`badge-ivr-active-${department.id}`}>
-            <Power className="h-3 w-3 mr-1" />
-            IVR {department.isActive ? "Active" : "Inactive"}
-          </Badge>
-          <Badge variant="outline" className="text-xs" data-testid={`badge-ai-voice-${department.id}`}>
-            <Mic className="h-3 w-3 mr-1" />
-            AI Voice
-          </Badge>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="icon" onClick={onEdit} data-testid={`button-edit-${department.id}`}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onDelete} className="text-destructive" data-testid={`button-delete-${department.id}`}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onFlow} className="flex-1" data-testid={`button-flow-${department.id}`}>
-            <GitBranch className="h-4 w-4 mr-1" />
-            Flow
-          </Button>
-          <Button variant="outline" size="sm" onClick={onEdit} className="flex-1" data-testid={`button-edit-${department.id}`}>
-            <Edit className="h-4 w-4 mr-1" />
-            Edit
-          </Button>
-          <Button variant="outline" size="sm" onClick={onDelete} className="text-destructive hover:text-destructive" data-testid={`button-delete-${department.id}`}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
+      <CardContent className="space-y-3 pt-0">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1" data-testid={`badge-ivr-active-${department.id}`}>
+            <div className={`w-2 h-2 rounded-full ${department.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+            <span>{department.isActive ? "Active" : "Inactive"}</span>
+          </div>
+          <span className="text-border">|</span>
+          <div className="flex items-center gap-1" data-testid={`badge-ai-voice-${department.id}`}>
+            <Mic className="h-3 w-3" />
+            <span>{agentCount} Agent{agentCount !== 1 ? 's' : ''}</span>
+          </div>
+          <span className="text-border">|</span>
+          <div className="flex items-center gap-1">
+            <Globe className="h-3 w-3" />
+            <span>{langCount} Lang{langCount !== 1 ? 's' : ''}</span>
+          </div>
         </div>
-        
+
         <div 
-          className="flex items-center gap-1 cursor-pointer hover-elevate rounded p-1 -mx-1" 
+          className="flex items-center gap-1 cursor-pointer hover-elevate rounded p-2 -mx-2 bg-muted/30" 
           onClick={onToggleExpand}
           data-testid={`toggle-expand-${department.id}`}
         >
           {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           )}
-          <span className="text-sm text-muted-foreground">
-            {department.agentCount || 0} Agents • {(department.languages || []).length || 1} Languages
+          <span className="text-sm text-muted-foreground flex-1">
+            {agentCount > 0 ? `${agentCount} assigned agent${agentCount !== 1 ? 's' : ''}` : 'No agents assigned'}
           </span>
+          {agentCount > 0 && (
+            <div className="flex -space-x-1">
+              {agents.slice(0, 3).map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
+                <div 
+                  key={agent.id} 
+                  className="w-5 h-5 rounded-full bg-muted border-2 border-card flex items-center justify-center"
+                  title={agent.agentName}
+                >
+                  <span className="text-[8px] font-medium text-foreground">{agent.agentName.charAt(0).toUpperCase()}</span>
+                </div>
+              ))}
+              {agents.length > 3 && (
+                <div className="w-5 h-5 rounded-full bg-muted border-2 border-card flex items-center justify-center">
+                  <span className="text-[8px] font-medium text-muted-foreground">+{agents.length - 3}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         
         {isExpanded && (
-          <div className="space-y-2 pt-2 border-t" data-testid={`agent-list-${department.id}`}>
-            {(department.assignedAgents || []).length > 0 ? (
-              (department.assignedAgents || []).map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
-                <div key={agent.id} className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                  <span className="capitalize">{languages.find(l => l.value === agent.language)?.label || agent.language}</span>
-                  <span className="text-muted-foreground">- {agent.agentName}</span>
+          <div className="space-y-1.5 pt-1" data-testid={`agent-list-${department.id}`}>
+            {agents.length > 0 ? (
+              agents.map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
+                <div key={agent.id} className="flex items-center gap-2 text-sm p-1.5 rounded bg-muted/30">
+                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <Mic className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <span className="font-medium truncate flex-1">{agent.agentName}</span>
+                  <Badge variant="secondary" className="text-xs shrink-0">
+                    {languages.find(l => l.value === agent.language)?.label || agent.language}
+                  </Badge>
                 </div>
               ))
             ) : (
-              <div className="text-sm text-muted-foreground">No agents assigned</div>
+              <div className="text-sm text-muted-foreground text-center py-2">No agents assigned yet</div>
             )}
             <Button 
               variant="ghost" 
               size="sm" 
-              className="w-full justify-start text-primary" 
+              className="w-full justify-center" 
               onClick={onAddAgent}
               data-testid={`button-add-agent-${department.id}`}
             >
@@ -2771,6 +2546,11 @@ function DepartmentCard({
             </Button>
           </div>
         )}
+
+        <Button variant="outline" size="sm" onClick={onFlow} className="w-full" data-testid={`button-flow-${department.id}`}>
+          <GitBranch className="h-4 w-4 mr-2" />
+          View Flow
+        </Button>
       </CardContent>
     </Card>
   );

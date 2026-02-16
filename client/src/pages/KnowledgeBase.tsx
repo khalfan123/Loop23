@@ -980,19 +980,16 @@ export default function KnowledgeBase() {
       </SubPanelSection>
 
       <SubPanelSection title="Study Materials">
-        <div className="bg-zinc-100 dark:bg-zinc-800/60 rounded-lg overflow-hidden">
+        <div>
           {folders.map((folder, idx) => (
             <div key={folder.id} className="group relative">
               <button
                 onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
                 className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-left transition-colors",
-                  idx < folders.length - 1 || (folderStats && folderStats.uncategorized > 0)
-                    ? "border-b border-zinc-200/60 dark:border-zinc-700/50"
-                    : "",
+                  "w-full flex items-center gap-2.5 px-3 py-[6px] text-[13px] text-left transition-colors",
                   selectedFolderId === folder.id && viewMode === "folder"
-                    ? "bg-zinc-200/70 dark:bg-zinc-700/50 font-medium text-zinc-900 dark:text-zinc-100"
-                    : "text-zinc-700 dark:text-zinc-300"
+                    ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
+                    : "text-zinc-600 dark:text-zinc-400"
                 )}
                 data-testid={`folder-${folder.id}`}
               >
@@ -1038,10 +1035,10 @@ export default function KnowledgeBase() {
             <button
               onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
               className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-left transition-colors",
+                "w-full flex items-center gap-2.5 px-3 py-[6px] text-[13px] text-left transition-colors",
                 selectedFolderId === null && viewMode === "folder"
-                  ? "bg-zinc-200/70 dark:bg-zinc-700/50 font-medium text-zinc-900 dark:text-zinc-100"
-                  : "text-zinc-700 dark:text-zinc-300"
+                  ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
+                  : "text-zinc-600 dark:text-zinc-400"
               )}
               data-testid="folder-uncategorized"
             >

@@ -418,6 +418,18 @@ export class KnowledgeCrawler {
         details: { status: 'completed', pagesCrawled: processed.size }
       });
 
+      try {
+        const { createContentProcessor } = await import("./content-processor");
+        const processor = createContentProcessor(this.userId);
+        const pagesProcessed = await processor.processJobPages(jobId);
+        console.log(`[KnowledgeCrawler] Auto-processed ${pagesProcessed} pages for job ${jobId}`);
+        await db.update(crawlJobs)
+          .set({ pagesProcessed, updatedAt: new Date() })
+          .where(eq(crawlJobs.id, jobId));
+      } catch (processError) {
+        console.error(`[KnowledgeCrawler] Auto-process failed for job ${jobId}:`, processError);
+      }
+
     } catch (error) {
       await db.update(crawlJobs)
         .set({ 

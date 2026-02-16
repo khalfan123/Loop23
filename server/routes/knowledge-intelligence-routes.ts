@@ -97,7 +97,7 @@ router.post("/crawl-jobs", async (req: AuthRequest, res: Response) => {
     const { 
       name, 
       startUrl, 
-      crawlType = 'single',
+      crawlType = 'sitemap',
       maxPages = 50,
       maxDepth = 3,
       respectRobotsTxt = true,
@@ -205,6 +205,41 @@ router.post("/crawl-jobs/:id/process", async (req: AuthRequest, res: Response) =
   } catch (error) {
     console.error("Error processing crawl job:", error);
     res.status(500).json({ error: "Failed to process crawl job" });
+  }
+});
+
+router.get("/crawl-jobs/:id/pages", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const [job] = await db.select().from(crawlJobs)
+      .where(and(
+        eq(crawlJobs.id, req.params.id),
+        eq(crawlJobs.userId, req.userId)
+      ));
+
+    if (!job) {
+      return res.status(404).json({ error: "Crawl job not found" });
+    }
+
+    const pages = await db.select({
+      id: crawlPages.id,
+      url: crawlPages.url,
+      status: crawlPages.status,
+      title: crawlPages.title,
+      httpStatus: crawlPages.httpStatus,
+      depth: crawlPages.depth,
+      errorMessage: crawlPages.errorMessage,
+      fetchedAt: crawlPages.fetchedAt,
+    }).from(crawlPages)
+      .where(eq(crawlPages.crawlJobId, req.params.id));
+
+    res.json(pages);
+  } catch (error) {
+    console.error("Error fetching crawl pages:", error);
+    res.status(500).json({ error: "Failed to fetch crawl pages" });
   }
 });
 

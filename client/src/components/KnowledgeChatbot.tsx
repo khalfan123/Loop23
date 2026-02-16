@@ -32,15 +32,18 @@ export default function KnowledgeChatbot({ knowledgeBaseIds }: KnowledgeChatbotP
       return res.json();
     },
     onSuccess: (data) => {
+      const answer =
+        data.aiAnswer ||
+        data.formattedResponse ||
+        "No relevant knowledge sources found for this question.";
+      const noInfoPhrases = ["don't have", "no relevant", "no specific", "rephrase"];
+      const isNoInfo = noInfoPhrases.some((p) => answer.toLowerCase().includes(p));
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            data.aiAnswer ||
-            data.formattedResponse ||
-            "No relevant knowledge sources found for this question.",
-          sources: data.results,
+          content: answer,
+          sources: isNoInfo ? undefined : data.results,
         },
       ]);
     },

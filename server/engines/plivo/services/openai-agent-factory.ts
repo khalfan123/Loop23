@@ -190,6 +190,12 @@ export class OpenAIAgentFactory {
       },
     };
 
+    const kbRelevancePrompt = `
+
+KNOWLEDGE BASE RELEVANCE GUIDELINES:
+- CRITICAL: Evaluate whether each knowledge base result is actually relevant to what the caller is asking. If the caller asks about products, services, pricing, or features, do NOT use results about careers, hiring, HR policies, employee benefits, or internal company culture. Only use results that directly answer the caller's question. If no results are truly relevant, treat it as "no results found."
+- When you find relevant information in the knowledge base, use it to answer naturally and conversationally - do not just read it verbatim.`;
+
     const kbRestrictionPrompt = `
 
 STRICT KNOWLEDGE BASE RESTRICTION:
@@ -197,11 +203,9 @@ STRICT KNOWLEDGE BASE RESTRICTION:
 - You are ONLY allowed to provide information that comes from the knowledge base results.
 - Do NOT make up, guess, or infer answers from your general knowledge. Your answers must come strictly from the knowledge base.
 - If the knowledge base returns no results or irrelevant results, say: "I don't have that information available. Let me connect you with someone who can help." Then offer to transfer the call if transfer is enabled, or ask if there's anything else you can help with.
-- Even for simple greetings and pleasantries, stay in character as defined by the system prompt, but never provide factual claims that aren't in the knowledge base.
-- When you find relevant information in the knowledge base, use it to answer naturally and conversationally - do not just read it verbatim.
-- CRITICAL: Evaluate whether each knowledge base result is actually relevant to what the caller is asking. If the caller asks about products, services, pricing, or features, do NOT use results about careers, hiring, HR policies, employee benefits, or internal company culture. Only use results that directly answer the caller's question. If no results are truly relevant, treat it as "no results found."`;
+- Even for simple greetings and pleasantries, stay in character as defined by the system prompt, but never provide factual claims that aren't in the knowledge base.`;
 
-    const enhancedSystemPrompt = config.systemPrompt + kbRestrictionPrompt;
+    const enhancedSystemPrompt = config.systemPrompt + kbRelevancePrompt + kbRestrictionPrompt;
 
     return {
       ...config,

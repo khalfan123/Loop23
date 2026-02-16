@@ -63,6 +63,40 @@ const MIN_VECTOR_RELEVANCE = 0.72; // Minimum cosine similarity for vector searc
 const MIN_FAQ_RELEVANCE = 0.50; // FAQs can have lower threshold (keyword-based)
 const MIN_FALLBACK_RELEVANCE = 0.45; // Direct content fallback threshold
 
+const HR_CAREER_INDICATORS = [
+  'career progression', 'open positions', 'view open positions', 'join us',
+  'mentorship programs', 'leadership training', 'work-life balance',
+  'collaboration tools', 'cross-functional', 'conference and workshop',
+  '1-on-1s with your manager', 'become part of the team', 'hiring',
+  'employee benefits', 'perks and benefits', 'company culture',
+  'growth opportunities', 'ready to join', 'we encourage boundaries',
+  'taking time off', 'connect in person'
+];
+
+const PRODUCT_SERVICE_KEYWORDS = [
+  'offer', 'product', 'service', 'plan', 'price', 'pricing', 'cost',
+  'feature', 'esim', 'sim', 'data', 'coverage', 'network', 'roaming',
+  'subscription', 'package', 'buy', 'purchase', 'available', 'provide',
+  'sell', 'what do you', 'what does', 'tell me about', 'how much',
+  'how does', 'how do i', 'can i', 'do you have', 'what is',
+  'international', 'travel', 'country', 'countries', 'activate',
+  'installation', 'compatible', 'device', 'phone', 'mobile'
+];
+
+function isProductServiceQuery(query: string): boolean {
+  const q = query.toLowerCase();
+  return PRODUCT_SERVICE_KEYWORDS.some(kw => q.includes(kw));
+}
+
+function isHRCareerContent(text: string): boolean {
+  const t = text.toLowerCase();
+  let matchCount = 0;
+  for (const indicator of HR_CAREER_INDICATORS) {
+    if (t.includes(indicator)) matchCount++;
+  }
+  return matchCount >= 2;
+}
+
 // Initialize OpenAI client
 let openaiClient: OpenAI | null = null;
 let lastApiKey: string | null = null;
@@ -523,9 +557,17 @@ export class RAGKnowledgeService {
         console.log(`[RAG] Found ${chunkResults.length}/${preFilterCount} chunks above ${MIN_VECTOR_RELEVANCE} threshold (top score: ${allScoredChunks[0]?.score.toFixed(3) || 'N/A'}, cutoff filtered: ${preFilterCount - chunkResults.length})`);
       }
       
-      const combined = [...faqResults, ...chunkResults]
+      let combined = [...faqResults, ...chunkResults]
         .sort((a, b) => b.score - a.score)
         .slice(0, maxResults);
+      
+      if (combined.length > 0 && isProductServiceQuery(query)) {
+        const beforeFilter = combined.length;
+        combined = combined.filter(r => !isHRCareerContent(r.chunk.chunkText));
+        if (beforeFilter !== combined.length) {
+          console.log(`[RAG] Filtered out ${beforeFilter - combined.length} HR/career results for product/service query`);
+        }
+      }
       
       if (combined.length > 0) {
         console.log(`[RAG] Returning ${combined.length} combined results (${faqResults.length} FAQs + ${chunkResults.length} chunks)`);
@@ -555,8 +597,16 @@ export class RAGKnowledgeService {
       const queryLower = query.toLowerCase();
       const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
       
+      const isProductQuery = isProductServiceQuery(query);
       const scoredEntries = kbEntries
         .filter(entry => entry.content && entry.content.trim().length > 0)
+        .filter(entry => {
+          if (isProductQuery && isHRCareerContent(entry.content || '')) {
+            console.log(`[RAG] Filtered out HR/career KB entry: "${(entry.title || '').substring(0, 50)}"`);
+            return false;
+          }
+          return true;
+        })
         .map(entry => {
           const contentLower = (entry.content || '').toLowerCase();
           const titleLower = (entry.title || '').toLowerCase();

@@ -277,31 +277,50 @@ function splitIntoSections(text: string): Array<{ heading: string; content: stri
   
   let currentHeading = '';
   let currentContent: string[] = [];
+  let inTable = false;
+  let inList = false;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
     
+    if (/^\[(?:Pricing|Product|Table|Section)/.test(trimmed)) {
+      inTable = true;
+    }
+    if (inTable && trimmed === '' && i + 1 < lines.length && !/\|/.test(lines[i + 1]?.trim() || '')) {
+      inTable = false;
+    }
+
+    if (/^[•\-]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)) {
+      inList = true;
+    }
+    if (inList && trimmed === '' && i + 1 < lines.length && !/^[•\-]\s/.test(lines[i + 1]?.trim() || '') && !/^\d+\.\s/.test(lines[i + 1]?.trim() || '')) {
+      inList = false;
+    }
+
     const isHeading = 
       /^#{1,4}\s+/.test(trimmed) ||
       (/^[A-Z][A-Z\s]{3,}$/.test(trimmed) && trimmed.length < 80) ||
-      (/^[A-Z][\w\s]+:$/.test(trimmed) && trimmed.length < 80);
+      (/^[A-Z][\w\s]+:$/.test(trimmed) && trimmed.length < 80) ||
+      /^\[Section:/.test(trimmed);
     
     const isQAStart = /^(Q:|A:|Question:|Answer:)/i.test(trimmed);
     
-    if ((isHeading || (isQAStart && currentContent.length > 0)) && currentContent.length > 0) {
+    const shouldSplit = !inTable && !inList && (isHeading || (isQAStart && currentContent.length > 0));
+    
+    if (shouldSplit && currentContent.length > 0) {
       sections.push({
         heading: currentHeading,
         content: currentContent.join('\n'),
       });
       currentContent = [];
       if (isHeading) {
-        currentHeading = trimmed.replace(/^#+\s*/, '').replace(/:$/, '');
+        currentHeading = trimmed.replace(/^#+\s*/, '').replace(/:$/, '').replace(/^\[Section:\s*/, '').replace(/\]$/, '');
       } else {
         currentHeading = '';
       }
-    } else if (isHeading) {
-      currentHeading = trimmed.replace(/^#+\s*/, '').replace(/:$/, '');
+    } else if (isHeading && !inTable && !inList) {
+      currentHeading = trimmed.replace(/^#+\s*/, '').replace(/:$/, '').replace(/^\[Section:\s*/, '').replace(/\]$/, '');
     }
     
     currentContent.push(line);

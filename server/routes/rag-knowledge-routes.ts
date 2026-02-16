@@ -27,6 +27,7 @@ import { Router, Request, Response } from "express";
 import multer from "multer";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
 import { KBEnhancedProcessor } from "../services/kb-enhanced-processor";
+import { advancedScrapeUrl, generateAutoFAQs, categorizeContent } from "../services/advanced-scraper";
 import { storage } from "../storage";
 import { db } from "../db";
 import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowledgeEntities, knowledgeTopics } from "@shared/schema";
@@ -51,6 +52,61 @@ const ALLOWED_TEXT_EXTENSIONS = ['.txt', '.md', '.html', '.htm', '.json', '.xml'
 // URL fetch limits
 const MAX_URL_CONTENT_SIZE = 5 * 1024 * 1024; // 5MB max for URL content
 const ALLOWED_URL_PROTOCOLS = ['http:', 'https:'];
+
+// Call-center knowledge folders
+const CALL_CENTER_FOLDERS = [
+  { name: 'Account Management', icon: 'user-cog', sortOrder: 1 },
+  { name: 'Billing & Payments', icon: 'credit-card', sortOrder: 2 },
+  { name: 'Contact Info', icon: 'phone', sortOrder: 3 },
+  { name: 'Delivery', icon: 'truck', sortOrder: 4 },
+  { name: 'Escalation', icon: 'alert-triangle', sortOrder: 5 },
+  { name: 'FAQs', icon: 'help-circle', sortOrder: 6 },
+  { name: 'Glossary', icon: 'book-open', sortOrder: 7 },
+  { name: 'Orders', icon: 'shopping-cart', sortOrder: 8 },
+  { name: 'Policies', icon: 'shield', sortOrder: 9 },
+  { name: 'Products', icon: 'package', sortOrder: 10 },
+  { name: 'Security & Privacy', icon: 'lock', sortOrder: 11 },
+  { name: 'Technical Support', icon: 'wrench', sortOrder: 12 },
+];
+
+/**
+ * Ensure call-center knowledge folders exist for a user
+ * Creates missing folders on first use (during URL scrape)
+ */
+async function ensureCallCenterFolders(userId: string): Promise<Map<string, string>> {
+  // Check if user already has folders
+  const existingFolders = await db
+    .select()
+    .from(knowledgeFolders)
+    .where(eq(knowledgeFolders.userId, userId));
+
+  // Map folder names to IDs for existing ones
+  const folderMap = new Map<string, string>();
+  for (const f of existingFolders) {
+    folderMap.set(f.name, f.id);
+  }
+
+  // Only create missing folders
+  const missingFolders = CALL_CENTER_FOLDERS.filter(f => !folderMap.has(f.name));
+  
+  if (missingFolders.length > 0) {
+    console.log(`[RAG Routes] Creating ${missingFolders.length} call-center folders for user ${userId}`);
+    for (const folder of missingFolders) {
+      const [created] = await db
+        .insert(knowledgeFolders)
+        .values({
+          userId,
+          name: folder.name,
+          icon: folder.icon,
+          sortOrder: folder.sortOrder,
+        })
+        .returning();
+      folderMap.set(created.name, created.id);
+    }
+  }
+
+  return folderMap;
+}
 
 /**
  * Validate file type - only allow text-based files for now
@@ -588,14 +644,19 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         return res.status(400).json({ error: urlValidation.error });
       }
 
+      // Ensure call-center folders exist for this user
+      const folderMap = await ensureCallCenterFolders(req.userId!);
+
       // Fetch URL content with limits
       let content: string;
+      let rawHtml: string = '';
       let contentType: string;
       let contentSize: number;
       
       try {
         const result = await fetchUrlWithLimits(url);
         content = result.content;
+        rawHtml = result.content;
         contentType = result.contentType;
         contentSize = result.size;
       } catch (fetchError: any) {
@@ -608,18 +669,16 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         return res.status(400).json({ error: userMessage });
       }
 
-      // Extract text from HTML if needed
-      if (contentType.includes('text/html')) {
+      const isHtml = contentType.includes('text/html');
+      if (isHtml) {
         content = extractTextFromHtml(content);
         contentSize = Buffer.byteLength(content, 'utf8');
       }
 
-      // Check if content is meaningful
       if (content.trim().length < 50) {
         return res.status(400).json({ error: "URL content is too short or empty" });
       }
 
-      // Check storage limit
       const hasSpace = await RAGKnowledgeService.checkStorageSpace(req.userId!, contentSize);
       if (!hasSpace) {
         return res.status(400).json({ 
@@ -628,24 +687,28 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         });
       }
 
-      // Create knowledge base item (WITHOUT uploading to ElevenLabs)
+      const mainCategories = categorizeContent(content, url);
+      const primaryFolder = mainCategories[0] || 'Products';
+      const mainFolderId = folderMap.get(primaryFolder) || null;
+
       const item = await storage.createKnowledgeBaseItem({
         userId: req.userId!,
         type: 'url',
         title: name || url,
         content: content,
         url: url,
+        folderId: mainFolderId,
         fileUrl: null,
-        elevenLabsDocId: null, // No ElevenLabs upload
+        elevenLabsDocId: null,
         metadata: { 
           url,
           contentType,
           ragEnabled: true,
+          categories: mainCategories,
         },
         storageSize: contentSize,
       });
 
-      // Process with RAG (async)
       RAGKnowledgeService.processKnowledgeItem(
         item.id,
         req.userId!,
@@ -653,10 +716,45 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         { source: 'url', url }
       ).catch(err => console.error("[RAG Routes] Background processing error:", err));
 
+      // Advanced scraping: sub-pages, metadata, contact info, FAQs (async background)
+      if (isHtml && rawHtml.length > 100) {
+        (async () => {
+          try {
+            console.log(`[RAG Routes] Starting advanced scrape for ${url}`);
+            const scrapeResult = await advancedScrapeUrl(
+              rawHtml,
+              url,
+              content,
+              req.userId!,
+              folderMap,
+              extractTextFromHtml,
+              (data: any) => storage.createKnowledgeBaseItem(data)
+            );
+
+            // Auto-generate FAQs from main content
+            const faqFolderId = folderMap.get('FAQs') || null;
+            await generateAutoFAQs(content, url, req.userId!, item.id, faqFolderId);
+
+            // Also generate FAQs for each discovered sub-page
+            for (const subPage of scrapeResult.subPages) {
+              if (subPage.content.length > 100) {
+                await generateAutoFAQs(subPage.content, subPage.url, req.userId!, item.id, faqFolderId);
+              }
+            }
+
+            console.log(`[RAG Routes] Advanced scrape complete: ${scrapeResult.totalPages} pages, ${scrapeResult.subPages.length} sub-pages discovered`);
+          } catch (err: any) {
+            console.error(`[RAG Routes] Advanced scrape error:`, err.message);
+          }
+        })();
+      }
+
       res.json({
         ...item,
         ragStatus: 'processing',
-        message: "URL content fetched. Processing embeddings in background.",
+        categories: mainCategories,
+        folderId: mainFolderId,
+        message: "URL content fetched. Processing embeddings, discovering related pages, and generating FAQs in background.",
       });
     } catch (error: any) {
       console.error("[RAG Routes] URL add error:", error);

@@ -103,13 +103,13 @@ export function SubPanelSection({
   className,
 }: SubPanelSectionProps) {
   return (
-    <div className={cn("mb-5", className)}>
+    <div className={cn("mb-3", className)}>
       {title && (
-        <h3 className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide px-3 mb-1.5">
+        <h3 className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide px-3 mb-1">
           {title}
         </h3>
       )}
-      <div className="space-y-0.5">
+      <div>
         {children}
       </div>
     </div>
@@ -140,7 +140,7 @@ export function SubPanelItem({
       onClick={onClick}
       data-testid={dataTestId}
       className={cn(
-        "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-left transition-all duration-150 hover-elevate active-elevate-2",
+        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] text-left transition-all duration-150 hover-elevate active-elevate-2",
         isActive 
           ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium" 
           : "text-zinc-600 dark:text-zinc-400",

@@ -980,30 +980,28 @@ export default function KnowledgeBase() {
       </SubPanelSection>
 
       <SubPanelSection title="Study Materials">
-        <div>
-          {folders.map((folder, idx) => (
+          {folders.map((folder) => (
             <div key={folder.id} className="group relative">
               <button
                 onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
                 className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-[6px] text-[13px] text-left transition-colors",
+                  "w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-left transition-colors rounded-lg",
                   selectedFolderId === folder.id && viewMode === "folder"
                     ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
-                    : "text-zinc-600 dark:text-zinc-400"
+                    : "text-zinc-600 dark:text-zinc-400 hover-elevate"
                 )}
                 data-testid={`folder-${folder.id}`}
               >
-                <Folder className="h-[14px] w-[14px] flex-shrink-0 text-zinc-400 dark:text-zinc-500" style={{ color: folder.color || undefined }} />
+                <Folder className="h-3.5 w-3.5 flex-shrink-0" style={{ color: folder.color || 'var(--muted-foreground)' }} />
                 <span className="flex-1 truncate">{folder.name}</span>
                 <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{folderStats?.folders[folder.id] || 0}</span>
-                <ChevronRight className="h-3 w-3 text-zinc-300 dark:text-zinc-600 flex-shrink-0" />
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-5 w-5 absolute right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-5 w-5 absolute right-1 top-1/2 -translate-y-1/2 invisible group-hover:visible"
                   >
                     <MoreHorizontal className="h-3 w-3" />
                   </Button>
@@ -1035,34 +1033,32 @@ export default function KnowledgeBase() {
             <button
               onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
               className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-[6px] text-[13px] text-left transition-colors",
+                "w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-left transition-colors rounded-lg",
                 selectedFolderId === null && viewMode === "folder"
                   ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
-                  : "text-zinc-600 dark:text-zinc-400"
+                  : "text-zinc-600 dark:text-zinc-400 hover-elevate"
               )}
               data-testid="folder-uncategorized"
             >
-              <Folder className="h-[14px] w-[14px] flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
+              <Folder className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
               <span className="flex-1 truncate">Uncategorized</span>
               <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{folderStats.uncategorized}</span>
-              <ChevronRight className="h-3 w-3 text-zinc-300 dark:text-zinc-600 flex-shrink-0" />
             </button>
           )}
-        </div>
 
-        <button
-          onClick={() => {
-            setEditingFolder(null);
-            setFolderName('');
-            setFolderColor('#3b82f6');
-            setFolderDialogOpen(true);
-          }}
-          className="w-full flex items-center justify-center gap-1.5 mt-2 py-1.5 text-[12px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-          data-testid="button-new-folder"
-        >
-          <Plus className="h-3 w-3" />
-          New Folder
-        </button>
+          <button
+            onClick={() => {
+              setEditingFolder(null);
+              setFolderName('');
+              setFolderColor('#3b82f6');
+              setFolderDialogOpen(true);
+            }}
+            className="w-full flex items-center justify-center gap-1.5 py-1 text-[11px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            data-testid="button-new-folder"
+          >
+            <Plus className="h-3 w-3" />
+            New Folder
+          </button>
       </SubPanelSection>
 
       <SubPanelSection title="AI Intelligence">

@@ -1596,18 +1596,112 @@ export default function KnowledgeBase() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <div className="h-5 w-5 rounded bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-                        <Search className="h-3 w-3 text-indigo-500" />
+                      <div className="h-5 w-5 rounded bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                        <GraduationCap className="h-3 w-3 text-emerald-500" />
                       </div>
-                      Test Agent Reading
+                      Professor's Expertise Level
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground">Preview what the AI agent sees when answering questions</p>
+                    <p className="text-xs text-muted-foreground">How well-equipped your professor is to answer questions</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-medium">Knowledge Readiness</span>
+                            <span className="text-sm font-medium">
+                              {(() => {
+                                const total = (dashboardStats?.totalResources || 0);
+                                const chunks = (dashboardStats?.totalChunks || 0);
+                                if (total === 0) return 'Not Ready';
+                                if (chunks < 50) return 'Learning';
+                                if (chunks < 200) return 'Developing';
+                                if (chunks < 500) return 'Proficient';
+                                return 'Expert';
+                              })()}
+                            </span>
+                          </div>
+                          <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all ${
+                                (dashboardStats?.totalChunks || 0) === 0 
+                                  ? 'bg-muted-foreground/30' 
+                                  : (dashboardStats?.totalChunks || 0) < 50 
+                                    ? 'bg-yellow-500' 
+                                    : (dashboardStats?.totalChunks || 0) < 200 
+                                      ? 'bg-blue-500' 
+                                      : (dashboardStats?.totalChunks || 0) < 500 
+                                        ? 'bg-emerald-500' 
+                                        : 'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(((dashboardStats?.totalChunks || 0) / 500) * 100, 100)}%` }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs text-muted-foreground">{dashboardStats?.totalChunks || 0} knowledge chunks</span>
+                            <span className="text-xs text-muted-foreground">{dashboardStats?.totalResources || 0} study materials</span>
+                          </div>
+                        </div>
+                      </div>
+                      {(intelligenceStats?.topics || 0) > 0 && (
+                        <div>
+                          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                            Topics the professor can discuss
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <Badge variant="secondary" className="text-xs">
+                              <Tags className="h-3 w-3 mr-1 text-blue-500" />
+                              {intelligenceStats?.entities || 0} entities
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              <Layers className="h-3 w-3 mr-1 text-green-500" />
+                              {intelligenceStats?.topics || 0} topics
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              <HelpCircle className="h-3 w-3 mr-1 text-orange-500" />
+                              {intelligenceStats?.faqs || 0} FAQs mastered
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              <FileText className="h-3 w-3 mr-1 text-purple-500" />
+                              {intelligenceStats?.articles || 0} articles studied
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+                      {(dashboardStats?.totalResources || 0) === 0 && (
+                        <div className="text-center py-2">
+                          <p className="text-sm text-muted-foreground">Add study materials to build the professor's expertise</p>
+                          <div className="flex items-center justify-center gap-2 mt-2">
+                            <Button variant="outline" size="sm" onClick={() => setUrlDialogOpen(true)} data-testid="button-expertise-add-url">
+                              <Link className="h-3.5 w-3.5 mr-1.5" />
+                              Add URL
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => setTextDialogOpen(true)} data-testid="button-expertise-add-text">
+                              <Type className="h-3.5 w-3.5 mr-1.5" />
+                              Add Text
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-primary/20">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center">
+                        <GraduationCap className="h-3 w-3 text-primary" />
+                      </div>
+                      Ask the Professor
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">Test what the professor knows from the study materials</p>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Ask a question to test..."
+                          placeholder="Ask the professor a question..."
                           value={testQuery}
                           onChange={(e) => setTestQuery(e.target.value)}
                           onKeyDown={(e) => {
@@ -1639,25 +1733,60 @@ export default function KnowledgeBase() {
                         </Button>
                       </div>
                       {testAgentReadingMutation.data && (
-                        <div className="space-y-2">
-                          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            Agent would receive:
-                          </div>
-                          <div className="bg-muted/50 rounded-md border p-3 max-h-[300px] overflow-auto">
-                            <pre className="text-sm whitespace-pre-wrap font-mono">
-                              {testAgentReadingMutation.data.formattedResponse || 'No results found.'}
-                            </pre>
+                        <div className="space-y-3">
+                          {testAgentReadingMutation.data.results && testAgentReadingMutation.data.results.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                  Professor's confidence
+                                </div>
+                                <span className="text-xs font-medium">
+                                  {Math.round((testAgentReadingMutation.data.results[0]?.score || 0) * 100)}% match
+                                </span>
+                              </div>
+                              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all ${
+                                    (testAgentReadingMutation.data.results[0]?.score || 0) >= 0.7 
+                                      ? 'bg-green-500' 
+                                      : (testAgentReadingMutation.data.results[0]?.score || 0) >= 0.4 
+                                        ? 'bg-yellow-500' 
+                                        : 'bg-red-500'
+                                  }`}
+                                  style={{ width: `${Math.round((testAgentReadingMutation.data.results[0]?.score || 0) * 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
+                              Knowledge the professor would reference:
+                            </div>
+                            <div className="bg-muted/50 rounded-md border p-3 max-h-[300px] overflow-auto">
+                              <pre className="text-sm whitespace-pre-wrap font-mono">
+                                {testAgentReadingMutation.data.formattedResponse || 'The professor has no relevant study materials for this question.'}
+                              </pre>
+                            </div>
                           </div>
                           {testAgentReadingMutation.data.results && testAgentReadingMutation.data.results.length > 0 && (
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span>{testAgentReadingMutation.data.results.length} results found</span>
-                              <span>Top relevance: {Math.round((testAgentReadingMutation.data.results[0]?.score || 0) * 100)}%</span>
+                            <div className="space-y-1.5">
+                              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                Sources referenced ({testAgentReadingMutation.data.results.length})
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {testAgentReadingMutation.data.results.map((result: any, idx: number) => (
+                                  <Badge key={idx} variant="secondary" className="text-xs">
+                                    {result.title || result.resourceTitle || `Source ${idx + 1}`}
+                                    <span className="ml-1 opacity-60">{Math.round((result.score || 0) * 100)}%</span>
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
                       {knowledgeBase.length === 0 && (
-                        <p className="text-xs text-muted-foreground">Add content to your knowledge base first to test agent reading.</p>
+                        <p className="text-xs text-muted-foreground">The professor needs study materials first. Add content to build their expertise.</p>
                       )}
                     </div>
                   </CardContent>
@@ -1803,25 +1932,40 @@ export default function KnowledgeBase() {
                 {knowledgeBase.length === 0 && (
                   <Card className="p-12">
                     <div className="flex flex-col items-center justify-center text-center">
-                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                        <Brain className="h-8 w-8 text-muted-foreground" />
+                      <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
+                        <GraduationCap className="h-10 w-10 text-primary" />
                       </div>
-                      <h3 className="text-lg font-medium mb-2">No content yet</h3>
-                      <p className="text-muted-foreground mb-6 max-w-md">
-                        Add URLs, upload files, or create text content to build your knowledge base.
+                      <h3 className="text-xl font-semibold mb-2" data-testid="text-empty-library">The Professor's Library is Empty</h3>
+                      <p className="text-muted-foreground mb-2 max-w-lg">
+                        Your AI professor has no study materials yet. Add reference documents, lecture notes, 
+                        URLs, or any content you want the professor to learn and teach from.
                       </p>
-                      <div className="flex gap-3">
-                        <Button onClick={() => setUrlDialogOpen(true)}>
-                          <Link className="h-4 w-4 mr-2" />
-                          Add URL
+                      <p className="text-xs text-muted-foreground mb-6 max-w-md">
+                        The professor will only answer questions based on these materials -- never from general knowledge.
+                      </p>
+                      <div className="flex flex-wrap items-center justify-center gap-3">
+                        <Button 
+                          onClick={() => setUrlDialogOpen(true)}
+                          data-testid="button-empty-add-url"
+                        >
+                          <Globe className="h-4 w-4 mr-2" />
+                          Add Web Content
                         </Button>
-                        <Button variant="outline" onClick={() => setFileDialogOpen(true)}>
+                        <Button 
+                          variant="outline"
+                          onClick={() => setFileDialogOpen(true)}
+                          data-testid="button-empty-upload-file"
+                        >
                           <Upload className="h-4 w-4 mr-2" />
-                          Upload File
+                          Upload Documents
                         </Button>
-                        <Button variant="outline" onClick={() => setTextDialogOpen(true)}>
-                          <Type className="h-4 w-4 mr-2" />
-                          Add Text
+                        <Button 
+                          variant="outline"
+                          onClick={() => setTextDialogOpen(true)}
+                          data-testid="button-empty-add-text"
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Add Lecture Notes
                         </Button>
                       </div>
                     </div>
@@ -1844,7 +1988,7 @@ export default function KnowledgeBase() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                   <button onClick={() => setViewMode("dashboard")} className="hover:text-foreground">
-                    Dashboard
+                    Library Overview
                   </button>
                   <ChevronRight className="h-4 w-4" />
                   <span className="text-foreground font-medium">

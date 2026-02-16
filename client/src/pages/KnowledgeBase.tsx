@@ -1734,11 +1734,22 @@ export default function KnowledgeBase() {
                       </div>
                       {testAgentReadingMutation.data && (
                         <div className="space-y-3">
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                              <GraduationCap className="h-3 w-3" />
+                              Professor's Answer
+                            </div>
+                            <div className="bg-primary/5 rounded-md border border-primary/20 p-3 max-h-[300px] overflow-auto">
+                              <p className="text-sm leading-relaxed" data-testid="text-professor-answer">
+                                {testAgentReadingMutation.data.aiAnswer || testAgentReadingMutation.data.formattedResponse || 'The professor has no relevant study materials for this question.'}
+                              </p>
+                            </div>
+                          </div>
                           {testAgentReadingMutation.data.results && testAgentReadingMutation.data.results.length > 0 && (
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                  Professor's confidence
+                                  Confidence level
                                 </div>
                                 <span className="text-xs font-medium">
                                   {Math.round((testAgentReadingMutation.data.results[0]?.score || 0) * 100)}% match
@@ -1758,16 +1769,6 @@ export default function KnowledgeBase() {
                               </div>
                             </div>
                           )}
-                          <div>
-                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-                              Knowledge the professor would reference:
-                            </div>
-                            <div className="bg-muted/50 rounded-md border p-3 max-h-[300px] overflow-auto">
-                              <pre className="text-sm whitespace-pre-wrap font-mono">
-                                {testAgentReadingMutation.data.formattedResponse || 'The professor has no relevant study materials for this question.'}
-                              </pre>
-                            </div>
-                          </div>
                           {testAgentReadingMutation.data.results && testAgentReadingMutation.data.results.length > 0 && (
                             <div className="space-y-1.5">
                               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">

@@ -30,7 +30,7 @@ import { KBEnhancedProcessor } from "../services/kb-enhanced-processor";
 import { storage } from "../storage";
 import { db } from "../db";
 import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowledgeEntities, knowledgeTopics } from "@shared/schema";
-import { eq, and, sql, desc, asc, count } from "drizzle-orm";
+import { eq, and, sql, desc, asc, count, inArray } from "drizzle-orm";
 
 // Extend Request to include userId
 interface AuthRequest extends Request {
@@ -597,13 +597,38 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
       // Format for agent consumption
       const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results);
 
+      const aiAnswer = await RAGKnowledgeService.generateProfessorAnswer(query, results, formattedResponse);
+
+      const sourceIds = [...new Set(results.map(r => r.source).filter(Boolean))];
+      let kbNameMap: Record<string, string> = {};
+      if (sourceIds.length > 0) {
+        const kbEntries = await db
+          .select({ id: knowledgeBase.id, title: knowledgeBase.title })
+          .from(knowledgeBase)
+          .where(inArray(knowledgeBase.id, sourceIds));
+        for (const entry of kbEntries) {
+          kbNameMap[entry.id] = entry.title;
+        }
+      }
+
+      const topScore = results.length > 0 ? results[0].score : 0;
+      const noInfoPhrases = ["don't have", "no relevant", "no specific", "rephrase"];
+      const isLowQualityAnswer = noInfoPhrases.some(p => aiAnswer.toLowerCase().includes(p));
+      if (results.length > 0 && aiAnswer && topScore >= 0.65 && !isLowQualityAnswer) {
+        const bestKbId = results[0].source;
+        RAGKnowledgeService.learnFromQuery(query, aiAnswer, [bestKbId], req.userId!)
+          .catch(err => console.error('[RAG Routes] Auto-learn error:', err.message));
+      }
+
       res.json({
         results: results.map(r => ({
           text: r.chunk.chunkText,
           score: r.score,
           source: r.source,
+          title: kbNameMap[r.source] || undefined,
         })),
         formattedResponse,
+        aiAnswer,
       });
     } catch (error: any) {
       console.error("[RAG Routes] Search error:", error);

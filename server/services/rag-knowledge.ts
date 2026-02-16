@@ -866,6 +866,80 @@ export class RAGKnowledgeService {
     return output.trim();
   }
   
+  static async generateProfessorAnswer(
+    query: string,
+    results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
+    formattedResults: string
+  ): Promise<string> {
+    if (results.length === 0) {
+      return "I don't have specific information about that in my study materials. Could you rephrase your question?";
+    }
+
+    try {
+      const openai = await getOpenAIClient();
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a knowledgeable customer service assistant. Answer the user's question using ONLY the provided knowledge base content below. Be concise, friendly, and helpful. If the content doesn't fully answer the question, say so honestly. Never make up information not present in the provided content.\n\n${formattedResults}`
+          },
+          {
+            role: "user",
+            content: query
+          }
+        ],
+        temperature: 0.4,
+        max_tokens: 500,
+      });
+
+      return response.choices[0]?.message?.content?.trim() || formattedResults;
+    } catch (error: any) {
+      console.error(`[RAG] generateProfessorAnswer error:`, error.message);
+      return formattedResults;
+    }
+  }
+
+  static async learnFromQuery(
+    query: string,
+    aiAnswer: string,
+    knowledgeBaseIds: string[],
+    userId: string
+  ): Promise<void> {
+    try {
+      if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) return;
+
+      const kbId = knowledgeBaseIds[0];
+      const qaText = `Q: ${query}\nA: ${aiAnswer}`;
+
+      const existingChunks = await db
+        .select({ cnt: sql<number>`count(*)::int` })
+        .from(knowledgeChunks)
+        .where(and(
+          eq(knowledgeChunks.knowledgeBaseId, kbId),
+          eq(knowledgeChunks.userId, userId)
+        ));
+      const nextIndex = (existingChunks[0]?.cnt || 0) + 1;
+
+      const embedding = await generateEmbedding(qaText);
+
+      await db.insert(knowledgeChunks).values({
+        knowledgeBaseId: kbId,
+        userId,
+        chunkIndex: nextIndex,
+        chunkText: qaText,
+        embedding: embedding as any,
+        tokenCount: estimateTokens(qaText),
+        metadata: { autoLearned: true, originalQuery: query, learnedAt: new Date().toISOString() },
+      });
+
+      console.log(`[RAG] Auto-learned Q&A for: "${query.substring(0, 50)}..."`);
+    } catch (error: any) {
+      console.error(`[RAG] learnFromQuery error:`, error.message);
+    }
+  }
+
   /**
    * Delete all chunks for a knowledge base item
    */

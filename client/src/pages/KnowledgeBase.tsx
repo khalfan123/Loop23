@@ -970,7 +970,7 @@ export default function KnowledgeBase() {
 
   const subPanelContent = (
     <>
-      <SubPanelSection>
+      <SubPanelSection title="AI Knowledge Engine">
         <SubPanelItem
           icon={<LayoutDashboard className="h-4 w-4" />}
           label="Library Overview"
@@ -978,9 +978,9 @@ export default function KnowledgeBase() {
           onClick={() => { setViewMode("dashboard"); setSelectedFolderId(null); }}
           data-testid="button-dashboard"
         />
-      </SubPanelSection>
 
-      <SubPanelSection title="Knowledge Sources">
+        <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mt-3 mb-1 px-2 font-medium">Knowledge Sources</p>
+
           {folders.map((folder) => {
             const isExpanded = expandedFolderIds.has(folder.id);
             const isActive = selectedFolderId === folder.id && viewMode === "folder";
@@ -1143,9 +1143,9 @@ export default function KnowledgeBase() {
             <Plus className="h-3 w-3" />
             New Folder
           </button>
-      </SubPanelSection>
 
-      <SubPanelSection title="AI Engine">
+        <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mt-3 mb-1 px-2 font-medium">AI Engine</p>
+
         <SubPanelItem icon={<Globe className="h-4 w-4" />} label="Web Crawler" isActive={viewMode === "web-crawler"} onClick={() => { setViewMode("web-crawler"); setSelectedFolderId(null); }} data-testid="folder-web-crawler" />
         <SubPanelItem icon={<Brain className="h-4 w-4" />} label="AI Insights" isActive={viewMode === "ai-insights"} onClick={() => { setViewMode("ai-insights"); setSelectedFolderId(null); }} data-testid="folder-ai-insights" />
         <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="Content Studio" isActive={viewMode === "content-studio"} onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }} data-testid="folder-content-studio" />

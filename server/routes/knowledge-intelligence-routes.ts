@@ -1767,7 +1767,7 @@ router.get("/training-insights", async (req: AuthRequest, res: Response) => {
       .from(mlTrainingSamples)
       .where(and(
         eq(mlTrainingSamples.userId, req.userId),
-        eq(mlTrainingSamples.isApproved, true)
+        eq(mlTrainingSamples.status, "approved")
       ));
 
     const totalSamples = await db.select({ count: count() })

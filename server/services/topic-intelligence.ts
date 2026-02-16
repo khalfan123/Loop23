@@ -618,7 +618,13 @@ ${sourceContent.slice(0, 8000)}
 
 Write a comprehensive, well-structured article of 800-1500 words.
 Use markdown formatting with ## for main headings and ### for subheadings.
-Include [Source] citations where appropriate.`
+Include [Source] citations where appropriate.
+
+IMPORTANT: Write in plain, natural language only. This is customer-facing content.
+- NEVER include code examples, code blocks, or technical snippets
+- Do NOT use markdown code fences (\`\`\`) or inline code formatting (\`)
+- If explaining a technical process, describe it in simple everyday words instead of showing code
+- Write as if explaining to a non-technical person`
       }]
     });
 

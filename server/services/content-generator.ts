@@ -202,13 +202,16 @@ ${sourceContext || 'Use your knowledge'}
 ${faqContext ? `\nExisting FAQs to incorporate:\n${faqContext}` : ''}
 
 Requirements:
-1. Write engaging, well-structured content
+1. Write engaging, well-structured content in plain natural language
 2. Include [Source N] citations where information comes from sources
-3. Use clear headings and subheadings
-4. Include practical examples where relevant
+3. Use clear headings and subheadings (## and ###)
+4. Write for a general audience — explain concepts in simple, everyday terms
 5. End with a clear conclusion or call to action
+6. NEVER include code examples, code blocks, or technical snippets — this is customer-facing content, not developer documentation
+7. If explaining a technical process, describe it in plain words instead of showing code
+8. Do NOT use markdown code fences (\`\`\`) or inline code formatting (\`)
 
-Write the complete article in Markdown format.`
+Write the complete article using only headings, paragraphs, bold, italic, and lists.`
       }]
     });
 

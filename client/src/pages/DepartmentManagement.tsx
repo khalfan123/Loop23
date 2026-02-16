@@ -1027,9 +1027,69 @@ export default function DepartmentManagement() {
       <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="department-management-page">
         {activeTab === 'org-map' && (
           <div className="space-y-6 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Network className="h-4 w-4 text-foreground" />
-              <span className="font-medium">Call Center Organization</span>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Network className="h-4 w-4 text-foreground" />
+                <span className="font-medium">Call Center Organization</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const activeIvrItem = ivrConfigurations.find(i => i.isActive);
+                    if (activeIvrItem) {
+                      setIvrEnabled(activeIvrItem.isActive);
+                      const savedLangOptions = activeIvrItem.languageOptions as LanguageOption[] | null;
+                      if (savedLangOptions && savedLangOptions.length > 0) {
+                        setMultiLangEnabled(savedLangOptions.length > 1);
+                        setLanguageOptions(savedLangOptions);
+                      } else {
+                        setMultiLangEnabled(false);
+                        setLanguageOptions([{
+                          id: "default",
+                          language: "en",
+                          voiceId: "nova",
+                          greeting: activeIvrItem.greetingMessage || DEFAULT_GREETINGS.en,
+                        }]);
+                      }
+                    }
+                    setIvrConfigOpen(true);
+                  }}
+                  data-testid="button-configure-ivr"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configure IVR
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowIvrSettingsDialog(true)}
+                  data-testid="button-settings"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  IVR Settings
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/app/departments/canvas")}
+                  data-testid="button-open-canvas"
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Design Canvas
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteAllDialog(true)}
+                  disabled={departments.length === 0}
+                  data-testid="button-delete-all"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete All
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-7 gap-0 items-center" data-testid="call-center-org-card">
@@ -1143,67 +1203,6 @@ export default function DepartmentManagement() {
                 <span className="font-semibold text-sm">AI Agents</span>
                 <span className="text-xs text-muted-foreground mt-1">Voice Enabled</span>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const activeIvrItem = ivrConfigurations.find(i => i.isActive);
-                    if (activeIvrItem) {
-                      setIvrEnabled(activeIvrItem.isActive);
-                      const savedLangOptions = activeIvrItem.languageOptions as LanguageOption[] | null;
-                      if (savedLangOptions && savedLangOptions.length > 0) {
-                        setMultiLangEnabled(savedLangOptions.length > 1);
-                        setLanguageOptions(savedLangOptions);
-                      } else {
-                        setMultiLangEnabled(false);
-                        setLanguageOptions([{
-                          id: "default",
-                          language: "en",
-                          voiceId: "nova",
-                          greeting: activeIvrItem.greetingMessage || DEFAULT_GREETINGS.en,
-                        }]);
-                      }
-                    }
-                    setIvrConfigOpen(true);
-                  }}
-                  data-testid="button-configure-ivr"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configure IVR
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowIvrSettingsDialog(true)}
-                  data-testid="button-settings"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  IVR Settings
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLocation("/app/departments/canvas")}
-                  data-testid="button-open-canvas"
-                >
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  Design Canvas
-                </Button>
-              </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowDeleteAllDialog(true)}
-                disabled={departments.length === 0}
-                data-testid="button-delete-all"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete All
-              </Button>
             </div>
 
             <div>

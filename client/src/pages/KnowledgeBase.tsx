@@ -110,6 +110,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
+import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -998,14 +999,29 @@ export default function KnowledgeBase() {
 
         {folders.map((folder) => (
           <div key={folder.id} className="group relative">
-            <SubPanelItem
-              icon={<Folder className="h-4 w-4" style={{ color: folder.color || '#3b82f6' }} />}
-              label={folder.name}
-              isActive={selectedFolderId === folder.id && viewMode === "folder"}
+            <button
               onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
-              badge={folderStats?.folders[folder.id] || 0}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 hover-elevate active-elevate-2",
+                selectedFolderId === folder.id && viewMode === "folder"
+                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
+                  : "text-zinc-600 dark:text-zinc-400"
+              )}
               data-testid={`folder-${folder.id}`}
-            />
+            >
+              <div 
+                className="h-7 w-7 rounded-md flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${folder.color || '#3b82f6'}15` }}
+              >
+                <Folder className="h-3.5 w-3.5" style={{ color: folder.color || '#3b82f6' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="block truncate">{folder.name}</span>
+                <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                  {folderStats?.folders[folder.id] || 0} items
+                </span>
+              </div>
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -1040,14 +1056,29 @@ export default function KnowledgeBase() {
         ))}
 
         {folderStats && folderStats.uncategorized > 0 && (
-          <SubPanelItem
-            icon={<Folder className="h-4 w-4" />}
-            label="Uncategorized"
-            isActive={selectedFolderId === null && viewMode === "folder"}
+          <button
             onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
-            badge={folderStats.uncategorized}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-left transition-all duration-150 hover-elevate active-elevate-2",
+              selectedFolderId === null && viewMode === "folder"
+                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
+                : "text-zinc-600 dark:text-zinc-400"
+            )}
             data-testid="folder-uncategorized"
-          />
+          >
+            <div 
+              className="h-7 w-7 rounded-md flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: '#6b728015' }}
+            >
+              <Folder className="h-3.5 w-3.5" style={{ color: '#6b7280' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="block truncate">Uncategorized</span>
+              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                {folderStats.uncategorized} items
+              </span>
+            </div>
+          </button>
         )}
       </SubPanelSection>
 
@@ -1310,33 +1341,34 @@ export default function KnowledgeBase() {
                       <p className="text-xs text-muted-foreground">Folders by item count</p>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        {topCategories.length > 0 ? (
-                          topCategories.map((folder, index) => (
+                      {topCategories.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {topCategories.map((folder) => (
                             <button
                               key={folder.id}
                               onClick={() => {
                                 setViewMode("folder");
                                 setSelectedFolderId(folder.id);
                               }}
-                              className="w-full flex items-center gap-3 p-2 rounded-md hover-elevate transition-colors text-left"
+                              className="p-3 rounded-lg border hover-elevate text-left"
+                              data-testid={`quick-folder-${folder.id}`}
                             >
-                              <span className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
-                                {index + 1}
-                              </span>
-                              <Folder className="h-4 w-4" style={{ color: folder.color || '#3b82f6' }} />
-                              <span className="flex-1 text-sm truncate">{folder.name}</span>
-                              <Badge variant="secondary" className="text-xs">
-                                {folder.count} articles
-                              </Badge>
+                              <div 
+                                className="h-8 w-8 rounded-md flex items-center justify-center mb-2"
+                                style={{ backgroundColor: `${folder.color || '#3b82f6'}15` }}
+                              >
+                                <Folder className="h-4 w-4" style={{ color: folder.color || '#3b82f6' }} />
+                              </div>
+                              <p className="text-sm font-medium truncate">{folder.name}</p>
+                              <p className="text-xs text-muted-foreground">{folder.count} items</p>
                             </button>
-                          ))
-                        ) : (
-                          <div className="text-sm text-muted-foreground py-4 text-center">
-                            No folders yet. Create one to organize your content.
-                          </div>
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground py-4 text-center">
+                          No folders yet. Create one to organize your content.
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -1849,16 +1881,33 @@ export default function KnowledgeBase() {
             ) : (
               /* Folder View */
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  <button onClick={() => setViewMode("dashboard")} className="hover:text-foreground">
-                    Library Overview
+                <div className="flex items-center gap-4 mb-4">
+                  <button onClick={() => setViewMode("dashboard")} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <ChevronRight className="h-3 w-3 rotate-180" />
+                    Back
                   </button>
-                  <ChevronRight className="h-4 w-4" />
-                  <span className="text-foreground font-medium">
-                    {selectedFolderId 
-                      ? folders.find(f => f.id === selectedFolderId)?.name || "Folder"
-                      : "Index"}
-                  </span>
+                  <div className="h-4 w-px bg-border" />
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="h-10 w-10 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${(selectedFolderId ? folders.find(f => f.id === selectedFolderId)?.color : '#6b7280') || '#6b7280'}15` }}
+                    >
+                      <Folder 
+                        className="h-5 w-5" 
+                        style={{ color: (selectedFolderId ? folders.find(f => f.id === selectedFolderId)?.color : '#6b7280') || '#6b7280' }}
+                      />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        {selectedFolderId 
+                          ? folders.find(f => f.id === selectedFolderId)?.name || "Folder"
+                          : "Uncategorized"}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} in this folder
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {filteredItems.length === 0 ? (

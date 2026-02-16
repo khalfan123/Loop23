@@ -1180,7 +1180,7 @@ export default function KnowledgeBase() {
       subPanelWidth="sm"
       subPanelHeader={<span className="font-medium text-sm">Knowledge Engine</span>}
     >
-      <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="border-b">
           <div className="flex items-center justify-between p-4 gap-4">

@@ -28,12 +28,12 @@ export function ThreeColumnLayout({
   };
 
   return (
-    <div className={cn("flex w-full -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6", className)} style={{ minHeight: 'calc(100vh - 48px)' }}>
+    <div className={cn("flex w-full -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6", className)} style={{ height: 'calc(100vh - 48px)', minHeight: 'calc(100vh - 48px)' }}>
       {subPanel && (
         <>
           <aside
             className={cn(
-              "hidden lg:flex flex-col flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900",
+              "hidden lg:flex flex-col flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900 h-full",
               subPanelWidthClass[subPanelWidth]
             )}
           >
@@ -64,7 +64,7 @@ export function ThreeColumnLayout({
         </>
       )}
       
-      <div className="flex-1 min-w-0 overflow-auto bg-zinc-50/80 dark:bg-zinc-950/50">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-zinc-50/80 dark:bg-zinc-950/50">
         {subPanel && (
           <div className="lg:hidden flex items-center gap-2 px-4 pt-3">
             <Button
@@ -83,7 +83,7 @@ export function ThreeColumnLayout({
             )}
           </div>
         )}
-        <div className="p-6">
+        <div className="flex-1 overflow-auto p-6">
           {children}
         </div>
       </div>

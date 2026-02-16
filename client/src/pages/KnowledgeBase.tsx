@@ -980,76 +980,92 @@ export default function KnowledgeBase() {
       </SubPanelSection>
 
       <SubPanelSection title="Study Materials">
-        <div className="flex items-center justify-end px-1 mb-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5"
-            onClick={() => {
-              setEditingFolder(null);
-              setFolderName('');
-              setFolderColor('#3b82f6');
-              setFolderDialogOpen(true);
-            }}
-            data-testid="button-new-folder"
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
+        <div className="bg-zinc-100 dark:bg-zinc-800/60 rounded-lg overflow-hidden">
+          {folders.map((folder, idx) => (
+            <div key={folder.id} className="group relative">
+              <button
+                onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-left transition-colors",
+                  idx < folders.length - 1 || (folderStats && folderStats.uncategorized > 0)
+                    ? "border-b border-zinc-200/60 dark:border-zinc-700/50"
+                    : "",
+                  selectedFolderId === folder.id && viewMode === "folder"
+                    ? "bg-zinc-200/70 dark:bg-zinc-700/50 font-medium text-zinc-900 dark:text-zinc-100"
+                    : "text-zinc-700 dark:text-zinc-300"
+                )}
+                data-testid={`folder-${folder.id}`}
+              >
+                <Folder className="h-[14px] w-[14px] flex-shrink-0 text-zinc-400 dark:text-zinc-500" style={{ color: folder.color || undefined }} />
+                <span className="flex-1 truncate">{folder.name}</span>
+                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{folderStats?.folders[folder.id] || 0}</span>
+                <ChevronRight className="h-3 w-3 text-zinc-300 dark:text-zinc-600 flex-shrink-0" />
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 absolute right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <MoreHorizontal className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => {
+                    setEditingFolder(folder);
+                    setFolderName(folder.name);
+                    setFolderColor(folder.color || '#3b82f6');
+                    setFolderDialogOpen(true);
+                  }}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => setDeletingFolder(folder)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ))}
+
+          {folderStats && folderStats.uncategorized > 0 && (
+            <button
+              onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-[7px] text-[13px] text-left transition-colors",
+                selectedFolderId === null && viewMode === "folder"
+                  ? "bg-zinc-200/70 dark:bg-zinc-700/50 font-medium text-zinc-900 dark:text-zinc-100"
+                  : "text-zinc-700 dark:text-zinc-300"
+              )}
+              data-testid="folder-uncategorized"
+            >
+              <Folder className="h-[14px] w-[14px] flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
+              <span className="flex-1 truncate">Uncategorized</span>
+              <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{folderStats.uncategorized}</span>
+              <ChevronRight className="h-3 w-3 text-zinc-300 dark:text-zinc-600 flex-shrink-0" />
+            </button>
+          )}
         </div>
 
-        {folders.map((folder) => (
-          <div key={folder.id} className="group relative">
-            <SubPanelItem
-              icon={<Folder className="h-4 w-4" style={{ color: folder.color || '#3b82f6' }} />}
-              label={folder.name}
-              isActive={selectedFolderId === folder.id && viewMode === "folder"}
-              onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
-              badge={folderStats?.folders[folder.id] || 0}
-              data-testid={`folder-${folder.id}`}
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 absolute right-1 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => {
-                  setEditingFolder(folder);
-                  setFolderName(folder.name);
-                  setFolderColor(folder.color || '#3b82f6');
-                  setFolderDialogOpen(true);
-                }}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setDeletingFolder(folder)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        ))}
-
-        {folderStats && folderStats.uncategorized > 0 && (
-          <SubPanelItem
-            icon={<Folder className="h-4 w-4" />}
-            label="Uncategorized"
-            isActive={selectedFolderId === null && viewMode === "folder"}
-            onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
-            badge={folderStats.uncategorized}
-            data-testid="folder-uncategorized"
-          />
-        )}
+        <button
+          onClick={() => {
+            setEditingFolder(null);
+            setFolderName('');
+            setFolderColor('#3b82f6');
+            setFolderDialogOpen(true);
+          }}
+          className="w-full flex items-center justify-center gap-1.5 mt-2 py-1.5 text-[12px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+          data-testid="button-new-folder"
+        >
+          <Plus className="h-3 w-3" />
+          New Folder
+        </button>
       </SubPanelSection>
 
       <SubPanelSection title="AI Intelligence">

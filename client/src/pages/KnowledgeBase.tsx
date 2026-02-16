@@ -60,6 +60,7 @@ import {
   Activity
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
+import KnowledgeChatbot from "@/components/KnowledgeChatbot";
 import { AuthStorage } from "@/lib/auth-storage";
 import {
   Dialog,
@@ -270,7 +271,6 @@ export default function KnowledgeBase() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
-  const [testQuery, setTestQuery] = useState("");
   const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "ml-operations" | "ml-insights">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
@@ -726,13 +726,6 @@ export default function KnowledgeBase() {
         description: error.message || "Failed to move item",
         variant: "destructive",
       });
-    },
-  });
-
-  const testAgentReadingMutation = useMutation({
-    mutationFn: async (data: { query: string; knowledgeBaseIds: string[] }) => {
-      const res = await apiRequest('POST', '/api/rag-knowledge/search', data);
-      return res.json();
     },
   });
 
@@ -1691,112 +1684,6 @@ export default function KnowledgeBase() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-primary/20">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center">
-                        <Brain className="h-3 w-3 text-primary" />
-                      </div>
-                      Ask the AI
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground">Test what the AI knows from your knowledge sources</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Ask a question..."
-                          value={testQuery}
-                          onChange={(e) => setTestQuery(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && testQuery.trim()) {
-                              testAgentReadingMutation.mutate({
-                                query: testQuery,
-                                knowledgeBaseIds: knowledgeBase.map(kb => kb.id),
-                              });
-                            }
-                          }}
-                          data-testid="input-test-query"
-                        />
-                        <Button
-                          size="sm"
-                          disabled={!testQuery.trim() || testAgentReadingMutation.isPending || knowledgeBase.length === 0}
-                          onClick={() => {
-                            testAgentReadingMutation.mutate({
-                              query: testQuery,
-                              knowledgeBaseIds: knowledgeBase.map(kb => kb.id),
-                            });
-                          }}
-                          data-testid="button-test-reading"
-                        >
-                          {testAgentReadingMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Search className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      {testAgentReadingMutation.data && (
-                        <div className="space-y-3">
-                          <div>
-                            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                              <Brain className="h-3 w-3" />
-                              AI Answer
-                            </div>
-                            <div className="bg-primary/5 rounded-md border border-primary/20 p-3 max-h-[300px] overflow-auto">
-                              <p className="text-sm leading-relaxed" data-testid="text-professor-answer">
-                                {testAgentReadingMutation.data.aiAnswer || testAgentReadingMutation.data.formattedResponse || 'No relevant knowledge sources found for this question.'}
-                              </p>
-                            </div>
-                          </div>
-                          {testAgentReadingMutation.data.results && testAgentReadingMutation.data.results.length > 0 && (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                  Confidence level
-                                </div>
-                                <span className="text-xs font-medium">
-                                  {Math.round((testAgentReadingMutation.data.results[0]?.score || 0) * 100)}% match
-                                </span>
-                              </div>
-                              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full transition-all ${
-                                    (testAgentReadingMutation.data.results[0]?.score || 0) >= 0.7 
-                                      ? 'bg-green-500' 
-                                      : (testAgentReadingMutation.data.results[0]?.score || 0) >= 0.4 
-                                        ? 'bg-yellow-500' 
-                                        : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${Math.round((testAgentReadingMutation.data.results[0]?.score || 0) * 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
-                          {testAgentReadingMutation.data.results && testAgentReadingMutation.data.results.length > 0 && (
-                            <div className="space-y-1.5">
-                              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Sources referenced ({testAgentReadingMutation.data.results.length})
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {testAgentReadingMutation.data.results.map((result: any, idx: number) => (
-                                  <Badge key={idx} variant="secondary" className="text-xs">
-                                    {result.title || result.resourceTitle || `Source ${idx + 1}`}
-                                    <span className="ml-1 opacity-60">{Math.round((result.score || 0) * 100)}%</span>
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {knowledgeBase.length === 0 && (
-                        <p className="text-xs text-muted-foreground">Add knowledge sources first to enable AI responses.</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
                 {/* All Items Table */}
                 {knowledgeBase.length > 0 && (
                   <Card>
@@ -2385,6 +2272,8 @@ export default function KnowledgeBase() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <KnowledgeChatbot knowledgeBaseIds={knowledgeBase.map(kb => kb.id)} />
 
       {/* Folder Dialog */}
       <Dialog open={folderDialogOpen} onOpenChange={(open) => {

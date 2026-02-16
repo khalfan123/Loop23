@@ -60,7 +60,6 @@ import {
   Activity
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
-import KnowledgeChatbot from "@/components/KnowledgeChatbot";
 import { AuthStorage } from "@/lib/auth-storage";
 import {
   Dialog,
@@ -2272,8 +2271,6 @@ export default function KnowledgeBase() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <KnowledgeChatbot knowledgeBaseIds={knowledgeBase.map(kb => kb.id)} />
 
       {/* Folder Dialog */}
       <Dialog open={folderDialogOpen} onOpenChange={(open) => {

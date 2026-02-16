@@ -1767,13 +1767,13 @@ export default function KnowledgeBase() {
                                         Content Preview (What the AI agent reads)
                                       </div>
                                       <div className="bg-background rounded-md border p-3 max-h-[200px] overflow-auto">
-                                        <pre className="text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                                        <div className="text-sm whitespace-pre-wrap text-muted-foreground">
                                           {item.content 
-                                            ? item.content.substring(0, 1000) + (item.content.length > 1000 ? '\n\n... [truncated]' : '')
+                                            ? (item.content.replace(/```(\w*)\n[\s\S]*?```/g, '').replace(/`([^`]+)`/g, '$1')).substring(0, 1000) + (item.content.length > 1000 ? '\n\n... [truncated]' : '')
                                             : item.url 
                                               ? `Source URL: ${item.url}\n\nContent is processed into ${item.chunkCount || 0} searchable chunks.`
                                               : 'No content preview available.'}
-                                        </pre>
+                                        </div>
                                       </div>
                                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                         <span>Size: {item.storageSize ? `${(item.storageSize / 1024).toFixed(1)} KB` : 'N/A'}</span>
@@ -1962,13 +1962,13 @@ export default function KnowledgeBase() {
                                           Content Preview (What the AI agent reads)
                                         </div>
                                         <div className="bg-background rounded-md border p-3 max-h-[200px] overflow-auto">
-                                          <pre className="text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                                          <div className="text-sm whitespace-pre-wrap text-muted-foreground">
                                             {item.content 
-                                              ? item.content.substring(0, 1000) + (item.content.length > 1000 ? '\n\n... [truncated]' : '')
+                                              ? (item.content.replace(/```(\w*)\n[\s\S]*?```/g, '').replace(/`([^`]+)`/g, '$1')).substring(0, 1000) + (item.content.length > 1000 ? '\n\n... [truncated]' : '')
                                               : item.url 
                                                 ? `Source URL: ${item.url}\n\nContent is processed into ${item.chunkCount || 0} searchable chunks.`
                                                 : 'No content preview available.'}
-                                          </pre>
+                                          </div>
                                         </div>
                                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                           <span>Size: {item.storageSize ? `${(item.storageSize / 1024).toFixed(1)} KB` : 'N/A'}</span>

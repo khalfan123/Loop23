@@ -1169,8 +1169,8 @@ export default function DepartmentManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-9 gap-0 items-stretch" data-testid="call-center-org-card">
-              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+            <div className="grid grid-cols-1 lg:grid-cols-9 gap-0 items-stretch" data-testid="call-center-org-card">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center mb-2">
                   <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
@@ -1183,16 +1183,16 @@ export default function DepartmentManagement() {
                 )}
               </div>
 
-              <div className="hidden md:flex items-center justify-center px-1">
+              <div className="hidden lg:flex items-center justify-center px-1">
                 <div className="w-full border-t-2 border-dashed border-foreground/30 relative">
                   <ChevronRight className="h-4 w-4 text-foreground/50 absolute -right-2 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
-              <div className="flex md:hidden items-center justify-center py-1">
+              <div className="flex lg:hidden items-center justify-center py-1">
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center mb-2">
                   <GitBranch className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
@@ -1247,16 +1247,16 @@ export default function DepartmentManagement() {
                 )}
               </div>
 
-              <div className="hidden md:flex items-center justify-center px-1">
+              <div className="hidden lg:flex items-center justify-center px-1">
                 <div className="w-full border-t-2 border-dashed border-foreground/30 relative">
                   <ChevronRight className="h-4 w-4 text-foreground/50 absolute -right-2 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
-              <div className="flex md:hidden items-center justify-center py-1">
+              <div className="flex lg:hidden items-center justify-center py-1">
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center mb-2">
                   <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
@@ -1276,16 +1276,16 @@ export default function DepartmentManagement() {
                 )}
               </div>
 
-              <div className="hidden md:flex items-center justify-center px-1">
+              <div className="hidden lg:flex items-center justify-center px-1">
                 <div className="w-full border-t-2 border-dashed border-foreground/30 relative">
                   <ChevronRight className="h-4 w-4 text-foreground/50 absolute -right-2 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
-              <div className="flex md:hidden items-center justify-center py-1">
+              <div className="flex lg:hidden items-center justify-center py-1">
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center mb-2">
                   <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
@@ -1293,16 +1293,16 @@ export default function DepartmentManagement() {
                 <span className="text-xs text-muted-foreground mt-0.5">{agents?.length || 0} Enabled</span>
               </div>
 
-              <div className="hidden md:flex items-center justify-center px-1">
+              <div className="hidden lg:flex items-center justify-center px-1">
                 <div className="w-full border-t-2 border-dashed border-foreground/30 relative">
                   <ChevronRight className="h-4 w-4 text-foreground/50 absolute -right-2 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
-              <div className="flex md:hidden items-center justify-center py-1">
+              <div className="flex lg:hidden items-center justify-center py-1">
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="md:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center mb-2">
                   <BookOpen className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                 </div>
@@ -1498,13 +1498,13 @@ export default function DepartmentManagement() {
         )}
 
         {activeTab === 'incoming-connections' && (
-          <div className="h-[calc(100vh-200px)]">
+          <div className="h-[calc(100vh-200px)] min-h-[300px]">
             <IncomingCallCanvas embedded={true} />
           </div>
         )}
 
         {activeTab === 'human-connections' && (
-          <div className="h-[calc(100vh-200px)]">
+          <div className="h-[calc(100vh-200px)] min-h-[300px]">
             <HumanAgentCanvas embedded={true} />
           </div>
         )}
@@ -1516,7 +1516,7 @@ export default function DepartmentManagement() {
           setExpandedNewAgents(new Set());
         }
       }}>
-        <DialogContent className={!selectedDepartment ? "max-w-2xl max-h-[85vh] overflow-y-auto" : ""} data-testid="dialog-create-department">
+        <DialogContent className={!selectedDepartment ? "w-full max-w-2xl max-h-[85vh] overflow-y-auto" : ""} data-testid="dialog-create-department">
           <DialogHeader>
             <DialogTitle>
               {selectedDepartment ? "Edit Department" : "Create New Department"}
@@ -2086,7 +2086,7 @@ export default function DepartmentManagement() {
       </Dialog>
 
       <Sheet open={showConfigSheet} onOpenChange={setShowConfigSheet}>
-        <SheetContent className="w-[450px] sm:w-[550px]" data-testid="sheet-department-config">
+        <SheetContent className="w-full max-w-[450px] sm:max-w-[550px]" data-testid="sheet-department-config">
           <SheetHeader>
             <SheetTitle>Department Configuration</SheetTitle>
           </SheetHeader>
@@ -2427,7 +2427,7 @@ export default function DepartmentManagement() {
       </Sheet>
 
       <Sheet open={ivrConfigOpen} onOpenChange={setIvrConfigOpen}>
-        <SheetContent className="w-[450px] sm:w-[550px]" data-testid="sheet-ivr-config">
+        <SheetContent className="w-full max-w-[450px] sm:max-w-[550px]" data-testid="sheet-ivr-config">
           <SheetHeader>
             <SheetTitle>IVR Configuration</SheetTitle>
           </SheetHeader>

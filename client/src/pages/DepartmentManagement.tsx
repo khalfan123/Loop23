@@ -1049,6 +1049,10 @@ export default function DepartmentManagement() {
     return (phoneNumbers || []).filter(p => !assignedPhoneIds.has(p.id));
   }, [phoneNumbers, assignedPhoneIds]);
 
+  const assignedPhones = useMemo(() => {
+    return (phoneNumbers || []).filter(p => assignedPhoneIds.has(p.id));
+  }, [phoneNumbers, assignedPhoneIds]);
+
   if (statsLoading) {
     return (
       <div className="flex items-center justify-center py-16" data-testid="loading-spinner">
@@ -1175,7 +1179,17 @@ export default function DepartmentManagement() {
                   <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <span className="text-sm font-medium">Inbound</span>
-                <span className="text-xs text-muted-foreground mt-0.5 font-mono">{activePhoneNumber?.phoneNumber || "No number"}</span>
+                {assignedPhones.length > 0 ? (
+                  <div className="flex flex-col items-center gap-0.5 mt-0.5">
+                    {assignedPhones.map((phone) => (
+                      <span key={phone.id} className="text-xs text-muted-foreground font-mono" data-testid={`text-assigned-phone-${phone.id}`}>
+                        {phone.phoneNumber}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground mt-0.5 font-mono">No number</span>
+                )}
                 {unassignedPhones.length > 0 && (
                   <Badge variant="outline" className="text-xs mt-1 cursor-pointer" onClick={() => setShowIvrSettingsDialog(true)} data-testid="unassigned-numbers-panel">
                     {unassignedPhones.length} unassigned

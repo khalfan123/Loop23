@@ -182,13 +182,19 @@ function UserRouter() {
           <Route path="/app/analytics" component={Analytics} />
           <Route path="/app/quality-assurance" component={QualityAssurance} />
           <Route path="/app/crm" component={CRMPage} />
-          <Route path="/app/tools/widgets" component={WidgetsPage} />
-          <Route path="/app/billing" component={Billing} />
+          <Route path="/app/tools/widgets">
+            <Redirect to="/app/settings/widgets" />
+          </Route>
+          <Route path="/app/billing">
+            <Redirect to="/app/settings/billing" />
+          </Route>
           <Route path="/app/payment-result" component={PaymentResult} />
           <Route path="/app/transaction-history">
-            <Redirect to="/app/billing?tab=credits" />
+            <Redirect to="/app/settings/billing?tab=credits" />
           </Route>
-          <Route path="/app/upgrade" component={Upgrade} />
+          <Route path="/app/upgrade">
+            <Redirect to="/app/settings/upgrade" />
+          </Route>
           <Route path="/app/knowledge-base" component={KnowledgeBase} />
           <Route path="/app/knowledge-intelligence">
             <Redirect to="/app/knowledge-base" />
@@ -207,18 +213,32 @@ function UserRouter() {
           <Route path="/app/integrations/:slug" component={IntegrationDetail} />
           <Route path="/app/integrations" component={IntegrationMarketplace} />
           <Route path="/app/tools" component={() => <div className="text-center py-16 text-muted-foreground">Tools page coming soon</div>} />
-          <Route path="/app/flows/new" component={FlowBuilderPage} />
-          <Route path="/app/flows/execution" component={FlowExecutionLogsPage} />
-          <Route path="/app/flows/webhooks" component={WebhookConfigPage} />
-          <Route path="/app/flows/forms" component={FormsPage} />
-          <Route path="/app/flows/appointments" component={AppointmentsPage} />
-          <Route path="/app/flows/templates">
-            <Redirect to="/app/flows?tab=templates" />
+          <Route path="/app/flows/new">
+            <Redirect to="/app/settings/flows/new" />
           </Route>
-          <Route path="/app/flows/:id" component={FlowBuilderPage} />
-          <Route path="/app/flows" component={FlowsPage} />
+          <Route path="/app/flows/execution">
+            <Redirect to="/app/settings/execution" />
+          </Route>
+          <Route path="/app/flows/webhooks">
+            <Redirect to="/app/settings/webhooks" />
+          </Route>
+          <Route path="/app/flows/forms">
+            <Redirect to="/app/settings/flows/forms" />
+          </Route>
+          <Route path="/app/flows/appointments">
+            <Redirect to="/app/settings/flows/appointments" />
+          </Route>
+          <Route path="/app/flows/templates">
+            <Redirect to="/app/settings/flows?tab=templates" />
+          </Route>
+          <Route path="/app/flows/:id">
+            {(params) => <Redirect to={`/app/settings/flows/${params.id}`} />}
+          </Route>
+          <Route path="/app/flows">
+            <Redirect to="/app/settings/flows" />
+          </Route>
           <Route path="/app/outbound" component={() => <div className="text-center py-16 text-muted-foreground">Outbound page coming soon</div>} />
-          <Route path="/app/settings/account" component={Settings} />
+          <Route path="/app/settings/:rest*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
           <Route component={NotFound} />
@@ -249,10 +269,14 @@ function TeamMemberRouter() {
           <Route path="/app/analytics" component={Analytics} />
           <Route path="/app/quality-assurance" component={QualityAssurance} />
           <Route path="/app/crm" component={CRMPage} />
-          <Route path="/app/tools/widgets" component={WidgetsPage} />
-          <Route path="/app/billing" component={Billing} />
+          <Route path="/app/tools/widgets">
+            <Redirect to="/app/settings/widgets" />
+          </Route>
+          <Route path="/app/billing">
+            <Redirect to="/app/settings/billing" />
+          </Route>
           <Route path="/app/transaction-history">
-            <Redirect to="/app/billing?tab=credits" />
+            <Redirect to="/app/settings/billing?tab=credits" />
           </Route>
           <Route path="/app/knowledge-base" component={KnowledgeBase} />
           <Route path="/app/knowledge-intelligence">
@@ -271,17 +295,31 @@ function TeamMemberRouter() {
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
           <Route path="/app/integrations/:slug" component={IntegrationDetail} />
           <Route path="/app/integrations" component={IntegrationMarketplace} />
-          <Route path="/app/flows/new" component={FlowBuilderPage} />
-          <Route path="/app/flows/execution" component={FlowExecutionLogsPage} />
-          <Route path="/app/flows/webhooks" component={WebhookConfigPage} />
-          <Route path="/app/flows/forms" component={FormsPage} />
-          <Route path="/app/flows/appointments" component={AppointmentsPage} />
-          <Route path="/app/flows/templates">
-            <Redirect to="/app/flows?tab=templates" />
+          <Route path="/app/flows/new">
+            <Redirect to="/app/settings/flows/new" />
           </Route>
-          <Route path="/app/flows/:id" component={FlowBuilderPage} />
-          <Route path="/app/flows" component={FlowsPage} />
-          <Route path="/app/settings/account" component={Settings} />
+          <Route path="/app/flows/execution">
+            <Redirect to="/app/settings/execution" />
+          </Route>
+          <Route path="/app/flows/webhooks">
+            <Redirect to="/app/settings/webhooks" />
+          </Route>
+          <Route path="/app/flows/forms">
+            <Redirect to="/app/settings/flows/forms" />
+          </Route>
+          <Route path="/app/flows/appointments">
+            <Redirect to="/app/settings/flows/appointments" />
+          </Route>
+          <Route path="/app/flows/templates">
+            <Redirect to="/app/settings/flows?tab=templates" />
+          </Route>
+          <Route path="/app/flows/:id">
+            {(params) => <Redirect to={`/app/settings/flows/${params.id}`} />}
+          </Route>
+          <Route path="/app/flows">
+            <Redirect to="/app/settings/flows" />
+          </Route>
+          <Route path="/app/settings/:rest*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/admin" component={AdminDashboard} />
           <Route component={NotFound} />

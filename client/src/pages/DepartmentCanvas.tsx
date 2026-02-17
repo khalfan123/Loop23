@@ -46,6 +46,7 @@ import {
   ChevronUp,
   ChevronRight,
   Sparkles,
+  Pencil,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -1221,19 +1222,9 @@ function DepartmentsStep({
   toast: ReturnType<typeof useToast>["toast"];
 }) {
   const [customDeptName, setCustomDeptName] = useState("");
-  const [expandedDeptIds, setExpandedDeptIds] = useState<Set<string>>(new Set());
-
-  const toggleExpand = (id: string) => {
-    setExpandedDeptIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+  const [activeDeptId, setActiveDeptId] = useState<string | null>(null);
+  const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
+  const [editDeptName, setEditDeptName] = useState("");
 
   const addDepartment = (template: typeof departmentTemplates[0] | { type: "custom"; name: string }) => {
     const defaultPrompt = template.type !== "custom" ? (template as any).defaultPrompt : "";
@@ -1261,11 +1252,7 @@ function DepartmentsStep({
     };
 
     setCanvasDepartments((prev) => [...prev, newDept]);
-    setExpandedDeptIds((prev) => {
-      const next = new Set(Array.from(prev));
-      next.add(newDeptId);
-      return next;
-    });
+    setActiveDeptId(newDeptId);
 
     toast({
       title: "Department Added",
@@ -1281,16 +1268,31 @@ function DepartmentsStep({
 
   const deleteDepartment = (deptId: string) => {
     setCanvasDepartments((prev) => prev.filter((d) => d.id !== deptId));
-    setExpandedDeptIds((prev) => {
-      const next = new Set(prev);
-      next.delete(deptId);
-      return next;
-    });
+    if (activeDeptId === deptId) {
+      const remaining = canvasDepartments.filter((d) => d.id !== deptId);
+      setActiveDeptId(remaining.length > 0 ? remaining[0].id : null);
+    }
     toast({
       title: "Department Removed",
       description: "Department has been deleted",
     });
   };
+
+  const startEditName = (dept: CanvasDepartment) => {
+    setEditingDeptId(dept.id);
+    setEditDeptName(dept.name);
+  };
+
+  const saveEditName = () => {
+    if (editingDeptId && editDeptName.trim()) {
+      updateDepartment(editingDeptId, { name: editDeptName.trim() });
+      toast({ title: "Department renamed" });
+    }
+    setEditingDeptId(null);
+    setEditDeptName("");
+  };
+
+  const activeDept = canvasDepartments.find((d) => d.id === activeDeptId) || null;
 
   return (
     <div className="flex gap-6">
@@ -1359,40 +1361,83 @@ function DepartmentsStep({
         {canvasDepartments.length > 0 && (
           <div className="border-t pt-4">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
-              Added Departments
+              Departments ({canvasDepartments.length})
             </Label>
             <div className="space-y-1">
               {canvasDepartments.map((dept) => {
-                const icons: Record<string, any> = {
+                const iconMap: Record<string, any> = {
                   sales: ShoppingCart,
                   support: Headphones,
                   scheduling: Calendar,
                   custom: Building2,
                 };
-                const DeptIcon = icons[dept.type] || Building2;
-                const isActive = expandedDeptIds.has(dept.id);
+                const DeptIcon = iconMap[dept.type] || Building2;
+                const isActive = activeDeptId === dept.id;
+                const isEditing = editingDeptId === dept.id;
+
                 return (
-                  <button
+                  <div
                     key={dept.id}
-                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm text-left transition-colors ${
+                    className={`group flex items-center gap-1 rounded-md transition-colors ${
                       isActive
-                        ? "bg-primary/10 text-primary font-medium"
+                        ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover-elevate"
                     }`}
-                    onClick={() => {
-                      if (!expandedDeptIds.has(dept.id)) {
-                        toggleExpand(dept.id);
-                      }
-                      const el = document.getElementById(`dept-card-${dept.id}`);
-                      if (el) {
-                        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                      }
-                    }}
                     data-testid={`nav-dept-${dept.id}`}
                   >
-                    <DeptIcon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{dept.name}</span>
-                  </button>
+                    {isEditing ? (
+                      <div className="flex items-center gap-1 flex-1 min-w-0 px-2 py-1">
+                        <Input
+                          value={editDeptName}
+                          onChange={(e) => setEditDeptName(e.target.value)}
+                          className="h-6 text-xs"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEditName();
+                            if (e.key === "Escape") {
+                              setEditingDeptId(null);
+                              setEditDeptName("");
+                            }
+                          }}
+                          onBlur={saveEditName}
+                          data-testid={`input-edit-dept-name-${dept.id}`}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          className="flex items-center gap-2 flex-1 min-w-0 px-2.5 py-1.5 text-sm text-left"
+                          onClick={() => setActiveDeptId(dept.id)}
+                          data-testid={`button-select-dept-${dept.id}`}
+                        >
+                          <DeptIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className={`truncate ${isActive ? "font-medium" : ""}`}>{dept.name}</span>
+                        </button>
+                        <div className="flex items-center shrink-0 invisible group-hover:visible">
+                          <button
+                            className="p-1 rounded hover-elevate"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEditName(dept);
+                            }}
+                            data-testid={`button-edit-dept-${dept.id}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            className="p-1 rounded hover-elevate text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteDepartment(dept.id);
+                            }}
+                            data-testid={`button-delete-dept-${dept.id}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1414,22 +1459,23 @@ function DepartmentsStep({
             <p className="text-sm">No departments added yet</p>
             <p className="text-xs mt-1">Use the templates on the left to get started</p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {canvasDepartments.map((dept) => (
-              <div key={dept.id} id={`dept-card-${dept.id}`}>
-                <DepartmentCard
-                  dept={dept}
-                  agents={agents}
-                  isExpanded={expandedDeptIds.has(dept.id)}
-                  onToggleExpand={() => toggleExpand(dept.id)}
-                  onUpdate={(updates) => updateDepartment(dept.id, updates)}
-                  onDelete={() => deleteDepartment(dept.id)}
-                  toast={toast}
-                />
-              </div>
-            ))}
+        ) : !activeDept ? (
+          <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+            <Settings className="h-8 w-8 mx-auto mb-3 opacity-50" />
+            <p className="text-sm">Select a department from the left panel</p>
+            <p className="text-xs mt-1">Click on a department to configure its settings</p>
           </div>
+        ) : (
+          <DepartmentCard
+            key={activeDept.id}
+            dept={activeDept}
+            agents={agents}
+            isExpanded={true}
+            onToggleExpand={() => {}}
+            onUpdate={(updates) => updateDepartment(activeDept.id, updates)}
+            onDelete={() => deleteDepartment(activeDept.id)}
+            toast={toast}
+          />
         )}
       </div>
     </div>

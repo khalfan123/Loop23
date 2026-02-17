@@ -346,7 +346,6 @@ export default function CallDetail() {
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground">
                   {contactName}
                 </h1>
-                {getEngineBadge(call.engine)}
                 {getWidgetBadge()}
                 {getStatusBadge(call.status)}
                 {getSentimentBadge(call.sentiment)}

@@ -106,7 +106,7 @@ const DEFAULT_COLUMNS = {
   to: true,
   direction: true,
   agent: true,
-  engine: true,
+  engine: false,
 };
 
 type ColumnVisibility = typeof DEFAULT_COLUMNS;
@@ -1570,13 +1570,6 @@ export default function Calls() {
               data-testid="checkbox-col-agent"
             >
               Agent
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={columnVisibility.engine}
-              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, engine: checked }))}
-              data-testid="checkbox-col-engine"
-            >
-              Engine
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>

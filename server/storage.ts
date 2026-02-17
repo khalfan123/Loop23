@@ -712,11 +712,15 @@ export class DbStorage implements IStorage {
     
     if (elevenLabsResults.length > 0) {
       const r = elevenLabsResults[0];
-      // Extract engine from metadata if available (for widget calls that store engine in metadata)
       const metadataEngine = (r.call.metadata as any)?.engine;
       const engine = metadataEngine || 'elevenlabs';
+      let normalizedStatus = r.call.status;
+      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
+        normalizedStatus = 'completed';
+      }
       return {
         ...r.call,
+        status: normalizedStatus,
         engine: engine as 'elevenlabs' | 'openai' | 'twilio-openai' | 'plivo-openai',
         campaign: r.campaign ? { id: r.campaign.id, name: r.campaign.name } : null,
         contact: r.contact ? { id: r.contact.id, firstName: r.contact.firstName, lastName: r.contact.lastName, phone: r.contact.phone } : null,
@@ -740,6 +744,10 @@ export class DbStorage implements IStorage {
 
     if (twilioOpenAIResults.length > 0) {
       const r = twilioOpenAIResults[0];
+      let normalizedStatus = r.call.status;
+      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
+        normalizedStatus = 'completed';
+      }
       return {
         id: r.call.id,
         userId: r.call.userId,
@@ -750,7 +758,7 @@ export class DbStorage implements IStorage {
         fromNumber: r.call.fromNumber,
         toNumber: r.call.toNumber,
         twilioSid: r.call.twilioCallSid,
-        status: r.call.status,
+        status: normalizedStatus,
         callDirection: r.call.callDirection === 'inbound' ? 'incoming' : (r.call.callDirection === 'outbound' ? 'outgoing' : r.call.callDirection),
         duration: r.call.duration,
         recordingUrl: r.call.recordingUrl,
@@ -790,6 +798,10 @@ export class DbStorage implements IStorage {
 
     if (plivoResults.length > 0) {
       const r = plivoResults[0];
+      let normalizedStatus = r.call.status;
+      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
+        normalizedStatus = 'completed';
+      }
       return {
         id: r.call.id,
         userId: r.call.userId,
@@ -800,7 +812,7 @@ export class DbStorage implements IStorage {
         fromNumber: r.call.fromNumber,
         toNumber: r.call.toNumber,
         plivoCallUuid: r.call.plivoCallUuid,
-        status: r.call.status,
+        status: normalizedStatus,
         callDirection: r.call.callDirection === 'inbound' ? 'incoming' : (r.call.callDirection === 'outbound' ? 'outgoing' : r.call.callDirection),
         duration: r.call.duration,
         recordingUrl: r.call.recordingUrl,
@@ -879,11 +891,15 @@ export class DbStorage implements IStorage {
       .orderBy(sql`${calls.createdAt} DESC`);
     
     const elevenLabsCalls = elevenLabsResults.map(r => {
-      // Extract engine from metadata if available (for widget calls that store engine in metadata)
       const metadataEngine = (r.call.metadata as any)?.engine;
       const engine = metadataEngine || 'elevenlabs';
+      let normalizedStatus = r.call.status;
+      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
+        normalizedStatus = 'completed';
+      }
       return {
         ...r.call,
+        status: normalizedStatus,
         engine: engine as 'elevenlabs' | 'openai' | 'twilio-openai' | 'plivo-openai',
         campaign: r.campaign ? { id: r.campaign.id, name: r.campaign.name } : null,
         contact: r.contact ? { id: r.contact.id, firstName: r.contact.firstName, lastName: r.contact.lastName, phone: r.contact.phone } : null,
@@ -906,7 +922,12 @@ export class DbStorage implements IStorage {
       .where(eq(twilioOpenaiCalls.userId, userId))
       .orderBy(sql`${twilioOpenaiCalls.createdAt} DESC`);
 
-    const twilioOpenAICalls = twilioOpenAIResults.map(r => ({
+    const twilioOpenAICalls = twilioOpenAIResults.map(r => {
+      let normalizedStatus = r.call.status;
+      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
+        normalizedStatus = 'completed';
+      }
+      return {
       id: r.call.id,
       userId: r.call.userId,
       campaignId: r.call.campaignId,
@@ -916,7 +937,7 @@ export class DbStorage implements IStorage {
       fromNumber: r.call.fromNumber,
       toNumber: r.call.toNumber,
       twilioSid: r.call.twilioCallSid,
-      status: r.call.status,
+      status: normalizedStatus,
       callDirection: r.call.callDirection === 'inbound' ? 'incoming' : 'outgoing',
       duration: r.call.duration,
       recordingUrl: r.call.recordingUrl,
@@ -938,7 +959,7 @@ export class DbStorage implements IStorage {
       contact: r.contact ? { id: r.contact.id, firstName: r.contact.firstName, lastName: r.contact.lastName, phone: r.contact.phone } : null,
       incomingConnection: null,
       agent: r.agent ? { id: r.agent.id, name: r.agent.name } : null,
-    }));
+    }});
 
     // Fetch Plivo+OpenAI calls - user ownership only (strict isolation)
     const plivoResults = await db.select({
@@ -954,7 +975,12 @@ export class DbStorage implements IStorage {
       .where(eq(plivoCalls.userId, userId))
       .orderBy(sql`${plivoCalls.createdAt} DESC`);
 
-    const plivoOpenAICalls = plivoResults.map(r => ({
+    const plivoOpenAICalls = plivoResults.map(r => {
+      let normalizedStatus = r.call.status;
+      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
+        normalizedStatus = 'completed';
+      }
+      return {
       id: r.call.id,
       userId: r.call.userId,
       campaignId: r.call.campaignId,
@@ -964,7 +990,7 @@ export class DbStorage implements IStorage {
       fromNumber: r.call.fromNumber,
       toNumber: r.call.toNumber,
       plivoCallUuid: r.call.plivoCallUuid,
-      status: r.call.status,
+      status: normalizedStatus,
       callDirection: r.call.callDirection === 'inbound' ? 'incoming' : 'outgoing',
       duration: r.call.duration,
       recordingUrl: r.call.recordingUrl,
@@ -990,7 +1016,7 @@ export class DbStorage implements IStorage {
       contact: r.contact ? { id: r.contact.id, firstName: r.contact.firstName, lastName: r.contact.lastName, phone: r.contact.phone } : null,
       incomingConnection: null,
       agent: r.agent ? { id: r.agent.id, name: r.agent.name } : null,
-    }));
+    }});
 
     // Merge and sort by createdAt descending
     const allCalls = [...elevenLabsCalls, ...twilioOpenAICalls, ...plivoOpenAICalls];

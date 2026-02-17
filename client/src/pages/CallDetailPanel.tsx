@@ -406,7 +406,6 @@ export default function CallDetailPanel({
                         {getSentimentBadge(call.sentiment)}
                       </div>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {getEngineBadge(call.engine)}
                         {getWidgetBadge()}
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground flex-wrap">
@@ -907,9 +906,6 @@ export default function CallDetailPanel({
 
                         <span className="text-muted-foreground">Channel</span>
                         <span>{call.channelType || (isIncoming ? "incoming" : "outgoing")}</span>
-
-                        <span className="text-muted-foreground">Engine</span>
-                        <span>{call.engine || "elevenlabs"}</span>
 
                         {call.contact && (
                           <>

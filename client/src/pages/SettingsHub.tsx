@@ -1,7 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "wouter";
-import { Settings, Workflow, BarChart3, Webhook, Globe, TrendingUp, CreditCard, ChevronRight, UserCog } from "lucide-react";
+import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Settings, Workflow, BarChart3, Webhook, Globe, TrendingUp, CreditCard, ChevronRight, UserCog } from "lucide-react";
+import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 
 const settingsItems = [
   {
@@ -64,28 +65,48 @@ const settingsItems = [
 
 export default function SettingsHub() {
   const { t } = useTranslation();
+  const [location, setLocation] = useLocation();
+
+  const subPanelContent = (
+    <SubPanelSection>
+      {settingsItems.map((item) => (
+        <SubPanelItem
+          key={item.url}
+          icon={<item.icon className="w-4 h-4" />}
+          label={item.title}
+          isActive={location === item.url || location.startsWith(item.url + "/")}
+          onClick={() => setLocation(item.url)}
+          data-testid={`settings-nav-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+        />
+      ))}
+    </SubPanelSection>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 dark:from-slate-950/40 dark:via-gray-950/30 dark:to-zinc-950/40 border p-6">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center shadow-lg">
-            <Settings className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">{t('nav.settings', 'Settings')}</h1>
-            <p className="text-muted-foreground">
-              Manage your workflows, integrations, and billing
-            </p>
-          </div>
+    <ThreeColumnLayout
+      subPanel={subPanelContent}
+      subPanelWidth="sm"
+      subPanelHeader={
+        <span className="font-medium text-sm flex items-center gap-2">
+          <Settings className="h-4 w-4 text-primary" />
+          {t('nav.settings', 'Settings')}
+        </span>
+      }
+    >
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">{t('nav.settings', 'Settings')}</h1>
+          <p className="text-muted-foreground">
+            Manage your workflows, integrations, and billing
+          </p>
         </div>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {settingsItems.map((item) => (
-          <Link key={item.url} href={item.url}>
-            <Card 
+        <div className="grid gap-4 md:grid-cols-2">
+          {settingsItems.map((item) => (
+            <Card
+              key={item.url}
               className="hover-elevate cursor-pointer transition-all duration-200 h-full group"
+              onClick={() => setLocation(item.url)}
               data-testid={`settings-card-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
             >
               <CardHeader className="pb-3">
@@ -101,9 +122,9 @@ export default function SettingsHub() {
                 <CardDescription>{item.description}</CardDescription>
               </CardContent>
             </Card>
-          </Link>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+    </ThreeColumnLayout>
   );
 }

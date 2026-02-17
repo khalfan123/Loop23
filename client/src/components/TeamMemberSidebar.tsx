@@ -154,7 +154,7 @@ const FLOW_AUTOMATION_ROUTES = [
   { url: "/app/flows", icon: Workflow, label: "Flow Builder", iconColor: "text-indigo-500" },
   { url: "/app/flows/execution", icon: BarChart3, label: "Execution Logs", iconColor: "text-slate-500" },
   { url: "/app/flows/forms", icon: ClipboardList, label: "Forms", iconColor: "text-cyan-500" },
-  { url: "/app/flows/appointments", icon: Calendar, label: "Appointments", iconColor: "text-rose-500" },
+  { url: "/app/settings/flows/appointments", icon: Calendar, label: "Appointments", iconColor: "text-rose-500" },
 ];
 
 export function TeamMemberSidebar() {

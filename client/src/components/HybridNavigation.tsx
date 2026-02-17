@@ -128,7 +128,7 @@ export function HybridNavigation({
 
   const manageItems: NavItem[] = [
     { title: t('nav.leads', 'Leads'), url: "/app/crm", icon: Users },
-    { title: t('nav.appointments'), url: "/app/flows/appointments", icon: Calendar },
+    { title: t('nav.appointments'), url: "/app/settings/flows/appointments", icon: Calendar },
   ];
 
   const settingsItems: NavItem[] = [

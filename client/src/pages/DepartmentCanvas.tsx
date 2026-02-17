@@ -166,6 +166,17 @@ const getBestVoiceForDept = (deptType: string, langCode: string): string => {
   };
   const preferred = stylePreference[deptType] || stylePreference.support;
 
+  const elVoices = voices.filter(v => v.id.startsWith("el_"));
+  const openaiVoices = voices.filter(v => !v.id.startsWith("el_"));
+
+  if (langCode !== "en" && elVoices.length > 0) {
+    for (const style of preferred) {
+      const match = elVoices.find(v => v.style === style);
+      if (match) return match.id;
+    }
+    return elVoices[0].id;
+  }
+
   for (const style of preferred) {
     const match = voices.find(v => v.style === style);
     if (match) return match.id;

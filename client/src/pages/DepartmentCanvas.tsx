@@ -695,23 +695,102 @@ function DepartmentCard({
     });
   };
 
+  const getBestAgentForLang = (deptType: string, langCode: string): { id: string; name: string; systemPrompt: string | null; voiceTone: string | null } | null => {
+    const langAgents = getAgentsForLanguage(langCode);
+    if (langAgents.length === 0) return null;
+
+    const keywords: Record<string, string[]> = {
+      sales: ["sales", "sell", "lead", "revenue", "deal", "demo", "vente", "vendita", "venta"],
+      support: ["support", "help", "service", "customer", "assist", "issue", "aide", "supporto", "soporte"],
+      scheduling: ["schedul", "appointment", "booking", "calendar", "reserve", "rendez-vous", "appuntamento"],
+      billing: ["billing", "payment", "invoice", "finance", "account", "refund", "facturation", "fatturazione"],
+      hr: ["hr", "human resource", "recruit", "hiring", "onboard", "employee", "ressources humaines", "risorse umane"],
+      marketing: ["marketing", "campaign", "brand", "advertis", "partner", "promo", "campagne"],
+      complaints: ["complaint", "escalat", "resolve", "grievance", "feedback", "plainte", "reclamo"],
+    };
+
+    const deptKeywords = keywords[deptType] || [];
+    if (deptKeywords.length > 0) {
+      for (const agent of langAgents) {
+        const searchText = `${agent.name} ${agent.systemPrompt || ""}`.toLowerCase();
+        if (deptKeywords.some((kw) => searchText.includes(kw))) {
+          return { id: agent.id, name: agent.name, systemPrompt: agent.systemPrompt, voiceTone: agent.voiceTone };
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const generatePromptForLangAgent = async (langAgentId: string, deptType: string, deptName: string, langCode: string) => {
+    try {
+      const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || "English";
+      const translatedName = translateDeptName(deptName, deptType, langCode);
+      const response = await apiRequest("POST", "/api/departments/generate-prompt", {
+        departmentType: deptType,
+        departmentName: translatedName,
+        language: langLabel,
+      });
+      const data = await response.json();
+      if (data.prompt) {
+        const newList = languageAgents.map((la) =>
+          la.id === langAgentId ? { ...la, systemPrompt: data.prompt } : la
+        );
+        onUpdate({ languageAgents: newList });
+        toast({
+          title: "Prompt Generated",
+          description: `AI-generated prompt for ${translatedName} (${langLabel})`,
+        });
+      }
+    } catch {
+      toast({
+        title: "Could not auto-generate prompt",
+        description: "You can write one manually or try generating later",
+        variant: "destructive",
+      });
+    }
+  };
+
   const addLanguageAgent = () => {
     const usedLangs = languageAgents.map((la) => la.language);
     const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
     if (!availableLang) return;
 
+    const langCode = availableLang.code;
+    const langAgentId = `la-${Date.now()}`;
+    const bestAgent = dept.type !== "custom" ? getBestAgentForLang(dept.type, langCode) : null;
+    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, langCode) : null;
+    const bestTone = dept.type !== "custom" ? getBestToneForDept(dept.type) : null;
+
+    const agentFound = !!bestAgent;
+    const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
+    const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
+
     const newLangAgent: LanguageAgent = {
-      id: `la-${Date.now()}`,
-      language: availableLang.code,
-      agentId: null,
-      agentName: null,
-      systemPrompt: null,
-      voiceId: null,
-      voiceTone: null,
+      id: langAgentId,
+      language: langCode,
+      agentId: bestAgent?.id || null,
+      agentName: bestAgent?.name || null,
+      systemPrompt,
+      voiceId: bestVoice || null,
+      voiceTone: voiceTone || null,
     };
 
     onUpdate({ languageAgents: [...languageAgents, newLangAgent] });
     setActiveTabIdx(languageAgents.length);
+
+    if (agentFound) {
+      toast({
+        title: "Language Added",
+        description: `${availableLang.label} agent "${bestAgent.name}" auto-selected`,
+      });
+    } else if (dept.type !== "custom") {
+      toast({
+        title: "Language Added",
+        description: `${availableLang.label} added — generating AI prompt...`,
+      });
+      generatePromptForLangAgent(langAgentId, dept.type, dept.name, langCode);
+    }
   };
 
   const removeLanguageAgent = (id: string) => {
@@ -778,10 +857,17 @@ function DepartmentCard({
         agentName: agent.name,
         systemPrompt: agent.systemPrompt || null,
         voiceId: bestVoice,
-        voiceTone: bestTone,
+        voiceTone: agent.voiceTone || bestTone,
       };
       updateLanguageAgent(langAgentId, agentUpdates);
-      generatePromptForAgent(langAgentId, agent.name, language, agentUpdates);
+      if (!agent.systemPrompt) {
+        generatePromptForAgent(langAgentId, agent.name, language, agentUpdates);
+      } else {
+        toast({
+          title: "Agent Selected",
+          description: `Using ${agent.name}'s existing prompt`,
+        });
+      }
     }
   };
 

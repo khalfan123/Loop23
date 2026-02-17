@@ -383,6 +383,21 @@ export const incomingConnections = pgTable("incoming_connections", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Human Incoming Connections - Links phone numbers to human agent transfer numbers
+// Separate from AI agent incoming_connections since this stores transfer target details
+export const humanIncomingConnections = pgTable("human_incoming_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  phoneNumberId: varchar("phone_number_id").notNull().references(() => phoneNumbers.id, { onDelete: "cascade" }).unique(),
+  transferNumber: text("transfer_number").notNull(),
+  transferTargetType: text("transfer_target_type").notNull().default("phone"),
+  ivrEnabled: boolean("ivr_enabled").notNull().default(true),
+  ivrGreeting: text("ivr_greeting"),
+  label: text("label"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const campaigns = pgTable("campaigns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -974,6 +989,12 @@ export const insertIncomingConnectionSchema = createInsertSchema(incomingConnect
   updatedAt: true,
 });
 
+export const insertHumanIncomingConnectionSchema = createInsertSchema(humanIncomingConnections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertCampaignSchema = createInsertSchema(campaigns).omit({
   id: true,
   createdAt: true,
@@ -1205,6 +1226,8 @@ export type IncomingAgent = typeof incomingAgents.$inferSelect;
 export type InsertIncomingAgent = z.infer<typeof insertIncomingAgentSchema>;
 export type IncomingConnection = typeof incomingConnections.$inferSelect;
 export type InsertIncomingConnection = z.infer<typeof insertIncomingConnectionSchema>;
+export type HumanIncomingConnection = typeof humanIncomingConnections.$inferSelect;
+export type InsertHumanIncomingConnection = z.infer<typeof insertHumanIncomingConnectionSchema>;
 export type Campaign = typeof campaigns.$inferSelect;
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type Contact = typeof contacts.$inferSelect;

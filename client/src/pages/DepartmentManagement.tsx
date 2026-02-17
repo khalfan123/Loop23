@@ -4,6 +4,7 @@ import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import IncomingCallCanvas from "@/pages/IncomingCallCanvas";
+import HumanAgentCanvas from "@/pages/HumanAgentCanvas";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -347,7 +348,7 @@ export default function DepartmentManagement() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
-  const [activeTab, setActiveTab] = useState<"org-map" | "departments" | "incoming-connections">("org-map");
+  const [activeTab, setActiveTab] = useState<"org-map" | "departments" | "incoming-connections" | "human-connections">("org-map");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
@@ -1061,6 +1062,12 @@ export default function DepartmentManagement() {
           isActive={activeTab === 'incoming-connections'}
           onClick={() => setActiveTab('incoming-connections')}
         />
+        <SubPanelItem
+          icon={<PhoneForwarded className="w-4 h-4" />}
+          label="Assign Human Agent"
+          isActive={activeTab === 'human-connections'}
+          onClick={() => setActiveTab('human-connections')}
+        />
       </SubPanelSection>
 
       <SubPanelSection title="STATS">
@@ -1474,6 +1481,12 @@ export default function DepartmentManagement() {
         {activeTab === 'incoming-connections' && (
           <div className="h-[calc(100vh-200px)]">
             <IncomingCallCanvas embedded={true} />
+          </div>
+        )}
+
+        {activeTab === 'human-connections' && (
+          <div className="h-[calc(100vh-200px)]">
+            <HumanAgentCanvas embedded={true} />
           </div>
         )}
 

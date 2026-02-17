@@ -16,7 +16,7 @@
  */
 import { Router } from "express";
 import { db } from "../db";
-import { incomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, campaigns, ivrConfigurations } from "@shared/schema";
+import { incomingConnections, humanIncomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, campaigns, ivrConfigurations } from "@shared/schema";
 import { eq, and, isNull, or, inArray, ne } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth";
 import { authenticateHybrid } from "../middleware/hybrid-auth";
@@ -771,6 +771,308 @@ router.delete("/:id", authenticateHybrid, async (req: AuthRequest, res) => {
   } catch (error: any) {
     console.error("Error deleting incoming connection:", error);
     res.status(500).json({ message: "Failed to delete incoming connection" });
+  }
+});
+
+// ========================================
+// HUMAN AGENT TRANSFER CONNECTIONS
+// ========================================
+
+// GET /api/incoming-connections/human - List all human transfer connections for the user
+router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const connections = await db
+      .select({
+        id: humanIncomingConnections.id,
+        phoneNumberId: humanIncomingConnections.phoneNumberId,
+        transferNumber: humanIncomingConnections.transferNumber,
+        transferTargetType: humanIncomingConnections.transferTargetType,
+        ivrEnabled: humanIncomingConnections.ivrEnabled,
+        ivrGreeting: humanIncomingConnections.ivrGreeting,
+        label: humanIncomingConnections.label,
+        createdAt: humanIncomingConnections.createdAt,
+        phoneNumber: {
+          id: phoneNumbers.id,
+          phoneNumber: phoneNumbers.phoneNumber,
+          friendlyName: phoneNumbers.friendlyName,
+          country: phoneNumbers.country,
+          status: phoneNumbers.status,
+        },
+      })
+      .from(humanIncomingConnections)
+      .leftJoin(phoneNumbers, eq(humanIncomingConnections.phoneNumberId, phoneNumbers.id))
+      .where(eq(humanIncomingConnections.userId, userId));
+
+    // Get available phone numbers (not used by AI connections, IVR, campaigns, or human connections)
+    const humanConnectedPhoneIds = connections.map(c => c.phoneNumberId);
+    
+    const aiConnections = await db
+      .select({ phoneNumberId: incomingConnections.phoneNumberId })
+      .from(incomingConnections)
+      .where(eq(incomingConnections.userId, userId));
+    const aiConnectedPhoneIds = aiConnections.map(c => c.phoneNumberId);
+
+    const ivrPhoneAssignments = await db
+      .select({ phoneNumberId: ivrConfigurations.phoneNumberId })
+      .from(ivrConfigurations)
+      .where(eq(ivrConfigurations.userId, userId));
+    const ivrPhoneIds = ivrPhoneAssignments
+      .map((ivr) => ivr.phoneNumberId)
+      .filter((id): id is string => id !== null);
+
+    const allUserNumbers = await db
+      .select()
+      .from(phoneNumbers)
+      .where(
+        and(
+          eq(phoneNumbers.userId, userId),
+          eq(phoneNumbers.isSystemPool, false),
+          eq(phoneNumbers.status, "active")
+        )
+      );
+
+    const activeStatuses = ['pending', 'running', 'scheduled', 'paused'];
+    const allPhoneIds = allUserNumbers.map(pn => pn.id);
+    
+    const activeCampaigns = allPhoneIds.length > 0 ? await db
+      .select({
+        phoneNumberId: campaigns.phoneNumberId,
+        campaignName: campaigns.name,
+        campaignStatus: campaigns.status,
+      })
+      .from(campaigns)
+      .where(
+        and(
+          inArray(campaigns.phoneNumberId, allPhoneIds),
+          inArray(campaigns.status, activeStatuses),
+          isNull(campaigns.deletedAt)
+        )
+      ) : [];
+
+    const campaignConflictMap = new Map<string, { campaignName: string; campaignStatus: string }>();
+    for (const campaign of activeCampaigns) {
+      if (campaign.phoneNumberId && !campaignConflictMap.has(campaign.phoneNumberId)) {
+        campaignConflictMap.set(campaign.phoneNumberId, {
+          campaignName: campaign.campaignName,
+          campaignStatus: campaign.campaignStatus,
+        });
+      }
+    }
+
+    const allUsedPhoneIds = [...aiConnectedPhoneIds, ...humanConnectedPhoneIds, ...ivrPhoneIds];
+
+    const availablePhoneNumbers = allUserNumbers.map(pn => {
+      const campaign = campaignConflictMap.get(pn.id);
+      const isUsed = allUsedPhoneIds.includes(pn.id) || !!campaign;
+      let unavailableReason: string | null = null;
+      if (aiConnectedPhoneIds.includes(pn.id)) {
+        unavailableReason = "Connected to AI agent";
+      } else if (humanConnectedPhoneIds.includes(pn.id)) {
+        unavailableReason = "Connected to human agent";
+      } else if (ivrPhoneIds.includes(pn.id)) {
+        unavailableReason = "Assigned to department/IVR";
+      } else if (campaign) {
+        unavailableReason = `Used by campaign "${campaign.campaignName}" (${campaign.campaignStatus})`;
+      }
+      return {
+        ...pn,
+        isUnavailable: isUsed,
+        unavailableReason,
+      };
+    });
+
+    res.json({
+      connections,
+      availablePhoneNumbers,
+      stats: {
+        totalConnections: connections.length,
+        availableNumbers: availablePhoneNumbers.filter(pn => !pn.isUnavailable).length,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error fetching human incoming connections:", error);
+    res.status(500).json({ message: "Failed to fetch human incoming connections" });
+  }
+});
+
+// POST /api/incoming-connections/human - Create a new human transfer connection
+router.post("/human", authenticateHybrid, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { phoneNumberIds, transferNumber, transferTargetType, ivrEnabled, ivrGreeting, label } = req.body;
+
+    if (!phoneNumberIds || !Array.isArray(phoneNumberIds) || phoneNumberIds.length === 0) {
+      return res.status(400).json({ message: "At least one phone number is required" });
+    }
+    if (!transferNumber || typeof transferNumber !== "string") {
+      return res.status(400).json({ message: "Transfer number is required" });
+    }
+
+    if (!transferNumber.trim().match(/^\+?[1-9]\d{1,14}$/)) {
+      return res.status(400).json({ message: "Transfer number must be a valid phone number (E.164 format recommended, e.g. +1234567890)" });
+    }
+
+    const createdConnections = [];
+    const errors = [];
+
+    for (const phoneNumberId of phoneNumberIds) {
+      // Verify phone number belongs to user
+      const phoneNumber = await db
+        .select()
+        .from(phoneNumbers)
+        .where(
+          and(
+            eq(phoneNumbers.id, phoneNumberId),
+            eq(phoneNumbers.userId, userId),
+            eq(phoneNumbers.isSystemPool, false)
+          )
+        )
+        .limit(1);
+
+      if (!phoneNumber.length) {
+        errors.push({ phoneNumberId, error: "Phone number not found or not owned by user" });
+        continue;
+      }
+
+      // Check if phone number is already used (AI connection)
+      const existingAiConnection = await db
+        .select()
+        .from(incomingConnections)
+        .where(eq(incomingConnections.phoneNumberId, phoneNumberId))
+        .limit(1);
+
+      if (existingAiConnection.length) {
+        errors.push({ phoneNumberId, error: "Phone number is already connected to an AI agent" });
+        continue;
+      }
+
+      // Check if phone number already has a human connection
+      const existingHumanConnection = await db
+        .select()
+        .from(humanIncomingConnections)
+        .where(eq(humanIncomingConnections.phoneNumberId, phoneNumberId))
+        .limit(1);
+
+      if (existingHumanConnection.length) {
+        errors.push({ phoneNumberId, error: "Phone number is already connected to a human agent" });
+        continue;
+      }
+
+      // Check IVR assignment
+      const ivrCheck = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(
+          and(
+            eq(ivrConfigurations.phoneNumberId, phoneNumberId),
+            eq(ivrConfigurations.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (ivrCheck.length) {
+        errors.push({ phoneNumberId, error: "Phone number is assigned to department/IVR" });
+        continue;
+      }
+
+      // Check campaign conflict
+      const activeCampaignCheck = await db
+        .select({ id: campaigns.id, name: campaigns.name, status: campaigns.status })
+        .from(campaigns)
+        .where(
+          and(
+            eq(campaigns.phoneNumberId, phoneNumberId),
+            isNull(campaigns.deletedAt),
+            or(
+              eq(campaigns.status, 'pending'),
+              eq(campaigns.status, 'running'),
+              eq(campaigns.status, 'scheduled'),
+              eq(campaigns.status, 'paused')
+            )
+          )
+        )
+        .limit(1);
+
+      if (activeCampaignCheck.length > 0) {
+        const campaign = activeCampaignCheck[0];
+        errors.push({ phoneNumberId, error: `Used by active campaign "${campaign.name}" (${campaign.status})` });
+        continue;
+      }
+
+      // Create the connection
+      const [newConnection] = await db
+        .insert(humanIncomingConnections)
+        .values({
+          userId,
+          phoneNumberId,
+          transferNumber: transferNumber.trim(),
+          transferTargetType: transferTargetType || "phone",
+          ivrEnabled: ivrEnabled !== false,
+          ivrGreeting: ivrGreeting || null,
+          label: label || null,
+        })
+        .returning();
+
+      createdConnections.push(newConnection);
+    }
+
+    if (createdConnections.length === 0 && errors.length > 0) {
+      return res.status(400).json({ message: "Failed to create any connections", errors });
+    }
+
+    res.status(201).json({
+      message: `${createdConnections.length} human transfer connection(s) created successfully`,
+      connections: createdConnections,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error: any) {
+    console.error("Error creating human incoming connection:", error);
+    res.status(500).json({ message: "Failed to create human incoming connection" });
+  }
+});
+
+// DELETE /api/incoming-connections/human/:id - Delete a human transfer connection
+router.delete("/human/:id", authenticateHybrid, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const connectionId = req.params.id;
+
+    const existing = await db
+      .select()
+      .from(humanIncomingConnections)
+      .where(
+        and(
+          eq(humanIncomingConnections.id, connectionId),
+          eq(humanIncomingConnections.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (!existing.length) {
+      return res.status(404).json({ message: "Human transfer connection not found" });
+    }
+
+    await db
+      .delete(humanIncomingConnections)
+      .where(eq(humanIncomingConnections.id, connectionId));
+
+    res.json({ message: "Human transfer connection deleted successfully" });
+  } catch (error: any) {
+    console.error("Error deleting human incoming connection:", error);
+    res.status(500).json({ message: "Failed to delete human incoming connection" });
   }
 });
 

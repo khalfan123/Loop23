@@ -950,15 +950,42 @@ function DepartmentCard({
 
     if (isElevenLabsVoice(voiceId)) {
       setPlayingVoiceId(voiceId);
+      try {
+        const langCode = activeLangAgent?.language || "en";
+        const sampleText = DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
+        const response = await apiRequest("POST", "/api/departments/voice-preview", {
+          voiceId,
+          text: sampleText,
+        });
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        audioRef.current.src = url;
+        audioRef.current.play();
+        audioRef.current.onended = () => {
+          setPlayingVoiceId(null);
+          URL.revokeObjectURL(url);
+        };
+        audioRef.current.onerror = () => {
+          setPlayingVoiceId(null);
+          URL.revokeObjectURL(url);
+        };
+      } catch {
+        setPlayingVoiceId(null);
+        toast({
+          title: "Preview Failed",
+          description: "Could not preview this voice",
+          variant: "destructive",
+        });
+      }
       return;
     }
 
     const previewUrl = VOICE_PREVIEWS[voiceId];
     if (!previewUrl) return;
 
+    setPlayingVoiceId(voiceId);
     audioRef.current.src = previewUrl;
     audioRef.current.play();
-    setPlayingVoiceId(voiceId);
     audioRef.current.onended = () => setPlayingVoiceId(null);
     audioRef.current.onerror = () => setPlayingVoiceId(null);
   };

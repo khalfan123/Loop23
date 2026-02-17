@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows } from "@shared/schema";
+import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows, incomingConnections, humanIncomingConnections } from "@shared/schema";
 import type { FlowNode, FlowEdge } from "@shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/schema";
@@ -827,6 +827,14 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
    */
   router.delete("/all/clear", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
+      await db
+        .delete(incomingConnections)
+        .where(eq(incomingConnections.userId, req.userId!));
+
+      await db
+        .delete(humanIncomingConnections)
+        .where(eq(humanIncomingConnections.userId, req.userId!));
+
       await db
         .delete(departments)
         .where(eq(departments.userId, req.userId!));

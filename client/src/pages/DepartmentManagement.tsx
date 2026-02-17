@@ -520,11 +520,13 @@ export default function DepartmentManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/incoming-connections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/incoming-connections/human"] });
       setShowDeleteAllDialog(false);
-      toast({ title: "All departments deleted successfully" });
+      toast({ title: "Call center organization cleared successfully" });
     },
     onError: () => {
-      toast({ title: "Failed to delete departments", variant: "destructive" });
+      toast({ title: "Failed to clear call center organization", variant: "destructive" });
     },
   });
 
@@ -1972,9 +1974,9 @@ export default function DepartmentManagement() {
       <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
         <AlertDialogContent data-testid="dialog-delete-all">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete All Departments</AlertDialogTitle>
+            <AlertDialogTitle>Delete All Call Center Organization</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete all {departments.length} departments and their IVR configurations. This action cannot be undone.
+              This will permanently delete all departments, IVR configurations, AI agent connections, and human agent connections. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

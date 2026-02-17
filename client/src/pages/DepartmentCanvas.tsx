@@ -720,7 +720,42 @@ function DepartmentCard({
       }
     }
 
-    return null;
+    return { id: langAgents[0].id, name: langAgents[0].name, systemPrompt: langAgents[0].systemPrompt, voiceTone: langAgents[0].voiceTone };
+  };
+
+  const handleLanguageChange = (langAgentId: string, newLangCode: string) => {
+    const bestAgent = dept.type !== "custom" ? getBestAgentForLang(dept.type, newLangCode) : null;
+    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, newLangCode) : getDefaultVoiceForLanguage(newLangCode);
+    const bestTone = dept.type !== "custom" ? getBestToneForDept(dept.type) : null;
+
+    const agentFound = !!bestAgent;
+    const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
+    const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
+
+    const updates: Partial<LanguageAgent> = {
+      language: newLangCode,
+      agentId: bestAgent?.id || null,
+      agentName: bestAgent?.name || null,
+      systemPrompt,
+      voiceId: bestVoice || null,
+      voiceTone: voiceTone || null,
+    };
+
+    updateLanguageAgent(langAgentId, updates);
+
+    if (agentFound) {
+      toast({
+        title: "Language Changed",
+        description: `Auto-selected agent "${bestAgent.name}" for ${SUPPORTED_LANGUAGES.find(l => l.code === newLangCode)?.label}`,
+      });
+    } else if (dept.type !== "custom") {
+      const updatedList = languageAgents.map(la => la.id === langAgentId ? { ...la, ...updates } : la);
+      toast({
+        title: "Language Changed",
+        description: `Generating AI prompt for ${SUPPORTED_LANGUAGES.find(l => l.code === newLangCode)?.label}...`,
+      });
+      generatePromptForLangAgent(langAgentId, dept.type, dept.name, newLangCode, updatedList);
+    }
   };
 
   const generatePromptForLangAgent = async (langAgentId: string, deptType: string, deptName: string, langCode: string, currentAgents: LanguageAgent[]) => {
@@ -789,17 +824,28 @@ function DepartmentCard({
     onUpdate({ languageAgents: updatedList });
     setActiveTabIdx(languageAgents.length);
 
-    if (agentFound) {
+    if (agentFound && bestAgent.systemPrompt) {
       toast({
         title: "Language Added",
-        description: `${availableLang.label} agent "${bestAgent.name}" auto-selected`,
+        description: `${availableLang.label} — agent "${bestAgent.name}" auto-selected`,
       });
-    } else if (dept.type !== "custom") {
+    } else if (agentFound && !bestAgent.systemPrompt && dept.type !== "custom") {
+      toast({
+        title: "Language Added",
+        description: `${availableLang.label} — "${bestAgent.name}" selected, generating AI prompt...`,
+      });
+      generatePromptForLangAgent(langAgentId, dept.type, dept.name, langCode, updatedList);
+    } else if (!agentFound && dept.type !== "custom") {
       toast({
         title: "Language Added",
         description: `${availableLang.label} added — generating AI prompt...`,
       });
       generatePromptForLangAgent(langAgentId, dept.type, dept.name, langCode, updatedList);
+    } else {
+      toast({
+        title: "Language Added",
+        description: `${availableLang.label} added`,
+      });
     }
   };
 
@@ -999,15 +1045,7 @@ function DepartmentCard({
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Select
                   value={activeLangAgent.language}
-                  onValueChange={(val) => {
-                    updateLanguageAgent(activeLangAgent.id, {
-                      language: val,
-                      agentId: null,
-                      agentName: null,
-                      systemPrompt: null,
-                      voiceId: null,
-                    });
-                  }}
+                  onValueChange={(val) => handleLanguageChange(activeLangAgent.id, val)}
                 >
                   <SelectTrigger className="w-32" data-testid="select-lang-tab">
                     <SelectValue />
@@ -1407,7 +1445,7 @@ function DepartmentsStep({
       }
     }
 
-    return null;
+    return { id: langAgents[0].id, name: langAgents[0].name, systemPrompt: langAgents[0].systemPrompt, voiceTone: langAgents[0].voiceTone };
   };
 
   const generatePromptForNewDept = async (deptId: string, langAgentId: string, deptType: string, deptName: string, langCode: string) => {
@@ -1484,12 +1522,18 @@ function DepartmentsStep({
     setCanvasDepartments((prev) => [...prev, newDept]);
     setActiveDeptId(newDeptId);
 
-    if (agentFound) {
+    if (agentFound && bestAgent.systemPrompt) {
       toast({
         title: "Department Added",
         description: `${template.name} created with agent "${bestAgent.name}"`,
       });
-    } else if (deptType !== "custom") {
+    } else if (agentFound && !bestAgent.systemPrompt && deptType !== "custom") {
+      toast({
+        title: "Department Added",
+        description: `${template.name} created with "${bestAgent.name}" — generating AI prompt...`,
+      });
+      generatePromptForNewDept(newDeptId, langAgentId, deptType, template.name, langCode);
+    } else if (!agentFound && deptType !== "custom") {
       toast({
         title: "Department Added",
         description: `${template.name} created — generating AI prompt...`,

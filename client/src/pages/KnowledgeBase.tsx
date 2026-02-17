@@ -991,10 +991,6 @@ export default function KnowledgeBase() {
   const subPanelContent = (
     <>
       <SubPanelSection>
-        <div className="px-3 mb-2 flex items-center gap-2">
-          <Brain className="h-4 w-4 text-blue-500" />
-          <span className="text-[12px] font-bold text-zinc-700 dark:text-zinc-300 tracking-tight">AI Knowledge Engine</span>
-        </div>
         <SubPanelItem
           icon={<LayoutDashboard className="h-4 w-4" />}
           label="Library Overview"

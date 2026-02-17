@@ -420,7 +420,7 @@ export default function Settings() {
 
         <TabsContent value="profile" className="space-y-6">
           <div className="space-y-6">
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.profileInformation')}</h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -460,7 +460,7 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                 <Globe className="h-4 w-4" />
                 Timezone Settings
@@ -492,7 +492,7 @@ export default function Settings() {
                   </Select>
                 </div>
                 {selectedTimezone && currentTime && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 p-3 rounded-md">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-white dark:bg-zinc-900 p-3 rounded-md">
                     <Clock className="h-4 w-4" />
                     <span>Current time in {selectedTimezone}: <strong className="text-foreground">{currentTime}</strong></span>
                   </div>
@@ -515,7 +515,7 @@ export default function Settings() {
               </Button>
             </div>
 
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.changePassword')}</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -576,7 +576,7 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="developer" className="space-y-6">
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">API Documentation</h3>
@@ -606,7 +606,7 @@ export default function Settings() {
         ))}
 
         <TabsContent value="notifications" className="space-y-6">
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.notificationPreferences')}</h3>
             <p className="text-muted-foreground text-sm">
               Configure how you receive notifications and alerts from {branding.app_name}.
@@ -616,14 +616,14 @@ export default function Settings() {
 
         <TabsContent value="account" className="space-y-6">
           <div className="space-y-6">
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.accountManagement')}</h3>
               <p className="text-muted-foreground text-sm">
                 {t('settings.accountManagementDescription')}
               </p>
             </div>
 
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-3">
                   <Download className="h-5 w-5 text-muted-foreground" />

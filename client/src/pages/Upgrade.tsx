@@ -610,7 +610,7 @@ export default function Upgrade() {
         </div>
 
         {currentPlan && (
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 <div className={`h-10 w-10 rounded-md flex items-center justify-center ${currentPlan.name === "free" ? "bg-muted/50" : "bg-muted/50"}`}>

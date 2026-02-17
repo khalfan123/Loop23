@@ -502,28 +502,28 @@ export default function Billing() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
             <div className="flex items-center gap-2">
               <Coins className="h-4 w-4 text-muted-foreground" />
               <div className="text-2xl font-semibold" data-testid="text-header-balance">{currentBalance.toLocaleString()}</div>
             </div>
             <div className="text-xs text-muted-foreground mt-1">{t('billing.currentBalance')}</div>
           </div>
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
             <div className="flex items-center gap-2">
               <Crown className="h-4 w-4 text-muted-foreground" />
               <div className="text-2xl font-semibold">{subscription?.plan.displayName || t('billing.free')}</div>
             </div>
             <div className="text-xs text-muted-foreground mt-1">{t('billing.currentPlan')}</div>
           </div>
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-muted-foreground" />
               <div className="text-2xl font-semibold">{transactions?.length || 0}</div>
             </div>
             <div className="text-xs text-muted-foreground mt-1">{t('billing.transactions')}</div>
           </div>
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-muted-foreground" />
               <div className="text-2xl font-semibold capitalize">{subscription?.status || t('common.active')}</div>
@@ -547,7 +547,7 @@ export default function Billing() {
 
         <TabsContent value="plans" className="space-y-8">
           {subscription && hasActiveSubscription && !subscription.cancelAtPeriodEnd && subscription.plan.name !== "free" && (subscription.stripeSubscriptionId || subscription.razorpaySubscriptionId || subscription.paypalSubscriptionId || subscription.paystackSubscriptionCode || subscription.mercadopagoSubscriptionId) && (
-        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+        <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-muted-foreground" />
               <h3 className="text-lg font-semibold">{t('billing.subscriptionPeriod') || 'Subscription Period'}</h3>
@@ -628,7 +628,7 @@ export default function Billing() {
             </Alert>
           )}
 
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-6 mb-8">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-6 mb-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div>
                 <div className="text-sm font-medium text-muted-foreground mb-1">{t('billing.currentBalance')}</div>
@@ -844,7 +844,7 @@ export default function Billing() {
               )}
             </>
           ) : (
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-12 text-center">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-12 text-center">
               <div className="h-16 w-16 rounded-md bg-muted/50 flex items-center justify-center mx-auto mb-4">
                 <Receipt className="h-8 w-8 text-muted-foreground" />
               </div>

@@ -134,28 +134,28 @@ export default function FlowExecutionLogsPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+        <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-muted-foreground" />
             <div className="text-2xl font-semibold">{totalExecutions}</div>
           </div>
           <div className="text-xs text-muted-foreground mt-1">Total Executions</div>
         </div>
-        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+        <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             <div className="text-2xl font-semibold">{completedCount}</div>
           </div>
           <div className="text-xs text-muted-foreground mt-1">Completed</div>
         </div>
-        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+        <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
           <div className="flex items-center gap-2">
             <XCircle className="h-4 w-4 text-muted-foreground" />
             <div className="text-2xl font-semibold">{failedCount}</div>
           </div>
           <div className="text-xs text-muted-foreground mt-1">Failed</div>
         </div>
-        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+        <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
           <div className="flex items-center gap-2">
             <Play className="h-4 w-4 text-muted-foreground" />
             <div className="text-2xl font-semibold">{runningCount}</div>

@@ -426,15 +426,15 @@ export default function WebhookConfigPage() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4 flex-1">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4 flex-1">
             <div className="text-xl font-semibold">{totalWebhooks}</div>
             <div className="text-xs text-muted-foreground">{t('webhooks.stats.totalWebhooks')}</div>
           </div>
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4 flex-1">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4 flex-1">
             <div className="text-xl font-semibold">{activeWebhooks}</div>
             <div className="text-xs text-muted-foreground">{t('common.active')}</div>
           </div>
-          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4 flex-1">
+          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4 flex-1">
             <div className="text-xl font-semibold">{totalEvents}</div>
             <div className="text-xs text-muted-foreground">{t('webhooks.stats.eventSubscriptions')}</div>
           </div>

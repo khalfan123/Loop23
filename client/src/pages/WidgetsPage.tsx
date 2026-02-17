@@ -958,7 +958,7 @@ export default function WidgetsPage() {
 
         <TabsContent value="dashboard" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-muted-foreground">Total Widgets</span>
                 <Globe className="h-4 w-4 text-muted-foreground" />
@@ -974,7 +974,7 @@ export default function WidgetsPage() {
               )}
             </div>
             
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-muted-foreground">Total Calls</span>
                 <PhoneCall className="h-4 w-4 text-muted-foreground" />
@@ -983,7 +983,7 @@ export default function WidgetsPage() {
               <p className="text-xs text-muted-foreground">All-time widget calls</p>
             </div>
             
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-muted-foreground">Total Minutes</span>
                 <Timer className="h-4 w-4 text-muted-foreground" />
@@ -992,7 +992,7 @@ export default function WidgetsPage() {
               <p className="text-xs text-muted-foreground">Voice conversation time</p>
             </div>
             
-            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+            <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-muted-foreground">Active Widgets</span>
                 <MessageCircle className="h-4 w-4 text-muted-foreground" />
@@ -1078,7 +1078,7 @@ export default function WidgetsPage() {
                 
                 <ScrollArea className="flex-1 pr-4 mt-4">
                   <TabsContent value="general" className="mt-0 space-y-4">
-                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                    <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Widget Name *</Label>
                         <Input
@@ -1141,7 +1141,7 @@ export default function WidgetsPage() {
                   </TabsContent>
 
                   <TabsContent value="branding" className="mt-0 space-y-4">
-                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                    <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
                       <div className="space-y-2">
                         <Label>Widget Icon</Label>
                         <div className="flex items-center gap-4">
@@ -1246,7 +1246,7 @@ export default function WidgetsPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                    <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
                       <div className="flex items-center justify-between p-3 rounded-xl border">
                         <div>
                           <Label>Require Terms Acceptance</Label>
@@ -1277,7 +1277,7 @@ export default function WidgetsPage() {
                   </TabsContent>
 
                   <TabsContent value="settings" className="mt-0 space-y-4">
-                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                    <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
                       <div className="space-y-2">
                         <Label>Allowed Domains</Label>
                         <p className="text-sm text-muted-foreground">
@@ -1313,7 +1313,7 @@ export default function WidgetsPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                    <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
                       <div className="flex items-center justify-between p-3 rounded-xl border">
                         <div>
                           <Label>Business Hours</Label>
@@ -1390,7 +1390,7 @@ export default function WidgetsPage() {
                     )}
                     </div>
 
-                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                    <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
                       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                         <CollapsibleTrigger asChild>
                           <Button variant="ghost" className="w-full justify-between">

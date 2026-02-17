@@ -1,7 +1,7 @@
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Workflow, BarChart3, Webhook, Globe, TrendingUp, CreditCard, ChevronRight, UserCog } from "lucide-react";
+import { Settings as SettingsIcon, Workflow, BarChart3, Globe, TrendingUp, CreditCard, ChevronRight, UserCog } from "lucide-react";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import Settings from "@/pages/Settings";
 import FlowsPage from "@/pages/FlowsPage";
@@ -41,15 +41,6 @@ const settingsItems = [
     icon: BarChart3,
     iconColor: "text-slate-500",
     bgColor: "bg-slate-50 dark:bg-slate-950/30",
-  },
-  {
-    id: "webhooks",
-    title: "Webhooks",
-    description: "Configure webhook endpoints for integrations",
-    url: "/app/settings/webhooks",
-    icon: Webhook,
-    iconColor: "text-violet-500",
-    bgColor: "bg-violet-50 dark:bg-violet-950/30",
   },
   {
     id: "widgets",

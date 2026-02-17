@@ -12,8 +12,7 @@ import FlowExecutionLogsPage from "@/pages/FlowExecutionLogsPage";
 import WebhookConfigPage from "@/pages/WebhookConfigPage";
 import FormsPage from "@/pages/FormsPage";
 import WidgetsPage from "@/pages/WidgetsPage";
-import Upgrade from "@/pages/Upgrade";
-import Billing from "@/pages/Billing";
+import PlanBillingPage from "@/pages/PlanBillingPage";
 
 const sectionIconMap: Record<string, any> = {
   UserCog: UserCogIcon,
@@ -64,18 +63,9 @@ const settingsItems = [
     bgColor: "bg-sky-50 dark:bg-sky-950/30",
   },
   {
-    id: "upgrade",
-    title: "Upgrade Plan",
-    description: "View and upgrade your subscription plan",
-    url: "/app/settings/upgrade",
-    icon: TrendingUp,
-    iconColor: "text-amber-500",
-    bgColor: "bg-amber-50 dark:bg-amber-950/30",
-  },
-  {
     id: "billing",
-    title: "Billing & Credits",
-    description: "Manage billing, invoices, and credits",
+    title: "Plan & Billing",
+    description: "Manage your plan, credits, and billing",
     url: "/app/settings/billing",
     icon: CreditCard,
     iconColor: "text-green-500",
@@ -241,8 +231,10 @@ export default function SettingsHub() {
         <Route path="/app/settings/execution" component={FlowExecutionLogsPage} />
         <Route path="/app/settings/webhooks" component={WebhookConfigPage} />
         <Route path="/app/settings/widgets" component={WidgetsPage} />
-        <Route path="/app/settings/upgrade" component={Upgrade} />
-        <Route path="/app/settings/billing" component={Billing} />
+        <Route path="/app/settings/upgrade">
+          <Redirect to="/app/settings/billing" />
+        </Route>
+        <Route path="/app/settings/billing" component={PlanBillingPage} />
         <Route path="/app/settings">
           <SettingsOverview onNavigate={setLocation} />
         </Route>

@@ -36,9 +36,7 @@ import Calls from "@/pages/Calls";
 import CallDetail from "@/pages/CallDetail";
 import Analytics from "@/pages/Analytics";
 import QualityAssurance from "@/pages/QualityAssurance";
-import Billing from "@/pages/Billing";
 import PaymentResult from "@/pages/PaymentResult";
-import Upgrade from "@/pages/Upgrade";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import DepartmentManagement from "@/pages/DepartmentManagement";
 import DepartmentCanvas from "@/pages/DepartmentCanvas";
@@ -193,7 +191,7 @@ function UserRouter() {
             <Redirect to="/app/settings/billing?tab=credits" />
           </Route>
           <Route path="/app/upgrade">
-            <Redirect to="/app/settings/upgrade" />
+            <Redirect to="/app/settings/billing" />
           </Route>
           <Route path="/app/knowledge-base" component={KnowledgeBase} />
           <Route path="/app/knowledge-intelligence">

@@ -571,37 +571,30 @@ export default function Upgrade() {
 
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-slate-100/50 to-indigo-50 dark:from-slate-900/80 dark:via-slate-800/50 dark:to-indigo-950/40 border border-slate-200 dark:border-slate-700/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-700 to-indigo-800 dark:from-slate-600 dark:to-indigo-700 flex items-center justify-center shadow-lg shadow-slate-500/25 dark:shadow-indigo-500/20">
-              <Sparkles className="h-7 w-7 text-white" />
+      <div className="space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold">
+                {isPremium ? "Your Plan" : "Upgrade Your Plan"}
+              </h1>
+              {isPremium && (
+                <Badge data-testid="badge-premium-member">
+                  <Crown className="h-3 w-3 mr-1" />
+                  Premium
+                </Badge>
+              )}
             </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                  {isPremium ? "Your Plan" : "Upgrade Your Plan"}
-                </h1>
-                {isPremium && (
-                  <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white" data-testid="badge-premium-member">
-                    <Crown className="h-3 w-3 mr-1" />
-                    Premium
-                  </Badge>
-                )}
-              </div>
-              <p className="text-muted-foreground mt-0.5">
-                {isPremium ? "Manage your subscription and billing" : "Choose the plan that fits your needs"}
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isPremium ? "Manage your subscription and billing" : "Choose the plan that fits your needs"}
+            </p>
           </div>
           
-          {/* Currency Selector */}
           {buildAvailableCurrencies().length > 1 && (
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-muted-foreground" />
               <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                <SelectTrigger className="w-[140px] bg-white/80 dark:bg-slate-800/60" data-testid="select-currency">
+                <SelectTrigger className="w-[140px]" data-testid="select-currency">
                   <SelectValue placeholder="Currency" />
                 </SelectTrigger>
                 <SelectContent>
@@ -617,14 +610,14 @@ export default function Upgrade() {
         </div>
 
         {currentPlan && (
-          <div className="relative mt-6 bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${currentPlan.name === "free" ? "bg-slate-100 dark:bg-slate-700" : "bg-indigo-100 dark:bg-indigo-900/50"}`}>
+                <div className={`h-10 w-10 rounded-md flex items-center justify-center ${currentPlan.name === "free" ? "bg-muted/50" : "bg-muted/50"}`}>
                   {currentPlan.name === "free" ? (
-                    <Zap className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                    <Zap className="h-5 w-5 text-muted-foreground" />
                   ) : (
-                    <Crown className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <Crown className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
                 <div>
@@ -667,15 +660,15 @@ export default function Upgrade() {
               key={plan.id}
               className={`relative overflow-hidden transition-all duration-200 ${
                 isCurrentPlan 
-                  ? "ring-2 ring-indigo-500 dark:ring-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/20" 
+                  ? "ring-2 ring-primary" 
                   : isRecommended && !isCurrentPlan
-                    ? "ring-2 ring-slate-300 dark:ring-slate-600"
-                    : "hover:border-slate-300 dark:hover:border-slate-600"
+                    ? "ring-1 ring-border"
+                    : ""
               }`}
               data-testid={`card-plan-${plan.name}`}
             >
               {isRecommended && !isCurrentPlan && (
-                <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-slate-700 to-indigo-700 text-white text-xs font-medium py-1.5 text-center">
+                <div className="absolute top-0 left-0 right-0 bg-primary text-primary-foreground text-xs font-medium py-1.5 text-center">
                   <Crown className="h-3 w-3 inline mr-1" />
                   Most Popular
                 </div>
@@ -684,11 +677,11 @@ export default function Upgrade() {
               <div className={`p-6 space-y-6 ${isRecommended && !isCurrentPlan ? "pt-10" : ""}`}>
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${isFree ? "bg-slate-100 dark:bg-slate-800" : "bg-indigo-100 dark:bg-indigo-900/50"}`}>
+                    <div className="h-8 w-8 rounded-md bg-muted/50 flex items-center justify-center">
                       {isFree ? (
-                        <Zap className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                        <Zap className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <Crown className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                        <Crown className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
                     <h2 className="text-xl font-bold text-foreground">{plan.displayName}</h2>
@@ -806,7 +799,7 @@ export default function Upgrade() {
 
                   {plan.includedCredits > 0 && (
                     <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                      <Star className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-sm font-medium">{plan.includedCredits} included credits</span>
                     </div>
                   )}
@@ -837,7 +830,7 @@ export default function Upgrade() {
 
                 <Button
                   variant={isCurrentPlan ? "outline" : isFree ? "outline" : "default"}
-                  className={`w-full ${!isFree && !isCurrentPlan ? "bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600" : ""}`}
+                  className="w-full"
                   disabled={isCurrentPlan || isFree}
                   onClick={() => !isCurrentPlan && !isFree && handleUpgradeClick(plan)}
                   data-testid={`button-select-${plan.name}`}
@@ -864,10 +857,10 @@ export default function Upgrade() {
         })}
       </div>
 
-      <Card className="p-6 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
+      <Card className="p-6">
         <div className="flex items-start gap-4">
-          <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-            <CreditCard className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+          <div className="h-10 w-10 rounded-md bg-muted/50 flex items-center justify-center flex-shrink-0">
+            <CreditCard className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="space-y-2">
             <h3 className="text-lg font-semibold text-foreground">Credit-Based Calling</h3>

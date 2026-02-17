@@ -387,7 +387,7 @@ export default function Settings() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-semibold text-foreground">{t('settings.title')}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t('settings.title')}</h1>
         <p className="text-muted-foreground mt-1">{t('settings.description')}</p>
       </div>
 
@@ -419,160 +419,152 @@ export default function Settings() {
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
-          <Card className="p-6">
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">{t('settings.profileInformation')}</h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="first-name">{t('settings.firstName')}</Label>
-                      <Input 
-                        id="first-name" 
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        data-testid="input-first-name" 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last-name">{t('settings.lastName')}</Label>
-                      <Input 
-                        id="last-name" 
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        data-testid="input-last-name" 
-                      />
-                    </div>
-                  </div>
+          <div className="space-y-6">
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.profileInformation')}</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">{t('common.email')}</Label>
-                    <Input id="email" type="email" defaultValue={user?.email} disabled data-testid="input-email" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company">{t('settings.company')}</Label>
+                    <Label htmlFor="first-name">{t('settings.firstName')}</Label>
                     <Input 
-                      id="company" 
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      placeholder={t('settings.companyPlaceholder')} 
-                      data-testid="input-company" 
+                      id="first-name" 
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      data-testid="input-first-name" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="last-name">{t('settings.lastName')}</Label>
+                    <Input 
+                      id="last-name" 
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      data-testid="input-last-name" 
                     />
                   </div>
                 </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                  <Globe className="h-5 w-5" />
-                  Timezone Settings
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Set your timezone for accurate campaign scheduling. All call times will be calculated based on this timezone.
-                </p>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="timezone">Your Timezone</Label>
-                    <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
-                      <SelectTrigger id="timezone" className="w-full" data-testid="select-timezone">
-                        <SelectValue placeholder="Select your timezone..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(groupedTimezones).map(([region, timezones]) => (
-                          <div key={region}>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
-                              {region}
-                            </div>
-                            {timezones.map((tz) => (
-                              <SelectItem key={tz.value} value={tz.value} data-testid={`timezone-${tz.value}`}>
-                                {tz.label}
-                              </SelectItem>
-                            ))}
-                          </div>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {selectedTimezone && currentTime && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 p-3 rounded-md">
-                      <Clock className="h-4 w-4" />
-                      <span>Current time in {selectedTimezone}: <strong className="text-foreground">{currentTime}</strong></span>
-                    </div>
-                  )}
+                <div className="space-y-2">
+                  <Label htmlFor="email">{t('common.email')}</Label>
+                  <Input id="email" type="email" defaultValue={user?.email} disabled data-testid="input-email" />
                 </div>
-              </div>
-
-              <Separator />
-
-              <div className="flex justify-end">
-                <Button 
-                  onClick={handleSaveProfile}
-                  disabled={updateProfileMutation.isPending}
-                  data-testid="button-save-profile"
-                >
-                  {updateProfileMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  {t('settings.saveChanges')}
-                </Button>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-lg font-semibold mb-4">{t('settings.changePassword')}</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="current-password">{t('settings.currentPassword')}</Label>
-                    <Input 
-                      id="current-password" 
-                      type="password" 
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      data-testid="input-current-password" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new-password">{t('settings.newPassword')}</Label>
-                    <Input 
-                      id="new-password" 
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      data-testid="input-new-password" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password">{t('settings.confirmPassword')}</Label>
-                    <Input 
-                      id="confirm-password" 
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      data-testid="input-confirm-password" 
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={handleChangePassword}
-                      disabled={changePasswordMutation.isPending || !currentPassword || !newPassword}
-                      data-testid="button-change-password"
-                    >
-                      {changePasswordMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4 mr-2" />
-                      )}
-                      {t('settings.changePassword')}
-                    </Button>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company">{t('settings.company')}</Label>
+                  <Input 
+                    id="company" 
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    placeholder={t('settings.companyPlaceholder')} 
+                    data-testid="input-company" 
+                  />
                 </div>
               </div>
             </div>
-          </Card>
+
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Timezone Settings
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Set your timezone for accurate campaign scheduling. All call times will be calculated based on this timezone.
+              </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">Your Timezone</Label>
+                  <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
+                    <SelectTrigger id="timezone" className="w-full" data-testid="select-timezone">
+                      <SelectValue placeholder="Select your timezone..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(groupedTimezones).map(([region, timezones]) => (
+                        <div key={region}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                            {region}
+                          </div>
+                          {timezones.map((tz) => (
+                            <SelectItem key={tz.value} value={tz.value} data-testid={`timezone-${tz.value}`}>
+                              {tz.label}
+                            </SelectItem>
+                          ))}
+                        </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedTimezone && currentTime && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 p-3 rounded-md">
+                    <Clock className="h-4 w-4" />
+                    <span>Current time in {selectedTimezone}: <strong className="text-foreground">{currentTime}</strong></span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleSaveProfile}
+                disabled={updateProfileMutation.isPending}
+                data-testid="button-save-profile"
+              >
+                {updateProfileMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {t('settings.saveChanges')}
+              </Button>
+            </div>
+
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.changePassword')}</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="current-password">{t('settings.currentPassword')}</Label>
+                  <Input 
+                    id="current-password" 
+                    type="password" 
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    data-testid="input-current-password" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">{t('settings.newPassword')}</Label>
+                  <Input 
+                    id="new-password" 
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    data-testid="input-new-password" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">{t('settings.confirmPassword')}</Label>
+                  <Input 
+                    id="confirm-password" 
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    data-testid="input-confirm-password" 
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleChangePassword}
+                    disabled={changePasswordMutation.isPending || !currentPassword || !newPassword}
+                    data-testid="button-change-password"
+                  >
+                    {changePasswordMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    {t('settings.changePassword')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="kyc" className="space-y-6">
@@ -584,11 +576,11 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="developer" className="space-y-6">
-          <Card className="p-6">
+          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <h3 className="text-lg font-semibold">API Documentation</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">API Documentation</h3>
+                <p className="text-sm text-muted-foreground mt-1">
                   Interactive API documentation with all endpoints, schemas, and testing capability
                 </p>
               </div>
@@ -601,7 +593,7 @@ export default function Settings() {
                 Open API Docs
               </Button>
             </div>
-          </Card>
+          </div>
           <ApiKeysTab />
         </TabsContent>
 
@@ -614,137 +606,128 @@ export default function Settings() {
         ))}
 
         <TabsContent value="notifications" className="space-y-6">
-          <Card className="p-6">
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">{t('settings.notificationPreferences')}</h3>
-                <p className="text-muted-foreground text-sm">
-                  Configure how you receive notifications and alerts from {branding.app_name}.
-                </p>
-              </div>
-            </div>
-          </Card>
+          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.notificationPreferences')}</h3>
+            <p className="text-muted-foreground text-sm">
+              Configure how you receive notifications and alerts from {branding.app_name}.
+            </p>
+          </div>
         </TabsContent>
 
         <TabsContent value="account" className="space-y-6">
-          <Card className="p-6">
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">{t('settings.accountManagement')}</h3>
-                <p className="text-muted-foreground text-sm mb-6">
-                  {t('settings.accountManagementDescription')}
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Data Export */}
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Download className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Export Your Data</p>
-                      <p className="text-sm text-muted-foreground">Download all your data including campaigns, contacts, and call history</p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => exportDataMutation.mutate()}
-                    disabled={exportDataMutation.isPending}
-                    data-testid="button-export-data"
-                  >
-                    {exportDataMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4 mr-2" />
-                    )}
-                    Export Data
-                  </Button>
-                </div>
-
-                {/* Sign Out */}
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <LogOut className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">{t('settings.signOut')}</p>
-                      <p className="text-sm text-muted-foreground">{t('settings.signOutDescription')}</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" onClick={handleLogout} data-testid="button-logout-settings">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    {t('auth.logout')}
-                  </Button>
-                </div>
-
-                {/* Delete Account */}
-                <div className="flex items-center justify-between p-4 border border-destructive/50 rounded-lg bg-destructive/5">
-                    <div className="flex items-center gap-3">
-                      <Trash2 className="h-5 w-5 text-destructive" />
-                      <div>
-                        <p className="font-medium text-destructive">{t('settings.deleteAccount')}</p>
-                        <p className="text-sm text-muted-foreground">{t('settings.deleteAccountWarning')}</p>
-                      </div>
-                    </div>
-                    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" data-testid="button-delete-account">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          {t('settings.deleteAccount')}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <div className="flex items-center gap-2 text-destructive">
-                            <AlertTriangle className="h-5 w-5" />
-                            <AlertDialogTitle>{t('settings.confirmDeleteAccount')}</AlertDialogTitle>
-                          </div>
-                          <AlertDialogDescription className="space-y-3">
-                            <p>{t('settings.deleteAccountConfirmMessage')}</p>
-                            <div className="p-3 bg-destructive/10 rounded-md border border-destructive/20">
-                              <p className="text-sm font-medium text-destructive">{t('settings.deleteAccountConsequences')}</p>
-                              <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
-                                <li>{t('settings.deleteConsequence1')}</li>
-                                <li>{t('settings.deleteConsequence2')}</li>
-                                <li>{t('settings.deleteConsequence3')}</li>
-                              </ul>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="delete-password">{t('settings.enterPasswordToConfirm')}</Label>
-                              <Input
-                                id="delete-password"
-                                type="password"
-                                placeholder={t('settings.yourPassword')}
-                                value={deletePassword}
-                                onChange={(e) => setDeletePassword(e.target.value)}
-                                data-testid="input-delete-password"
-                              />
-                            </div>
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setDeletePassword("")} data-testid="button-cancel-delete">
-                            {t('common.cancel')}
-                          </AlertDialogCancel>
-                          <Button
-                            variant="destructive"
-                            onClick={handleDeleteAccount}
-                            disabled={deleteAccountMutation.isPending || !deletePassword}
-                            data-testid="button-confirm-delete"
-                          >
-                            {deleteAccountMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 mr-2" />
-                            )}
-                            {t('settings.permanentlyDelete')}
-                          </Button>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-              </div>
+          <div className="space-y-6">
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.accountManagement')}</h3>
+              <p className="text-muted-foreground text-sm">
+                {t('settings.accountManagementDescription')}
+              </p>
             </div>
-          </Card>
+
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Download className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Export Your Data</p>
+                    <p className="text-sm text-muted-foreground">Download all your data including campaigns, contacts, and call history</p>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => exportDataMutation.mutate()}
+                  disabled={exportDataMutation.isPending}
+                  data-testid="button-export-data"
+                >
+                  {exportDataMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  Export Data
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <LogOut className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">{t('settings.signOut')}</p>
+                    <p className="text-sm text-muted-foreground">{t('settings.signOutDescription')}</p>
+                  </div>
+                </div>
+                <Button variant="outline" onClick={handleLogout} data-testid="button-logout-settings">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {t('auth.logout')}
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 border border-destructive/50 rounded-lg bg-destructive/5">
+                  <div className="flex items-center gap-3">
+                    <Trash2 className="h-5 w-5 text-destructive" />
+                    <div>
+                      <p className="font-medium text-destructive">{t('settings.deleteAccount')}</p>
+                      <p className="text-sm text-muted-foreground">{t('settings.deleteAccountWarning')}</p>
+                    </div>
+                  </div>
+                  <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" data-testid="button-delete-account">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        {t('settings.deleteAccount')}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <div className="flex items-center gap-2 text-destructive">
+                          <AlertTriangle className="h-5 w-5" />
+                          <AlertDialogTitle>{t('settings.confirmDeleteAccount')}</AlertDialogTitle>
+                        </div>
+                        <AlertDialogDescription className="space-y-3">
+                          <p>{t('settings.deleteAccountConfirmMessage')}</p>
+                          <div className="p-3 bg-destructive/10 rounded-md border border-destructive/20">
+                            <p className="text-sm font-medium text-destructive">{t('settings.deleteAccountConsequences')}</p>
+                            <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                              <li>{t('settings.deleteConsequence1')}</li>
+                              <li>{t('settings.deleteConsequence2')}</li>
+                              <li>{t('settings.deleteConsequence3')}</li>
+                            </ul>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="delete-password">{t('settings.enterPasswordToConfirm')}</Label>
+                            <Input
+                              id="delete-password"
+                              type="password"
+                              placeholder={t('settings.yourPassword')}
+                              value={deletePassword}
+                              onChange={(e) => setDeletePassword(e.target.value)}
+                              data-testid="input-delete-password"
+                            />
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeletePassword("")} data-testid="button-cancel-delete">
+                          {t('common.cancel')}
+                        </AlertDialogCancel>
+                        <Button
+                          variant="destructive"
+                          onClick={handleDeleteAccount}
+                          disabled={deleteAccountMutation.isPending || !deletePassword}
+                          data-testid="button-confirm-delete"
+                        >
+                          {deleteAccountMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-2" />
+                          )}
+                          {t('settings.permanentlyDelete')}
+                        </Button>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

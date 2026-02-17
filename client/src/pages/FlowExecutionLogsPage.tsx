@@ -128,55 +128,39 @@ export default function FlowExecutionLogsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header with Slate/Gray Gradient */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-gray-100/50 to-zinc-50 dark:from-slate-950/40 dark:via-gray-900/30 dark:to-zinc-950/40 border border-slate-200 dark:border-slate-800/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-500 to-gray-600 flex items-center justify-center shadow-lg shadow-slate-500/25">
-              <Activity className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground" data-testid="text-page-title">
-                Flow Execution Logs
-              </h1>
-              <p className="text-muted-foreground mt-0.5">
-                View detailed execution traces for all flow-based calls
-              </p>
-            </div>
-          </div>
-        </div>
+      <div>
+        <h1 className="text-xl font-semibold" data-testid="text-page-title">Flow Execution Logs</h1>
+        <p className="text-sm text-muted-foreground mt-1">View detailed execution traces for all flow-based calls</p>
+      </div>
 
-        {/* Stats Row */}
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-slate-100/50 dark:border-slate-700/30">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-              <div className="text-2xl font-bold text-slate-700 dark:text-slate-300">{totalExecutions}</div>
-            </div>
-            <div className="text-slate-600/70 dark:text-slate-400/70 text-sm">Total Executions</div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <div className="text-2xl font-semibold">{totalExecutions}</div>
           </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-emerald-100/50 dark:border-emerald-800/30">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{completedCount}</div>
-            </div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-sm">Completed</div>
+          <div className="text-xs text-muted-foreground mt-1">Total Executions</div>
+        </div>
+        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            <div className="text-2xl font-semibold">{completedCount}</div>
           </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-rose-100/50 dark:border-rose-800/30">
-            <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-              <div className="text-2xl font-bold text-rose-700 dark:text-rose-300">{failedCount}</div>
-            </div>
-            <div className="text-rose-600/70 dark:text-rose-400/70 text-sm">Failed</div>
+          <div className="text-xs text-muted-foreground mt-1">Completed</div>
+        </div>
+        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <div className="text-2xl font-semibold">{failedCount}</div>
           </div>
-          <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50 dark:border-blue-800/30">
-            <div className="flex items-center gap-2">
-              <Play className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{runningCount}</div>
-            </div>
-            <div className="text-blue-600/70 dark:text-blue-400/70 text-sm">Running</div>
+          <div className="text-xs text-muted-foreground mt-1">Failed</div>
+        </div>
+        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+          <div className="flex items-center gap-2">
+            <Play className="h-4 w-4 text-muted-foreground" />
+            <div className="text-2xl font-semibold">{runningCount}</div>
           </div>
+          <div className="text-xs text-muted-foreground mt-1">Running</div>
         </div>
       </div>
 
@@ -193,7 +177,7 @@ export default function FlowExecutionLogsPage() {
       ) : (
         <div className="grid gap-4">
           {executions.map((execution) => (
-            <Card key={execution.id} className="hover-elevate">
+            <Card key={execution.id}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div className="space-y-1">

@@ -495,48 +495,40 @@ export default function Billing() {
 
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-slate-100/50 to-indigo-50 dark:from-slate-900/80 dark:via-slate-800/50 dark:to-indigo-950/40 border border-slate-200 dark:border-slate-700/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-700 to-indigo-800 dark:from-slate-600 dark:to-indigo-700 flex items-center justify-center shadow-lg shadow-slate-500/25 dark:shadow-indigo-500/20">
-              <Wallet className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t('billing.title')}</h1>
-              <p className="text-muted-foreground mt-0.5">{t('billing.subtitle')}</p>
-            </div>
-          </div>
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-xl font-semibold">{t('billing.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('billing.subtitle')}</p>
         </div>
 
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
             <div className="flex items-center gap-2">
-              <Coins className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-              <div className="text-2xl font-bold text-slate-700 dark:text-slate-200" data-testid="text-header-balance">{currentBalance.toLocaleString()}</div>
+              <Coins className="h-4 w-4 text-muted-foreground" />
+              <div className="text-2xl font-semibold" data-testid="text-header-balance">{currentBalance.toLocaleString()}</div>
             </div>
-            <div className="text-slate-600/70 dark:text-slate-400/70 text-sm">{t('billing.currentBalance')}</div>
+            <div className="text-xs text-muted-foreground mt-1">{t('billing.currentBalance')}</div>
           </div>
-          <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
             <div className="flex items-center gap-2">
-              <Crown className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">{subscription?.plan.displayName || t('billing.free')}</div>
+              <Crown className="h-4 w-4 text-muted-foreground" />
+              <div className="text-2xl font-semibold">{subscription?.plan.displayName || t('billing.free')}</div>
             </div>
-            <div className="text-indigo-600/70 dark:text-indigo-400/70 text-sm">{t('billing.currentPlan')}</div>
+            <div className="text-xs text-muted-foreground mt-1">{t('billing.currentPlan')}</div>
           </div>
-          <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
             <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-              <div className="text-2xl font-bold text-slate-700 dark:text-slate-200">{transactions?.length || 0}</div>
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+              <div className="text-2xl font-semibold">{transactions?.length || 0}</div>
             </div>
-            <div className="text-slate-600/70 dark:text-slate-400/70 text-sm">{t('billing.transactions')}</div>
+            <div className="text-xs text-muted-foreground mt-1">{t('billing.transactions')}</div>
           </div>
-          <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
+          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
             <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 capitalize">{subscription?.status || t('common.active')}</div>
+              <Check className="h-4 w-4 text-muted-foreground" />
+              <div className="text-2xl font-semibold capitalize">{subscription?.status || t('common.active')}</div>
             </div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-sm">{t('common.status')}</div>
+            <div className="text-xs text-muted-foreground mt-1">{t('common.status')}</div>
           </div>
         </div>
       </div>
@@ -555,42 +547,37 @@ export default function Billing() {
 
         <TabsContent value="plans" className="space-y-8">
           {subscription && hasActiveSubscription && !subscription.cancelAtPeriodEnd && subscription.plan.name !== "free" && (subscription.stripeSubscriptionId || subscription.razorpaySubscriptionId || subscription.paypalSubscriptionId || subscription.paystackSubscriptionCode || subscription.mercadopagoSubscriptionId) && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-purple-50/50 dark:from-indigo-950/40 dark:via-slate-800/80 dark:to-purple-950/30 border border-indigo-200/50 dark:border-indigo-700/30 p-6">
-          <div className="absolute inset-0 bg-grid-indigo-200/30 dark:bg-grid-indigo-700/10 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                <Calendar className="h-5 w-5 text-white" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{t('billing.subscriptionPeriod') || 'Subscription Period'}</h3>
+        <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <h3 className="text-lg font-semibold">{t('billing.subscriptionPeriod') || 'Subscription Period'}</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-white/70 dark:bg-slate-800/50 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800/30">
+              <div className="rounded-xl bg-background p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-                  <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">{t('billing.startDate') || 'Start Date'}</span>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">{t('billing.startDate') || 'Start Date'}</span>
                 </div>
-                <div className="text-xl font-bold text-slate-800 dark:text-slate-100" data-testid="text-subscription-start-date">
+                <div className="text-xl font-bold" data-testid="text-subscription-start-date">
                   {subscription.currentPeriodStart ? format(new Date(subscription.currentPeriodStart), 'MMM dd, yyyy') : '-'}
                 </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   {subscription.currentPeriodStart ? formatDistanceToNow(new Date(subscription.currentPeriodStart), { addSuffix: true }) : ''}
                 </div>
               </div>
-              <div className="bg-white/70 dark:bg-slate-800/50 rounded-xl p-4 border border-purple-100 dark:border-purple-800/30">
+              <div className="rounded-xl bg-background p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Calendar className="h-4 w-4 text-purple-500 dark:text-purple-400" />
-                  <span className="text-sm font-medium text-purple-600 dark:text-purple-400">{t('billing.renewalDate') || 'Renewal Date'}</span>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">{t('billing.renewalDate') || 'Renewal Date'}</span>
                 </div>
-                <div className="text-xl font-bold text-slate-800 dark:text-slate-100" data-testid="text-subscription-end-date">
+                <div className="text-xl font-bold" data-testid="text-subscription-end-date">
                   {subscription.currentPeriodEnd ? format(new Date(subscription.currentPeriodEnd), 'MMM dd, yyyy') : '-'}
                 </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   {subscription.currentPeriodEnd ? formatDistanceToNow(new Date(subscription.currentPeriodEnd), { addSuffix: true }) : ''}
                 </div>
               </div>
             </div>
-          </div>
         </div>
       )}
 
@@ -606,25 +593,18 @@ export default function Billing() {
         </div>
       )}
 
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-white to-indigo-50/50 dark:from-slate-900 dark:via-slate-800/80 dark:to-indigo-950/30 border border-slate-200 dark:border-slate-700/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-6">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-500/25 dark:shadow-emerald-600/20">
-                <Coins className="h-7 w-7 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('billing.creditsAndUsage')}</h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm">{t('billing.creditsSubtitle')}</p>
-              </div>
+      <div className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">{t('billing.creditsAndUsage')}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{t('billing.creditsSubtitle')}</p>
             </div>
             
             {buildAvailableCurrencies().length > 1 && (
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
                 <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                  <SelectTrigger className="w-[140px] bg-white/80 dark:bg-slate-800/60" data-testid="select-billing-currency">
+                  <SelectTrigger className="w-[140px]" data-testid="select-billing-currency">
                     <SelectValue placeholder="Currency" />
                   </SelectTrigger>
                   <SelectContent>
@@ -640,36 +620,30 @@ export default function Billing() {
           </div>
 
           {!hasActiveSubscription && (
-            <Alert className="mb-6 border-amber-200 dark:border-amber-800/50 bg-amber-50/80 dark:bg-amber-950/30">
-              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <AlertDescription className="text-amber-700 dark:text-amber-300">
+            <Alert className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
                 {t('billing.membershipRequired')}
               </AlertDescription>
             </Alert>
           )}
 
-          <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 border border-slate-200/50 dark:border-slate-700/50 mb-8">
+          <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-6 mb-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div className="flex items-center gap-6">
-                <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-800 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center shadow-lg">
-                  <Wallet className="h-10 w-10 text-white" />
+              <div>
+                <div className="text-sm font-medium text-muted-foreground mb-1">{t('billing.currentBalance')}</div>
+                <div className="text-4xl font-bold font-mono tabular-nums" data-testid="text-credit-balance">
+                  {currentBalance.toLocaleString()}
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{t('billing.currentBalance')}</div>
-                  <div className="text-5xl font-bold font-mono tabular-nums text-slate-800 dark:text-slate-100" data-testid="text-credit-balance">
-                    {currentBalance.toLocaleString()}
-                  </div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" />
-                    {t('billing.availableCredits')}
-                  </div>
+                <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  {t('billing.availableCredits')}
                 </div>
               </div>
               <Button 
                 size="lg" 
                 onClick={() => packages && packages[0] && handlePurchaseCredits(packages[0].id)}
                 disabled={!hasActiveSubscription || !!loadingCheckout}
-                className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 dark:from-emerald-600 dark:to-emerald-700 shadow-lg shadow-emerald-500/25"
                 data-testid="button-recharge-credits"
               >
                 <Plus className="h-5 w-5 mr-2" />
@@ -680,8 +654,8 @@ export default function Billing() {
 
           {packages && packages.length > 0 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-muted-foreground" />
                 {t('billing.creditPackages')}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -692,17 +666,17 @@ export default function Billing() {
                   const isPopular = index === 1;
                   
                   return (
-                    <div 
+                    <Card 
                       key={pkg.id} 
-                      className={`relative bg-white dark:bg-slate-800/80 rounded-xl border overflow-hidden transition-all duration-200 hover:shadow-lg ${
+                      className={`relative overflow-hidden transition-all duration-200 ${
                         isPopular 
-                          ? "ring-2 ring-indigo-500 dark:ring-indigo-400 border-indigo-200 dark:border-indigo-800" 
-                          : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                          ? "ring-1 ring-border" 
+                          : ""
                       }`}
                       data-testid={`card-package-${pkg.name.toLowerCase().replace(/\s+/g, "-")}`}
                     >
                       {isPopular && (
-                        <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-xs font-medium py-1.5 text-center">
+                        <div className="absolute top-0 left-0 right-0 bg-primary text-primary-foreground text-xs font-medium py-1.5 text-center">
                           <Sparkles className="h-3 w-3 inline mr-1" />
                           {t('billing.popular')}
                         </div>
@@ -710,47 +684,35 @@ export default function Billing() {
                       <div className={`p-5 ${isPopular ? 'pt-9' : ''}`}>
                         <div className="flex items-start justify-between mb-4">
                           <div>
-                            <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{pkg.name}</h4>
+                            <h4 className="text-lg font-semibold">{pkg.name}</h4>
                             {pkg.description && (
-                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{pkg.description}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{pkg.description}</p>
                             )}
                           </div>
-                          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                            isPopular 
-                              ? 'bg-indigo-100 dark:bg-indigo-900/50' 
-                              : 'bg-slate-100 dark:bg-slate-700/50'
-                          }`}>
-                            <Coins className={`h-5 w-5 ${
-                              isPopular 
-                                ? 'text-indigo-600 dark:text-indigo-400' 
-                                : 'text-slate-600 dark:text-slate-400'
-                            }`} />
+                          <div className="h-10 w-10 rounded-md bg-muted/50 flex items-center justify-center">
+                            <Coins className="h-5 w-5 text-muted-foreground" />
                           </div>
                         </div>
                         
                         <div className="mb-4">
-                          <div className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+                          <div className="text-3xl font-bold">
                             {currencySymbol}{displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                           <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xl font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="text-xl font-mono font-semibold">
                               {pkg.credits.toLocaleString()}
                             </span>
-                            <span className="text-sm text-slate-500 dark:text-slate-400">{t('billing.credits')}</span>
+                            <span className="text-sm text-muted-foreground">{t('billing.credits')}</span>
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-2 mb-4 text-xs text-slate-500 dark:text-slate-400">
-                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        <div className="flex items-center gap-2 mb-4 text-xs text-muted-foreground">
+                          <Check className="h-3.5 w-3.5 text-muted-foreground" />
                           {currencySymbol}{(displayPrice / pkg.credits).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })} {t('billing.perMinute')}
                         </div>
                         
                         <Button 
-                          className={`w-full ${
-                            isPopular 
-                              ? "bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800" 
-                              : ""
-                          }`}
+                          className="w-full"
                           variant={isPopular ? "default" : "outline"}
                           onClick={() => handlePurchaseCredits(pkg.id)}
                           disabled={!hasActiveSubscription || !!loadingCheckout}
@@ -766,33 +728,24 @@ export default function Billing() {
                           )}
                         </Button>
                       </div>
-                    </div>
+                    </Card>
                   );
                 })}
               </div>
             </div>
           )}
-        </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-100/50 dark:from-slate-900 dark:via-slate-800/80 dark:to-slate-900/50 border border-slate-200 dark:border-slate-700/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative">
+      <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-800 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center shadow-lg shadow-slate-500/25 dark:shadow-slate-600/20">
-                <Receipt className="h-7 w-7 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{t('billing.transactionHistory')}</h2>
-                <p className="text-slate-600 dark:text-slate-400 text-sm">{t('billing.transactionSubtitle') || 'View your credit transactions and payment history'}</p>
-              </div>
+            <div>
+              <h2 className="text-lg font-semibold">{t('billing.transactionHistory')}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{t('billing.transactionSubtitle') || 'View your credit transactions and payment history'}</p>
             </div>
             <Button 
               variant="outline" 
               onClick={handleExportTransactions} 
               data-testid="button-export-transactions"
-              className="border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
             >
               <Download className="h-4 w-4 mr-2" />
               {t('billing.exportCSV')}
@@ -801,14 +754,14 @@ export default function Billing() {
 
           {transactions && transactions.length > 0 ? (
             <>
-              <div className="bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/50 overflow-x-auto">
+              <div className="rounded-xl border overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
-                      <TableHead className="font-semibold uppercase text-xs text-slate-600 dark:text-slate-400 tracking-wider">{t('billing.tableHeaders.type')}</TableHead>
-                      <TableHead className="font-semibold uppercase text-xs text-slate-600 dark:text-slate-400 tracking-wider">{t('billing.tableHeaders.description')}</TableHead>
-                      <TableHead className="font-semibold uppercase text-xs text-slate-600 dark:text-slate-400 tracking-wider text-right">{t('billing.tableHeaders.amount')}</TableHead>
-                      <TableHead className="font-semibold uppercase text-xs text-slate-600 dark:text-slate-400 tracking-wider">{t('billing.tableHeaders.date')}</TableHead>
+                    <TableRow>
+                      <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.type')}</TableHead>
+                      <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.description')}</TableHead>
+                      <TableHead className="font-medium text-xs text-muted-foreground text-right">{t('billing.tableHeaders.amount')}</TableHead>
+                      <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.date')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -818,18 +771,10 @@ export default function Billing() {
                       .map((transaction, index, arr) => (
                       <TableRow 
                         key={transaction.id}
-                        className={`transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/30 ${
-                          index !== arr.length - 1 ? 'border-b border-slate-100 dark:border-slate-700/50' : ''
-                        }`}
                       >
                         <TableCell className="py-4">
                           <Badge 
                             variant={transaction.type === "credit" ? "default" : "destructive"}
-                            className={`${
-                              transaction.type === "credit" 
-                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800" 
-                                : "bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-900/50 dark:text-red-400 border border-red-200 dark:border-red-800"
-                            }`}
                           >
                             {transaction.type === "credit" ? (
                               <><Plus className="h-3 w-3 mr-1" />{t('billing.credit')}</>
@@ -839,25 +784,21 @@ export default function Billing() {
                           </Badge>
                         </TableCell>
                         <TableCell className="py-4">
-                          <div className="font-medium text-sm text-slate-800 dark:text-slate-200">{transaction.description}</div>
+                          <div className="font-medium text-sm">{transaction.description}</div>
                           {transaction.stripePaymentId && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                               <CreditCard className="h-3 w-3" />
                               {transaction.stripePaymentId.substring(0, 20)}...
                             </div>
                           )}
                         </TableCell>
                         <TableCell className="py-4 text-right">
-                          <span className={`font-mono text-sm font-bold ${
-                            transaction.type === "credit" 
-                              ? "text-emerald-600 dark:text-emerald-400" 
-                              : "text-red-600 dark:text-red-400"
-                          }`}>
+                          <span className="font-mono text-sm font-bold">
                             {transaction.type === "credit" ? "+" : "-"}{Math.abs(transaction.amount).toLocaleString()}
                           </span>
                         </TableCell>
                         <TableCell className="py-4">
-                          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Clock className="h-3.5 w-3.5" />
                             {formatDistanceToNow(new Date(transaction.createdAt), { addSuffix: true })}
                           </div>
@@ -870,7 +811,7 @@ export default function Billing() {
               
               {totalTransactionPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-slate-500 dark:text-slate-400">
+                  <div className="text-sm text-muted-foreground">
                     {t('billing.pagination', { 
                       start: transactionPage * transactionPageSize + 1, 
                       end: Math.min((transactionPage + 1) * transactionPageSize, transactions.length),
@@ -903,14 +844,13 @@ export default function Billing() {
               )}
             </>
           ) : (
-            <div className="bg-white/60 dark:bg-slate-800/40 rounded-xl border border-slate-200/50 dark:border-slate-700/50 p-12 text-center">
-              <div className="h-16 w-16 rounded-2xl bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mx-auto mb-4">
-                <Receipt className="h-8 w-8 text-slate-400 dark:text-slate-500" />
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-12 text-center">
+              <div className="h-16 w-16 rounded-md bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <Receipt className="h-8 w-8 text-muted-foreground" />
               </div>
-              <p className="text-slate-500 dark:text-slate-400">{t('billing.noTransactions')}</p>
+              <p className="text-muted-foreground">{t('billing.noTransactions')}</p>
             </div>
           )}
-        </div>
       </div>
         </TabsContent>
 

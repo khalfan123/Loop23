@@ -124,7 +124,7 @@ export default function FlowsPage() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/flows"] });
       if (data?.id) {
-        setLocation(`/app/flows/${data.id}`);
+        setLocation(`/app/settings/flows/${data.id}`);
       }
     },
     onError: (error: any) => {
@@ -265,7 +265,7 @@ export default function FlowsPage() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/flows"] });
       if (data?.id) {
-        setLocation(`/app/flows/${data.id}`);
+        setLocation(`/app/settings/flows/${data.id}`);
       }
     },
     onError: (error: any) => {
@@ -286,11 +286,11 @@ export default function FlowsPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-4 md:space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-page-title">Flow Builder</h1>
-          <p className="text-muted-foreground mt-1 text-sm md:text-base">
+          <h1 className="text-xl font-semibold" data-testid="text-page-title">Flow Builder</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Create and manage conversation flows with drag-and-drop visual builder
           </p>
         </div>
@@ -415,7 +415,7 @@ export default function FlowsPage() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => setLocation(`/app/flows/${flow.id}`)}
+                    onClick={() => setLocation(`/app/settings/flows/${flow.id}`)}
                     data-testid={`button-edit-flow-${flow.id}`}
                   >
                     <Edit className="w-4 h-4 mr-2" />

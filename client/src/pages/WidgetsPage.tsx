@@ -789,7 +789,7 @@ export default function WidgetsPage() {
       <div className="flex items-center justify-between p-4 md:p-6 border-b">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold" data-testid="text-page-title">Website Widgets</h1>
+            <h1 className="text-xl font-semibold" data-testid="text-page-title">Website Widgets</h1>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-4 w-4 text-muted-foreground cursor-help" data-testid="icon-widget-info" />
@@ -802,7 +802,7 @@ export default function WidgetsPage() {
               </TooltipContent>
             </Tooltip>
           </div>
-          <p className="text-muted-foreground">Create embeddable voice widgets for your websites</p>
+          <p className="text-sm text-muted-foreground mt-1">Embed call widgets on your website</p>
         </div>
         <div className="flex items-center gap-3">
           {limits && (
@@ -958,58 +958,50 @@ export default function WidgetsPage() {
 
         <TabsContent value="dashboard" className="flex-1 overflow-auto p-4 md:p-6 mt-0">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">Total Widgets</CardTitle>
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-muted-foreground">Total Widgets</span>
                 <Globe className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalWidgets || 0}</div>
-                {limits && (
-                  <div className="mt-2">
-                    <Progress value={(limits.currentCount / limits.maxWidgets) * 100} className="h-1" />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {limits.remaining} of {limits.maxWidgets} remaining
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-                <PhoneCall className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalCalls || 0}</div>
-                <p className="text-xs text-muted-foreground">All-time widget calls</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">Total Minutes</CardTitle>
-                <Timer className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalMinutes || 0}</div>
-                <p className="text-xs text-muted-foreground">Voice conversation time</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                <CardTitle className="text-sm font-medium">Active Widgets</CardTitle>
-                <MessageCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {stats?.widgetStats?.filter(w => w.status === 'active').length || 0}
+              </div>
+              <div className="text-2xl font-bold">{stats?.totalWidgets || 0}</div>
+              {limits && (
+                <div className="mt-2">
+                  <Progress value={(limits.currentCount / limits.maxWidgets) * 100} className="h-1" />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {limits.remaining} of {limits.maxWidgets} remaining
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">Ready to receive calls</p>
-              </CardContent>
-            </Card>
+              )}
+            </div>
+            
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-muted-foreground">Total Calls</span>
+                <PhoneCall className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold">{stats?.totalCalls || 0}</div>
+              <p className="text-xs text-muted-foreground">All-time widget calls</p>
+            </div>
+            
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-muted-foreground">Total Minutes</span>
+                <Timer className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold">{stats?.totalMinutes || 0}</div>
+              <p className="text-xs text-muted-foreground">Voice conversation time</p>
+            </div>
+            
+            <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-muted-foreground">Active Widgets</span>
+                <MessageCircle className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="text-2xl font-bold">
+                {stats?.widgetStats?.filter(w => w.status === 'active').length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">Ready to receive calls</p>
+            </div>
           </div>
 
           {stats?.widgetStats && stats.widgetStats.length > 0 ? (
@@ -1086,254 +1078,257 @@ export default function WidgetsPage() {
                 
                 <ScrollArea className="flex-1 pr-4 mt-4">
                   <TabsContent value="general" className="mt-0 space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Widget Name *</Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="My Website Widget"
-                        data-testid="input-widget-name"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="agent">AI Agent</Label>
-                      <Select
-                        value={formData.agentId || "none"}
-                        onValueChange={(value) => setFormData({ ...formData, agentId: value === "none" ? null : value })}
-                      >
-                        <SelectTrigger data-testid="select-agent">
-                          <SelectValue placeholder="Select an agent" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No agent (use default)</SelectItem>
-                          {agents
-                            .filter((agent) => {
-                              // Only show incoming agents (not flow agents) for widgets
-                              // Flow agents don't work reliably with WebSocket-based widget audio
-                              if (agent.type !== 'incoming') return false;
-                              const sipProviders = ['elevenlabs-sip', 'fonoster-openai', 'openai-sip'];
-                              return !sipProviders.includes(agent.telephonyProvider || '');
-                            })
-                            .map((agent) => (
-                            <SelectItem key={agent.id} value={agent.id}>
-                              {agent.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Select an incoming AI agent to power this widget (flow agents are not supported)
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 rounded-lg border">
-                      <div>
-                        <Label>Status</Label>
-                        <p className="text-sm text-muted-foreground">Enable or disable this widget</p>
+                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Widget Name *</Label>
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder="My Website Widget"
+                          data-testid="input-widget-name"
+                        />
                       </div>
-                      <Select
-                        value={formData.status}
-                        onValueChange={(value) => setFormData({ ...formData, status: value })}
-                      >
-                        <SelectTrigger className="w-28">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="paused">Paused</SelectItem>
-                        </SelectContent>
-                      </Select>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="agent">AI Agent</Label>
+                        <Select
+                          value={formData.agentId || "none"}
+                          onValueChange={(value) => setFormData({ ...formData, agentId: value === "none" ? null : value })}
+                        >
+                          <SelectTrigger data-testid="select-agent">
+                            <SelectValue placeholder="Select an agent" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No agent (use default)</SelectItem>
+                            {agents
+                              .filter((agent) => {
+                                if (agent.type !== 'incoming') return false;
+                                const sipProviders = ['elevenlabs-sip', 'fonoster-openai', 'openai-sip'];
+                                return !sipProviders.includes(agent.telephonyProvider || '');
+                              })
+                              .map((agent) => (
+                              <SelectItem key={agent.id} value={agent.id}>
+                                {agent.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Select an incoming AI agent to power this widget (flow agents are not supported)
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-xl border">
+                        <div>
+                          <Label>Status</Label>
+                          <p className="text-sm text-muted-foreground">Enable or disable this widget</p>
+                        </div>
+                        <Select
+                          value={formData.status}
+                          onValueChange={(value) => setFormData({ ...formData, status: value })}
+                        >
+                          <SelectTrigger className="w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="paused">Paused</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </TabsContent>
 
                   <TabsContent value="branding" className="mt-0 space-y-4">
-                    <div className="space-y-2">
-                      <Label>Widget Icon</Label>
-                      <div className="flex items-center gap-4">
-                        <div 
-                          className="h-16 w-16 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          {formData.iconPreview ? (
-                            <img src={formData.iconPreview} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <Upload className="h-6 w-6 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleIconUpload}
-                            className="hidden"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
+                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Widget Icon</Label>
+                        <div className="flex items-center gap-4">
+                          <div 
+                            className="h-16 w-16 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors"
                             onClick={() => fileInputRef.current?.click()}
                           >
-                            Upload Icon
-                          </Button>
-                          {formData.iconPreview && (
+                            {formData.iconPreview ? (
+                              <img src={formData.iconPreview} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <Upload className="h-6 w-6 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={handleIconUpload}
+                              className="hidden"
+                            />
                             <Button
                               type="button"
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              onClick={removeIcon}
-                              className="ml-2 text-destructive"
+                              onClick={() => fileInputRef.current?.click()}
                             >
-                              Remove
+                              Upload Icon
                             </Button>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            PNG, JPG up to 2MB. Recommended: 128x128px
-                          </p>
+                            {formData.iconPreview && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={removeIcon}
+                                className="ml-2 text-destructive"
+                              >
+                                Remove
+                              </Button>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              PNG, JPG up to 2MB. Recommended: 128x128px
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="brandName">Brand Name</Label>
+                        <Input
+                          id="brandName"
+                          value={formData.brandName}
+                          onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
+                          placeholder="Your Company"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="buttonLabel">Button Label</Label>
+                        <Input
+                          id="buttonLabel"
+                          value={formData.buttonLabel}
+                          onChange={(e) => setFormData({ ...formData, buttonLabel: e.target.value })}
+                          placeholder="VOICE CHAT"
+                          maxLength={20}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Text displayed on the call button (max 20 characters)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Primary Color</Label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {COLOR_PRESETS.map((preset) => (
+                            <button
+                              key={preset.name}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, primaryColor: preset.primary })}
+                              className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
+                                formData.primaryColor === preset.primary ? 'ring-2 ring-offset-2 ring-primary' : ''
+                              }`}
+                              style={{ backgroundColor: preset.primary }}
+                              title={preset.name}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            type="color"
+                            value={formData.primaryColor}
+                            onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                            className="w-12 h-9 p-1"
+                          />
+                          <Input
+                            value={formData.primaryColor}
+                            onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
+                            placeholder="#3B82F6"
+                            className="flex-1"
+                          />
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="brandName">Brand Name</Label>
-                      <Input
-                        id="brandName"
-                        value={formData.brandName}
-                        onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
-                        placeholder="Your Company"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="buttonLabel">Button Label</Label>
-                      <Input
-                        id="buttonLabel"
-                        value={formData.buttonLabel}
-                        onChange={(e) => setFormData({ ...formData, buttonLabel: e.target.value })}
-                        placeholder="VOICE CHAT"
-                        maxLength={20}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Text displayed on the call button (max 20 characters)
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Primary Color</Label>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {COLOR_PRESETS.map((preset) => (
-                          <button
-                            key={preset.name}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, primaryColor: preset.primary })}
-                            className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
-                              formData.primaryColor === preset.primary ? 'ring-2 ring-offset-2 ring-primary' : ''
-                            }`}
-                            style={{ backgroundColor: preset.primary }}
-                            title={preset.name}
-                          />
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          type="color"
-                          value={formData.primaryColor}
-                          onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                          className="w-12 h-9 p-1"
-                        />
-                        <Input
-                          value={formData.primaryColor}
-                          onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                          placeholder="#3B82F6"
-                          className="flex-1"
+                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                      <div className="flex items-center justify-between p-3 rounded-xl border">
+                        <div>
+                          <Label>Require Terms Acceptance</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Show terms checkbox before starting call
+                          </p>
+                        </div>
+                        <Switch
+                          checked={formData.requireTermsAcceptance}
+                          onCheckedChange={(checked) => setFormData({ ...formData, requireTermsAcceptance: checked })}
                         />
                       </div>
-                    </div>
 
-                    <Separator />
-
-                    <div className="flex items-center justify-between p-3 rounded-lg border">
-                      <div>
-                        <Label>Require Terms Acceptance</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Show terms checkbox before starting call
-                        </p>
+                      <div className="flex items-center justify-between p-3 rounded-xl border">
+                        <div>
+                          <Label>Appointment Booking</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Allow visitors to book appointments during calls
+                          </p>
+                        </div>
+                        <Switch
+                          checked={formData.appointmentBookingEnabled}
+                          onCheckedChange={(checked) => setFormData({ ...formData, appointmentBookingEnabled: checked })}
+                          data-testid="switch-appointment-booking"
+                        />
                       </div>
-                      <Switch
-                        checked={formData.requireTermsAcceptance}
-                        onCheckedChange={(checked) => setFormData({ ...formData, requireTermsAcceptance: checked })}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 rounded-lg border">
-                      <div>
-                        <Label>Appointment Booking</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Allow visitors to book appointments during calls
-                        </p>
-                      </div>
-                      <Switch
-                        checked={formData.appointmentBookingEnabled}
-                        onCheckedChange={(checked) => setFormData({ ...formData, appointmentBookingEnabled: checked })}
-                        data-testid="switch-appointment-booking"
-                      />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="settings" className="mt-0 space-y-4">
-                    <div className="space-y-2">
-                      <Label>Allowed Domains</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Restrict where the widget can be embedded (leave empty for any domain)
-                      </p>
-                      <div className="flex gap-2">
-                        <Input
-                          value={domainInput}
-                          onChange={(e) => setDomainInput(e.target.value)}
-                          placeholder="example.com"
-                          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addDomain())}
-                        />
-                        <Button type="button" onClick={addDomain} variant="secondary">
-                          Add
-                        </Button>
-                      </div>
-                      {formData.allowedDomains.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {formData.allowedDomains.map((domain) => (
-                            <Badge key={domain} variant="secondary" className="pr-1">
-                              {domain}
-                              <button
-                                type="button"
-                                onClick={() => removeDomain(domain)}
-                                className="ml-2 hover:text-destructive"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex items-center justify-between p-3 rounded-lg border">
-                      <div>
-                        <Label>Business Hours</Label>
+                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Allowed Domains</Label>
                         <p className="text-sm text-muted-foreground">
-                          Restrict availability to specific hours
+                          Restrict where the widget can be embedded (leave empty for any domain)
                         </p>
+                        <div className="flex gap-2">
+                          <Input
+                            value={domainInput}
+                            onChange={(e) => setDomainInput(e.target.value)}
+                            placeholder="example.com"
+                            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addDomain())}
+                          />
+                          <Button type="button" onClick={addDomain} variant="secondary">
+                            Add
+                          </Button>
+                        </div>
+                        {formData.allowedDomains.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {formData.allowedDomains.map((domain) => (
+                              <Badge key={domain} variant="secondary" className="pr-1">
+                                {domain}
+                                <button
+                                  type="button"
+                                  onClick={() => removeDomain(domain)}
+                                  className="ml-2 hover:text-destructive"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <Switch
-                        checked={formData.businessHoursEnabled}
-                        onCheckedChange={(checked) => setFormData({ ...formData, businessHoursEnabled: checked })}
-                      />
                     </div>
+
+                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                      <div className="flex items-center justify-between p-3 rounded-xl border">
+                        <div>
+                          <Label>Business Hours</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Restrict availability to specific hours
+                          </p>
+                        </div>
+                        <Switch
+                          checked={formData.businessHoursEnabled}
+                          onCheckedChange={(checked) => setFormData({ ...formData, businessHoursEnabled: checked })}
+                        />
+                      </div>
 
                     {formData.businessHoursEnabled && (
-                      <div className="space-y-4 pl-4 border-l-2 border-muted">
+                      <div className="space-y-4 pl-4 ml-2">
                         <div className="space-y-2">
                           <Label>Timezone</Label>
                           <Select
@@ -1393,58 +1388,61 @@ export default function WidgetsPage() {
                         </div>
                       </div>
                     )}
+                    </div>
 
-                    <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-between">
-                          Advanced Settings
-                          <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="space-y-4 pt-4">
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="maxDuration">Max Duration (sec)</Label>
-                            <Input
-                              id="maxDuration"
-                              type="number"
-                              min={10}
-                              max={3600}
-                              value={formData.maxCallDuration}
-                              onChange={(e) => setFormData({ ...formData, maxCallDuration: parseInt(e.target.value) || 300 })}
-                              data-testid="input-max-duration"
-                            />
-                            <p className="text-xs text-muted-foreground">10-3600 seconds</p>
+                    <div className="rounded-xl bg-muted/30 dark:bg-muted/10 p-5 space-y-4">
+                      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" className="w-full justify-between">
+                            Advanced Settings
+                            <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-4 pt-4">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="maxDuration">Max Duration (sec)</Label>
+                              <Input
+                                id="maxDuration"
+                                type="number"
+                                min={10}
+                                max={3600}
+                                value={formData.maxCallDuration}
+                                onChange={(e) => setFormData({ ...formData, maxCallDuration: parseInt(e.target.value) || 300 })}
+                                data-testid="input-max-duration"
+                              />
+                              <p className="text-xs text-muted-foreground">10-3600 seconds</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="cooldown">Cooldown (min)</Label>
+                              <Input
+                                id="cooldown"
+                                type="number"
+                                min={0}
+                                max={60}
+                                value={formData.cooldownMinutes}
+                                onChange={(e) => setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })}
+                                data-testid="input-cooldown"
+                              />
+                              <p className="text-xs text-muted-foreground">Wait time per IP</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="maxConcurrent">Max Sessions</Label>
+                              <Input
+                                id="maxConcurrent"
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={formData.maxConcurrentCalls}
+                                onChange={(e) => setFormData({ ...formData, maxConcurrentCalls: parseInt(e.target.value) || 5 })}
+                                data-testid="input-max-concurrent"
+                              />
+                              <p className="text-xs text-muted-foreground">1-100 sessions</p>
+                            </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="cooldown">Cooldown (min)</Label>
-                            <Input
-                              id="cooldown"
-                              type="number"
-                              min={0}
-                              max={60}
-                              value={formData.cooldownMinutes}
-                              onChange={(e) => setFormData({ ...formData, cooldownMinutes: parseInt(e.target.value) || 0 })}
-                              data-testid="input-cooldown"
-                            />
-                            <p className="text-xs text-muted-foreground">Wait time per IP</p>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="maxConcurrent">Max Sessions</Label>
-                            <Input
-                              id="maxConcurrent"
-                              type="number"
-                              min={1}
-                              max={100}
-                              value={formData.maxConcurrentCalls}
-                              onChange={(e) => setFormData({ ...formData, maxConcurrentCalls: parseInt(e.target.value) || 5 })}
-                              data-testid="input-max-concurrent"
-                            />
-                            <p className="text-xs text-muted-foreground">1-100 sessions</p>
-                          </div>
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </div>
                   </TabsContent>
                 </ScrollArea>
               </Tabs>

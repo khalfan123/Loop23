@@ -710,13 +710,20 @@ export class DbStorage implements IStorage {
       .leftJoin(websiteWidgets, eq(calls.widgetId, websiteWidgets.id))
       .where(eq(calls.id, id));
     
+    const staleThresholdMs = 60 * 60 * 1000;
+    const now = Date.now();
+
     if (elevenLabsResults.length > 0) {
       const r = elevenLabsResults[0];
       const metadataEngine = (r.call.metadata as any)?.engine;
       const engine = metadataEngine || 'elevenlabs';
       let normalizedStatus = r.call.status;
-      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
-        normalizedStatus = 'completed';
+      if (normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
+        if (r.call.endedAt) {
+          normalizedStatus = 'completed';
+        } else if (r.call.createdAt && (now - new Date(r.call.createdAt).getTime() > staleThresholdMs)) {
+          normalizedStatus = 'completed';
+        }
       }
       return {
         ...r.call,
@@ -745,8 +752,12 @@ export class DbStorage implements IStorage {
     if (twilioOpenAIResults.length > 0) {
       const r = twilioOpenAIResults[0];
       let normalizedStatus = r.call.status;
-      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
-        normalizedStatus = 'completed';
+      if (normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
+        if (r.call.endedAt) {
+          normalizedStatus = 'completed';
+        } else if (r.call.createdAt && (now - new Date(r.call.createdAt).getTime() > staleThresholdMs)) {
+          normalizedStatus = 'completed';
+        }
       }
       return {
         id: r.call.id,
@@ -799,8 +810,12 @@ export class DbStorage implements IStorage {
     if (plivoResults.length > 0) {
       const r = plivoResults[0];
       let normalizedStatus = r.call.status;
-      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
-        normalizedStatus = 'completed';
+      if (normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
+        if (r.call.endedAt) {
+          normalizedStatus = 'completed';
+        } else if (r.call.createdAt && (now - new Date(r.call.createdAt).getTime() > staleThresholdMs)) {
+          normalizedStatus = 'completed';
+        }
       }
       return {
         id: r.call.id,
@@ -890,12 +905,19 @@ export class DbStorage implements IStorage {
       )
       .orderBy(sql`${calls.createdAt} DESC`);
     
+    const staleThresholdMs = 60 * 60 * 1000;
+    const now = Date.now();
+
     const elevenLabsCalls = elevenLabsResults.map(r => {
       const metadataEngine = (r.call.metadata as any)?.engine;
       const engine = metadataEngine || 'elevenlabs';
       let normalizedStatus = r.call.status;
-      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
-        normalizedStatus = 'completed';
+      if (normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
+        if (r.call.endedAt) {
+          normalizedStatus = 'completed';
+        } else if (r.call.createdAt && (now - new Date(r.call.createdAt).getTime() > staleThresholdMs)) {
+          normalizedStatus = 'completed';
+        }
       }
       return {
         ...r.call,
@@ -924,8 +946,12 @@ export class DbStorage implements IStorage {
 
     const twilioOpenAICalls = twilioOpenAIResults.map(r => {
       let normalizedStatus = r.call.status;
-      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
-        normalizedStatus = 'completed';
+      if (normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
+        if (r.call.endedAt) {
+          normalizedStatus = 'completed';
+        } else if (r.call.createdAt && (now - new Date(r.call.createdAt).getTime() > staleThresholdMs)) {
+          normalizedStatus = 'completed';
+        }
       }
       return {
       id: r.call.id,
@@ -977,8 +1003,12 @@ export class DbStorage implements IStorage {
 
     const plivoOpenAICalls = plivoResults.map(r => {
       let normalizedStatus = r.call.status;
-      if ((normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') && r.call.endedAt) {
-        normalizedStatus = 'completed';
+      if (normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
+        if (r.call.endedAt) {
+          normalizedStatus = 'completed';
+        } else if (r.call.createdAt && (now - new Date(r.call.createdAt).getTime() > staleThresholdMs)) {
+          normalizedStatus = 'completed';
+        }
       }
       return {
       id: r.call.id,

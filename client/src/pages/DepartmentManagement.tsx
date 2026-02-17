@@ -609,17 +609,25 @@ export default function DepartmentManagement() {
   const saveIvrConfigMutation = useMutation({
     mutationFn: async () => {
       const activeIvr = ivrConfigurations.find(i => i.isActive);
-      if (!activeIvr) return;
       
       const greetingMessage = multiLangEnabled && languageOptions.length > 0
         ? languageSelectionGreetingText || generateDefaultLanguageSelectionGreeting()
         : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
-      
-      return apiRequest("PATCH", `/api/departments/ivr/${activeIvr.id}`, {
-        isActive: ivrEnabled,
-        greetingMessage,
-        languageOptions: multiLangEnabled ? languageOptions : undefined,
-      });
+
+      if (activeIvr) {
+        return apiRequest("PATCH", `/api/departments/ivr/${activeIvr.id}`, {
+          isActive: ivrEnabled,
+          greetingMessage,
+          languageOptions: multiLangEnabled ? languageOptions : undefined,
+        });
+      } else {
+        return apiRequest("POST", "/api/departments/ivr", {
+          name: "Main IVR",
+          isActive: ivrEnabled,
+          greetingMessage,
+          languageOptions: multiLangEnabled ? languageOptions : undefined,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
@@ -1105,7 +1113,6 @@ export default function DepartmentManagement() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={ivrConfigurations.length === 0}
                   onClick={() => {
                     const activeIvrItem = ivrConfigurations.find(i => i.isActive);
                     if (activeIvrItem) {
@@ -1123,6 +1130,15 @@ export default function DepartmentManagement() {
                           greeting: activeIvrItem.greetingMessage || DEFAULT_GREETINGS.en,
                         }]);
                       }
+                    } else {
+                      setIvrEnabled(true);
+                      setMultiLangEnabled(false);
+                      setLanguageOptions([{
+                        id: "default",
+                        language: "en",
+                        voiceId: "nova",
+                        greeting: DEFAULT_GREETINGS.en,
+                      }]);
                     }
                     setIvrConfigOpen(true);
                   }}

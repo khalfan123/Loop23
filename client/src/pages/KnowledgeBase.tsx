@@ -1352,7 +1352,7 @@ export default function KnowledgeBase() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-none">
+        <div className="flex-1 overflow-y-auto">
           <div className="p-4">
             {viewMode === "web-crawler" ? (
               <KnowledgeIntelligence section="crawl" />

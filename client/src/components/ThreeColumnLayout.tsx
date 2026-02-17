@@ -83,7 +83,7 @@ export function ThreeColumnLayout({
             )}
           </div>
         )}
-        <div className="flex-1 overflow-auto scrollbar-none p-6">
+        <div className="flex-1 overflow-auto p-6">
           {children}
         </div>
       </div>

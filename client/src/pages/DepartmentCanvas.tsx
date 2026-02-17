@@ -667,6 +667,7 @@ function DepartmentCard({
   onUpdate,
   onDelete,
   toast,
+  externalGeneratingIds,
 }: {
   dept: CanvasDepartment;
   agents: Agent[];
@@ -675,12 +676,16 @@ function DepartmentCard({
   onUpdate: (updates: Partial<CanvasDepartment>) => void;
   onDelete: () => void;
   toast: ReturnType<typeof useToast>["toast"];
+  externalGeneratingIds?: Set<string>;
 }) {
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [generatingLangIds, setGeneratingLangIds] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const isLangGenerating = (langId: string) =>
+    generatingLangIds.has(langId) || (externalGeneratingIds?.has(langId) ?? false);
 
   const languageAgents = dept.languageAgents || [];
 
@@ -1073,7 +1078,7 @@ function DepartmentCard({
                     onClick={() => setActiveTabIdx(idx)}
                     data-testid={`badge-lang-${la.language}`}
                   >
-                    {generatingLangIds.has(la.id) && (
+                    {isLangGenerating(la.id) && (
                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                     )}
                     {SUPPORTED_LANGUAGES.find((l) => l.code === la.language)?.label || la.language}
@@ -1152,16 +1157,16 @@ function DepartmentCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={isGeneratingPrompt || generatingLangIds.has(activeLangAgent.id)}
+                    disabled={isGeneratingPrompt || isLangGenerating(activeLangAgent.id)}
                     onClick={() => generatePromptForAgent(activeLangAgent.id, activeLangAgent.agentName || "", activeLangAgent.language)}
                     data-testid="button-generate-prompt"
                   >
-                    {(isGeneratingPrompt || generatingLangIds.has(activeLangAgent.id)) ? (
+                    {(isGeneratingPrompt || isLangGenerating(activeLangAgent.id)) ? (
                       <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                     ) : (
                       <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                     )}
-                    {(isGeneratingPrompt || generatingLangIds.has(activeLangAgent.id)) ? "Generating..." : "AI Generate"}
+                    {(isGeneratingPrompt || isLangGenerating(activeLangAgent.id)) ? "Generating..." : "AI Generate"}
                   </Button>
                 </div>
                 <div className="relative mt-1.5">
@@ -1169,11 +1174,11 @@ function DepartmentCard({
                     value={activeLangAgent.systemPrompt || ""}
                     onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}
                     rows={4}
-                    disabled={generatingLangIds.has(activeLangAgent.id)}
-                    placeholder={generatingLangIds.has(activeLangAgent.id) ? "Generating prompt with AI..." : "Instructions for the AI agent..."}
+                    disabled={isLangGenerating(activeLangAgent.id)}
+                    placeholder={isLangGenerating(activeLangAgent.id) ? "Generating prompt with AI..." : "Instructions for the AI agent..."}
                     data-testid="input-agent-prompt"
                   />
-                  {generatingLangIds.has(activeLangAgent.id) && (
+                  {isLangGenerating(activeLangAgent.id) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-md">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -1469,6 +1474,7 @@ function DepartmentsStep({
   const [activeDeptId, setActiveDeptId] = useState<string | null>(null);
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [editDeptName, setEditDeptName] = useState("");
+  const [generatingDeptLangIds, setGeneratingDeptLangIds] = useState<Set<string>>(new Set());
 
   const getBestAgentForDept = (deptType: string, langCode: string): { id: string; name: string; systemPrompt: string | null; voiceTone: string | null } | null => {
     const langAgents = agents.filter((a) => (a.language || "en").toLowerCase() === langCode.toLowerCase());
@@ -1498,6 +1504,7 @@ function DepartmentsStep({
   };
 
   const generatePromptForNewDept = async (deptId: string, langAgentId: string, deptType: string, deptName: string, langCode: string) => {
+    setGeneratingDeptLangIds((prev) => new Set(prev).add(langAgentId));
     try {
       const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || "English";
       const translatedName = translateDeptName(deptName, deptType, langCode);
@@ -1529,6 +1536,12 @@ function DepartmentsStep({
         title: "Could not auto-generate prompt",
         description: "You can write one manually or try generating later",
         variant: "destructive",
+      });
+    } finally {
+      setGeneratingDeptLangIds((prev) => {
+        const next = new Set(prev);
+        next.delete(langAgentId);
+        return next;
       });
     }
   };
@@ -1571,21 +1584,11 @@ function DepartmentsStep({
     setCanvasDepartments((prev) => [...prev, newDept]);
     setActiveDeptId(newDeptId);
 
-    if (agentFound && bestAgent.systemPrompt) {
+    if (deptType !== "custom") {
+      const agentMsg = agentFound ? ` with "${bestAgent.name}" —` : " —";
       toast({
         title: "Department Added",
-        description: `${template.name} created with agent "${bestAgent.name}"`,
-      });
-    } else if (agentFound && !bestAgent.systemPrompt && deptType !== "custom") {
-      toast({
-        title: "Department Added",
-        description: `${template.name} created with "${bestAgent.name}" — generating AI prompt...`,
-      });
-      generatePromptForNewDept(newDeptId, langAgentId, deptType, template.name, langCode);
-    } else if (!agentFound && deptType !== "custom") {
-      toast({
-        title: "Department Added",
-        description: `${template.name} created — generating AI prompt...`,
+        description: `${template.name} created${agentMsg} generating AI prompt...`,
       });
       generatePromptForNewDept(newDeptId, langAgentId, deptType, template.name, langCode);
     } else {
@@ -1815,6 +1818,7 @@ function DepartmentsStep({
             onUpdate={(updates) => updateDepartment(activeDept.id, updates)}
             onDelete={() => deleteDepartment(activeDept.id)}
             toast={toast}
+            externalGeneratingIds={generatingDeptLangIds}
           />
         )}
       </div>

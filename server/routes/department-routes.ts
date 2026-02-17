@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows, incomingConnections, humanIncomingConnections } from "@shared/schema";
+import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows, incomingConnections, humanIncomingConnections, knowledgeBase } from "@shared/schema";
 import type { FlowNode, FlowEdge } from "@shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/schema";
@@ -903,6 +903,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
   router.post("/generate-prompt", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { departmentType, departmentName, language, agentName, features } = req.body;
+      const userId = req.userId!;
 
       if (!departmentType || !departmentName) {
         return res.status(400).json({ error: "departmentType and departmentName are required" });
@@ -924,20 +925,44 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         ? `\nThe agent's name is "${agentName}". Use this name when the agent introduces itself. The name should appear naturally in the language of the prompt.`
         : "";
 
+      let companyContext = "";
+      try {
+        const kbEntries = await db
+          .select({ title: knowledgeBase.title, content: knowledgeBase.content, type: knowledgeBase.type })
+          .from(knowledgeBase)
+          .where(eq(knowledgeBase.userId, userId));
+
+        if (kbEntries.length > 0) {
+          const summaryParts: string[] = [];
+          for (const entry of kbEntries) {
+            const snippet = entry.content ? entry.content.substring(0, 300) : "";
+            if (snippet) {
+              summaryParts.push(`- ${entry.title}: ${snippet}`);
+            } else {
+              summaryParts.push(`- ${entry.title} (${entry.type})`);
+            }
+            if (summaryParts.length >= 15) break;
+          }
+          companyContext = `\n\nCOMPANY KNOWLEDGE BASE (use this to personalize the prompt with real company details, products, services, and policies):\n${summaryParts.join("\n")}`;
+        }
+      } catch (kbErr) {
+        console.warn("[Departments] Could not fetch knowledge base for prompt generation:", kbErr);
+      }
+
       const openai = await getOpenAIClient();
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
-        max_completion_tokens: 1024,
+        max_completion_tokens: 1500,
         messages: [
           {
             role: "system",
-            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent. The prompt should be specific to the department's purpose and include behavioral guidelines, tone instructions, and handling procedures. The entire prompt MUST be written in ${langLabel}. Output ONLY the system prompt text, no explanations or markdown.`
+            content: `You are an expert at writing system prompts for AI phone call agents. Generate a professional, detailed system prompt for a department agent. The prompt should be specific to the department's purpose and include behavioral guidelines, tone instructions, and handling procedures. If company knowledge base information is provided, use it to personalize the prompt with real company details — reference actual products, services, policies, and brand identity instead of using generic placeholders. The entire prompt MUST be written in ${langLabel}. Output ONLY the system prompt text, no explanations or markdown.`
           },
           {
             role: "user",
             content: `Generate a system prompt for a "${departmentName}" department agent.
 Department type: ${departmentType}
-Primary language: ${langLabel}${agentNameContext}${featuresContext}
+Primary language: ${langLabel}${agentNameContext}${featuresContext}${companyContext}
 
 The prompt should:
 - Define the agent's role clearly for a ${departmentType} department
@@ -946,6 +971,7 @@ The prompt should:
 - Include specific handling procedures for ${departmentType} scenarios
 - Provide guidelines for common ${departmentType} situations
 - Be professional yet conversational
+- If company knowledge base data is available, incorporate specific company details (products, services, policies, brand name) into the prompt instead of generic placeholders
 - The ENTIRE prompt must be written in ${langLabel}`
           }
         ],

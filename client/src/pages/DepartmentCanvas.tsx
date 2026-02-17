@@ -2083,7 +2083,7 @@ export default function DepartmentCanvas() {
 
   return (
     <div className="min-h-[80vh]">
-      <div className="max-w-3xl mx-auto px-4 pb-8">
+      <div className="max-w-6xl mx-auto px-6 pb-8">
         <div className="flex items-center gap-3 mb-2">
           <Button
             variant="ghost"

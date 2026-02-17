@@ -149,6 +149,17 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
+export const ACCOUNT_SETTINGS_SECTIONS = [
+  { id: "section-profile", label: "Profile", icon: "UserCog" },
+  { id: "section-security", label: "Security", icon: "Lock" },
+  { id: "section-kyc", label: "KYC Verification", icon: "ShieldCheck" },
+  { id: "section-addresses", label: "Addresses", icon: "MapPin" },
+  { id: "section-developer", label: "Developer", icon: "Key", conditional: true },
+  { id: "section-notifications", label: "Notifications", icon: "Bell" },
+  { id: "section-data-privacy", label: "Data & Privacy", icon: "Download" },
+  { id: "section-account", label: "Account", icon: "LogOut" },
+];
+
 export default function Settings() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -383,7 +394,7 @@ export default function Settings() {
     <div className="max-w-2xl mx-auto pb-12 space-y-7">
 
       {/* Profile Header */}
-      <div className="rounded-xl border bg-card p-5">
+      <div id="section-profile-header" className="rounded-xl border bg-card p-5">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 text-lg">
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold text-lg">
@@ -401,7 +412,7 @@ export default function Settings() {
       </div>
 
       {/* Profile Section */}
-      <div>
+      <div id="section-profile">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Profile</p>
         <div className="rounded-xl border bg-card">
           <div className="p-4 space-y-4">
@@ -486,7 +497,7 @@ export default function Settings() {
       </div>
 
       {/* Security Section */}
-      <div>
+      <div id="section-security">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Security</p>
         <div className="rounded-xl border bg-card">
           <button
@@ -559,20 +570,20 @@ export default function Settings() {
       </div>
 
       {/* KYC Verification Section */}
-      <div>
+      <div id="section-kyc">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">KYC Verification</p>
         <KycDocumentsSection user={user} />
       </div>
 
       {/* Addresses Section */}
-      <div>
+      <div id="section-addresses">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Addresses</p>
         <AddressesSection />
       </div>
 
       {/* Developer Section */}
       {isRestApiPluginEnabled && (
-        <div>
+        <div id="section-developer">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Developer</p>
           <div className="rounded-xl border bg-card">
             <button
@@ -610,7 +621,7 @@ export default function Settings() {
       ))}
 
       {/* Notifications Section */}
-      <div>
+      <div id="section-notifications">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">{t('settings.notifications')}</p>
         <div className="rounded-xl border bg-card">
           <div className="flex items-center gap-3 p-4">
@@ -628,7 +639,7 @@ export default function Settings() {
       </div>
 
       {/* Data & Privacy Section */}
-      <div>
+      <div id="section-data-privacy">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Data & Privacy</p>
         <div className="rounded-xl border bg-card">
           <div className="flex items-center gap-3 p-4">
@@ -657,7 +668,7 @@ export default function Settings() {
       </div>
 
       {/* Account Section */}
-      <div>
+      <div id="section-account">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">{t('settings.account')}</p>
         <div className="rounded-xl border bg-card">
           <button

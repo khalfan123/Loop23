@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Workflow, BarChart3, Globe, TrendingUp, CreditCard, ChevronRight, UserCog } from "lucide-react";
+import { Settings as SettingsIcon, Workflow, BarChart3, Globe, TrendingUp, CreditCard, ChevronRight, UserCog as UserCogIcon, Lock, ShieldCheck, MapPin, Key, Bell, Download, LogOut, ArrowLeft } from "lucide-react";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
-import Settings from "@/pages/Settings";
+import Settings, { ACCOUNT_SETTINGS_SECTIONS } from "@/pages/Settings";
+import { usePluginStatus } from "@/hooks/use-plugin-status";
 import FlowsPage from "@/pages/FlowsPage";
 import FlowBuilderPage from "@/pages/FlowBuilderPage";
 import FlowExecutionLogsPage from "@/pages/FlowExecutionLogsPage";
@@ -13,13 +15,24 @@ import WidgetsPage from "@/pages/WidgetsPage";
 import Upgrade from "@/pages/Upgrade";
 import Billing from "@/pages/Billing";
 
+const sectionIconMap: Record<string, any> = {
+  UserCog: UserCogIcon,
+  Lock,
+  ShieldCheck,
+  MapPin,
+  Key,
+  Bell,
+  Download,
+  LogOut,
+};
+
 const settingsItems = [
   {
     id: "account",
     title: "Account Settings",
     description: "Manage your profile, KYC documents, notifications, and account",
     url: "/app/settings/account",
-    icon: UserCog,
+    icon: UserCogIcon,
     iconColor: "text-blue-500",
     bgColor: "bg-blue-50 dark:bg-blue-950/30",
   },
@@ -112,6 +125,42 @@ function SettingsOverview({ onNavigate }: { onNavigate: (url: string) => void })
 export default function SettingsHub() {
   const { t } = useTranslation();
   const [location, setLocation] = useLocation();
+  const [activeSection, setActiveSection] = useState<string>("");
+  const { isRestApiPluginEnabled } = usePluginStatus();
+
+  const isAccountPage = location === "/app/settings/account";
+
+  const filteredSections = ACCOUNT_SETTINGS_SECTIONS.filter(
+    (s) => !s.conditional || (s.id === "section-developer" && isRestApiPluginEnabled)
+  );
+
+  useEffect(() => {
+    if (!isAccountPage) return;
+    const sectionIds = filteredSections.map(s => s.id);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+            break;
+          }
+        }
+      },
+      { rootMargin: "-20% 0px -60% 0px", threshold: 0 }
+    );
+
+    const timer = setTimeout(() => {
+      sectionIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [isAccountPage]);
 
   const isItemActive = (url: string) => {
     if (url === "/app/settings/account") {
@@ -120,7 +169,34 @@ export default function SettingsHub() {
     return location === url || location.startsWith(url + "/");
   };
 
-  const subPanelContent = (
+  const subPanelContent = isAccountPage ? (
+    <SubPanelSection>
+      <SubPanelItem
+        icon={<ArrowLeft className="w-4 h-4" />}
+        label="All Settings"
+        isActive={false}
+        onClick={() => setLocation("/app/settings")}
+        data-testid="settings-nav-back"
+      />
+      <div className="my-2 border-t border-border/50" />
+      {filteredSections.map((section) => {
+        const IconComp = sectionIconMap[section.icon];
+        return (
+          <SubPanelItem
+            key={section.id}
+            icon={IconComp ? <IconComp className="w-4 h-4" /> : null}
+            label={section.label}
+            isActive={activeSection === section.id}
+            onClick={() => {
+              document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              setActiveSection(section.id);
+            }}
+            data-testid={`settings-nav-${section.id}`}
+          />
+        );
+      })}
+    </SubPanelSection>
+  ) : (
     <SubPanelSection>
       {settingsItems.map((item) => (
         <SubPanelItem
@@ -135,16 +211,23 @@ export default function SettingsHub() {
     </SubPanelSection>
   );
 
+  const subPanelHeader = isAccountPage ? (
+    <span className="font-medium text-sm flex items-center gap-2">
+      <UserCogIcon className="h-4 w-4 text-primary" />
+      Account Settings
+    </span>
+  ) : (
+    <span className="font-medium text-sm flex items-center gap-2">
+      <SettingsIcon className="h-4 w-4 text-primary" />
+      {t('nav.settings', 'Settings')}
+    </span>
+  );
+
   return (
     <ThreeColumnLayout
       subPanel={subPanelContent}
       subPanelWidth="sm"
-      subPanelHeader={
-        <span className="font-medium text-sm flex items-center gap-2">
-          <SettingsIcon className="h-4 w-4 text-primary" />
-          {t('nav.settings', 'Settings')}
-        </span>
-      }
+      subPanelHeader={subPanelHeader}
     >
       <Switch>
         <Route path="/app/settings/account" component={Settings} />

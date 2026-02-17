@@ -117,66 +117,56 @@ const nodeTypeIcons = {
   play_audio: Volume2,
 };
 
-// Colorful theme for each node type
+// Minimal iOS 18 theme for each node type
 const nodeTypeColors = {
   message: {
-    bg: "from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-blue-500/10 dark:bg-blue-500/20",
+    icon: "text-blue-600 dark:text-blue-400",
     handle: "#3b82f6",
   },
   question: {
-    bg: "from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-purple-500/10 dark:bg-purple-500/20",
+    icon: "text-purple-600 dark:text-purple-400",
     handle: "#a855f7",
   },
   condition: {
-    bg: "from-amber-500 to-amber-600 dark:from-amber-600 dark:to-amber-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-amber-500/10 dark:bg-amber-500/20",
+    icon: "text-amber-600 dark:text-amber-400",
     handle: "#f59e0b",
   },
   appointment: {
-    bg: "from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-emerald-500/10 dark:bg-emerald-500/20",
+    icon: "text-emerald-600 dark:text-emerald-400",
     handle: "#10b981",
   },
   form: {
-    bg: "from-cyan-500 to-cyan-600 dark:from-cyan-600 dark:to-cyan-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-cyan-500/10 dark:bg-cyan-500/20",
+    icon: "text-cyan-600 dark:text-cyan-400",
     handle: "#06b6d4",
   },
   webhook: {
-    bg: "from-violet-500 to-violet-600 dark:from-violet-600 dark:to-violet-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-violet-500/10 dark:bg-violet-500/20",
+    icon: "text-violet-600 dark:text-violet-400",
     handle: "#8b5cf6",
   },
   transfer: {
-    bg: "from-pink-500 to-pink-600 dark:from-pink-600 dark:to-pink-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-pink-500/10 dark:bg-pink-500/20",
+    icon: "text-pink-600 dark:text-pink-400",
     handle: "#ec4899",
   },
   delay: {
-    bg: "from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-orange-500/10 dark:bg-orange-500/20",
+    icon: "text-orange-600 dark:text-orange-400",
     handle: "#f97316",
   },
   end: {
-    bg: "from-red-500 to-red-600 dark:from-red-600 dark:to-red-700",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-red-500/10 dark:bg-red-500/20",
+    icon: "text-red-600 dark:text-red-400",
     handle: "#ef4444",
   },
   play_audio: {
-    bg: "from-cyan-500 to-teal-500 dark:from-cyan-600 dark:to-teal-600",
-    icon: "text-white",
-    text: "text-white",
+    iconBg: "bg-cyan-500/10 dark:bg-cyan-500/20",
+    icon: "text-cyan-600 dark:text-cyan-400",
     handle: "#06b6d4",
   },
 };
@@ -197,18 +187,23 @@ function FlowNode({ data, selected }: { data: any; selected?: boolean }) {
         className="!w-3 !h-3 !border-2 !border-white dark:!border-gray-900"
       />
       
-      <div className={`bg-gradient-to-br ${colors.bg} rounded-lg p-3 min-w-[220px] shadow-lg ${selected ? 'ring-2 ring-white dark:ring-gray-300 ring-offset-2 ring-offset-background' : ''} transition-all hover:shadow-xl`}>
+      <div
+        className={`bg-card rounded-xl border shadow-sm overflow-hidden p-3 min-w-[220px] ${selected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} transition-all`}
+        style={{ borderLeftWidth: '4px', borderLeftColor: colors.handle }}
+      >
         <div className="flex items-center gap-2.5">
-          <Icon className={`w-5 h-5 ${colors.icon} flex-shrink-0`} />
+          <div className={`w-7 h-7 rounded-md ${colors.iconBg} flex items-center justify-center flex-shrink-0`}>
+            <Icon className={`w-4 h-4 ${colors.icon}`} />
+          </div>
           <div className="flex-1 min-w-0">
-            <div className={`font-semibold text-sm ${colors.text}`}>{data.label}</div>
+            <div className="font-semibold text-sm text-foreground">{data.label}</div>
             {data.config?.message && (
-              <div className="text-xs text-white/80 mt-1 truncate">
+              <div className="text-xs text-muted-foreground mt-1 truncate">
                 {data.config.message.substring(0, 50)}...
               </div>
             )}
             {data.config?.question && (
-              <div className="text-xs text-white/80 mt-1 truncate">
+              <div className="text-xs text-muted-foreground mt-1 truncate">
                 {data.config.question.substring(0, 50)}...
               </div>
             )}
@@ -488,10 +483,10 @@ export default function FlowBuilderPage() {
 
   return (
     <div className="flex h-screen w-full">
-      {/* Sidebar - Node Types with Teal Theme */}
-      <div className="w-60 flex-shrink-0 flex flex-col border-r bg-gradient-to-b from-teal-50/50 via-cyan-50/30 to-background dark:from-teal-950/30 dark:via-cyan-950/20 dark:to-background">
+      {/* Sidebar - Node Types */}
+      <div className="w-60 flex-shrink-0 flex flex-col border-r bg-card">
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-teal-100 dark:border-teal-900/50">
+        <div className="p-4 border-b">
           <Button
             variant="ghost"
             size="sm"
@@ -503,12 +498,12 @@ export default function FlowBuilderPage() {
             {t("flows.backToFlows")}
           </Button>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/25">
-              <GitBranch className="h-5 w-5 text-white" />
+            <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
+              <GitBranch className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm text-teal-900 dark:text-teal-100" data-testid="text-node-types-title">{t("flows.title")}</h3>
-              <p className="text-xs text-teal-600/70 dark:text-teal-400/70">
+              <h3 className="font-semibold text-sm" data-testid="text-node-types-title">{t("flows.title")}</h3>
+              <p className="text-xs text-muted-foreground">
                 {t("flows.subtitle")}
               </p>
             </div>
@@ -517,43 +512,38 @@ export default function FlowBuilderPage() {
 
         {/* Node Types */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="text-xs font-medium text-teal-700 dark:text-teal-300 mb-3 uppercase tracking-wider">
+          <div className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">
             {t("flows.addNodes")}
           </div>
-          <div className="space-y-2">
-            {availableNodeTypes.map((nodeType) => {
+          <div className="rounded-xl bg-background border overflow-hidden">
+            {availableNodeTypes.map((nodeType, index) => {
               const Icon = nodeType.icon;
               const colors = nodeTypeColors[nodeType.type as keyof typeof nodeTypeColors];
               return (
-                <Button
+                <button
                   key={nodeType.type}
-                  variant="outline"
-                  className="w-full justify-start gap-2 h-auto py-2.5 hover-elevate active-elevate-2 border-l-4 bg-white/50 dark:bg-white/5"
-                  style={{ borderLeftColor: colors.handle }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover-elevate ${index > 0 ? 'border-t' : ''}`}
                   onClick={() => addNode(nodeType.type)}
                   data-testid={`button-add-${nodeType.type}-node`}
                 >
-                  <div 
-                    className={`p-1.5 rounded bg-gradient-to-br ${colors.bg}`}
-                  >
-                    <Icon className="w-3.5 h-3.5 text-white" />
+                  <div className={`w-7 h-7 rounded-md ${colors.iconBg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`w-3.5 h-3.5 ${colors.icon}`} />
                   </div>
-                  <div className="flex-1 text-left">
+                  <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm">{nodeType.label}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground truncate">
                       {nodeType.description}
                     </div>
                   </div>
-                  <Plus className="w-4 h-4 flex-shrink-0 text-teal-500" />
-                </Button>
+                </button>
               );
             })}
           </div>
         </div>
 
         {/* Sidebar Footer Tip */}
-        <div className="p-4 border-t border-teal-100 dark:border-teal-900/50 bg-teal-50/50 dark:bg-teal-950/30">
-          <p className="text-xs text-teal-600 dark:text-teal-400">
+        <div className="p-4 border-t">
+          <p className="text-xs text-muted-foreground">
             {t("flows.tipClickNodes")}
           </p>
         </div>
@@ -561,8 +551,8 @@ export default function FlowBuilderPage() {
 
       {/* Main Canvas */}
       <div className="flex-1 flex flex-col">
-        {/* Top Toolbar with Teal Theme */}
-        <div className="border-b px-4 py-3 flex items-center justify-between gap-4 bg-gradient-to-r from-teal-50/80 via-cyan-50/50 to-background dark:from-teal-950/40 dark:via-cyan-950/30 dark:to-background">
+        {/* Top Toolbar */}
+        <div className="border-b px-4 py-3 flex items-center justify-between gap-4 bg-card">
           <div className="flex-1">
             <input
               type="text"
@@ -669,17 +659,15 @@ export default function FlowBuilderPage() {
                 setTestDialogOpen(true);
               }}
               disabled={!flowId}
-              className="border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950/50"
               data-testid="button-test-flow"
             >
-              <Play className="w-4 h-4 mr-2 text-teal-600 dark:text-teal-400" />
+              <Play className="w-4 h-4 mr-2" />
               {t("flows.test")}
             </Button>
             <Button
               size="sm"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white shadow-md shadow-teal-500/25"
               data-testid="button-save-flow"
             >
               <Save className="w-4 h-4 mr-2" />
@@ -704,30 +692,21 @@ export default function FlowBuilderPage() {
             defaultEdgeOptions={{ 
               animated: true, 
               style: { 
-                strokeWidth: 2.5,
-                stroke: 'url(#edge-gradient)',
+                strokeWidth: 2,
+                stroke: 'hsl(var(--border))',
               } 
             }}
             data-testid="flow-canvas"
           >
-            <svg width="0" height="0">
-              <defs>
-                <linearGradient id="edge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#14b8a6" />
-                  <stop offset="50%" stopColor="#06b6d4" />
-                  <stop offset="100%" stopColor="#0891b2" />
-                </linearGradient>
-              </defs>
-            </svg>
             <Background 
               variant={BackgroundVariant.Dots} 
               gap={20} 
               size={1.5} 
-              className="bg-gradient-to-br from-teal-50/30 via-cyan-50/30 to-white dark:from-teal-950/20 dark:via-cyan-950/20 dark:to-background" 
+              className="!bg-background" 
             />
-            <Controls className="!bg-background/90 !backdrop-blur !border !border-border !shadow-lg" />
+            <Controls className="!bg-card !border !border-border !shadow-sm" />
             <MiniMap 
-              className="!bg-background/90 !backdrop-blur !border !border-border !shadow-lg" 
+              className="!bg-card !border !border-border !shadow-sm" 
               nodeColor={(node) => {
                 const type = node.data?.type as keyof typeof nodeTypeColors;
                 const colors = nodeTypeColors[type];
@@ -740,22 +719,21 @@ export default function FlowBuilderPage() {
             />
           </ReactFlow>
 
-          {/* Properties Panel (Right Sidebar) with Teal Theme */}
+          {/* Properties Panel (Right Sidebar) */}
           {selectedNode && (
-            <div className="absolute right-0 top-0 bottom-0 w-72 bg-gradient-to-b from-teal-50/30 via-background to-background dark:from-teal-950/20 dark:via-background border-l shadow-lg overflow-y-auto z-10">
-              <div className="p-4 border-b border-teal-100 dark:border-teal-900/50 flex items-center justify-between sticky top-0 bg-gradient-to-r from-teal-50/80 to-cyan-50/50 dark:from-teal-950/50 dark:to-cyan-950/30 backdrop-blur z-10">
+            <div className="absolute right-0 top-0 bottom-0 w-72 bg-card border-l shadow-sm overflow-y-auto z-10">
+              <div className="p-4 border-b flex items-center justify-between sticky top-0 bg-card backdrop-blur z-10">
                 <div className="flex items-center gap-2">
                   {(() => {
                     const Icon = nodeTypeIcons[selectedNode.data.type as keyof typeof nodeTypeIcons] || MessageSquare;
-                    return <Icon className="w-4 h-4 text-teal-600 dark:text-teal-400" />;
+                    return <Icon className="w-4 h-4 text-foreground" />;
                   })()}
-                  <h3 className="font-semibold text-sm text-teal-900 dark:text-teal-100">{t("flows.nodeProperties")}</h3>
+                  <h3 className="font-semibold text-sm">{t("flows.nodeProperties")}</h3>
                 </div>
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
                     onClick={deleteNode}
                     data-testid="button-delete-node"
                   >
@@ -764,7 +742,6 @@ export default function FlowBuilderPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
                     onClick={() => setSelectedNode(null)}
                     data-testid="button-close-properties"
                   >
@@ -1024,7 +1001,7 @@ export default function FlowBuilderPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 flex-shrink-0"
+                              className="flex-shrink-0"
                               onClick={() => updateNodeConfig({ audioUrl: "", audioFileName: "" })}
                               data-testid="button-remove-audio"
                             >
@@ -1040,9 +1017,9 @@ export default function FlowBuilderPage() {
                         </div>
                       ) : (
                         <div className="mt-2">
-                          <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/50 border-cyan-300 dark:border-cyan-700">
+                          <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/50 border-border">
                             <div className="flex flex-col items-center justify-center pt-2 pb-2">
-                              <Upload className="w-6 h-6 mb-1 text-cyan-600" />
+                              <Upload className="w-6 h-6 mb-1 text-muted-foreground" />
                               <p className="text-xs text-muted-foreground">{t("flows.nodeConfig.uploadAudio")}</p>
                               <p className="text-xs text-muted-foreground/70">MP3, WAV (max 5MB)</p>
                             </div>

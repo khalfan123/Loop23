@@ -1336,25 +1336,25 @@ function DepartmentsStep({
 
   return (
     <div className="flex gap-6">
-      <div className="w-[260px] shrink-0 space-y-4">
+      <div className="w-[280px] shrink-0 space-y-4">
         <div>
           <h3 className="text-sm font-semibold mb-3" data-testid="text-add-departments-title">Add Departments</h3>
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
               Quick Add Templates
             </Label>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               {departmentTemplates.map((template) => (
                 <Button
                   key={template.type}
                   variant="outline"
                   size="sm"
-                  className="w-full justify-start"
+                  className="flex-col h-auto py-2 px-1 gap-1 text-[11px]"
                   onClick={() => addDepartment(template)}
                   data-testid={`button-add-dept-${template.type}`}
                 >
-                  <template.icon className="h-3.5 w-3.5 mr-1.5" />
-                  {template.name}
+                  <template.icon className="h-4 w-4" />
+                  <span className="truncate w-full text-center">{template.name.replace(" Department", "")}</span>
                 </Button>
               ))}
             </div>

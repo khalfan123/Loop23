@@ -2039,6 +2039,27 @@ Do NOT include any markdown, code blocks, or extra text.`;
   }
 });
 
+async function fetchWebContent(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'AgentLabs-KnowledgeBot/1.0', 'Accept': 'text/html, */*' },
+    });
+    clearTimeout(timeout);
+    if (!response.ok) return null;
+    let html = await response.text();
+    html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+    html = html.replace(/<style[\s\S]*?<\/style>/gi, '');
+    let text = html.replace(/<[^>]+>/g, ' ');
+    text = text.replace(/\s+/g, ' ').trim();
+    return text.substring(0, 4000);
+  } catch {
+    return null;
+  }
+}
+
 router.post("/generate-from-recommendation", async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) {
@@ -2051,11 +2072,42 @@ router.post("/generate-from-recommendation", async (req: AuthRequest, res: Respo
       return res.status(400).json({ error: "Title and description are required" });
     }
 
+    let sourceUrl: string | null = null;
+
+    const userCrawlJobs = await db.select({ startUrl: crawlJobs.startUrl })
+      .from(crawlJobs)
+      .where(eq(crawlJobs.userId, req.userId))
+      .orderBy(desc(crawlJobs.createdAt))
+      .limit(5);
+
+    if (userCrawlJobs.length > 0) {
+      sourceUrl = userCrawlJobs[0].startUrl;
+    }
+
+    if (!sourceUrl) {
+      const kbWithUrls = await db.select({ url: knowledgeBase.url })
+        .from(knowledgeBase)
+        .where(and(eq(knowledgeBase.userId, req.userId), sql`${knowledgeBase.url} IS NOT NULL`))
+        .limit(1);
+      if (kbWithUrls.length > 0 && kbWithUrls[0].url) {
+        sourceUrl = kbWithUrls[0].url;
+      }
+    }
+
+    let websiteContent: string | null = null;
+    if (sourceUrl) {
+      websiteContent = await fetchWebContent(sourceUrl);
+    }
+
     const { getOpenAIClient } = await import("../services/openai-modelfarm");
     const openai = await getOpenAIClient(req.userId);
 
     const topicsContext = relatedTopics && relatedTopics.length > 0
       ? `\nRelated Topics: ${relatedTopics.join(", ")}`
+      : "";
+
+    const websiteContentSection = websiteContent
+      ? `\n\nSource Website Content:\n${websiteContent}\n\nUse the above website content as the primary source of truth when writing the article. Ensure all facts, details, and information come directly from this content.`
       : "";
 
     const response = await openai.chat.completions.create({
@@ -2071,7 +2123,7 @@ router.post("/generate-from-recommendation", async (req: AuthRequest, res: Respo
 
 Title: ${title}
 Description: ${description}
-Type: ${type || "general"}${topicsContext}
+Type: ${type || "general"}${topicsContext}${websiteContentSection}
 
 Requirements:
 - Write a detailed, well-structured article (500-1000 words)
@@ -2100,7 +2152,14 @@ Requirements:
       url: null,
       fileUrl: null,
       elevenLabsDocId: null,
-      metadata: { ragEnabled: true, aiGenerated: true, recommendationType: type },
+      metadata: {
+        ragEnabled: true,
+        aiGenerated: true,
+        recommendationType: type,
+        sourceUrl: sourceUrl || undefined,
+        hasWebContent: !!websiteContent,
+        generatedWithoutSource: !websiteContent,
+      },
       storageSize,
       ragStatus: 'pending',
     }).returning();

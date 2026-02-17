@@ -17,6 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
@@ -806,9 +812,9 @@ function DepartmentCard({
     }
   };
 
-  const addLanguageAgent = () => {
+  const addLanguageAgent = (selectedLangCode: string) => {
     const usedLangs = languageAgents.map((la) => la.language);
-    const availableLang = SUPPORTED_LANGUAGES.find((l) => !usedLangs.includes(l.code));
+    const availableLang = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLangCode && !usedLangs.includes(l.code));
     if (!availableLang) return;
 
     const langCode = availableLang.code;
@@ -1027,16 +1033,34 @@ function DepartmentCard({
           <div>
             <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
               <Label>Language Agents</Label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addLanguageAgent}
-                disabled={languageAgents.length >= SUPPORTED_LANGUAGES.length}
-                data-testid="button-add-language"
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Add Language
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={languageAgents.length >= SUPPORTED_LANGUAGES.length}
+                    data-testid="button-add-language"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add Language
+                    <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {SUPPORTED_LANGUAGES
+                    .filter((l) => !languageAgents.some((la) => la.language === l.code))
+                    .map((lang) => (
+                      <DropdownMenuItem
+                        key={lang.code}
+                        onClick={() => addLanguageAgent(lang.code)}
+                        data-testid={`menu-add-language-${lang.code}`}
+                      >
+                        <Globe className="h-3.5 w-3.5 mr-2" />
+                        {lang.label}
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {languageAgents.length > 0 && (

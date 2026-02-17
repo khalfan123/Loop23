@@ -1105,6 +1105,7 @@ export default function DepartmentManagement() {
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={ivrConfigurations.length === 0}
                   onClick={() => {
                     const activeIvrItem = ivrConfigurations.find(i => i.isActive);
                     if (activeIvrItem) {

@@ -835,21 +835,11 @@ function DepartmentCard({
     onUpdate({ languageAgents: updatedList });
     setActiveTabIdx(languageAgents.length);
 
-    if (agentFound && bestAgent.systemPrompt) {
+    if (dept.type !== "custom") {
+      const agentMsg = agentFound ? ` — "${bestAgent.name}" selected,` : " added —";
       toast({
         title: "Language Added",
-        description: `${availableLang.label} — agent "${bestAgent.name}" auto-selected`,
-      });
-    } else if (agentFound && !bestAgent.systemPrompt && dept.type !== "custom") {
-      toast({
-        title: "Language Added",
-        description: `${availableLang.label} — "${bestAgent.name}" selected, generating AI prompt...`,
-      });
-      generatePromptForLangAgent(langAgentId, dept.type, dept.name, langCode, updatedList);
-    } else if (!agentFound && dept.type !== "custom") {
-      toast({
-        title: "Language Added",
-        description: `${availableLang.label} added — generating AI prompt...`,
+        description: `${availableLang.label}${agentMsg} generating AI prompt...`,
       });
       generatePromptForLangAgent(langAgentId, dept.type, dept.name, langCode, updatedList);
     } else {
@@ -927,14 +917,11 @@ function DepartmentCard({
         voiceTone: agent.voiceTone || bestTone,
       };
       updateLanguageAgent(langAgentId, agentUpdates);
-      if (!agent.systemPrompt) {
-        generatePromptForAgent(langAgentId, agent.name, language, agentUpdates);
-      } else {
-        toast({
-          title: "Agent Selected",
-          description: `Using ${agent.name}'s existing prompt`,
-        });
-      }
+      toast({
+        title: "Agent Selected",
+        description: `${agent.name} selected — generating AI prompt...`,
+      });
+      generatePromptForAgent(langAgentId, agent.name, language, agentUpdates);
     }
   };
 

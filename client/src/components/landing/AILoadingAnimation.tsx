@@ -145,6 +145,9 @@ export function AILoadingAnimation({ isVisible, onComplete, userName }: AILoadin
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center bg-background"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.05) 0%, transparent 70%)',
+        }}
         data-testid="ai-loading-animation"
       >
         <div className="w-full max-w-md px-8 py-12">
@@ -158,7 +161,7 @@ export function AILoadingAnimation({ isVisible, onComplete, userName }: AILoadin
             <div className="relative">
               {/* Outer glow ring */}
               <motion.div
-                className="absolute inset-0 rounded-full bg-teal-500/20"
+                className="absolute inset-0 rounded-full bg-blue-600/20"
                 animate={{
                   scale: [1, 1.4, 1],
                   opacity: [0.5, 0.2, 0.5],
@@ -173,7 +176,7 @@ export function AILoadingAnimation({ isVisible, onComplete, userName }: AILoadin
               
               {/* Inner icon container */}
               <motion.div
-                className="relative h-24 w-24 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/30"
+                className="relative h-24 w-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/30"
                 animate={{
                   rotate: [0, 5, -5, 0],
                 }}
@@ -216,7 +219,7 @@ export function AILoadingAnimation({ isVisible, onComplete, userName }: AILoadin
                     ease: "easeOut",
                   }}
                 >
-                  <Zap className="h-3 w-3 text-teal-500/60" />
+                  <Zap className="h-3 w-3 text-blue-600/60" />
                 </motion.div>
               ))}
             </div>
@@ -233,6 +236,9 @@ export function AILoadingAnimation({ isVisible, onComplete, userName }: AILoadin
               <h2 className="text-xl font-semibold text-foreground">
                 Welcome, {userName}!
               </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Preparing your enterprise workspace
+              </p>
             </motion.div>
           )}
 
@@ -275,9 +281,9 @@ export function AILoadingAnimation({ isVisible, onComplete, userName }: AILoadin
                   className={`
                     h-10 w-10 rounded-full flex items-center justify-center transition-all duration-300
                     ${isCompleted 
-                      ? "bg-green-500/20 text-green-500" 
+                      ? "bg-blue-500/20 text-blue-500" 
                       : isCurrent 
-                        ? "bg-teal-500/20 text-teal-500" 
+                        ? "bg-blue-600/20 text-blue-600" 
                         : "bg-muted text-muted-foreground"
                     }
                   `}

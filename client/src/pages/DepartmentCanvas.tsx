@@ -2409,6 +2409,54 @@ export default function DepartmentCanvas() {
     queryKey: ["/api/knowledge-base"],
   });
 
+  const allDeptLanguages = useMemo(() => {
+    const langSet = new Set<string>();
+    canvasDepartments.forEach(d => {
+      (d.languageAgents || []).forEach(la => langSet.add(la.language));
+    });
+    return Array.from(langSet);
+  }, [canvasDepartments]);
+
+  useEffect(() => {
+    if (canvasDepartments.length === 0) return;
+
+    const existingLangs = languageOptions.map(o => o.language);
+    const missingLangs = allDeptLanguages.filter(l => !existingLangs.includes(l));
+    const removedLangs = existingLangs.filter(l => !allDeptLanguages.includes(l));
+
+    let updatedOptions = [...languageOptions];
+
+    if (removedLangs.length > 0) {
+      updatedOptions = updatedOptions.filter(o => allDeptLanguages.includes(o.language));
+    }
+
+    if (missingLangs.length > 0) {
+      const deptInfos: DeptInfo[] = canvasDepartments.map(d => ({ name: d.name || "Department", type: d.type }));
+      const allDeptIds = canvasDepartments.map(d => d.id);
+      const newOptions: LanguageOption[] = missingLangs.map(langCode => ({
+        id: `lang-${Date.now()}-${langCode}`,
+        language: langCode,
+        voiceId: getDefaultVoiceForLanguage(langCode),
+        greeting: canvasDepartments.length > 0
+          ? generateDeptGreeting(deptInfos, langCode)
+          : (DEFAULT_GREETINGS[langCode as keyof typeof DEFAULT_GREETINGS] || DEFAULT_GREETINGS.en),
+        selectedDepartments: allDeptIds,
+      }));
+      updatedOptions = [...updatedOptions, ...newOptions];
+    }
+
+    if (missingLangs.length > 0 || removedLangs.length > 0) {
+      setLanguageOptions(updatedOptions);
+    }
+
+    if (allDeptLanguages.length >= 2 && !multiLangEnabled) {
+      setMultiLangEnabled(true);
+    }
+    if (allDeptLanguages.length < 2 && multiLangEnabled) {
+      setMultiLangEnabled(false);
+    }
+  }, [allDeptLanguages.join(",")]);
+
   const selectedPhones = useMemo(() => {
     return phoneNumbers.filter((p) => selectedPhoneIds.includes(p.id));
   }, [phoneNumbers, selectedPhoneIds]);

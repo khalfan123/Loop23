@@ -1355,6 +1355,49 @@ function DepartmentsStep({
             </Button>
           </div>
         </div>
+
+        {canvasDepartments.length > 0 && (
+          <div className="border-t pt-4">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+              Added Departments
+            </Label>
+            <div className="space-y-1">
+              {canvasDepartments.map((dept) => {
+                const icons: Record<string, any> = {
+                  sales: ShoppingCart,
+                  support: Headphones,
+                  scheduling: Calendar,
+                  custom: Building2,
+                };
+                const DeptIcon = icons[dept.type] || Building2;
+                const isActive = expandedDeptIds.has(dept.id);
+                return (
+                  <button
+                    key={dept.id}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm text-left transition-colors ${
+                      isActive
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-muted-foreground hover-elevate"
+                    }`}
+                    onClick={() => {
+                      if (!expandedDeptIds.has(dept.id)) {
+                        toggleExpand(dept.id);
+                      }
+                      const el = document.getElementById(`dept-card-${dept.id}`);
+                      if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                      }
+                    }}
+                    data-testid={`nav-dept-${dept.id}`}
+                  >
+                    <DeptIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{dept.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 min-w-0 space-y-4">
@@ -1374,16 +1417,17 @@ function DepartmentsStep({
         ) : (
           <div className="space-y-3">
             {canvasDepartments.map((dept) => (
-              <DepartmentCard
-                key={dept.id}
-                dept={dept}
-                agents={agents}
-                isExpanded={expandedDeptIds.has(dept.id)}
-                onToggleExpand={() => toggleExpand(dept.id)}
-                onUpdate={(updates) => updateDepartment(dept.id, updates)}
-                onDelete={() => deleteDepartment(dept.id)}
-                toast={toast}
-              />
+              <div key={dept.id} id={`dept-card-${dept.id}`}>
+                <DepartmentCard
+                  dept={dept}
+                  agents={agents}
+                  isExpanded={expandedDeptIds.has(dept.id)}
+                  onToggleExpand={() => toggleExpand(dept.id)}
+                  onUpdate={(updates) => updateDepartment(dept.id, updates)}
+                  onDelete={() => deleteDepartment(dept.id)}
+                  toast={toast}
+                />
+              </div>
             ))}
           </div>
         )}

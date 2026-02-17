@@ -662,6 +662,7 @@ function DepartmentCard({
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [generatingLangIds, setGeneratingLangIds] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const languageAgents = dept.languageAgents || [];
@@ -723,6 +724,7 @@ function DepartmentCard({
   };
 
   const generatePromptForLangAgent = async (langAgentId: string, deptType: string, deptName: string, langCode: string, currentAgents: LanguageAgent[]) => {
+    setGeneratingLangIds((prev) => new Set(prev).add(langAgentId));
     try {
       const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || "English";
       const translatedName = translateDeptName(deptName, deptType, langCode);
@@ -748,6 +750,12 @@ function DepartmentCard({
         title: "Could not auto-generate prompt",
         description: "You can write one manually or try generating later",
         variant: "destructive",
+      });
+    } finally {
+      setGeneratingLangIds((prev) => {
+        const next = new Set(prev);
+        next.delete(langAgentId);
+        return next;
       });
     }
   };
@@ -970,6 +978,9 @@ function DepartmentCard({
                     onClick={() => setActiveTabIdx(idx)}
                     data-testid={`badge-lang-${la.language}`}
                   >
+                    {generatingLangIds.has(la.id) && (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    )}
                     {SUPPORTED_LANGUAGES.find((l) => l.code === la.language)?.label || la.language}
                   </Badge>
                 ))}
@@ -1054,26 +1065,36 @@ function DepartmentCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={isGeneratingPrompt}
+                    disabled={isGeneratingPrompt || generatingLangIds.has(activeLangAgent.id)}
                     onClick={() => generatePromptForAgent(activeLangAgent.id, activeLangAgent.agentName || "", activeLangAgent.language)}
                     data-testid="button-generate-prompt"
                   >
-                    {isGeneratingPrompt ? (
+                    {(isGeneratingPrompt || generatingLangIds.has(activeLangAgent.id)) ? (
                       <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                     ) : (
                       <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                     )}
-                    {isGeneratingPrompt ? "Generating..." : "AI Generate"}
+                    {(isGeneratingPrompt || generatingLangIds.has(activeLangAgent.id)) ? "Generating..." : "AI Generate"}
                   </Button>
                 </div>
-                <Textarea
-                  value={activeLangAgent.systemPrompt || ""}
-                  onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}
-                  rows={4}
-                  className="mt-1.5"
-                  placeholder="Instructions for the AI agent..."
-                  data-testid="input-agent-prompt"
-                />
+                <div className="relative mt-1.5">
+                  <Textarea
+                    value={activeLangAgent.systemPrompt || ""}
+                    onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}
+                    rows={4}
+                    disabled={generatingLangIds.has(activeLangAgent.id)}
+                    placeholder={generatingLangIds.has(activeLangAgent.id) ? "Generating prompt with AI..." : "Instructions for the AI agent..."}
+                    data-testid="input-agent-prompt"
+                  />
+                  {generatingLangIds.has(activeLangAgent.id) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-md">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Generating AI prompt...</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>

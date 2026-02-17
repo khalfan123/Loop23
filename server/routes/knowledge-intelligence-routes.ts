@@ -2039,6 +2039,90 @@ Do NOT include any markdown, code blocks, or extra text.`;
   }
 });
 
+router.post("/generate-from-recommendation", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { title, description, type, relatedTopics } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({ error: "Title and description are required" });
+    }
+
+    const { getOpenAIClient } = await import("../services/openai-modelfarm");
+    const openai = await getOpenAIClient(req.userId);
+
+    const topicsContext = relatedTopics && relatedTopics.length > 0
+      ? `\nRelated Topics: ${relatedTopics.join(", ")}`
+      : "";
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a professional knowledge base writer. Generate comprehensive, well-structured articles for a knowledge base. Write in a clear, professional style suitable for customer support agents and end users. Include relevant details, step-by-step instructions where applicable, and practical examples.`
+        },
+        {
+          role: "user",
+          content: `Generate a comprehensive knowledge base article based on the following recommendation:
+
+Title: ${title}
+Description: ${description}
+Type: ${type || "general"}${topicsContext}
+
+Requirements:
+- Write a detailed, well-structured article (500-1000 words)
+- Use clear headings and subheadings
+- Include practical information and actionable guidance
+- Make it suitable for a professional knowledge base
+- Do not include meta-commentary about the article itself`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
+
+    const generatedContent = response.choices[0]?.message?.content?.trim();
+    if (!generatedContent) {
+      return res.status(500).json({ error: "Failed to generate content from AI" });
+    }
+
+    const storageSize = Buffer.byteLength(generatedContent, 'utf8');
+
+    const [created] = await db.insert(knowledgeBase).values({
+      userId: req.userId,
+      type: 'text',
+      title,
+      content: generatedContent,
+      url: null,
+      fileUrl: null,
+      elevenLabsDocId: null,
+      metadata: { ragEnabled: true, aiGenerated: true, recommendationType: type },
+      storageSize,
+      ragStatus: 'pending',
+    }).returning();
+
+    try {
+      RAGKnowledgeService.processKnowledgeItem(
+        created.id,
+        req.userId,
+        generatedContent,
+        { source: 'text' }
+      ).catch(err => console.error(`[Recommendation Gen] RAG error for ${created.id}:`, err));
+    } catch (ragError) {
+      console.error("[Recommendation Gen] RAG processing trigger failed:", ragError);
+    }
+
+    res.status(201).json(created);
+  } catch (error: any) {
+    console.error("Error generating from recommendation:", error);
+    res.status(500).json({ error: error.message || "Failed to generate article from recommendation" });
+  }
+});
+
 export function createKnowledgeIntelligenceRoutes(): Router {
   return router;
 }

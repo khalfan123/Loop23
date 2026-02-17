@@ -288,6 +288,9 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
   const [mlAnalysisName, setMlAnalysisName] = useState("");
   const [selectedSampleFilter, setSelectedSampleFilter] = useState("all");
 
+  // Generate from recommendation state
+  const [generatingRecId, setGeneratingRecId] = useState<string | null>(null);
+
   const { data: stats, isLoading: statsLoading } = useQuery<IntelligenceStats>({
     queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
   });
@@ -572,6 +575,25 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
       toast({ title: "Sample Updated" });
     },
     onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const generateFromRecommendationMutation = useMutation({
+    mutationFn: async (data: { title: string; description: string; type: string; relatedTopics: string[] }) => {
+      const res = await apiRequest("POST", "/api/knowledge-intelligence/generate-from-recommendation", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rag-knowledge"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rag-knowledge/storage"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rag-knowledge/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/knowledge-recommendations"] });
+      setGeneratingRecId(null);
+      toast({ title: "Article generated and added to your knowledge base" });
+    },
+    onError: (error: any) => {
+      setGeneratingRecId(null);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -3042,6 +3064,30 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                                 ))}
                               </div>
                             )}
+                            <div className="mt-3">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                data-testid={`button-generate-rec-${rec.id}`}
+                                disabled={generatingRecId === rec.id && generateFromRecommendationMutation.isPending}
+                                onClick={() => {
+                                  setGeneratingRecId(rec.id);
+                                  generateFromRecommendationMutation.mutate({
+                                    title: rec.title,
+                                    description: rec.description,
+                                    type: rec.type,
+                                    relatedTopics: rec.relatedTopics,
+                                  });
+                                }}
+                              >
+                                {generatingRecId === rec.id && generateFromRecommendationMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ) : (
+                                  <Sparkles className="h-4 w-4 mr-1" />
+                                )}
+                                Generate with AI
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>

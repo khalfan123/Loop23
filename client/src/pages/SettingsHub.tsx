@@ -9,7 +9,6 @@ import FlowBuilderPage from "@/pages/FlowBuilderPage";
 import FlowExecutionLogsPage from "@/pages/FlowExecutionLogsPage";
 import WebhookConfigPage from "@/pages/WebhookConfigPage";
 import FormsPage from "@/pages/FormsPage";
-import AppointmentsPage from "@/pages/AppointmentsPage";
 import WidgetsPage from "@/pages/WidgetsPage";
 import Upgrade from "@/pages/Upgrade";
 import Billing from "@/pages/Billing";
@@ -151,7 +150,9 @@ export default function SettingsHub() {
         <Route path="/app/settings/account" component={Settings} />
         <Route path="/app/settings/flows/new" component={FlowBuilderPage} />
         <Route path="/app/settings/flows/forms" component={FormsPage} />
-        <Route path="/app/settings/flows/appointments" component={AppointmentsPage} />
+        <Route path="/app/settings/flows/appointments">
+          <Redirect to="/app/appointments" />
+        </Route>
         <Route path="/app/settings/flows/:id" component={FlowBuilderPage} />
         <Route path="/app/settings/flows" component={FlowsPage} />
         <Route path="/app/settings/execution" component={FlowExecutionLogsPage} />

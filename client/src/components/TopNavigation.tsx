@@ -111,7 +111,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
 
   const formsAppointmentsItems: NavItem[] = [
     { title: t('nav.forms'), url: "/app/flows/forms", icon: ClipboardList, iconColor: "text-cyan-500", description: "Form builder" },
-    { title: t('nav.appointments'), url: "/app/settings/flows/appointments", icon: Calendar, iconColor: "text-rose-500", description: "Scheduling system" },
+    { title: t('nav.appointments'), url: "/app/appointments", icon: Calendar, iconColor: "text-rose-500", description: "Scheduling system" },
   ];
 
   const settingsItems: NavItem[] = [

@@ -128,7 +128,7 @@ export function HybridNavigation({
 
   const manageItems: NavItem[] = [
     { title: t('nav.leads', 'Leads'), url: "/app/crm", icon: Users },
-    { title: t('nav.appointments'), url: "/app/settings/flows/appointments", icon: Calendar },
+    { title: t('nav.appointments'), url: "/app/appointments", icon: Calendar },
   ];
 
   const settingsItems: NavItem[] = [
@@ -176,6 +176,9 @@ export function HybridNavigation({
   const isActive = (url: string) => {
     if (url === '/app' || url === '/admin') {
       return location === url || location === url + '/dashboard';
+    }
+    if (url === '/app/settings') {
+      return location === url || (location.startsWith(url + '/') && !location.startsWith('/app/settings/flows/appointments'));
     }
     return location === url || location.startsWith(url + '/');
   };

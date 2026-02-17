@@ -199,6 +199,7 @@ function UserRouter() {
           <Route path="/app/knowledge-intelligence">
             <Redirect to="/app/knowledge-base" />
           </Route>
+          <Route path="/app/appointments" component={AppointmentsPage} />
           <Route path="/app/departments" component={DepartmentManagement} />
           <Route path="/app/departments/canvas" component={DepartmentCanvas} />
           <Route path="/app/agents/new" component={AgentEditor} />
@@ -226,7 +227,7 @@ function UserRouter() {
             <Redirect to="/app/settings/flows/forms" />
           </Route>
           <Route path="/app/flows/appointments">
-            <Redirect to="/app/settings/flows/appointments" />
+            <Redirect to="/app/appointments" />
           </Route>
           <Route path="/app/flows/templates">
             <Redirect to="/app/settings/flows?tab=templates" />
@@ -282,6 +283,7 @@ function TeamMemberRouter() {
           <Route path="/app/knowledge-intelligence">
             <Redirect to="/app/knowledge-base" />
           </Route>
+          <Route path="/app/appointments" component={AppointmentsPage} />
           <Route path="/app/departments" component={DepartmentManagement} />
           <Route path="/app/departments/canvas" component={DepartmentCanvas} />
           <Route path="/app/agents/new" component={AgentEditor} />
@@ -308,7 +310,7 @@ function TeamMemberRouter() {
             <Redirect to="/app/settings/flows/forms" />
           </Route>
           <Route path="/app/flows/appointments">
-            <Redirect to="/app/settings/flows/appointments" />
+            <Redirect to="/app/appointments" />
           </Route>
           <Route path="/app/flows/templates">
             <Redirect to="/app/settings/flows?tab=templates" />

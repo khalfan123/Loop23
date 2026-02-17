@@ -290,6 +290,7 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
 
   // Generate from recommendation state
   const [generatingRecId, setGeneratingRecId] = useState<string | null>(null);
+  const [dismissedRecIds, setDismissedRecIds] = useState<Set<string>>(new Set());
 
   const { data: stats, isLoading: statsLoading } = useQuery<IntelligenceStats>({
     queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
@@ -589,6 +590,9 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
       queryClient.invalidateQueries({ queryKey: ["/api/rag-knowledge/storage"] });
       queryClient.invalidateQueries({ queryKey: ["/api/rag-knowledge/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-intelligence/knowledge-recommendations"] });
+      if (generatingRecId) {
+        setDismissedRecIds(prev => new Set(prev).add(generatingRecId));
+      }
       setGeneratingRecId(null);
       toast({ title: "Article generated and added to your knowledge base" });
     },
@@ -3032,10 +3036,10 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                 <div className="space-y-3">
                   {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 w-full" />)}
                 </div>
-              ) : recommendations && recommendations.recommendations.length > 0 ? (
+              ) : recommendations && recommendations.recommendations.filter(r => !dismissedRecIds.has(r.id)).length > 0 ? (
                 <div>
                   <div className="space-y-3">
-                    {recommendations.recommendations.map((rec) => (
+                    {recommendations.recommendations.filter(r => !dismissedRecIds.has(r.id)).map((rec) => (
                       <div
                         key={rec.id}
                         className="p-4 rounded-lg border hover-elevate"

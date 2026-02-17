@@ -14,18 +14,16 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Loader2, Trash2, AlertTriangle, LogOut, Globe, Download, Clock, ShieldCheck, Upload, FileCheck, FilePlus, X, CheckCircle2, XCircle, AlertCircle, Key, ExternalLink, Users, MapPin, RefreshCw, Plus } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Save, Loader2, Trash2, AlertTriangle, LogOut, Download, Clock, ShieldCheck, Upload, FileCheck, FilePlus, X, CheckCircle2, XCircle, AlertCircle, ExternalLink, MapPin, RefreshCw, Plus, ChevronRight, ChevronDown, Lock, Bell } from "lucide-react";
 import { ApiKeysTab } from "@/components/api-keys/ApiKeysTab";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { usePluginRegistry } from "@/contexts/plugin-registry";
 import { useTranslation } from "react-i18next";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -77,10 +75,8 @@ const KYC_DOCUMENT_TYPES = [
   { type: 'authorization_letter', label: 'Authorization Letter', description: 'Letter authorizing phone number usage on company letterhead' },
 ];
 
-// Common timezones grouped by region
 const TIMEZONE_OPTIONS = [
   { value: "UTC", label: "UTC (Coordinated Universal Time)", region: "Universal" },
-  // Americas
   { value: "America/New_York", label: "Eastern Time (US & Canada)", region: "Americas" },
   { value: "America/Chicago", label: "Central Time (US & Canada)", region: "Americas" },
   { value: "America/Denver", label: "Mountain Time (US & Canada)", region: "Americas" },
@@ -89,11 +85,10 @@ const TIMEZONE_OPTIONS = [
   { value: "America/Toronto", label: "Toronto", region: "Americas" },
   { value: "America/Vancouver", label: "Vancouver", region: "Americas" },
   { value: "America/Mexico_City", label: "Mexico City", region: "Americas" },
-  { value: "America/Sao_Paulo", label: "São Paulo", region: "Americas" },
+  { value: "America/Sao_Paulo", label: "Sao Paulo", region: "Americas" },
   { value: "America/Buenos_Aires", label: "Buenos Aires", region: "Americas" },
   { value: "America/Lima", label: "Lima", region: "Americas" },
   { value: "America/Bogota", label: "Bogota", region: "Americas" },
-  // Europe
   { value: "Europe/London", label: "London", region: "Europe" },
   { value: "Europe/Paris", label: "Paris", region: "Europe" },
   { value: "Europe/Berlin", label: "Berlin", region: "Europe" },
@@ -104,7 +99,6 @@ const TIMEZONE_OPTIONS = [
   { value: "Europe/Warsaw", label: "Warsaw", region: "Europe" },
   { value: "Europe/Moscow", label: "Moscow", region: "Europe" },
   { value: "Europe/Istanbul", label: "Istanbul", region: "Europe" },
-  // Asia
   { value: "Asia/Dubai", label: "Dubai", region: "Asia" },
   { value: "Asia/Kolkata", label: "India (Mumbai, Delhi, Kolkata)", region: "Asia" },
   { value: "Asia/Bangkok", label: "Bangkok", region: "Asia" },
@@ -115,12 +109,10 @@ const TIMEZONE_OPTIONS = [
   { value: "Asia/Seoul", label: "Seoul", region: "Asia" },
   { value: "Asia/Jakarta", label: "Jakarta", region: "Asia" },
   { value: "Asia/Manila", label: "Manila", region: "Asia" },
-  // Africa
   { value: "Africa/Cairo", label: "Cairo", region: "Africa" },
   { value: "Africa/Lagos", label: "Lagos", region: "Africa" },
   { value: "Africa/Johannesburg", label: "Johannesburg", region: "Africa" },
   { value: "Africa/Nairobi", label: "Nairobi", region: "Africa" },
-  // Oceania
   { value: "Australia/Sydney", label: "Sydney", region: "Oceania" },
   { value: "Australia/Melbourne", label: "Melbourne", region: "Oceania" },
   { value: "Australia/Perth", label: "Perth", region: "Oceania" },
@@ -128,14 +120,12 @@ const TIMEZONE_OPTIONS = [
   { value: "Pacific/Honolulu", label: "Hawaii", region: "Oceania" },
 ];
 
-// Group timezones by region
 const groupedTimezones = TIMEZONE_OPTIONS.reduce((acc, tz) => {
   if (!acc[tz.region]) acc[tz.region] = [];
   acc[tz.region].push(tz);
   return acc;
 }, {} as Record<string, typeof TIMEZONE_OPTIONS>);
 
-// Get current time in a timezone
 function getCurrentTimeInTimezone(timezone: string): string {
   try {
     return new Date().toLocaleTimeString('en-US', { 
@@ -149,11 +139,21 @@ function getCurrentTimeInTimezone(timezone: string): string {
   }
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 export default function Settings() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { branding } = useBranding();
-  const { isRestApiPluginEnabled, isTeamManagementPluginEnabled } = usePluginStatus();
+  const { isRestApiPluginEnabled } = usePluginStatus();
   const pluginRegistry = usePluginRegistry();
   const settingsTabs = pluginRegistry.getSettingsTabs();
   const [deletePassword, setDeletePassword] = useState("");
@@ -166,17 +166,12 @@ export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  // Get tab from URL params
-  const urlParams = new URLSearchParams(window.location.search);
-  const initialTab = urlParams.get('tab') || 'profile';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [passwordExpanded, setPasswordExpanded] = useState(false);
 
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
 
-  // Initialize form values when user data loads
   useEffect(() => {
     if (user?.name) {
       const parts = user.name.split(" ");
@@ -191,13 +186,12 @@ export default function Settings() {
     }
   }, [user]);
 
-  // Update current time display when timezone changes
   useEffect(() => {
     if (selectedTimezone) {
       setCurrentTime(getCurrentTimeInTimezone(selectedTimezone));
       const interval = setInterval(() => {
         setCurrentTime(getCurrentTimeInTimezone(selectedTimezone));
-      }, 60000); // Update every minute
+      }, 60000);
       return () => clearInterval(interval);
     }
   }, [selectedTimezone]);
@@ -244,6 +238,7 @@ export default function Settings() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setPasswordExpanded(false);
     },
     onError: (error: any) => {
       toast({
@@ -290,7 +285,6 @@ export default function Settings() {
       return res.blob();
     },
     onSuccess: (blob) => {
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -326,7 +320,6 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
-    // Logout request clears the HttpOnly refresh token cookie on the server
     fetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'include',
@@ -384,124 +377,98 @@ export default function Settings() {
     );
   }
 
+  const timezoneLabel = TIMEZONE_OPTIONS.find(tz => tz.value === selectedTimezone)?.label;
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{t('settings.title')}</h1>
-        <p className="text-muted-foreground mt-1">{t('settings.description')}</p>
+    <div className="max-w-2xl mx-auto pb-12 space-y-7">
+
+      {/* Profile Header */}
+      <div className="rounded-xl border bg-card p-5">
+        <div className="flex items-center gap-4">
+          <Avatar className="h-16 w-16 text-lg">
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold text-lg">
+              {getInitials(user?.name || "U")}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold truncate" data-testid="text-user-name">{user?.name}</h2>
+            <p className="text-sm text-muted-foreground truncate" data-testid="text-user-email">{user?.email}</p>
+            <Badge variant="secondary" className="mt-1.5" data-testid="badge-plan-type">
+              {user?.planType || "Free"}
+            </Badge>
+          </div>
+        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList data-testid="tabs-settings">
-          <TabsTrigger value="profile" data-testid="tab-profile">{t('settings.profile')}</TabsTrigger>
-          <TabsTrigger value="kyc" data-testid="tab-kyc">
-            <ShieldCheck className="h-4 w-4 mr-2" />
-            KYC Documents
-          </TabsTrigger>
-          <TabsTrigger value="addresses" data-testid="tab-addresses">
-            <MapPin className="h-4 w-4 mr-2" />
-            Addresses
-          </TabsTrigger>
-          {isRestApiPluginEnabled && (
-            <TabsTrigger value="developer" data-testid="tab-developer">
-              <Key className="h-4 w-4 mr-2" />
-              Developer
-            </TabsTrigger>
-          )}
-          {settingsTabs.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id} data-testid={`tab-${tab.id}`}>
-              {tab.icon === 'Users' && <Users className="h-4 w-4 mr-2" />}
-              {tab.label}
-            </TabsTrigger>
-          ))}
-          <TabsTrigger value="notifications" data-testid="tab-notifications">{t('settings.notifications')}</TabsTrigger>
-          <TabsTrigger value="account" data-testid="tab-account">{t('settings.account')}</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile" className="space-y-6">
-          <div className="space-y-6">
-            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.profileInformation')}</h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first-name">{t('settings.firstName')}</Label>
-                    <Input 
-                      id="first-name" 
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      data-testid="input-first-name" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="last-name">{t('settings.lastName')}</Label>
-                    <Input 
-                      id="last-name" 
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      data-testid="input-last-name" 
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">{t('common.email')}</Label>
-                  <Input id="email" type="email" defaultValue={user?.email} disabled data-testid="input-email" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company">{t('settings.company')}</Label>
-                  <Input 
-                    id="company" 
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    placeholder={t('settings.companyPlaceholder')} 
-                    data-testid="input-company" 
-                  />
-                </div>
+      {/* Profile Section */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Profile</p>
+        <div className="rounded-xl border bg-card">
+          <div className="p-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="first-name" className="text-xs text-muted-foreground">{t('settings.firstName')}</Label>
+                <Input
+                  id="first-name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  data-testid="input-first-name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="last-name" className="text-xs text-muted-foreground">{t('settings.lastName')}</Label>
+                <Input
+                  id="last-name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  data-testid="input-last-name"
+                />
               </div>
             </div>
-
-            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Globe className="h-4 w-4" />
-                Timezone Settings
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Set your timezone for accurate campaign scheduling. All call times will be calculated based on this timezone.
-              </p>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Your Timezone</Label>
-                  <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
-                    <SelectTrigger id="timezone" className="w-full" data-testid="select-timezone">
-                      <SelectValue placeholder="Select your timezone..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(groupedTimezones).map(([region, timezones]) => (
-                        <div key={region}>
-                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
-                            {region}
-                          </div>
-                          {timezones.map((tz) => (
-                            <SelectItem key={tz.value} value={tz.value} data-testid={`timezone-${tz.value}`}>
-                              {tz.label}
-                            </SelectItem>
-                          ))}
-                        </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs text-muted-foreground">{t('common.email')}</Label>
+              <Input id="email" type="email" defaultValue={user?.email} disabled data-testid="input-email" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="company" className="text-xs text-muted-foreground">{t('settings.company')}</Label>
+              <Input
+                id="company"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder={t('settings.companyPlaceholder')}
+                data-testid="input-company"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="timezone" className="text-xs text-muted-foreground">Timezone</Label>
+              <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
+                <SelectTrigger id="timezone" className="w-full" data-testid="select-timezone">
+                  <SelectValue placeholder="Select your timezone..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(groupedTimezones).map(([region, timezones]) => (
+                    <div key={region}>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                        {region}
+                      </div>
+                      {timezones.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value} data-testid={`timezone-${tz.value}`}>
+                          {tz.label}
+                        </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {selectedTimezone && currentTime && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-white dark:bg-zinc-900 p-3 rounded-md">
-                    <Clock className="h-4 w-4" />
-                    <span>Current time in {selectedTimezone}: <strong className="text-foreground">{currentTime}</strong></span>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedTimezone && currentTime && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                  <Clock className="h-3 w-3" />
+                  Current time: <span className="font-medium text-foreground">{currentTime}</span>
+                </p>
+              )}
             </div>
-
-            <div className="flex justify-end">
-              <Button 
+            <div className="flex justify-end pt-2">
+              <Button
                 onClick={handleSaveProfile}
                 disabled={updateProfileMutation.isPending}
                 data-testid="button-save-profile"
@@ -514,42 +481,65 @@ export default function Settings() {
                 {t('settings.saveChanges')}
               </Button>
             </div>
+          </div>
+        </div>
+      </div>
 
-            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.changePassword')}</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="current-password">{t('settings.currentPassword')}</Label>
-                  <Input 
-                    id="current-password" 
-                    type="password" 
+      {/* Security Section */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Security</p>
+        <div className="rounded-xl border bg-card">
+          <button
+            type="button"
+            className="w-full flex items-center gap-3 p-4 text-left"
+            onClick={() => setPasswordExpanded(!passwordExpanded)}
+            data-testid="button-toggle-password"
+          >
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-orange-500/10 text-orange-500">
+              <Lock className="h-4 w-4" />
+            </div>
+            <span className="flex-1 text-sm font-medium">{t('settings.changePassword')}</span>
+            {passwordExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+          {passwordExpanded && (
+            <div className="px-4 pb-4 space-y-3 border-t ml-12 mr-0">
+              <div className="pt-3 space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="current-password" className="text-xs text-muted-foreground">{t('settings.currentPassword')}</Label>
+                  <Input
+                    id="current-password"
+                    type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    data-testid="input-current-password" 
+                    data-testid="input-current-password"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">{t('settings.newPassword')}</Label>
-                  <Input 
-                    id="new-password" 
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-password" className="text-xs text-muted-foreground">{t('settings.newPassword')}</Label>
+                  <Input
+                    id="new-password"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    data-testid="input-new-password" 
+                    data-testid="input-new-password"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">{t('settings.confirmPassword')}</Label>
-                  <Input 
-                    id="confirm-password" 
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirm-password" className="text-xs text-muted-foreground">{t('settings.confirmPassword')}</Label>
+                  <Input
+                    id="confirm-password"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    data-testid="input-confirm-password" 
+                    data-testid="input-confirm-password"
                   />
                 </div>
-                <div className="flex justify-end">
-                  <Button 
+                <div className="flex justify-end pt-1">
+                  <Button
                     onClick={handleChangePassword}
                     disabled={changePasswordMutation.isPending || !currentPassword || !newPassword}
                     data-testid="button-change-password"
@@ -564,172 +554,191 @@ export default function Settings() {
                 </div>
               </div>
             </div>
-          </div>
-        </TabsContent>
+          )}
+        </div>
+      </div>
 
-        <TabsContent value="kyc" className="space-y-6">
-          <KycDocumentsSection user={user} />
-        </TabsContent>
+      {/* KYC Verification Section */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">KYC Verification</p>
+        <KycDocumentsSection user={user} />
+      </div>
 
-        <TabsContent value="addresses" className="space-y-6">
-          <AddressesSection />
-        </TabsContent>
+      {/* Addresses Section */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Addresses</p>
+        <AddressesSection />
+      </div>
 
-        <TabsContent value="developer" className="space-y-6">
-          <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">API Documentation</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Interactive API documentation with all endpoints, schemas, and testing capability
-                </p>
+      {/* Developer Section */}
+      {isRestApiPluginEnabled && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Developer</p>
+          <div className="rounded-xl border bg-card">
+            <button
+              type="button"
+              className="w-full flex items-center gap-3 p-4 text-left border-b last:border-b-0"
+              onClick={() => window.open('/api/docs', '_blank')}
+              data-testid="button-open-api-docs"
+            >
+              <div className="w-7 h-7 rounded-md flex items-center justify-center bg-indigo-500/10 text-indigo-500">
+                <ExternalLink className="h-4 w-4" />
               </div>
-              <Button
-                variant="outline"
-                onClick={() => window.open('/api/docs', '_blank')}
-                data-testid="button-open-api-docs"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open API Docs
-              </Button>
-            </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium">API Documentation</span>
+                <p className="text-xs text-muted-foreground">Interactive API docs with all endpoints</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
           </div>
-          <ApiKeysTab />
-        </TabsContent>
+          <div className="mt-3">
+            <ApiKeysTab />
+          </div>
+        </div>
+      )}
 
-        {settingsTabs.map((tab) => (
-          <TabsContent key={tab.id} value={tab.id} className="space-y-6">
+      {/* Plugin Tabs */}
+      {settingsTabs.map((tab) => (
+        <div key={tab.id}>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">{tab.label}</p>
+          <div className="rounded-xl border bg-card p-4">
             <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
               <tab.component />
             </Suspense>
-          </TabsContent>
-        ))}
-
-        <TabsContent value="notifications" className="space-y-6">
-          <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.notificationPreferences')}</h3>
-            <p className="text-muted-foreground text-sm">
-              Configure how you receive notifications and alerts from {branding.app_name}.
-            </p>
           </div>
-        </TabsContent>
+        </div>
+      ))}
 
-        <TabsContent value="account" className="space-y-6">
-          <div className="space-y-6">
-            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{t('settings.accountManagement')}</h3>
-              <p className="text-muted-foreground text-sm">
-                {t('settings.accountManagementDescription')}
+      {/* Notifications Section */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">{t('settings.notifications')}</p>
+        <div className="rounded-xl border bg-card">
+          <div className="flex items-center gap-3 p-4">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-purple-500/10 text-purple-500">
+              <Bell className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium">{t('settings.notificationPreferences')}</span>
+              <p className="text-xs text-muted-foreground">
+                Configure how you receive notifications from {branding.app_name}.
               </p>
             </div>
-
-            <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Download className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Export Your Data</p>
-                    <p className="text-sm text-muted-foreground">Download all your data including campaigns, contacts, and call history</p>
-                  </div>
-                </div>
-                <Button 
-                  variant="outline" 
-                  onClick={() => exportDataMutation.mutate()}
-                  disabled={exportDataMutation.isPending}
-                  data-testid="button-export-data"
-                >
-                  {exportDataMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4 mr-2" />
-                  )}
-                  Export Data
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <LogOut className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">{t('settings.signOut')}</p>
-                    <p className="text-sm text-muted-foreground">{t('settings.signOutDescription')}</p>
-                  </div>
-                </div>
-                <Button variant="outline" onClick={handleLogout} data-testid="button-logout-settings">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  {t('auth.logout')}
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border border-destructive/50 rounded-lg bg-destructive/5">
-                  <div className="flex items-center gap-3">
-                    <Trash2 className="h-5 w-5 text-destructive" />
-                    <div>
-                      <p className="font-medium text-destructive">{t('settings.deleteAccount')}</p>
-                      <p className="text-sm text-muted-foreground">{t('settings.deleteAccountWarning')}</p>
-                    </div>
-                  </div>
-                  <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" data-testid="button-delete-account">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {t('settings.deleteAccount')}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <div className="flex items-center gap-2 text-destructive">
-                          <AlertTriangle className="h-5 w-5" />
-                          <AlertDialogTitle>{t('settings.confirmDeleteAccount')}</AlertDialogTitle>
-                        </div>
-                        <AlertDialogDescription className="space-y-3">
-                          <p>{t('settings.deleteAccountConfirmMessage')}</p>
-                          <div className="p-3 bg-destructive/10 rounded-md border border-destructive/20">
-                            <p className="text-sm font-medium text-destructive">{t('settings.deleteAccountConsequences')}</p>
-                            <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
-                              <li>{t('settings.deleteConsequence1')}</li>
-                              <li>{t('settings.deleteConsequence2')}</li>
-                              <li>{t('settings.deleteConsequence3')}</li>
-                            </ul>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="delete-password">{t('settings.enterPasswordToConfirm')}</Label>
-                            <Input
-                              id="delete-password"
-                              type="password"
-                              placeholder={t('settings.yourPassword')}
-                              value={deletePassword}
-                              onChange={(e) => setDeletePassword(e.target.value)}
-                              data-testid="input-delete-password"
-                            />
-                          </div>
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDeletePassword("")} data-testid="button-cancel-delete">
-                          {t('common.cancel')}
-                        </AlertDialogCancel>
-                        <Button
-                          variant="destructive"
-                          onClick={handleDeleteAccount}
-                          disabled={deleteAccountMutation.isPending || !deletePassword}
-                          data-testid="button-confirm-delete"
-                        >
-                          {deleteAccountMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4 mr-2" />
-                          )}
-                          {t('settings.permanentlyDelete')}
-                        </Button>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-            </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
+
+      {/* Data & Privacy Section */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Data & Privacy</p>
+        <div className="rounded-xl border bg-card">
+          <div className="flex items-center gap-3 p-4">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-teal-500/10 text-teal-500">
+              <Download className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium">Export Your Data</span>
+              <p className="text-xs text-muted-foreground">Download campaigns, contacts, and call history</p>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => exportDataMutation.mutate()}
+              disabled={exportDataMutation.isPending}
+              data-testid="button-export-data"
+            >
+              {exportDataMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Account Section */}
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">{t('settings.account')}</p>
+        <div className="rounded-xl border bg-card">
+          <button
+            type="button"
+            className="w-full flex items-center gap-3 p-4 text-left"
+            onClick={handleLogout}
+            data-testid="button-logout-settings"
+          >
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-500/10 text-blue-500">
+              <LogOut className="h-4 w-4" />
+            </div>
+            <span className="flex-1 text-sm font-medium">{t('settings.signOut')}</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+          <div className="border-t ml-12" />
+          <div className="flex items-center gap-3 p-4">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-red-500/10 text-red-500">
+              <Trash2 className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-destructive">{t('settings.deleteAccount')}</span>
+              <p className="text-xs text-muted-foreground">{t('settings.deleteAccountWarning')}</p>
+            </div>
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="icon" data-testid="button-delete-account">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <div className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                    <AlertDialogTitle>{t('settings.confirmDeleteAccount')}</AlertDialogTitle>
+                  </div>
+                  <AlertDialogDescription className="space-y-3">
+                    <p>{t('settings.deleteAccountConfirmMessage')}</p>
+                    <div className="p-3 bg-destructive/10 rounded-md border border-destructive/20">
+                      <p className="text-sm font-medium text-destructive">{t('settings.deleteAccountConsequences')}</p>
+                      <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                        <li>{t('settings.deleteConsequence1')}</li>
+                        <li>{t('settings.deleteConsequence2')}</li>
+                        <li>{t('settings.deleteConsequence3')}</li>
+                      </ul>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="delete-password">{t('settings.enterPasswordToConfirm')}</Label>
+                      <Input
+                        id="delete-password"
+                        type="password"
+                        placeholder={t('settings.yourPassword')}
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        data-testid="input-delete-password"
+                      />
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setDeletePassword("")} data-testid="button-cancel-delete">
+                    {t('common.cancel')}
+                  </AlertDialogCancel>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteAccount}
+                    disabled={deleteAccountMutation.isPending || !deletePassword}
+                    data-testid="button-confirm-delete"
+                  >
+                    {deleteAccountMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    {t('settings.permanentlyDelete')}
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -853,122 +862,118 @@ function KycDocumentsSection({ user }: { user: User | undefined }) {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5" />
-                KYC Verification
-              </CardTitle>
-              <CardDescription>
-                Upload your identity documents to purchase phone numbers
-              </CardDescription>
-            </div>
-            {getStatusBadge()}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {kycStatus === 'rejected' && user?.kycRejectionReason && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-              <p className="text-sm font-medium text-destructive">Rejection Reason:</p>
-              <p className="text-sm text-destructive/80">{user.kycRejectionReason}</p>
-            </div>
-          )}
+    <div className="rounded-xl border bg-card">
+      <div className="flex items-center gap-3 p-4 border-b">
+        <div className="w-7 h-7 rounded-md flex items-center justify-center bg-green-500/10 text-green-500">
+          <ShieldCheck className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-medium">Verification Status</span>
+          <p className="text-xs text-muted-foreground">Upload identity documents to purchase phone numbers</p>
+        </div>
+        {getStatusBadge()}
+      </div>
 
-          {kycStatus === 'approved' && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-green-800">
-                Your KYC verification is complete. You can now purchase phone numbers.
-              </p>
-            </div>
-          )}
+      {kycStatus === 'rejected' && user?.kycRejectionReason && (
+        <div className="mx-4 mt-3 bg-destructive/10 border border-destructive/20 rounded-md p-3">
+          <p className="text-sm font-medium text-destructive">Rejection Reason:</p>
+          <p className="text-sm text-destructive/80">{user.kycRejectionReason}</p>
+        </div>
+      )}
 
-          <div className="space-y-4">
-            {KYC_DOCUMENT_TYPES.map((docType) => {
-              const existingDoc = getDocumentForType(docType.type);
-              const isUploading = uploadingType === docType.type;
-
-              return (
-                <div key={docType.type} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {existingDoc ? (
-                      <FileCheck className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <FilePlus className="h-5 w-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="font-medium">{docType.label}</p>
-                      <p className="text-sm text-muted-foreground">{docType.description}</p>
-                      {existingDoc && (
-                        <p className="text-xs text-green-600 mt-1">
-                          Uploaded: {existingDoc.fileName}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {existingDoc && kycStatus !== 'approved' && kycStatus !== 'submitted' && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => deleteDocumentMutation.mutate(existingDoc.id)}
-                        disabled={deleteDocumentMutation.isPending}
-                        data-testid={`button-delete-${docType.type}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {!existingDoc && kycStatus !== 'approved' && (
-                      <Button
-                        variant="outline"
-                        onClick={() => handleFileUpload(docType.type)}
-                        disabled={isUploading}
-                        data-testid={`button-upload-${docType.type}`}
-                      >
-                        {isUploading ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="h-4 w-4 mr-2" />
-                        )}
-                        Upload
-                      </Button>
-                    )}
-                    {existingDoc && (
-                      <Badge variant="secondary" className="text-green-600">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Uploaded
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {kycStatus !== 'approved' && kycStatus !== 'submitted' && (
-            <div className="flex justify-end">
-              <Button
-                onClick={() => submitKycMutation.mutate()}
-                disabled={!allDocumentsUploaded || submitKycMutation.isPending}
-                data-testid="button-submit-kyc"
-              >
-                {submitKycMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ShieldCheck className="h-4 w-4 mr-2" />
-                )}
-                Submit for Review
-              </Button>
-            </div>
-          )}
-
-          <p className="text-xs text-muted-foreground">
-            Accepted formats: JPEG, PNG, PDF (max 5MB per file). All 4 documents are required for verification.
+      {kycStatus === 'approved' && (
+        <div className="mx-4 mt-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md p-3">
+          <p className="text-sm text-green-800 dark:text-green-200">
+            Your KYC verification is complete. You can now purchase phone numbers.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      )}
+
+      {KYC_DOCUMENT_TYPES.map((docType, index) => {
+        const existingDoc = getDocumentForType(docType.type);
+        const isUploading = uploadingType === docType.type;
+
+        return (
+          <div key={docType.type}>
+            {index > 0 && <div className="border-t ml-12" />}
+            <div className="flex items-center gap-3 p-4">
+              <div className="w-7 h-7 rounded-md flex items-center justify-center bg-muted">
+                {existingDoc ? (
+                  <FileCheck className="h-4 w-4 text-green-600" />
+                ) : (
+                  <FilePlus className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{docType.label}</p>
+                <p className="text-xs text-muted-foreground">{docType.description}</p>
+                {existingDoc && (
+                  <p className="text-xs text-green-600 mt-0.5">
+                    {existingDoc.fileName}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                {existingDoc && kycStatus !== 'approved' && kycStatus !== 'submitted' && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => deleteDocumentMutation.mutate(existingDoc.id)}
+                    disabled={deleteDocumentMutation.isPending}
+                    data-testid={`button-delete-${docType.type}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+                {!existingDoc && kycStatus !== 'approved' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleFileUpload(docType.type)}
+                    disabled={isUploading}
+                    data-testid={`button-upload-${docType.type}`}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+                {existingDoc && (
+                  <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-transparent">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Done
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {kycStatus !== 'approved' && kycStatus !== 'submitted' && (
+        <div className="p-4 border-t flex justify-end">
+          <Button
+            onClick={() => submitKycMutation.mutate()}
+            disabled={!allDocumentsUploaded || submitKycMutation.isPending}
+            data-testid="button-submit-kyc"
+          >
+            {submitKycMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ShieldCheck className="h-4 w-4 mr-2" />
+            )}
+            Submit for Review
+          </Button>
+        </div>
+      )}
+
+      <div className="px-4 pb-3">
+        <p className="text-xs text-muted-foreground">
+          Accepted formats: JPEG, PNG, PDF (max 5MB per file). All 4 documents are required.
+        </p>
+      </div>
     </div>
   );
 }
@@ -1134,168 +1139,167 @@ function AddressesSection() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Addresses for Phone Numbers
-              </CardTitle>
-              <CardDescription>
-                Add addresses for countries that require address verification to purchase phone numbers (e.g., Australia, Germany, UK).
-              </CardDescription>
-            </div>
-            <AlertDialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-              <AlertDialogTrigger asChild>
-                <Button data-testid="button-add-address">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Address
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="max-w-md">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Add New Address</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Enter your address details. This will be submitted to Twilio for verification.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Country</Label>
-                    <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                      <SelectTrigger data-testid="select-address-country">
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {countries?.map((country) => (
-                          <SelectItem key={country.code} value={country.code}>
-                            {country.name} ({country.requirement === 'local' ? 'Local address required' : 'Any address'})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Full Name / Company Name</Label>
-                    <Input
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="John Doe or Company Ltd"
-                      data-testid="input-address-name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Street Address</Label>
-                    <Input
-                      value={street}
-                      onChange={(e) => setStreet(e.target.value)}
-                      placeholder="123 Main Street"
-                      data-testid="input-address-street"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>City</Label>
-                      <Input
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                        placeholder="Sydney"
-                        data-testid="input-address-city"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>State/Province</Label>
-                      <Input
-                        value={region}
-                        onChange={(e) => setRegion(e.target.value)}
-                        placeholder="NSW"
-                        data-testid="input-address-region"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Postal Code</Label>
-                    <Input
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
-                      placeholder="2000"
-                      data-testid="input-address-postal"
-                    />
-                  </div>
+    <div className="rounded-xl border bg-card">
+      <div className="flex items-center gap-3 p-4 border-b">
+        <div className="w-7 h-7 rounded-md flex items-center justify-center bg-sky-500/10 text-sky-500">
+          <MapPin className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-medium">Address Verification</span>
+          <p className="text-xs text-muted-foreground">Required for phone numbers in certain countries</p>
+        </div>
+        <AlertDialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" data-testid="button-add-address">
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Add New Address</AlertDialogTitle>
+              <AlertDialogDescription>
+                Enter your address details. This will be submitted to Twilio for verification.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Country</Label>
+                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                  <SelectTrigger data-testid="select-address-country">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries?.map((country) => (
+                      <SelectItem key={country.code} value={country.code}>
+                        {country.name} ({country.requirement === 'local' ? 'Local address required' : 'Any address'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Full Name / Company Name</Label>
+                <Input
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="John Doe or Company Ltd"
+                  data-testid="input-address-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Street Address</Label>
+                <Input
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  placeholder="123 Main Street"
+                  data-testid="input-address-street"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>City</Label>
+                  <Input
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Sydney"
+                    data-testid="input-address-city"
+                  />
                 </div>
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={resetForm}>Cancel</AlertDialogCancel>
+                <div className="space-y-2">
+                  <Label>State/Province</Label>
+                  <Input
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    placeholder="NSW"
+                    data-testid="input-address-region"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Postal Code</Label>
+                <Input
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  placeholder="2000"
+                  data-testid="input-address-postal"
+                />
+              </div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={resetForm}>Cancel</AlertDialogCancel>
+              <Button
+                onClick={handleSubmit}
+                disabled={createAddressMutation.isPending}
+                data-testid="button-submit-address"
+              >
+                {createAddressMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Submit Address
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
+      {addresses?.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <MapPin className="h-10 w-10 mx-auto mb-3 opacity-40" />
+          <p className="text-sm">No addresses added yet.</p>
+          <p className="text-xs mt-1">Add an address for countries requiring verification.</p>
+        </div>
+      ) : (
+        <div>
+          {addresses?.map((address, index) => (
+            <div key={address.id}>
+              {index > 0 && <div className="border-t ml-12" />}
+              <div className="flex items-start gap-3 p-4">
+                <div className="w-7 h-7 rounded-md flex items-center justify-center bg-muted mt-0.5">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">{address.customerName}</span>
+                    {getStatusBadge(address.status)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {address.street}, {address.city}, {address.region} {address.postalCode}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {getCountryName(address.isoCountry)}
+                  </p>
+                  {address.rejectionReason && (
+                    <p className="text-xs text-destructive">
+                      Reason: {address.rejectionReason}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
                   <Button
-                    onClick={handleSubmit}
-                    disabled={createAddressMutation.isPending}
-                    data-testid="button-submit-address"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => refreshAddressMutation.mutate(address.id)}
+                    disabled={refreshingAddressId === address.id}
+                    title="Refresh status"
+                    data-testid={`button-refresh-address-${address.id}`}
                   >
-                    {createAddressMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Submit Address
+                    <RefreshCw className={`h-4 w-4 ${refreshingAddressId === address.id ? 'animate-spin' : ''}`} />
                   </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {addresses?.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No addresses added yet.</p>
-              <p className="text-sm">Add an address to purchase phone numbers in countries requiring verification.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {addresses?.map((address) => (
-                <div key={address.id} className="flex items-start justify-between p-4 border rounded-lg">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{address.customerName}</span>
-                      {getStatusBadge(address.status)}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {address.street}, {address.city}, {address.region} {address.postalCode}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {getCountryName(address.isoCountry)}
-                    </p>
-                    {address.rejectionReason && (
-                      <p className="text-sm text-destructive">
-                        Reason: {address.rejectionReason}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => refreshAddressMutation.mutate(address.id)}
-                      disabled={refreshingAddressId === address.id}
-                      title="Refresh status"
-                      data-testid={`button-refresh-address-${address.id}`}
-                    >
-                      <RefreshCw className={`h-4 w-4 ${refreshingAddressId === address.id ? 'animate-spin' : ''}`} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteAddressMutation.mutate(address.id)}
-                      disabled={deleteAddressMutation.isPending}
-                      title="Delete address"
-                      data-testid={`button-delete-address-${address.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteAddressMutation.mutate(address.id)}
+                    disabled={deleteAddressMutation.isPending}
+                    title="Delete address"
+                    data-testid={`button-delete-address-${address.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -153,7 +153,6 @@ interface ConnectedInfo {
 export default function IntegrationMarketplace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "connected" | "not_connected">("all");
   const [activeView, setActiveView] = useState<"marketplace" | "webhooks">("marketplace");
   const [currentLocation, navigate] = useLocation();
 
@@ -203,8 +202,6 @@ export default function IntegrationMarketplace() {
     if (!apps) return [];
     return apps.filter((app) => {
       if (categoryFilter !== "all" && app.category !== categoryFilter) return false;
-      if (statusFilter === "connected" && !connectedAppIds.has(app.id)) return false;
-      if (statusFilter === "not_connected" && connectedAppIds.has(app.id)) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
@@ -214,7 +211,7 @@ export default function IntegrationMarketplace() {
       }
       return true;
     });
-  }, [apps, categoryFilter, statusFilter, searchQuery, connectedAppIds]);
+  }, [apps, categoryFilter, searchQuery, connectedAppIds]);
 
   const popularApps = useMemo(() => filteredApps.filter((a) => a.isPopular), [filteredApps]);
   const otherApps = useMemo(() => filteredApps.filter((a) => !a.isPopular), [filteredApps]);
@@ -257,33 +254,6 @@ export default function IntegrationMarketplace() {
         ))}
       </SubPanelSection>
 
-      <SubPanelSection title="STATUS">
-        <SubPanelItem
-          icon={<LayoutGrid className="w-4 h-4" />}
-          label="All"
-          isActive={activeView === "marketplace" && statusFilter === "all"}
-          badge={apps?.length || 0}
-          onClick={() => { setActiveView("marketplace"); setStatusFilter("all"); }}
-          data-testid="filter-status-all"
-        />
-        <SubPanelItem
-          icon={<CheckCircle2 className="w-4 h-4" />}
-          label="Connected"
-          isActive={activeView === "marketplace" && statusFilter === "connected"}
-          badge={connectedAppIds.size}
-          onClick={() => { setActiveView("marketplace"); setStatusFilter("connected"); }}
-          data-testid="filter-status-connected"
-        />
-        <SubPanelItem
-          icon={<Plug className="w-4 h-4" />}
-          label="Not Connected"
-          isActive={activeView === "marketplace" && statusFilter === "not_connected"}
-          badge={(apps?.length || 0) - connectedAppIds.size}
-          onClick={() => { setActiveView("marketplace"); setStatusFilter("not_connected"); }}
-          data-testid="filter-status-not_connected"
-        />
-      </SubPanelSection>
-
       <SubPanelSection title="OVERVIEW">
         <div className="px-3 py-2 space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -323,13 +293,12 @@ export default function IntegrationMarketplace() {
             <span className="font-medium">
               {categoryFilter === "all" ? "All Integrations" : getCategoryLabel(categoryFilter)}
             </span>
-            {(categoryFilter !== "all" || statusFilter !== "all") && (
+            {categoryFilter !== "all" && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
                   setCategoryFilter("all");
-                  setStatusFilter("all");
                 }}
                 data-testid="button-clear-filters"
               >
@@ -425,13 +394,12 @@ export default function IntegrationMarketplace() {
                       ? `No integrations match "${searchQuery}". Try a different search term.`
                       : "No integrations available with the current filters."}
                   </p>
-                  {(categoryFilter !== "all" || statusFilter !== "all") && (
+                  {categoryFilter !== "all" && (
                     <Button
                       variant="outline"
                       className="mt-4"
                       onClick={() => {
                         setCategoryFilter("all");
-                        setStatusFilter("all");
                       }}
                       data-testid="button-clear-filters-empty"
                     >

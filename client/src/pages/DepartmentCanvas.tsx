@@ -1293,80 +1293,101 @@ function DepartmentsStep({
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold" data-testid="text-step2-title">Configure Departments</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Add departments and assign AI agents for each language
-        </p>
-      </div>
+    <div className="flex gap-6">
+      <div className="w-[260px] shrink-0 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold mb-3" data-testid="text-add-departments-title">Add Departments</h3>
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
+              Quick Add Templates
+            </Label>
+            <div className="space-y-1.5">
+              {departmentTemplates.map((template) => (
+                <Button
+                  key={template.type}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => addDepartment(template)}
+                  data-testid={`button-add-dept-${template.type}`}
+                >
+                  <template.icon className="h-3.5 w-3.5 mr-1.5" />
+                  {template.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
 
-      <div>
-        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 block">
-          Quick Add Templates
-        </Label>
-        <div className="flex flex-wrap gap-2">
-          {departmentTemplates.map((template) => (
+        <div className="border-t pt-4">
+          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+            Custom Department
+          </Label>
+          <div className="space-y-2">
+            <Input
+              placeholder="Department name..."
+              value={customDeptName}
+              onChange={(e) => setCustomDeptName(e.target.value)}
+              className="text-sm"
+              data-testid="input-custom-dept"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && customDeptName.trim()) {
+                  addDepartment({ type: "custom", name: customDeptName.trim() });
+                  setCustomDeptName("");
+                }
+              }}
+            />
             <Button
-              key={template.type}
               variant="outline"
               size="sm"
-              onClick={() => addDepartment(template)}
-              data-testid={`button-add-dept-${template.type}`}
+              className="w-full"
+              onClick={() => {
+                if (customDeptName.trim()) {
+                  addDepartment({ type: "custom", name: customDeptName.trim() });
+                  setCustomDeptName("");
+                }
+              }}
+              disabled={!customDeptName.trim()}
+              data-testid="button-add-custom"
             >
-              <template.icon className="h-3.5 w-3.5 mr-1.5" />
-              {template.name}
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Custom
             </Button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 mt-3">
-          <Input
-            placeholder="Custom department name..."
-            value={customDeptName}
-            onChange={(e) => setCustomDeptName(e.target.value)}
-            className="text-sm"
-            data-testid="input-custom-dept"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (customDeptName.trim()) {
-                addDepartment({ type: "custom", name: customDeptName.trim() });
-                setCustomDeptName("");
-              }
-            }}
-            disabled={!customDeptName.trim()}
-            data-testid="button-add-custom"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add
-          </Button>
+          </div>
         </div>
       </div>
 
-      {canvasDepartments.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-          <Building2 className="h-8 w-8 mx-auto mb-3 opacity-50" />
-          <p className="text-sm">No departments added yet</p>
-          <p className="text-xs mt-1">Use the templates above or add a custom department</p>
+      <div className="flex-1 min-w-0 space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold" data-testid="text-step2-title">Configure Departments</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Add departments and assign AI agents for each language
+          </p>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {canvasDepartments.map((dept) => (
-            <DepartmentCard
-              key={dept.id}
-              dept={dept}
-              agents={agents}
-              isExpanded={expandedDeptIds.has(dept.id)}
-              onToggleExpand={() => toggleExpand(dept.id)}
-              onUpdate={(updates) => updateDepartment(dept.id, updates)}
-              onDelete={() => deleteDepartment(dept.id)}
-              toast={toast}
-            />
-          ))}
-        </div>
-      )}
+
+        {canvasDepartments.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+            <Building2 className="h-8 w-8 mx-auto mb-3 opacity-50" />
+            <p className="text-sm">No departments added yet</p>
+            <p className="text-xs mt-1">Use the templates on the left to get started</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {canvasDepartments.map((dept) => (
+              <DepartmentCard
+                key={dept.id}
+                dept={dept}
+                agents={agents}
+                isExpanded={expandedDeptIds.has(dept.id)}
+                onToggleExpand={() => toggleExpand(dept.id)}
+                onUpdate={(updates) => updateDepartment(dept.id, updates)}
+                onDelete={() => deleteDepartment(dept.id)}
+                toast={toast}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

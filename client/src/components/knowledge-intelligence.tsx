@@ -3033,7 +3033,7 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                   {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 w-full" />)}
                 </div>
               ) : recommendations && recommendations.recommendations.length > 0 ? (
-                <ScrollArea className="max-h-[500px]">
+                <div>
                   <div className="space-y-3">
                     {recommendations.recommendations.map((rec) => (
                       <div
@@ -3093,7 +3093,7 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />

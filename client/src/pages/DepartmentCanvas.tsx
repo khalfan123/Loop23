@@ -47,6 +47,10 @@ import {
   ChevronRight,
   Sparkles,
   Pencil,
+  CreditCard,
+  Users,
+  Megaphone,
+  ClipboardList,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -406,7 +410,7 @@ const generateDefaultLangGreeting = (langOpts: LanguageOption[], companyName?: s
 
 interface CanvasDepartment {
   id: string;
-  type: "sales" | "support" | "scheduling" | "custom";
+  type: "sales" | "support" | "scheduling" | "billing" | "hr" | "marketing" | "complaints" | "custom";
   name: string;
   description: string;
   languageAgents?: LanguageAgent[];
@@ -427,7 +431,7 @@ interface CanvasDepartment {
 const departmentTemplates = [
   {
     type: "sales" as const,
-    name: "Sales",
+    name: "Sales Department",
     description: "Handle sales calls and demos",
     icon: ShoppingCart,
     color: "bg-green-500",
@@ -435,7 +439,7 @@ const departmentTemplates = [
   },
   {
     type: "support" as const,
-    name: "Support",
+    name: "Support Department",
     description: "Customer support and issues",
     icon: Headphones,
     color: "bg-blue-500",
@@ -443,11 +447,43 @@ const departmentTemplates = [
   },
   {
     type: "scheduling" as const,
-    name: "Scheduling",
+    name: "Scheduling Department",
     description: "Book appointments",
     icon: Calendar,
     color: "bg-purple-500",
     defaultPrompt: "You are an appointment scheduling assistant. Help callers book, reschedule, or cancel appointments efficiently.",
+  },
+  {
+    type: "billing" as const,
+    name: "Billing Department",
+    description: "Billing inquiries and payments",
+    icon: CreditCard,
+    color: "bg-amber-500",
+    defaultPrompt: "You are a billing specialist. Help callers with invoices, payment issues, refund requests, and account balance inquiries.",
+  },
+  {
+    type: "hr" as const,
+    name: "HR Department",
+    description: "Human resources and recruitment",
+    icon: Users,
+    color: "bg-teal-500",
+    defaultPrompt: "You are an HR representative. Help callers with job inquiries, employee onboarding, benefits questions, and general HR policies.",
+  },
+  {
+    type: "marketing" as const,
+    name: "Marketing Department",
+    description: "Marketing and partnerships",
+    icon: Megaphone,
+    color: "bg-pink-500",
+    defaultPrompt: "You are a marketing representative. Help callers with partnership inquiries, advertising opportunities, and marketing collaboration requests.",
+  },
+  {
+    type: "complaints" as const,
+    name: "Complaints Department",
+    description: "Handle complaints and escalations",
+    icon: ClipboardList,
+    color: "bg-red-500",
+    defaultPrompt: "You are a complaints resolution specialist. Listen empathetically to caller concerns, document complaints thoroughly, and work toward satisfactory resolutions.",
   },
 ];
 
@@ -636,6 +672,10 @@ function DepartmentCard({
     sales: ShoppingCart,
     support: Headphones,
     scheduling: Calendar,
+    billing: CreditCard,
+    hr: Users,
+    marketing: Megaphone,
+    complaints: ClipboardList,
     custom: Building2,
   };
   const Icon = icons[dept.type] || Building2;
@@ -1369,6 +1409,10 @@ function DepartmentsStep({
                   sales: ShoppingCart,
                   support: Headphones,
                   scheduling: Calendar,
+                  billing: CreditCard,
+                  hr: Users,
+                  marketing: Megaphone,
+                  complaints: ClipboardList,
                   custom: Building2,
                 };
                 const DeptIcon = iconMap[dept.type] || Building2;

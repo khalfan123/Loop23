@@ -108,7 +108,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1209,7 +1208,7 @@ export default function KnowledgeBase() {
     <ThreeColumnLayout
       subPanel={subPanelContent}
       subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">Knowledge Engine</span>}
+      subPanelHeader={<span className="font-medium text-sm">Knowledge Base</span>}
     >
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
@@ -1304,7 +1303,7 @@ export default function KnowledgeBase() {
           </div>
 
           {/* Intelligence Stats Bar */}
-          <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 overflow-x-auto">
+          <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 flex-wrap">
             <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
               <Brain className="h-3.5 w-3.5 text-primary" />
               <span className="font-medium text-foreground">AI Readiness:</span>
@@ -1363,7 +1362,7 @@ export default function KnowledgeBase() {
         </div>
 
         {/* Content */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           <div className="p-4">
             {viewMode === "web-crawler" ? (
               <KnowledgeIntelligence section="crawl" />
@@ -2058,7 +2057,7 @@ export default function KnowledgeBase() {
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* URL Dialog */}

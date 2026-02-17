@@ -44,7 +44,7 @@ export function ThreeColumnLayout({
                 </h2>
               </div>
             )}
-            <div className="flex-1 overflow-auto px-3 py-3">
+            <div className="flex-1 overflow-auto scrollbar-none px-3 py-3">
               {subPanel}
             </div>
           </aside>
@@ -83,7 +83,7 @@ export function ThreeColumnLayout({
             )}
           </div>
         )}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto scrollbar-none p-6">
           {children}
         </div>
       </div>

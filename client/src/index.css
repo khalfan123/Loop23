@@ -959,6 +959,15 @@ html[dir="rtl"] .flex-row-reverse-rtl {
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
+/* Hidden scrollbar - still scrollable by mouse/trackpad */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ============================================
    Landing Page - awaz.ai Inspired Design
    ============================================ */

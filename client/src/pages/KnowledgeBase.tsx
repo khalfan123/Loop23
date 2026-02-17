@@ -1207,7 +1207,7 @@ export default function KnowledgeBase() {
   return (
     <ThreeColumnLayout
       subPanel={subPanelContent}
-      subPanelWidth="sm"
+      subPanelWidth="md"
       subPanelHeader={<span className="font-medium text-sm">Knowledge Base</span>}
     >
       <div className="flex flex-col h-full overflow-hidden">

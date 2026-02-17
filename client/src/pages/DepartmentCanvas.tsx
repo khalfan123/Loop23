@@ -722,7 +722,7 @@ function DepartmentCard({
     return null;
   };
 
-  const generatePromptForLangAgent = async (langAgentId: string, deptType: string, deptName: string, langCode: string) => {
+  const generatePromptForLangAgent = async (langAgentId: string, deptType: string, deptName: string, langCode: string, currentAgents: LanguageAgent[]) => {
     try {
       const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || "English";
       const translatedName = translateDeptName(deptName, deptType, langCode);
@@ -733,10 +733,11 @@ function DepartmentCard({
       });
       const data = await response.json();
       if (data.prompt) {
-        const newList = languageAgents.map((la) =>
-          la.id === langAgentId ? { ...la, systemPrompt: data.prompt } : la
-        );
-        onUpdate({ languageAgents: newList });
+        onUpdate({
+          languageAgents: currentAgents.map((la) =>
+            la.id === langAgentId ? { ...la, systemPrompt: data.prompt } : la
+          ),
+        });
         toast({
           title: "Prompt Generated",
           description: `AI-generated prompt for ${translatedName} (${langLabel})`,
@@ -776,7 +777,8 @@ function DepartmentCard({
       voiceTone: voiceTone || null,
     };
 
-    onUpdate({ languageAgents: [...languageAgents, newLangAgent] });
+    const updatedList = [...languageAgents, newLangAgent];
+    onUpdate({ languageAgents: updatedList });
     setActiveTabIdx(languageAgents.length);
 
     if (agentFound) {
@@ -789,7 +791,7 @@ function DepartmentCard({
         title: "Language Added",
         description: `${availableLang.label} added — generating AI prompt...`,
       });
-      generatePromptForLangAgent(langAgentId, dept.type, dept.name, langCode);
+      generatePromptForLangAgent(langAgentId, dept.type, dept.name, langCode, updatedList);
     }
   };
 

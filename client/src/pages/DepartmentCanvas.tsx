@@ -1274,7 +1274,7 @@ function DepartmentsStep({
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [editDeptName, setEditDeptName] = useState("");
 
-  const getBestAgentForDept = (deptType: string, langCode: string): { id: string; name: string } | null => {
+  const getBestAgentForDept = (deptType: string, langCode: string): { id: string; name: string; systemPrompt: string | null; voiceTone: string | null } | null => {
     const langAgents = agents.filter((a) => (a.language || "en").toLowerCase() === langCode.toLowerCase());
     if (langAgents.length === 0) return null;
 
@@ -1293,22 +1293,62 @@ function DepartmentsStep({
       for (const agent of langAgents) {
         const searchText = `${agent.name} ${agent.systemPrompt || ""}`.toLowerCase();
         if (deptKeywords.some((kw) => searchText.includes(kw))) {
-          return { id: agent.id, name: agent.name };
+          return { id: agent.id, name: agent.name, systemPrompt: agent.systemPrompt, voiceTone: agent.voiceTone };
         }
       }
     }
 
-    return { id: langAgents[0].id, name: langAgents[0].name };
+    return null;
+  };
+
+  const generatePromptForNewDept = async (deptId: string, langAgentId: string, deptType: string, deptName: string, langCode: string) => {
+    try {
+      const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || "English";
+      const translatedName = translateDeptName(deptName, deptType, langCode);
+      const response = await apiRequest("POST", "/api/departments/generate-prompt", {
+        departmentType: deptType,
+        departmentName: translatedName,
+        language: langLabel,
+      });
+      const data = await response.json();
+      if (data.prompt) {
+        setCanvasDepartments((prev) =>
+          prev.map((dept) => {
+            if (dept.id !== deptId) return dept;
+            return {
+              ...dept,
+              languageAgents: (dept.languageAgents || []).map((la) =>
+                la.id === langAgentId ? { ...la, systemPrompt: data.prompt } : la
+              ),
+            };
+          })
+        );
+        toast({
+          title: "Prompt Generated",
+          description: `AI-generated prompt for ${deptName}`,
+        });
+      }
+    } catch {
+      toast({
+        title: "Could not auto-generate prompt",
+        description: "You can write one manually or try generating later",
+        variant: "destructive",
+      });
+    }
   };
 
   const addDepartment = (template: typeof departmentTemplates[0] | { type: "custom"; name: string }) => {
     const deptType = template.type;
-    const defaultPrompt = deptType !== "custom" ? (template as any).defaultPrompt : "";
     const newDeptId = `dept-${Date.now()}`;
     const langCode = "en";
+    const langAgentId = `la-${Date.now()}`;
     const bestVoice = deptType !== "custom" ? getBestVoiceForDept(deptType, langCode) : null;
     const bestTone = deptType !== "custom" ? getBestToneForDept(deptType) : null;
     const bestAgent = deptType !== "custom" ? getBestAgentForDept(deptType, langCode) : null;
+
+    const agentFound = !!bestAgent;
+    const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
+    const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
 
     const newDept: CanvasDepartment = {
       id: newDeptId,
@@ -1316,13 +1356,13 @@ function DepartmentsStep({
       name: template.name,
       description: deptType === "custom" ? "Custom department" : (template as any).description || "",
       languageAgents: [{
-        id: `la-${Date.now()}`,
+        id: langAgentId,
         language: langCode,
         agentId: bestAgent?.id || null,
         agentName: bestAgent?.name || null,
-        systemPrompt: defaultPrompt,
+        systemPrompt,
         voiceId: bestVoice || null,
-        voiceTone: bestTone || null,
+        voiceTone: voiceTone || null,
       }],
       enableTransfer: true,
       enableRecording: true,
@@ -1335,10 +1375,23 @@ function DepartmentsStep({
     setCanvasDepartments((prev) => [...prev, newDept]);
     setActiveDeptId(newDeptId);
 
-    toast({
-      title: "Department Added",
-      description: `${template.name} department created`,
-    });
+    if (agentFound) {
+      toast({
+        title: "Department Added",
+        description: `${template.name} created with agent "${bestAgent.name}"`,
+      });
+    } else if (deptType !== "custom") {
+      toast({
+        title: "Department Added",
+        description: `${template.name} created — generating AI prompt...`,
+      });
+      generatePromptForNewDept(newDeptId, langAgentId, deptType, template.name, langCode);
+    } else {
+      toast({
+        title: "Department Added",
+        description: `${template.name} created`,
+      });
+    }
   };
 
   const updateDepartment = (deptId: string, updates: Partial<CanvasDepartment>) => {

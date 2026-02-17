@@ -159,6 +159,10 @@ const getBestVoiceForDept = (deptType: string, langCode: string): string => {
     sales: ["warm", "friendly", "expressive"],
     support: ["professional", "calm", "balanced"],
     scheduling: ["professional", "clear", "balanced"],
+    billing: ["professional", "calm", "balanced"],
+    hr: ["warm", "friendly", "soft"],
+    marketing: ["expressive", "warm", "friendly"],
+    complaints: ["calm", "professional", "soft"],
   };
   const preferred = stylePreference[deptType] || stylePreference.support;
 
@@ -174,6 +178,10 @@ const getBestToneForDept = (deptType: string): string => {
     case "sales": return "friendly";
     case "support": return "professional";
     case "scheduling": return "professional";
+    case "billing": return "professional";
+    case "hr": return "friendly";
+    case "marketing": return "friendly";
+    case "complaints": return "empathetic";
     default: return "professional";
   }
 };
@@ -1266,22 +1274,55 @@ function DepartmentsStep({
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [editDeptName, setEditDeptName] = useState("");
 
+  const getBestAgentForDept = (deptType: string, langCode: string): { id: string; name: string } | null => {
+    const langAgents = agents.filter((a) => (a.language || "en").toLowerCase() === langCode.toLowerCase());
+    if (langAgents.length === 0) return null;
+
+    const keywords: Record<string, string[]> = {
+      sales: ["sales", "sell", "lead", "revenue", "deal", "demo"],
+      support: ["support", "help", "service", "customer", "assist", "issue"],
+      scheduling: ["schedul", "appointment", "booking", "calendar", "reserve"],
+      billing: ["billing", "payment", "invoice", "finance", "account", "refund"],
+      hr: ["hr", "human resource", "recruit", "hiring", "onboard", "employee"],
+      marketing: ["marketing", "campaign", "brand", "advertis", "partner", "promo"],
+      complaints: ["complaint", "escalat", "resolve", "grievance", "feedback", "issue"],
+    };
+
+    const deptKeywords = keywords[deptType] || [];
+    if (deptKeywords.length > 0) {
+      for (const agent of langAgents) {
+        const searchText = `${agent.name} ${agent.systemPrompt || ""}`.toLowerCase();
+        if (deptKeywords.some((kw) => searchText.includes(kw))) {
+          return { id: agent.id, name: agent.name };
+        }
+      }
+    }
+
+    return { id: langAgents[0].id, name: langAgents[0].name };
+  };
+
   const addDepartment = (template: typeof departmentTemplates[0] | { type: "custom"; name: string }) => {
-    const defaultPrompt = template.type !== "custom" ? (template as any).defaultPrompt : "";
+    const deptType = template.type;
+    const defaultPrompt = deptType !== "custom" ? (template as any).defaultPrompt : "";
     const newDeptId = `dept-${Date.now()}`;
+    const langCode = "en";
+    const bestVoice = deptType !== "custom" ? getBestVoiceForDept(deptType, langCode) : null;
+    const bestTone = deptType !== "custom" ? getBestToneForDept(deptType) : null;
+    const bestAgent = deptType !== "custom" ? getBestAgentForDept(deptType, langCode) : null;
+
     const newDept: CanvasDepartment = {
       id: newDeptId,
-      type: template.type as any,
+      type: deptType as any,
       name: template.name,
-      description: template.type === "custom" ? "Custom department" : (template as any).description || "",
+      description: deptType === "custom" ? "Custom department" : (template as any).description || "",
       languageAgents: [{
         id: `la-${Date.now()}`,
-        language: "en",
-        agentId: null,
-        agentName: null,
+        language: langCode,
+        agentId: bestAgent?.id || null,
+        agentName: bestAgent?.name || null,
         systemPrompt: defaultPrompt,
-        voiceId: null,
-        voiceTone: null,
+        voiceId: bestVoice || null,
+        voiceTone: bestTone || null,
       }],
       enableTransfer: true,
       enableRecording: true,

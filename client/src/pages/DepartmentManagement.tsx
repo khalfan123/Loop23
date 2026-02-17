@@ -1057,7 +1057,7 @@ export default function DepartmentManagement() {
         />
         <SubPanelItem
           icon={<PhoneIncoming className="w-4 h-4" />}
-          label="Assign Agent"
+          label="Assign AI Agent"
           isActive={activeTab === 'incoming-connections'}
           onClick={() => setActiveTab('incoming-connections')}
         />

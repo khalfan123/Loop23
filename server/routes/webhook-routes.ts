@@ -19,7 +19,7 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { calls, campaigns, users, creditTransactions, contacts, globalSettings, phoneNumbers, incomingAgents, incomingConnections, agents, knowledgeBase, appointments, appointmentSettings, flows, sipCalls, elevenLabsCredentials, ivrConfigurations, departments, departmentAgents } from '../../shared/schema';
 import { nanoid } from 'nanoid';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import WebSocket from 'ws';
 import { getTwilioClient } from '../services/twilio-connector';
 import { twilioService } from '../services/twilio';
@@ -784,7 +784,7 @@ function isNonPollyVoice(voiceId: string | null | undefined): boolean {
 }
 
 function playOrSay(parent: any, voiceId: string, text: string, ivrId: string, domain: string, pollyAttrs?: Record<string, any>) {
-  if (isNonPollyVoice(voiceId)) {
+  if (voiceId && voiceId.startsWith('el_')) {
     const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrId}?voiceId=${encodeURIComponent(voiceId)}&text=${encodeURIComponent(text)}`;
     parent.play(audioUrl);
   } else {
@@ -883,10 +883,11 @@ async function handleIvrCall(
       const domain = getDomain(req.headers.host as string);
       const mainVoiceId = ivrConfig.voiceId || null;
       
-      if (isNonPollyVoice(mainVoiceId)) {
+      if (mainVoiceId && mainVoiceId.startsWith('el_')) {
         gather.play(`${domain}/api/departments/ivr-greeting-audio/${ivrConfig.id}`);
       } else {
-        saySlow(gather, { voice: getVoiceForLanguage('en'), language: getTwilioLangCode('en') as any }, greetingText);
+        const pollyVoice = getVoiceForLanguage('en');
+        saySlow(gather, { voice: pollyVoice, language: getTwilioLangCode('en') as any }, greetingText);
       }
       console.log(`   Greeting: "${greetingText}" (voice: ${mainVoiceId || 'Polly default'})`);
       
@@ -904,8 +905,8 @@ async function handleIvrCall(
           const keyNum = idx + 1;
           const promptText = `${prompt} ${keyNum}.`;
           
-          if (isNonPollyVoice(optVoiceId)) {
-            playOrSay(gather, optVoiceId!, promptText, ivrConfig.id, domain);
+          if (optVoiceId && optVoiceId.startsWith('el_')) {
+            playOrSay(gather, optVoiceId, promptText, ivrConfig.id, domain);
           } else {
             saySlow(gather, { voice, language: lang as any }, promptText);
           }
@@ -914,7 +915,7 @@ async function handleIvrCall(
       }
       
       const noSelectionMsg = 'We did not receive your selection.';
-      if (isNonPollyVoice(ivrConfig.voiceId)) {
+      if (ivrConfig.voiceId && ivrConfig.voiceId.startsWith('el_')) {
         playOrSay(response, ivrConfig.voiceId, noSelectionMsg, ivrConfig.id, domain);
       } else {
         saySlow(response, { voice: 'Polly.Joanna' }, noSelectionMsg);
@@ -932,6 +933,15 @@ async function handleIvrCall(
     const voice = getVoiceForLanguage(langCode);
     const lang = getTwilioLangCode(langCode);
     
+    if (ivrConfig.greetingMessage) {
+      if (singleVoiceId && singleVoiceId.startsWith('el_')) {
+        const domain = getDomain(req.headers.host as string);
+        playOrSay(response, singleVoiceId, ivrConfig.greetingMessage, ivrConfig.id, domain);
+      } else {
+        saySlow(response, { voice, language: lang as any }, ivrConfig.greetingMessage);
+      }
+    }
+
     const deptNames = menuOptions.map((opt: any) => opt.label);
     const deptMenuPrompt = buildDeptMenuPrompt(deptNames, langCode);
     
@@ -942,17 +952,17 @@ async function handleIvrCall(
       timeout: 10,
     });
     
-    if (isNonPollyVoice(singleVoiceId)) {
+    if (singleVoiceId && singleVoiceId.startsWith('el_')) {
       const domain = getDomain(req.headers.host as string);
-      playOrSay(gather, singleVoiceId!, deptMenuPrompt, ivrConfig.id, domain);
+      playOrSay(gather, singleVoiceId, deptMenuPrompt, ivrConfig.id, domain);
     } else {
       saySlow(gather, { voice, language: lang as any }, deptMenuPrompt);
     }
 
     const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
-    if (isNonPollyVoice(singleVoiceId)) {
+    if (singleVoiceId && singleVoiceId.startsWith('el_')) {
       const domainForNoInput = getDomain(req.headers.host as string);
-      playOrSay(response, singleVoiceId!, template.noInputMsg, ivrConfig.id, domainForNoInput);
+      playOrSay(response, singleVoiceId, template.noInputMsg, ivrConfig.id, domainForNoInput);
     } else {
       saySlow(response, { voice, language: lang as any }, template.noInputMsg);
     }
@@ -1383,6 +1393,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
         eq(ivrConfigurations.phoneNumberId, phone.id),
         eq(ivrConfigurations.isActive, true)
       ))
+      .orderBy(desc(ivrConfigurations.updatedAt))
       .limit(1);
 
     if (ivrConfig && ivrConfig.length > 0) {

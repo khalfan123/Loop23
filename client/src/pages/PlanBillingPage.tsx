@@ -197,7 +197,7 @@ export default function PlanBillingPage() {
   const searchString = useSearch();
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [activeSection, setActiveSection] = useState("current-plan");
+  const [activeSection, setActiveSection] = useState("plans");
 
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -215,8 +215,7 @@ export default function PlanBillingPage() {
   const transactionPageSize = 10;
 
   const sections = [
-    { id: "current-plan", label: "Current Plan", icon: Crown },
-    { id: "available-plans", label: "Available Plans", icon: Zap },
+    { id: "plans", label: "Plans", icon: Crown },
     { id: "credit-packages", label: "Credit Packages", icon: TrendingUp },
     { id: "subscription", label: "Subscription", icon: Calendar },
     { id: "transactions", label: "Transactions", icon: Receipt },
@@ -777,71 +776,28 @@ export default function PlanBillingPage() {
 
         <div className="flex-1 min-w-0 space-y-8 scroll-smooth">
 
-          <div id="current-plan" ref={(el) => { sectionRefs.current["current-plan"] = el; }}>
-            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
-              Current Plan
-            </div>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
-              {currentPlan && (
-                <div className="p-5">
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-md flex items-center justify-center bg-muted/50">
-                        {currentPlan.name === "free" ? (
-                          <Zap className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                          <Crown className="h-5 w-5 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-foreground">{currentPlan.displayName}</h3>
-                          {isPremium && (
-                            <Badge data-testid="badge-premium-member">
-                              <Crown className="h-3 w-3 mr-1" />
-                              Premium
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{currentPlan.description}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {buildAvailableCurrencies().length > 1 && (
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                            <SelectTrigger className="w-[140px]" data-testid="select-currency">
-                              <SelectValue placeholder="Currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {buildAvailableCurrencies().map((currency) => (
-                                <SelectItem key={currency.code} value={currency.code}>
-                                  {currency.symbol} {currency.code}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-foreground">
-                          {currentPlan.name === "free" ? "Free" : `${displaySymbol}${currentPlan.monthlyPrice}`}
-                        </div>
-                        {currentPlan.name !== "free" && (
-                          <p className="text-xs text-muted-foreground">per month</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+          <div id="plans" ref={(el) => { sectionRefs.current["plans"] = el; }}>
+            <div className="flex items-center justify-between mb-2 px-1 flex-wrap gap-2">
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Plans
+              </div>
+              {buildAvailableCurrencies().length > 1 && (
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                    <SelectTrigger className="w-[140px]" data-testid="select-currency">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {buildAvailableCurrencies().map((currency) => (
+                        <SelectItem key={currency.code} value={currency.code}>
+                          {currency.symbol} {currency.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
-            </div>
-          </div>
-
-          <div id="available-plans" ref={(el) => { sectionRefs.current["available-plans"] = el; }}>
-            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
-              Available Plans
             </div>
             <div className={`grid grid-cols-1 ${sortedPlans.length === 2 ? "md:grid-cols-2" : sortedPlans.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-3"} gap-4`}>
               {sortedPlans.map((plan, index) => {

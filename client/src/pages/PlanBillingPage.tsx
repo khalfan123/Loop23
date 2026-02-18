@@ -1096,7 +1096,7 @@ export default function PlanBillingPage() {
           )}
 
           <div id="credit-records" ref={(el) => { sectionRefs.current["credit-records"] = el; }}>
-            <div className="flex items-center justify-between mb-2 px-1 flex-wrap gap-2">
+            <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Credit Records
               </div>
@@ -1111,7 +1111,13 @@ export default function PlanBillingPage() {
               </Button>
             </div>
 
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="rounded-xl bg-card border border-border overflow-hidden" data-testid="card-credit-records">
+              <div className="px-4 py-3 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Coins className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{t('billing.credit')} & {t('billing.debit')}</span>
+                </div>
+              </div>
               {creditTransactions && creditTransactions.length > 0 ? (
                 <div className="divide-y divide-border">
                   {[...creditTransactions]
@@ -1139,17 +1145,14 @@ export default function PlanBillingPage() {
                   ))}
                 </div>
               ) : (
-                <div className="p-12 text-center">
-                  <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm font-medium text-foreground mb-1">{t('billing.noTransactions')}</p>
+                <div className="p-8 text-center">
+                  <FileText className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">{t('billing.noTransactions')}</p>
                 </div>
               )}
             </div>
 
             <div className="mt-6">
-              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
-                {t('transactionHistory.title')}
-              </div>
               <TransactionHistory embedded />
             </div>
           </div>

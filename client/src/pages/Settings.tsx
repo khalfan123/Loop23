@@ -20,10 +20,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Save, Loader2, Trash2, AlertTriangle, LogOut, Download, Clock, ShieldCheck, Upload, FileCheck, FilePlus, X, CheckCircle2, XCircle, AlertCircle, ExternalLink, MapPin, RefreshCw, Plus, ChevronRight, ChevronDown, Lock, Bell } from "lucide-react";
+import { Save, Loader2, Trash2, AlertTriangle, LogOut, Download, Clock, ShieldCheck, Upload, FileCheck, FilePlus, X, CheckCircle2, XCircle, AlertCircle, ExternalLink, MapPin, RefreshCw, Plus, ChevronRight, ChevronDown, Lock, Bell, UserCog, Key } from "lucide-react";
 import { ApiKeysTab } from "@/components/api-keys/ApiKeysTab";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { usePluginRegistry } from "@/contexts/plugin-registry";
 import { useTranslation } from "react-i18next";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -179,6 +179,20 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordExpanded, setPasswordExpanded] = useState(false);
 
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const [activeSection, setActiveSection] = useState("section-profile");
+
+  const sections = [
+    { id: "section-profile", label: "Profile", icon: UserCog },
+    { id: "section-security", label: "Security", icon: Lock },
+    { id: "section-kyc", label: "KYC Verification", icon: ShieldCheck },
+    { id: "section-addresses", label: "Addresses", icon: MapPin },
+    ...(isRestApiPluginEnabled ? [{ id: "section-developer", label: "Developer", icon: Key }] : []),
+    { id: "section-notifications", label: "Notifications", icon: Bell },
+    { id: "section-data-privacy", label: "Data & Privacy", icon: Download },
+    { id: "section-account", label: "Account", icon: LogOut },
+  ];
+
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
@@ -206,6 +220,31 @@ export default function Settings() {
       return () => clearInterval(interval);
     }
   }, [selectedTimezone]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+            break;
+          }
+        }
+      },
+      { rootMargin: "-20% 0px -60% 0px", threshold: 0 }
+    );
+
+    const timer = setTimeout(() => {
+      Object.values(sectionRefs.current).forEach(el => {
+        if (el) observer.observe(el);
+      });
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [isRestApiPluginEnabled]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: { name?: string; company?: string | null; timezone?: string }) => {
@@ -391,29 +430,52 @@ export default function Settings() {
   const timezoneLabel = TIMEZONE_OPTIONS.find(tz => tz.value === selectedTimezone)?.label;
 
   return (
-    <div className="max-w-2xl mx-auto pb-12 space-y-7">
-
-      {/* Profile Header */}
-      <div id="section-profile-header" className="rounded-xl border bg-card p-5">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16 text-lg">
-            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold text-lg">
-              {getInitials(user?.name || "U")}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold truncate" data-testid="text-user-name">{user?.name}</h2>
-            <p className="text-sm text-muted-foreground truncate" data-testid="text-user-email">{user?.email}</p>
-            <Badge variant="secondary" className="mt-1.5" data-testid="badge-plan-type">
-              {user?.planType || "Free"}
-            </Badge>
+    <div className="space-y-6">
+      <div className="flex gap-8">
+        <div className="hidden lg:block w-44 flex-shrink-0">
+          <div className="sticky top-4 space-y-1 z-50">
+            {sections.map(section => (
+              <button
+                key={section.id}
+                onClick={() => {
+                  sectionRefs.current[section.id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                  activeSection === section.id
+                    ? "bg-card text-foreground font-medium"
+                    : "text-muted-foreground"
+                }`}
+                data-testid={`nav-${section.id}`}
+              >
+                <section.icon className="h-3.5 w-3.5" />
+                {section.label}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+
+        <div className="flex-1 min-w-0 space-y-8 scroll-smooth">
 
       {/* Profile Section */}
-      <div id="section-profile">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Profile</p>
+      <div id="section-profile" ref={(el) => { sectionRefs.current["section-profile"] = el; }}>
+        {/* Profile Header */}
+        <div id="section-profile-header" className="rounded-xl border bg-card p-5 mb-4">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-16 w-16 text-lg">
+              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold text-lg">
+                {getInitials(user?.name || "U")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold truncate" data-testid="text-user-name">{user?.name}</h2>
+              <p className="text-sm text-muted-foreground truncate" data-testid="text-user-email">{user?.email}</p>
+              <Badge variant="secondary" className="mt-1.5" data-testid="badge-plan-type">
+                {user?.planType || "Free"}
+              </Badge>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Profile</p>
         <div className="rounded-xl border bg-card">
           <div className="p-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -497,8 +559,8 @@ export default function Settings() {
       </div>
 
       {/* Security Section */}
-      <div id="section-security">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Security</p>
+      <div id="section-security" ref={(el) => { sectionRefs.current["section-security"] = el; }}>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Security</p>
         <div className="rounded-xl border bg-card">
           <button
             type="button"
@@ -570,21 +632,21 @@ export default function Settings() {
       </div>
 
       {/* KYC Verification Section */}
-      <div id="section-kyc">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">KYC Verification</p>
+      <div id="section-kyc" ref={(el) => { sectionRefs.current["section-kyc"] = el; }}>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">KYC Verification</p>
         <KycDocumentsSection user={user} />
       </div>
 
       {/* Addresses Section */}
-      <div id="section-addresses">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Addresses</p>
+      <div id="section-addresses" ref={(el) => { sectionRefs.current["section-addresses"] = el; }}>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Addresses</p>
         <AddressesSection />
       </div>
 
       {/* Developer Section */}
       {isRestApiPluginEnabled && (
-        <div id="section-developer">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Developer</p>
+        <div id="section-developer" ref={(el) => { sectionRefs.current["section-developer"] = el; }}>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Developer</p>
           <div className="rounded-xl border bg-card">
             <button
               type="button"
@@ -611,7 +673,7 @@ export default function Settings() {
       {/* Plugin Tabs */}
       {settingsTabs.map((tab) => (
         <div key={tab.id}>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">{tab.label}</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">{tab.label}</p>
           <div className="rounded-xl border bg-card p-4">
             <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
               <tab.component />
@@ -621,8 +683,8 @@ export default function Settings() {
       ))}
 
       {/* Notifications Section */}
-      <div id="section-notifications">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">{t('settings.notifications')}</p>
+      <div id="section-notifications" ref={(el) => { sectionRefs.current["section-notifications"] = el; }}>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">{t('settings.notifications')}</p>
         <div className="rounded-xl border bg-card">
           <div className="flex items-center gap-3 p-4">
             <div className="w-7 h-7 rounded-md flex items-center justify-center bg-purple-500/10 text-purple-500">
@@ -639,8 +701,8 @@ export default function Settings() {
       </div>
 
       {/* Data & Privacy Section */}
-      <div id="section-data-privacy">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">Data & Privacy</p>
+      <div id="section-data-privacy" ref={(el) => { sectionRefs.current["section-data-privacy"] = el; }}>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Data & Privacy</p>
         <div className="rounded-xl border bg-card">
           <div className="flex items-center gap-3 p-4">
             <div className="w-7 h-7 rounded-md flex items-center justify-center bg-teal-500/10 text-teal-500">
@@ -668,8 +730,8 @@ export default function Settings() {
       </div>
 
       {/* Account Section */}
-      <div id="section-account">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 mb-1.5">{t('settings.account')}</p>
+      <div id="section-account" ref={(el) => { sectionRefs.current["section-account"] = el; }}>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">{t('settings.account')}</p>
         <div className="rounded-xl border bg-card">
           <button
             type="button"
@@ -750,7 +812,9 @@ export default function Settings() {
           </div>
         </div>
       </div>
+      </div>
     </div>
+  </div>
   );
 }
 

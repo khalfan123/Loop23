@@ -17,8 +17,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Check, Zap, Crown, Loader2, Star, CreditCard, Sparkles, ArrowRight, Globe, Download, Plus, Calendar, AlertCircle, Coins, Receipt, TrendingUp, ArrowUpRight, Clock, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, Zap, Crown, Loader2, Star, CreditCard, Sparkles, ArrowRight, Globe, Download, Calendar, AlertCircle, Coins, TrendingUp, ArrowUpRight, Clock, FileText } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
@@ -175,15 +174,6 @@ interface CreditPackage {
   stripePriceId: string | null;
 }
 
-interface CreditTransaction {
-  id: string;
-  type: string;
-  amount: number;
-  description: string;
-  createdAt: string;
-  stripePaymentId: string | null;
-}
-
 declare global {
   interface Window {
     Razorpay: any;
@@ -211,14 +201,11 @@ export default function PlanBillingPage() {
   const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
-  const [transactionPage, setTransactionPage] = useState(0);
-  const transactionPageSize = 10;
 
   const sections = [
     { id: "plans", label: "Plans", icon: Crown },
     { id: "credit-packages", label: "Credit Packages", icon: TrendingUp },
     { id: "credit-records", label: "Credit Records", icon: FileText },
-    { id: "transactions", label: "Transactions", icon: Receipt },
   ];
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -247,10 +234,6 @@ export default function PlanBillingPage() {
 
   const { data: packages, isLoading: packagesLoading } = useQuery<CreditPackage[]>({
     queryKey: ["/api/credit-packages"],
-  });
-
-  const { data: transactions, isLoading: transactionsLoading } = useQuery<CreditTransaction[]>({
-    queryKey: ["/api/credit-transactions"],
   });
 
   const sipPluginEnabled = pluginCapabilities?.data?.capabilities?.['sip-engine'] ?? false;
@@ -510,14 +493,6 @@ export default function PlanBillingPage() {
     handlePaymentRedirect();
   }, []);
 
-  const totalTransactionPages = transactions ? Math.ceil(transactions.length / transactionPageSize) : 0;
-
-  useEffect(() => {
-    if (transactions && transactionPage >= totalTransactionPages && totalTransactionPages > 0) {
-      setTransactionPage(totalTransactionPages - 1);
-    }
-  }, [transactions, transactionPage, totalTransactionPages]);
-
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -538,7 +513,7 @@ export default function PlanBillingPage() {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [plans, subscription, packages, transactions]);
+  }, [plans, subscription, packages]);
 
   const stripeCheckout = useMutation({
     mutationFn: async ({ planId, billingPeriod }: { planId: string; billingPeriod: string }) => {
@@ -727,7 +702,7 @@ export default function PlanBillingPage() {
     window.open("/api/credit-transactions/export", "_blank");
   };
 
-  if (userLoading || plansLoading || subscriptionLoading || packagesLoading || transactionsLoading) {
+  if (userLoading || plansLoading || subscriptionLoading || packagesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1108,16 +1083,9 @@ export default function PlanBillingPage() {
           )}
 
           <div id="credit-records" ref={(el) => { sectionRefs.current["credit-records"] = el; }}>
-            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
-              Credit Records
-            </div>
-            <TransactionHistory embedded />
-          </div>
-
-          <div id="transactions" ref={(el) => { sectionRefs.current["transactions"] = el; }}>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2 px-1">
+            <div className="flex items-center justify-between mb-2 px-1 flex-wrap gap-2">
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Transaction History
+                Credit Records
               </div>
               <Button
                 variant="outline"
@@ -1129,104 +1097,7 @@ export default function PlanBillingPage() {
                 {t('billing.exportCSV')}
               </Button>
             </div>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
-              {transactions && transactions.length > 0 ? (
-                <>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.type')}</TableHead>
-                          <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.description')}</TableHead>
-                          <TableHead className="font-medium text-xs text-muted-foreground text-right">{t('billing.tableHeaders.amount')}</TableHead>
-                          <TableHead className="font-medium text-xs text-muted-foreground">{t('billing.tableHeaders.date')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {[...transactions]
-                          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                          .slice(transactionPage * transactionPageSize, (transactionPage + 1) * transactionPageSize)
-                          .map((transaction) => (
-                          <TableRow key={transaction.id}>
-                            <TableCell className="py-4">
-                              <Badge
-                                variant={transaction.type === "credit" ? "default" : "destructive"}
-                              >
-                                {transaction.type === "credit" ? (
-                                  <><Plus className="h-3 w-3 mr-1" />{t('billing.credit')}</>
-                                ) : (
-                                  <>{t('billing.debit')}</>
-                                )}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="py-4">
-                              <div className="font-medium text-sm">{transaction.description}</div>
-                              {transaction.stripePaymentId && (
-                                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                  <CreditCard className="h-3 w-3" />
-                                  {transaction.stripePaymentId.substring(0, 20)}...
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="py-4 text-right">
-                              <span className="font-mono text-sm font-bold">
-                                {transaction.type === "credit" ? "+" : "-"}{Math.abs(transaction.amount).toLocaleString()}
-                              </span>
-                            </TableCell>
-                            <TableCell className="py-4">
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Clock className="h-3.5 w-3.5" />
-                                {formatDistanceToNow(new Date(transaction.createdAt), { addSuffix: true })}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  {totalTransactionPages > 1 && (
-                    <div className="flex items-center justify-between p-4 border-t border-border">
-                      <div className="text-sm text-muted-foreground">
-                        {t('billing.pagination', {
-                          start: transactionPage * transactionPageSize + 1,
-                          end: Math.min((transactionPage + 1) * transactionPageSize, transactions.length),
-                          total: transactions.length
-                        })}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setTransactionPage(p => Math.max(0, p - 1))}
-                          disabled={transactionPage === 0}
-                          data-testid="button-billing-previous-page"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                          {t('billing.previous')}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setTransactionPage(p => Math.min(p + 1, totalTransactionPages - 1))}
-                          disabled={transactionPage >= totalTransactionPages - 1}
-                          data-testid="button-billing-next-page"
-                        >
-                          {t('billing.next')}
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="p-12 text-center">
-                  <div className="h-16 w-16 rounded-md bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                    <Receipt className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <p className="text-muted-foreground">{t('billing.noTransactions')}</p>
-                </div>
-              )}
-            </div>
+            <TransactionHistory embedded />
           </div>
 
         </div>

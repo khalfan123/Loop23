@@ -1,9 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CreditCard, FileText, Download, Receipt, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
+import { FileText, Download, Receipt, Loader2, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useState } from "react";
@@ -171,42 +168,6 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
     return `${symbol}${parseFloat(amount).toFixed(2)}`;
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">{t('transactionHistory.statusCompleted')}</Badge>;
-      case 'pending':
-        return <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t('transactionHistory.statusPending')}</Badge>;
-      case 'failed':
-        return <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{t('transactionHistory.statusFailed')}</Badge>;
-      case 'refunded':
-        return <Badge variant="secondary" className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400">{t('transactionHistory.statusRefunded')}</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
-  const getTypeBadge = (type: string, planName: string | null, packageName: string | null) => {
-    if (type === 'subscription') {
-      return (
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-            {t('transactionHistory.typeSubscription')}
-          </Badge>
-          {planName && <span className="text-sm text-muted-foreground">{planName}</span>}
-        </div>
-      );
-    }
-    return (
-      <div className="flex items-center gap-2">
-        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-          {t('transactionHistory.typeCredits')}
-        </Badge>
-        {packageName && <span className="text-sm text-muted-foreground">{packageName}</span>}
-      </div>
-    );
-  };
-
   const getGatewayLabel = (gateway: string) => {
     const labels: Record<string, string> = {
       'stripe': 'Stripe',
@@ -222,233 +183,171 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
 
   if (isLoading) {
     return (
-      <div className="space-y-8">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-slate-100/50 to-indigo-50 dark:from-slate-900/80 dark:via-slate-800/50 dark:to-indigo-950/40 border border-slate-200 dark:border-slate-700/50 p-6 md:p-8">
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-14 w-14 rounded-2xl" />
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-64" />
+      <div className="rounded-xl bg-card border border-border overflow-hidden">
+        <div className="p-4 space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-3">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+              <Skeleton className="h-4 w-20" />
             </div>
-          </div>
+          ))}
         </div>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-16">
-          <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
-            <CreditCard className="h-6 w-6 text-red-600 dark:text-red-400" />
-          </div>
-          <h3 className="text-lg font-medium text-foreground mb-2">{t('transactionHistory.errorTitle')}</h3>
-          <p className="text-sm text-muted-foreground">{t('transactionHistory.errorDescription')}</p>
-        </CardContent>
-      </Card>
+      <div className="rounded-xl bg-card border border-border p-8 text-center">
+        <Receipt className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+        <p className="text-sm font-medium text-foreground mb-1">{t('transactionHistory.errorTitle')}</p>
+        <p className="text-xs text-muted-foreground">{t('transactionHistory.errorDescription')}</p>
+      </div>
     );
   }
 
   const transactions = data?.transactions || [];
 
-  return (
-    <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-slate-100/50 to-indigo-50 dark:from-slate-900/80 dark:via-slate-800/50 dark:to-indigo-950/40 border border-slate-200 dark:border-slate-700/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-700 to-indigo-800 dark:from-slate-600 dark:to-indigo-700 flex items-center justify-center shadow-lg shadow-slate-500/25 dark:shadow-indigo-500/20">
-              <Receipt className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t('transactionHistory.title')}</h1>
-              <p className="text-muted-foreground mt-0.5">{t('transactionHistory.subtitle')}</p>
-            </div>
-          </div>
-          {!embedded && (
-            <Link href="/app/billing">
-              <Button variant="outline" data-testid="button-back-to-billing">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                {t('transactionHistory.backToBilling')}
-              </Button>
-            </Link>
-          )}
-        </div>
-
-        <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-              <div className="text-2xl font-bold text-slate-700 dark:text-slate-200" data-testid="text-total-transactions">
-                {data?.pagination.total || 0}
-              </div>
-            </div>
-            <div className="text-slate-600/70 dark:text-slate-400/70 text-sm">{t('transactionHistory.totalTransactions')}</div>
-          </div>
-          <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/50">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300" data-testid="text-invoices-available">
-                {transactions.filter(tx => tx.hasInvoice).length}
-              </div>
-            </div>
-            <div className="text-indigo-600/70 dark:text-indigo-400/70 text-sm">{t('transactionHistory.invoicesAvailable')}</div>
-          </div>
-        </div>
+  const getStatusDot = (status: string) => {
+    const colors: Record<string, string> = {
+      completed: "bg-emerald-500",
+      pending: "bg-amber-500",
+      failed: "bg-red-500",
+      refunded: "bg-slate-400",
+    };
+    return (
+      <div className="flex items-center gap-1.5">
+        <div className={`h-1.5 w-1.5 rounded-full ${colors[status] || "bg-slate-400"}`} />
+        <span className="text-xs text-muted-foreground capitalize">{status}</span>
       </div>
+    );
+  };
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-muted-foreground" />
-            {t('transactionHistory.recentTransactions')}
-          </CardTitle>
-          <CardDescription>{t('transactionHistory.recentTransactionsDescription')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {transactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="h-16 w-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-                <Receipt className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-medium text-foreground mb-2">{t('transactionHistory.emptyTitle')}</h3>
-              <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
-                {t('transactionHistory.emptyDescription')}
-              </p>
-              <Link href="/app/billing">
-                <Button data-testid="button-view-plans">
-                  {t('transactionHistory.viewPlans')}
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <>
-              <div className="rounded-lg border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('transactionHistory.columnDate')}</TableHead>
-                      <TableHead>{t('transactionHistory.columnType')}</TableHead>
-                      <TableHead>{t('transactionHistory.columnDescription')}</TableHead>
-                      <TableHead>{t('transactionHistory.columnAmount')}</TableHead>
-                      <TableHead>{t('transactionHistory.columnGateway')}</TableHead>
-                      <TableHead>{t('transactionHistory.columnStatus')}</TableHead>
-                      <TableHead className="text-right">{t('transactionHistory.columnDocuments')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((tx) => (
-                      <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
-                        <TableCell className="font-mono text-sm">
-                          {format(new Date(tx.createdAt), 'MMM d, yyyy')}
-                          <div className="text-xs text-muted-foreground">
-                            {format(new Date(tx.createdAt), 'h:mm a')}
-                          </div>
-                        </TableCell>
-                        <TableCell>{getTypeBadge(tx.type, tx.planName, tx.packageName)}</TableCell>
-                        <TableCell className="max-w-xs truncate">{tx.description}</TableCell>
-                        <TableCell className="font-mono font-medium">
-                          {formatCurrency(tx.amount, tx.currency)}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">{getGatewayLabel(tx.gateway)}</span>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(tx.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex flex-col items-end gap-1">
-                            {tx.hasInvoice && tx.invoiceId && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownloadInvoice(tx.invoiceId!, tx.invoiceNumber || undefined)}
-                                disabled={downloadingInvoice === tx.invoiceId}
-                                data-testid={`button-download-invoice-${tx.id}`}
-                              >
-                                {downloadingInvoice === tx.invoiceId ? (
-                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                ) : (
-                                  <FileText className="h-4 w-4 mr-1" />
-                                )}
-                                {t('transactionHistory.downloadInvoice')}
-                              </Button>
-                            )}
-                            {tx.hasRefund && tx.refundId && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownloadRefundNote(tx.refundId!, tx.refundNoteNumber || undefined)}
-                                disabled={downloadingRefundNote === tx.refundId}
-                                data-testid={`button-download-refund-note-${tx.id}`}
-                              >
-                                {downloadingRefundNote === tx.refundId ? (
-                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                ) : (
-                                  <Download className="h-4 w-4 mr-1" />
-                                )}
-                                {t('transactionHistory.downloadRefundNote')}
-                              </Button>
-                            )}
-                            {!tx.hasInvoice && !tx.hasRefund && (
-                              <span className="text-sm text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    {t('transactionHistory.pagination', { 
-                      start: page * limit + 1, 
-                      end: Math.min((page + 1) * limit, data?.pagination.total || 0),
-                      total: data?.pagination.total || 0 
-                    })}
+  return (
+    <div className="space-y-3">
+      {!embedded && (
+        <div className="flex items-center justify-between px-1 flex-wrap gap-2">
+          <div>
+            <h2 className="text-lg font-semibold">{t('transactionHistory.title')}</h2>
+            <p className="text-xs text-muted-foreground">{t('transactionHistory.subtitle')}</p>
+          </div>
+          <Link href="/app/billing">
+            <Button variant="outline" size="sm" data-testid="button-back-to-billing">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {t('transactionHistory.backToBilling')}
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      <div className="rounded-xl bg-card border border-border overflow-hidden">
+        {transactions.length === 0 ? (
+          <div className="p-12 text-center">
+            <Receipt className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-sm font-medium text-foreground mb-1">{t('transactionHistory.emptyTitle')}</p>
+            <p className="text-xs text-muted-foreground">{t('transactionHistory.emptyDescription')}</p>
+          </div>
+        ) : (
+          <>
+            <div className="divide-y divide-border">
+              {transactions.map((tx) => (
+                <div key={tx.id} className="px-4 py-3.5 flex items-center gap-3" data-testid={`row-transaction-${tx.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <span className="text-sm font-medium text-foreground truncate">{tx.description}</span>
+                      {tx.type === 'subscription' && tx.planName && (
+                        <span className="text-xs text-muted-foreground">{tx.planName}</span>
+                      )}
+                      {tx.type === 'credit_purchase' && tx.packageName && (
+                        <span className="text-xs text-muted-foreground">{tx.packageName}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(tx.createdAt), 'MMM d, yyyy')}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{getGatewayLabel(tx.gateway)}</span>
+                      {getStatusDot(tx.status)}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => Math.max(0, p - 1))}
-                      disabled={page === 0}
-                      data-testid="button-previous-page"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      {t('transactionHistory.previous')}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => p + 1)}
-                      disabled={!data?.pagination.hasMore}
-                      data-testid="button-next-page"
-                    >
-                      {t('transactionHistory.next')}
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {(tx.hasInvoice && tx.invoiceId) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDownloadInvoice(tx.invoiceId!, tx.invoiceNumber || undefined)}
+                        disabled={downloadingInvoice === tx.invoiceId}
+                        data-testid={`button-download-invoice-${tx.id}`}
+                      >
+                        {downloadingInvoice === tx.invoiceId ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    )}
+                    {(tx.hasRefund && tx.refundId) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDownloadRefundNote(tx.refundId!, tx.refundNoteNumber || undefined)}
+                        disabled={downloadingRefundNote === tx.refundId}
+                        data-testid={`button-download-refund-note-${tx.id}`}
+                      >
+                        {downloadingRefundNote === tx.refundId ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    )}
+                    <span className="text-sm font-mono font-semibold tabular-nums min-w-[80px] text-right">
+                      {formatCurrency(tx.amount, tx.currency)}
+                    </span>
                   </div>
                 </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border flex-wrap gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {t('transactionHistory.pagination', { 
+                    start: page * limit + 1, 
+                    end: Math.min((page + 1) * limit, data?.pagination.total || 0),
+                    total: data?.pagination.total || 0 
+                  })}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    data-testid="button-previous-page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {page + 1} / {totalPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={!data?.pagination.hasMore}
+                    data-testid="button-next-page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

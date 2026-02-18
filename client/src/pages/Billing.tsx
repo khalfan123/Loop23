@@ -501,14 +501,7 @@ export default function Billing() {
           <p className="text-sm text-muted-foreground mt-1">{t('billing.subtitle')}</p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
-            <div className="flex items-center gap-2">
-              <Coins className="h-4 w-4 text-muted-foreground" />
-              <div className="text-2xl font-semibold" data-testid="text-header-balance">{currentBalance.toLocaleString()}</div>
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">{t('billing.currentBalance')}</div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <div className="rounded-xl bg-white dark:bg-zinc-900 p-4">
             <div className="flex items-center gap-2">
               <Crown className="h-4 w-4 text-muted-foreground" />

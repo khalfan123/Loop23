@@ -174,6 +174,15 @@ interface CreditPackage {
   stripePriceId: string | null;
 }
 
+interface CreditTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  description: string;
+  createdAt: string;
+  stripePaymentId: string | null;
+}
+
 declare global {
   interface Window {
     Razorpay: any;
@@ -234,6 +243,10 @@ export default function PlanBillingPage() {
 
   const { data: packages, isLoading: packagesLoading } = useQuery<CreditPackage[]>({
     queryKey: ["/api/credit-packages"],
+  });
+
+  const { data: creditTransactions, isLoading: creditTransactionsLoading } = useQuery<CreditTransaction[]>({
+    queryKey: ["/api/credit-transactions"],
   });
 
   const sipPluginEnabled = pluginCapabilities?.data?.capabilities?.['sip-engine'] ?? false;
@@ -702,7 +715,7 @@ export default function PlanBillingPage() {
     window.open("/api/credit-transactions/export", "_blank");
   };
 
-  if (userLoading || plansLoading || subscriptionLoading || packagesLoading) {
+  if (userLoading || plansLoading || subscriptionLoading || packagesLoading || creditTransactionsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1097,7 +1110,48 @@ export default function PlanBillingPage() {
                 {t('billing.exportCSV')}
               </Button>
             </div>
-            <TransactionHistory embedded />
+
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
+              {creditTransactions && creditTransactions.length > 0 ? (
+                <div className="divide-y divide-border">
+                  {[...creditTransactions]
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map((transaction) => (
+                    <div key={transaction.id} className="px-4 py-3.5 flex items-center gap-3" data-testid={`row-credit-${transaction.id}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <span className="text-sm font-medium text-foreground truncate">{transaction.description}</span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(transaction.createdAt), { addSuffix: true })}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <div className={`h-1.5 w-1.5 rounded-full ${transaction.type === "credit" ? "bg-emerald-500" : "bg-red-500"}`} />
+                            <span className="text-xs text-muted-foreground capitalize">{transaction.type === "credit" ? t('billing.credit') : t('billing.debit')}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`text-sm font-mono font-semibold tabular-nums ${transaction.type === "credit" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                        {transaction.type === "credit" ? "+" : "-"}{Math.abs(transaction.amount).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-12 text-center">
+                  <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm font-medium text-foreground mb-1">{t('billing.noTransactions')}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6">
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
+                {t('transactionHistory.title')}
+              </div>
+              <TransactionHistory embedded />
+            </div>
           </div>
 
         </div>

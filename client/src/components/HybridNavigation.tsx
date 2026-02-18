@@ -193,7 +193,7 @@ export function HybridNavigation({
         href={item.url}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-[14px] group",
+          "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-[13px] group",
           active 
             ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-medium shadow-sm" 
             : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -226,46 +226,40 @@ export function HybridNavigation({
     <aside
       className="hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] w-64"
     >
-      {/* Logo - Uncontained */}
+      {/* Logo - Compact */}
       <Link 
         href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-        className="flex-shrink-0 flex flex-col items-center py-2"
+        className="flex-shrink-0 flex items-center justify-center px-3 py-3 border-b border-black/[0.04] dark:border-white/[0.04]"
         data-testid="link-logo-sidebar"
       >
         {currentLogo ? (
-          <img src={currentLogo} alt={branding.app_name} className="h-[120px] w-[120px] object-contain" />
+          <img src={currentLogo} alt={branding.app_name} className="h-10 w-auto max-w-[160px] object-contain" />
         ) : (
-          <>
-            <div className="h-[120px] w-[120px] rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/40">
-              <span className="text-white font-bold text-5xl">{branding.app_name?.charAt(0) || 'A'}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <span className="text-white font-bold text-lg">{branding.app_name?.charAt(0) || 'A'}</span>
             </div>
-            <div className="flex flex-col items-center mt-1">
-              <span className="font-bold text-lg text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">AI Platform</span>
-            </div>
-          </>
+            <span className="font-bold text-base text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
+          </div>
         )}
       </Link>
 
-      {/* Navigation Content - Scrollable (no top gap) */}
-      <div className="flex-1 min-h-0 pt-0 pb-2 px-3 space-y-0.5 overflow-y-auto">
-        {/* Top Items */}
+      {/* Navigation Content */}
+      <div className="flex-1 min-h-0 py-2 px-3 space-y-0.5 overflow-y-auto">
         {topItems.map((item) => (
           <NavItemComponent key={item.url} item={item} showLabel={true} />
         ))}
 
-        {/* Return to App */}
         {(variant === 'admin' || variant === 'admin-team') && (
           <div className="pt-1">
             <NavItemComponent item={returnToAppItem} showLabel={true} />
           </div>
         )}
 
-        {/* Nav Sections */}
         {navSections.map((section, idx) => (
-          <div key={section.label || idx} className="pt-4">
+          <div key={section.label || idx} className="pt-3">
             {section.label && (
-              <div className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
                 {section.label}
               </div>
             )}
@@ -277,10 +271,9 @@ export function HybridNavigation({
           </div>
         ))}
 
-        {/* Admin Link */}
         {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-          <div className="pt-4">
-            <div className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+          <div className="pt-3">
+            <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
               {t('nav.administration')}
             </div>
             <NavItemComponent 
@@ -291,14 +284,14 @@ export function HybridNavigation({
         )}
       </div>
 
-      {/* Credits Card - iOS 18 Minimal */}
-      <div className="flex-shrink-0 px-3 pb-2">
-        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+      {/* Credits + User Footer combined */}
+      <div className="flex-shrink-0 px-3 pb-1.5 pt-1">
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm">
           <div className="flex items-center gap-2">
-            <Coins className="h-4 w-4 text-amber-500" />
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">{t('sidebar.credits')}</span>
+            <Coins className="h-3.5 w-3.5 text-amber-500" />
+            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{t('sidebar.credits')}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <span className="text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">{remainingCredits.toLocaleString()}</span>
             {isPaidPlan && (
               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
@@ -309,22 +302,21 @@ export function HybridNavigation({
         </div>
       </div>
 
-      {/* User Footer - iOS 18 Minimal */}
-      <div className="flex-shrink-0 p-2 border-t border-border/20">
+      <div className="flex-shrink-0 px-2 pb-2 border-t border-border/20">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className="flex items-center gap-2.5 w-full p-2 rounded-2xl transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-testid="button-user-menu-sidebar"
             >
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-foreground/[0.08] text-foreground text-sm font-medium">
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="bg-foreground/[0.08] text-foreground text-xs font-medium">
                   {userInitial}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0 text-left">
-                <div className="text-sm font-medium text-foreground truncate">{userName}</div>
-                <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
+                <div className="text-[13px] font-medium text-foreground truncate">{userName}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{userEmail}</div>
               </div>
               <ChevronDown className="h-3.5 w-3.5 text-foreground/30" />
             </button>
@@ -378,15 +370,15 @@ export function HybridNavigation({
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-1">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-3 space-y-0.5">
           {topItems.map((item) => (
             <NavItemComponent key={item.url} item={item} showLabel={true} />
           ))}
 
           {navSections.map((section, idx) => (
-            <div key={section.label || idx} className="pt-6">
+            <div key={section.label || idx} className="pt-3">
               {section.label && (
-                <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+                <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
                   {section.label}
                 </div>
               )}
@@ -399,8 +391,8 @@ export function HybridNavigation({
           ))}
 
           {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-            <div className="pt-6">
-              <div className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
+            <div className="pt-3">
+              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
                 {t('nav.administration')}
               </div>
               <NavItemComponent 

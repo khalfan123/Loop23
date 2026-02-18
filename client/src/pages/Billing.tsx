@@ -621,29 +621,6 @@ export default function Billing() {
             </Alert>
           )}
 
-          <div className="rounded-xl bg-white dark:bg-zinc-900 p-6 mb-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div>
-                <div className="text-sm font-medium text-muted-foreground mb-1">{t('billing.currentBalance')}</div>
-                <div className="text-4xl font-bold font-mono tabular-nums" data-testid="text-credit-balance">
-                  {currentBalance.toLocaleString()}
-                </div>
-                <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  {t('billing.availableCredits')}
-                </div>
-              </div>
-              <Button 
-                size="lg" 
-                onClick={() => packages && packages[0] && handlePurchaseCredits(packages[0].id)}
-                disabled={!hasActiveSubscription || !!loadingCheckout}
-                data-testid="button-recharge-credits"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                {t('billing.purchaseCredits')}
-              </Button>
-            </div>
-          </div>
 
           {packages && packages.length > 0 && (
             <div className="space-y-4">

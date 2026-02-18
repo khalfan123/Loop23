@@ -216,16 +216,25 @@
     var dropdown = document.getElementById('vw-lang-dropdown');
     if (!dropdown) return;
     
-    // Rebuild dropdown options with engine-specific languages
     var sortedLanguages = getSortedLanguages();
-    var optionsHtml = sortedLanguages.map(function(code) {
-      return '<button class="vw-lang-option' + (code === currentLang ? ' vw-selected' : '') + '" data-lang="' + code + '">' +
-        '<span class="vw-lang-option-flag">' + getLanguageFlag(code) + '</span>' +
-        '<span class="vw-lang-option-name">' + getLanguageName(code) + '</span>' +
-      '</button>';
-    }).join('');
-    
-    dropdown.innerHTML = optionsHtml;
+    dropdown.textContent = '';
+    sortedLanguages.forEach(function(code) {
+      var btn = document.createElement('button');
+      btn.className = 'vw-lang-option' + (code === currentLang ? ' vw-selected' : '');
+      btn.setAttribute('data-lang', code);
+
+      var flagSpan = document.createElement('span');
+      flagSpan.className = 'vw-lang-option-flag';
+      flagSpan.textContent = getLanguageFlag(code);
+
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'vw-lang-option-name';
+      nameSpan.textContent = getLanguageName(code);
+
+      btn.appendChild(flagSpan);
+      btn.appendChild(nameSpan);
+      dropdown.appendChild(btn);
+    });
     
     // Update the flag button
     var flagEl = document.getElementById('vw-lang-flag');

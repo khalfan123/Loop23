@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Zap, Crown, Loader2, Star, CreditCard, Sparkles, ArrowRight, Globe, Download, Calendar, AlertCircle, Coins, TrendingUp, ArrowUpRight, Clock, FileText } from "lucide-react";
@@ -195,7 +195,6 @@ export default function PlanBillingPage() {
   const { branding } = useBranding();
   const searchString = useSearch();
 
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [activeSection, setActiveSection] = useState("plans");
 
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -395,12 +394,10 @@ export default function PlanBillingPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
-    const tab = params.get("tab");
-    if (tab === "credits") {
-      setTimeout(() => {
-        sectionRefs.current["credit-packages"]?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 300);
-    }
+    const tab = params.get('tab');
+    if (tab === 'credits') setActiveSection('credit-records');
+    else if (tab === 'packages') setActiveSection('credit-packages');
+    else if (tab) setActiveSection(tab);
   }, [searchString]);
 
   useEffect(() => {
@@ -506,27 +503,6 @@ export default function PlanBillingPage() {
     handlePaymentRedirect();
   }, []);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: "-20% 0px -70% 0px" }
-    );
-    const timer = setTimeout(() => {
-      Object.values(sectionRefs.current).forEach((ref) => {
-        if (ref) observer.observe(ref);
-      });
-    }, 100);
-    return () => {
-      clearTimeout(timer);
-      observer.disconnect();
-    };
-  }, [plans, subscription, packages]);
 
   const stripeCheckout = useMutation({
     mutationFn: async ({ planId, billingPeriod }: { planId: string; billingPeriod: string }) => {
@@ -738,54 +714,46 @@ export default function PlanBillingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-8">
-        <div className="hidden lg:block w-44 flex-shrink-0">
-          <div className="sticky top-4 space-y-1 z-50">
-            {sections.map(section => (
-              <button
-                key={section.id}
-                onClick={() => {
-                  sectionRefs.current[section.id]?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
-                  activeSection === section.id
-                    ? "bg-card text-foreground font-medium"
-                    : "text-muted-foreground"
-                }`}
-                data-testid={`nav-${section.id}`}
-              >
-                <section.icon className="h-3.5 w-3.5" />
-                {section.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="flex items-center gap-1 border-b border-border pb-0">
+        {sections.map(section => (
+          <button
+            key={section.id}
+            onClick={() => setActiveSection(section.id)}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors relative flex items-center gap-2 ${
+              activeSection === section.id
+                ? "text-foreground"
+                : "text-muted-foreground"
+            }`}
+            data-testid={`tab-${section.id}`}
+          >
+            <section.icon className="h-3.5 w-3.5" />
+            {section.label}
+            {activeSection === section.id && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full" />
+            )}
+          </button>
+        ))}
+      </div>
 
-        <div className="flex-1 min-w-0 space-y-8 scroll-smooth">
-
-          <div id="plans" ref={(el) => { sectionRefs.current["plans"] = el; }}>
-            <div className="flex items-center justify-between mb-2 px-1 flex-wrap gap-2">
-              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Plans
-              </div>
-              {buildAvailableCurrencies().length > 1 && (
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                    <SelectTrigger className="w-[140px]" data-testid="select-currency">
-                      <SelectValue placeholder="Currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {buildAvailableCurrencies().map((currency) => (
-                        <SelectItem key={currency.code} value={currency.code}>
-                          {currency.symbol} {currency.code}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+      {activeSection === "plans" && (
+        <div className="space-y-6">
+          {buildAvailableCurrencies().length > 1 && (
+            <div className="flex items-center justify-end gap-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                <SelectTrigger className="w-[140px]" data-testid="select-currency">
+                  <SelectValue placeholder="Currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {buildAvailableCurrencies().map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.symbol} {currency.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          )}
             <div className={`grid grid-cols-1 ${sortedPlans.length === 2 ? "md:grid-cols-2" : sortedPlans.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-3"} gap-4`}>
               {sortedPlans.map((plan, index) => {
                 const isCurrentPlan = currentPlanName === plan.name;
@@ -972,13 +940,13 @@ export default function PlanBillingPage() {
                 );
               })}
             </div>
-          </div>
+        </div>
+      )}
 
+      {activeSection === "credit-packages" && (
+        <div className="space-y-6">
           {packages && packages.length > 0 && (
-            <div id="credit-packages" ref={(el) => { sectionRefs.current["credit-packages"] = el; }}>
-              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
-                Credit Packages
-              </div>
+            <div>
               <div className="rounded-xl bg-card border border-border overflow-hidden">
                 {packages.map((pkg, index) => {
                   const priceInfo = getPackagePrice(pkg, selectedCurrency);
@@ -1045,10 +1013,7 @@ export default function PlanBillingPage() {
           )}
 
           {subscription && hasActiveSubscription && !subscription.cancelAtPeriodEnd && subscription.plan.name !== "free" && (subscription.stripeSubscriptionId || subscription.razorpaySubscriptionId || subscription.paypalSubscriptionId || subscription.paystackSubscriptionCode || subscription.mercadopagoSubscriptionId) && (
-            <div id="subscription" ref={(el) => { sectionRefs.current["subscription"] = el; }}>
-              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
-                Subscription Details
-              </div>
+            <div>
               <div className="rounded-xl bg-card border border-border overflow-hidden">
                 <div className="p-5 space-y-4">
                   <div className="flex items-center gap-3">
@@ -1094,71 +1059,69 @@ export default function PlanBillingPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
 
-          <div id="credit-records" ref={(el) => { sectionRefs.current["credit-records"] = el; }}>
-            <div className="flex items-center justify-between mb-3 px-1 flex-wrap gap-2">
-              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Credit Records
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportTransactions}
-                data-testid="button-export-transactions"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {t('billing.exportCSV')}
-              </Button>
-            </div>
-
-            <div className="rounded-xl bg-card border border-border overflow-hidden" data-testid="card-credit-records">
-              <div className="px-4 py-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <Coins className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{t('billing.credit')} & {t('billing.debit')}</span>
-                </div>
-              </div>
-              {creditTransactions && creditTransactions.length > 0 ? (
-                <div className="divide-y divide-border">
-                  {[...creditTransactions]
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                    .map((transaction) => (
-                    <div key={transaction.id} className="px-4 py-3.5 flex items-center gap-3" data-testid={`row-credit-${transaction.id}`}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <span className="text-sm font-medium text-foreground truncate">{transaction.description}</span>
-                        </div>
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(transaction.createdAt), { addSuffix: true })}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <div className={`h-1.5 w-1.5 rounded-full ${transaction.type === "credit" ? "bg-emerald-500" : "bg-red-500"}`} />
-                            <span className="text-xs text-muted-foreground capitalize">{transaction.type === "credit" ? t('billing.credit') : t('billing.debit')}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <span className={`text-sm font-mono font-semibold tabular-nums ${transaction.type === "credit" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                        {transaction.type === "credit" ? "+" : "-"}{Math.abs(transaction.amount).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-8 text-center">
-                  <FileText className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">{t('billing.noTransactions')}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6">
-              <TransactionHistory embedded />
-            </div>
+      {activeSection === "credit-records" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportTransactions}
+              data-testid="button-export-transactions"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {t('billing.exportCSV')}
+            </Button>
           </div>
 
+          <div className="rounded-xl bg-card border border-border overflow-hidden" data-testid="card-credit-records">
+            <div className="px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{t('billing.credit')} & {t('billing.debit')}</span>
+              </div>
+            </div>
+            {creditTransactions && creditTransactions.length > 0 ? (
+              <div className="divide-y divide-border">
+                {[...creditTransactions]
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .map((transaction) => (
+                  <div key={transaction.id} className="px-4 py-3.5 flex items-center gap-3" data-testid={`row-credit-${transaction.id}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <span className="text-sm font-medium text-foreground truncate">{transaction.description}</span>
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(transaction.createdAt), { addSuffix: true })}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <div className={`h-1.5 w-1.5 rounded-full ${transaction.type === "credit" ? "bg-emerald-500" : "bg-red-500"}`} />
+                          <span className="text-xs text-muted-foreground capitalize">{transaction.type === "credit" ? t('billing.credit') : t('billing.debit')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`text-sm font-mono font-semibold tabular-nums ${transaction.type === "credit" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                      {transaction.type === "credit" ? "+" : "-"}{Math.abs(transaction.amount).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <FileText className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">{t('billing.noTransactions')}</p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <TransactionHistory embedded />
+          </div>
         </div>
-      </div>
+      )}
 
       <Dialog open={showPaymentDialog && selectedPlan !== null} onOpenChange={setShowPaymentDialog}>
         <DialogContent className="sm:max-w-lg">

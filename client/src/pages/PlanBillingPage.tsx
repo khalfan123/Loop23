@@ -217,7 +217,6 @@ export default function PlanBillingPage() {
   const sections = [
     { id: "current-plan", label: "Current Plan", icon: Crown },
     { id: "available-plans", label: "Available Plans", icon: Zap },
-    { id: "credit-balance", label: "Credit Balance", icon: Coins },
     { id: "credit-packages", label: "Credit Packages", icon: TrendingUp },
     { id: "subscription", label: "Subscription", icon: Calendar },
     { id: "transactions", label: "Transactions", icon: Receipt },
@@ -405,7 +404,7 @@ export default function PlanBillingPage() {
     const tab = params.get("tab");
     if (tab === "credits") {
       setTimeout(() => {
-        sectionRefs.current["credit-balance"]?.scrollIntoView({ behavior: "smooth", block: "start" });
+        sectionRefs.current["credit-packages"]?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 300);
     }
   }, [searchString]);
@@ -1029,54 +1028,6 @@ export default function PlanBillingPage() {
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          <div id="credit-balance" ref={(el) => { sectionRefs.current["credit-balance"] = el; }}>
-            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
-              Credit Balance
-            </div>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
-              <div className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                  <div>
-                    <div className="text-sm font-medium text-muted-foreground mb-1">{t('billing.currentBalance')}</div>
-                    <div className="text-4xl font-bold font-mono tabular-nums" data-testid="text-credit-balance">
-                      {currentBalance.toLocaleString()}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      {t('billing.availableCredits')}
-                    </div>
-                  </div>
-                  <Button
-                    size="lg"
-                    onClick={() => packages && packages[0] && handlePurchaseCredits(packages[0].id)}
-                    disabled={!hasActiveSubscription || !!loadingCheckout}
-                    data-testid="button-recharge-credits"
-                  >
-                    <Plus className="h-5 w-5 mr-2" />
-                    {t('billing.purchaseCredits')}
-                  </Button>
-                </div>
-                <div className="mt-4 pt-4 border-t border-border">
-                  <div className="flex items-start gap-3">
-                    <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-muted-foreground">
-                      Premium plan users can purchase credits for making calls. 1 credit = 60 seconds of call time (rounded up).
-                      For example, a 62-second call uses 2 credits.
-                    </p>
-                  </div>
-                </div>
-                {!hasActiveSubscription && (
-                  <Alert className="mt-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      {t('billing.membershipRequired')}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
             </div>
           </div>
 

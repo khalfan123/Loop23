@@ -217,7 +217,6 @@ export default function PlanBillingPage() {
   const sections = [
     { id: "plans", label: "Plans", icon: Crown },
     { id: "credit-packages", label: "Credit Packages", icon: TrendingUp },
-    { id: "subscription", label: "Subscription", icon: Calendar },
     { id: "credit-records", label: "Credit Records", icon: FileText },
     { id: "transactions", label: "Transactions", icon: Receipt },
   ];

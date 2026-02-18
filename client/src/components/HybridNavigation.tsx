@@ -226,21 +226,23 @@ export function HybridNavigation({
     <aside
       className="hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] w-64"
     >
-      {/* Logo - Compact */}
+      {/* Logo */}
       <Link 
         href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-        className="flex-shrink-0 flex items-center justify-center px-3 py-3 border-b border-black/[0.04] dark:border-white/[0.04]"
+        className="flex-shrink-0 flex flex-col items-center py-3 border-b border-black/[0.04] dark:border-white/[0.04]"
         data-testid="link-logo-sidebar"
       >
         {currentLogo ? (
-          <img src={currentLogo} alt={branding.app_name} className="h-10 w-auto max-w-[160px] object-contain" />
+          <img src={currentLogo} alt={branding.app_name} className="h-[80px] w-[80px] object-contain" />
         ) : (
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <span className="text-white font-bold text-lg">{branding.app_name?.charAt(0) || 'A'}</span>
+          <>
+            <div className="h-[80px] w-[80px] rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/30">
+              <span className="text-white font-bold text-4xl">{branding.app_name?.charAt(0) || 'A'}</span>
             </div>
-            <span className="font-bold text-base text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
-          </div>
+            <div className="flex flex-col items-center mt-1">
+              <span className="font-bold text-base text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
+            </div>
+          </>
         )}
       </Link>
 

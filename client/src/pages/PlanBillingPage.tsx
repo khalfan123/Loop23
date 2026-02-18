@@ -218,8 +218,8 @@ export default function PlanBillingPage() {
     { id: "plans", label: "Plans", icon: Crown },
     { id: "credit-packages", label: "Credit Packages", icon: TrendingUp },
     { id: "subscription", label: "Subscription", icon: Calendar },
-    { id: "transactions", label: "Transactions", icon: Receipt },
     { id: "credit-records", label: "Credit Records", icon: FileText },
+    { id: "transactions", label: "Transactions", icon: Receipt },
   ];
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -1108,6 +1108,13 @@ export default function PlanBillingPage() {
             </div>
           )}
 
+          <div id="credit-records" ref={(el) => { sectionRefs.current["credit-records"] = el; }}>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
+              Credit Records
+            </div>
+            <TransactionHistory embedded />
+          </div>
+
           <div id="transactions" ref={(el) => { sectionRefs.current["transactions"] = el; }}>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2 px-1">
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -1221,13 +1228,6 @@ export default function PlanBillingPage() {
                 </div>
               )}
             </div>
-          </div>
-
-          <div id="credit-records" ref={(el) => { sectionRefs.current["credit-records"] = el; }}>
-            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 px-1">
-              Credit Records
-            </div>
-            <TransactionHistory embedded />
           </div>
 
         </div>

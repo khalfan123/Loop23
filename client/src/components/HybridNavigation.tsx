@@ -226,28 +226,28 @@ export function HybridNavigation({
     <aside
       className="hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] w-64"
     >
-      {/* Logo */}
-      <Link 
-        href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
-        className="flex-shrink-0 flex flex-col items-center py-3 border-b border-black/[0.04] dark:border-white/[0.04]"
-        data-testid="link-logo-sidebar"
-      >
-        {currentLogo ? (
-          <img src={currentLogo} alt={branding.app_name} className="h-[120px] w-[120px] object-contain" />
-        ) : (
-          <>
-            <div className="h-[120px] w-[120px] rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/40">
-              <span className="text-white font-bold text-5xl">{branding.app_name?.charAt(0) || 'A'}</span>
-            </div>
-            <div className="flex flex-col items-center mt-1">
-              <span className="font-bold text-base text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
-            </div>
-          </>
-        )}
-      </Link>
+      {/* Navigation Content with Logo merged in */}
+      <div className="flex-1 min-h-0 px-3 overflow-y-auto">
+        <Link 
+          href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
+          className="flex flex-col items-center py-3"
+          data-testid="link-logo-sidebar"
+        >
+          {currentLogo ? (
+            <img src={currentLogo} alt={branding.app_name} className="h-[120px] w-[120px] object-contain" />
+          ) : (
+            <>
+              <div className="h-[120px] w-[120px] rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/40">
+                <span className="text-white font-bold text-5xl">{branding.app_name?.charAt(0) || 'A'}</span>
+              </div>
+              <div className="flex flex-col items-center mt-1">
+                <span className="font-bold text-base text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>
+              </div>
+            </>
+          )}
+        </Link>
 
-      {/* Navigation Content */}
-      <div className="flex-1 min-h-0 py-2 px-3 space-y-0.5 overflow-y-auto">
+        <div className="space-y-0.5">
         {topItems.map((item) => (
           <NavItemComponent key={item.url} item={item} showLabel={true} />
         ))}
@@ -284,6 +284,7 @@ export function HybridNavigation({
             />
           </div>
         )}
+        </div>
       </div>
 
       {/* Credits + User Footer combined */}

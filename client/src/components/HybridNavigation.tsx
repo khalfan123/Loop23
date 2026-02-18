@@ -233,11 +233,11 @@ export function HybridNavigation({
         data-testid="link-logo-sidebar"
       >
         {currentLogo ? (
-          <img src={currentLogo} alt={branding.app_name} className="h-[80px] w-[80px] object-contain" />
+          <img src={currentLogo} alt={branding.app_name} className="h-[100px] w-[100px] object-contain" />
         ) : (
           <>
-            <div className="h-[80px] w-[80px] rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/30">
-              <span className="text-white font-bold text-4xl">{branding.app_name?.charAt(0) || 'A'}</span>
+            <div className="h-[100px] w-[100px] rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/30">
+              <span className="text-white font-bold text-5xl">{branding.app_name?.charAt(0) || 'A'}</span>
             </div>
             <div className="flex flex-col items-center mt-1">
               <span className="font-bold text-base text-zinc-900 dark:text-white tracking-tight">{branding.app_name}</span>

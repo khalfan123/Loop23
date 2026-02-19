@@ -1386,7 +1386,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
     const phone = phoneNumber[0];
 
     // Check for IVR configuration FIRST (department routing takes priority)
-    const ivrConfig = await db
+    let ivrConfig = await db
       .select()
       .from(ivrConfigurations)
       .where(and(
@@ -1395,6 +1395,23 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
       ))
       .orderBy(desc(ivrConfigurations.updatedAt))
       .limit(1);
+
+    // Fallback: if no IVR config for this specific phone number,
+    // check for any active IVR config from the same user (department can have multiple numbers)
+    if ((!ivrConfig || ivrConfig.length === 0) && phone.userId) {
+      ivrConfig = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(and(
+          eq(ivrConfigurations.userId, phone.userId),
+          eq(ivrConfigurations.isActive, true)
+        ))
+        .orderBy(desc(ivrConfigurations.updatedAt))
+        .limit(1);
+      if (ivrConfig && ivrConfig.length > 0) {
+        console.log(`📞 [Incoming Call] No IVR for phone ${To} directly, using user-level IVR config: ${ivrConfig[0].name}`);
+      }
+    }
 
     if (ivrConfig && ivrConfig.length > 0) {
       console.log(`📞 [Incoming Call] Found IVR configuration for ${To} - routing to IVR menu`);

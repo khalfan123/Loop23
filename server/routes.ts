@@ -1503,6 +1503,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Must be registered BEFORE publicWidgetRoutes to ensure specific path matches first
   app.use("/api/public/platform-languages", platformLanguagesPublicRouter);
 
+  // IVR Audio routes - NO authentication (Twilio calls this directly during phone calls)
+  // Must be registered BEFORE the catch-all /api auth middleware below
+  const ivrAudioRoutes = createIvrAudioRoutes();
+  app.use("/api/departments", ivrAudioRoutes);
+
   // Website Widget routes - Embeddable voice widgets (isolated module)
   // Public widget routes must be registered BEFORE authenticated routes to allow external website embedding
   app.use("/api/public", publicWidgetRoutes);
@@ -1520,9 +1525,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Department Management routes
   const departmentRoutes = createDepartmentRoutes(routeContext.authenticateHybrid);
   app.use("/api/departments", departmentRoutes);
-
-  const ivrAudioRoutes = createIvrAudioRoutes();
-  app.use("/api/departments", ivrAudioRoutes);
 
   // This must be registered on the httpServer to properly handle Twilio WebSocket streams
   httpServer.on('upgrade', (request, socket, head) => {

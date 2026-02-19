@@ -988,19 +988,6 @@ The prompt should:
   return router;
 }
 
-const ttsAudioCache = new Map<string, { buffer: Buffer; timestamp: number }>();
-const TTS_CACHE_TTL = 10 * 60 * 1000;
-
-function hashText(text: string): string {
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    const chr = text.charCodeAt(i);
-    hash = ((hash << 5) - hash) + chr;
-    hash |= 0;
-  }
-  return hash.toString(36);
-}
-
 export function createIvrAudioRoutes() {
   const router = Router();
 
@@ -1087,6 +1074,19 @@ export function createIvrAudioRoutes() {
   });
 
   return router;
+}
+
+const ttsAudioCache = new Map<string, { buffer: Buffer; timestamp: number }>();
+const TTS_CACHE_TTL = 10 * 60 * 1000;
+
+function hashText(text: string): string {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    const chr = text.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0;
+  }
+  return hash.toString(36);
 }
 
 /**

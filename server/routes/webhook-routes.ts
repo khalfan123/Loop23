@@ -806,19 +806,37 @@ function translateDeptNameForIvr(name: string, langCode: string): string {
   return name;
 }
 
+const NUMBER_WORDS: Record<string, string[]> = {
+  en: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
+  fr: ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'],
+  it: ['zero', 'uno', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove'],
+  zh: ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'],
+  hi: ['शून्य', 'एक', 'दो', 'तीन', 'चार', 'पाँच', 'छह', 'सात', 'आठ', 'नौ'],
+  ar: ['صفر', 'واحد', 'اثنين', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'],
+};
+
+function spokenNumber(num: number, langCode: string): string {
+  const words = NUMBER_WORDS[langCode];
+  if (words && num >= 0 && num <= 9) {
+    return words[num];
+  }
+  return String(num);
+}
+
 function buildDeptMenuPrompt(deptNames: string[], langCode: string): string {
   const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
   const items = deptNames.map((name, idx) => {
     const translated = translateDeptNameForIvr(name, langCode);
     const keyNum = idx + 1;
+    const num = spokenNumber(keyNum, langCode);
     if (langCode === 'ar') {
-      return `${template.prefix}${translated} ${template.pressKey} ${keyNum}`;
+      return `${template.prefix}${translated} ${template.pressKey} ${num}`;
     } else if (langCode === 'zh') {
-      return `${template.prefix}${translated}${template.pressKey}${keyNum}`;
+      return `${template.prefix}${translated}${template.pressKey}${num}`;
     } else if (langCode === 'hi') {
-      return `${translated} ${template.prefix} ${keyNum} ${template.pressKey}`;
+      return `${translated} ${template.prefix} ${num} ${template.pressKey}`;
     }
-    return `${template.prefix} ${translated} ${template.pressKey} ${keyNum}`;
+    return `${template.prefix} ${translated} ${template.pressKey} ${num}`;
   });
   return items.join(langCode === 'zh' ? '\u3002' : langCode === 'ar' ? '\u060C ' : ', ') + '.';
 }
@@ -906,7 +924,7 @@ async function handleIvrCall(
           const lang = getTwilioLangCode(opt.language);
           const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
           const keyNum = idx + 1;
-          const promptText = `${prompt} ${keyNum}.`;
+          const promptText = `${prompt} ${spokenNumber(keyNum, opt.language)}.`;
           
           if (optVoiceId && (optVoiceId.startsWith('el_') || OPENAI_VOICES.includes(optVoiceId))) {
             playOrSay(gather, optVoiceId, promptText, ivrConfig.id, domain);
@@ -1052,7 +1070,7 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
         const voice = getVoiceForLanguage(opt.language);
         const lang = getTwilioLangCode(opt.language);
         const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
-        const promptText = `${prompt} ${idx + 1}.`;
+        const promptText = `${prompt} ${spokenNumber(idx + 1, opt.language)}.`;
         if (optVoiceId && (optVoiceId.startsWith('el_') || OPENAI_VOICES.includes(optVoiceId))) {
           playOrSay(gather, optVoiceId!, promptText, ivrId as string, langSelDomain);
         } else {

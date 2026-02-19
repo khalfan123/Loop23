@@ -1029,7 +1029,7 @@ export function createIvrAudioRoutes() {
       const cached = ttsAudioCache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp) < TTS_CACHE_TTL) {
         res.setHeader("Content-Type", "audio/mpeg");
-        res.setHeader("Cache-Control", "public, max-age=600");
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         return res.send(cached.buffer);
       }
 
@@ -1065,7 +1065,7 @@ export function createIvrAudioRoutes() {
       }
 
       res.setHeader("Content-Type", "audio/mpeg");
-      res.setHeader("Cache-Control", "public, max-age=600");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       res.send(audioBuffer);
     } catch (error: any) {
       console.error("[IVR Audio] Error generating TTS audio:", error);

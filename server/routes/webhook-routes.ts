@@ -734,6 +734,8 @@ const TWILIO_LANGUAGE_VOICES: Record<string, { voice: string; lang: string }> = 
   ar: { voice: 'Polly.Hala-Neural', lang: 'ar-AE' },
 };
 
+const OPENAI_VOICES = ["alloy", "echo", "shimmer", "ash", "coral", "sage", "verse", "nova", "fable", "onyx"];
+
 // Language selection prompts spoken in their native language
 const IVR_LANGUAGE_PROMPTS: Record<string, string> = {
   en: 'For English, press',
@@ -784,8 +786,8 @@ function isNonPollyVoice(voiceId: string | null | undefined): boolean {
 }
 
 function playOrSay(parent: any, voiceId: string, text: string, ivrId: string, domain: string, pollyAttrs?: Record<string, any>) {
-  if (voiceId && voiceId.startsWith('el_')) {
-    const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrId}?voiceId=${encodeURIComponent(voiceId)}&text=${encodeURIComponent(text)}`;
+  if (voiceId && (voiceId.startsWith('el_') || OPENAI_VOICES.includes(voiceId))) {
+    const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrId}?voiceId=${encodeURIComponent(voiceId)}&text=${encodeURIComponent(text)}&_t=${Date.now()}`;
     parent.play(audioUrl);
   } else {
     saySlow(parent, pollyAttrs || { voice: voiceId || 'Polly.Joanna' }, text);
@@ -883,8 +885,9 @@ async function handleIvrCall(
       const domain = getDomain(req.headers.host as string);
       const mainVoiceId = ivrConfig.voiceId || null;
       
-      if (mainVoiceId && mainVoiceId.startsWith('el_')) {
-        gather.play(`${domain}/api/departments/ivr-greeting-audio/${ivrConfig.id}`);
+      if (mainVoiceId && (mainVoiceId.startsWith('el_') || OPENAI_VOICES.includes(mainVoiceId))) {
+        const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrConfig.id}?text=${encodeURIComponent(greetingText)}&_t=${Date.now()}`;
+        gather.play(audioUrl);
       } else {
         const pollyVoice = getVoiceForLanguage('en');
         saySlow(gather, { voice: pollyVoice, language: getTwilioLangCode('en') as any }, greetingText);
@@ -905,7 +908,7 @@ async function handleIvrCall(
           const keyNum = idx + 1;
           const promptText = `${prompt} ${keyNum}.`;
           
-          if (optVoiceId && optVoiceId.startsWith('el_')) {
+          if (optVoiceId && (optVoiceId.startsWith('el_') || OPENAI_VOICES.includes(optVoiceId))) {
             playOrSay(gather, optVoiceId, promptText, ivrConfig.id, domain);
           } else {
             saySlow(gather, { voice, language: lang as any }, promptText);
@@ -915,7 +918,7 @@ async function handleIvrCall(
       }
       
       const noSelectionMsg = 'We did not receive your selection.';
-      if (ivrConfig.voiceId && ivrConfig.voiceId.startsWith('el_')) {
+      if (ivrConfig.voiceId && (ivrConfig.voiceId.startsWith('el_') || OPENAI_VOICES.includes(ivrConfig.voiceId))) {
         playOrSay(response, ivrConfig.voiceId, noSelectionMsg, ivrConfig.id, domain);
       } else {
         saySlow(response, { voice: 'Polly.Joanna' }, noSelectionMsg);
@@ -934,7 +937,7 @@ async function handleIvrCall(
     const lang = getTwilioLangCode(langCode);
     
     if (ivrConfig.greetingMessage) {
-      if (singleVoiceId && singleVoiceId.startsWith('el_')) {
+      if (singleVoiceId && (singleVoiceId.startsWith('el_') || OPENAI_VOICES.includes(singleVoiceId))) {
         const domain = getDomain(req.headers.host as string);
         playOrSay(response, singleVoiceId, ivrConfig.greetingMessage, ivrConfig.id, domain);
       } else {
@@ -952,7 +955,7 @@ async function handleIvrCall(
       timeout: 10,
     });
     
-    if (singleVoiceId && singleVoiceId.startsWith('el_')) {
+    if (singleVoiceId && (singleVoiceId.startsWith('el_') || OPENAI_VOICES.includes(singleVoiceId))) {
       const domain = getDomain(req.headers.host as string);
       playOrSay(gather, singleVoiceId, deptMenuPrompt, ivrConfig.id, domain);
     } else {
@@ -960,7 +963,7 @@ async function handleIvrCall(
     }
 
     const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
-    if (singleVoiceId && singleVoiceId.startsWith('el_')) {
+    if (singleVoiceId && (singleVoiceId.startsWith('el_') || OPENAI_VOICES.includes(singleVoiceId))) {
       const domainForNoInput = getDomain(req.headers.host as string);
       playOrSay(response, singleVoiceId, template.noInputMsg, ivrConfig.id, domainForNoInput);
     } else {
@@ -1029,7 +1032,7 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       const langSelVoiceId = ivrConfig[0].voiceId || null;
       const langSelDomain = getDomain(req.headers.host as string);
       
-      if (langSelVoiceId && langSelVoiceId.startsWith('el_')) {
+      if (langSelVoiceId && (langSelVoiceId.startsWith('el_') || OPENAI_VOICES.includes(langSelVoiceId))) {
         playOrSay(response, langSelVoiceId!, 'Invalid selection.', ivrId as string, langSelDomain);
       } else {
         const invalidVoice = getVoiceForLanguage('en');
@@ -1050,14 +1053,14 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
         const lang = getTwilioLangCode(opt.language);
         const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
         const promptText = `${prompt} ${idx + 1}.`;
-        if (optVoiceId && optVoiceId.startsWith('el_')) {
+        if (optVoiceId && (optVoiceId.startsWith('el_') || OPENAI_VOICES.includes(optVoiceId))) {
           playOrSay(gather, optVoiceId!, promptText, ivrId as string, langSelDomain);
         } else {
           saySlow(gather, { voice, language: lang as any }, promptText);
         }
       }
       
-      if (langSelVoiceId && langSelVoiceId.startsWith('el_')) {
+      if (langSelVoiceId && (langSelVoiceId.startsWith('el_') || OPENAI_VOICES.includes(langSelVoiceId))) {
         playOrSay(response, langSelVoiceId!, 'Goodbye.', ivrId as string, langSelDomain);
       } else {
         saySlow(response, { voice: 'Polly.Joanna' }, 'Goodbye.');
@@ -1073,6 +1076,17 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     const lang = getTwilioLangCode(langCode);
     
     console.log(`📞 [IVR Language] Selected language: ${langCode}, voice: ${selectedVoiceId || voice}`);
+    
+    // Play per-language greeting if configured
+    if (selectedLang.greeting) {
+      const domain = getDomain(req.headers.host as string);
+      if (selectedVoiceId && (selectedVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selectedVoiceId))) {
+        const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrConfig[0].id}?voiceId=${encodeURIComponent(selectedVoiceId)}&text=${encodeURIComponent(selectedLang.greeting)}&_t=${Date.now()}`;
+        response.play(audioUrl);
+      } else {
+        saySlow(response, { voice, language: lang as any }, selectedLang.greeting);
+      }
+    }
     
     // Filter departments to only those selected for this language (if configured)
     let filteredMenuOptions = menuOptions;
@@ -1099,7 +1113,7 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       timeout: 10,
     });
     
-    if (selectedVoiceId && selectedVoiceId.startsWith('el_')) {
+    if (selectedVoiceId && (selectedVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selectedVoiceId))) {
       const domain = getDomain(req.headers.host as string);
       playOrSay(gather, selectedVoiceId!, deptMenuPrompt, ivrId as string, domain);
     } else {
@@ -1107,7 +1121,7 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     }
     
     const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
-    if (selectedVoiceId && selectedVoiceId.startsWith('el_')) {
+    if (selectedVoiceId && (selectedVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selectedVoiceId))) {
       const domain = getDomain(req.headers.host as string);
       playOrSay(response, selectedVoiceId!, template.noInputMsg, ivrId as string, domain);
     } else {
@@ -1168,7 +1182,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
     const selDomain = getDomain(req.headers.host as string);
     
     const sayWithVoice = (parent: any, text: string) => {
-      if (selVoiceId && selVoiceId.startsWith('el_')) {
+      if (selVoiceId && (selVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selVoiceId))) {
         playOrSay(parent, selVoiceId!, text, ivrId as string, selDomain);
       } else {
         saySlow(parent, { voice, language: langTag as any }, text);

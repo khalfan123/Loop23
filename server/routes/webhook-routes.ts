@@ -738,28 +738,79 @@ const OPENAI_VOICES = ["alloy", "echo", "shimmer", "ash", "coral", "sage", "vers
 
 // Language selection prompts spoken in their native language
 const IVR_LANGUAGE_PROMPTS: Record<string, string> = {
-  en: 'For English, press',
-  fr: 'Pour le fran\u00e7ais, appuyez sur',
-  it: "Per l'italiano, premere",
-  zh: '\u4E2D\u6587\u8BF7\u6309',
-  hi: '\u0939\u093F\u0902\u0926\u0940 \u0915\u0947 \u0932\u093F\u090F \u0926\u092C\u093E\u090F\u0902',
-  ar: '\u0644\u0644\u0639\u0631\u0628\u064A\u0629 \u0627\u0636\u063A\u0637',
+  en: 'For English, please press',
+  fr: 'Pour continuer en fran\u00e7ais, veuillez appuyer sur le',
+  it: "Per continuare in italiano, prema il",
+  zh: '\u5982\u9700\u4E2D\u6587\u670D\u52A1\uFF0C\u8BF7\u6309',
+  hi: '\u0939\u093F\u0902\u0926\u0940 \u092E\u0947\u0902 \u0938\u0947\u0935\u093E \u0915\u0947 \u0932\u093F\u090F, \u0915\u0943\u092A\u092F\u093E \u0926\u092C\u093E\u090F\u0902',
+  ar: '\u0644\u0644\u0645\u062A\u0627\u0628\u0639\u0629 \u0628\u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629\u060C \u064A\u0631\u062C\u0649 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649',
 };
 
 // Department menu templates for each language
 const IVR_DEPT_TEMPLATES: Record<string, { prefix: string; pressKey: string; holdMsg: string; noAgentMsg: string; invalidMsg: string; noInputMsg: string }> = {
-  en: { prefix: 'For', pressKey: 'press', holdMsg: 'Please hold while we connect you to an agent.', noAgentMsg: 'Unfortunately, no agents are currently available. Please try again later.', invalidMsg: 'Invalid selection. Please try again.', noInputMsg: 'We did not receive your selection.' },
-  fr: { prefix: 'Pour', pressKey: 'appuyez sur', holdMsg: 'Veuillez patienter pendant que nous vous connectons \u00e0 un agent.', noAgentMsg: 'Malheureusement, aucun agent n\'est disponible actuellement. Veuillez r\u00e9essayer plus tard.', invalidMsg: 'S\u00e9lection invalide. Veuillez r\u00e9essayer.', noInputMsg: 'Nous n\'avons pas re\u00e7u votre s\u00e9lection.' },
-  it: { prefix: 'Per', pressKey: 'premere', holdMsg: 'Attendere mentre la colleghiamo a un agente.', noAgentMsg: 'Purtroppo nessun agente \u00e8 attualmente disponibile. Riprovi pi\u00f9 tardi.', invalidMsg: 'Selezione non valida. Riprovi.', noInputMsg: 'Non abbiamo ricevuto la sua selezione.' },
-  zh: { prefix: '\u5982\u9700', pressKey: '\u8BF7\u6309', holdMsg: '\u8BF7\u7A0D\u7B49\uFF0C\u6211\u4EEC\u6B63\u5728\u4E3A\u60A8\u8F6C\u63A5\u5BA2\u670D\u4EBA\u5458\u3002', noAgentMsg: '\u5F88\u62B1\u6B49\uFF0C\u76EE\u524D\u6CA1\u6709\u53EF\u7528\u7684\u5BA2\u670D\u4EBA\u5458\u3002\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002', invalidMsg: '\u65E0\u6548\u7684\u9009\u62E9\u3002\u8BF7\u91CD\u8BD5\u3002', noInputMsg: '\u6211\u4EEC\u6CA1\u6709\u6536\u5230\u60A8\u7684\u9009\u62E9\u3002' },
-  hi: { prefix: '', pressKey: '\u0926\u092C\u093E\u090F\u0902', holdMsg: '\u0915\u0943\u092A\u092F\u093E \u0930\u0941\u0915\u093F\u090F\uFF0C \u0939\u092E \u0906\u092A\u0915\u094B \u090F\u091C\u0947\u0902\u091F \u0938\u0947 \u091C\u094B\u0921\u093C \u0930\u0939\u0947 \u0939\u0948\u0902\u0964', noAgentMsg: '\u0926\u0941\u0930\u094D\u092D\u093E\u0917\u094D\u092F \u0938\u0947 \u0915\u094B\u0908 \u090F\u091C\u0947\u0902\u091F \u0909\u092A\u0932\u092C\u094D\u0927 \u0928\u0939\u0940\u0902 \u0939\u0948\u0964 \u0915\u0943\u092A\u092F\u093E \u092C\u093E\u0926 \u092E\u0947\u0902 \u092A\u0941\u0928\u0903 \u092A\u094D\u0930\u092F\u093E\u0938 \u0915\u0930\u0947\u0902\u0964', invalidMsg: '\u0905\u092E\u093E\u0928\u094D\u092F \u091A\u092F\u0928\u0964 \u0915\u0943\u092A\u092F\u093E \u092A\u0941\u0928\u0903 \u092A\u094D\u0930\u092F\u093E\u0938 \u0915\u0930\u0947\u0902\u0964', noInputMsg: '\u0939\u092E\u0947\u0902 \u0906\u092A\u0915\u093E \u091A\u092F\u0928 \u092A\u094D\u0930\u093E\u092A\u094D\u0924 \u0928\u0939\u0940\u0902 \u0939\u0941\u0906\u0964' },
-  ar: { prefix: '\u0644\u0640', pressKey: '\u0627\u0636\u063A\u0637', holdMsg: '\u064A\u0631\u062C\u0649 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631 \u0628\u064A\u0646\u0645\u0627 \u0646\u0642\u0648\u0645 \u0628\u062A\u0648\u0635\u064A\u0644\u0643 \u0628\u0627\u0644\u0648\u0643\u064A\u0644.', noAgentMsg: '\u0644\u0644\u0623\u0633\u0641\u060C \u0644\u0627 \u064A\u0648\u062C\u062F \u0648\u0643\u0644\u0627\u0621 \u0645\u062A\u0627\u062D\u0648\u0646 \u062D\u0627\u0644\u064A\u064B\u0627. \u064A\u0631\u062C\u0649 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0644\u0627\u062D\u0642\u064B\u0627.', invalidMsg: '\u0627\u062E\u062A\u064A\u0627\u0631 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D. \u064A\u0631\u062C\u0649 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.', noInputMsg: '\u0644\u0645 \u0646\u062A\u0644\u0642\u0651 \u0627\u062E\u062A\u064A\u0627\u0631\u0643.' },
+  en: {
+    prefix: 'For',
+    pressKey: 'please press',
+    holdMsg: 'Thank you. Please hold while we connect you with the next available representative.',
+    noAgentMsg: 'We apologize for the inconvenience. All of our representatives are currently assisting other callers. Please try again shortly, or leave a message after the tone.',
+    invalidMsg: 'We\'re sorry, that selection was not recognized. Please listen carefully and try again.',
+    noInputMsg: 'We did not receive a selection. Please try your call again.',
+  },
+  fr: {
+    prefix: 'Pour le service',
+    pressKey: 'veuillez appuyer sur le',
+    holdMsg: 'Merci. Veuillez patienter pendant que nous vous mettons en relation avec le prochain conseiller disponible.',
+    noAgentMsg: 'Nous nous excusons pour le d\u00e9sagr\u00e9ment. Tous nos conseillers sont actuellement en ligne. Veuillez r\u00e9essayer dans quelques instants.',
+    invalidMsg: 'Nous sommes d\u00e9sol\u00e9s, cette s\u00e9lection n\'a pas \u00e9t\u00e9 reconnue. Veuillez r\u00e9\u00e9couter attentivement et r\u00e9essayer.',
+    noInputMsg: 'Nous n\'avons pas re\u00e7u votre s\u00e9lection. Veuillez r\u00e9essayer votre appel.',
+  },
+  it: {
+    prefix: 'Per il servizio',
+    pressKey: 'prema il',
+    holdMsg: 'Grazie. La preghiamo di restare in linea mentre la mettiamo in contatto con il prossimo operatore disponibile.',
+    noAgentMsg: 'Ci scusiamo per l\'inconveniente. Tutti i nostri operatori sono attualmente impegnati. La preghiamo di riprovare tra qualche istante.',
+    invalidMsg: 'Ci scusi, la selezione non \u00e8 stata riconosciuta. La preghiamo di ascoltare attentamente e riprovare.',
+    noInputMsg: 'Non abbiamo ricevuto la sua selezione. La preghiamo di riprovare.',
+  },
+  zh: {
+    prefix: '\u5982\u9700',
+    pressKey: '\u8BF7\u6309',
+    holdMsg: '\u611F\u8C22\u60A8\u7684\u6765\u7535\u3002\u8BF7\u7A0D\u5019\uFF0C\u6211\u4EEC\u6B63\u5728\u4E3A\u60A8\u8F6C\u63A5\u4E0B\u4E00\u4F4D\u53EF\u7528\u7684\u5BA2\u670D\u4EE3\u8868\u3002',
+    noAgentMsg: '\u975E\u5E38\u62B1\u6B49\u7ED9\u60A8\u5E26\u6765\u4E0D\u4FBF\u3002\u6211\u4EEC\u7684\u5BA2\u670D\u4EE3\u8868\u76EE\u524D\u90FD\u5728\u4E3A\u5176\u4ED6\u5BA2\u6237\u670D\u52A1\u3002\u8BF7\u60A8\u7A0D\u540E\u518D\u8BD5\u3002',
+    invalidMsg: '\u62B1\u6B49\uFF0C\u60A8\u7684\u9009\u62E9\u65E0\u6CD5\u8BC6\u522B\u3002\u8BF7\u4ED4\u7EC6\u8046\u542C\u540E\u91CD\u65B0\u9009\u62E9\u3002',
+    noInputMsg: '\u6211\u4EEC\u672A\u6536\u5230\u60A8\u7684\u9009\u62E9\u3002\u8BF7\u91CD\u65B0\u62E8\u6253\u3002',
+  },
+  hi: {
+    prefix: '',
+    pressKey: '\u0915\u0943\u092A\u092F\u093E \u0926\u092C\u093E\u090F\u0902',
+    holdMsg: '\u0927\u0928\u094D\u092F\u0935\u093E\u0926\u0964 \u0915\u0943\u092A\u092F\u093E \u092A\u094D\u0930\u0924\u0940\u0915\u094D\u0937\u093E \u0915\u0930\u0947\u0902, \u0939\u092E \u0906\u092A\u0915\u094B \u0905\u0917\u0932\u0947 \u0909\u092A\u0932\u092C\u094D\u0927 \u092A\u094D\u0930\u0924\u093F\u0928\u093F\u0927\u093F \u0938\u0947 \u091C\u094B\u0921\u093C \u0930\u0939\u0947 \u0939\u0948\u0902\u0964',
+    noAgentMsg: '\u0905\u0938\u0941\u0935\u093F\u0927\u093E \u0915\u0947 \u0932\u093F\u090F \u0939\u092E\u0947\u0902 \u0916\u0947\u0926 \u0939\u0948\u0964 \u0939\u092E\u093E\u0930\u0947 \u0938\u092D\u0940 \u092A\u094D\u0930\u0924\u093F\u0928\u093F\u0927\u093F \u0935\u0930\u094D\u0924\u092E\u093E\u0928 \u092E\u0947\u0902 \u0905\u0928\u094D\u092F \u0915\u0949\u0932\u0930\u094D\u0938 \u0915\u0940 \u0938\u0939\u093E\u092F\u0924\u093E \u0915\u0930 \u0930\u0939\u0947 \u0939\u0948\u0902\u0964 \u0915\u0943\u092A\u092F\u093E \u0915\u0941\u091B \u0926\u0947\u0930 \u092C\u093E\u0926 \u092A\u0941\u0928\u0903 \u092A\u094D\u0930\u092F\u093E\u0938 \u0915\u0930\u0947\u0902\u0964',
+    invalidMsg: '\u0915\u094D\u0937\u092E\u093E \u0915\u0930\u0947\u0902, \u0906\u092A\u0915\u093E \u091A\u092F\u0928 \u092A\u0939\u091A\u093E\u0928\u093E \u0928\u0939\u0940\u0902 \u0917\u092F\u093E\u0964 \u0915\u0943\u092A\u092F\u093E \u0927\u094D\u092F\u093E\u0928\u092A\u0942\u0930\u094D\u0935\u0915 \u0938\u0941\u0928\u0947\u0902 \u0914\u0930 \u092A\u0941\u0928\u0903 \u092A\u094D\u0930\u092F\u093E\u0938 \u0915\u0930\u0947\u0902\u0964',
+    noInputMsg: '\u0939\u092E\u0947\u0902 \u0906\u092A\u0915\u093E \u091A\u092F\u0928 \u092A\u094D\u0930\u093E\u092A\u094D\u0924 \u0928\u0939\u0940\u0902 \u0939\u0941\u0906\u0964 \u0915\u0943\u092A\u092F\u093E \u0905\u092A\u0928\u093E \u0915\u0949\u0932 \u092A\u0941\u0928\u0903 \u0915\u0930\u0947\u0902\u0964',
+  },
+  ar: {
+    prefix: '\u0644\u0642\u0633\u0645',
+    pressKey: '\u064A\u0631\u062C\u0649 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649',
+    holdMsg: '\u0634\u0643\u0631\u0627\u064B \u0644\u0643. \u064A\u0631\u062C\u0649 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631 \u0628\u064A\u0646\u0645\u0627 \u0646\u0642\u0648\u0645 \u0628\u062A\u0648\u0635\u064A\u0644\u0643 \u0628\u0627\u0644\u0645\u0645\u062B\u0644 \u0627\u0644\u0645\u062A\u0627\u062D \u0627\u0644\u062A\u0627\u0644\u064A.',
+    noAgentMsg: '\u0646\u0639\u062A\u0630\u0631 \u0639\u0646 \u0627\u0644\u0625\u0632\u0639\u0627\u062C. \u062C\u0645\u064A\u0639 \u0645\u0645\u062B\u0644\u064A\u0646\u0627 \u0645\u0634\u063A\u0648\u0644\u0648\u0646 \u062D\u0627\u0644\u064A\u0627\u064B \u0628\u0645\u0633\u0627\u0639\u062F\u0629 \u0645\u062A\u0635\u0644\u064A\u0646 \u0622\u062E\u0631\u064A\u0646. \u064A\u0631\u062C\u0649 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649 \u0628\u0639\u062F \u0642\u0644\u064A\u0644.',
+    invalidMsg: '\u0639\u0630\u0631\u0627\u064B\u060C \u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u062A\u0639\u0631\u0641 \u0639\u0644\u0649 \u0627\u062E\u062A\u064A\u0627\u0631\u0643. \u064A\u0631\u062C\u0649 \u0627\u0644\u0627\u0633\u062A\u0645\u0627\u0639 \u0628\u0639\u0646\u0627\u064A\u0629 \u0648\u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.',
+    noInputMsg: '\u0644\u0645 \u0646\u062A\u0644\u0642\u0651 \u0627\u062E\u062A\u064A\u0627\u0631\u0643. \u064A\u0631\u062C\u0649 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0627\u062A\u0635\u0627\u0644.',
+  },
+};
+
+const IVR_LANG_CONFIRMATIONS: Record<string, string> = {
+  en: 'You have selected English. One moment please.',
+  fr: 'Vous avez choisi le fran\u00e7ais. Un instant, s\'il vous pla\u00eet.',
+  it: 'Ha selezionato l\'italiano. Un momento, per favore.',
+  zh: '\u60A8\u5DF2\u9009\u62E9\u4E2D\u6587\u670D\u52A1\u3002\u8BF7\u7A0D\u5019\u3002',
+  hi: '\u0906\u092A\u0928\u0947 \u0939\u093F\u0902\u0926\u0940 \u091A\u0941\u0928\u0940 \u0939\u0948\u0964 \u0915\u0943\u092A\u092F\u093E \u090F\u0915 \u0915\u094D\u0937\u0923 \u092A\u094D\u0930\u0924\u0940\u0915\u094D\u0937\u093E \u0915\u0930\u0947\u0902\u0964',
+  ar: '\u0644\u0642\u062F \u0627\u062E\u062A\u0631\u062A \u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629. \u0644\u062D\u0638\u0629 \u0645\u0646 \u0641\u0636\u0644\u0643.',
 };
 
 // Helper: add SSML prosody to a TwiML say element for slower IVR speech
 function saySlow(parent: any, attrs: Record<string, any>, text: string) {
   const sayEl = parent.say(attrs);
-  sayEl.prosody({ rate: '92%' }, text);
+  sayEl.prosody({ rate: '88%' }, text);
 }
 
 // Department name translations for IVR spoken menus
@@ -838,7 +889,7 @@ function buildDeptMenuPrompt(deptNames: string[], langCode: string): string {
     }
     return `${template.prefix} ${translated} ${template.pressKey} ${num}`;
   });
-  return items.join(langCode === 'zh' ? '\u3002' : langCode === 'ar' ? '\u060C ' : ', ') + '.';
+  return items.join(langCode === 'zh' ? '\u3002' : langCode === 'ar' ? '\u060C ' : '. ') + '.';
 }
 
 // Handle IVR calls (department routing)
@@ -876,8 +927,8 @@ async function handleIvrCall(
     if (menuOptions.length === 0) {
       console.log(`⚠️ [IVR Call] No menu options configured`);
       const noMenuGreeting = companyName
-        ? `Thanks for calling ${companyName}. Our system is currently being configured. Please try again later.`
-        : 'Thank you for calling. Our system is currently being configured. Please try again later.';
+        ? `Thank you for calling ${companyName}. We are currently updating our systems to serve you better. Please try again shortly. We apologize for any inconvenience.`
+        : 'Thank you for calling. We are currently updating our systems to serve you better. Please try again shortly. We apologize for any inconvenience.';
       saySlow(response, { voice: 'Polly.Joanna' }, noMenuGreeting);
       response.hangup();
       res.type('text/xml');
@@ -897,8 +948,8 @@ async function handleIvrCall(
       
       // Play language selection greeting
       const greetingText = ivrConfig.greetingMessage || (companyName 
-        ? `Thanks for calling ${companyName}. Please select your preferred language.`
-        : 'Please select your preferred language.');
+        ? `Thank you for calling ${companyName}. Your call is important to us. Please select your preferred language.`
+        : 'Thank you for calling. Your call is important to us. Please select your preferred language.');
       
       const domain = getDomain(req.headers.host as string);
       const mainVoiceId = ivrConfig.voiceId || null;
@@ -910,6 +961,7 @@ async function handleIvrCall(
         const pollyVoice = getVoiceForLanguage('en');
         saySlow(gather, { voice: pollyVoice, language: getTwilioLangCode('en') as any }, greetingText);
       }
+      gather.pause({ length: 1 });
       console.log(`   Greeting: "${greetingText}" (voice: ${mainVoiceId || 'Polly default'})`);
       
       // Only append per-language voice prompts if the greeting doesn't already include language press options
@@ -931,11 +983,12 @@ async function handleIvrCall(
           } else {
             saySlow(gather, { voice, language: lang as any }, promptText);
           }
+          gather.pause({ length: 1 });
           console.log(`   Lang option ${keyNum}: ${opt.language} → voice=${optVoiceId || voice}, lang=${lang}`);
         }
       }
       
-      const noSelectionMsg = 'We did not receive your selection.';
+      const noSelectionMsg = 'We did not receive a response. Please try your call again. Thank you for calling.';
       if (ivrConfig.voiceId && (ivrConfig.voiceId.startsWith('el_') || OPENAI_VOICES.includes(ivrConfig.voiceId))) {
         playOrSay(response, ivrConfig.voiceId, noSelectionMsg, ivrConfig.id, domain);
       } else {
@@ -961,6 +1014,7 @@ async function handleIvrCall(
       } else {
         saySlow(response, { voice, language: lang as any }, ivrConfig.greetingMessage);
       }
+      response.pause({ length: 1 });
     }
 
     const deptNames = menuOptions.map((opt: any) => opt.label);
@@ -1076,12 +1130,13 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
         } else {
           saySlow(gather, { voice, language: lang as any }, promptText);
         }
+        gather.pause({ length: 1 });
       }
       
       if (langSelVoiceId && (langSelVoiceId.startsWith('el_') || OPENAI_VOICES.includes(langSelVoiceId))) {
-        playOrSay(response, langSelVoiceId!, 'Goodbye.', ivrId as string, langSelDomain);
+        playOrSay(response, langSelVoiceId!, 'Thank you for calling. Goodbye.', ivrId as string, langSelDomain);
       } else {
-        saySlow(response, { voice: 'Polly.Joanna' }, 'Goodbye.');
+        saySlow(response, { voice: 'Polly.Joanna' }, 'Thank you for calling. Goodbye.');
       }
       response.hangup();
       res.type('text/xml');
@@ -1094,6 +1149,16 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     const lang = getTwilioLangCode(langCode);
     
     console.log(`📞 [IVR Language] Selected language: ${langCode}, voice: ${selectedVoiceId || voice}`);
+    
+    const confirmMsg = IVR_LANG_CONFIRMATIONS[langCode] || IVR_LANG_CONFIRMATIONS.en;
+    const confirmDomain = getDomain(req.headers.host as string);
+    if (selectedVoiceId && (selectedVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selectedVoiceId))) {
+      const confirmAudioUrl = `${confirmDomain}/api/departments/ivr-greeting-audio/${ivrConfig[0].id}?voiceId=${encodeURIComponent(selectedVoiceId)}&text=${encodeURIComponent(confirmMsg)}&_t=${Date.now()}`;
+      response.play(confirmAudioUrl);
+    } else {
+      saySlow(response, { voice, language: lang as any }, confirmMsg);
+    }
+    response.pause({ length: 1 });
     
     // Play per-language greeting if configured
     if (selectedLang.greeting) {
@@ -1122,6 +1187,8 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     const deptMenuPrompt = buildDeptMenuPrompt(deptNames, langCode);
     
     console.log(`📞 [IVR Language] Department menu (${langCode}): ${deptMenuPrompt}`);
+    
+    response.pause({ length: 1 });
     
     // Create gather for department selection
     const gather = response.gather({

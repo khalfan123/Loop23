@@ -1046,7 +1046,16 @@ export function createIvrAudioRoutes() {
           return res.status(400).json({ error: "Invalid ElevenLabs voice ID" });
         }
         const elService = new ElevenLabsService(elevenLabsApiKey);
-        audioBuffer = await elService.generateVoicePreview({ voiceId: elevenLabsVoiceId, text });
+        const hasArabic = /[\u0600-\u06FF]/.test(text);
+        audioBuffer = await elService.generateVoicePreview({
+          voiceId: elevenLabsVoiceId,
+          text,
+          voiceSettings: {
+            stability: 0.6,
+            similarity_boost: 0.8,
+            speed: hasArabic ? 0.9 : 1.0,
+          },
+        });
       } else {
         const validOpenAIVoices = ["alloy", "echo", "shimmer", "ash", "coral", "sage", "verse", "nova", "fable", "onyx"];
         const voice = validOpenAIVoices.includes(voiceId) ? voiceId : "nova";
@@ -1112,8 +1121,8 @@ function getElevenLabsVoiceId(internalId: string): string | null {
     el_wei: "onwK4e9ZLuTAKqWW03F9",
     el_priya: "ThT5KcBeYPX3keUQqHPh",
     el_raj: "JBFqnCBsd6RMkjVDRZzb",
-    el_fatima: "EXAVITQu4vr4xnSDxMaL",
-    el_omar: "pNInz6obpgDQGcFmaJgB",
+    el_fatima: "u0TsaWvt0v8migutHM3M",
+    el_omar: "G1HOkzin3NMwRHSq60UI",
   };
   return voiceMap[internalId] || null;
 }

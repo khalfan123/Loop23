@@ -257,7 +257,9 @@ const nodeTypes: NodeTypes = {
 
 export default function FlowBuilderPage() {
   const { t } = useTranslation();
-  const [, params] = useRoute("/app/flows/:id");
+  const [, settingsParams] = useRoute("/app/settings/flows/:id");
+  const [, legacyParams] = useRoute("/app/flows/:id");
+  const params = settingsParams || legacyParams;
   const [, setLocation] = useLocation();
   const flowId = params?.id;
   
@@ -415,7 +417,7 @@ export default function FlowBuilderPage() {
       
       // Navigate to edit mode if this was a new flow
       if (isNewFlow && data?.id) {
-        setLocation(`/app/flows/${data.id}`);
+        setLocation(`/app/settings/flows/${data.id}`);
       }
     },
     onError: (error: any) => {
@@ -490,7 +492,7 @@ export default function FlowBuilderPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setLocation("/app/flows")}
+            onClick={() => setLocation("/app/settings/flows")}
             className="mb-3 -ml-2"
             data-testid="button-back"
           >

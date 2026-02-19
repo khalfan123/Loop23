@@ -388,6 +388,7 @@ export default function DepartmentManagement() {
   const ivrAudioRef = useRef<HTMLAudioElement | null>(null);
   const [ivrPlayingVoiceId, setIvrPlayingVoiceId] = useState<string | null>(null);
   const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
+  const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('nova');
   const isGreetingCustomized = useRef(false);
   
   const [languageAgents, setLanguageAgents] = useState<LanguageAgentConfig[]>([]);
@@ -618,6 +619,7 @@ export default function DepartmentManagement() {
         return apiRequest("PATCH", `/api/departments/ivr/${activeIvr.id}`, {
           isActive: ivrEnabled,
           greetingMessage,
+          voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'nova'),
           languageOptions: multiLangEnabled ? languageOptions : undefined,
         });
       } else {
@@ -625,6 +627,7 @@ export default function DepartmentManagement() {
           name: "Main IVR",
           isActive: ivrEnabled,
           greetingMessage,
+          voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'nova'),
           languageOptions: multiLangEnabled ? languageOptions : undefined,
         });
       }
@@ -1019,6 +1022,9 @@ export default function DepartmentManagement() {
       if ((activeIvr as any).greetingMessage) {
         setLanguageSelectionGreetingText((activeIvr as any).greetingMessage);
         isGreetingCustomized.current = true;
+      }
+      if ((activeIvr as any).voiceId) {
+        setLanguageSelectionGreetingVoice((activeIvr as any).voiceId);
       }
     }
   }, [activeIvr]);
@@ -2508,6 +2514,45 @@ export default function DepartmentManagement() {
                         <p className="text-xs text-muted-foreground">
                           This greeting plays when callers first connect. Replace "Company Name" with your business name.
                         </p>
+                        <div className="mt-2">
+                          <Label className="text-xs text-muted-foreground">Greeting Voice</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Select
+                              value={languageSelectionGreetingVoice}
+                              onValueChange={setLanguageSelectionGreetingVoice}
+                            >
+                              <SelectTrigger className="flex-1" data-testid="select-greeting-voice">
+                                <SelectValue placeholder="Select a voice..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">OpenAI Voices</div>
+                                {OPENAI_VOICES.map((voice) => (
+                                  <SelectItem key={voice.id} value={voice.id}>
+                                    {voice.name} - {voice.gender}, {voice.style}
+                                  </SelectItem>
+                                ))}
+                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-2">ElevenLabs Voices</div>
+                                {ELEVENLABS_VOICES.filter(v => v.languages.includes("en")).map((voice) => (
+                                  <SelectItem key={voice.id} value={voice.id}>
+                                    {voice.name} - {voice.gender}, {voice.style}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleIvrVoicePreview(languageSelectionGreetingVoice, languageSelectionGreetingText)}
+                              data-testid="button-preview-greeting-voice"
+                            >
+                              {ivrPlayingVoiceId === languageSelectionGreetingVoice ? (
+                                <Square className="h-4 w-4" />
+                              ) : (
+                                <Volume2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                       
                       <div className="space-y-3">

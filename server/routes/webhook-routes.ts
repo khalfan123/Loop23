@@ -1029,7 +1029,7 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       const langSelVoiceId = ivrConfig[0].voiceId || null;
       const langSelDomain = getDomain(req.headers.host as string);
       
-      if (isNonPollyVoice(langSelVoiceId)) {
+      if (langSelVoiceId && langSelVoiceId.startsWith('el_')) {
         playOrSay(response, langSelVoiceId!, 'Invalid selection.', ivrId as string, langSelDomain);
       } else {
         const invalidVoice = getVoiceForLanguage('en');
@@ -1050,14 +1050,14 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
         const lang = getTwilioLangCode(opt.language);
         const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
         const promptText = `${prompt} ${idx + 1}.`;
-        if (isNonPollyVoice(optVoiceId)) {
+        if (optVoiceId && optVoiceId.startsWith('el_')) {
           playOrSay(gather, optVoiceId!, promptText, ivrId as string, langSelDomain);
         } else {
           saySlow(gather, { voice, language: lang as any }, promptText);
         }
       }
       
-      if (isNonPollyVoice(langSelVoiceId)) {
+      if (langSelVoiceId && langSelVoiceId.startsWith('el_')) {
         playOrSay(response, langSelVoiceId!, 'Goodbye.', ivrId as string, langSelDomain);
       } else {
         saySlow(response, { voice: 'Polly.Joanna' }, 'Goodbye.');
@@ -1099,7 +1099,7 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       timeout: 10,
     });
     
-    if (isNonPollyVoice(selectedVoiceId)) {
+    if (selectedVoiceId && selectedVoiceId.startsWith('el_')) {
       const domain = getDomain(req.headers.host as string);
       playOrSay(gather, selectedVoiceId!, deptMenuPrompt, ivrId as string, domain);
     } else {
@@ -1107,7 +1107,7 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     }
     
     const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
-    if (isNonPollyVoice(selectedVoiceId)) {
+    if (selectedVoiceId && selectedVoiceId.startsWith('el_')) {
       const domain = getDomain(req.headers.host as string);
       playOrSay(response, selectedVoiceId!, template.noInputMsg, ivrId as string, domain);
     } else {
@@ -1168,7 +1168,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
     const selDomain = getDomain(req.headers.host as string);
     
     const sayWithVoice = (parent: any, text: string) => {
-      if (isNonPollyVoice(selVoiceId)) {
+      if (selVoiceId && selVoiceId.startsWith('el_')) {
         playOrSay(parent, selVoiceId!, text, ivrId as string, selDomain);
       } else {
         saySlow(parent, { voice, language: langTag as any }, text);
@@ -1183,11 +1183,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
         .limit(1);
       
       if (phoneCheck.length > 0 && To && phoneCheck[0].phoneNumber !== To) {
-        console.error(`❌ [IVR Selection] Phone number mismatch - IVR phone: ${phoneCheck[0].phoneNumber}, Called: ${To}`);
-        sayWithVoice(response, template.invalidMsg);
-        response.hangup();
-        res.type('text/xml');
-        return res.send(response.toString());
+        console.log(`📞 [IVR Selection] IVR config shared across numbers - IVR phone: ${phoneCheck[0].phoneNumber}, Called: ${To}`);
       }
     }
     

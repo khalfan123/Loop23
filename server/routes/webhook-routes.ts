@@ -854,6 +854,18 @@ function translateDeptNameForIvr(name: string, langCode: string): string {
   if (translations && translations[langCode]) {
     return translations[langCode];
   }
+  const stripped = name.replace(/\s*(Department|Dept\.?|Division|Team|Unit)\s*$/i, '').trim();
+  if (stripped !== name) {
+    const strippedTranslations = IVR_DEPT_NAME_TRANSLATIONS[stripped];
+    if (strippedTranslations && strippedTranslations[langCode]) {
+      return strippedTranslations[langCode];
+    }
+  }
+  for (const [key, trans] of Object.entries(IVR_DEPT_NAME_TRANSLATIONS)) {
+    if (name.toLowerCase().includes(key.toLowerCase()) && trans[langCode]) {
+      return trans[langCode];
+    }
+  }
   return name;
 }
 

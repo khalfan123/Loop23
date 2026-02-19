@@ -1051,9 +1051,9 @@ export function createIvrAudioRoutes() {
           voiceId: elevenLabsVoiceId,
           text,
           voiceSettings: {
-            stability: 0.6,
-            similarity_boost: 0.8,
-            speed: hasArabic ? 0.9 : 1.0,
+            stability: hasArabic ? 0.75 : 0.6,
+            similarity_boost: hasArabic ? 0.85 : 0.8,
+            speed: hasArabic ? 0.85 : 1.0,
           },
         });
       } else {

@@ -5,18 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Phone,
-  PhoneOff,
-  Volume2,
-  Loader2,
-  RotateCcw,
-  ArrowLeft,
-  Hash,
-  Play,
-  Square,
-  ChevronRight,
-} from "lucide-react";
+import { Phone, PhoneOff, Volume2, Loader2, ArrowLeft, Hash, Mic, MicOff, Bot, User, Wifi, WifiOff } from "lucide-react";
 import { Link } from "wouter";
 
 interface TwimlStep {
@@ -70,45 +59,86 @@ function parseTwiml(xml: string): ParsedTwiml {
   return { saySteps, gatherAction, gatherHints, redirectUrl, streamUrl, hangup, agentId };
 }
 
-interface CallLog {
-  id: number;
-  step: string;
-  action: string;
-  details: string;
+type CallState = "idle" | "ivr" | "connecting" | "agent-ready" | "recording" | "processing" | "agent-speaking" | "ended";
+
+interface TranscriptMessage {
+  role: "user" | "agent" | "system";
+  text: string;
   timestamp: Date;
 }
 
 export default function DeprockCallSimulator() {
   const [selectedIvrId, setSelectedIvrId] = useState<string>("");
-  const [callActive, setCallActive] = useState(false);
-  const [currentStep, setCurrentStep] = useState<string>("idle");
+  const [callState, setCallState] = useState<CallState>("idle");
   const [parsedTwiml, setParsedTwiml] = useState<ParsedTwiml | null>(null);
   const [loading, setLoading] = useState(false);
   const [playingAudio, setPlayingAudio] = useState(false);
   const [currentAudioIndex, setCurrentAudioIndex] = useState(-1);
-  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [selectedLang, setSelectedLang] = useState<string>("en");
-  const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<string>("idle");
+  const [agentName, setAgentName] = useState<string>("");
+  const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
+  const [processingStage, setProcessingStage] = useState<string>("");
+  const [callDuration, setCallDuration] = useState(0);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const logIdRef = useRef(0);
   const audioQueueRef = useRef<TwimlStep[]>([]);
   const playingRef = useRef(false);
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const agentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const callTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const callStartTimeRef = useRef<number>(0);
+  const sessionIdRef = useRef<string>("");
+  const connectedAgentIdRef = useRef<string>("");
 
   const { data: ivrConfigs } = useQuery({
     queryKey: ["/api/deprock/ivr-configs-all"],
   });
 
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [callLogs]);
+    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [transcript, processingStage]);
 
-  const addLog = useCallback((step: string, action: string, details: string) => {
-    logIdRef.current += 1;
-    setCallLogs((prev) => [
-      ...prev,
-      { id: logIdRef.current, step, action, details, timestamp: new Date() },
-    ]);
+  useEffect(() => {
+    return () => {
+      cleanupAll();
+    };
+  }, []);
+
+  const cleanupAll = useCallback(() => {
+    if (wsRef.current) {
+      try { wsRef.current.close(); } catch {}
+      wsRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try { mediaRecorderRef.current.stop(); } catch {}
+    }
+    mediaRecorderRef.current = null;
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
+    if (agentAudioRef.current) {
+      agentAudioRef.current.pause();
+      agentAudioRef.current = null;
+    }
+    if (callTimerRef.current) {
+      clearInterval(callTimerRef.current);
+      callTimerRef.current = null;
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+    audioQueueRef.current = [];
+    playingRef.current = false;
+  }, []);
+
+  const addTranscript = useCallback((role: "user" | "agent" | "system", text: string) => {
+    setTranscript(prev => [...prev, { role, text, timestamp: new Date() }]);
   }, []);
 
   const stopAudio = useCallback(() => {
@@ -176,7 +206,6 @@ export default function DeprockCallSimulator() {
       for (let i = 0; i < steps.length; i++) {
         if (!playingRef.current && i > 0) break;
         try {
-          addLog("Audio", "Playing", `${steps[i].voice}: "${steps[i].text.substring(0, 60)}..."`);
           await playAudioForStep(steps[i], i);
         } catch {
           break;
@@ -186,8 +215,168 @@ export default function DeprockCallSimulator() {
       setCurrentAudioIndex(-1);
       playingRef.current = false;
     },
-    [playAudioForStep, addLog]
+    [playAudioForStep]
   );
+
+  const connectToAgent = useCallback(async (agentId: string) => {
+    setCallState("connecting");
+    const sid = `sim-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    sessionIdRef.current = sid;
+    connectedAgentIdRef.current = agentId;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/api/voice-sim/stream?sessionId=${sid}`;
+
+    try {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: "init", agentId, sessionId: sid }));
+        addTranscript("system", "Connecting to AI agent...");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          switch (msg.type) {
+            case "ready":
+              setAgentName(msg.agentName || "AI Agent");
+              setCallState("agent-ready");
+              setProcessingStage("");
+              callStartTimeRef.current = Date.now();
+              callTimerRef.current = setInterval(() => {
+                setCallDuration(Math.floor((Date.now() - callStartTimeRef.current) / 1000));
+              }, 1000);
+              if (msg.firstMessage) {
+                addTranscript("agent", msg.firstMessage);
+              }
+              addTranscript("system", `Connected to ${msg.agentName || "AI Agent"}`);
+              break;
+            case "transcript":
+              addTranscript(msg.role, msg.text);
+              break;
+            case "audio":
+              setCallState("agent-speaking");
+              setProcessingStage("");
+              playAgentAudio(msg.data);
+              break;
+            case "processing":
+              setProcessingStage(msg.stage);
+              if (msg.stage === "transcribing") {
+                setCallState("processing");
+              }
+              break;
+            case "error":
+              addTranscript("system", `Error: ${msg.message}`);
+              setProcessingStage("");
+              setCallState("agent-ready");
+              break;
+            case "ended":
+              addTranscript("system", "Agent ended the conversation.");
+              endCall();
+              break;
+          }
+        } catch {}
+      };
+
+      ws.onerror = () => {
+        addTranscript("system", "Connection error occurred.");
+        setCallState("agent-ready");
+      };
+
+      ws.onclose = () => {};
+
+    } catch {
+      addTranscript("system", "Failed to connect to agent.");
+      setCallState("ivr");
+    }
+  }, [addTranscript]);
+
+  const playAgentAudio = useCallback((base64Data: string) => {
+    try {
+      const binaryStr = atob(base64Data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      const audioBlob = new Blob([bytes], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(audioBlob);
+      const audio = new Audio(url);
+      agentAudioRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        setCallState(prev => prev === "agent-speaking" ? "agent-ready" : prev);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        setCallState(prev => prev === "agent-speaking" ? "agent-ready" : prev);
+      };
+      audio.play().catch(() => {
+        setCallState(prev => prev === "agent-speaking" ? "agent-ready" : prev);
+      });
+    } catch {
+      setCallState(prev => prev === "agent-speaking" ? "agent-ready" : prev);
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (callState !== "agent-ready") return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+
+      const chunks: Blob[] = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        if (chunks.length === 0) {
+          setCallState("agent-ready");
+          stream.getTracks().forEach(t => t.stop());
+          mediaStreamRef.current = null;
+          return;
+        }
+        const blob = new Blob(chunks, { type: mimeType });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(",")[1];
+          if (base64 && wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "audio", data: base64 }));
+            setCallState("processing");
+            setProcessingStage("transcribing");
+          }
+        };
+        reader.readAsDataURL(blob);
+
+        stream.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+      };
+
+      mediaRecorder.start();
+      setCallState("recording");
+
+      if (agentAudioRef.current) {
+        agentAudioRef.current.pause();
+        agentAudioRef.current = null;
+      }
+    } catch {
+      addTranscript("system", "Microphone access denied. Please allow microphone access.");
+    }
+  }, [callState, addTranscript]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
 
   const simulateStep = useCallback(
     async (step: string, digits?: string, lang?: string) => {
@@ -197,7 +386,7 @@ export default function DeprockCallSimulator() {
         if (digits) body.digits = digits;
         if (lang) body.lang = lang;
 
-        addLog(step, digits ? `Pressed ${digits}` : "Request", `Calling ${step}...`);
+        addTranscript("system", digits ? `Pressed ${digits}` : `Processing ${step}...`);
 
         const res = await apiRequest("POST", "/api/deprock/ivr-simulate", body);
         const twiml = await res.text();
@@ -207,47 +396,64 @@ export default function DeprockCallSimulator() {
         setCurrentStep(step);
 
         if (parsed.streamUrl && parsed.agentId) {
-          setConnectedAgent(parsed.agentId);
-          addLog(step, "Connected", `Agent connected: ${parsed.agentId}`);
+          if (parsed.saySteps.length > 0) {
+            await playAllSteps(parsed.saySteps);
+          }
+          connectToAgent(parsed.agentId);
+          return parsed;
         }
 
         if (parsed.hangup) {
-          addLog(step, "Hangup", "Call ended by system");
+          addTranscript("system", "Call ended by system.");
+          setCallState("ended");
         }
 
         if (parsed.saySteps.length > 0) {
-          const gatherSays = parsed.saySteps;
-          await playAllSteps(gatherSays);
+          await playAllSteps(parsed.saySteps);
         }
 
         return parsed;
       } catch (err: any) {
-        addLog(step, "Error", err.message || "Failed to simulate step");
+        addTranscript("system", `Error: ${err.message || "Failed to process"}`);
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [selectedIvrId, addLog, playAllSteps]
+    [selectedIvrId, addTranscript, playAllSteps, connectToAgent]
   );
 
   const startCall = useCallback(async () => {
-    setCallActive(true);
-    setCallLogs([]);
-    setConnectedAgent(null);
-    logIdRef.current = 0;
-    addLog("System", "Call Started", "Simulating incoming call...");
+    setCallState("ivr");
+    setTranscript([]);
+    setAgentName("");
+    setCallDuration(0);
+    setProcessingStage("");
+    addTranscript("system", "Incoming call started...");
     await simulateStep("answer");
-  }, [addLog, simulateStep]);
+  }, [addTranscript, simulateStep]);
 
   const endCall = useCallback(() => {
     stopAudio();
-    setCallActive(false);
-    setCurrentStep("idle");
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      try { wsRef.current.send(JSON.stringify({ type: "end" })); } catch {}
+    }
+    cleanupAll();
+    setCallState("ended");
     setParsedTwiml(null);
-    setConnectedAgent(null);
-    addLog("System", "Call Ended", "Call terminated by user");
-  }, [stopAudio, addLog]);
+    setProcessingStage("");
+    addTranscript("system", "Call ended.");
+  }, [stopAudio, addTranscript, cleanupAll]);
+
+  const resetCall = useCallback(() => {
+    setCallState("idle");
+    setTranscript([]);
+    setParsedTwiml(null);
+    setAgentName("");
+    setCallDuration(0);
+    setProcessingStage("");
+    setCurrentStep("idle");
+  }, []);
 
   const handleDigitPress = useCallback(
     async (digit: string) => {
@@ -255,10 +461,8 @@ export default function DeprockCallSimulator() {
 
       if (digit === "0") {
         if (currentStep === "answer" || currentStep === "handle-language") {
-          addLog("Input", `Pressed 0`, "Repeating options...");
           await simulateStep("answer");
         } else if (currentStep === "handle-selection") {
-          addLog("Input", `Pressed 0`, "Going back to language menu...");
           await simulateStep("handle-language", "0");
         }
         return;
@@ -279,22 +483,47 @@ export default function DeprockCallSimulator() {
         await simulateStep("handle-selection", digit, selectedLang);
       }
     },
-    [currentStep, stopAudio, simulateStep, selectedIvrId, ivrConfigs, selectedLang, addLog]
+    [currentStep, stopAudio, simulateStep, selectedIvrId, ivrConfigs, selectedLang]
   );
 
-  const activeConfigs = ((ivrConfigs as any[]) || []).filter(
-    (c: any) => c.isActive
-  );
-
+  const activeConfigs = ((ivrConfigs as any[]) || []).filter((c: any) => c.isActive);
   const currentHints = parsedTwiml?.gatherHints || [];
+  const isInAgent = ["connecting", "agent-ready", "recording", "processing", "agent-speaking"].includes(callState);
+  const isCallActive = callState !== "idle" && callState !== "ended";
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const getStatusLabel = () => {
+    switch (callState) {
+      case "idle": return "Idle";
+      case "ivr": return "IVR Menu";
+      case "connecting": return "Connecting...";
+      case "agent-ready": return "Agent Connected";
+      case "recording": return "Recording";
+      case "processing": return "Processing";
+      case "agent-speaking": return "Agent Speaking";
+      case "ended": return "Call Ended";
+      default: return "Idle";
+    }
+  };
+
+  const getStatusVariant = (): "default" | "secondary" | "destructive" | "outline" => {
+    if (callState === "recording") return "destructive";
+    if (isCallActive) return "default";
+    return "secondary";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
       <audio ref={audioRef} />
 
-      <div className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <div className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             <Link href="/app/deprock">
               <Button variant="ghost" size="sm" data-testid="link-back-deprock">
                 <ArrowLeft className="h-4 w-4 mr-1" />
@@ -305,9 +534,19 @@ export default function DeprockCallSimulator() {
             <Phone className="h-5 w-5 text-indigo-600" />
             <h1 className="text-lg font-semibold">IVR Call Simulator</h1>
           </div>
-          <Badge variant={callActive ? "default" : "secondary"} data-testid="badge-call-status">
-            {callActive ? (connectedAgent ? "Connected to Agent" : "Call Active") : "Idle"}
-          </Badge>
+          <div className="flex items-center gap-3 flex-wrap">
+            {isInAgent && (
+              <span className="text-sm text-muted-foreground font-mono" data-testid="text-call-timer">
+                {formatDuration(callDuration)}
+              </span>
+            )}
+            <Badge variant={getStatusVariant()} data-testid="badge-call-status">
+              {callState === "recording" && <Mic className="h-3 w-3 mr-1" />}
+              {callState === "connecting" && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+              {isInAgent && callState !== "connecting" && callState !== "recording" && <Wifi className="h-3 w-3 mr-1" />}
+              {getStatusLabel()}
+            </Badge>
+          </div>
         </div>
       </div>
 
@@ -323,7 +562,7 @@ export default function DeprockCallSimulator() {
                 <Select
                   value={selectedIvrId}
                   onValueChange={setSelectedIvrId}
-                  disabled={callActive}
+                  disabled={isCallActive}
                 >
                   <SelectTrigger data-testid="select-ivr-config">
                     <SelectValue placeholder="Select IVR config..." />
@@ -331,15 +570,16 @@ export default function DeprockCallSimulator() {
                   <SelectContent>
                     {activeConfigs.map((config: any) => (
                       <SelectItem key={config.id} value={config.id}>
-                        {config.name || "Unnamed IVR"} ({config.engineType === 'bedrock-polly' ? 'Deprock' : 'Department'})
+                        {config.name || "Unnamed IVR"} ({config.engineType === "bedrock-polly" ? "Deprock" : "Department"})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
-                {!callActive ? (
+                {callState === "idle" && (
                   <Button
-                    className="w-full bg-green-600 hover:bg-green-700"
+                    variant="default"
+                    className="w-full bg-green-600 text-white border-green-700"
                     disabled={!selectedIvrId || loading}
                     onClick={startCall}
                     data-testid="button-start-call"
@@ -347,9 +587,24 @@ export default function DeprockCallSimulator() {
                     <Phone className="h-4 w-4 mr-2" />
                     Start Call
                   </Button>
-                ) : (
+                )}
+
+                {callState === "ended" && (
                   <Button
-                    className="w-full bg-red-600 hover:bg-red-700"
+                    variant="outline"
+                    className="w-full"
+                    onClick={resetCall}
+                    data-testid="button-new-call"
+                  >
+                    <Phone className="h-4 w-4 mr-2" />
+                    New Call
+                  </Button>
+                )}
+
+                {isCallActive && (
+                  <Button
+                    variant="destructive"
+                    className="w-full"
                     onClick={endCall}
                     data-testid="button-end-call"
                   >
@@ -360,7 +615,7 @@ export default function DeprockCallSimulator() {
               </CardContent>
             </Card>
 
-            {callActive && !connectedAgent && (
+            {callState === "ivr" && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium">Dial Pad</CardTitle>
@@ -376,7 +631,7 @@ export default function DeprockCallSimulator() {
                             variant={isHint ? "default" : "outline"}
                             className={`h-14 text-lg font-bold ${
                               isHint
-                                ? "bg-indigo-600 hover:bg-indigo-700 text-white ring-2 ring-indigo-300"
+                                ? "bg-indigo-600 text-white border-indigo-700"
                                 : "opacity-40"
                             }`}
                             disabled={loading || playingAudio || !isHint}
@@ -394,114 +649,198 @@ export default function DeprockCallSimulator() {
                       Available options: {currentHints.join(", ")}
                     </p>
                   )}
+                  {playingAudio && (
+                    <div className="flex items-center justify-center gap-2 mt-3 text-sm text-indigo-600">
+                      <Volume2 className="h-4 w-4 animate-pulse" />
+                      Playing IVR audio...
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
 
-            {connectedAgent && (
-              <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30">
-                <CardContent className="pt-6 text-center space-y-3">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
-                    <Volume2 className="h-8 w-8 text-green-600 animate-pulse" />
+            {isInAgent && (
+              <Card>
+                <CardContent className="pt-6 space-y-5">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Bot className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">Agent</span>
+                    </div>
+                    <p className="text-lg font-semibold" data-testid="text-agent-name">
+                      {agentName || "Connecting..."}
+                    </p>
+                    {isInAgent && (
+                      <p className="text-xs text-muted-foreground mt-1 font-mono" data-testid="text-call-timer-panel">
+                        {formatDuration(callDuration)}
+                      </p>
+                    )}
                   </div>
-                  <p className="font-semibold text-green-700 dark:text-green-400">
-                    Connected to AI Agent
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    In a real call, you would now be speaking with the AI agent.
-                  </p>
-                  <Button variant="outline" size="sm" onClick={endCall} data-testid="button-end-agent-call">
-                    <PhoneOff className="h-3 w-3 mr-1" />
-                    End Call
-                  </Button>
+
+                  <div className="flex flex-col items-center gap-4">
+                    <button
+                      className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-200 select-none ${
+                        callState === "recording"
+                          ? "bg-red-500 text-white shadow-lg shadow-red-500/30 animate-pulse scale-105"
+                          : callState === "agent-ready"
+                          ? "bg-indigo-600 text-white shadow-md cursor-pointer"
+                          : "bg-muted text-muted-foreground cursor-not-allowed"
+                      }`}
+                      onMouseDown={() => {
+                        if (callState === "agent-ready") startRecording();
+                      }}
+                      onMouseUp={() => {
+                        if (callState === "recording") stopRecording();
+                      }}
+                      onMouseLeave={() => {
+                        if (callState === "recording") stopRecording();
+                      }}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        if (callState === "agent-ready") startRecording();
+                      }}
+                      onTouchEnd={(e) => {
+                        e.preventDefault();
+                        if (callState === "recording") stopRecording();
+                      }}
+                      disabled={callState !== "agent-ready" && callState !== "recording"}
+                      data-testid="button-push-to-talk"
+                    >
+                      {callState === "recording" ? (
+                        <MicOff className="h-10 w-10" />
+                      ) : (
+                        <Mic className="h-10 w-10" />
+                      )}
+                    </button>
+
+                    <p className="text-xs text-muted-foreground text-center">
+                      {callState === "recording"
+                        ? "Release to send"
+                        : callState === "agent-ready"
+                        ? "Hold to talk"
+                        : callState === "connecting"
+                        ? "Connecting..."
+                        : callState === "agent-speaking"
+                        ? "Agent is speaking..."
+                        : "Processing..."}
+                    </p>
+                  </div>
+
+                  {processingStage && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground" data-testid="text-processing-stage">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {processingStage === "transcribing" && "Transcribing..."}
+                      {processingStage === "thinking" && "Thinking..."}
+                      {processingStage === "speaking" && "Generating speech..."}
+                    </div>
+                  )}
+
+                  {callState === "agent-speaking" && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-indigo-600 dark:text-indigo-400">
+                      <Volume2 className="h-4 w-4 animate-pulse" />
+                      Agent speaking...
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
           </div>
 
           <div className="lg:col-span-2">
-            <Card className="h-full">
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-medium">Call Flow Log</CardTitle>
-                <div className="flex items-center gap-2">
-                  {playingAudio && (
-                    <Badge variant="outline" className="gap-1 text-indigo-600 border-indigo-200">
-                      <Volume2 className="h-3 w-3 animate-pulse" />
-                      Playing audio...
-                    </Badge>
-                  )}
+            <Card className="h-full flex flex-col">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
+                <CardTitle className="text-sm font-medium">
+                  {isInAgent ? "Conversation" : "Call Flow"}
+                </CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
                   {loading && (
                     <Badge variant="outline" className="gap-1">
                       <Loader2 className="h-3 w-3 animate-spin" />
-                      Processing...
+                      Loading...
+                    </Badge>
+                  )}
+                  {isInAgent && (
+                    <Badge variant="outline" className="gap-1">
+                      <Wifi className="h-3 w-3" />
+                      Live
                     </Badge>
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
-                  {callLogs.length === 0 && (
+              <CardContent className="flex-1">
+                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                  {transcript.length === 0 && (
                     <div className="text-center py-16 text-muted-foreground">
                       <Phone className="h-12 w-12 mx-auto mb-4 opacity-20" />
                       <p>Select an IVR configuration and press Start Call</p>
                       <p className="text-xs mt-1">
-                        You'll hear the exact Polly voices and step through the IVR flow
+                        Navigate the IVR menu, then talk to the AI agent
                       </p>
                     </div>
                   )}
-                  {callLogs.map((log, idx) => (
-                    <div
-                      key={log.id}
-                      className={`flex items-start gap-3 p-3 rounded-lg text-sm ${
-                        log.action === "Error"
-                          ? "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800"
-                          : log.action === "Connected"
-                          ? "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800"
-                          : log.action === "Playing"
-                          ? "bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900"
-                          : log.step === "System"
-                          ? "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
-                          : "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
-                      }`}
-                      data-testid={`log-entry-${log.id}`}
-                    >
-                      <div className="flex-shrink-0 mt-0.5">
-                        {log.action === "Playing" ? (
-                          <Volume2
-                            className={`h-4 w-4 text-indigo-500 ${
-                              playingAudio && idx === callLogs.length - 1 ? "animate-pulse" : ""
-                            }`}
-                          />
-                        ) : log.action.startsWith("Pressed") ? (
-                          <Hash className="h-4 w-4 text-amber-500" />
-                        ) : log.action === "Connected" ? (
-                          <Play className="h-4 w-4 text-green-500" />
-                        ) : log.action === "Error" ? (
-                          <Square className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] px-1.5 py-0"
-                          >
-                            {log.step}
-                          </Badge>
-                          <span className="font-medium text-xs">{log.action}</span>
-                          <span className="text-[10px] text-muted-foreground ml-auto">
-                            {log.timestamp.toLocaleTimeString()}
+                  {transcript.map((msg, idx) => {
+                    if (msg.role === "system") {
+                      return (
+                        <div
+                          key={idx}
+                          className="flex justify-center"
+                          data-testid={`transcript-message-${idx}`}
+                        >
+                          <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                            {msg.text}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 break-all">
-                          {log.details}
-                        </p>
+                      );
+                    }
+
+                    const isUser = msg.role === "user";
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                        data-testid={`transcript-message-${idx}`}
+                      >
+                        <div className={`flex items-start gap-2 max-w-[80%] ${isUser ? "flex-row-reverse" : ""}`}>
+                          <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
+                            isUser
+                              ? "bg-indigo-100 dark:bg-indigo-900/50"
+                              : "bg-gray-100 dark:bg-gray-800"
+                          }`}>
+                            {isUser ? (
+                              <User className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                            ) : (
+                              <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className={`rounded-lg px-3 py-2 text-sm ${
+                            isUser
+                              ? "bg-indigo-600 text-white"
+                              : "bg-muted text-foreground"
+                          }`}>
+                            {msg.text}
+                            <div className={`text-[10px] mt-1 ${
+                              isUser ? "text-indigo-200" : "text-muted-foreground"
+                            }`}>
+                              {msg.timestamp.toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {processingStage && (
+                    <div className="flex justify-start" data-testid="text-processing-indicator">
+                      <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {processingStage === "transcribing" && "Transcribing your message..."}
+                        {processingStage === "thinking" && "Agent is thinking..."}
+                        {processingStage === "speaking" && "Generating response..."}
                       </div>
                     </div>
-                  ))}
-                  <div ref={logsEndRef} />
+                  )}
+
+                  <div ref={transcriptEndRef} />
                 </div>
               </CardContent>
             </Card>

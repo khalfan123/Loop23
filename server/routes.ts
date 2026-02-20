@@ -82,7 +82,7 @@ import { initPlivoElevenLabsEngine, initPlivoElevenLabsStream } from "./engines/
 // Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
 import { twilioOpenaiWebhookRoutes, setupTwilioOpenAIStreamHandler, twilioOpenaiIncomingConnectionsRoutes } from "./engines/twilio-openai";
 // Twilio + Bedrock + Polly Engine (ISOLATED from other engines)
-import { bedrockPollyWebhookRoutes, setupBedrockPollyStreamHandler } from "./engines/twilio-bedrock-polly";
+import { bedrockPollyWebhookRoutes, setupBedrockPollyStreamHandler, setupBrowserVoiceStreamHandler } from "./engines/twilio-bedrock-polly";
 // KYC Engine
 import { registerKycRoutes } from "./engines/kyc";
 import { checkAdmin } from "./middleware/admin-auth";
@@ -2850,6 +2850,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup Twilio-Bedrock-Polly WebSocket stream for Media Streams audio bridging
   setupBedrockPollyStreamHandler(httpServer);
+  
+  // Setup Browser Voice WebSocket stream for Call Simulator real-time conversation
+  setupBrowserVoiceStreamHandler(httpServer);
   
   return httpServer;
 }

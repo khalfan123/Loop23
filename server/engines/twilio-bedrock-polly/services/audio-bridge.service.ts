@@ -139,7 +139,7 @@ export class BedrockPollyAudioBridge {
       callDirection,
       pendingAudioQueue: [],
       isProcessing: false,
-      pollyEngine: 'neural',
+      pollyEngine: 'generative',
     };
 
     if (agentConfig.tools) {
@@ -570,13 +570,52 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
 
     try {
-      const result = await awsPollyService.synthesizeSpeech({
-        text,
-        voiceId: agentConfig.voice,
-        engine: session.pollyEngine,
-        outputFormat: 'pcm',
-        sampleRate: '8000',
-      });
+      const trimmedText = text.trim();
+      if (!trimmedText) {
+        console.log(`[BedrockPolly Bridge] Empty text, skipping synthesis for ${callSid}`);
+        return;
+      }
+
+      const MAX_POLLY_CHARS = 3000;
+      const synthesisText = trimmedText.length > MAX_POLLY_CHARS 
+        ? trimmedText.substring(0, MAX_POLLY_CHARS) 
+        : trimmedText;
+
+      const escapedText = synthesisText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+      const ssmlText = `<speak><prosody rate="medium" pitch="medium">${escapedText}</prosody></speak>`;
+
+      let result;
+      try {
+        result = await awsPollyService.synthesizeSpeech({
+          text: ssmlText,
+          voiceId: agentConfig.voice,
+          engine: 'generative',
+          outputFormat: 'pcm',
+          sampleRate: '8000',
+          textType: 'ssml',
+        });
+      } catch (genError: any) {
+        console.warn(`[BedrockPolly Bridge] Generative engine failed for voice ${agentConfig.voice}, falling back to neural: ${genError.message}`);
+        try {
+          result = await awsPollyService.synthesizeSpeech({
+            text: ssmlText,
+            voiceId: agentConfig.voice,
+            engine: 'neural',
+            outputFormat: 'pcm',
+            sampleRate: '8000',
+            textType: 'ssml',
+          });
+        } catch (neuralError: any) {
+          console.warn(`[BedrockPolly Bridge] Neural SSML also failed, trying plain text: ${neuralError.message}`);
+          result = await awsPollyService.synthesizeSpeech({
+            text: synthesisText,
+            voiceId: agentConfig.voice,
+            engine: 'neural',
+            outputFormat: 'pcm',
+            sampleRate: '8000',
+          });
+        }
+      }
 
       const pcmBuffer = result.audioStream;
       const mulawBuffer = this.pcmToMulaw(pcmBuffer);

@@ -845,6 +845,64 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
     }
   });
 
+  router.patch("/:departmentId/agents/:departmentAgentId", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { departmentId, departmentAgentId } = req.params;
+      const { systemPrompt, voiceTone, voiceId, firstMessage } = req.body;
+
+      const existingDept = await db
+        .select()
+        .from(departments)
+        .where(and(eq(departments.id, departmentId), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
+        .limit(1);
+
+      if (existingDept.length === 0) {
+        return res.status(404).json({ error: "Department not found" });
+      }
+
+      const [deptAgent] = await db
+        .select()
+        .from(departmentAgents)
+        .where(and(eq(departmentAgents.id, departmentAgentId), eq(departmentAgents.departmentId, departmentId)))
+        .limit(1);
+
+      if (!deptAgent) {
+        return res.status(404).json({ error: "Department agent not found" });
+      }
+
+      const deptAgentUpdate: Record<string, any> = {};
+      if (systemPrompt !== undefined) deptAgentUpdate.systemPrompt = systemPrompt;
+      if (voiceTone !== undefined) deptAgentUpdate.voiceTone = voiceTone;
+
+      if (Object.keys(deptAgentUpdate).length > 0) {
+        await db
+          .update(departmentAgents)
+          .set(deptAgentUpdate)
+          .where(eq(departmentAgents.id, departmentAgentId));
+      }
+
+      const agentUpdate: Record<string, any> = {};
+      if (voiceId !== undefined) agentUpdate.openaiVoice = voiceId;
+      if (voiceTone !== undefined) agentUpdate.voiceTone = voiceTone;
+      if (systemPrompt !== undefined) agentUpdate.systemPrompt = systemPrompt;
+      if (firstMessage !== undefined) agentUpdate.firstMessage = firstMessage;
+
+      if (Object.keys(agentUpdate).length > 0) {
+        await db
+          .update(agents)
+          .set(agentUpdate)
+          .where(and(eq(agents.id, deptAgent.agentId), eq(agents.userId, req.userId!)));
+      }
+
+      console.log(`[Deprock] Updated agent config for departmentAgent ${departmentAgentId}: voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}, prompt=${!!systemPrompt}, firstMessage=${!!firstMessage}`);
+
+      res.json({ success: true, departmentAgentId, agentId: deptAgent.agentId });
+    } catch (error: any) {
+      console.error("[Deprock] Update agent config error:", error);
+      res.status(500).json({ error: "Failed to update agent configuration" });
+    }
+  });
+
   router.get("/:id/agents", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;

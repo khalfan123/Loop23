@@ -412,6 +412,9 @@ export default function DeprockManagement() {
   });
   
   const [viewAgentDetail, setViewAgentDetail] = useState<{
+    id: string;
+    agentId: string;
+    departmentId: string;
     agentName: string;
     language: string;
     systemPrompt: string | null;
@@ -423,6 +426,15 @@ export default function DeprockManagement() {
     agentType: string;
     firstMessage: string | null;
   } | null>(null);
+
+  const [editAgentDetail, setEditAgentDetail] = useState<{
+    voiceId: string;
+    voiceTone: string;
+    firstMessage: string;
+    systemPrompt: string;
+  } | null>(null);
+
+  const [generatingPromptFor, setGeneratingPromptFor] = useState<'firstMessage' | 'systemPrompt' | null>(null);
 
   const [selectedPhoneForIvr, setSelectedPhoneForIvr] = useState<string>("");
   const [ivrName, setIvrName] = useState<string>("Auto Distribution");
@@ -472,6 +484,19 @@ export default function DeprockManagement() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (viewAgentDetail) {
+      setEditAgentDetail({
+        voiceId: viewAgentDetail.voiceId || '',
+        voiceTone: viewAgentDetail.voiceTone || '',
+        firstMessage: viewAgentDetail.firstMessage || '',
+        systemPrompt: viewAgentDetail.systemPrompt || '',
+      });
+    } else {
+      setEditAgentDetail(null);
+    }
+  }, [viewAgentDetail]);
 
   const { data: userProfile } = useQuery<{ company?: string; name?: string }>({
     queryKey: ["/api/auth/me"],
@@ -611,6 +636,26 @@ export default function DeprockManagement() {
     },
     onError: () => {
       toast({ title: "Failed to remove agent", variant: "destructive" });
+    },
+  });
+
+  const updateAgentConfigMutation = useMutation({
+    mutationFn: async (data: { departmentId: string; departmentAgentId: string; voiceId: string; voiceTone: string; firstMessage: string; systemPrompt: string }) => {
+      return apiRequest("PATCH", `/api/deprock/${data.departmentId}/agents/${data.departmentAgentId}`, {
+        voiceId: data.voiceId,
+        voiceTone: data.voiceTone,
+        firstMessage: data.firstMessage,
+        systemPrompt: data.systemPrompt,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
+      toast({ title: "Agent configuration updated" });
+      setViewAgentDetail(null);
+      setEditAgentDetail(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to update agent configuration", variant: "destructive" });
     },
   });
 
@@ -2804,7 +2849,13 @@ export default function DeprockManagement() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={!!viewAgentDetail} onOpenChange={(open) => !open && setViewAgentDetail(null)}>
+      <Sheet open={!!viewAgentDetail} onOpenChange={(open) => {
+        if (!open) {
+          setViewAgentDetail(null);
+          setEditAgentDetail(null);
+          setGeneratingPromptFor(null);
+        }
+      }}>
         <SheetContent className="w-full sm:max-w-md" data-testid="deprock-agent-detail-sheet">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2 flex-wrap" data-testid="deprock-agent-detail-title">
@@ -2812,7 +2863,7 @@ export default function DeprockManagement() {
               {viewAgentDetail?.agentName}
             </SheetTitle>
           </SheetHeader>
-          {viewAgentDetail && (
+          {viewAgentDetail && editAgentDetail && (
             <ScrollArea className="h-[calc(100vh-120px)] pr-4 mt-4">
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -2839,36 +2890,139 @@ export default function DeprockManagement() {
                   </p>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Voice</Label>
-                  <p className="text-sm" data-testid="deprock-agent-detail-voice-id">
-                    {viewAgentDetail.voiceId
-                      ? (POLLY_VOICES.find(v => v.id === viewAgentDetail.voiceId)?.name || viewAgentDetail.voiceId)
-                      : "Not configured"}
-                  </p>
+                  <Select
+                    value={editAgentDetail.voiceId}
+                    onValueChange={(val) => setEditAgentDetail(prev => prev ? { ...prev, voiceId: val } : prev)}
+                  >
+                    <SelectTrigger data-testid="deprock-agent-detail-select-voice">
+                      <SelectValue placeholder="Select a voice" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POLLY_VOICES
+                        .filter(v => v.languages.includes(viewAgentDetail.language) || v.languages.includes('en'))
+                        .map(voice => (
+                          <SelectItem key={voice.id} value={voice.id} data-testid={`deprock-agent-detail-voice-option-${voice.id}`}>
+                            {voice.name} ({voice.gender}, {voice.style})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Voice Tone</Label>
-                  <p className="text-sm" data-testid="deprock-agent-detail-voice-tone">
-                    {viewAgentDetail.voiceTone || "Not configured"}
-                  </p>
+                  <Select
+                    value={editAgentDetail.voiceTone}
+                    onValueChange={(val) => setEditAgentDetail(prev => prev ? { ...prev, voiceTone: val } : prev)}
+                  >
+                    <SelectTrigger data-testid="deprock-agent-detail-select-voice-tone">
+                      <SelectValue placeholder="Select voice tone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["professional", "friendly", "calm", "energetic", "authoritative", "warm", "casual", "formal"].map(tone => (
+                        <SelectItem key={tone} value={tone} data-testid={`deprock-agent-detail-tone-option-${tone}`}>
+                          {tone.charAt(0).toUpperCase() + tone.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">First Message</Label>
-                  <p className="text-sm whitespace-pre-wrap" data-testid="deprock-agent-detail-first-message">
-                    {viewAgentDetail.firstMessage || "Not configured"}
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">System Prompt</Label>
-                  <div className="rounded-md border p-3 max-h-[300px] overflow-y-auto" data-testid="deprock-agent-detail-system-prompt">
-                    <p className="text-sm whitespace-pre-wrap">
-                      {viewAgentDetail.systemPrompt || "Not configured"}
-                    </p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">First Message</Label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={generatingPromptFor === 'firstMessage'}
+                      onClick={() => {
+                        setGeneratingPromptFor('firstMessage');
+                        const agentName = viewAgentDetail.agentName;
+                        const lang = viewAgentDetail.language;
+                        const greetings: Record<string, string> = {
+                          en: `Hello! I'm ${agentName}. How can I assist you today?`,
+                          ar: `\u0645\u0631\u062d\u0628\u0627\u064b! \u0623\u0646\u0627 ${agentName}. \u0643\u064a\u0641 \u064a\u0645\u0643\u0646\u0646\u064a \u0645\u0633\u0627\u0639\u062f\u062a\u0643 \u0627\u0644\u064a\u0648\u0645\u061f`,
+                          es: `\u00a1Hola! Soy ${agentName}. \u00bfEn qu\u00e9 puedo ayudarte hoy?`,
+                          fr: `Bonjour ! Je suis ${agentName}. Comment puis-je vous aider aujourd'hui ?`,
+                          de: `Hallo! Ich bin ${agentName}. Wie kann ich Ihnen heute helfen?`,
+                          it: `Ciao! Sono ${agentName}. Come posso aiutarti oggi?`,
+                          pt: `Ol\u00e1! Eu sou ${agentName}. Como posso ajud\u00e1-lo hoje?`,
+                          zh: `\u4f60\u597d\uff01\u6211\u662f${agentName}\u3002\u4eca\u5929\u6211\u80fd\u4e3a\u60a8\u505a\u4ec0\u4e48\uff1f`,
+                          hi: `\u0928\u092e\u0938\u094d\u0924\u0947! \u092e\u0948\u0902 ${agentName} \u0939\u0942\u0901\u0964 \u0906\u091c \u092e\u0948\u0902 \u0906\u092a\u0915\u0940 \u0915\u0948\u0938\u0947 \u092e\u0926\u0926 \u0915\u0930 \u0938\u0915\u0924\u0940 \u0939\u0942\u0901?`,
+                          ja: `\u3053\u3093\u306b\u3061\u306f\uff01${agentName}\u3067\u3059\u3002\u672c\u65e5\u306f\u3069\u306e\u3088\u3046\u306a\u3054\u7528\u4ef6\u3067\u3057\u3087\u3046\u304b\uff1f`,
+                          ko: `\uc548\ub155\ud558\uc138\uc694! ${agentName}\uc785\ub2c8\ub2e4. \uc624\ub298 \uc5b4\ub5bb\uac8c \ub3c4\uc640\ub4dc\ub9b4\uae4c\uc694?`,
+                          nl: `Hallo! Ik ben ${agentName}. Hoe kan ik u vandaag helpen?`,
+                          pl: `Cze\u015b\u0107! Jestem ${agentName}. Jak mog\u0119 Ci dzi\u015b pom\u00f3c?`,
+                          sv: `Hej! Jag \u00e4r ${agentName}. Hur kan jag hj\u00e4lpa dig idag?`,
+                          no: `Hei! Jeg er ${agentName}. Hvordan kan jeg hjelpe deg i dag?`,
+                          fi: `Hei! Olen ${agentName}. Kuinka voin auttaa sinua t\u00e4n\u00e4\u00e4n?`,
+                          tr: `Merhaba! Ben ${agentName}. Size bug\u00fcn nas\u0131l yard\u0131mc\u0131 olabilirim?`,
+                        };
+                        const msg = greetings[lang] || greetings.en;
+                        setEditAgentDetail(prev => prev ? { ...prev, firstMessage: msg } : prev);
+                        setGeneratingPromptFor(null);
+                      }}
+                      data-testid="deprock-agent-detail-generate-first-message"
+                    >
+                      {generatingPromptFor === 'firstMessage' ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
                   </div>
+                  <Textarea
+                    value={editAgentDetail.firstMessage}
+                    onChange={(e) => setEditAgentDetail(prev => prev ? { ...prev, firstMessage: e.target.value } : prev)}
+                    rows={3}
+                    data-testid="deprock-agent-detail-textarea-first-message"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">System Prompt</Label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={generatingPromptFor === 'systemPrompt'}
+                      onClick={async () => {
+                        setGeneratingPromptFor('systemPrompt');
+                        try {
+                          const deptName = departments.find(d => d.id === viewAgentDetail.departmentId)?.name || 'Department';
+                          const res = await apiRequest("POST", "/api/deprock/generate-prompt", {
+                            departmentType: "general",
+                            departmentName: deptName,
+                            language: viewAgentDetail.language,
+                            agentName: viewAgentDetail.agentName,
+                          });
+                          const data = await res.json();
+                          if (data.prompt) {
+                            setEditAgentDetail(prev => prev ? { ...prev, systemPrompt: data.prompt } : prev);
+                          }
+                        } catch (err) {
+                          toast({ title: "Failed to generate prompt", variant: "destructive" });
+                        } finally {
+                          setGeneratingPromptFor(null);
+                        }
+                      }}
+                      data-testid="deprock-agent-detail-generate-system-prompt"
+                    >
+                      {generatingPromptFor === 'systemPrompt' ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                  <Textarea
+                    value={editAgentDetail.systemPrompt}
+                    onChange={(e) => setEditAgentDetail(prev => prev ? { ...prev, systemPrompt: e.target.value } : prev)}
+                    rows={8}
+                    data-testid="deprock-agent-detail-textarea-system-prompt"
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -2878,6 +3032,38 @@ export default function DeprockManagement() {
                       ? `${viewAgentDetail.knowledgeBaseIds.length} knowledge base${viewAgentDetail.knowledgeBaseIds.length !== 1 ? 's' : ''} attached`
                       : "None attached"}
                   </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setViewAgentDetail(null);
+                      setEditAgentDetail(null);
+                    }}
+                    data-testid="deprock-agent-detail-cancel"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      updateAgentConfigMutation.mutate({
+                        departmentId: viewAgentDetail.departmentId,
+                        departmentAgentId: viewAgentDetail.id,
+                        voiceId: editAgentDetail.voiceId,
+                        voiceTone: editAgentDetail.voiceTone,
+                        firstMessage: editAgentDetail.firstMessage,
+                        systemPrompt: editAgentDetail.systemPrompt,
+                      });
+                    }}
+                    disabled={updateAgentConfigMutation.isPending}
+                    data-testid="deprock-agent-detail-save"
+                  >
+                    {updateAgentConfigMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Save
+                  </Button>
                 </div>
               </div>
             </ScrollArea>
@@ -2898,7 +3084,7 @@ interface DeprockDepartmentCardProps {
   onDelete: () => void;
   onFlow: () => void;
   onAddAgent: () => void;
-  onViewAgent: (agent: { agentName: string; language: string; systemPrompt: string | null; voiceTone: string | null; voiceId: string | null; voiceProvider: string | null; knowledgeBaseIds: string[] | null; isPrimary: boolean; agentType: string; firstMessage: string | null }) => void;
+  onViewAgent: (agent: { id: string; agentId: string; departmentId: string; agentName: string; language: string; systemPrompt: string | null; voiceTone: string | null; voiceId: string | null; voiceProvider: string | null; knowledgeBaseIds: string[] | null; isPrimary: boolean; agentType: string; firstMessage: string | null }) => void;
 }
 
 function DeprockDepartmentCard({
@@ -3006,6 +3192,9 @@ function DeprockDepartmentCard({
                 key={agent.id} 
                 className="flex items-center gap-2 text-sm p-2 rounded-lg bg-background/60 dark:bg-background/30 cursor-pointer hover:bg-muted/40"
                 onClick={() => onViewAgent({
+                  id: agent.id,
+                  agentId: agent.agentId,
+                  departmentId: department.id,
                   agentName: agent.agentName,
                   language: agent.language,
                   systemPrompt: agent.systemPrompt ?? null,

@@ -43,6 +43,7 @@ import {
   Sparkles,
   Globe,
   RotateCcw,
+  Eye,
 } from "lucide-react";
 import {
   Dialog,
@@ -89,6 +90,20 @@ interface Department {
   flowId?: string | null;
   agentCount?: number;
   languages?: string[];
+  assignedAgents?: Array<{
+    id: string;
+    agentId: string;
+    agentName: string;
+    language: string;
+    systemPrompt: string | null;
+    voiceTone: string | null;
+    voiceId: string | null;
+    voiceProvider: string | null;
+    knowledgeBaseIds: string[] | null;
+    isPrimary: boolean;
+    agentType: string;
+    firstMessage: string | null;
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -396,6 +411,19 @@ export default function DeprockManagement() {
     voiceId: "",
   });
   
+  const [viewAgentDetail, setViewAgentDetail] = useState<{
+    agentName: string;
+    language: string;
+    systemPrompt: string | null;
+    voiceTone: string | null;
+    voiceId: string | null;
+    voiceProvider: string | null;
+    knowledgeBaseIds: string[] | null;
+    isPrimary: boolean;
+    agentType: string;
+    firstMessage: string | null;
+  } | null>(null);
+
   const [selectedPhoneForIvr, setSelectedPhoneForIvr] = useState<string>("");
   const [ivrName, setIvrName] = useState<string>("Auto Distribution");
   const [editingIvrName, setEditingIvrName] = useState<string | null>(null);
@@ -1368,6 +1396,7 @@ export default function DeprockManagement() {
                       setSelectedDepartment(dept);
                       setShowAddAgentDialog(true);
                     }}
+                    onViewAgent={(agentData) => setViewAgentDetail(agentData)}
                   />
                 ))}
 
@@ -1509,6 +1538,7 @@ export default function DeprockManagement() {
                     setSelectedDepartment(dept);
                     setShowAddAgentDialog(true);
                   }}
+                  onViewAgent={(agentData) => setViewAgentDetail(agentData)}
                 />
               ))}
 
@@ -2773,6 +2803,87 @@ export default function DeprockManagement() {
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <Sheet open={!!viewAgentDetail} onOpenChange={(open) => !open && setViewAgentDetail(null)}>
+        <SheetContent className="w-full sm:max-w-md" data-testid="deprock-agent-detail-sheet">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2 flex-wrap" data-testid="deprock-agent-detail-title">
+              <Mic className="h-4 w-4" />
+              {viewAgentDetail?.agentName}
+            </SheetTitle>
+          </SheetHeader>
+          {viewAgentDetail && (
+            <ScrollArea className="h-[calc(100vh-120px)] pr-4 mt-4">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" data-testid="deprock-agent-detail-language">
+                    {SUPPORTED_LANGUAGES.find(l => l.code === viewAgentDetail.language)?.label || viewAgentDetail.language}
+                  </Badge>
+                  <Badge variant="secondary" data-testid="deprock-agent-detail-type">
+                    {viewAgentDetail.agentType}
+                  </Badge>
+                  {viewAgentDetail.isPrimary && (
+                    <Badge data-testid="deprock-agent-detail-primary">
+                      Primary
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Voice Provider</Label>
+                  <p className="text-sm" data-testid="deprock-agent-detail-voice-provider">
+                    {viewAgentDetail.voiceProvider === 'aws_polly' ? 'AWS Polly' 
+                      : viewAgentDetail.voiceProvider === 'elevenlabs' ? 'ElevenLabs'
+                      : viewAgentDetail.voiceProvider === 'openai' ? 'OpenAI'
+                      : viewAgentDetail.voiceProvider || "Not configured"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Voice</Label>
+                  <p className="text-sm" data-testid="deprock-agent-detail-voice-id">
+                    {viewAgentDetail.voiceId
+                      ? (POLLY_VOICES.find(v => v.id === viewAgentDetail.voiceId)?.name || viewAgentDetail.voiceId)
+                      : "Not configured"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Voice Tone</Label>
+                  <p className="text-sm" data-testid="deprock-agent-detail-voice-tone">
+                    {viewAgentDetail.voiceTone || "Not configured"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">First Message</Label>
+                  <p className="text-sm whitespace-pre-wrap" data-testid="deprock-agent-detail-first-message">
+                    {viewAgentDetail.firstMessage || "Not configured"}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">System Prompt</Label>
+                  <div className="rounded-md border p-3 max-h-[300px] overflow-y-auto" data-testid="deprock-agent-detail-system-prompt">
+                    <p className="text-sm whitespace-pre-wrap">
+                      {viewAgentDetail.systemPrompt || "Not configured"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Knowledge Bases</Label>
+                  <p className="text-sm" data-testid="deprock-agent-detail-kb-count">
+                    {viewAgentDetail.knowledgeBaseIds && viewAgentDetail.knowledgeBaseIds.length > 0
+                      ? `${viewAgentDetail.knowledgeBaseIds.length} knowledge base${viewAgentDetail.knowledgeBaseIds.length !== 1 ? 's' : ''} attached`
+                      : "None attached"}
+                  </p>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+        </SheetContent>
+      </Sheet>
       </div>
     </ThreeColumnLayout>
   );
@@ -2787,6 +2898,7 @@ interface DeprockDepartmentCardProps {
   onDelete: () => void;
   onFlow: () => void;
   onAddAgent: () => void;
+  onViewAgent: (agent: { agentName: string; language: string; systemPrompt: string | null; voiceTone: string | null; voiceId: string | null; voiceProvider: string | null; knowledgeBaseIds: string[] | null; isPrimary: boolean; agentType: string; firstMessage: string | null }) => void;
 }
 
 function DeprockDepartmentCard({
@@ -2798,6 +2910,7 @@ function DeprockDepartmentCard({
   onDelete,
   onFlow,
   onAddAgent,
+  onViewAgent,
 }: DeprockDepartmentCardProps) {
   const IconComponent = departmentIcons.find(i => i.value === department.icon)?.icon || Building2;
   const agentCount = department.agentCount || 0;
@@ -2888,8 +3001,24 @@ function DeprockDepartmentCard({
       {isExpanded && (
         <div className="space-y-1.5" data-testid={`deprock-agent-list-${department.id}`}>
           {agents.length > 0 ? (
-            agents.map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
-              <div key={agent.id} className="flex items-center gap-2 text-sm p-2 rounded-lg bg-background/60 dark:bg-background/30">
+            agents.map((agent: any) => (
+              <div 
+                key={agent.id} 
+                className="flex items-center gap-2 text-sm p-2 rounded-lg bg-background/60 dark:bg-background/30 cursor-pointer hover:bg-muted/40"
+                onClick={() => onViewAgent({
+                  agentName: agent.agentName,
+                  language: agent.language,
+                  systemPrompt: agent.systemPrompt ?? null,
+                  voiceTone: agent.voiceTone ?? null,
+                  voiceId: agent.voiceId ?? null,
+                  voiceProvider: agent.voiceProvider ?? null,
+                  knowledgeBaseIds: agent.knowledgeBaseIds ?? null,
+                  isPrimary: agent.isPrimary ?? false,
+                  agentType: agent.agentType ?? 'incoming',
+                  firstMessage: agent.firstMessage ?? null,
+                })}
+                data-testid={`deprock-view-agent-${agent.id}`}
+              >
                 <div className="w-6 h-6 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
                   <Mic className="h-3 w-3 text-muted-foreground/60" />
                 </div>
@@ -2897,6 +3026,7 @@ function DeprockDepartmentCard({
                 <Badge variant="secondary" className="text-[10px] shrink-0">
                   {languages.find(l => l.value === agent.language)?.label || agent.language}
                 </Badge>
+                <Eye className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
               </div>
             ))
           ) : (

@@ -1088,6 +1088,14 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
               agentId: da.departmentAgent.agentId,
               agentName: da.agent.name,
               language: da.departmentAgent.language,
+              systemPrompt: da.departmentAgent.systemPrompt || da.agent.systemPrompt,
+              voiceTone: da.departmentAgent.voiceTone || da.agent.voiceTone,
+              voiceId: da.agent.openaiVoice || da.agent.awsPollyVoiceId || da.agent.elevenLabsVoiceId,
+              voiceProvider: da.agent.voiceProvider,
+              knowledgeBaseIds: da.agent.knowledgeBaseIds,
+              isPrimary: da.departmentAgent.isPrimary,
+              agentType: da.agent.type,
+              firstMessage: da.agent.firstMessage,
             })),
           };
         })

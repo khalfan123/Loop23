@@ -10,24 +10,26 @@ import { getDomain } from '../../../utils/domain';
 
 const router = Router();
 
-const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invalidMsg: string; noInputMsg: string; holdMsg: string; noAgentMsg: string; goodbyeMsg: string }> = {
-  en: { pressKey: 'press', invalidMsg: 'Invalid selection. Please try again.', noInputMsg: 'We did not receive a response.', holdMsg: 'Please hold while we connect you.', noAgentMsg: 'Sorry, no agent is available at this time.', goodbyeMsg: 'Thank you for calling. Goodbye.', greeting: 'Welcome. Please listen to the following options.' },
-  ar: { pressKey: 'اضغط', invalidMsg: 'اختيار غير صالح. يرجى المحاولة مرة أخرى.', noInputMsg: 'لم نتلق أي استجابة.', holdMsg: 'يرجى الانتظار بينما نقوم بتوصيلك.', noAgentMsg: 'عذراً، لا يوجد وكيل متاح حالياً.', goodbyeMsg: 'شكراً لاتصالك. مع السلامة.', greeting: 'مرحباً. يرجى الاستماع إلى الخيارات التالية.' },
-  es: { pressKey: 'presione', invalidMsg: 'Selección no válida. Por favor, intente de nuevo.', noInputMsg: 'No recibimos respuesta.', holdMsg: 'Por favor espere mientras lo conectamos.', noAgentMsg: 'Lo sentimos, no hay agente disponible en este momento.', goodbyeMsg: 'Gracias por llamar. Adiós.', greeting: 'Bienvenido. Por favor escuche las siguientes opciones.' },
-  fr: { pressKey: 'appuyez sur', invalidMsg: 'Sélection invalide. Veuillez réessayer.', noInputMsg: 'Nous n\'avons reçu aucune réponse.', holdMsg: 'Veuillez patienter pendant que nous vous connectons.', noAgentMsg: 'Désolé, aucun agent n\'est disponible pour le moment.', goodbyeMsg: 'Merci d\'avoir appelé. Au revoir.', greeting: 'Bienvenue. Veuillez écouter les options suivantes.' },
-  de: { pressKey: 'drücken Sie', invalidMsg: 'Ungültige Auswahl. Bitte versuchen Sie es erneut.', noInputMsg: 'Wir haben keine Antwort erhalten.', holdMsg: 'Bitte warten Sie, während wir Sie verbinden.', noAgentMsg: 'Es tut uns leid, es ist derzeit kein Agent verfügbar.', goodbyeMsg: 'Vielen Dank für Ihren Anruf. Auf Wiedersehen.', greeting: 'Willkommen. Bitte hören Sie sich die folgenden Optionen an.' },
-  it: { pressKey: 'premere', invalidMsg: 'Selezione non valida. Riprovi per favore.', noInputMsg: 'Non abbiamo ricevuto risposta.', holdMsg: 'Attenda mentre la colleghiamo.', noAgentMsg: 'Siamo spiacenti, nessun agente è disponibile al momento.', goodbyeMsg: 'Grazie per aver chiamato. Arrivederci.', greeting: 'Benvenuto. Ascolti le seguenti opzioni.' },
-  pt: { pressKey: 'pressione', invalidMsg: 'Seleção inválida. Por favor, tente novamente.', noInputMsg: 'Não recebemos resposta.', holdMsg: 'Por favor, aguarde enquanto conectamos você.', noAgentMsg: 'Desculpe, nenhum agente está disponível no momento.', goodbyeMsg: 'Obrigado por ligar. Adeus.', greeting: 'Bem-vindo. Por favor, ouça as seguintes opções.' },
-  zh: { pressKey: '请按', invalidMsg: '选择无效。请重试。', noInputMsg: '我们没有收到回复。', holdMsg: '请稍候，我们正在为您转接。', noAgentMsg: '抱歉，目前没有可用的客服。', goodbyeMsg: '感谢您的来电。再见。', greeting: '欢迎。请听以下选项。' },
-  hi: { pressKey: 'दबाएं', invalidMsg: 'अमान्य चयन। कृपया पुनः प्रयास करें।', noInputMsg: 'हमें कोई प्रतिक्रिया नहीं मिली।', holdMsg: 'कृपया प्रतीक्षा करें जब तक हम आपको जोड़ते हैं।', noAgentMsg: 'क्षमा करें, इस समय कोई एजेंट उपलब्ध नहीं है।', goodbyeMsg: 'कॉल करने के लिए धन्यवाद। अलविदा।', greeting: 'स्वागत है। कृपया निम्नलिखित विकल्प सुनें।' },
-  ja: { pressKey: 'を押してください', invalidMsg: '無効な選択です。もう一度お試しください。', noInputMsg: '応答がありませんでした。', holdMsg: 'お繋ぎしますので、少々お待ちください。', noAgentMsg: '申し訳ございません。現在対応可能なエージェントがおりません。', goodbyeMsg: 'お電話ありがとうございました。さようなら。', greeting: 'ようこそ。以下のオプションをお聞きください。' },
-  ko: { pressKey: '번을 누르세요', invalidMsg: '잘못된 선택입니다. 다시 시도해 주세요.', noInputMsg: '응답을 받지 못했습니다.', holdMsg: '연결해 드리겠습니다. 잠시만 기다려 주세요.', noAgentMsg: '죄송합니다. 현재 사용 가능한 상담원이 없습니다.', goodbyeMsg: '전화해 주셔서 감사합니다. 안녕히 계세요.', greeting: '환영합니다. 다음 옵션을 들어주세요.' },
-  nl: { pressKey: 'druk op', invalidMsg: 'Ongeldige selectie. Probeer het opnieuw.', noInputMsg: 'We hebben geen reactie ontvangen.', holdMsg: 'Een moment geduld terwijl we u doorverbinden.', noAgentMsg: 'Sorry, er is momenteel geen medewerker beschikbaar.', goodbyeMsg: 'Bedankt voor uw oproep. Tot ziens.', greeting: 'Welkom. Luister naar de volgende opties.' },
-  pl: { pressKey: 'naciśnij', invalidMsg: 'Nieprawidłowy wybór. Spróbuj ponownie.', noInputMsg: 'Nie otrzymaliśmy odpowiedzi.', holdMsg: 'Proszę czekać, łączymy Cię.', noAgentMsg: 'Przepraszamy, żaden agent nie jest obecnie dostępny.', goodbyeMsg: 'Dziękujemy za telefon. Do widzenia.', greeting: 'Witamy. Proszę wysłuchać poniższych opcji.' },
-  sv: { pressKey: 'tryck', invalidMsg: 'Ogiltigt val. Försök igen.', noInputMsg: 'Vi fick inget svar.', holdMsg: 'Vänligen vänta medan vi kopplar dig.', noAgentMsg: 'Tyvärr finns ingen agent tillgänglig just nu.', goodbyeMsg: 'Tack för ditt samtal. Hej då.', greeting: 'Välkommen. Lyssna på följande alternativ.' },
-  no: { pressKey: 'trykk', invalidMsg: 'Ugyldig valg. Prøv igjen.', noInputMsg: 'Vi mottok ingen respons.', holdMsg: 'Vennligst vent mens vi kobler deg.', noAgentMsg: 'Beklager, ingen agent er tilgjengelig for øyeblikket.', goodbyeMsg: 'Takk for at du ringte. Ha det.', greeting: 'Velkommen. Lytt til følgende alternativer.' },
-  fi: { pressKey: 'paina', invalidMsg: 'Virheellinen valinta. Yritä uudelleen.', noInputMsg: 'Emme saaneet vastausta.', holdMsg: 'Odota hetki, yhdistämme sinut.', noAgentMsg: 'Valitettavasti yhtään agenttia ei ole saatavilla tällä hetkellä.', goodbyeMsg: 'Kiitos soitostasi. Näkemiin.', greeting: 'Tervetuloa. Kuuntele seuraavat vaihtoehdot.' },
-  tr: { pressKey: 'basın', invalidMsg: 'Geçersiz seçim. Lütfen tekrar deneyin.', noInputMsg: 'Yanıt alamadık.', holdMsg: 'Sizi bağlarken lütfen bekleyin.', noAgentMsg: 'Üzgünüz, şu anda müsait bir temsilci yok.', goodbyeMsg: 'Aramanız için teşekkür ederiz. Hoşça kalın.', greeting: 'Hoş geldiniz. Lütfen aşağıdaki seçenekleri dinleyin.' },
+const GENERATIVE_VOICES = ['Joanna', 'Matthew', 'Lupe', 'Hala', 'Ruth', 'Stephen', 'Danielle', 'Gregory', 'Suvi', 'Aria'];
+
+const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invalidMsg: string; noInputMsg: string; holdMsg: string; noAgentMsg: string; goodbyeMsg: string; repeatMsg: string; stillThereMsg: string }> = {
+  en: { pressKey: 'press', invalidMsg: 'Invalid selection. Please try again.', noInputMsg: 'We did not receive a response.', holdMsg: 'Please hold while we connect you.', noAgentMsg: 'Sorry, no agent is available at this time.', goodbyeMsg: 'Thank you for calling. Goodbye.', greeting: 'Welcome. Please listen to the following options.', repeatMsg: 'To repeat these options, press 0.', stillThereMsg: 'Are you still there?' },
+  ar: { pressKey: 'اضغط', invalidMsg: 'اختيار غير صالح. يرجى المحاولة مرة أخرى.', noInputMsg: 'لم نتلق أي استجابة.', holdMsg: 'يرجى الانتظار بينما نقوم بتوصيلك.', noAgentMsg: 'عذراً، لا يوجد وكيل متاح حالياً.', goodbyeMsg: 'شكراً لاتصالك. مع السلامة.', greeting: 'مرحباً. يرجى الاستماع إلى الخيارات التالية.', repeatMsg: 'لتكرار هذه الخيارات، اضغط 0.', stillThereMsg: 'هل أنت لا تزال هنا؟' },
+  es: { pressKey: 'presione', invalidMsg: 'Selección no válida. Por favor, intente de nuevo.', noInputMsg: 'No recibimos respuesta.', holdMsg: 'Por favor espere mientras lo conectamos.', noAgentMsg: 'Lo sentimos, no hay agente disponible en este momento.', goodbyeMsg: 'Gracias por llamar. Adiós.', greeting: 'Bienvenido. Por favor escuche las siguientes opciones.', repeatMsg: 'Para repetir estas opciones, presione 0.', stillThereMsg: '¿Sigues ahí?' },
+  fr: { pressKey: 'appuyez sur', invalidMsg: 'Sélection invalide. Veuillez réessayer.', noInputMsg: 'Nous n\'avons reçu aucune réponse.', holdMsg: 'Veuillez patienter pendant que nous vous connectons.', noAgentMsg: 'Désolé, aucun agent n\'est disponible pour le moment.', goodbyeMsg: 'Merci d\'avoir appelé. Au revoir.', greeting: 'Bienvenue. Veuillez écouter les options suivantes.', repeatMsg: 'Pour répéter ces options, appuyez sur 0.', stillThereMsg: 'Êtes-vous toujours là ?' },
+  de: { pressKey: 'drücken Sie', invalidMsg: 'Ungültige Auswahl. Bitte versuchen Sie es erneut.', noInputMsg: 'Wir haben keine Antwort erhalten.', holdMsg: 'Bitte warten Sie, während wir Sie verbinden.', noAgentMsg: 'Es tut uns leid, es ist derzeit kein Agent verfügbar.', goodbyeMsg: 'Vielen Dank für Ihren Anruf. Auf Wiedersehen.', greeting: 'Willkommen. Bitte hören Sie sich die folgenden Optionen an.', repeatMsg: 'Um diese Optionen zu wiederholen, drücken Sie 0.', stillThereMsg: 'Sind Sie noch da?' },
+  it: { pressKey: 'premere', invalidMsg: 'Selezione non valida. Riprovi per favore.', noInputMsg: 'Non abbiamo ricevuto risposta.', holdMsg: 'Attenda mentre la colleghiamo.', noAgentMsg: 'Siamo spiacenti, nessun agente è disponibile al momento.', goodbyeMsg: 'Grazie per aver chiamato. Arrivederci.', greeting: 'Benvenuto. Ascolti le seguenti opzioni.', repeatMsg: 'Per ripetere queste opzioni, premere 0.', stillThereMsg: 'Sei ancora lì?' },
+  pt: { pressKey: 'pressione', invalidMsg: 'Seleção inválida. Por favor, tente novamente.', noInputMsg: 'Não recebemos resposta.', holdMsg: 'Por favor, aguarde enquanto conectamos você.', noAgentMsg: 'Desculpe, nenhum agente está disponível no momento.', goodbyeMsg: 'Obrigado por ligar. Adeus.', greeting: 'Bem-vindo. Por favor, ouça as seguintes opções.', repeatMsg: 'Para repetir essas opções, pressione 0.', stillThereMsg: 'Você ainda está aí?' },
+  zh: { pressKey: '请按', invalidMsg: '选择无效。请重试。', noInputMsg: '我们没有收到回复。', holdMsg: '请稍候，我们正在为您转接。', noAgentMsg: '抱歉，目前没有可用的客服。', goodbyeMsg: '感谢您的来电。再见。', greeting: '欢迎。请听以下选项。', repeatMsg: '如需重复这些选项，请按0。', stillThereMsg: '您还在吗？' },
+  hi: { pressKey: 'दबाएं', invalidMsg: 'अमान्य चयन। कृपया पुनः प्रयास करें।', noInputMsg: 'हमें कोई प्रतिक्रिया नहीं मिली।', holdMsg: 'कृपया प्रतीक्षा करें जब तक हम आपको जोड़ते हैं।', noAgentMsg: 'क्षमा करें, इस समय कोई एजेंट उपलब्ध नहीं है।', goodbyeMsg: 'कॉल करने के लिए धन्यवाद। अलविदा।', greeting: 'स्वागत है। कृपया निम्नलिखित विकल्प सुनें।', repeatMsg: 'इन विकल्पों को दोबारा सुनने के लिए, 0 दबाएं।', stillThereMsg: 'क्या आप अभी भी यहाँ हैं?' },
+  ja: { pressKey: 'を押してください', invalidMsg: '無効な選択です。もう一度お試しください。', noInputMsg: '応答がありませんでした。', holdMsg: 'お繋ぎしますので、少々お待ちください。', noAgentMsg: '申し訳ございません。現在対応可能なエージェントがおりません。', goodbyeMsg: 'お電話ありがとうございました。さようなら。', greeting: 'ようこそ。以下のオプションをお聞きください。', repeatMsg: 'オプションを繰り返すには、0を押してください。', stillThereMsg: 'まだいらっしゃいますか？' },
+  ko: { pressKey: '번을 누르세요', invalidMsg: '잘못된 선택입니다. 다시 시도해 주세요.', noInputMsg: '응답을 받지 못했습니다.', holdMsg: '연결해 드리겠습니다. 잠시만 기다려 주세요.', noAgentMsg: '죄송합니다. 현재 사용 가능한 상담원이 없습니다.', goodbyeMsg: '전화해 주셔서 감사합니다. 안녕히 계세요.', greeting: '환영합니다. 다음 옵션을 들어주세요.', repeatMsg: '옵션을 반복하려면 0을 누르세요.', stillThereMsg: '아직 계신가요?' },
+  nl: { pressKey: 'druk op', invalidMsg: 'Ongeldige selectie. Probeer het opnieuw.', noInputMsg: 'We hebben geen reactie ontvangen.', holdMsg: 'Een moment geduld terwijl we u doorverbinden.', noAgentMsg: 'Sorry, er is momenteel geen medewerker beschikbaar.', goodbyeMsg: 'Bedankt voor uw oproep. Tot ziens.', greeting: 'Welkom. Luister naar de volgende opties.', repeatMsg: 'Om deze opties te herhalen, druk op 0.', stillThereMsg: 'Bent u er nog?' },
+  pl: { pressKey: 'naciśnij', invalidMsg: 'Nieprawidłowy wybór. Spróbuj ponownie.', noInputMsg: 'Nie otrzymaliśmy odpowiedzi.', holdMsg: 'Proszę czekać, łączymy Cię.', noAgentMsg: 'Przepraszamy, żaden agent nie jest obecnie dostępny.', goodbyeMsg: 'Dziękujemy za telefon. Do widzenia.', greeting: 'Witamy. Proszę wysłuchać poniższych opcji.', repeatMsg: 'Aby powtórzyć te opcje, naciśnij 0.', stillThereMsg: 'Czy nadal jesteś na linii?' },
+  sv: { pressKey: 'tryck', invalidMsg: 'Ogiltigt val. Försök igen.', noInputMsg: 'Vi fick inget svar.', holdMsg: 'Vänligen vänta medan vi kopplar dig.', noAgentMsg: 'Tyvärr finns ingen agent tillgänglig just nu.', goodbyeMsg: 'Tack för ditt samtal. Hej då.', greeting: 'Välkommen. Lyssna på följande alternativ.', repeatMsg: 'För att upprepa dessa alternativ, tryck 0.', stillThereMsg: 'Är du fortfarande där?' },
+  no: { pressKey: 'trykk', invalidMsg: 'Ugyldig valg. Prøv igjen.', noInputMsg: 'Vi mottok ingen respons.', holdMsg: 'Vennligst vent mens vi kobler deg.', noAgentMsg: 'Beklager, ingen agent er tilgjengelig for øyeblikket.', goodbyeMsg: 'Takk for at du ringte. Ha det.', greeting: 'Velkommen. Lytt til følgende alternativer.', repeatMsg: 'For å gjenta disse alternativene, trykk 0.', stillThereMsg: 'Er du fortsatt der?' },
+  fi: { pressKey: 'paina', invalidMsg: 'Virheellinen valinta. Yritä uudelleen.', noInputMsg: 'Emme saaneet vastausta.', holdMsg: 'Odota hetki, yhdistämme sinut.', noAgentMsg: 'Valitettavasti yhtään agenttia ei ole saatavilla tällä hetkellä.', goodbyeMsg: 'Kiitos soitostasi. Näkemiin.', greeting: 'Tervetuloa. Kuuntele seuraavat vaihtoehdot.', repeatMsg: 'Toistaaksesi nämä vaihtoehdot, paina 0.', stillThereMsg: 'Oletko vielä siellä?' },
+  tr: { pressKey: 'basın', invalidMsg: 'Geçersiz seçim. Lütfen tekrar deneyin.', noInputMsg: 'Yanıt alamadık.', holdMsg: 'Sizi bağlarken lütfen bekleyin.', noAgentMsg: 'Üzgünüz, şu anda müsait bir temsilci yok.', goodbyeMsg: 'Aramanız için teşekkür ederiz. Hoşça kalın.', greeting: 'Hoş geldiniz. Lütfen aşağıdaki seçenekleri dinleyin.', repeatMsg: 'Bu seçenekleri tekrarlamak için 0 tuşuna basın.', stillThereMsg: 'Hâlâ orada mısınız?' },
 };
 
 const NUMBER_WORDS: Record<string, string[]> = {
@@ -75,8 +77,13 @@ function escapeXml(str: string): string {
     .replace(/'/g, '&apos;');
 }
 
-function sayWithPolly(voiceId: string, text: string): string {
-  return `<Say voice="Polly.${escapeXml(voiceId)}"><prosody rate="88%">${escapeXml(text)}</prosody></Say>`;
+function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false): string {
+  const engine = GENERATIVE_VOICES.includes(voiceId) ? 'generative' : 'neural';
+  let result = `<Say voice="Polly.${escapeXml(voiceId)}" engine="${engine}"><prosody rate="88%">${escapeXml(text)}</prosody></Say>`;
+  if (addBreakAfter) {
+    result += `<break time="350ms"/>`;
+  }
+  return result;
 }
 
 function buildBaseUrl(): string {
@@ -149,7 +156,7 @@ router.post('/answer', async (req: Request, res: Response) => {
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
 
       const actionUrl = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(CallSid || '')}&caller=${encodeURIComponent(From || '')}&attempt=1`;
-      const langHints = langOptions.map((_, i) => String(i + 1)).join(' ');
+      const langHints = langOptions.map((_, i) => String(i + 1)).join(' ') + ' 0';
       twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${langHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
       if (config.greetingMessage) {
@@ -161,15 +168,17 @@ router.post('/answer', async (req: Request, res: Response) => {
           const langTemplate = getTemplate(opt.language);
           const langVoice = opt.voiceId || voiceId;
           const langName = LANGUAGE_NAMES[opt.language] || opt.language;
-          twiml += sayWithPolly(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`);
+          const isLast = index === langOptions.length - 1;
+          twiml += sayWithPolly(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`, !isLast);
         });
       }
+      twiml += sayWithPolly(voiceId, getTemplate('en').repeatMsg);
 
       twiml += `</Gather>`;
 
       const template = getTemplate('en');
       const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
-      twiml += sayWithPolly(voiceId, template.noInputMsg);
+      twiml += sayWithPolly(voiceId, template.stillThereMsg);
       twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
       twiml += `</Response>`;
 
@@ -190,19 +199,21 @@ router.post('/answer', async (req: Request, res: Response) => {
       }
 
       const actionUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(CallSid || '')}&caller=${encodeURIComponent(From || '')}&lang=${encodeURIComponent(lang)}&attempt=1`;
-      const menuHints = menuOptions.map(opt => opt.key).join(' ');
+      const menuHints = menuOptions.map(opt => opt.key).join(' ') + ' 0';
       twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${menuHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
-      menuOptions.forEach((opt) => {
+      menuOptions.forEach((opt, index) => {
         const digit = parseInt(opt.key, 10);
         const numberWord = getNumberWord(lang, digit);
-        twiml += sayWithPolly(voiceId, `${template.pressKey} ${numberWord}, ${opt.label}`);
+        const isLast = index === menuOptions.length - 1;
+        twiml += sayWithPolly(voiceId, `${template.pressKey} ${numberWord}, ${opt.label}`, !isLast);
       });
+      twiml += sayWithPolly(voiceId, template.repeatMsg);
 
       twiml += `</Gather>`;
 
       const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
-      twiml += sayWithPolly(voiceId, template.noInputMsg);
+      twiml += sayWithPolly(voiceId, template.stillThereMsg);
       twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
       twiml += `</Response>`;
 
@@ -229,6 +240,13 @@ router.post('/handle-language', async (req: Request, res: Response) => {
     const attempt = parseInt(req.query.attempt as string || '1', 10);
 
     logger.info(`[Deprock IVR] /handle-language - Digits=${Digits}, SpeechResult=${req.body.SpeechResult || 'none'}, ivrId=${ivrId}, attempt=${attempt}`, undefined, 'DeprockIVR');
+
+    if (Digits === '0') {
+      const baseUrl = buildBaseUrl();
+      const restartUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=1`;
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Redirect method="POST">${escapeXml(restartUrl)}</Redirect></Response>`);
+    }
 
     const [config] = await db
       .select()
@@ -269,15 +287,17 @@ router.post('/handle-language', async (req: Request, res: Response) => {
 
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
       twiml += sayWithPolly(voiceId, template.invalidMsg);
-      const retryHints = langOptions.map((_, i) => String(i + 1)).join(' ');
+      const retryHints = langOptions.map((_, i) => String(i + 1)).join(' ') + ' 0';
       twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${retryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
       langOptions.forEach((opt, index) => {
         const digit = index + 1;
         const langTemplate = getTemplate(opt.language);
         const langVoice = opt.voiceId || voiceId;
         const langName = LANGUAGE_NAMES[opt.language] || opt.language;
-        twiml += sayWithPolly(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`);
+        const isLast = index === langOptions.length - 1;
+        twiml += sayWithPolly(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`, !isLast);
       });
+      twiml += sayWithPolly(voiceId, template.repeatMsg);
       twiml += `</Gather>`;
       twiml += `</Response>`;
 
@@ -307,24 +327,26 @@ router.post('/handle-language', async (req: Request, res: Response) => {
     const actionUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang)}&attempt=1`;
 
     let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
-    const deptHints = menuOpts.map(opt => opt.key).join(' ');
+    const deptHints = menuOpts.map(opt => opt.key).join(' ') + ' 0';
     twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${deptHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
     if (selectedLang.greeting) {
       twiml += sayWithPolly(langVoice, selectedLang.greeting);
     } else {
       twiml += sayWithPolly(langVoice, template.greeting);
-      menuOpts.forEach((opt) => {
+      menuOpts.forEach((opt, index) => {
         const digit = parseInt(opt.key, 10);
         const numberWord = getNumberWord(lang, digit);
-        twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`);
+        const isLast = index === menuOpts!.length - 1;
+        twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`, !isLast);
       });
     }
+    twiml += sayWithPolly(langVoice, template.repeatMsg);
 
     twiml += `</Gather>`;
 
     const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
-    twiml += sayWithPolly(langVoice, template.noInputMsg);
+    twiml += sayWithPolly(langVoice, template.stillThereMsg);
     twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
     twiml += `</Response>`;
 
@@ -349,6 +371,13 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
     const attempt = parseInt(req.query.attempt as string || '1', 10);
 
     logger.info(`[Deprock IVR] /handle-selection - Digits=${Digits}, SpeechResult=${req.body.SpeechResult || 'none'}, ivrId=${ivrId}, lang=${lang}, attempt=${attempt}`, undefined, 'DeprockIVR');
+
+    if (Digits === '0') {
+      const baseUrl = buildBaseUrl();
+      const repeatUrl = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&attempt=1`;
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Redirect method="POST">${escapeXml(repeatUrl)}</Redirect></Response>`);
+    }
 
     const [config] = await db
       .select()
@@ -399,13 +428,15 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
 
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
       twiml += sayWithPolly(langVoice, template.invalidMsg);
-      const selRetryHints = menuOpts.map(opt => opt.key).join(' ');
+      const selRetryHints = menuOpts.map(opt => opt.key).join(' ') + ' 0';
       twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${selRetryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
-      menuOpts.forEach((opt) => {
+      menuOpts.forEach((opt, index) => {
         const digit = parseInt(opt.key, 10);
         const numberWord = getNumberWord(lang, digit);
-        twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`);
+        const isLast = index === menuOpts!.length - 1;
+        twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`, !isLast);
       });
+      twiml += sayWithPolly(langVoice, template.repeatMsg);
       twiml += `</Gather>`;
       twiml += `</Response>`;
 

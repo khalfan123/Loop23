@@ -458,6 +458,19 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
     }
   });
 
+  router.get("/ivr-configs-all", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const allIvrConfigs = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(eq(ivrConfigurations.userId, req.userId!));
+      res.json(allIvrConfigs);
+    } catch (error: any) {
+      console.error('[IVR Configs All] Error:', error.message);
+      res.status(500).json({ error: 'Failed to fetch IVR configurations' });
+    }
+  });
+
   router.get("/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
@@ -876,19 +889,6 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
     } catch (error: any) {
       console.error("[Deprock] Get IVR configs error:", error);
       res.status(500).json({ error: "Failed to fetch IVR configurations" });
-    }
-  });
-
-  router.get("/ivr-configs-all", authenticateToken, async (req: AuthRequest, res: Response) => {
-    try {
-      const allIvrConfigs = await db
-        .select()
-        .from(ivrConfigurations)
-        .where(eq(ivrConfigurations.userId, req.userId!));
-      res.json(allIvrConfigs);
-    } catch (error: any) {
-      console.error('[IVR Configs All] Error:', error.message);
-      res.status(500).json({ error: 'Failed to fetch IVR configurations' });
     }
   });
 

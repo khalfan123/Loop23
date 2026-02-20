@@ -1492,13 +1492,14 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
     const phone = phoneNumber[0];
 
-    // Check for IVR configuration FIRST (department routing takes priority)
+    // Check for Department IVR configuration FIRST (department routing takes priority)
     let ivrConfig = await db
       .select()
       .from(ivrConfigurations)
       .where(and(
         eq(ivrConfigurations.phoneNumberId, phone.id),
-        eq(ivrConfigurations.isActive, true)
+        eq(ivrConfigurations.isActive, true),
+        eq(ivrConfigurations.engineType, 'default')
       ))
       .orderBy(desc(ivrConfigurations.updatedAt))
       .limit(1);
@@ -1511,7 +1512,8 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
         .from(ivrConfigurations)
         .where(and(
           eq(ivrConfigurations.userId, phone.userId),
-          eq(ivrConfigurations.isActive, true)
+          eq(ivrConfigurations.isActive, true),
+          eq(ivrConfigurations.engineType, 'default')
         ))
         .orderBy(desc(ivrConfigurations.updatedAt))
         .limit(1);
@@ -1523,6 +1525,41 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
     if (ivrConfig && ivrConfig.length > 0) {
       console.log(`📞 [Incoming Call] Found IVR configuration for ${To} - routing to IVR menu`);
       return handleIvrCall(req, res, phone, ivrConfig[0], From, CallSid);
+    }
+
+    // Check for Deprock (bedrock-polly) IVR configuration
+    let deprockIvrConfig = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.phoneNumberId, phone.id),
+        eq(ivrConfigurations.isActive, true),
+        eq(ivrConfigurations.engineType, 'bedrock-polly')
+      ))
+      .orderBy(desc(ivrConfigurations.updatedAt))
+      .limit(1);
+
+    if ((!deprockIvrConfig || deprockIvrConfig.length === 0) && phone.userId) {
+      deprockIvrConfig = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(and(
+          eq(ivrConfigurations.userId, phone.userId),
+          eq(ivrConfigurations.isActive, true),
+          eq(ivrConfigurations.engineType, 'bedrock-polly')
+        ))
+        .orderBy(desc(ivrConfigurations.updatedAt))
+        .limit(1);
+    }
+
+    if (deprockIvrConfig && deprockIvrConfig.length > 0) {
+      console.log(`📞 [Incoming Call] Found Deprock IVR configuration for ${To} - redirecting to Deprock IVR`);
+      const baseUrl = getDomain();
+      const VoiceResponse = twilio.twiml.VoiceResponse;
+      const response = new VoiceResponse();
+      response.redirect({ method: 'POST' }, `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(deprockIvrConfig[0].id)}&callSid=${encodeURIComponent(CallSid)}&caller=${encodeURIComponent(From)}&attempt=1`);
+      res.type('text/xml');
+      return res.send(response.toString());
     }
 
     // Look up the incoming connection for this phone number (fallback if no IVR)

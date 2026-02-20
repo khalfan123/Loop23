@@ -9,6 +9,7 @@ import { getDomain } from "../utils/domain";
 import { awsPollyService } from "../services/aws-polly";
 import { nanoid } from "nanoid";
 import { getOpenAIClient } from "../services/openai-modelfarm";
+import { deprockIvrRouter } from "../engines/twilio-bedrock-polly/routes/ivr-webhooks";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -304,6 +305,8 @@ function generateDefaultFlowNodes(departmentName: string, agentName: string = "y
 
 export function createDeprockRoutes(authenticateToken: (req: Request, res: Response, next: Function) => void) {
   const router = Router();
+
+  router.use('/ivr', deprockIvrRouter);
 
   router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {

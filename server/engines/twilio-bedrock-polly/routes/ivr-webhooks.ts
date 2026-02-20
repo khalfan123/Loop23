@@ -1,0 +1,628 @@
+'use strict';
+import { Router, Request, Response } from 'express';
+import { db } from '../../../db';
+import { agents, twilioOpenaiCalls, phoneNumbers, departments, departmentAgents, ivrConfigurations } from '@shared/schema';
+import { eq, and, inArray } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { generateTwiML, BEDROCK_POLLY_CONFIG } from '../config/config';
+import { logger } from '../../../utils/logger';
+import { getDomain } from '../../../utils/domain';
+
+const router = Router();
+
+const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invalidMsg: string; noInputMsg: string; holdMsg: string; noAgentMsg: string; goodbyeMsg: string }> = {
+  en: { pressKey: 'press', invalidMsg: 'Invalid selection. Please try again.', noInputMsg: 'We did not receive a response.', holdMsg: 'Please hold while we connect you.', noAgentMsg: 'Sorry, no agent is available at this time.', goodbyeMsg: 'Thank you for calling. Goodbye.', greeting: 'Welcome. Please listen to the following options.' },
+  ar: { pressKey: 'اضغط', invalidMsg: 'اختيار غير صالح. يرجى المحاولة مرة أخرى.', noInputMsg: 'لم نتلق أي استجابة.', holdMsg: 'يرجى الانتظار بينما نقوم بتوصيلك.', noAgentMsg: 'عذراً، لا يوجد وكيل متاح حالياً.', goodbyeMsg: 'شكراً لاتصالك. مع السلامة.', greeting: 'مرحباً. يرجى الاستماع إلى الخيارات التالية.' },
+  es: { pressKey: 'presione', invalidMsg: 'Selección no válida. Por favor, intente de nuevo.', noInputMsg: 'No recibimos respuesta.', holdMsg: 'Por favor espere mientras lo conectamos.', noAgentMsg: 'Lo sentimos, no hay agente disponible en este momento.', goodbyeMsg: 'Gracias por llamar. Adiós.', greeting: 'Bienvenido. Por favor escuche las siguientes opciones.' },
+  fr: { pressKey: 'appuyez sur', invalidMsg: 'Sélection invalide. Veuillez réessayer.', noInputMsg: 'Nous n\'avons reçu aucune réponse.', holdMsg: 'Veuillez patienter pendant que nous vous connectons.', noAgentMsg: 'Désolé, aucun agent n\'est disponible pour le moment.', goodbyeMsg: 'Merci d\'avoir appelé. Au revoir.', greeting: 'Bienvenue. Veuillez écouter les options suivantes.' },
+  de: { pressKey: 'drücken Sie', invalidMsg: 'Ungültige Auswahl. Bitte versuchen Sie es erneut.', noInputMsg: 'Wir haben keine Antwort erhalten.', holdMsg: 'Bitte warten Sie, während wir Sie verbinden.', noAgentMsg: 'Es tut uns leid, es ist derzeit kein Agent verfügbar.', goodbyeMsg: 'Vielen Dank für Ihren Anruf. Auf Wiedersehen.', greeting: 'Willkommen. Bitte hören Sie sich die folgenden Optionen an.' },
+  it: { pressKey: 'premere', invalidMsg: 'Selezione non valida. Riprovi per favore.', noInputMsg: 'Non abbiamo ricevuto risposta.', holdMsg: 'Attenda mentre la colleghiamo.', noAgentMsg: 'Siamo spiacenti, nessun agente è disponibile al momento.', goodbyeMsg: 'Grazie per aver chiamato. Arrivederci.', greeting: 'Benvenuto. Ascolti le seguenti opzioni.' },
+  pt: { pressKey: 'pressione', invalidMsg: 'Seleção inválida. Por favor, tente novamente.', noInputMsg: 'Não recebemos resposta.', holdMsg: 'Por favor, aguarde enquanto conectamos você.', noAgentMsg: 'Desculpe, nenhum agente está disponível no momento.', goodbyeMsg: 'Obrigado por ligar. Adeus.', greeting: 'Bem-vindo. Por favor, ouça as seguintes opções.' },
+  zh: { pressKey: '请按', invalidMsg: '选择无效。请重试。', noInputMsg: '我们没有收到回复。', holdMsg: '请稍候，我们正在为您转接。', noAgentMsg: '抱歉，目前没有可用的客服。', goodbyeMsg: '感谢您的来电。再见。', greeting: '欢迎。请听以下选项。' },
+  hi: { pressKey: 'दबाएं', invalidMsg: 'अमान्य चयन। कृपया पुनः प्रयास करें।', noInputMsg: 'हमें कोई प्रतिक्रिया नहीं मिली।', holdMsg: 'कृपया प्रतीक्षा करें जब तक हम आपको जोड़ते हैं।', noAgentMsg: 'क्षमा करें, इस समय कोई एजेंट उपलब्ध नहीं है।', goodbyeMsg: 'कॉल करने के लिए धन्यवाद। अलविदा।', greeting: 'स्वागत है। कृपया निम्नलिखित विकल्प सुनें।' },
+  ja: { pressKey: 'を押してください', invalidMsg: '無効な選択です。もう一度お試しください。', noInputMsg: '応答がありませんでした。', holdMsg: 'お繋ぎしますので、少々お待ちください。', noAgentMsg: '申し訳ございません。現在対応可能なエージェントがおりません。', goodbyeMsg: 'お電話ありがとうございました。さようなら。', greeting: 'ようこそ。以下のオプションをお聞きください。' },
+  ko: { pressKey: '번을 누르세요', invalidMsg: '잘못된 선택입니다. 다시 시도해 주세요.', noInputMsg: '응답을 받지 못했습니다.', holdMsg: '연결해 드리겠습니다. 잠시만 기다려 주세요.', noAgentMsg: '죄송합니다. 현재 사용 가능한 상담원이 없습니다.', goodbyeMsg: '전화해 주셔서 감사합니다. 안녕히 계세요.', greeting: '환영합니다. 다음 옵션을 들어주세요.' },
+  nl: { pressKey: 'druk op', invalidMsg: 'Ongeldige selectie. Probeer het opnieuw.', noInputMsg: 'We hebben geen reactie ontvangen.', holdMsg: 'Een moment geduld terwijl we u doorverbinden.', noAgentMsg: 'Sorry, er is momenteel geen medewerker beschikbaar.', goodbyeMsg: 'Bedankt voor uw oproep. Tot ziens.', greeting: 'Welkom. Luister naar de volgende opties.' },
+  pl: { pressKey: 'naciśnij', invalidMsg: 'Nieprawidłowy wybór. Spróbuj ponownie.', noInputMsg: 'Nie otrzymaliśmy odpowiedzi.', holdMsg: 'Proszę czekać, łączymy Cię.', noAgentMsg: 'Przepraszamy, żaden agent nie jest obecnie dostępny.', goodbyeMsg: 'Dziękujemy za telefon. Do widzenia.', greeting: 'Witamy. Proszę wysłuchać poniższych opcji.' },
+  sv: { pressKey: 'tryck', invalidMsg: 'Ogiltigt val. Försök igen.', noInputMsg: 'Vi fick inget svar.', holdMsg: 'Vänligen vänta medan vi kopplar dig.', noAgentMsg: 'Tyvärr finns ingen agent tillgänglig just nu.', goodbyeMsg: 'Tack för ditt samtal. Hej då.', greeting: 'Välkommen. Lyssna på följande alternativ.' },
+  no: { pressKey: 'trykk', invalidMsg: 'Ugyldig valg. Prøv igjen.', noInputMsg: 'Vi mottok ingen respons.', holdMsg: 'Vennligst vent mens vi kobler deg.', noAgentMsg: 'Beklager, ingen agent er tilgjengelig for øyeblikket.', goodbyeMsg: 'Takk for at du ringte. Ha det.', greeting: 'Velkommen. Lytt til følgende alternativer.' },
+  fi: { pressKey: 'paina', invalidMsg: 'Virheellinen valinta. Yritä uudelleen.', noInputMsg: 'Emme saaneet vastausta.', holdMsg: 'Odota hetki, yhdistämme sinut.', noAgentMsg: 'Valitettavasti yhtään agenttia ei ole saatavilla tällä hetkellä.', goodbyeMsg: 'Kiitos soitostasi. Näkemiin.', greeting: 'Tervetuloa. Kuuntele seuraavat vaihtoehdot.' },
+  tr: { pressKey: 'basın', invalidMsg: 'Geçersiz seçim. Lütfen tekrar deneyin.', noInputMsg: 'Yanıt alamadık.', holdMsg: 'Sizi bağlarken lütfen bekleyin.', noAgentMsg: 'Üzgünüz, şu anda müsait bir temsilci yok.', goodbyeMsg: 'Aramanız için teşekkür ederiz. Hoşça kalın.', greeting: 'Hoş geldiniz. Lütfen aşağıdaki seçenekleri dinleyin.' },
+};
+
+const NUMBER_WORDS: Record<string, string[]> = {
+  en: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
+  ar: ['صفر', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'],
+  es: ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'],
+  fr: ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'],
+  de: ['null', 'eins', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun'],
+  it: ['zero', 'uno', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove'],
+  pt: ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'],
+  zh: ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'],
+  hi: ['शून्य', 'एक', 'दो', 'तीन', 'चार', 'पाँच', 'छह', 'सात', 'आठ', 'नौ'],
+  ja: ['ゼロ', '一', '二', '三', '四', '五', '六', '七', '八', '九'],
+  ko: ['영', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'],
+  nl: ['nul', 'een', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen'],
+  pl: ['zero', 'jeden', 'dwa', 'trzy', 'cztery', 'pięć', 'sześć', 'siedem', 'osiem', 'dziewięć'],
+  sv: ['noll', 'ett', 'två', 'tre', 'fyra', 'fem', 'sex', 'sju', 'åtta', 'nio'],
+  no: ['null', 'en', 'to', 'tre', 'fire', 'fem', 'seks', 'sju', 'åtte', 'ni'],
+  fi: ['nolla', 'yksi', 'kaksi', 'kolme', 'neljä', 'viisi', 'kuusi', 'seitsemän', 'kahdeksan', 'yhdeksän'],
+  tr: ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'],
+};
+
+function getTemplate(lang: string) {
+  return IVR_TEMPLATES[lang] || IVR_TEMPLATES['en'];
+}
+
+function getNumberWord(lang: string, digit: number): string {
+  const words = NUMBER_WORDS[lang] || NUMBER_WORDS['en'];
+  return words[digit] || String(digit);
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function sayWithPolly(voiceId: string, text: string): string {
+  return `<Say voice="Polly.${escapeXml(voiceId)}"><prosody rate="88%">${escapeXml(text)}</prosody></Say>`;
+}
+
+function buildBaseUrl(): string {
+  return getDomain();
+}
+
+function extractDigitFromInput(body: any): string | null {
+  if (body.Digits) return body.Digits;
+  if (body.SpeechResult) {
+    const speech = body.SpeechResult.trim().toLowerCase();
+    const digitMatch = speech.match(/\d/);
+    if (digitMatch) return digitMatch[0];
+    const allNumberWords: Record<string, string> = {};
+    for (const [lang, words] of Object.entries(NUMBER_WORDS)) {
+      words.forEach((word, idx) => {
+        allNumberWords[word.toLowerCase()] = String(idx);
+      });
+    }
+    if (allNumberWords[speech]) return allNumberWords[speech];
+    for (const [word, digit] of Object.entries(allNumberWords)) {
+      if (speech.includes(word)) return digit;
+    }
+  }
+  return null;
+}
+
+router.post('/answer', async (req: Request, res: Response) => {
+  try {
+    const { CallSid, From, To } = req.body;
+    const ivrId = req.query.ivrId as string;
+    const attempt = parseInt(req.query.attempt as string || '1', 10);
+
+    logger.info(`[Deprock IVR] /answer - ivrId=${ivrId}, CallSid=${CallSid}, attempt=${attempt}`, undefined, 'DeprockIVR');
+
+    if (!ivrId) {
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Configuration error. Goodbye.</Say><Hangup/></Response>`);
+    }
+
+    const [config] = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.id, ivrId),
+        eq(ivrConfigurations.isActive, true),
+        eq(ivrConfigurations.engineType, 'bedrock-polly')
+      ))
+      .limit(1);
+
+    if (!config) {
+      logger.info(`[Deprock IVR] Config not found or inactive: ${ivrId}`, undefined, 'DeprockIVR');
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>This service is not available. Goodbye.</Say><Hangup/></Response>`);
+    }
+
+    if (attempt > 3) {
+      const baseUrl = buildBaseUrl();
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Redirect method="POST">${escapeXml(baseUrl)}/api/deprock/ivr/fallback?ivrId=${escapeXml(ivrId)}&amp;callSid=${escapeXml(CallSid || '')}&amp;caller=${escapeXml(From || '')}</Redirect></Response>`);
+    }
+
+    const voiceId = config.voiceId || 'Joanna';
+    const langOptions = config.languageOptions as Array<{ id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }> | null;
+    const menuOptions = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> | null;
+    const isMultiLanguage = langOptions && langOptions.length > 1;
+
+    const baseUrl = buildBaseUrl();
+
+    if (isMultiLanguage && langOptions) {
+      let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
+
+      if (config.greetingMessage) {
+        twiml += sayWithPolly(voiceId, config.greetingMessage);
+      }
+
+      const actionUrl = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(CallSid || '')}&caller=${encodeURIComponent(From || '')}&attempt=1`;
+      const langHints = langOptions.map((_, i) => String(i + 1)).join(' ');
+      twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${langHints}" action="${escapeXml(actionUrl)}" method="POST">`;
+
+      langOptions.forEach((opt, index) => {
+        const digit = index + 1;
+        const langTemplate = getTemplate(opt.language);
+        const langVoice = opt.voiceId || voiceId;
+        const promptText = opt.greeting || `${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`;
+        twiml += sayWithPolly(langVoice, `${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}, ${promptText}`);
+      });
+
+      twiml += `</Gather>`;
+
+      const template = getTemplate('en');
+      const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
+      twiml += sayWithPolly(voiceId, template.noInputMsg);
+      twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
+      twiml += `</Response>`;
+
+      res.type('text/xml');
+      return res.send(twiml);
+    }
+
+    if (menuOptions && menuOptions.length > 0) {
+      const lang = 'en';
+      const template = getTemplate(lang);
+
+      let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
+
+      if (config.greetingMessage) {
+        twiml += sayWithPolly(voiceId, config.greetingMessage);
+      } else {
+        twiml += sayWithPolly(voiceId, template.greeting);
+      }
+
+      const actionUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(CallSid || '')}&caller=${encodeURIComponent(From || '')}&lang=${encodeURIComponent(lang)}&attempt=1`;
+      const menuHints = menuOptions.map(opt => opt.key).join(' ');
+      twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${menuHints}" action="${escapeXml(actionUrl)}" method="POST">`;
+
+      menuOptions.forEach((opt) => {
+        const digit = parseInt(opt.key, 10);
+        const numberWord = getNumberWord(lang, digit);
+        twiml += sayWithPolly(voiceId, `${template.pressKey} ${numberWord}, ${opt.label}`);
+      });
+
+      twiml += `</Gather>`;
+
+      const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
+      twiml += sayWithPolly(voiceId, template.noInputMsg);
+      twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
+      twiml += `</Response>`;
+
+      res.type('text/xml');
+      return res.send(twiml);
+    }
+
+    res.type('text/xml');
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="Polly.${escapeXml(voiceId)}">No menu options configured. Goodbye.</Say><Hangup/></Response>`);
+
+  } catch (error: any) {
+    logger.error('[Deprock IVR] Error in /answer', error, 'DeprockIVR');
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>An error occurred. Please try again later.</Say><Hangup/></Response>`);
+  }
+});
+
+router.post('/handle-language', async (req: Request, res: Response) => {
+  try {
+    const Digits = extractDigitFromInput(req.body);
+    const ivrId = req.query.ivrId as string;
+    const callSid = req.query.callSid as string || req.body.CallSid || '';
+    const caller = req.query.caller as string || req.body.From || '';
+    const attempt = parseInt(req.query.attempt as string || '1', 10);
+
+    logger.info(`[Deprock IVR] /handle-language - Digits=${Digits}, SpeechResult=${req.body.SpeechResult || 'none'}, ivrId=${ivrId}, attempt=${attempt}`, undefined, 'DeprockIVR');
+
+    const [config] = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.id, ivrId),
+        eq(ivrConfigurations.isActive, true),
+        eq(ivrConfigurations.engineType, 'bedrock-polly')
+      ))
+      .limit(1);
+
+    if (!config) {
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Configuration error. Goodbye.</Say><Hangup/></Response>`);
+    }
+
+    const voiceId = config.voiceId || 'Joanna';
+    const langOptions = config.languageOptions as Array<{ id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }> | null;
+
+    if (!langOptions || langOptions.length === 0) {
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>No language options available. Goodbye.</Say><Hangup/></Response>`);
+    }
+
+    const digitIndex = Digits ? parseInt(Digits, 10) - 1 : -1;
+    const selectedLang = digitIndex >= 0 ? langOptions[digitIndex] : undefined;
+
+    if (!selectedLang || digitIndex < 0 || digitIndex >= langOptions.length) {
+      if (attempt >= 3) {
+        const baseUrl = buildBaseUrl();
+        res.type('text/xml');
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Redirect method="POST">${escapeXml(baseUrl)}/api/deprock/ivr/fallback?ivrId=${escapeXml(ivrId)}&amp;callSid=${escapeXml(callSid)}&amp;caller=${escapeXml(caller)}</Redirect></Response>`);
+      }
+
+      const template = getTemplate('en');
+      const baseUrl = buildBaseUrl();
+      const retryUrl = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&attempt=${attempt + 1}`;
+
+      let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
+      twiml += sayWithPolly(voiceId, template.invalidMsg);
+      const retryHints = langOptions.map((_, i) => String(i + 1)).join(' ');
+      twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${retryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
+      langOptions.forEach((opt, index) => {
+        const digit = index + 1;
+        const langTemplate = getTemplate(opt.language);
+        const langVoice = opt.voiceId || voiceId;
+        twiml += sayWithPolly(langVoice, `${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}, ${opt.greeting || opt.language}`);
+      });
+      twiml += `</Gather>`;
+      twiml += `</Response>`;
+
+      res.type('text/xml');
+      return res.send(twiml);
+    }
+
+    const lang = selectedLang.language;
+    const langVoice = selectedLang.voiceId || voiceId;
+    const template = getTemplate(lang);
+
+    let menuOpts = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> | null;
+
+    if (selectedLang.selectedDepartments && selectedLang.selectedDepartments.length > 0 && menuOpts) {
+      menuOpts = menuOpts.filter(opt => selectedLang.selectedDepartments!.includes(opt.departmentId));
+    }
+
+    if (!menuOpts || menuOpts.length === 0) {
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(langVoice, template.noAgentMsg)}<Hangup/></Response>`);
+    }
+
+    const baseUrl = buildBaseUrl();
+    const actionUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang)}&attempt=1`;
+
+    let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
+    twiml += sayWithPolly(langVoice, template.greeting);
+    const deptHints = menuOpts.map(opt => opt.key).join(' ');
+    twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${deptHints}" action="${escapeXml(actionUrl)}" method="POST">`;
+
+    menuOpts.forEach((opt) => {
+      const digit = parseInt(opt.key, 10);
+      const numberWord = getNumberWord(lang, digit);
+      twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`);
+    });
+
+    twiml += `</Gather>`;
+
+    const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
+    twiml += sayWithPolly(langVoice, template.noInputMsg);
+    twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
+    twiml += `</Response>`;
+
+    res.type('text/xml');
+    return res.send(twiml);
+
+  } catch (error: any) {
+    logger.error('[Deprock IVR] Error in /handle-language', error, 'DeprockIVR');
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>An error occurred. Please try again later.</Say><Hangup/></Response>`);
+  }
+});
+
+router.post('/handle-selection', async (req: Request, res: Response) => {
+  try {
+    const { CallSid: bodyCallSid, From: bodyFrom, To } = req.body;
+    const Digits = extractDigitFromInput(req.body);
+    const ivrId = req.query.ivrId as string;
+    const callSid = req.query.callSid as string || bodyCallSid || '';
+    const caller = req.query.caller as string || bodyFrom || '';
+    const lang = req.query.lang as string || 'en';
+    const attempt = parseInt(req.query.attempt as string || '1', 10);
+
+    logger.info(`[Deprock IVR] /handle-selection - Digits=${Digits}, SpeechResult=${req.body.SpeechResult || 'none'}, ivrId=${ivrId}, lang=${lang}, attempt=${attempt}`, undefined, 'DeprockIVR');
+
+    const [config] = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.id, ivrId),
+        eq(ivrConfigurations.isActive, true),
+        eq(ivrConfigurations.engineType, 'bedrock-polly')
+      ))
+      .limit(1);
+
+    if (!config) {
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Configuration error. Goodbye.</Say><Hangup/></Response>`);
+    }
+
+    const voiceId = config.voiceId || 'Joanna';
+    const langOptions = config.languageOptions as Array<{ id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }> | null;
+    const langOption = langOptions?.find(l => l.language === lang);
+    const langVoice = langOption?.voiceId || voiceId;
+    const template = getTemplate(lang);
+
+    let menuOpts = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> | null;
+
+    if (langOption?.selectedDepartments && langOption.selectedDepartments.length > 0 && menuOpts) {
+      menuOpts = menuOpts.filter(opt => langOption.selectedDepartments!.includes(opt.departmentId));
+    }
+
+    if (!menuOpts || menuOpts.length === 0) {
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(langVoice, template.noAgentMsg)}<Hangup/></Response>`);
+    }
+
+    const selectedOption = menuOpts.find(opt => opt.key === Digits);
+
+    if (!selectedOption) {
+      if (attempt >= 3) {
+        const baseUrl = buildBaseUrl();
+        res.type('text/xml');
+        return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Redirect method="POST">${escapeXml(baseUrl)}/api/deprock/ivr/fallback?ivrId=${escapeXml(ivrId)}&amp;callSid=${escapeXml(callSid)}&amp;caller=${escapeXml(caller)}&amp;lang=${escapeXml(lang)}</Redirect></Response>`);
+      }
+
+      const baseUrl = buildBaseUrl();
+      const retryUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang)}&attempt=${attempt + 1}`;
+
+      let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
+      twiml += sayWithPolly(langVoice, template.invalidMsg);
+      const selRetryHints = menuOpts.map(opt => opt.key).join(' ');
+      twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${selRetryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
+      menuOpts.forEach((opt) => {
+        const digit = parseInt(opt.key, 10);
+        const numberWord = getNumberWord(lang, digit);
+        twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`);
+      });
+      twiml += `</Gather>`;
+      twiml += `</Response>`;
+
+      res.type('text/xml');
+      return res.send(twiml);
+    }
+
+    const departmentId = selectedOption.departmentId;
+    logger.info(`[Deprock IVR] Department selected: ${departmentId}`, undefined, 'DeprockIVR');
+
+    const deptAgents = await db
+      .select({
+        departmentAgent: departmentAgents,
+        agent: agents,
+      })
+      .from(departmentAgents)
+      .innerJoin(agents, eq(departmentAgents.agentId, agents.id))
+      .where(eq(departmentAgents.departmentId, departmentId));
+
+    if (!deptAgents || deptAgents.length === 0) {
+      logger.info(`[Deprock IVR] No agents found for department ${departmentId}`, undefined, 'DeprockIVR');
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(langVoice, template.noAgentMsg)}<Hangup/></Response>`);
+    }
+
+    let bestAgent = deptAgents.find(da => da.departmentAgent.language === lang);
+    if (!bestAgent) {
+      bestAgent = deptAgents.find(da => da.departmentAgent.isPrimary);
+    }
+    if (!bestAgent) {
+      bestAgent = deptAgents[0];
+    }
+
+    const agent = bestAgent.agent;
+
+    let phoneRecord: any = null;
+    if (config.phoneNumberId) {
+      const [pr] = await db
+        .select()
+        .from(phoneNumbers)
+        .where(eq(phoneNumbers.id, config.phoneNumberId))
+        .limit(1);
+      phoneRecord = pr;
+    }
+
+    if (!phoneRecord && To) {
+      const normalizedTo = To.replace(/[\s\-\(\)]/g, '');
+      const lookupNumber = normalizedTo.startsWith('+') ? normalizedTo : '+' + normalizedTo;
+      const [pr] = await db
+        .select()
+        .from(phoneNumbers)
+        .where(eq(phoneNumbers.phoneNumber, lookupNumber))
+        .limit(1);
+      phoneRecord = pr;
+    }
+
+    const callId = nanoid();
+
+    await db.insert(twilioOpenaiCalls).values({
+      id: callId,
+      userId: config.userId,
+      agentId: agent.id,
+      twilioPhoneNumberId: phoneRecord?.id || null,
+      openaiCredentialId: null,
+      twilioCallSid: callSid,
+      fromNumber: caller,
+      toNumber: To || phoneRecord?.phoneNumber || '',
+      openaiVoice: (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice,
+      openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
+      status: 'in-progress',
+      callDirection: 'inbound',
+      startedAt: new Date(),
+      answeredAt: new Date(),
+      metadata: {
+        ivrId: config.id,
+        departmentId,
+        departmentAgentId: bestAgent.departmentAgent.id,
+        language: lang,
+        selectedOption: selectedOption.label,
+        engine: 'bedrock-polly',
+        ivrRouted: true,
+      },
+    });
+
+    logger.info(`[Deprock IVR] Call record created: ${callId}, agent: ${agent.id}`, undefined, 'DeprockIVR');
+
+    const baseUrl = buildBaseUrl();
+    const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    const streamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  ${sayWithPolly(langVoice, template.holdMsg)}
+  <Connect>
+    <Stream url="${escapeXml(streamUrl)}">
+      <Parameter name="callId" value="${escapeXml(callId)}" />
+      <Parameter name="agentId" value="${escapeXml(agent.id)}" />
+    </Stream>
+  </Connect>
+</Response>`;
+
+    res.type('text/xml');
+    return res.send(twiml);
+
+  } catch (error: any) {
+    logger.error('[Deprock IVR] Error in /handle-selection', error, 'DeprockIVR');
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>An error occurred. Please try again later.</Say><Hangup/></Response>`);
+  }
+});
+
+router.post('/fallback', async (req: Request, res: Response) => {
+  try {
+    const ivrId = req.query.ivrId as string;
+    const callSid = req.query.callSid as string || req.body.CallSid || '';
+    const caller = req.query.caller as string || req.body.From || '';
+    const lang = req.query.lang as string || 'en';
+
+    logger.info(`[Deprock IVR] /fallback - ivrId=${ivrId}, callSid=${callSid}`, undefined, 'DeprockIVR');
+
+    if (!ivrId) {
+      const template = getTemplate(lang);
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="Polly.Joanna">${escapeXml(template.goodbyeMsg)}</Say><Hangup/></Response>`);
+    }
+
+    const [config] = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.id, ivrId),
+        eq(ivrConfigurations.engineType, 'bedrock-polly')
+      ))
+      .limit(1);
+
+    if (!config || !config.fallbackDepartmentId) {
+      const voiceId = config?.voiceId || 'Joanna';
+      const template = getTemplate(lang);
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(voiceId, template.goodbyeMsg)}<Hangup/></Response>`);
+    }
+
+    const voiceId = config.voiceId || 'Joanna';
+    const template = getTemplate(lang);
+
+    const deptAgents = await db
+      .select({
+        departmentAgent: departmentAgents,
+        agent: agents,
+      })
+      .from(departmentAgents)
+      .innerJoin(agents, eq(departmentAgents.agentId, agents.id))
+      .where(eq(departmentAgents.departmentId, config.fallbackDepartmentId));
+
+    if (!deptAgents || deptAgents.length === 0) {
+      res.type('text/xml');
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(voiceId, template.noAgentMsg)}<Hangup/></Response>`);
+    }
+
+    let bestAgent = deptAgents.find(da => da.departmentAgent.language === lang);
+    if (!bestAgent) {
+      bestAgent = deptAgents.find(da => da.departmentAgent.isPrimary);
+    }
+    if (!bestAgent) {
+      bestAgent = deptAgents[0];
+    }
+
+    const agent = bestAgent.agent;
+
+    let phoneRecord: any = null;
+    if (config.phoneNumberId) {
+      const [pr] = await db
+        .select()
+        .from(phoneNumbers)
+        .where(eq(phoneNumbers.id, config.phoneNumberId))
+        .limit(1);
+      phoneRecord = pr;
+    }
+
+    const callId = nanoid();
+
+    await db.insert(twilioOpenaiCalls).values({
+      id: callId,
+      userId: config.userId,
+      agentId: agent.id,
+      twilioPhoneNumberId: phoneRecord?.id || null,
+      openaiCredentialId: null,
+      twilioCallSid: callSid,
+      fromNumber: caller,
+      toNumber: phoneRecord?.phoneNumber || '',
+      openaiVoice: (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice,
+      openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
+      status: 'in-progress',
+      callDirection: 'inbound',
+      startedAt: new Date(),
+      answeredAt: new Date(),
+      metadata: {
+        ivrId: config.id,
+        departmentId: config.fallbackDepartmentId,
+        isFallback: true,
+        language: lang,
+        engine: 'bedrock-polly',
+        ivrRouted: true,
+      },
+    });
+
+    logger.info(`[Deprock IVR] Fallback call record created: ${callId}, agent: ${agent.id}`, undefined, 'DeprockIVR');
+
+    const baseUrl = buildBaseUrl();
+    const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    const streamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
+
+    const langOptions = config.languageOptions as Array<{ id: string; language: string; voiceId: string; greeting: string }> | null;
+    const langOption = langOptions?.find(l => l.language === lang);
+    const langVoice = langOption?.voiceId || voiceId;
+
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  ${sayWithPolly(langVoice, template.holdMsg)}
+  <Connect>
+    <Stream url="${escapeXml(streamUrl)}">
+      <Parameter name="callId" value="${escapeXml(callId)}" />
+      <Parameter name="agentId" value="${escapeXml(agent.id)}" />
+    </Stream>
+  </Connect>
+</Response>`;
+
+    res.type('text/xml');
+    return res.send(twiml);
+
+  } catch (error: any) {
+    logger.error('[Deprock IVR] Error in /fallback', error, 'DeprockIVR');
+    const template = getTemplate('en');
+    res.type('text/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>${escapeXml(template.goodbyeMsg)}</Say><Hangup/></Response>`);
+  }
+});
+
+export const deprockIvrRouter = router;

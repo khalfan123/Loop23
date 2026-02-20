@@ -1,8 +1,8 @@
 'use strict';
 import { Router, Request, Response } from 'express';
 import { db } from '../../../db';
-import { agents, twilioOpenaiCalls, phoneNumbers, incomingConnections, users, flows } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { agents, twilioOpenaiCalls, phoneNumbers, incomingConnections, users, flows, ivrConfigurations } from '@shared/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import {
   generateTwiML,
@@ -18,6 +18,7 @@ import { getTwilioClient } from '../../../services/twilio-connector';
 import { logger } from '../../../utils/logger';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { validateTwilioWebhook } from '../../../middleware/webhookValidation';
+import { getDomain } from '../../../utils/domain';
 import { awsBedrockService } from '../../../services/aws-bedrock';
 import { awsPollyService } from '../../../services/aws-polly';
 import { POLLY_VOICES } from '../types';
@@ -87,6 +88,45 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
 <Response>
   <Say>Sorry, this number is not configured for AI calls.</Say>
   <Hangup/>
+</Response>`);
+      return;
+    }
+
+    let ivrConfig = await db
+      .select()
+      .from(ivrConfigurations)
+      .where(and(
+        eq(ivrConfigurations.phoneNumberId, phoneRecord.id),
+        eq(ivrConfigurations.isActive, true),
+        eq(ivrConfigurations.engineType, 'bedrock-polly')
+      ))
+      .orderBy(desc(ivrConfigurations.updatedAt))
+      .limit(1);
+
+    if ((!ivrConfig || ivrConfig.length === 0) && phoneRecord.userId) {
+      ivrConfig = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(and(
+          eq(ivrConfigurations.userId, phoneRecord.userId),
+          eq(ivrConfigurations.isActive, true),
+          eq(ivrConfigurations.engineType, 'bedrock-polly')
+        ))
+        .orderBy(desc(ivrConfigurations.updatedAt))
+        .limit(1);
+      if (ivrConfig && ivrConfig.length > 0) {
+        logger.info(`No IVR for phone ${normalizedTo} directly, using user-level Deprock IVR config: ${ivrConfig[0].name}`, undefined, 'BedrockPolly');
+      }
+    }
+
+    if (ivrConfig && ivrConfig.length > 0) {
+      logger.info(`Found Deprock IVR configuration for ${normalizedTo} - redirecting to IVR menu`, undefined, 'BedrockPolly');
+      const baseUrl = getDomain();
+      const redirectUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrConfig[0].id)}&callSid=${encodeURIComponent(CallSid)}&caller=${encodeURIComponent(From)}&attempt=1`;
+      res.type('text/xml');
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Redirect method="POST">${redirectUrl}</Redirect>
 </Response>`);
       return;
     }

@@ -59,6 +59,13 @@ function getNumberWord(lang: string, digit: number): string {
   return words[digit] || String(digit);
 }
 
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English', ar: 'العربية', es: 'Español', fr: 'Français', de: 'Deutsch',
+  it: 'Italiano', pt: 'Português', zh: '中文', hi: 'हिन्दी', ja: '日本語',
+  ko: '한국어', nl: 'Nederlands', pl: 'Polski', sv: 'Svenska', no: 'Norsk',
+  fi: 'Suomi', tr: 'Türkçe',
+};
+
 function escapeXml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -141,21 +148,22 @@ router.post('/answer', async (req: Request, res: Response) => {
     if (isMultiLanguage && langOptions) {
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
 
-      if (config.greetingMessage) {
-        twiml += sayWithPolly(voiceId, config.greetingMessage);
-      }
-
       const actionUrl = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(CallSid || '')}&caller=${encodeURIComponent(From || '')}&attempt=1`;
       const langHints = langOptions.map((_, i) => String(i + 1)).join(' ');
       twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${langHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
-      langOptions.forEach((opt, index) => {
-        const digit = index + 1;
-        const langTemplate = getTemplate(opt.language);
-        const langVoice = opt.voiceId || voiceId;
-        const promptText = opt.greeting || `${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`;
-        twiml += sayWithPolly(langVoice, `${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}, ${promptText}`);
-      });
+      if (config.greetingMessage) {
+        twiml += sayWithPolly(voiceId, config.greetingMessage);
+      } else {
+        twiml += sayWithPolly(voiceId, getTemplate('en').greeting);
+        langOptions.forEach((opt, index) => {
+          const digit = index + 1;
+          const langTemplate = getTemplate(opt.language);
+          const langVoice = opt.voiceId || voiceId;
+          const langName = LANGUAGE_NAMES[opt.language] || opt.language;
+          twiml += sayWithPolly(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`);
+        });
+      }
 
       twiml += `</Gather>`;
 
@@ -267,7 +275,8 @@ router.post('/handle-language', async (req: Request, res: Response) => {
         const digit = index + 1;
         const langTemplate = getTemplate(opt.language);
         const langVoice = opt.voiceId || voiceId;
-        twiml += sayWithPolly(langVoice, `${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}, ${opt.greeting || opt.language}`);
+        const langName = LANGUAGE_NAMES[opt.language] || opt.language;
+        twiml += sayWithPolly(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`);
       });
       twiml += `</Gather>`;
       twiml += `</Response>`;
@@ -283,7 +292,10 @@ router.post('/handle-language', async (req: Request, res: Response) => {
     let menuOpts = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> | null;
 
     if (selectedLang.selectedDepartments && selectedLang.selectedDepartments.length > 0 && menuOpts) {
-      menuOpts = menuOpts.filter(opt => selectedLang.selectedDepartments!.includes(opt.departmentId));
+      const filtered = menuOpts.filter(opt => selectedLang.selectedDepartments!.includes(opt.departmentId));
+      if (filtered.length > 0) {
+        menuOpts = filtered;
+      }
     }
 
     if (!menuOpts || menuOpts.length === 0) {
@@ -295,15 +307,19 @@ router.post('/handle-language', async (req: Request, res: Response) => {
     const actionUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang)}&attempt=1`;
 
     let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
-    twiml += sayWithPolly(langVoice, template.greeting);
     const deptHints = menuOpts.map(opt => opt.key).join(' ');
     twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${deptHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
-    menuOpts.forEach((opt) => {
-      const digit = parseInt(opt.key, 10);
-      const numberWord = getNumberWord(lang, digit);
-      twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`);
-    });
+    if (selectedLang.greeting) {
+      twiml += sayWithPolly(langVoice, selectedLang.greeting);
+    } else {
+      twiml += sayWithPolly(langVoice, template.greeting);
+      menuOpts.forEach((opt) => {
+        const digit = parseInt(opt.key, 10);
+        const numberWord = getNumberWord(lang, digit);
+        twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`);
+      });
+    }
 
     twiml += `</Gather>`;
 

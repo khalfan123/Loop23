@@ -54,6 +54,7 @@ interface Agent {
   knowledgeBaseIds: string[] | null;
   transferEnabled: boolean;
   transferPhoneNumber: string | null;
+  transferAgentId: string | null;
   detectLanguageEnabled: boolean;
   endConversationEnabled: boolean;
   appointmentBookingEnabled: boolean;
@@ -139,6 +140,8 @@ export default function AgentEditor() {
     transferKeywords: [] as string[],
     transferEnabled: false,
     transferPhoneNumber: "",
+    transferAgentId: "",
+    transferType: "phone" as "phone" | "agent",
     detectLanguageEnabled: false,
     endConversationEnabled: false,
     appointmentBookingEnabled: false,
@@ -182,6 +185,10 @@ export default function AgentEditor() {
 
   const { data: flows = [] } = useQuery<Array<{ id: string; name: string; description: string }>>({
     queryKey: ["/api/flow-automation/flows"],
+  });
+
+  const { data: availableAgents = [] } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
   });
 
   const { data: voiceEngineSettings } = useQuery<{ plivo_openai_engine_enabled: boolean; twilio_openai_engine_enabled: boolean }>({
@@ -255,6 +262,8 @@ export default function AgentEditor() {
         transferKeywords: [],
         transferEnabled: existingAgent.transferEnabled || false,
         transferPhoneNumber: existingAgent.transferPhoneNumber || "",
+        transferAgentId: existingAgent.transferAgentId || "",
+        transferType: existingAgent.transferAgentId ? "agent" : "phone",
         detectLanguageEnabled: existingAgent.detectLanguageEnabled || false,
         endConversationEnabled: existingAgent.endConversationEnabled || false,
         appointmentBookingEnabled: existingAgent.appointmentBookingEnabled || false,
@@ -359,13 +368,23 @@ export default function AgentEditor() {
         });
         return;
       }
-      if (formData.transferEnabled && !formData.transferPhoneNumber.trim()) {
-        toast({
-          title: t('agents.toast.missingTransferPhone'),
-          description: t('agents.toast.transferPhoneRequired'),
-          variant: "destructive",
-        });
-        return;
+      if (formData.transferEnabled) {
+        if (formData.transferType === "agent" && !formData.transferAgentId) {
+          toast({
+            title: t('agents.toast.missingFields'),
+            description: "Please select an agent to transfer calls to.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (formData.transferType !== "agent" && !formData.transferPhoneNumber.trim()) {
+          toast({
+            title: t('agents.toast.missingTransferPhone'),
+            description: t('agents.toast.transferPhoneRequired'),
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
 
@@ -396,13 +415,23 @@ export default function AgentEditor() {
   const handleUpdate = () => {
     if (!agentId) return;
     
-    if (formData.type === 'incoming' && formData.transferEnabled && !formData.transferPhoneNumber.trim()) {
-      toast({
-        title: t('agents.toast.missingTransferPhone'),
-        description: t('agents.toast.transferPhoneRequired'),
-        variant: "destructive",
-      });
-      return;
+    if (formData.type === 'incoming' && formData.transferEnabled) {
+      if (formData.transferType === "agent" && !formData.transferAgentId) {
+        toast({
+          title: t('agents.toast.missingFields'),
+          description: "Please select an agent to transfer calls to.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (formData.transferType !== "agent" && !formData.transferPhoneNumber.trim()) {
+        toast({
+          title: t('agents.toast.missingTransferPhone'),
+          description: t('agents.toast.transferPhoneRequired'),
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     updateMutation.mutate({ id: agentId, data: formData });
@@ -795,20 +824,68 @@ export default function AgentEditor() {
                   </label>
                   
                   {formData.transferEnabled && (
-                    <div className="ml-7 space-y-2">
-                      <Label htmlFor="transfer-phone" className="text-sm font-normal">
-                        {t('agents.systemTools.transferPhoneNumber')} <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="transfer-phone"
-                        placeholder="+1234567890"
-                        value={formData.transferPhoneNumber}
-                        onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
-                        data-testid="input-transfer-phone"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {t('agents.systemTools.transferPhoneHint')}
-                      </p>
+                    <div className="ml-7 space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-normal">Transfer Type <span className="text-destructive">*</span></Label>
+                        <Select
+                          value={formData.transferType}
+                          onValueChange={(value: "phone" | "agent") => setFormData({ ...formData, transferType: value, ...(value === "phone" ? { transferAgentId: "" } : { transferPhoneNumber: "" }) })}
+                        >
+                          <SelectTrigger data-testid="select-transfer-type">
+                            <SelectValue placeholder="Select transfer type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="phone" data-testid="select-item-transfer-phone">Phone Number</SelectItem>
+                            <SelectItem value="agent" data-testid="select-item-transfer-agent">AI Agent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {formData.transferType === "phone" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="transfer-phone" className="text-sm font-normal">
+                            {t('agents.systemTools.transferPhoneNumber')} <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="transfer-phone"
+                            placeholder="+1234567890"
+                            value={formData.transferPhoneNumber}
+                            onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
+                            data-testid="input-transfer-phone"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {t('agents.systemTools.transferPhoneHint')}
+                          </p>
+                        </div>
+                      )}
+
+                      {formData.transferType === "agent" && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-normal">
+                            Transfer to Agent <span className="text-destructive">*</span>
+                          </Label>
+                          <Select
+                            value={formData.transferAgentId}
+                            onValueChange={(value) => setFormData({ ...formData, transferAgentId: value })}
+                          >
+                            <SelectTrigger data-testid="select-transfer-agent">
+                              <SelectValue placeholder="Select an agent" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableAgents
+                                .filter((a) => a.id !== agentId)
+                                .map((agent) => (
+                                  <SelectItem key={agent.id} value={agent.id} data-testid={`select-item-agent-${agent.id}`}>
+                                    {agent.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Select another AI agent to transfer calls to.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

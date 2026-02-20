@@ -30,8 +30,10 @@ import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/twilio-openai-config';
 import { openaiPoolManager } from '../../../infrastructure';
 import { db } from '../../../db';
-import { twilioOpenaiCalls } from '@shared/schema';
+import { twilioOpenaiCalls, agents } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { OpenAIAgentFactory } from './openai-agent-factory';
+import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
 
 const execAsync = promisify(exec);
 const fsWriteFile = promisify(fs.writeFile);
@@ -498,6 +500,40 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           ...params 
         };
       } 
+      // Handle transfer_to_agent and transfer_agent_* for agent swap (not phone transfer)
+      else if (toolName === 'transfer_to_agent' || toolName.startsWith('transfer_agent_')) {
+        console.log(`[TwilioOpenAI Bridge] Agent transfer tool invoked: ${toolName} for ${callSid}`);
+        
+        let targetAgentId = '';
+        
+        if (session.agentConfig.tools) {
+          for (const tool of session.agentConfig.tools) {
+            const toolAny = tool as unknown as Record<string, unknown>;
+            if (tool.name === toolName) {
+              if (toolAny._transferAgentId) {
+                targetAgentId = toolAny._transferAgentId as string;
+              } else if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).agentId) {
+                targetAgentId = (toolAny._metadata as Record<string, unknown>).agentId as string;
+              }
+              break;
+            }
+          }
+        }
+        
+        if (!targetAgentId) {
+          console.warn(`[TwilioOpenAI Bridge] No target agent ID found for ${toolName}`);
+          result = { 
+            error: 'No target agent specified',
+            message: 'Cannot transfer - no agent specified.'
+          };
+        } else {
+          result = { 
+            action: 'transfer_to_agent',
+            targetAgentId: targetAgentId,
+            reason: (params.reason as string) || (params.context as string) || 'Agent transfer requested',
+          };
+        }
+      }
       // Handle transfer_call and transfer_* as built-in tools for flow agents
       else if (toolName === 'transfer_call' || toolName.startsWith('transfer_')) {
         console.log(`[TwilioOpenAI Bridge] Built-in transfer tool invoked: ${toolName} for ${callSid}`);
@@ -669,6 +705,41 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
       if (typeof result === 'object' && result !== null) {
         const actionResult = result as Record<string, unknown>;
+        
+        // Handle agent swap transfers (swap OpenAI session, keep Twilio call)
+        if (actionResult.action === 'transfer_to_agent') {
+          const targetAgentId = actionResult.targetAgentId as string;
+          console.log(`[TwilioOpenAI Bridge] Executing agent transfer to ${targetAgentId}`);
+          
+          const swapResult = await this.executeAgentSwap(session, targetAgentId);
+          if (!swapResult.success) {
+            result = { 
+              ...actionResult, 
+              transferError: swapResult.error,
+              message: 'Agent transfer failed, please try again.'
+            };
+          } else {
+            result = { 
+              ...actionResult, 
+              transferSuccess: true,
+              message: 'Agent transfer completed successfully. You are now connected to a new agent.'
+            };
+            
+            await this.updateCallMetadata(callSid, {
+              wasTransferred: true,
+              hasTransfer: true,
+              transferredToAgent: targetAgentId,
+              transferredAt: new Date().toISOString(),
+              aiInsights: {
+                primaryOutcome: 'agent_transfer',
+                wasTransferred: true,
+                transferTargetAgent: targetAgentId,
+              },
+            });
+            
+            return;
+          }
+        }
         
         // Track successful transfers
         if (actionResult.action === 'transfer') {
@@ -1057,6 +1128,130 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
   static getActiveSessions(): Map<string, AudioBridgeSession> {
     return this.activeSessions;
+  }
+
+  /**
+   * Execute agent swap: close old OpenAI WebSocket, build new agent config, reconnect
+   * The Twilio WebSocket stays connected (same phone call), only the OpenAI session changes
+   */
+  private static async executeAgentSwap(session: AudioBridgeSession, targetAgentId: string): Promise<{ success: boolean; error?: string }> {
+    const { callSid } = session;
+    
+    try {
+      console.log(`[TwilioOpenAI Bridge] Starting agent swap for ${callSid} to agent ${targetAgentId}`);
+      
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      
+      const [targetAgent] = await db
+        .select()
+        .from(agents)
+        .where(eq(agents.id, targetAgentId))
+        .limit(1);
+      
+      if (!targetAgent) {
+        throw new Error(`Target agent ${targetAgentId} not found`);
+      }
+      
+      console.log(`[TwilioOpenAI Bridge] Found target agent: ${targetAgent.name} (${targetAgent.id})`);
+      
+      const newAgentConfig = await OpenAIAgentFactory.createFromAgentRecord({
+        id: targetAgent.id,
+        userId: targetAgent.userId,
+        type: targetAgent.type,
+        systemPrompt: targetAgent.systemPrompt || '',
+        firstMessage: targetAgent.firstMessage || null,
+        openaiVoice: targetAgent.openaiVoice || null,
+        openaiModel: null,
+        temperature: targetAgent.temperature as number | null,
+        knowledgeBaseIds: targetAgent.knowledgeBaseIds as string[] | null,
+        knowledgeBaseOnly: targetAgent.knowledgeBaseOnly as boolean | null,
+        transferEnabled: targetAgent.transferEnabled as boolean | null,
+        transferPhoneNumber: targetAgent.transferPhoneNumber || null,
+        transferMessage: null,
+        transferAgentId: targetAgent.transferAgentId || null,
+        endConversationEnabled: targetAgent.endConversationEnabled as boolean | null,
+        detectLanguageEnabled: targetAgent.detectLanguageEnabled as boolean | null,
+        flowId: targetAgent.flowId || null,
+        language: targetAgent.language || null,
+      }, 'pro');
+      
+      if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
+        console.log(`[TwilioOpenAI Bridge] Closing old OpenAI WebSocket for agent swap`);
+        session.openaiWs.close(1000, 'Agent swap');
+      }
+      
+      session.toolHandlers.clear();
+      session.processedToolCallIds.clear();
+      
+      session.agentConfig = newAgentConfig;
+      session.firstMessageSent = false;
+      
+      if (newAgentConfig.tools) {
+        for (const tool of newAgentConfig.tools) {
+          session.toolHandlers.set(tool.name, tool.handler);
+        }
+      }
+      
+      const apiKey = await this.getOpenAIApiKey(session);
+      
+      await this.connectToOpenAI(session, apiKey);
+      
+      this.configureSession(session);
+      
+      console.log(`[TwilioOpenAI Bridge] Agent swap completed for ${callSid}. Now using agent: ${targetAgent.name}`);
+      
+      if (newAgentConfig.firstMessage) {
+        this.sendInitialGreeting(session);
+      }
+      
+      return { success: true };
+      
+    } catch (error: any) {
+      console.error(`[TwilioOpenAI Bridge] Agent swap failed for ${callSid}:`, error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get OpenAI API key for the session from the call record's credential or environment
+   */
+  private static async getOpenAIApiKey(session: AudioBridgeSession): Promise<string> {
+    try {
+      const [callRecord] = await db
+        .select({ openaiCredentialId: twilioOpenaiCalls.openaiCredentialId })
+        .from(twilioOpenaiCalls)
+        .where(eq(twilioOpenaiCalls.twilioCallSid, session.callSid))
+        .limit(1);
+      
+      if (callRecord?.openaiCredentialId) {
+        const credential = await OpenAIPoolService.getCredentialById(callRecord.openaiCredentialId);
+        if (credential?.apiKey) {
+          return credential.apiKey;
+        }
+      }
+    } catch (e) {
+      // Fall through to env var
+    }
+    
+    const envKey = process.env.OPENAI_API_KEY;
+    if (envKey) return envKey;
+    
+    throw new Error('No OpenAI API key available for agent swap');
+  }
+
+  /**
+   * Send initial greeting from a new agent after agent swap
+   */
+  private static sendInitialGreeting(session: AudioBridgeSession): void {
+    if (!session.openaiWs || session.openaiWs.readyState !== WebSocket.OPEN) return;
+    
+    session.openaiWs.send(JSON.stringify({
+      type: 'response.create',
+      response: {
+        modalities: ['text', 'audio'],
+        instructions: session.agentConfig.firstMessage || 'Greet the caller and let them know you are here to help.',
+      },
+    }));
   }
 
   /**

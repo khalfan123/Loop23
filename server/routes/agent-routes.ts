@@ -69,6 +69,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         knowledgeBaseIds,
         transferEnabled,
         transferPhoneNumber,
+        transferAgentId,
         transferMessage,
         detectLanguageEnabled,
         endConversationEnabled,
@@ -119,8 +120,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         }
       }
 
-      if (type === 'incoming' && transferEnabled && !transferPhoneNumber?.trim()) {
-        return res.status(400).json({ error: "Transfer phone number is required when call transfer is enabled" });
+      if (type === 'incoming' && transferEnabled && !transferPhoneNumber?.trim() && !transferAgentId?.trim()) {
+        return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
       }
 
       // Sanitize sipPhoneNumberId: convert empty string to null to avoid foreign key constraint violation
@@ -385,6 +386,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         knowledgeBaseIds: (type === 'incoming' || type === 'flow') ? (knowledgeBaseIds || null) : null,
         transferEnabled: type === 'incoming' ? (transferEnabled || false) : false,
         transferPhoneNumber: type === 'incoming' ? (transferPhoneNumber || null) : null,
+        transferAgentId: type === 'incoming' ? (transferAgentId || null) : null,
         detectLanguageEnabled: (type === 'incoming' || type === 'flow') ? (detectLanguageEnabled || false) : false,
         endConversationEnabled: type === 'incoming' ? (endConversationEnabled || false) : false,
         appointmentBookingEnabled: type === 'incoming' ? (appointmentBookingEnabled || false) : false,
@@ -590,8 +592,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: "Cannot change agent type after creation" });
       }
 
-      if (agent.type === 'incoming' && req.body.transferEnabled === true && !req.body.transferPhoneNumber?.trim()) {
-        return res.status(400).json({ error: "Transfer phone number is required when call transfer is enabled" });
+      if (agent.type === 'incoming' && req.body.transferEnabled === true && !req.body.transferPhoneNumber?.trim() && !req.body.transferAgentId?.trim()) {
+        return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
       }
 
       // Sanitize sipPhoneNumberId: convert empty string to null to avoid foreign key constraint violation
@@ -621,6 +623,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           voiceSimilarityBoost: agent.voiceSimilarityBoost,
           voiceSpeed: agent.voiceSpeed,
           transferPhoneNumber: agent.transferPhoneNumber,
+          transferAgentId: agent.transferAgentId,
           transferEnabled: agent.transferEnabled,
           detectLanguageEnabled: agent.detectLanguageEnabled,
           endConversationEnabled: agent.endConversationEnabled,
@@ -641,7 +644,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           'name', 'voiceTone', 'personality', 'systemPrompt', 'language',
           'firstMessage', 'llmModel', 'temperature', 'elevenLabsVoiceId',
           'voiceStability', 'voiceSimilarityBoost', 'voiceSpeed',
-          'transferPhoneNumber', 'transferEnabled', 'detectLanguageEnabled',
+          'transferPhoneNumber', 'transferAgentId', 'transferEnabled', 'detectLanguageEnabled',
           'endConversationEnabled', 'knowledgeBaseIds', 'knowledgeBaseOnly', 'maxDurationSeconds',
           'flowId', 'config'
         ];

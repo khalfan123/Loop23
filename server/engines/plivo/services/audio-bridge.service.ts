@@ -19,9 +19,11 @@ import { logger } from '../../../utils/logger';
 import { getTransferWebhookUrl } from '../config/plivo-config';
 import { PlivoRecordingService } from './plivo-recording.service';
 import { db } from '../../../db';
-import { plivoCredentials, plivoCalls } from '@shared/schema';
+import { plivoCredentials, plivoCalls, agents } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { openaiPoolManager } from '../../../infrastructure';
+import { OpenAIAgentFactory } from './openai-agent-factory';
+import { OpenAIPoolService } from './openai-pool.service';
 
 /**
  * Mulaw decoding table (256 entries for byte values 0-255)
@@ -627,6 +629,40 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           ...params 
         };
       } 
+      // Handle agent-to-agent transfer (swap WebSocket connection to new agent)
+      else if (toolName === 'transfer_to_agent' || toolName.startsWith('transfer_agent_')) {
+        logger.info(`Agent transfer tool invoked: ${toolName} for ${callUuid}`, undefined, 'AudioBridge');
+        
+        let targetAgentId = '';
+        
+        if (session.agentConfig.tools) {
+          for (const tool of session.agentConfig.tools) {
+            const toolAny = tool as unknown as Record<string, unknown>;
+            if (tool.name === toolName) {
+              if (toolAny._transferAgentId) {
+                targetAgentId = toolAny._transferAgentId as string;
+              } else if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).agentId) {
+                targetAgentId = (toolAny._metadata as Record<string, unknown>).agentId as string;
+              }
+              break;
+            }
+          }
+        }
+        
+        if (!targetAgentId) {
+          logger.warn(`No target agent ID found for ${toolName}`, undefined, 'AudioBridge');
+          result = { 
+            error: 'No target agent specified',
+            message: 'Cannot transfer - no agent specified.'
+          };
+        } else {
+          result = { 
+            action: 'transfer_to_agent',
+            targetAgentId: targetAgentId,
+            reason: (params.reason as string) || (params.context as string) || 'Agent transfer requested',
+          };
+        }
+      }
       // Handle transfer_call and transfer_* as built-in tools for flow agents
       else if (toolName === 'transfer_call' || toolName.startsWith('transfer_')) {
         logger.info(`Built-in transfer tool invoked: ${toolName} for ${callUuid}`, undefined, 'AudioBridge');
@@ -789,6 +825,40 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       if (typeof result === 'object' && result !== null) {
         const actionResult = result as Record<string, unknown>;
         
+        if (actionResult.action === 'transfer_to_agent') {
+          const targetAgentId = actionResult.targetAgentId as string;
+          logger.info(`Executing agent transfer to ${targetAgentId}`, undefined, 'AudioBridge');
+          
+          const swapResult = await this.executeAgentSwap(session, targetAgentId);
+          if (!swapResult.success) {
+            result = { 
+              ...actionResult, 
+              transferError: swapResult.error,
+              message: 'Agent transfer failed, please try again.'
+            };
+          } else {
+            result = { 
+              ...actionResult, 
+              transferSuccess: true,
+              message: 'Agent transfer completed successfully.'
+            };
+            
+            await this.updateCallMetadata(callUuid, {
+              wasTransferred: true,
+              hasTransfer: true,
+              transferredToAgent: targetAgentId,
+              transferredAt: new Date().toISOString(),
+              aiInsights: {
+                primaryOutcome: 'agent_transfer',
+                wasTransferred: true,
+                transferTargetAgent: targetAgentId,
+              },
+            });
+            
+            return;
+          }
+        }
+
         if (actionResult.action === 'transfer') {
           const targetNumber = actionResult.phoneNumber as string;
           logger.info(`Executing transfer to ${targetNumber}`, undefined, 'AudioBridge');
@@ -1106,6 +1176,116 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       transcript,
       transcriptParts: session.transcriptParts,
     };
+  }
+
+  private static async executeAgentSwap(session: AudioBridgeSession, targetAgentId: string): Promise<{ success: boolean; error?: string }> {
+    const { callUuid } = session;
+    
+    try {
+      logger.info(`Starting agent swap for ${callUuid} to agent ${targetAgentId}`, undefined, 'AudioBridge');
+      
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      
+      const [targetAgent] = await db
+        .select()
+        .from(agents)
+        .where(eq(agents.id, targetAgentId))
+        .limit(1);
+      
+      if (!targetAgent) {
+        throw new Error(`Target agent ${targetAgentId} not found`);
+      }
+      
+      logger.info(`Found target agent: ${targetAgent.name} (${targetAgent.id})`, undefined, 'AudioBridge');
+      
+      const newAgentConfig = await OpenAIAgentFactory.createFromAgentRecord({
+        id: targetAgent.id,
+        userId: targetAgent.userId,
+        type: targetAgent.type,
+        systemPrompt: targetAgent.systemPrompt || '',
+        firstMessage: targetAgent.firstMessage || null,
+        openaiVoice: targetAgent.openaiVoice || null,
+        openaiModel: targetAgent.openaiModel || null,
+        temperature: targetAgent.temperature as number | null,
+        knowledgeBaseIds: targetAgent.knowledgeBaseIds as string[] | null,
+        transferEnabled: targetAgent.transferEnabled as boolean | null,
+        transferPhoneNumber: targetAgent.transferPhoneNumber || null,
+        transferMessage: null,
+        transferAgentId: targetAgent.transferAgentId || null,
+        endConversationEnabled: targetAgent.endConversationEnabled as boolean | null,
+        detectLanguageEnabled: targetAgent.detectLanguageEnabled as boolean | null,
+        flowId: targetAgent.flowId || null,
+        language: targetAgent.language || null,
+      }, 'pro');
+      
+      if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
+        logger.info(`Closing old OpenAI WebSocket for agent swap`, undefined, 'AudioBridge');
+        session.openaiWs.close(1000, 'Agent swap');
+      }
+      
+      session.toolHandlers.clear();
+      session.processedToolCallIds.clear();
+      session.agentConfig = newAgentConfig;
+      
+      if (newAgentConfig.tools) {
+        for (const tool of newAgentConfig.tools) {
+          session.toolHandlers.set(tool.name, tool.handler);
+        }
+      }
+      
+      const apiKey = await this.getOpenAIApiKey(session);
+      await this.connectToOpenAI(session, apiKey);
+      this.configureSession(session);
+      
+      logger.info(`Agent swap completed for ${callUuid}. Now using agent: ${targetAgent.name}`, undefined, 'AudioBridge');
+      
+      if (newAgentConfig.firstMessage) {
+        this.sendInitialGreeting(session);
+      }
+      
+      return { success: true };
+      
+    } catch (error: any) {
+      logger.error(`Agent swap failed for ${callUuid}: ${error.message}`, undefined, 'AudioBridge');
+      return { success: false, error: error.message };
+    }
+  }
+
+  private static async getOpenAIApiKey(session: AudioBridgeSession): Promise<string> {
+    try {
+      const [callRecord] = await db
+        .select({ openaiCredentialId: plivoCalls.openaiCredentialId })
+        .from(plivoCalls)
+        .where(eq(plivoCalls.callUuid, session.callUuid))
+        .limit(1);
+      
+      if (callRecord?.openaiCredentialId) {
+        const credential = await OpenAIPoolService.getCredentialById(callRecord.openaiCredentialId);
+        if (credential?.apiKey) {
+          return credential.apiKey;
+        }
+      }
+    } catch (e) {
+      // Fall through to env var
+    }
+    
+    const envKey = process.env.OPENAI_API_KEY;
+    if (envKey) return envKey;
+    
+    throw new Error('No OpenAI API key available for agent swap');
+  }
+
+  private static sendInitialGreeting(session: AudioBridgeSession): void {
+    if (!session.openaiWs || session.openaiWs.readyState !== WebSocket.OPEN) return;
+    
+    const createResponse = {
+      type: 'response.create',
+      response: {
+        modalities: ['text', 'audio'],
+        instructions: session.agentConfig.firstMessage || 'Greet the caller and let them know you are here to help.',
+      },
+    };
+    session.openaiWs.send(JSON.stringify(createResponse));
   }
 
   /**

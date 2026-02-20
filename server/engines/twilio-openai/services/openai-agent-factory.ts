@@ -681,6 +681,48 @@ STRICT KNOWLEDGE BASE RESTRICTION:
     };
   }
 
+  static addTransferToAgentTool(
+    config: AgentConfigWithContext,
+    targetAgentId: string,
+    transferMessage?: string
+  ): AgentConfigWithContext {
+    if (config.tools?.some(t => t.name === 'transfer_to_agent')) {
+      console.log(`[Agent Factory] Transfer to agent tool already exists, skipping`);
+      return config;
+    }
+    
+    console.log(`[Agent Factory] Adding transfer to agent tool for agent ${targetAgentId}`);
+
+    const transferToAgentTool: AgentTool & { _transferAgentId: string } = {
+      name: 'transfer_to_agent',
+      description: 'Transfer the call to a different AI agent who can better assist the caller. IMPORTANT: Before calling this function, you MUST first say a brief transfer announcement like "Sure, let me connect you with the right specialist" or "One moment, I will transfer you to our specialist". After speaking this announcement, immediately call this function. Use this when the caller needs assistance in a different language or from a specialized department.',
+      parameters: {
+        type: 'object',
+        properties: {
+          reason: {
+            type: 'string',
+            description: 'Brief reason for the transfer'
+          }
+        },
+        required: ['reason'],
+      },
+      handler: async (params: Record<string, unknown>) => {
+        console.log(`[Transfer To Agent Tool] Initiating agent transfer to ${targetAgentId}, reason: ${params.reason || 'none'}`);
+        return { 
+          action: 'transfer_to_agent',
+          targetAgentId: targetAgentId,
+          reason: params.reason as string
+        };
+      },
+      _transferAgentId: targetAgentId,
+    };
+
+    return {
+      ...config,
+      tools: [...(config.tools || []), transferToAgentTool],
+    };
+  }
+
   /**
    * Add end call tool to agent
    */
@@ -1143,13 +1185,27 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       const nodeType = this.getNodeType(node);
       switch (nodeType) {
         case 'transfer': {
-          const phoneNumber = this.getNodeContent(node, 'phoneNumber');
-          if (phoneNumber) {
-            config = this.addTransferTool(
-              config,
-              phoneNumber,
-              this.getNodeContent(node, 'message')
-            );
+          const transferType = this.getNodeContent(node, 'transferType');
+          
+          if (transferType === 'agent') {
+            const transferAgentId = this.getNodeContent(node, 'transferAgentId');
+            if (transferAgentId) {
+              config = this.addTransferToAgentTool(
+                config,
+                transferAgentId,
+                this.getNodeContent(node, 'message')
+              );
+            }
+          } else {
+            // Default: phone transfer (backward compatible)
+            const phoneNumber = this.getNodeContent(node, 'phoneNumber');
+            if (phoneNumber) {
+              config = this.addTransferTool(
+                config,
+                phoneNumber,
+                this.getNodeContent(node, 'message')
+              );
+            }
           }
           break;
         }
@@ -1541,6 +1597,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       knowledgeBaseOnly?: boolean | null;
       transferEnabled?: boolean | null;
       transferPhoneNumber?: string | null;
+      transferAgentId?: string | null;
       transferMessage?: string | null;
       endConversationEnabled?: boolean | null;
       detectLanguageEnabled?: boolean | null;
@@ -1594,6 +1651,10 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     // Add transfer tool if enabled
     if (agent.transferEnabled && agent.transferPhoneNumber) {
       config = this.addTransferTool(config, agent.transferPhoneNumber, agent.transferMessage || undefined);
+    }
+
+    if (agent.transferEnabled && agent.transferAgentId) {
+      config = this.addTransferToAgentTool(config, agent.transferAgentId);
     }
 
     // Add end call tool if enabled

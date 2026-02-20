@@ -50,6 +50,10 @@ export class FunctionToolBuilder {
       tools.push(this.buildTransferTool(config.transferPhoneNumber));
     }
     
+    if (config.transferAgentId) {
+      tools.push(this.buildTransferToAgentTool(config.transferAgentId));
+    }
+    
     // Add end call tool if enabled
     if (config.endConversationEnabled !== false) {
       tools.push(this.buildEndCallTool());
@@ -122,6 +126,31 @@ export class FunctionToolBuilder {
       (tool as unknown as Record<string, unknown>)._transferNumber = defaultNumber;
       (tool as unknown as Record<string, unknown>)._metadata = { phoneNumber: defaultNumber };
     }
+    
+    return tool;
+  }
+
+  static buildTransferToAgentTool(targetAgentId: string): OpenAIFunctionTool {
+    const tool: OpenAIFunctionTool = {
+      type: 'function',
+      function: {
+        name: 'transfer_to_agent',
+        description: `Transfer the caller to a different AI agent who can better assist them. Let the caller know you're about to transfer them before calling this function.`,
+        parameters: {
+          type: 'object',
+          properties: {
+            reason: {
+              type: 'string',
+              description: 'The reason for the transfer.',
+            },
+          },
+          required: ['reason'],
+        },
+      },
+    };
+    
+    (tool as unknown as Record<string, unknown>)._transferAgentId = targetAgentId;
+    (tool as unknown as Record<string, unknown>)._metadata = { agentId: targetAgentId };
     
     return tool;
   }
@@ -223,32 +252,63 @@ export class FunctionToolBuilder {
       case 'tool':
         return this.buildCustomTool(node, config);
       
-      case 'transfer':
+      case 'transfer': {
         // Transfer nodes create their own transfer tool
-        const transferNumber = config.phoneNumber || config.transferNumber;
-        if (transferNumber) {
-          return {
-            type: 'function',
-            function: {
-              name: `transfer_${node.id.replace(/-/g, '_')}`,
-              description: `Transfer to ${node.data?.label || config.label || 'designated department'}. ${config.description || ''}`,
-              parameters: {
-                type: 'object',
-                properties: {
-                  context: {
-                    type: 'string',
-                    description: 'Context about the caller\'s needs to pass to the receiving agent.',
+        // Check transferType field to determine phone vs agent transfer
+        const transferType = config.transferType;
+        
+        if (transferType === 'agent') {
+          const transferAgentId = config.transferAgentId;
+          if (transferAgentId) {
+            return {
+              type: 'function',
+              function: {
+                name: `transfer_agent_${node.id.replace(/-/g, '_')}`,
+                description: `Transfer to ${node.data?.label || 'specialist agent'}. ${config.description || ''}`,
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    context: {
+                      type: 'string',
+                      description: 'Brief context about what the caller needs help with',
+                    },
                   },
                 },
               },
-            },
-            _metadata: {
-              phoneNumber: transferNumber,
-              nodeId: node.id,
-            },
-          };
+              _metadata: {
+                agentId: transferAgentId,
+                nodeId: node.id,
+              },
+            };
+          }
+        } else {
+          // Default: phone transfer (backward compatible)
+          const transferNumber = config.phoneNumber || config.transferNumber;
+          if (transferNumber) {
+            return {
+              type: 'function',
+              function: {
+                name: `transfer_${node.id.replace(/-/g, '_')}`,
+                description: `Transfer to ${node.data?.label || config.label || 'designated department'}. ${config.description || ''}`,
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    context: {
+                      type: 'string',
+                      description: 'Context about the caller\'s needs to pass to the receiving agent.',
+                    },
+                  },
+                },
+              },
+              _metadata: {
+                phoneNumber: transferNumber,
+                nodeId: node.id,
+              },
+            };
+          }
         }
         return null;
+      }
       
       case 'play_audio':
         // Play Audio nodes create a tool to trigger audio playback

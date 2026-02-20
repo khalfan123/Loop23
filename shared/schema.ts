@@ -165,6 +165,7 @@ export const agents = pgTable("agents", {
   // Call Transfer Configuration (for incoming agents)
   transferPhoneNumber: text("transfer_phone_number"),
   transferEnabled: boolean("transfer_enabled").default(false),
+  transferAgentId: varchar("transfer_agent_id"),
   
   // ElevenLabs System Tools Configuration (for incoming agents)
   detectLanguageEnabled: boolean("detect_language_enabled").default(false),
@@ -330,6 +331,7 @@ export const incomingAgents = pgTable("incoming_agents", {
   // Call Transfer Configuration
   transferPhoneNumber: text("transfer_phone_number"), // Phone number to transfer calls to
   transferEnabled: boolean("transfer_enabled").notNull().default(false),
+  transferAgentId: varchar("transfer_agent_id"),
   
   // Business Hours Configuration
   businessHoursEnabled: boolean("business_hours_enabled").notNull().default(false),
@@ -891,6 +893,7 @@ export const agentVersions = pgTable("agent_versions", {
     voiceSpeed?: number | null;
     transferPhoneNumber?: string | null;
     transferEnabled?: boolean | null;
+    transferAgentId?: string | null;
     detectLanguageEnabled?: boolean | null;
     endConversationEnabled?: boolean | null;
     knowledgeBaseIds?: string[] | null;
@@ -1415,7 +1418,9 @@ export interface WebhookNodeConfig {
 
 export interface TransferNodeConfig {
   type: "transfer";
-  transferNumber: string;
+  transferType?: "phone" | "agent";  // Default: "phone" for backward compatibility
+  transferNumber: string;            // Phone number (used when transferType is "phone")
+  transferAgentId?: string;          // Agent ID (used when transferType is "agent")
   message: string;
 }
 

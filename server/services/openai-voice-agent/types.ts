@@ -128,6 +128,7 @@ export interface AgentCompilationConfig {
   agentPersonality?: string;
   knowledgeBaseIds?: string[];
   transferPhoneNumber?: string;
+  transferAgentId?: string;
   transferEnabled?: boolean;
   endConversationEnabled?: boolean;
 }

@@ -1791,6 +1791,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     );
                   }
                   
+                  if (agent.transferEnabled && agent.transferAgentId) {
+                    agentConfig = OpenAIAgentFactory.addTransferToAgentTool(
+                      agentConfig,
+                      agent.transferAgentId
+                    );
+                  }
+                  
                   if (agent.endConversationEnabled) {
                     agentConfig = OpenAIAgentFactory.addEndCallTool(agentConfig);
                   }

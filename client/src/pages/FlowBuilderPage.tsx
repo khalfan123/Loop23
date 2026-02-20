@@ -82,6 +82,8 @@ interface FlowNodeConfig {
   trueBranch?: string;
   falseBranch?: string;
   phoneNumber?: string;
+  transferType?: "phone" | "agent";
+  transferAgentId?: string;
   duration?: number;
   webhookUrl?: string;
   formId?: string;
@@ -935,16 +937,60 @@ export default function FlowBuilderPage() {
 
                 {/* Transfer Node */}
                 {selectedNode.data.type === "transfer" && (
-                  <div>
-                    <Label htmlFor="phoneNumber">{t("flows.nodeConfig.phoneNumber")}</Label>
-                    <Input
-                      id="phoneNumber"
-                      value={selectedNode.data.config?.phoneNumber || ""}
-                      onChange={(e) => updateNodeConfig({ phoneNumber: e.target.value })}
-                      placeholder={t("flows.nodeConfig.phoneNumberPlaceholder")}
-                      className="mt-1"
-                      data-testid="input-phone-number"
-                    />
+                  <div className="space-y-4">
+                    {/* Transfer Type Selector */}
+                    <div>
+                      <Label htmlFor="transferType">{t("flows.nodeConfig.transferType")}</Label>
+                      <Select
+                        value={selectedNode.data.config?.transferType || "phone"}
+                        onValueChange={(value) => updateNodeConfig({ transferType: value as "phone" | "agent" })}
+                      >
+                        <SelectTrigger className="mt-1" data-testid="select-transfer-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="phone">{t("flows.nodeConfig.phoneNumber")}</SelectItem>
+                          <SelectItem value="agent">{t("flows.nodeConfig.aiAgent")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Phone Number Input - shown when transferType is "phone" */}
+                    {(selectedNode.data.config?.transferType === "phone" || !selectedNode.data.config?.transferType) && (
+                      <div>
+                        <Label htmlFor="phoneNumber">{t("flows.nodeConfig.phoneNumber")}</Label>
+                        <Input
+                          id="phoneNumber"
+                          value={selectedNode.data.config?.phoneNumber || ""}
+                          onChange={(e) => updateNodeConfig({ phoneNumber: e.target.value })}
+                          placeholder={t("flows.nodeConfig.phoneNumberPlaceholder")}
+                          className="mt-1"
+                          data-testid="input-phone-number"
+                        />
+                      </div>
+                    )}
+
+                    {/* Agent Selector - shown when transferType is "agent" */}
+                    {selectedNode.data.config?.transferType === "agent" && (
+                      <div>
+                        <Label htmlFor="transferAgentId">{t("flows.nodeConfig.selectAgent")}</Label>
+                        <Select
+                          value={selectedNode.data.config?.transferAgentId || ""}
+                          onValueChange={(value) => updateNodeConfig({ transferAgentId: value })}
+                        >
+                          <SelectTrigger className="mt-1" data-testid="select-transfer-agent">
+                            <SelectValue placeholder={t("flows.nodeConfig.selectAgent")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {agents?.filter((agent: any) => agent.type === "incoming").map((agent: any) => (
+                              <SelectItem key={agent.id} value={agent.id}>
+                                {agent.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 )}
 

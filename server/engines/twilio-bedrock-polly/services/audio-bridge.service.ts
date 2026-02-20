@@ -589,32 +589,20 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         result = await awsPollyService.synthesizeSpeech({
           text: ssmlText,
           voiceId: agentConfig.voice,
-          engine: 'generative',
+          engine: 'neural',
           outputFormat: 'pcm',
           sampleRate: '8000',
           textType: 'ssml',
         });
-      } catch (genError: any) {
-        console.warn(`[BedrockPolly Bridge] Generative engine failed for voice ${agentConfig.voice}, falling back to neural: ${genError.message}`);
-        try {
-          result = await awsPollyService.synthesizeSpeech({
-            text: ssmlText,
-            voiceId: agentConfig.voice,
-            engine: 'neural',
-            outputFormat: 'pcm',
-            sampleRate: '8000',
-            textType: 'ssml',
-          });
-        } catch (neuralError: any) {
-          console.warn(`[BedrockPolly Bridge] Neural SSML also failed, trying plain text: ${neuralError.message}`);
-          result = await awsPollyService.synthesizeSpeech({
-            text: synthesisText,
-            voiceId: agentConfig.voice,
-            engine: 'neural',
-            outputFormat: 'pcm',
-            sampleRate: '8000',
-          });
-        }
+      } catch (neuralError: any) {
+        console.warn(`[BedrockPolly Bridge] Neural SSML failed for voice ${agentConfig.voice}, trying plain text: ${neuralError.message}`);
+        result = await awsPollyService.synthesizeSpeech({
+          text: synthesisText,
+          voiceId: agentConfig.voice,
+          engine: 'neural',
+          outputFormat: 'pcm',
+          sampleRate: '8000',
+        });
       }
 
       const pcmBuffer = result.audioStream;

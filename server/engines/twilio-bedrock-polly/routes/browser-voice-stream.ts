@@ -29,7 +29,7 @@ function sendMessage(ws: WebSocket, message: Record<string, unknown>): void {
 async function getOpenAIApiKey(): Promise<string> {
   try {
     const [dbSetting] = await db.select().from(globalSettings).where(eq(globalSettings.key, 'openai_api_key')).limit(1);
-    if (dbSetting?.value) return dbSetting.value;
+    if (dbSetting?.value) return dbSetting.value as string;
   } catch (e) {}
   if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
   if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
@@ -77,32 +77,20 @@ async function synthesizeSpeech(text: string, voiceId: string): Promise<Buffer> 
     result = await awsPollyService.synthesizeSpeech({
       text: ssmlText,
       voiceId,
-      engine: 'generative',
+      engine: 'neural',
       outputFormat: 'mp3',
       sampleRate: '22050',
       textType: 'ssml',
     });
-  } catch (genError: any) {
-    console.warn(`[BrowserVoice] Generative engine failed for voice ${voiceId}, falling back to neural: ${genError.message}`);
-    try {
-      result = await awsPollyService.synthesizeSpeech({
-        text: ssmlText,
-        voiceId,
-        engine: 'neural',
-        outputFormat: 'mp3',
-        sampleRate: '22050',
-        textType: 'ssml',
-      });
-    } catch (neuralError: any) {
-      console.warn(`[BrowserVoice] Neural SSML also failed, trying plain text: ${neuralError.message}`);
-      result = await awsPollyService.synthesizeSpeech({
-        text: synthesisText,
-        voiceId,
-        engine: 'neural',
-        outputFormat: 'mp3',
-        sampleRate: '22050',
-      });
-    }
+  } catch (neuralError: any) {
+    console.warn(`[BrowserVoice] Neural SSML failed for voice ${voiceId}, trying plain text: ${neuralError.message}`);
+    result = await awsPollyService.synthesizeSpeech({
+      text: synthesisText,
+      voiceId,
+      engine: 'neural',
+      outputFormat: 'mp3',
+      sampleRate: '22050',
+    });
   }
 
   return result.audioStream;
@@ -197,10 +185,8 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string): Pr
       return;
     }
 
-    const voice = (agent.voice || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId;
-    const model = (agent.model && ['claude-3-5-sonnet', 'claude-3-haiku', 'claude-3-opus'].includes(agent.model)
-      ? agent.model
-      : BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel;
+    const voice = (agent.openaiVoice || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId;
+    const model = BEDROCK_POLLY_CONFIG.defaultModel as BedrockModel;
 
     let agentConfig = BedrockAgentFactory.createAgentConfig({
       voice,

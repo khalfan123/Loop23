@@ -1072,13 +1072,13 @@ export default function DeprockManagement() {
     >
       <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="deprock-management-page">
         {activeTab === 'org-map' && (
-          <div className="space-y-6 p-4">
+          <div className="space-y-4 sm:space-y-6 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Network className="h-4 w-4 text-foreground" />
-                <span className="font-medium">Call Center Organization</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Network className="h-4 w-4 text-foreground shrink-0" />
+                <span className="font-medium text-sm sm:text-base truncate">Call Center Organization</span>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1113,8 +1113,8 @@ export default function DeprockManagement() {
                   }}
                   data-testid="deprock-button-configure-ivr"
                 >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configure IVR
+                  <Settings className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Configure IVR</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -1122,8 +1122,8 @@ export default function DeprockManagement() {
                   onClick={() => setLocation("/app/deprock/canvas")}
                   data-testid="deprock-button-open-canvas"
                 >
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  Setup Call Center
+                  <LayoutGrid className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Setup Call Center</span>
                 </Button>
                 <Button
                   variant="destructive"
@@ -1132,14 +1132,14 @@ export default function DeprockManagement() {
                   disabled={departments.length === 0}
                   data-testid="deprock-button-delete-all"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete All
+                  <Trash2 className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Delete All</span>
                 </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-9 gap-0 items-stretch" data-testid="deprock-call-center-org-card">
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-3 lg:gap-0 items-stretch" data-testid="deprock-call-center-org-card">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center mb-2">
                   <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
@@ -1171,7 +1171,7 @@ export default function DeprockManagement() {
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center mb-2">
                   <GitBranch className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
@@ -1235,7 +1235,7 @@ export default function DeprockManagement() {
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center mb-2">
                   <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
@@ -1264,7 +1264,7 @@ export default function DeprockManagement() {
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center mb-2">
                   <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
@@ -1281,7 +1281,7 @@ export default function DeprockManagement() {
                 <ChevronDown className="h-4 w-4 text-foreground/50" />
               </div>
 
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
+              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
                 <div className="w-9 h-9 rounded-xl bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center mb-2">
                   <BookOpen className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                 </div>
@@ -1294,7 +1294,7 @@ export default function DeprockManagement() {
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs font-medium tracking-wide text-muted-foreground/60 uppercase">Departments & AI Agents</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {departments.map((dept, idx) => (
                   <DeprockDepartmentCard
                     key={dept.id}
@@ -1316,7 +1316,7 @@ export default function DeprockManagement() {
                 ))}
 
                 <div 
-                  className="rounded-2xl border border-dashed border-border/60 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
+                  className="rounded-2xl border border-dashed border-border/60 hover-elevate cursor-pointer min-h-[150px] sm:min-h-[200px] flex flex-col items-center justify-center"
                   onClick={() => {
                     setSelectedDepartment(null);
                     setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
@@ -1347,14 +1347,14 @@ export default function DeprockManagement() {
                   {showFlowDetails ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </button>
                 {showFlowDetails && (
-                  <div className="p-4 pt-0 space-y-4">
+                  <div className="p-3 sm:p-4 pt-0 space-y-4">
                     <div className="border rounded-lg overflow-hidden">
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-xs sm:text-sm">
                           <thead className="bg-muted/50">
                             <tr>
-                              <th className="px-4 py-3 text-left font-medium">Language</th>
-                              <th className="px-4 py-3 text-left font-medium">Generated Greeting</th>
+                              <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-medium">Language</th>
+                              <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-medium">Generated Greeting</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y">
@@ -1362,12 +1362,12 @@ export default function DeprockManagement() {
                               const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label || opt.language;
                               return (
                                 <tr key={opt.id}>
-                                  <td className="px-4 py-3">
+                                  <td className="px-2 sm:px-4 py-2 sm:py-3">
                                     <div className="flex items-center gap-2">
                                       <Badge variant="outline">{langLabel}</Badge>
                                     </div>
                                   </td>
-                                  <td className="px-4 py-3">
+                                  <td className="px-2 sm:px-4 py-2 sm:py-3">
                                     <div className="text-muted-foreground italic">"{opt.greeting}"</div>
                                   </td>
                                 </tr>
@@ -1415,11 +1415,11 @@ export default function DeprockManagement() {
         )}
 
         {activeTab === 'departments' && (
-          <div className="p-4">
+          <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
             <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="h-4 w-4 text-foreground" />
-                <span className="font-medium">Departments</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <LayoutGrid className="h-4 w-4 text-foreground shrink-0" />
+                <span className="font-medium text-sm sm:text-base">Departments</span>
               </div>
               <Button 
                 onClick={() => {
@@ -1431,11 +1431,11 @@ export default function DeprockManagement() {
                 }}
                 data-testid="deprock-button-add-department"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Department
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Department</span>
               </Button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {departments.map((dept, idx) => (
                 <DeprockDepartmentCard
                   key={dept.id}
@@ -1495,7 +1495,7 @@ export default function DeprockManagement() {
           setExpandedNewAgents(new Set());
         }
       }}>
-        <DialogContent className={!selectedDepartment ? "w-full max-w-2xl max-h-[85vh] overflow-y-auto" : ""} data-testid="deprock-dialog-create-department">
+        <DialogContent className={!selectedDepartment ? "w-[calc(100vw-2rem)] sm:w-full max-w-2xl max-h-[85vh] overflow-y-auto" : "w-[calc(100vw-2rem)] sm:w-full"} data-testid="deprock-dialog-create-department">
           <DialogHeader>
             <DialogTitle>
               {selectedDepartment ? "Edit Deprock Department" : "Create New Deprock Department"}
@@ -1527,7 +1527,7 @@ export default function DeprockManagement() {
                 data-testid="deprock-input-department-description"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Icon</Label>
                 <Select 
@@ -1634,7 +1634,7 @@ export default function DeprockManagement() {
 
                     {expandedNewAgents.has(agent.id) && (
                       <div className="space-y-3 pt-2 border-t">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <Label className="text-xs">Language</Label>
                             <Select value={agent.language} onValueChange={(v) => updateNewAgent(agent.id, { language: v, voiceId: "", agentId: "", agentName: "" })}>
@@ -1786,7 +1786,7 @@ export default function DeprockManagement() {
       </Dialog>
 
       <Dialog open={showAddAgentDialog} onOpenChange={setShowAddAgentDialog}>
-        <DialogContent data-testid="deprock-dialog-add-agent">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full" data-testid="deprock-dialog-add-agent">
           <DialogHeader>
             <DialogTitle>Add Agent to {selectedDepartment?.name}</DialogTitle>
             <DialogDescription>
@@ -1992,7 +1992,7 @@ export default function DeprockManagement() {
       </AlertDialog>
 
       <Dialog open={showIvrSettingsDialog} onOpenChange={setShowIvrSettingsDialog}>
-        <DialogContent className="max-w-2xl" data-testid="deprock-dialog-ivr-settings">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-2xl" data-testid="deprock-dialog-ivr-settings">
           <DialogHeader>
             <DialogTitle>Assign Phone Number</DialogTitle>
             <DialogDescription>
@@ -2067,7 +2067,7 @@ export default function DeprockManagement() {
       </Dialog>
 
       <Sheet open={showConfigSheet} onOpenChange={setShowConfigSheet}>
-        <SheetContent className="w-full max-w-[450px] sm:max-w-[550px]" data-testid="deprock-sheet-department-config">
+        <SheetContent className="w-[100vw] max-w-[100vw] sm:max-w-[450px] md:max-w-[550px]" data-testid="deprock-sheet-department-config">
           <SheetHeader>
             <SheetTitle>Deprock Department Configuration</SheetTitle>
           </SheetHeader>
@@ -2236,7 +2236,7 @@ export default function DeprockManagement() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <Label>Voice Tone</Label>
                         <Select
@@ -2409,7 +2409,7 @@ export default function DeprockManagement() {
       </Sheet>
 
       <Sheet open={ivrConfigOpen} onOpenChange={setIvrConfigOpen}>
-        <SheetContent className="w-full max-w-[450px] sm:max-w-[550px]" data-testid="deprock-sheet-ivr-config">
+        <SheetContent className="w-[100vw] max-w-[100vw] sm:max-w-[450px] md:max-w-[550px]" data-testid="deprock-sheet-ivr-config">
           <SheetHeader>
             <SheetTitle>IVR Configuration</SheetTitle>
           </SheetHeader>
@@ -2750,7 +2750,7 @@ function DeprockDepartmentCard({
 
   return (
     <div 
-      className="rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm p-4 space-y-3"
+      className="rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm p-3 sm:p-4 space-y-3"
       data-testid={`deprock-department-card-${department.id}`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -2781,7 +2781,7 @@ function DeprockDepartmentCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 text-[11px] text-muted-foreground/70">
+      <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-muted-foreground/70 flex-wrap">
         <div className="flex items-center gap-1.5" data-testid={`deprock-badge-ivr-active-${department.id}`}>
           <div className={`w-1.5 h-1.5 rounded-full ${department.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
           <span>{department.isActive ? "Active" : "Inactive"}</span>

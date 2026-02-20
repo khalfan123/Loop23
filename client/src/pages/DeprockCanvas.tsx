@@ -483,7 +483,7 @@ const WIZARD_STEPS = [
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
-    <div className="flex items-center justify-center gap-0 py-6" data-testid="step-indicator">
+    <div className="flex items-center justify-center gap-0 py-4 sm:py-6" data-testid="step-indicator">
       {WIZARD_STEPS.map((step, idx) => {
         const isCompleted = currentStep > step.id;
         const isCurrent = currentStep === step.id;
@@ -491,9 +491,9 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
 
         return (
           <div key={step.id} className="flex items-center">
-            <div className="flex flex-col items-center gap-1.5">
+            <div className="flex flex-col items-center gap-1 sm:gap-1.5">
               <div
-                className={`flex items-center justify-center w-9 h-9 rounded-full border-2 transition-colors ${
+                className={`flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full border-2 transition-colors ${
                   isCompleted
                     ? "bg-primary border-primary text-primary-foreground"
                     : isCurrent
@@ -503,13 +503,13 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
                 data-testid={`step-circle-${step.id}`}
               >
                 {isCompleted ? (
-                  <Check className="h-4 w-4" />
+                  <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 ) : (
-                  <StepIcon className="h-4 w-4" />
+                  <StepIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 )}
               </div>
               <span
-                className={`text-xs font-medium ${
+                className={`text-[10px] sm:text-xs font-medium ${
                   isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
                 }`}
               >
@@ -518,7 +518,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
             </div>
             {idx < WIZARD_STEPS.length - 1 && (
               <div
-                className={`w-16 md:w-24 h-0.5 mx-2 mb-5 ${
+                className={`w-8 sm:w-16 md:w-24 h-0.5 mx-1 sm:mx-2 mb-4 sm:mb-5 ${
                   currentStep > step.id ? "bg-primary" : "bg-muted-foreground/20"
                 }`}
               />
@@ -544,8 +544,8 @@ function PhoneSelectionStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" data-testid="text-step1-title">Select Phone Numbers</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-lg sm:text-xl font-semibold" data-testid="text-step1-title">Select Phone Numbers</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Choose the phone numbers that will receive inbound calls for this IVR system
         </p>
       </div>
@@ -945,7 +945,7 @@ function DepartmentCard({
   return (
     <Card data-testid={`card-dept-${dept.id}`}>
       <div
-        className="flex items-center justify-between gap-3 p-4 cursor-pointer"
+        className="flex items-center justify-between gap-2 sm:gap-3 p-3 sm:p-4 cursor-pointer min-h-[44px]"
         onClick={onToggleExpand}
         data-testid={`button-expand-dept-${dept.id}`}
       >
@@ -975,7 +975,7 @@ function DepartmentCard({
       </div>
 
       {isExpanded && (
-        <CardContent className="px-4 pb-4 pt-0 space-y-4 border-t">
+        <CardContent className="px-3 sm:px-4 pb-4 pt-0 space-y-4 border-t">
           <div className="pt-4">
             <Label>Deprock Department Name</Label>
             <Input
@@ -1046,7 +1046,7 @@ function DepartmentCard({
           </div>
 
           {activeLangAgent && (
-            <div className="p-4 space-y-4 border rounded-lg bg-muted/30">
+            <div className="p-3 sm:p-4 space-y-4 border rounded-lg bg-muted/30">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Select
                   value={activeLangAgent.language}
@@ -1182,7 +1182,7 @@ function DepartmentCard({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Voice Tone</Label>
                   <Select
@@ -1575,15 +1575,15 @@ function DepartmentsStep({
   const activeDept = canvasDepartments.find((d) => d.id === activeDeptId) || null;
 
   return (
-    <div className="flex gap-6">
-      <div className="w-[280px] shrink-0 space-y-4">
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+      <div className="w-full md:w-[280px] shrink-0 space-y-4">
         <div>
           <h3 className="text-sm font-semibold mb-3" data-testid="text-add-departments-title">Add Deprock Departments</h3>
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
               Quick Add Templates
             </Label>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-4 sm:grid-cols-7 md:grid-cols-3 gap-1.5">
               {departmentTemplates.map((template) => (
                 <Button
                   key={template.type}
@@ -1731,8 +1731,8 @@ function DepartmentsStep({
 
       <div className="flex-1 min-w-0 space-y-4">
         <div>
-          <h2 className="text-xl font-semibold" data-testid="text-step2-title">Configure Deprock Departments</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-lg sm:text-xl font-semibold" data-testid="text-step2-title">Configure Deprock Departments</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Add deprock departments and assign AI agents for each language
           </p>
         </div>
@@ -1741,13 +1741,13 @@ function DepartmentsStep({
           <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
             <Building2 className="h-8 w-8 mx-auto mb-3 opacity-50" />
             <p className="text-sm">No deprock departments added yet</p>
-            <p className="text-xs mt-1">Use the templates on the left to get started</p>
+            <p className="text-xs mt-1">Use the templates above to get started</p>
           </div>
         ) : !activeDept ? (
           <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
             <Settings className="h-8 w-8 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Select a deprock department from the left panel</p>
-            <p className="text-xs mt-1">Click on a department to configure its settings</p>
+            <p className="text-sm">Select a deprock department to configure</p>
+            <p className="text-xs mt-1">Select a department to configure its settings</p>
           </div>
         ) : (
           <DepartmentCard
@@ -1937,8 +1937,8 @@ function IVRRouterStep({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold" data-testid="text-step3-title">IVR Router Setup</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-lg sm:text-xl font-semibold" data-testid="text-step3-title">IVR Router Setup</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Configure your Interactive Voice Response system and greeting messages
         </p>
       </div>
@@ -2055,7 +2055,7 @@ function IVRRouterStep({
                 </div>
 
                 {languageOptions.map((opt, idx) => (
-                  <div key={opt.id} className="p-4 border rounded-lg space-y-3">
+                  <div key={opt.id} className="p-3 sm:p-4 border rounded-lg space-y-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="font-mono">Press {idx + 1}</Badge>
@@ -2470,7 +2470,7 @@ export default function DeprockCanvas() {
 
   return (
     <div className="min-h-[80vh]">
-      <div className="max-w-6xl mx-auto px-6 pb-8">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 pb-8">
         <div className="flex items-center gap-3 mb-2">
           <Button
             variant="ghost"
@@ -2522,7 +2522,7 @@ export default function DeprockCanvas() {
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 mt-8 pt-4 border-t">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 mt-6 sm:mt-8 pt-4 border-t">
           <Button
             variant="outline"
             onClick={() => setCurrentStep((s) => Math.max(1, s - 1))}
@@ -2530,7 +2530,8 @@ export default function DeprockCanvas() {
             data-testid="button-previous"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
-            Previous
+            <span className="hidden sm:inline">Previous</span>
+            <span className="sm:hidden">Back</span>
           </Button>
 
           {currentStep < 3 ? (
@@ -2553,7 +2554,8 @@ export default function DeprockCanvas() {
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              Save & Deploy
+              <span className="hidden sm:inline">Save & Deploy</span>
+              <span className="sm:hidden">Save</span>
             </Button>
           )}
         </div>

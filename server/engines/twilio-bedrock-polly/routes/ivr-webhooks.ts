@@ -10,7 +10,7 @@ import { getDomain } from '../../../utils/domain';
 
 const router = Router();
 
-const GENERATIVE_VOICES = ['Joanna', 'Matthew', 'Lupe', 'Hala', 'Ruth', 'Stephen', 'Danielle', 'Gregory', 'Suvi', 'Aria'];
+const GENERATIVE_VOICES: string[] = [];
 
 const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invalidMsg: string; noInputMsg: string; holdMsg: string; noAgentMsg: string; goodbyeMsg: string; repeatMsg: string; stillThereMsg: string }> = {
   en: { pressKey: 'press', invalidMsg: 'Invalid selection. Please try again.', noInputMsg: 'We did not receive a response.', holdMsg: 'Please hold while we connect you.', noAgentMsg: 'Sorry, no agent is available at this time.', goodbyeMsg: 'Thank you for calling. Goodbye.', greeting: 'Welcome. Please listen to the following options.', repeatMsg: 'To repeat these options, press 0.', stillThereMsg: 'Are you still there?' },

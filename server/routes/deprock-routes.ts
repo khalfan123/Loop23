@@ -1257,16 +1257,30 @@ The prompt should:
         return res.status(503).json({ error: 'AWS Polly is not configured' });
       }
 
-      const GENERATIVE_VOICES = ['Joanna', 'Matthew', 'Lupe', 'Hala', 'Ruth', 'Stephen', 'Danielle', 'Gregory', 'Suvi', 'Aria'];
-      const selectedEngine = engine || (GENERATIVE_VOICES.includes(voiceId) ? 'generative' : 'neural');
+      const selectedEngine = engine || 'neural';
 
-      const result = await awsPollyService.synthesizeSpeech({
-        text,
-        voiceId,
-        engine: selectedEngine as any,
-        outputFormat: 'mp3',
-        textType: 'text',
-      });
+      let result;
+      try {
+        result = await awsPollyService.synthesizeSpeech({
+          text,
+          voiceId,
+          engine: selectedEngine as any,
+          outputFormat: 'mp3',
+          textType: 'text',
+        });
+      } catch (engineError: any) {
+        if (selectedEngine !== 'neural') {
+          result = await awsPollyService.synthesizeSpeech({
+            text,
+            voiceId,
+            engine: 'neural' as any,
+            outputFormat: 'mp3',
+            textType: 'text',
+          });
+        } else {
+          throw engineError;
+        }
+      }
 
       res.set({
         'Content-Type': 'audio/mpeg',

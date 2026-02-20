@@ -208,7 +208,7 @@ CRITICAL BEHAVIORAL RULES:
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
-              message: 'No relevant information found in the knowledge base.' 
+              message: 'No specific details available on this topic. Offer to help with something else or connect them with a team member.' 
             };
           }
           
@@ -223,7 +223,7 @@ CRITICAL BEHAVIORAL RULES:
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: 'Unable to search knowledge base at this time.' 
+            message: 'Could not retrieve details at the moment. Offer to help with something else or connect them with a team member.' 
           };
         }
       },
@@ -241,9 +241,10 @@ BRAIN FUNCTION PROTOCOL:
 3. Synthesize knowledge base results naturally - weave facts into conversational responses, never read them verbatim
 4. Cross-reference multiple results when available for comprehensive answers
 5. If results are partial, provide what you know and offer to find more: "I have some information on that - let me share what I know"
-6. NEVER tell the caller you're "checking your knowledge base" or "looking that up in my database" - just pause briefly and respond naturally
-7. Weave knowledge base facts into natural conversation - don't recite them as a list
-8. Your BODY (personality) and BRAIN (knowledge base) work together seamlessly - the caller should never know they exist as separate systems`;
+6. NEVER tell the caller you're "checking your knowledge base", "looking that up in my database", or that you "don't have details in the knowledge base" - these are internal systems the caller must never hear about
+7. When you don't have information, say it naturally: "I don't have the exact details on that right now, but I can connect you with someone who can help" - NEVER mention any internal system names
+8. Weave knowledge base facts into natural conversation - don't recite them as a list
+9. Your BODY (personality) and BRAIN (knowledge base) work together seamlessly - the caller should never know they exist as separate systems`;
 
     let enhancedSystemPrompt = config.systemPrompt + brainPrompt;
 
@@ -257,8 +258,9 @@ You are in BRAIN-ONLY mode. This means:
 - Your BRAIN (knowledge base) is the ONLY source of WHAT you say
 - You MUST call lookup_knowledge_base BEFORE answering ANY factual question
 - NEVER fabricate, guess, or use general knowledge for factual claims
-- If the brain returns no relevant results, respond professionally:
-  "I don't have specific information on that right now. Let me connect you with a team member who can help, or is there something else I can assist you with?"
+- If the brain returns no relevant results, respond naturally and professionally WITHOUT mentioning any internal systems:
+  Example: "I don't have the exact details on that at the moment, but I can connect you with someone who does. Or is there something else I can help with?"
+- NEVER say "knowledge base", "database", "system", "brain", "no results", or any technical terms to the caller
 - You CAN still handle greetings, pleasantries, and conversation flow naturally using your BODY personality
 - You CANNOT make any factual claims that aren't sourced from the knowledge base`;
 

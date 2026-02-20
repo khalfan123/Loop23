@@ -1095,6 +1095,87 @@ The prompt should:
     }
   });
 
+  router.post('/tts-preview', async (req: AuthRequest, res: Response) => {
+    try {
+      const { voiceId, text, engine } = req.body;
+      
+      if (!voiceId || !text) {
+        return res.status(400).json({ error: 'voiceId and text are required' });
+      }
+
+      if (!awsPollyService.isConfigured()) {
+        return res.status(503).json({ error: 'AWS Polly is not configured' });
+      }
+
+      const GENERATIVE_VOICES = ['Joanna', 'Matthew', 'Lupe', 'Hala', 'Ruth', 'Stephen', 'Danielle', 'Gregory', 'Suvi', 'Aria'];
+      const selectedEngine = engine || (GENERATIVE_VOICES.includes(voiceId) ? 'generative' : 'neural');
+
+      const result = await awsPollyService.synthesizeSpeech({
+        text,
+        voiceId,
+        engine: selectedEngine as any,
+        outputFormat: 'mp3',
+        textType: 'text',
+      });
+
+      res.set({
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': result.audioStream.length.toString(),
+        'Cache-Control': 'no-cache',
+      });
+      return res.send(result.audioStream);
+    } catch (error: any) {
+      console.error('[Deprock TTS Preview] Error:', error.message);
+      return res.status(500).json({ error: 'Failed to synthesize speech' });
+    }
+  });
+
+  router.post('/ivr-simulate', async (req: AuthRequest, res: Response) => {
+    try {
+      const { step, ivrId, digits, lang, attempt } = req.body;
+      
+      if (!ivrId) {
+        return res.status(400).json({ error: 'ivrId is required' });
+      }
+
+      const baseUrl = getDomain();
+      let url = '';
+      const callSid = 'SIM_' + Date.now();
+      const caller = '+15551234567';
+      
+      switch (step) {
+        case 'answer':
+          url = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&attempt=${attempt || 1}`;
+          break;
+        case 'handle-language':
+          url = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&attempt=${attempt || 1}`;
+          break;
+        case 'handle-selection':
+          url = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang || 'en')}&attempt=${attempt || 1}`;
+          break;
+        default:
+          return res.status(400).json({ error: 'Invalid step' });
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          CallSid: callSid,
+          From: caller,
+          To: '+10000000000',
+          ...(digits ? { Digits: digits } : {}),
+        }).toString(),
+      });
+
+      const twiml = await response.text();
+      return res.type('text/xml').send(twiml);
+    } catch (error: any) {
+      console.error('[Deprock IVR Simulate] Error:', error.message);
+      return res.status(500).json({ error: 'Failed to simulate IVR step' });
+    }
+  });
+
   return router;
 }
 

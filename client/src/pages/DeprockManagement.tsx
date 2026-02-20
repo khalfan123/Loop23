@@ -1173,6 +1173,15 @@ export default function DeprockManagement() {
                   <span className="hidden sm:inline">Setup Call Center</span>
                 </Button>
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/app/deprock/call-simulator")}
+                  data-testid="deprock-button-call-simulator"
+                >
+                  <Headphones className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Call Simulator</span>
+                </Button>
+                <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => setShowDeleteAllDialog(true)}

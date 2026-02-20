@@ -71,7 +71,8 @@ export default function AwsCredentials() {
 
   const testPollyMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/admin/aws/test/polly");
+      const res = await apiRequest("POST", "/api/admin/aws/test/polly");
+      return await res.json();
     },
     onSuccess: (result: any) => {
       if (result.success) {
@@ -87,7 +88,8 @@ export default function AwsCredentials() {
 
   const testBedrockMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/admin/aws/test/bedrock");
+      const res = await apiRequest("POST", "/api/admin/aws/test/bedrock");
+      return await res.json();
     },
     onSuccess: (result: any) => {
       if (result.success) {
@@ -126,7 +128,8 @@ export default function AwsCredentials() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to synthesize speech");
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to synthesize speech");
       }
 
       const audioBlob = await response.blob();

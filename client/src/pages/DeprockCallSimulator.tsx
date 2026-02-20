@@ -96,11 +96,12 @@ export default function DeprockCallSimulator() {
   const sessionIdRef = useRef<string>("");
   const connectedAgentIdRef = useRef<string>("");
 
+  const ivrEndpoint = engineContext === "default" ? "/api/departments/ivr/all" : "/api/deprock/ivr-configs-all";
   const { data: ivrConfigs } = useQuery({
-    queryKey: ["/api/deprock/ivr-configs-all"],
+    queryKey: [ivrEndpoint],
   });
 
-  const filteredIvrConfigs = (ivrConfigs as any[])?.filter((c: any) => (c.engineType || 'default') === engineContext) || [];
+  const filteredIvrConfigs = (ivrConfigs as any[]) || [];
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });

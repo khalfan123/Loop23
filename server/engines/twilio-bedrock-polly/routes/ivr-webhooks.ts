@@ -29,6 +29,7 @@ const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invali
   sv: { pressKey: 'tryck', invalidMsg: 'Ogiltigt val. Försök igen.', noInputMsg: 'Vi fick inget svar.', holdMsg: 'Vänligen vänta medan vi kopplar dig.', noAgentMsg: 'Tyvärr finns ingen agent tillgänglig just nu.', goodbyeMsg: 'Tack för ditt samtal. Hej då.', greeting: 'Välkommen. Lyssna på följande alternativ.', repeatMsg: 'För att upprepa dessa alternativ, tryck 0.', stillThereMsg: 'Är du fortfarande där?' },
   no: { pressKey: 'trykk', invalidMsg: 'Ugyldig valg. Prøv igjen.', noInputMsg: 'Vi mottok ingen respons.', holdMsg: 'Vennligst vent mens vi kobler deg.', noAgentMsg: 'Beklager, ingen agent er tilgjengelig for øyeblikket.', goodbyeMsg: 'Takk for at du ringte. Ha det.', greeting: 'Velkommen. Lytt til følgende alternativer.', repeatMsg: 'For å gjenta disse alternativene, trykk 0.', stillThereMsg: 'Er du fortsatt der?' },
   fi: { pressKey: 'paina', invalidMsg: 'Virheellinen valinta. Yritä uudelleen.', noInputMsg: 'Emme saaneet vastausta.', holdMsg: 'Odota hetki, yhdistämme sinut.', noAgentMsg: 'Valitettavasti yhtään agenttia ei ole saatavilla tällä hetkellä.', goodbyeMsg: 'Kiitos soitostasi. Näkemiin.', greeting: 'Tervetuloa. Kuuntele seuraavat vaihtoehdot.', repeatMsg: 'Toistaaksesi nämä vaihtoehdot, paina 0.', stillThereMsg: 'Oletko vielä siellä?' },
+  da: { pressKey: 'tryk', invalidMsg: 'Ugyldigt valg. Prøv igen.', noInputMsg: 'Vi modtog ikke noget svar.', holdMsg: 'Vent venligst, mens vi forbinder dig.', noAgentMsg: 'Beklager, der er ingen agent tilgængelig i øjeblikket.', goodbyeMsg: 'Tak fordi du ringede. Farvel.', greeting: 'Velkommen. Lyt venligst til følgende muligheder.', repeatMsg: 'For at gentage disse muligheder, tryk 0.', stillThereMsg: 'Er du stadig der?' },
   tr: { pressKey: 'basın', invalidMsg: 'Geçersiz seçim. Lütfen tekrar deneyin.', noInputMsg: 'Yanıt alamadık.', holdMsg: 'Sizi bağlarken lütfen bekleyin.', noAgentMsg: 'Üzgünüz, şu anda müsait bir temsilci yok.', goodbyeMsg: 'Aramanız için teşekkür ederiz. Hoşça kalın.', greeting: 'Hoş geldiniz. Lütfen aşağıdaki seçenekleri dinleyin.', repeatMsg: 'Bu seçenekleri tekrarlamak için 0 tuşuna basın.', stillThereMsg: 'Hâlâ orada mısınız?' },
 };
 
@@ -49,6 +50,7 @@ const NUMBER_WORDS: Record<string, string[]> = {
   sv: ['noll', 'ett', 'två', 'tre', 'fyra', 'fem', 'sex', 'sju', 'åtta', 'nio'],
   no: ['null', 'en', 'to', 'tre', 'fire', 'fem', 'seks', 'sju', 'åtte', 'ni'],
   fi: ['nolla', 'yksi', 'kaksi', 'kolme', 'neljä', 'viisi', 'kuusi', 'seitsemän', 'kahdeksan', 'yhdeksän'],
+  da: ['nul', 'en', 'to', 'tre', 'fire', 'fem', 'seks', 'syv', 'otte', 'ni'],
   tr: ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'],
 };
 

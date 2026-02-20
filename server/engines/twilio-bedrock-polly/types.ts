@@ -20,8 +20,8 @@ export type PollyVoiceId =
   | 'Matthew'
   | 'Lupe'
   | 'Pedro'
-  | 'Léa'
-  | 'Rémi'
+  | 'Lea'
+  | 'Remi'
   | 'Vicki'
   | 'Daniel'
   | 'Aria'
@@ -42,23 +42,35 @@ export type PollyVoiceId =
   | 'Kajal'
   | 'Zhiyu'
   | 'Hala'
+  | 'Zayd'
   | 'Takumi'
   | 'Kazuha'
+  | 'Tomoko'
   | 'Seoyeon'
   | 'Camila'
   | 'Thiago'
+  | 'Vitoria'
+  | 'Ines'
   | 'Lucia'
   | 'Sergio'
   | 'Mia'
   | 'Andres'
   | 'Amy'
   | 'Arthur'
+  | 'Brian'
   | 'Emma'
+  | 'Olivia'
+  | 'Niamh'
   | 'Gabrielle'
   | 'Liam'
+  | 'Isabelle'
+  | 'Hannah'
+  | 'Hiujin'
   | 'Laura'
+  | 'Lisa'
   | 'Ola'
   | 'Suvi'
+  | 'Sofie'
   | 'Ida'
   | 'Elin'
   | 'Burcu';
@@ -358,33 +370,45 @@ export const POLLY_VOICES: {
   { id: 'Emma', name: 'Emma', description: 'Natural British English female voice', gender: 'Female', language: 'en-GB', engine: 'neural' },
   { id: 'Aria', name: 'Aria', description: 'Expressive New Zealand English female voice', gender: 'Female', language: 'en-NZ', engine: 'neural' },
   { id: 'Ayanda', name: 'Ayanda', description: 'Vibrant South African English female voice', gender: 'Female', language: 'en-ZA', engine: 'neural' },
-  { id: 'Léa', name: 'Léa', description: 'Elegant French female voice', gender: 'Female', language: 'fr-FR', engine: 'neural' },
-  { id: 'Rémi', name: 'Rémi', description: 'Smooth French male voice', gender: 'Male', language: 'fr-FR', engine: 'neural' },
+  { id: 'Brian', name: 'Brian', description: 'Natural British English male voice', gender: 'Male', language: 'en-GB', engine: 'neural' },
+  { id: 'Olivia', name: 'Olivia', description: 'Warm Australian English female voice', gender: 'Female', language: 'en-AU', engine: 'neural' },
+  { id: 'Niamh', name: 'Niamh', description: 'Natural Irish English female voice', gender: 'Female', language: 'en-IE', engine: 'neural' },
+  { id: 'Lea', name: 'Lea', description: 'Elegant French female voice', gender: 'Female', language: 'fr-FR', engine: 'neural' },
+  { id: 'Remi', name: 'Remi', description: 'Smooth French male voice', gender: 'Male', language: 'fr-FR', engine: 'neural' },
   { id: 'Gabrielle', name: 'Gabrielle', description: 'Natural Canadian French female voice', gender: 'Female', language: 'fr-CA', engine: 'neural' },
   { id: 'Liam', name: 'Liam', description: 'Clear Canadian French male voice', gender: 'Male', language: 'fr-CA', engine: 'neural' },
+  { id: 'Isabelle', name: 'Isabelle', description: 'Warm Belgian French female voice', gender: 'Female', language: 'fr-BE', engine: 'neural' },
   { id: 'Lupe', name: 'Lupe', description: 'Natural US Spanish female voice', gender: 'Female', language: 'es-US', engine: 'neural' },
   { id: 'Pedro', name: 'Pedro', description: 'Natural US Spanish male voice', gender: 'Male', language: 'es-US', engine: 'neural' },
   { id: 'Lucia', name: 'Lucia', description: 'Professional Castilian Spanish female voice', gender: 'Female', language: 'es-ES', engine: 'neural' },
   { id: 'Sergio', name: 'Sergio', description: 'Confident Castilian Spanish male voice', gender: 'Male', language: 'es-ES', engine: 'neural' },
   { id: 'Mia', name: 'Mia', description: 'Warm Mexican Spanish female voice', gender: 'Female', language: 'es-MX', engine: 'neural' },
-  { id: 'Andres', name: 'Andrés', description: 'Natural Mexican Spanish male voice', gender: 'Male', language: 'es-MX', engine: 'neural' },
+  { id: 'Andres', name: 'Andres', description: 'Natural Mexican Spanish male voice', gender: 'Male', language: 'es-MX', engine: 'neural' },
   { id: 'Vicki', name: 'Vicki', description: 'Friendly German female voice', gender: 'Female', language: 'de-DE', engine: 'neural' },
   { id: 'Daniel', name: 'Daniel', description: 'Confident German male voice', gender: 'Male', language: 'de-DE', engine: 'neural' },
+  { id: 'Hannah', name: 'Hannah', description: 'Natural Austrian German female voice', gender: 'Female', language: 'de-AT', engine: 'neural' },
   { id: 'Bianca', name: 'Bianca', description: 'Elegant Italian female voice', gender: 'Female', language: 'it-IT', engine: 'neural' },
   { id: 'Adriano', name: 'Adriano', description: 'Smooth Italian male voice', gender: 'Male', language: 'it-IT', engine: 'neural' },
   { id: 'Kajal', name: 'Kajal', description: 'Natural Hindi female voice', gender: 'Female', language: 'hi-IN', engine: 'neural' },
   { id: 'Zhiyu', name: 'Zhiyu', description: 'Professional Mandarin Chinese female voice', gender: 'Female', language: 'cmn-CN', engine: 'neural' },
+  { id: 'Hiujin', name: 'Hiujin', description: 'Natural Cantonese Chinese female voice', gender: 'Female', language: 'yue-CN', engine: 'neural' },
   { id: 'Hala', name: 'Hala', description: 'Clear Gulf Arabic female voice', gender: 'Female', language: 'ar-AE', engine: 'neural' },
+  { id: 'Zayd', name: 'Zayd', description: 'Natural Gulf Arabic male voice', gender: 'Male', language: 'ar-AE', engine: 'neural' },
   { id: 'Takumi', name: 'Takumi', description: 'Natural Japanese male voice', gender: 'Male', language: 'ja-JP', engine: 'neural' },
   { id: 'Kazuha', name: 'Kazuha', description: 'Warm Japanese female voice', gender: 'Female', language: 'ja-JP', engine: 'neural' },
+  { id: 'Tomoko', name: 'Tomoko', description: 'Clear Japanese female voice', gender: 'Female', language: 'ja-JP', engine: 'neural' },
   { id: 'Seoyeon', name: 'Seoyeon', description: 'Clear Korean female voice', gender: 'Female', language: 'ko-KR', engine: 'neural' },
   { id: 'Camila', name: 'Camila', description: 'Warm Brazilian Portuguese female voice', gender: 'Female', language: 'pt-BR', engine: 'neural' },
   { id: 'Thiago', name: 'Thiago', description: 'Natural Brazilian Portuguese male voice', gender: 'Male', language: 'pt-BR', engine: 'neural' },
+  { id: 'Vitoria', name: 'Vitoria', description: 'Professional Brazilian Portuguese female voice', gender: 'Female', language: 'pt-BR', engine: 'neural' },
+  { id: 'Ines', name: 'Ines', description: 'Clear Portuguese female voice', gender: 'Female', language: 'pt-PT', engine: 'neural' },
   { id: 'Laura', name: 'Laura', description: 'Natural Dutch female voice', gender: 'Female', language: 'nl-NL', engine: 'neural' },
+  { id: 'Lisa', name: 'Lisa', description: 'Warm Belgian Dutch female voice', gender: 'Female', language: 'nl-BE', engine: 'neural' },
   { id: 'Ola', name: 'Ola', description: 'Friendly Polish female voice', gender: 'Female', language: 'pl-PL', engine: 'neural' },
   { id: 'Suvi', name: 'Suvi', description: 'Clear Finnish female voice', gender: 'Female', language: 'fi-FI', engine: 'neural' },
   { id: 'Ida', name: 'Ida', description: 'Natural Norwegian female voice', gender: 'Female', language: 'nb-NO', engine: 'neural' },
   { id: 'Elin', name: 'Elin', description: 'Bright Swedish female voice', gender: 'Female', language: 'sv-SE', engine: 'neural' },
+  { id: 'Sofie', name: 'Sofie', description: 'Natural Danish female voice', gender: 'Female', language: 'da-DK', engine: 'neural' },
   { id: 'Burcu', name: 'Burcu', description: 'Natural Turkish female voice', gender: 'Female', language: 'tr-TR', engine: 'neural' },
 ];
 

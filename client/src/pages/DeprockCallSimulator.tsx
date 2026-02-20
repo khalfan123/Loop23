@@ -96,7 +96,7 @@ export default function DeprockCallSimulator() {
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const { data: ivrConfigs } = useQuery({
-    queryKey: ["/api/deprock/ivr-configs"],
+    queryKey: ["/api/deprock/ivr-configs-all"],
   });
 
   useEffect(() => {
@@ -283,7 +283,7 @@ export default function DeprockCallSimulator() {
   );
 
   const activeConfigs = ((ivrConfigs as any[]) || []).filter(
-    (c: any) => c.isActive && c.engineType === "bedrock-polly"
+    (c: any) => c.isActive
   );
 
   const currentHints = parsedTwiml?.gatherHints || [];
@@ -331,7 +331,7 @@ export default function DeprockCallSimulator() {
                   <SelectContent>
                     {activeConfigs.map((config: any) => (
                       <SelectItem key={config.id} value={config.id}>
-                        {config.name || "Unnamed IVR"}
+                        {config.name || "Unnamed IVR"} ({config.engineType === 'bedrock-polly' ? 'Deprock' : 'Department'})
                       </SelectItem>
                     ))}
                   </SelectContent>

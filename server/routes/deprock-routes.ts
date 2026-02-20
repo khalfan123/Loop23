@@ -303,6 +303,143 @@ function generateDefaultFlowNodes(departmentName: string, agentName: string = "y
   return { nodes, edges };
 }
 
+const LANG_PROMPTS: Record<string, string> = {
+  en: 'For English, press', ar: 'للعربية، اضغط', es: 'Para español, presione', fr: 'Pour le français, appuyez sur',
+  de: 'Für Deutsch, drücken Sie', it: 'Per italiano, premere', pt: 'Para português, pressione', zh: '中文请按',
+  hi: 'हिंदी के लिए, दबाएं', ja: '日本語は', ko: '한국어는', nl: 'Voor Nederlands, druk op',
+  pl: 'Dla polskiego, naciśnij', sv: 'För svenska, tryck', no: 'For norsk, trykk', fi: 'Suomeksi, paina', tr: 'Türkçe için, basın',
+};
+
+const DEPT_TEMPLATES: Record<string, { pressKey: string; greeting: string; noInputMsg: string; repeatMsg: string }> = {
+  en: { pressKey: 'press', greeting: 'Please listen to the following options.', noInputMsg: 'We did not receive a response.', repeatMsg: 'To repeat these options, press 0.' },
+  ar: { pressKey: 'اضغط', greeting: 'يرجى الاستماع إلى الخيارات التالية.', noInputMsg: 'لم نتلق أي استجابة.', repeatMsg: 'لتكرار هذه الخيارات، اضغط 0.' },
+  es: { pressKey: 'presione', greeting: 'Por favor escuche las siguientes opciones.', noInputMsg: 'No recibimos respuesta.', repeatMsg: 'Para repetir estas opciones, presione 0.' },
+  fr: { pressKey: 'appuyez sur', greeting: 'Veuillez écouter les options suivantes.', noInputMsg: 'Nous n\'avons reçu aucune réponse.', repeatMsg: 'Pour répéter ces options, appuyez sur 0.' },
+};
+
+async function generateDeptIvrTwiml(config: any, step: string, digits?: string, lang?: string): Promise<string> {
+  const menuOptions = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> || [];
+  const langOptions = config.languageOptions as Array<{ id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }> | null;
+  const rawVoiceId = config.voiceId || 'Joanna';
+  const voiceId = (rawVoiceId.startsWith('el_') || ['alloy','echo','fable','onyx','nova','shimmer'].includes(rawVoiceId)) ? 'Joanna' : rawVoiceId;
+  const pollyVoice = `Polly.${voiceId}`;
+
+  function safePollyVoice(vid: string | undefined): string {
+    if (!vid) return pollyVoice;
+    if (vid.startsWith('el_') || ['alloy','echo','fable','onyx','nova','shimmer'].includes(vid)) return 'Polly.Joanna';
+    return `Polly.${vid}`;
+  }
+
+  function escapeXml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  if (step === 'answer') {
+    if (langOptions && langOptions.length > 1) {
+      const greetingText = config.greetingMessage || 'Thank you for calling. Please select your preferred language.';
+      let sayParts = `<Say voice="${pollyVoice}">${escapeXml(greetingText)}</Say>`;
+      for (let idx = 0; idx < langOptions.length; idx++) {
+        const opt = langOptions[idx];
+        const optVoice = safePollyVoice(opt.voiceId);
+        const prompt = LANG_PROMPTS[opt.language] || `For ${opt.language}, press`;
+        sayParts += `<Say voice="${optVoice}">${escapeXml(prompt)} ${idx + 1}.</Say>`;
+      }
+      return `<?xml version="1.0" encoding="UTF-8"?><Response><Gather numDigits="1" action="/api/deprock/ivr/sim-dept-lang" method="POST" timeout="10">${sayParts}</Gather><Say voice="${pollyVoice}">We did not receive a response.</Say></Response>`;
+    }
+
+    const langCode = langOptions?.[0]?.language || 'en';
+    const template = DEPT_TEMPLATES[langCode] || DEPT_TEMPLATES.en;
+    let sayParts = '';
+    if (config.greetingMessage) {
+      sayParts += `<Say voice="${pollyVoice}">${escapeXml(config.greetingMessage)}</Say>`;
+    }
+    sayParts += `<Say voice="${pollyVoice}">${escapeXml(template.greeting)}</Say>`;
+    for (let i = 0; i < menuOptions.length; i++) {
+      sayParts += `<Say voice="${pollyVoice}">${escapeXml(template.pressKey)} ${i + 1} ${escapeXml(menuOptions[i].label)}.</Say>`;
+    }
+    sayParts += `<Say voice="${pollyVoice}">${escapeXml(template.repeatMsg)}</Say>`;
+    return `<?xml version="1.0" encoding="UTF-8"?><Response><Gather numDigits="1" action="/api/deprock/ivr/sim-dept-select" method="POST" timeout="10">${sayParts}</Gather><Say voice="${pollyVoice}">${escapeXml(template.noInputMsg)}</Say></Response>`;
+  }
+
+  if (step === 'handle-language') {
+    if (!langOptions || !digits) {
+      return `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid selection. Goodbye.</Say><Hangup/></Response>`;
+    }
+    if (digits === '0') {
+      return generateDeptIvrTwiml(config, 'answer');
+    }
+    const idx = parseInt(digits) - 1;
+    if (idx < 0 || idx >= langOptions.length) {
+      return `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid selection. Goodbye.</Say><Hangup/></Response>`;
+    }
+    const selectedLang = langOptions[idx];
+    const langCode = selectedLang.language || 'en';
+    const langVoice = safePollyVoice(selectedLang.voiceId);
+    const template = DEPT_TEMPLATES[langCode] || DEPT_TEMPLATES.en;
+
+    let filteredMenu = menuOptions;
+    if (selectedLang.selectedDepartments && selectedLang.selectedDepartments.length > 0) {
+      const filtered = menuOptions.filter(opt => selectedLang.selectedDepartments!.includes(opt.departmentId));
+      if (filtered.length > 0) filteredMenu = filtered;
+    }
+
+    let sayParts = '';
+    if (selectedLang.greeting) {
+      sayParts += `<Say voice="${langVoice}">${escapeXml(selectedLang.greeting)}</Say>`;
+    }
+    sayParts += `<Say voice="${langVoice}">${escapeXml(template.greeting)}</Say>`;
+    for (let i = 0; i < filteredMenu.length; i++) {
+      sayParts += `<Say voice="${langVoice}">${escapeXml(template.pressKey)} ${i + 1} ${escapeXml(filteredMenu[i].label)}.</Say>`;
+    }
+    sayParts += `<Say voice="${langVoice}">${escapeXml(template.repeatMsg)}</Say>`;
+    return `<?xml version="1.0" encoding="UTF-8"?><Response><Gather numDigits="1" action="/api/deprock/ivr/sim-dept-select" method="POST" timeout="10">${sayParts}</Gather><Say voice="${langVoice}">${escapeXml(template.noInputMsg)}</Say></Response>`;
+  }
+
+  if (step === 'handle-selection') {
+    if (!digits) {
+      return `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid selection. Goodbye.</Say><Hangup/></Response>`;
+    }
+    if (digits === '0') {
+      if (langOptions && langOptions.length > 1) {
+        return generateDeptIvrTwiml(config, 'answer');
+      }
+      return generateDeptIvrTwiml(config, 'answer');
+    }
+    const idx = parseInt(digits) - 1;
+
+    let filteredMenu = menuOptions;
+    if (lang && langOptions) {
+      const langOption = langOptions.find(l => l.language === lang);
+      if (langOption?.selectedDepartments && langOption.selectedDepartments.length > 0) {
+        const filtered = menuOptions.filter(opt => langOption.selectedDepartments!.includes(opt.departmentId));
+        if (filtered.length > 0) filteredMenu = filtered;
+      }
+    }
+
+    if (idx < 0 || idx >= filteredMenu.length) {
+      return `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid selection. Goodbye.</Say><Hangup/></Response>`;
+    }
+
+    const selected = filteredMenu[idx];
+    const langVoice = pollyVoice;
+    const deptId = selected.departmentId;
+
+    const deptResult = await db.select().from(departments).where(eq(departments.id, deptId)).limit(1);
+    const deptAgents = await db.select().from(departmentAgents).where(eq(departmentAgents.departmentId, deptId));
+
+    if (deptAgents.length > 0) {
+      const agentResult = await db.select().from(agents).where(eq(agents.id, deptAgents[0].agentId!)).limit(1);
+      const agentName = agentResult[0]?.name || 'Agent';
+      const deptName = deptResult[0]?.name || selected.label;
+      return `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="${langVoice}">Connecting you to ${escapeXml(deptName)}. Please hold.</Say><Connect><Stream url="wss://sim-agent-placeholder"><Parameter name="agentId" value="${escapeXml(deptAgents[0].agentId!)}" /></Stream></Connect></Response>`;
+    }
+
+    return `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="${langVoice}">Sorry, no agent is available for this department. Goodbye.</Say><Hangup/></Response>`;
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Unknown step. Goodbye.</Say><Hangup/></Response>`;
+}
+
 export function createDeprockRoutes(authenticateToken: (req: Request, res: Response, next: Function) => void) {
   const router = Router();
 
@@ -742,6 +879,19 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
     }
   });
 
+  router.get("/ivr-configs-all", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const allIvrConfigs = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(eq(ivrConfigurations.userId, req.userId!));
+      res.json(allIvrConfigs);
+    } catch (error: any) {
+      console.error('[IVR Configs All] Error:', error.message);
+      res.status(500).json({ error: 'Failed to fetch IVR configurations' });
+    }
+  });
+
   router.post("/ivr", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { id, phoneNumberId, name, isActive, greetingMessage, voiceId, voiceName, menuOptions, languageOptions, fallbackDepartmentId } = req.body;
@@ -1138,40 +1288,58 @@ The prompt should:
         return res.status(400).json({ error: 'ivrId is required' });
       }
 
-      const baseUrl = getDomain();
-      let url = '';
-      const callSid = 'SIM_' + Date.now();
-      const caller = '+15551234567';
-      
-      switch (step) {
-        case 'answer':
-          url = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&attempt=${attempt || 1}`;
-          break;
-        case 'handle-language':
-          url = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&attempt=${attempt || 1}`;
-          break;
-        case 'handle-selection':
-          url = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang || 'en')}&attempt=${attempt || 1}`;
-          break;
-        default:
-          return res.status(400).json({ error: 'Invalid step' });
+      const ivrConfig = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(and(eq(ivrConfigurations.id, ivrId), eq(ivrConfigurations.userId, req.userId!)))
+        .limit(1);
+
+      if (!ivrConfig.length) {
+        return res.status(404).json({ error: 'IVR configuration not found' });
       }
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          CallSid: callSid,
-          From: caller,
-          To: '+10000000000',
-          ...(digits ? { Digits: digits } : {}),
-        }).toString(),
-      });
+      const config = ivrConfig[0];
+      const engineType = config.engineType || 'default';
 
-      const twiml = await response.text();
+      if (engineType === 'bedrock-polly') {
+        const baseUrl = getDomain();
+        let url = '';
+        const callSid = 'SIM_' + Date.now();
+        const caller = '+15551234567';
+        
+        switch (step) {
+          case 'answer':
+            url = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&attempt=${attempt || 1}`;
+            break;
+          case 'handle-language':
+            url = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&attempt=${attempt || 1}`;
+            break;
+          case 'handle-selection':
+            url = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${callSid}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang || 'en')}&attempt=${attempt || 1}`;
+            break;
+          default:
+            return res.status(400).json({ error: 'Invalid step' });
+        }
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            CallSid: 'SIM_' + Date.now(),
+            From: '+15551234567',
+            To: '+10000000000',
+            ...(digits ? { Digits: digits } : {}),
+          }).toString(),
+        });
+
+        const twiml = await response.text();
+        return res.type('text/xml').send(twiml);
+      }
+
+      const twiml = await generateDeptIvrTwiml(config, step, digits, lang);
       return res.type('text/xml').send(twiml);
     } catch (error: any) {
-      console.error('[Deprock IVR Simulate] Error:', error.message);
+      console.error('[IVR Simulate] Error:', error.message);
       return res.status(500).json({ error: 'Failed to simulate IVR step' });
     }
   });
@@ -1192,7 +1360,7 @@ export function createDeprockIvrAudioRoutes() {
       const ivrConfig = await db
         .select()
         .from(ivrConfigurations)
-        .where(and(eq(ivrConfigurations.id, ivrId), eq(ivrConfigurations.engineType, 'bedrock-polly')))
+        .where(eq(ivrConfigurations.id, ivrId))
         .limit(1);
 
       if (!ivrConfig.length) {

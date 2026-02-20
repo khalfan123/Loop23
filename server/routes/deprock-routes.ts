@@ -364,10 +364,11 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
   router.post("/:id/agents", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const { agentId, language, isPrimary, systemPrompt, voiceTone, voiceId } = req.body;
+      const { agentId, agentName, language, isPrimary, systemPrompt, voiceTone, voiceId } = req.body;
 
-      if (!agentId) {
-        return res.status(400).json({ error: "agentId is required" });
+      const trimmedAgentName = agentName?.trim();
+      if (!agentId && !trimmedAgentName) {
+        return res.status(400).json({ error: "agentId or agentName is required" });
       }
 
       const existingDept = await db
@@ -380,21 +381,44 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         return res.status(404).json({ error: "Department not found" });
       }
 
-      const existingAgent = await db
-        .select()
-        .from(agents)
-        .where(and(eq(agents.id, agentId), eq(agents.userId, req.userId!)))
-        .limit(1);
+      let resolvedAgentId = agentId;
 
-      if (existingAgent.length === 0) {
-        return res.status(404).json({ error: "Agent not found" });
+      if (resolvedAgentId) {
+        const existingAgent = await db
+          .select()
+          .from(agents)
+          .where(and(eq(agents.id, resolvedAgentId), eq(agents.userId, req.userId!)))
+          .limit(1);
+
+        if (existingAgent.length === 0) {
+          return res.status(404).json({ error: "Agent not found" });
+        }
+      }
+
+      if (!resolvedAgentId && trimmedAgentName) {
+        const [newAgent] = await db
+          .insert(agents)
+          .values({
+            userId: req.userId!,
+            name: trimmedAgentName,
+            type: 'inbound',
+            language: language || 'en',
+            telephonyProvider: 'twilio',
+            systemPrompt: systemPrompt || null,
+            openaiVoice: voiceId || null,
+            voiceTone: voiceTone || null,
+            knowledgeBaseOnly: false,
+          })
+          .returning();
+        resolvedAgentId = newAgent.id;
+        console.log(`[Deprock] Created new agent "${trimmedAgentName}" (${newAgent.id}) for language ${language}`);
       }
 
       const newDeptAgent = await db
         .insert(departmentAgents)
         .values({
           departmentId: id,
-          agentId,
+          agentId: resolvedAgentId,
           language: language || "en",
           isPrimary: isPrimary || false,
           systemPrompt: systemPrompt || null,
@@ -411,9 +435,9 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         await db
           .update(agents)
           .set(agentUpdate)
-          .where(and(eq(agents.id, agentId), eq(agents.userId, req.userId!)));
+          .where(and(eq(agents.id, resolvedAgentId), eq(agents.userId, req.userId!)));
 
-        console.log(`[Deprock] Synced agent ${agentId} with canvas config: prompt=${!!systemPrompt}, voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}`);
+        console.log(`[Deprock] Synced agent ${resolvedAgentId} with canvas config: prompt=${!!systemPrompt}, voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}`);
       }
 
       const deptData = existingDept[0];
@@ -421,9 +445,9 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         if (isPrimary) {
           await db
             .update(flows)
-            .set({ agentId, updatedAt: new Date() })
+            .set({ agentId: resolvedAgentId, updatedAt: new Date() })
             .where(eq(flows.id, deptData.flowId));
-          console.log(`[Deprock] Synced flow ${deptData.flowId} with primary agent ${agentId}`);
+          console.log(`[Deprock] Synced flow ${deptData.flowId} with primary agent ${resolvedAgentId}`);
         } else {
           const [currentFlow] = await db
             .select()
@@ -433,9 +457,9 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           if (currentFlow && !currentFlow.agentId) {
             await db
               .update(flows)
-              .set({ agentId, updatedAt: new Date() })
+              .set({ agentId: resolvedAgentId, updatedAt: new Date() })
               .where(eq(flows.id, deptData.flowId));
-            console.log(`[Deprock] Synced flow ${deptData.flowId} with agent ${agentId} (no previous agent)`);
+            console.log(`[Deprock] Synced flow ${deptData.flowId} with agent ${resolvedAgentId} (no previous agent)`);
           }
         }
       }

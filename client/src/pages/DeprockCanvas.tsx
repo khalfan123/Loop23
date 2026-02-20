@@ -1139,27 +1139,13 @@ function DepartmentCard({
 
               <div>
                 <Label>Agent Name</Label>
-                {availableAgentsForActive.length === 0 ? (
-                  <p className="text-sm text-muted-foreground mt-1.5">
-                    No agents configured for {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
-                  </p>
-                ) : (
-                  <Select
-                    value={activeLangAgent.agentId || ""}
-                    onValueChange={(val) => handleSelectAgent(activeLangAgent.id, val)}
-                  >
-                    <SelectTrigger className="mt-1.5" data-testid="select-agent-name">
-                      <SelectValue placeholder="Select an agent..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableAgentsForActive.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id}>
-                          {agent.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Input
+                  className="mt-1.5"
+                  value={activeLangAgent.agentName || ""}
+                  onChange={(e) => updateLanguageAgent(activeLangAgent.id, { agentName: e.target.value })}
+                  placeholder="Enter agent name (e.g. Sarah, Ahmed, Maria)..."
+                  data-testid="input-agent-name"
+                />
               </div>
 
               <div>
@@ -2458,9 +2444,10 @@ export default function DeprockCanvas() {
         const langAgents = dept.languageAgents || [];
         for (let i = 0; i < langAgents.length; i++) {
           const la = langAgents[i];
-          if (la.agentId) {
+          if (la.agentId || la.agentName) {
             await apiRequest("POST", `/api/deprock/${deptResult.id}/agents`, {
-              agentId: la.agentId,
+              agentId: la.agentId || undefined,
+              agentName: la.agentName || undefined,
               language: la.language || "en",
               isPrimary: i === 0,
               systemPrompt: la.systemPrompt || undefined,

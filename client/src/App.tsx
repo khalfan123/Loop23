@@ -40,6 +40,8 @@ import PaymentResult from "@/pages/PaymentResult";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import DepartmentManagement from "@/pages/DepartmentManagement";
 import DepartmentCanvas from "@/pages/DepartmentCanvas";
+import DeprockManagement from "@/pages/DeprockManagement";
+import DeprockCanvas from "@/pages/DeprockCanvas";
 import Agents from "@/pages/Agents";
 import AgentEditor from "@/pages/AgentEditor";
 import Voices from "@/pages/Voices";
@@ -201,6 +203,8 @@ function UserRouter() {
           <Route path="/app/appointments" component={AppointmentsPage} />
           <Route path="/app/departments" component={DepartmentManagement} />
           <Route path="/app/departments/canvas" component={DepartmentCanvas} />
+          <Route path="/app/deprock" component={DeprockManagement} />
+          <Route path="/app/deprock/canvas" component={DeprockCanvas} />
           <Route path="/app/agents/new" component={AgentEditor} />
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
           <Route path="/app/agents" component={Agents} />
@@ -286,6 +290,8 @@ function TeamMemberRouter() {
           <Route path="/app/appointments" component={AppointmentsPage} />
           <Route path="/app/departments" component={DepartmentManagement} />
           <Route path="/app/departments/canvas" component={DepartmentCanvas} />
+          <Route path="/app/deprock" component={DeprockManagement} />
+          <Route path="/app/deprock/canvas" component={DeprockCanvas} />
           <Route path="/app/agents/new" component={AgentEditor} />
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
           <Route path="/app/agents" component={Agents} />

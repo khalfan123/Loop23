@@ -26,6 +26,8 @@ The application follows a client-server architecture.
 
 - **Bedrock + Polly Engine (RockCenter)**: New engine at `server/engines/twilio-bedrock-polly/` using AWS Bedrock (Claude 3.5 Sonnet) for AI and AWS Polly for TTS, with Twilio telephony. Frontend at `/app/rock-center`. API at `/api/bedrock-polly/`. Turn-based: Twilio audio -> Whisper STT -> Bedrock AI -> Polly TTS -> Twilio.
 
+- **Deprock Department System**: Replicates the Department Management system but specifically for the Bedrock + Polly engine. Uses AWS Polly voices (21 neural voices) instead of OpenAI/ElevenLabs voices. Frontend pages at `/app/deprock` (management) and `/app/deprock/canvas` (3-step wizard). Backend API at `/api/deprock/`. Shares same DB tables as departments (`departments`, `departmentAgents`, `ivrConfigurations`). Files: `client/src/pages/DeprockManagement.tsx`, `client/src/pages/DeprockCanvas.tsx`, `server/routes/deprock-routes.ts`.
+
 ## External Dependencies
 - **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude Sonnet-4-5, AWS Bedrock Claude 3.5 Sonnet (RockCenter).
 - **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly (neural/generative voices for RockCenter).

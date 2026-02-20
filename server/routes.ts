@@ -100,6 +100,7 @@ import audioRoutes from "./routes/audio-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
 import { createKnowledgeIntelligenceRoutes } from "./routes/knowledge-intelligence-routes";
 import { createDepartmentRoutes, createIvrAudioRoutes } from "./routes/department-routes";
+import { createDeprockRoutes, createDeprockIvrAudioRoutes } from "./routes/deprock-routes";
 import { createNotificationRoutes } from "./routes/notification-routes";
 import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
 import { createTemplateRoutes } from "./routes/template-routes";
@@ -1514,6 +1515,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const ivrAudioRoutes = createIvrAudioRoutes();
   app.use("/api/departments", ivrAudioRoutes);
 
+  const deprockIvrAudioRoutes = createDeprockIvrAudioRoutes();
+  app.use("/api/deprock", deprockIvrAudioRoutes);
+
   // Website Widget routes - Embeddable voice widgets (isolated module)
   // Public widget routes must be registered BEFORE authenticated routes to allow external website embedding
   app.use("/api/public", publicWidgetRoutes);
@@ -1531,6 +1535,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Department Management routes
   const departmentRoutes = createDepartmentRoutes(routeContext.authenticateHybrid);
   app.use("/api/departments", departmentRoutes);
+
+  // Deprock (Bedrock + Polly) Department Management routes
+  const deprockRoutes = createDeprockRoutes(routeContext.authenticateHybrid);
+  app.use("/api/deprock", deprockRoutes);
 
   // This must be registered on the httpServer to properly handle Twilio WebSocket streams
   httpServer.on('upgrade', (request, socket, head) => {

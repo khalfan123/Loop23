@@ -374,7 +374,10 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
     let menuOpts = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> | null;
 
     if (langOption?.selectedDepartments && langOption.selectedDepartments.length > 0 && menuOpts) {
-      menuOpts = menuOpts.filter(opt => langOption.selectedDepartments!.includes(opt.departmentId));
+      const filtered = menuOpts.filter(opt => langOption.selectedDepartments!.includes(opt.departmentId));
+      if (filtered.length > 0) {
+        menuOpts = filtered;
+      }
     }
 
     if (!menuOpts || menuOpts.length === 0) {

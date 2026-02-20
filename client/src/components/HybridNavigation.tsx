@@ -122,9 +122,8 @@ export function HybridNavigation({
     { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents", icon: Bot },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen },
     { title: t('nav.departments', 'Departments'), url: "/app/departments", icon: Building2 },
-    { title: 'Dep Simulator', url: "/app/departments/call-simulator", icon: PhoneIncoming },
     { title: 'Deprock', url: "/app/deprock", icon: Mountain },
-    { title: 'Deprock Dep Simulator', url: "/app/deprock/call-simulator", icon: PhoneIncoming },
+    { title: 'Call Simulator', url: "/app/call-simulator", icon: PhoneIncoming },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: PhoneOutgoing },
     { title: t('nav.integrations', 'Integrations'), url: "/app/integrations", icon: Plug },
     { title: 'RockCenter', url: "/app/rock-center", icon: Zap },
@@ -183,9 +182,6 @@ export function HybridNavigation({
     }
     if (url === '/app/settings') {
       return location === url || (location.startsWith(url + '/') && !location.startsWith('/app/settings/flows/appointments'));
-    }
-    if (url === '/app/departments' || url === '/app/deprock') {
-      return location === url || (location.startsWith(url + '/') && !location.includes('/call-simulator'));
     }
     return location === url || location.startsWith(url + '/');
   };

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Phone, PhoneOff, Volume2, Loader2, ArrowLeft, Hash, Mic, MicOff, Bot, User, Wifi, WifiOff } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 
 interface TwimlStep {
   voice: string;
@@ -68,8 +68,6 @@ interface TranscriptMessage {
 }
 
 export default function DeprockCallSimulator() {
-  const [location] = useLocation();
-  const engineContext = location.startsWith("/app/departments") ? "default" : "bedrock-polly";
   const [selectedIvrId, setSelectedIvrId] = useState<string>("");
   const [callState, setCallState] = useState<CallState>("idle");
   const [parsedTwiml, setParsedTwiml] = useState<ParsedTwiml | null>(null);
@@ -96,12 +94,17 @@ export default function DeprockCallSimulator() {
   const sessionIdRef = useRef<string>("");
   const connectedAgentIdRef = useRef<string>("");
 
-  const ivrEndpoint = engineContext === "default" ? "/api/departments/ivr/all" : "/api/deprock/ivr-configs-all";
-  const { data: ivrConfigs } = useQuery({
-    queryKey: [ivrEndpoint],
+  const { data: deptIvrConfigs } = useQuery({
+    queryKey: ["/api/departments/ivr/all"],
+  });
+  const { data: deprockIvrConfigs } = useQuery({
+    queryKey: ["/api/deprock/ivr-configs-all"],
   });
 
-  const filteredIvrConfigs = (ivrConfigs as any[]) || [];
+  const filteredIvrConfigs = [
+    ...((deptIvrConfigs as any[]) || []),
+    ...((deprockIvrConfigs as any[]) || []),
+  ];
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -474,7 +477,7 @@ export default function DeprockCallSimulator() {
       }
 
       if (currentStep === "answer") {
-        const ivrConfig = (ivrConfigs as any[])?.find((c: any) => c.id === selectedIvrId);
+        const ivrConfig = filteredIvrConfigs.find((c: any) => c.id === selectedIvrId);
         const langOptions = ivrConfig?.languageOptions as any[];
         if (langOptions && langOptions.length > 1) {
           const idx = parseInt(digit) - 1;
@@ -488,7 +491,7 @@ export default function DeprockCallSimulator() {
         await simulateStep("handle-selection", digit, selectedLang);
       }
     },
-    [currentStep, stopAudio, simulateStep, selectedIvrId, ivrConfigs, selectedLang]
+    [currentStep, stopAudio, simulateStep, selectedIvrId, filteredIvrConfigs, selectedLang]
   );
 
   const activeConfigs = (filteredIvrConfigs || []).filter((c: any) => c.isActive);
@@ -529,8 +532,8 @@ export default function DeprockCallSimulator() {
       <div className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
-            <Link href={engineContext === "default" ? "/app/departments" : "/app/deprock"}>
-              <Button variant="ghost" size="sm" data-testid="link-back-deprock">
+            <Link href="/app">
+              <Button variant="ghost" size="sm" data-testid="link-back">
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>

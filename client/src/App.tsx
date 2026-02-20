@@ -204,10 +204,9 @@ function UserRouter() {
           <Route path="/app/appointments" component={AppointmentsPage} />
           <Route path="/app/departments" component={DepartmentManagement} />
           <Route path="/app/departments/canvas" component={DepartmentCanvas} />
-          <Route path="/app/departments/call-simulator" component={DeprockCallSimulator} />
           <Route path="/app/deprock" component={DeprockManagement} />
           <Route path="/app/deprock/canvas" component={DeprockCanvas} />
-          <Route path="/app/deprock/call-simulator" component={DeprockCallSimulator} />
+          <Route path="/app/call-simulator" component={DeprockCallSimulator} />
           <Route path="/app/agents/new" component={AgentEditor} />
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
           <Route path="/app/agents" component={Agents} />
@@ -293,10 +292,9 @@ function TeamMemberRouter() {
           <Route path="/app/appointments" component={AppointmentsPage} />
           <Route path="/app/departments" component={DepartmentManagement} />
           <Route path="/app/departments/canvas" component={DepartmentCanvas} />
-          <Route path="/app/departments/call-simulator" component={DeprockCallSimulator} />
           <Route path="/app/deprock" component={DeprockManagement} />
           <Route path="/app/deprock/canvas" component={DeprockCanvas} />
-          <Route path="/app/deprock/call-simulator" component={DeprockCallSimulator} />
+          <Route path="/app/call-simulator" component={DeprockCallSimulator} />
           <Route path="/app/agents/new" component={AgentEditor} />
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
           <Route path="/app/agents" component={Agents} />

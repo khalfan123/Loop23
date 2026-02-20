@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { AuthStorage } from "@/lib/auth-storage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,9 +109,15 @@ export default function AwsCredentials() {
 
     setIsPlaying(true);
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const authHeader = AuthStorage.getAuthHeader();
+      if (authHeader) {
+        headers["Authorization"] = authHeader;
+      }
+
       const response = await fetch("/api/admin/aws/polly/synthesize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           text: previewText,
           voiceId: selectedVoice,

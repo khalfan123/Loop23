@@ -22,15 +22,176 @@ function getDepartmentType(name: string): "sales" | "support" | "scheduling" | "
   return "custom";
 }
 
-function generateDefaultFlowNodes(departmentName: string, agentName: string = "your AI assistant"): { nodes: FlowNode[], edges: FlowEdge[] } {
+function generateDefaultFlowNodes(departmentName: string, agentName: string = "your AI assistant", language: string = "en"): { nodes: FlowNode[], edges: FlowEdge[] } {
   const deptType = getDepartmentType(departmentName);
   
-  const greetingMessages: Record<string, string> = {
-    sales: `Hello! I'm ${agentName}. Thank you for calling our sales department. How can I help you today?`,
-    support: `Hello! I'm ${agentName}. Thank you for reaching our support team. How may I assist you?`,
-    scheduling: `Hello! I'm ${agentName}. Thank you for calling. I can help you schedule an appointment. What day works best for you?`,
-    custom: `Hello! Thank you for calling ${departmentName}. I'm ${agentName}. How can I assist you today?`,
+  const greetingsByLanguage: Record<string, Record<string, string>> = {
+    en: {
+      sales: `Hello! I'm ${agentName}. Thank you for calling our sales department. How can I help you today?`,
+      support: `Hello! I'm ${agentName}. Thank you for reaching our support team. How may I assist you?`,
+      scheduling: `Hello! I'm ${agentName}. Thank you for calling. I can help you schedule an appointment. What day works best for you?`,
+      custom: `Hello! Thank you for calling ${departmentName}. I'm ${agentName}. How can I assist you today?`,
+    },
+    ar: {
+      sales: `مرحباً! أنا ${agentName}. شكراً لاتصالك بقسم المبيعات. كيف يمكنني مساعدتك اليوم؟`,
+      support: `مرحباً! أنا ${agentName}. شكراً لتواصلك مع فريق الدعم. كيف يمكنني مساعدتك؟`,
+      scheduling: `مرحباً! أنا ${agentName}. شكراً لاتصالك. يمكنني مساعدتك في حجز موعد. ما هو اليوم المناسب لك؟`,
+      custom: `مرحباً! شكراً لاتصالك بـ ${departmentName}. أنا ${agentName}. كيف يمكنني مساعدتك اليوم؟`,
+    },
+    es: {
+      sales: `¡Hola! Soy ${agentName}. Gracias por llamar a nuestro departamento de ventas. ¿Cómo puedo ayudarle hoy?`,
+      support: `¡Hola! Soy ${agentName}. Gracias por contactar con nuestro equipo de soporte. ¿En qué puedo ayudarle?`,
+      scheduling: `¡Hola! Soy ${agentName}. Gracias por llamar. Puedo ayudarle a programar una cita. ¿Qué día le viene mejor?`,
+      custom: `¡Hola! Gracias por llamar a ${departmentName}. Soy ${agentName}. ¿Cómo puedo ayudarle hoy?`,
+    },
+    fr: {
+      sales: `Bonjour ! Je suis ${agentName}. Merci d'avoir appelé notre service commercial. Comment puis-je vous aider aujourd'hui ?`,
+      support: `Bonjour ! Je suis ${agentName}. Merci d'avoir contacté notre équipe d'assistance. Comment puis-je vous aider ?`,
+      scheduling: `Bonjour ! Je suis ${agentName}. Merci d'avoir appelé. Je peux vous aider à prendre rendez-vous. Quel jour vous convient ?`,
+      custom: `Bonjour ! Merci d'avoir appelé ${departmentName}. Je suis ${agentName}. Comment puis-je vous aider aujourd'hui ?`,
+    },
+    de: {
+      sales: `Hallo! Ich bin ${agentName}. Vielen Dank für Ihren Anruf bei unserer Verkaufsabteilung. Wie kann ich Ihnen heute helfen?`,
+      support: `Hallo! Ich bin ${agentName}. Vielen Dank für Ihre Kontaktaufnahme mit unserem Support-Team. Wie kann ich Ihnen helfen?`,
+      scheduling: `Hallo! Ich bin ${agentName}. Vielen Dank für Ihren Anruf. Ich kann Ihnen bei der Terminvereinbarung helfen. Welcher Tag passt Ihnen am besten?`,
+      custom: `Hallo! Vielen Dank für Ihren Anruf bei ${departmentName}. Ich bin ${agentName}. Wie kann ich Ihnen heute helfen?`,
+    },
+    it: {
+      sales: `Ciao! Sono ${agentName}. Grazie per aver chiamato il nostro reparto vendite. Come posso aiutarla oggi?`,
+      support: `Ciao! Sono ${agentName}. Grazie per aver contattato il nostro team di supporto. Come posso aiutarla?`,
+      scheduling: `Ciao! Sono ${agentName}. Grazie per aver chiamato. Posso aiutarla a fissare un appuntamento. Quale giorno le va bene?`,
+      custom: `Ciao! Grazie per aver chiamato ${departmentName}. Sono ${agentName}. Come posso aiutarla oggi?`,
+    },
+    pt: {
+      sales: `Olá! Eu sou ${agentName}. Obrigado por ligar para o nosso departamento de vendas. Como posso ajudá-lo hoje?`,
+      support: `Olá! Eu sou ${agentName}. Obrigado por entrar em contato com nossa equipe de suporte. Como posso ajudá-lo?`,
+      scheduling: `Olá! Eu sou ${agentName}. Obrigado por ligar. Posso ajudá-lo a agendar um compromisso. Qual dia é melhor para você?`,
+      custom: `Olá! Obrigado por ligar para ${departmentName}. Eu sou ${agentName}. Como posso ajudá-lo hoje?`,
+    },
+    zh: {
+      sales: `您好！我是${agentName}。感谢您致电我们的销售部门。今天我能为您做些什么？`,
+      support: `您好！我是${agentName}。感谢您联系我们的支持团队。我能为您提供什么帮助？`,
+      scheduling: `您好！我是${agentName}。感谢您来电。我可以帮您预约。请问哪天方便？`,
+      custom: `您好！感谢您致电${departmentName}。我是${agentName}。今天我能为您做些什么？`,
+    },
+    hi: {
+      sales: `नमस्ते! मैं ${agentName} हूँ। हमारे बिक्री विभाग में कॉल करने के लिए धन्यवाद। आज मैं आपकी कैसे मदद कर सकता हूँ?`,
+      support: `नमस्ते! मैं ${agentName} हूँ। हमारी सहायता टीम से संपर्क करने के लिए धन्यवाद। मैं आपकी कैसे मदद कर सकता हूँ?`,
+      scheduling: `नमस्ते! मैं ${agentName} हूँ। कॉल करने के लिए धन्यवाद। मैं आपको अपॉइंटमेंट शेड्यूल करने में मदद कर सकता हूँ। कौन सा दिन आपके लिए सुविधाजनक है?`,
+      custom: `नमस्ते! ${departmentName} में कॉल करने के लिए धन्यवाद। मैं ${agentName} हूँ। आज मैं आपकी कैसे मदद कर सकता हूँ?`,
+    },
+    ja: {
+      sales: `こんにちは！${agentName}です。営業部門にお電話いただきありがとうございます。本日はどのようなご用件でしょうか？`,
+      support: `こんにちは！${agentName}です。サポートチームにお問い合わせいただきありがとうございます。どのようにお手伝いできますか？`,
+      scheduling: `こんにちは！${agentName}です。お電話ありがとうございます。予約のお手伝いをいたします。ご都合の良い日はいつですか？`,
+      custom: `こんにちは！${departmentName}にお電話いただきありがとうございます。${agentName}です。本日はどのようなご用件でしょうか？`,
+    },
+    ko: {
+      sales: `안녕하세요! ${agentName}입니다. 영업부에 전화해 주셔서 감사합니다. 오늘 어떻게 도와드릴까요?`,
+      support: `안녕하세요! ${agentName}입니다. 고객지원팀에 연락해 주셔서 감사합니다. 어떻게 도와드릴까요?`,
+      scheduling: `안녕하세요! ${agentName}입니다. 전화해 주셔서 감사합니다. 예약을 도와드리겠습니다. 어떤 날이 편하신가요?`,
+      custom: `안녕하세요! ${departmentName}에 전화해 주셔서 감사합니다. ${agentName}입니다. 오늘 어떻게 도와드릴까요?`,
+    },
+    nl: {
+      sales: `Hallo! Ik ben ${agentName}. Bedankt voor het bellen naar onze verkoopafdeling. Hoe kan ik u vandaag helpen?`,
+      support: `Hallo! Ik ben ${agentName}. Bedankt voor het contact met ons supportteam. Hoe kan ik u helpen?`,
+      scheduling: `Hallo! Ik ben ${agentName}. Bedankt voor het bellen. Ik kan u helpen met het plannen van een afspraak. Welke dag past u het beste?`,
+      custom: `Hallo! Bedankt voor het bellen naar ${departmentName}. Ik ben ${agentName}. Hoe kan ik u vandaag helpen?`,
+    },
+    pl: {
+      sales: `Dzień dobry! Jestem ${agentName}. Dziękuję za telefon do naszego działu sprzedaży. W czym mogę pomóc?`,
+      support: `Dzień dobry! Jestem ${agentName}. Dziękuję za kontakt z naszym zespołem wsparcia. W czym mogę pomóc?`,
+      scheduling: `Dzień dobry! Jestem ${agentName}. Dziękuję za telefon. Mogę pomóc umówić wizytę. Który dzień jest dla Pana/Pani najwygodniejszy?`,
+      custom: `Dzień dobry! Dziękuję za telefon do ${departmentName}. Jestem ${agentName}. W czym mogę dziś pomóc?`,
+    },
+    sv: {
+      sales: `Hej! Jag är ${agentName}. Tack för att du ringer vår försäljningsavdelning. Hur kan jag hjälpa dig idag?`,
+      support: `Hej! Jag är ${agentName}. Tack för att du kontaktar vårt supportteam. Hur kan jag hjälpa dig?`,
+      scheduling: `Hej! Jag är ${agentName}. Tack för att du ringer. Jag kan hjälpa dig boka en tid. Vilken dag passar dig bäst?`,
+      custom: `Hej! Tack för att du ringer ${departmentName}. Jag är ${agentName}. Hur kan jag hjälpa dig idag?`,
+    },
+    no: {
+      sales: `Hei! Jeg er ${agentName}. Takk for at du ringer salgsavdelingen vår. Hvordan kan jeg hjelpe deg i dag?`,
+      support: `Hei! Jeg er ${agentName}. Takk for at du kontakter supportteamet vårt. Hvordan kan jeg hjelpe deg?`,
+      scheduling: `Hei! Jeg er ${agentName}. Takk for at du ringer. Jeg kan hjelpe deg med å bestille en avtale. Hvilken dag passer best for deg?`,
+      custom: `Hei! Takk for at du ringer ${departmentName}. Jeg er ${agentName}. Hvordan kan jeg hjelpe deg i dag?`,
+    },
+    fi: {
+      sales: `Hei! Olen ${agentName}. Kiitos soitostasi myyntiosastollemme. Miten voin auttaa sinua tänään?`,
+      support: `Hei! Olen ${agentName}. Kiitos yhteydenotostasi tukitiimiimme. Miten voin auttaa sinua?`,
+      scheduling: `Hei! Olen ${agentName}. Kiitos soitostasi. Voin auttaa sinua varaamaan ajan. Mikä päivä sopisi sinulle parhaiten?`,
+      custom: `Hei! Kiitos soitostasi ${departmentName}. Olen ${agentName}. Miten voin auttaa sinua tänään?`,
+    },
+    tr: {
+      sales: `Merhaba! Ben ${agentName}. Satış departmanımızı aradığınız için teşekkür ederiz. Bugün size nasıl yardımcı olabilirim?`,
+      support: `Merhaba! Ben ${agentName}. Destek ekibimize ulaştığınız için teşekkür ederiz. Size nasıl yardımcı olabilirim?`,
+      scheduling: `Merhaba! Ben ${agentName}. Aradığınız için teşekkür ederiz. Randevu almanıza yardımcı olabilirim. Hangi gün sizin için uygun?`,
+      custom: `Merhaba! ${departmentName}'i aradığınız için teşekkür ederiz. Ben ${agentName}. Bugün size nasıl yardımcı olabilirim?`,
+    },
   };
+
+  const kbQuestions: Record<string, string> = {
+    en: "Let me check that for you. What would you like to know?",
+    ar: "دعني أتحقق من ذلك لك. ماذا تريد أن تعرف؟",
+    es: "Déjeme verificar eso por usted. ¿Qué le gustaría saber?",
+    fr: "Laissez-moi vérifier cela pour vous. Que souhaitez-vous savoir ?",
+    de: "Lassen Sie mich das für Sie überprüfen. Was möchten Sie wissen?",
+    it: "Mi permetta di verificare. Cosa vorrebbe sapere?",
+    pt: "Deixe-me verificar isso para você. O que gostaria de saber?",
+    zh: "让我为您查一下。您想了解什么？",
+    hi: "मुझे आपके लिए यह जांचने दीजिए। आप क्या जानना चाहेंगे?",
+    ja: "確認させてください。何をお知りになりたいですか？",
+    ko: "확인해 보겠습니다. 무엇을 알고 싶으신가요?",
+    nl: "Laat me dat voor u controleren. Wat wilt u weten?",
+    pl: "Pozwól, że to sprawdzę. Co chciałby Pan/Pani wiedzieć?",
+    sv: "Låt mig kolla det åt dig. Vad vill du veta?",
+    no: "La meg sjekke det for deg. Hva vil du vite?",
+    fi: "Anna minun tarkistaa se sinulle. Mitä haluaisit tietää?",
+    tr: "Sizin için kontrol edeyim. Ne bilmek istersiniz?",
+  };
+
+  const followUpQuestions: Record<string, string> = {
+    en: "Is there anything else I can help you with, or would you like to speak with a team member?",
+    ar: "هل هناك أي شيء آخر يمكنني مساعدتك فيه، أم تود التحدث مع أحد أعضاء الفريق؟",
+    es: "¿Hay algo más en lo que pueda ayudarle, o le gustaría hablar con un miembro del equipo?",
+    fr: "Y a-t-il autre chose que je puisse faire pour vous, ou souhaitez-vous parler à un membre de l'équipe ?",
+    de: "Kann ich Ihnen noch bei etwas anderem helfen, oder möchten Sie mit einem Teammitglied sprechen?",
+    it: "C'è qualcos'altro in cui posso aiutarla, o vorrebbe parlare con un membro del team?",
+    pt: "Há mais alguma coisa em que posso ajudá-lo, ou gostaria de falar com um membro da equipe?",
+    zh: "还有什么我可以帮您的吗，或者您想和团队成员交谈？",
+    hi: "क्या कुछ और है जिसमें मैं आपकी मदद कर सकता हूँ, या आप किसी टीम सदस्य से बात करना चाहेंगे?",
+    ja: "他にお手伝いできることはありますか、またはチームメンバーとお話しされますか？",
+    ko: "다른 도움이 필요하신 것이 있으신가요, 아니면 팀원과 통화하시겠습니까?",
+    nl: "Is er nog iets anders waarmee ik u kan helpen, of wilt u met een teamlid spreken?",
+    pl: "Czy mogę jeszcze w czymś pomóc, czy chciałby Pan/Pani porozmawiać z członkiem zespołu?",
+    sv: "Finns det något annat jag kan hjälpa dig med, eller vill du prata med en teammedlem?",
+    no: "Er det noe annet jeg kan hjelpe deg med, eller vil du snakke med et teammedlem?",
+    fi: "Onko jotain muuta, jossa voin auttaa, vai haluaisitko puhua tiimin jäsenen kanssa?",
+    tr: "Size başka bir konuda yardımcı olabilir miyim, yoksa bir ekip üyesiyle konuşmak ister misiniz?",
+  };
+
+  const endCallMessages: Record<string, string> = {
+    en: "Thank you for calling. Have a great day!",
+    ar: "شكراً لاتصالك. أتمنى لك يوماً سعيداً!",
+    es: "Gracias por llamar. ¡Que tenga un buen día!",
+    fr: "Merci d'avoir appelé. Bonne journée !",
+    de: "Vielen Dank für Ihren Anruf. Einen schönen Tag noch!",
+    it: "Grazie per aver chiamato. Buona giornata!",
+    pt: "Obrigado por ligar. Tenha um ótimo dia!",
+    zh: "感谢您的来电。祝您有美好的一天！",
+    hi: "कॉल करने के लिए धन्यवाद। आपका दिन शुभ हो!",
+    ja: "お電話ありがとうございました。良い一日をお過ごしください！",
+    ko: "전화해 주셔서 감사합니다. 좋은 하루 보내세요!",
+    nl: "Bedankt voor het bellen. Een fijne dag verder!",
+    pl: "Dziękuję za telefon. Miłego dnia!",
+    sv: "Tack för att du ringde. Ha en bra dag!",
+    no: "Takk for at du ringte. Ha en fin dag!",
+    fi: "Kiitos soitosta. Hyvää päivänjatkoa!",
+    tr: "Aradığınız için teşekkür ederiz. İyi günler!",
+  };
+
+  const langGreetings = greetingsByLanguage[language] || greetingsByLanguage['en'];
+  const greetingMessages = langGreetings;
 
   const nodes: FlowNode[] = [
     {
@@ -54,7 +215,7 @@ function generateDefaultFlowNodes(departmentName: string, agentName: string = "y
         label: "Knowledge Base",
         config: {
           type: "question",
-          question: "Let me check that for you. What would you like to know?",
+          question: kbQuestions[language] || kbQuestions['en'],
           variableName: "user_question",
           expectedResponseType: "text",
           waitForResponse: true,
@@ -69,7 +230,7 @@ function generateDefaultFlowNodes(departmentName: string, agentName: string = "y
         label: "Follow Up Question",
         config: {
           type: "question",
-          question: "Is there anything else I can help you with, or would you like to speak with a team member?",
+          question: followUpQuestions[language] || followUpQuestions['en'],
           variableName: "wants_more_help",
           expectedResponseType: "yes_no",
           waitForResponse: true,
@@ -123,7 +284,7 @@ function generateDefaultFlowNodes(departmentName: string, agentName: string = "y
         label: "End Call",
         config: {
           type: "end",
-          message: "Thank you for calling. Have a great day!",
+          message: endCallMessages[language] || endCallMessages['en'],
         },
       },
     },
@@ -207,8 +368,9 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         .from(departments)
         .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
 
+      const departmentLanguage = req.body.language || 'en';
       const flowId = nanoid();
-      const { nodes, edges } = generateDefaultFlowNodes(validatedData.name);
+      const { nodes, edges } = generateDefaultFlowNodes(validatedData.name, "your AI assistant", departmentLanguage);
 
       const result = await db.transaction(async (tx) => {
         const [newFlow] = await tx
@@ -301,8 +463,9 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         return res.json({ flowId: existingDept.flowId, message: "Flow already exists" });
       }
 
+      const deptLang = req.body.language || 'en';
       const flowId = nanoid();
-      const { nodes, edges } = generateDefaultFlowNodes(existingDept.name);
+      const { nodes, edges } = generateDefaultFlowNodes(existingDept.name, "your AI assistant", deptLang);
 
       const result = await db.transaction(async (tx) => {
         const [newFlow] = await tx

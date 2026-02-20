@@ -2431,12 +2431,14 @@ export default function DeprockCanvas() {
       const canvasToDbIdMap = new Map<string, string>();
 
       for (const dept of canvasDepartments) {
+        const primaryLang = dept.languageAgents?.[0]?.language || 'en';
         const deptResponse = await apiRequest("POST", "/api/deprock", {
           name: dept.name,
           description: dept.description,
           icon: dept.type,
           color: dept.type === "sales" ? "#22c55e" : dept.type === "support" ? "#3b82f6" : dept.type === "scheduling" ? "#a855f7" : "#6b7280",
           isActive: true,
+          language: primaryLang,
         });
         const deptResult = await deptResponse.json();
         canvasToDbIdMap.set(dept.id, deptResult.id);

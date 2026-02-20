@@ -139,7 +139,7 @@ export class BedrockPollyAudioBridge {
       callDirection,
       pendingAudioQueue: [],
       isProcessing: false,
-      pollyEngine: 'generative',
+      pollyEngine: 'neural',
     };
 
     if (agentConfig.tools) {

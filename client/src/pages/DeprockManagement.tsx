@@ -44,6 +44,7 @@ import {
   Globe,
   RotateCcw,
   Eye,
+  Play,
 } from "lucide-react";
 import {
   Dialog,
@@ -435,6 +436,8 @@ export default function DeprockManagement() {
   } | null>(null);
 
   const [generatingPromptFor, setGeneratingPromptFor] = useState<'firstMessage' | 'systemPrompt' | null>(null);
+  const [previewingVoice, setPreviewingVoice] = useState(false);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [selectedPhoneForIvr, setSelectedPhoneForIvr] = useState<string>("");
   const [ivrName, setIvrName] = useState<string>("Auto Distribution");
@@ -2851,6 +2854,13 @@ export default function DeprockManagement() {
 
       <Sheet open={!!viewAgentDetail} onOpenChange={(open) => {
         if (!open) {
+          if (previewAudioRef.current) {
+            previewAudioRef.current.pause();
+            const src = previewAudioRef.current.src;
+            if (src.startsWith('blob:')) URL.revokeObjectURL(src);
+            previewAudioRef.current = null;
+          }
+          setPreviewingVoice(false);
           setViewAgentDetail(null);
           setEditAgentDetail(null);
           setGeneratingPromptFor(null);
@@ -2880,35 +2890,88 @@ export default function DeprockManagement() {
                   )}
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Voice Provider</Label>
-                  <p className="text-sm" data-testid="deprock-agent-detail-voice-provider">
-                    {viewAgentDetail.voiceProvider === 'aws_polly' ? 'AWS Polly' 
-                      : viewAgentDetail.voiceProvider === 'elevenlabs' ? 'ElevenLabs'
-                      : viewAgentDetail.voiceProvider === 'openai' ? 'OpenAI'
-                      : viewAgentDetail.voiceProvider || "Not configured"}
-                  </p>
-                </div>
-
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Voice</Label>
-                  <Select
-                    value={editAgentDetail.voiceId}
-                    onValueChange={(val) => setEditAgentDetail(prev => prev ? { ...prev, voiceId: val } : prev)}
-                  >
-                    <SelectTrigger data-testid="deprock-agent-detail-select-voice">
-                      <SelectValue placeholder="Select a voice" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {POLLY_VOICES
-                        .filter(v => v.languages.includes(viewAgentDetail.language) || v.languages.includes('en'))
-                        .map(voice => (
-                          <SelectItem key={voice.id} value={voice.id} data-testid={`deprock-agent-detail-voice-option-${voice.id}`}>
-                            {voice.name} ({voice.gender}, {voice.style})
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">Voice (AWS Polly)</Label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={previewingVoice || !editAgentDetail.voiceId || !POLLY_VOICES.some(v => v.id === editAgentDetail.voiceId)}
+                      onClick={async () => {
+                        if (!editAgentDetail.voiceId) return;
+                        setPreviewingVoice(true);
+                        try {
+                          if (previewAudioRef.current) {
+                            previewAudioRef.current.pause();
+                            previewAudioRef.current = null;
+                          }
+                          const voiceName = POLLY_VOICES.find(v => v.id === editAgentDetail.voiceId)?.name || editAgentDetail.voiceId;
+                          const sampleText = editAgentDetail.firstMessage || `Hello, I am ${voiceName}. This is how I sound.`;
+                          const res = await apiRequest("POST", "/api/deprock/voice-preview", {
+                            voiceId: editAgentDetail.voiceId,
+                            text: sampleText.substring(0, 200),
+                          });
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const audio = new Audio(url);
+                          previewAudioRef.current = audio;
+                          audio.onended = () => {
+                            setPreviewingVoice(false);
+                            URL.revokeObjectURL(url);
+                            previewAudioRef.current = null;
+                          };
+                          audio.onerror = () => {
+                            setPreviewingVoice(false);
+                            URL.revokeObjectURL(url);
+                            previewAudioRef.current = null;
+                          };
+                          await audio.play();
+                        } catch (err) {
+                          toast({ title: "Failed to preview voice", variant: "destructive" });
+                          setPreviewingVoice(false);
+                        }
+                      }}
+                      data-testid="deprock-agent-detail-play-voice"
+                    >
+                      {previewingVoice ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                  {(() => {
+                    const currentVoiceId = editAgentDetail.voiceId;
+                    const isPollyVoice = POLLY_VOICES.some(v => v.id === currentVoiceId);
+                    const filteredVoices = POLLY_VOICES.filter(v => v.languages.includes(viewAgentDetail.language) || v.languages.includes('en'));
+                    const currentInFiltered = filteredVoices.some(v => v.id === currentVoiceId);
+                    return (
+                      <Select
+                        value={isPollyVoice ? currentVoiceId : ''}
+                        onValueChange={(val) => setEditAgentDetail(prev => prev ? { ...prev, voiceId: val } : prev)}
+                      >
+                        <SelectTrigger data-testid="deprock-agent-detail-select-voice">
+                          <SelectValue placeholder={
+                            currentVoiceId && !isPollyVoice 
+                              ? `${currentVoiceId} (non-Polly)` 
+                              : "Select a voice"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {!currentInFiltered && isPollyVoice && currentVoiceId && (
+                            <SelectItem key={currentVoiceId} value={currentVoiceId} data-testid={`deprock-agent-detail-voice-option-${currentVoiceId}`}>
+                              {POLLY_VOICES.find(v => v.id === currentVoiceId)?.name || currentVoiceId} (current)
+                            </SelectItem>
+                          )}
+                          {filteredVoices.map(voice => (
+                            <SelectItem key={voice.id} value={voice.id} data-testid={`deprock-agent-detail-voice-option-${voice.id}`}>
+                              {voice.name} ({voice.gender}, {voice.style})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
                 </div>
 
                 <div className="space-y-1.5">

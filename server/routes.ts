@@ -81,6 +81,8 @@ import { createPlivoApiRoutes, setupPlivoWebhooks, setupPlivoStream } from "./en
 import { initPlivoElevenLabsEngine, initPlivoElevenLabsStream } from "./engines/plivo-elevenlabs";
 // Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
 import { twilioOpenaiWebhookRoutes, setupTwilioOpenAIStreamHandler, twilioOpenaiIncomingConnectionsRoutes } from "./engines/twilio-openai";
+// Twilio + Bedrock + Polly Engine (ISOLATED from other engines)
+import { bedrockPollyWebhookRoutes, setupBedrockPollyStreamHandler } from "./engines/twilio-bedrock-polly";
 // KYC Engine
 import { registerKycRoutes } from "./engines/kyc";
 import { checkAdmin } from "./middleware/admin-auth";
@@ -257,6 +259,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TODO: Express middleware type compatibility - see note above about authenticateToken
   app.use('/api/twilio-openai/incoming-connections', authenticateToken as unknown as import('express').RequestHandler, twilioOpenaiIncomingConnectionsRoutes);
   console.log('✅ Twilio + OpenAI Realtime Engine initialized');
+
+  // Initialize Twilio + Bedrock + Polly Engine (ISOLATED from other engines)
+  app.use('/api/bedrock-polly', bedrockPollyWebhookRoutes);
+  console.log('✅ Twilio + Bedrock + Polly Engine initialized');
 
   // Register KYC Engine routes
   // TODO: Express middleware type compatibility - KYC engine accepts generic middleware types
@@ -2828,6 +2834,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup Twilio-OpenAI WebSocket stream for Media Streams audio bridging
   setupTwilioOpenAIStreamHandler(httpServer);
+  
+  // Setup Twilio-Bedrock-Polly WebSocket stream for Media Streams audio bridging
+  setupBedrockPollyStreamHandler(httpServer);
   
   return httpServer;
 }

@@ -24,8 +24,11 @@ The application follows a client-server architecture.
 - **Knowledge Base & AI Intelligence**: Provides an integrated experience for managing knowledge base content, performing AI-powered topic analysis, and generating content, utilizing a folder-based navigation system. Supports "Knowledge Base Only" mode (`knowledgeBaseOnly` flag on agents) that restricts AI responses strictly to KB content and system prompt, preventing use of general training knowledge. This applies across both ElevenLabs and OpenAI Realtime engines. The Knowledge Base page (`/app/knowledge-base`) uses a "Professor" persona throughout its UI - branded as "Professor's Knowledge Library" with academic-themed labels (Study Materials, Library Capacity, Ask the Professor, Professor's Expertise Level, etc.). The `knowledgeBaseOnly` flag is auto-enabled when agents are assigned knowledge bases during creation.
 - **Provider DID Marketplace**: Integrates a marketplace for browsing and renting DIDs from various carrier providers, with routing capabilities for outbound calling.
 
+- **Bedrock + Polly Engine (RockCenter)**: New engine at `server/engines/twilio-bedrock-polly/` using AWS Bedrock (Claude 3.5 Sonnet) for AI and AWS Polly for TTS, with Twilio telephony. Frontend at `/app/rock-center`. API at `/api/bedrock-polly/`. Turn-based: Twilio audio -> Whisper STT -> Bedrock AI -> Polly TTS -> Twilio.
+
 ## External Dependencies
-- **AI Engines**: ElevenLabs (for AI voice synthesis), OpenAI Realtime API (for knowledge base embeddings and realtime voice), Anthropic Claude Sonnet-4-5 (for complex reasoning in Topic Intelligence).
+- **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude Sonnet-4-5, AWS Bedrock Claude 3.5 Sonnet (RockCenter).
+- **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly (neural/generative voices for RockCenter).
 - **Telephony Providers**: Twilio, Plivo (with SIP trunking support), TCXC (TelecomXchange marketplace for DIDs).
 - **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.
 - **Database**: Neon (for PostgreSQL hosting on Replit).

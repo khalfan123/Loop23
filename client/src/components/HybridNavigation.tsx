@@ -7,7 +7,7 @@ import {
   Settings, LogOut, Coins, Menu, ChevronDown,
   ChevronLeft, ChevronRight, BarChart3, Users, Phone,
   Building2, PhoneCall, PhoneIncoming, PhoneOutgoing,
-  Bot, BookOpen, Calendar, FileText, Home, Plus, Plug, Webhook,
+  Bot, BookOpen, Calendar, FileText, Home, Plus, Plug, Webhook, Zap,
   type LucideIcon
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -124,6 +124,7 @@ export function HybridNavigation({
     { title: t('nav.departments', 'Departments'), url: "/app/departments", icon: Building2 },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: PhoneOutgoing },
     { title: t('nav.integrations', 'Integrations'), url: "/app/integrations", icon: Plug },
+    { title: 'RockCenter', url: "/app/rock-center", icon: Zap },
   ];
 
   const manageItems: NavItem[] = [

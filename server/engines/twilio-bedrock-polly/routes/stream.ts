@@ -1,0 +1,384 @@
+'use strict';
+import type { Server as HttpServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
+import { BedrockPollyAudioBridge } from '../services/audio-bridge.service';
+import { BedrockAgentFactory } from '../services/bedrock-agent-factory';
+import { db } from '../../../db';
+import { twilioOpenaiCalls, flowExecutions } from '@shared/schema';
+import { eq, sql } from 'drizzle-orm';
+import { logger } from '../../../utils/logger';
+import { BEDROCK_POLLY_CONFIG } from '../config/config';
+import { CallInsightsService } from '../../../services/call-insights.service';
+import type { TwilioMediaStreamEvent, AgentConfig, PollyVoiceId, BedrockModel } from '../types';
+
+let sharedWss: WebSocketServer | null = null;
+
+export function setupBedrockPollyStreamHandler(httpServer: HttpServer): void {
+  if (!sharedWss) {
+    sharedWss = new WebSocketServer({ noServer: true });
+  }
+
+  httpServer.on('upgrade', async (request, socket, head) => {
+    const pathname = request.url?.split('?')[0] || '';
+
+    if (pathname.startsWith('/api/bedrock-polly/stream/')) {
+      const callSid = pathname.split('/api/bedrock-polly/stream/')[1];
+
+      if (!callSid) {
+        console.error(`[BedrockPolly Stream] Invalid stream URL: ${pathname}`);
+        socket.destroy();
+        return;
+      }
+
+      try {
+        const [existingCall] = await db
+          .select({ id: twilioOpenaiCalls.id })
+          .from(twilioOpenaiCalls)
+          .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
+          .limit(1);
+
+        if (!existingCall) {
+          console.error(`[BedrockPolly Stream] Security: Rejecting stream for unknown call SID: ${callSid}`);
+          socket.destroy();
+          return;
+        }
+      } catch (err: any) {
+        console.error(`[BedrockPolly Stream] Security: Database error validating call SID: ${err.message}`);
+        socket.destroy();
+        return;
+      }
+
+      console.log(`[BedrockPolly Stream] Handling WebSocket upgrade for call: ${callSid}`);
+
+      sharedWss!.handleUpgrade(request, socket, head, (ws: WebSocket) => {
+        console.log(`[BedrockPolly Stream] WebSocket connected for call: ${callSid}`);
+        handleBedrockPollyStreamConnection(ws, callSid);
+      });
+    }
+  });
+
+  console.log('✅ Bedrock-Polly WebSocket stream endpoint registered');
+}
+
+function handleBedrockPollyStreamConnection(ws: WebSocket, callSid: string): void {
+  let streamSid: string | null = null;
+  let sessionInitialized = false;
+
+  ws.on('message', async (message: Buffer | string) => {
+    try {
+      const data = typeof message === 'string' ? message : message.toString();
+      const event: TwilioMediaStreamEvent = JSON.parse(data);
+
+      if (event.event === 'connected') {
+        console.log(`[BedrockPolly Stream] Connected event for ${callSid}`);
+      }
+
+      if (event.event === 'start' && event.start) {
+        streamSid = event.start.streamSid;
+        console.log(`[BedrockPolly Stream] Stream started: ${streamSid}`);
+
+        const existingSession = BedrockPollyAudioBridge.getSession(callSid);
+        if (existingSession) {
+          if (existingSession.twilioWs !== ws) {
+            existingSession.twilioWs = ws;
+          }
+          if (streamSid) {
+            existingSession.streamSid = streamSid;
+          }
+          sessionInitialized = true;
+        } else {
+          console.log(`[BedrockPolly Stream] No existing session for ${callSid}, initializing for incoming call`);
+          await initializeSession(callSid, ws, streamSid);
+          sessionInitialized = true;
+        }
+      }
+
+      if (sessionInitialized) {
+        BedrockPollyAudioBridge.handleTwilioMedia(callSid, event);
+      }
+
+    } catch (error: any) {
+      console.error(`[BedrockPolly Stream] Error processing message:`, error.message);
+    }
+  });
+
+  ws.on('close', async (code: number, reason: Buffer) => {
+    console.log(`[BedrockPolly Stream] WebSocket closed for ${callSid}: ${code} ${reason?.toString() || ''}`);
+
+    try {
+      await BedrockPollyAudioBridge.endSession(callSid);
+      logger.info(`Session ended for ${callSid}`, undefined, 'BedrockPolly Stream');
+
+      const [callRecord] = await db
+        .select()
+        .from(twilioOpenaiCalls)
+        .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
+        .limit(1);
+
+      if (callRecord) {
+        try {
+          const [flowExec] = await db
+            .select()
+            .from(flowExecutions)
+            .where(eq(flowExecutions.callId, callRecord.id))
+            .limit(1);
+
+          if (flowExec && flowExec.status === 'running') {
+            await db
+              .update(flowExecutions)
+              .set({
+                status: 'completed',
+                completedAt: new Date(),
+              })
+              .where(eq(flowExecutions.id, flowExec.id));
+            logger.info(`Updated flow execution ${flowExec.id} to completed`, undefined, 'BedrockPolly Stream');
+          }
+        } catch (flowExecError: any) {
+          logger.warn(`Failed to update flow execution status: ${flowExecError.message}`, undefined, 'BedrockPolly Stream');
+        }
+      }
+    } catch (err: any) {
+      console.error(`[BedrockPolly Stream] Error ending session:`, err.message);
+    }
+  });
+
+  ws.on('error', (error: Error) => {
+    console.error(`[BedrockPolly Stream] WebSocket error for ${callSid}:`, error.message);
+  });
+}
+
+async function initializeSession(
+  callSid: string,
+  twilioWs: WebSocket,
+  streamSid: string | null
+): Promise<void> {
+  try {
+    logger.info(`Initializing session for incoming call ${callSid}`, undefined, 'BedrockPolly Stream');
+
+    const [callRecord] = await db
+      .select()
+      .from(twilioOpenaiCalls)
+      .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
+      .limit(1);
+
+    if (!callRecord) {
+      logger.error(`Call record not found for: ${callSid}`, undefined, 'BedrockPolly Stream');
+      twilioWs.close();
+      return;
+    }
+
+    const metadata = callRecord.metadata as Record<string, unknown> | null;
+
+    const isFlowAgent = metadata?.isFlowAgent === true;
+    const compiledTools = metadata?.compiledTools as any[] | undefined;
+
+    let agentConfig: AgentConfig;
+
+    if (isFlowAgent && compiledTools && compiledTools.length > 0) {
+      logger.info(`Initializing flow agent with ${compiledTools.length} compiled tools`, undefined, 'BedrockPolly Stream');
+
+      const { hydrateCompiledTools } = await import('../../../services/openai-voice-agent');
+      const hydratedTools = hydrateCompiledTools(compiledTools, {
+        userId: callRecord.userId || '',
+        agentId: callRecord.agentId || '',
+        callId: callRecord.id,
+        knowledgeBaseIds: metadata?.knowledgeBaseIds as string[] || [],
+        transferPhoneNumber: metadata?.transferPhoneNumber as string || undefined,
+      });
+
+      agentConfig = {
+        voice: ((callRecord.openaiVoice as PollyVoiceId) || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId,
+        model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
+        systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
+        firstMessage: (metadata?.firstMessage as string) || undefined,
+        temperature: (metadata?.temperature as number) ?? 0.7,
+        tools: hydratedTools,
+      };
+
+      logger.info(`Flow agent initialized with ${hydratedTools.length} tools`, undefined, 'BedrockPolly Stream');
+    } else {
+      agentConfig = BedrockAgentFactory.createAgentConfig({
+        voice: ((callRecord.openaiVoice as PollyVoiceId) || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId,
+        model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
+        systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
+        firstMessage: (metadata?.firstMessage as string) || undefined,
+        temperature: (metadata?.temperature as number) ?? 0.7,
+        toolContext: {
+          userId: callRecord.userId || '',
+          agentId: callRecord.agentId || '',
+          callId: callRecord.id,
+        },
+      });
+
+      const knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
+      if (knowledgeBaseIds && knowledgeBaseIds.length > 0 && callRecord.userId) {
+        agentConfig = BedrockAgentFactory.addKnowledgeBaseTool(
+          agentConfig,
+          knowledgeBaseIds,
+          callRecord.userId
+        );
+      }
+
+      if (metadata?.appointmentBookingEnabled && callRecord.userId && callRecord.agentId) {
+        agentConfig = BedrockAgentFactory.addAppointmentTool(
+          agentConfig,
+          callRecord.userId,
+          callRecord.agentId,
+          callRecord.id
+        );
+      }
+
+      if (metadata?.transferEnabled && metadata?.transferPhoneNumber) {
+        agentConfig = BedrockAgentFactory.addTransferTool(
+          agentConfig,
+          metadata.transferPhoneNumber as string,
+          undefined
+        );
+      }
+
+      if (metadata?.endConversationEnabled) {
+        agentConfig = BedrockAgentFactory.addEndCallTool(agentConfig);
+      }
+
+      if (metadata?.detectLanguageEnabled) {
+        agentConfig = BedrockAgentFactory.enableLanguageDetection(agentConfig);
+      }
+    }
+
+    const hasFlowPrompt = metadata?.systemPrompt && (metadata.systemPrompt as string).includes('Conversation States');
+    if (hasFlowPrompt && !agentConfig.tools?.some((t) => t.name === 'end_call')) {
+      agentConfig = BedrockAgentFactory.addEndCallTool(agentConfig);
+      logger.info(`Added end_call tool to flow agent for ${callSid}`, undefined, 'BedrockPolly Stream');
+    }
+
+    logger.info(`Creating session with ${agentConfig.tools?.length || 0} tools for ${callSid}`, undefined, 'BedrockPolly Stream');
+
+    await BedrockPollyAudioBridge.createSession({
+      callSid,
+      agentConfig,
+      twilioWs,
+      streamSid: streamSid || undefined,
+      fromNumber: callRecord.fromNumber || undefined,
+      toNumber: callRecord.toNumber || undefined,
+      callDirection: callRecord.callDirection as 'inbound' | 'outbound' || 'inbound',
+    });
+
+    logger.info(`Session created for incoming call ${callSid}`, undefined, 'BedrockPolly Stream');
+
+    const callUserId = callRecord.userId;
+    const callId = callRecord.id;
+    const fromNumber = callRecord.fromNumber;
+    const toNumber = callRecord.toNumber;
+
+    BedrockPollyAudioBridge.onSessionEnd(callSid, async (sessionData) => {
+      try {
+        const updates: Record<string, unknown> = {
+          status: 'completed',
+          endedAt: new Date(),
+        };
+
+        if (sessionData?.transcript) {
+          updates.transcript = sessionData.transcript;
+
+          if (sessionData.transcript.length > 50) {
+            try {
+              const openaiApiKey = process.env.OPENAI_API_KEY;
+              if (openaiApiKey) {
+                const insights = await CallInsightsService.analyzeTranscript(
+                  sessionData.transcript,
+                  {
+                    callId: callId,
+                    fromNumber: fromNumber || undefined,
+                    toNumber: toNumber || undefined,
+                    duration: sessionData?.duration
+                  },
+                  openaiApiKey
+                );
+
+                if (insights) {
+                  updates.aiSummary = insights.aiSummary;
+                  updates.sentiment = insights.sentiment;
+                  updates.classification = insights.classification;
+                  if (insights.keyPoints) updates.keyPoints = insights.keyPoints;
+                  if (insights.nextActions) updates.nextActions = insights.nextActions;
+                  logger.info(`Generated AI insights for call ${callId}`, {
+                    sentiment: insights.sentiment,
+                    classification: insights.classification
+                  }, 'BedrockPolly Stream');
+                }
+              }
+            } catch (insightError: any) {
+              logger.error('Failed to generate call insights', insightError, 'BedrockPolly Stream');
+            }
+          }
+        }
+        if (sessionData?.duration) {
+          updates.duration = sessionData.duration;
+        }
+        if (sessionData?.bedrockSessionId) {
+          updates.openaiSessionId = sessionData.bedrockSessionId;
+        }
+
+        await db
+          .update(twilioOpenaiCalls)
+          .set(updates)
+          .where(eq(twilioOpenaiCalls.id, callId));
+
+        logger.info(`Call ${callId} record updated (${updates.duration || 0}s)`, undefined, 'BedrockPolly Stream');
+
+        if (callUserId && sessionData?.duration && sessionData.duration >= 1) {
+          const creditsToDeduct = Math.ceil(sessionData.duration / 60);
+
+          if (creditsToDeduct > 0) {
+            const { deductCallCredits } = await import('../../../services/credit-service');
+            const creditResult = await deductCallCredits({
+              userId: callUserId,
+              creditsToDeduct,
+              callId,
+              fromNumber: fromNumber || 'Unknown',
+              toNumber: toNumber || 'Unknown',
+              durationSeconds: sessionData.duration,
+              engine: 'bedrock-polly',
+            });
+
+            if (!creditResult.success && !creditResult.alreadyDeducted) {
+              logger.error(`Credit deduction failed for call ${callId}: ${creditResult.error}`, undefined, 'BedrockPolly Stream');
+
+              try {
+                await db
+                  .update(twilioOpenaiCalls)
+                  .set({
+                    status: 'credit_failed',
+                    metadata: sql`COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ creditError: creditResult.error, creditsRequired: creditsToDeduct })}::jsonb`
+                  })
+                  .where(eq(twilioOpenaiCalls.id, callId));
+              } catch (updateError: any) {
+                logger.error(`Failed to update call status for credit failure: ${updateError.message}`, updateError, 'BedrockPolly Stream');
+              }
+              return;
+            } else if (creditResult.success && creditResult.creditsDeducted > 0) {
+              logger.info(`Credits deducted for call ${callId}: ${creditResult.creditsDeducted} credits, new balance: ${creditResult.newBalance}`, undefined, 'BedrockPolly Stream');
+            }
+          }
+        }
+
+        if (callUserId) {
+          try {
+            const { CRMLeadProcessor } = await import('../../crm/lead-processor.service');
+            const result = await CRMLeadProcessor.processTwilioOpenAICall(callId);
+            if (result?.leadId) {
+              logger.info(`CRM lead created: ${result.leadId}`, undefined, 'BedrockPolly Stream');
+            }
+          } catch (crmError: any) {
+            logger.error(`Failed to create CRM lead: ${crmError.message}`, crmError, 'BedrockPolly Stream');
+          }
+        }
+      } catch (error: any) {
+        logger.error('Error updating call record', error, 'BedrockPolly Stream');
+      }
+    });
+
+  } catch (error: any) {
+    logger.error(`Failed to initialize session for ${callSid}: ${error.message}`, error, 'BedrockPolly Stream');
+  }
+}

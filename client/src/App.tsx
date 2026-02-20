@@ -70,6 +70,7 @@ import PromptTemplates from "@/pages/PromptTemplates";
 import TransactionHistory from "@/pages/TransactionHistory";
 import IntegrationMarketplace from "@/pages/IntegrationMarketplace";
 import IntegrationDetail from "@/pages/IntegrationDetail";
+import RockCenter from "@/pages/RockCenter";
 import LoginPage from "@/pages/LoginPage";
 import TeamMemberLogin from "@/pages/TeamMemberLogin";
 import AdminTeamLogin from "@/pages/AdminTeamLogin";
@@ -239,6 +240,7 @@ function UserRouter() {
           <Route path="/app/outbound" component={() => <div className="text-center py-16 text-muted-foreground">Outbound page coming soon</div>} />
           <Route path="/app/settings/:rest*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
+          <Route path="/app/rock-center" component={RockCenter} />
           <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
           <Route component={NotFound} />
         </Switch>
@@ -321,6 +323,7 @@ function TeamMemberRouter() {
           </Route>
           <Route path="/app/settings/:rest*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
+          <Route path="/app/rock-center" component={RockCenter} />
           <Route path="/admin" component={AdminDashboard} />
           <Route component={NotFound} />
         </Switch>

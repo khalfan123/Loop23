@@ -2,7 +2,7 @@
 import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { db } from '../../../db';
-import { agents } from '@shared/schema';
+import { agents, globalSettings } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { awsBedrockService } from '../../../services/aws-bedrock';
 import { awsPollyService } from '../../../services/aws-polly';
@@ -26,11 +26,18 @@ function sendMessage(ws: WebSocket, message: Record<string, unknown>): void {
   }
 }
 
+async function getOpenAIApiKey(): Promise<string> {
+  try {
+    const [dbSetting] = await db.select().from(globalSettings).where(eq(globalSettings.key, 'openai_api_key')).limit(1);
+    if (dbSetting?.value) return dbSetting.value;
+  } catch (e) {}
+  if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
+  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  throw new Error('No OpenAI API key found. Configure it in Admin Settings or as an environment variable.');
+}
+
 async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY not set');
-  }
+  const apiKey = await getOpenAIApiKey();
 
   const formData = new FormData();
   formData.append('file', new Blob([audioBuffer], { type: 'audio/webm' }), 'audio.webm');

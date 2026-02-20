@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Phone, PhoneOff, Volume2, Loader2, ArrowLeft, Hash, Mic, MicOff, Bot, User, Wifi, WifiOff } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 interface TwimlStep {
   voice: string;
@@ -68,6 +68,8 @@ interface TranscriptMessage {
 }
 
 export default function DeprockCallSimulator() {
+  const [location] = useLocation();
+  const engineContext = location.startsWith("/app/departments") ? "default" : "bedrock-polly";
   const [selectedIvrId, setSelectedIvrId] = useState<string>("");
   const [callState, setCallState] = useState<CallState>("idle");
   const [parsedTwiml, setParsedTwiml] = useState<ParsedTwiml | null>(null);
@@ -97,6 +99,8 @@ export default function DeprockCallSimulator() {
   const { data: ivrConfigs } = useQuery({
     queryKey: ["/api/deprock/ivr-configs-all"],
   });
+
+  const filteredIvrConfigs = (ivrConfigs as any[])?.filter((c: any) => (c.engineType || 'default') === engineContext) || [];
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -486,7 +490,7 @@ export default function DeprockCallSimulator() {
     [currentStep, stopAudio, simulateStep, selectedIvrId, ivrConfigs, selectedLang]
   );
 
-  const activeConfigs = ((ivrConfigs as any[]) || []).filter((c: any) => c.isActive);
+  const activeConfigs = (filteredIvrConfigs || []).filter((c: any) => c.isActive);
   const currentHints = parsedTwiml?.gatherHints || [];
   const isInAgent = ["connecting", "agent-ready", "recording", "processing", "agent-speaking"].includes(callState);
   const isCallActive = callState !== "idle" && callState !== "ended";
@@ -524,7 +528,7 @@ export default function DeprockCallSimulator() {
       <div className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
-            <Link href="/app/deprock">
+            <Link href={engineContext === "default" ? "/app/departments" : "/app/deprock"}>
               <Button variant="ghost" size="sm" data-testid="link-back-deprock">
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back

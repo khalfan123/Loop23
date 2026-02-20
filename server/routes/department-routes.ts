@@ -153,7 +153,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const userDepartments = await db
         .select()
         .from(departments)
-        .where(eq(departments.userId, req.userId!))
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .orderBy(asc(departments.sortOrder));
 
       res.json(userDepartments);
@@ -173,7 +173,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const department = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .limit(1);
 
       if (department.length === 0) {
@@ -215,7 +215,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const existingCount = await db
         .select()
         .from(departments)
-        .where(eq(departments.userId, req.userId!));
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'default')));
 
       const flowId = nanoid();
       const { nodes, edges } = generateDefaultFlowNodes(validatedData.name);
@@ -243,6 +243,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
             ...validatedData,
             sortOrder: existingCount.length,
             flowId: flowId,
+            engineType: 'default',
           })
           .returning();
 
@@ -267,7 +268,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -285,7 +286,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
           ...(sortOrder !== undefined && { sortOrder }),
           updatedAt: new Date(),
         })
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .returning();
 
       res.json(updated[0]);
@@ -305,7 +306,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const [existingDept] = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .limit(1);
 
       if (!existingDept) {
@@ -337,7 +338,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         const [updatedDept] = await tx
           .update(departments)
           .set({ flowId: flowId, updatedAt: new Date() })
-          .where(eq(departments.id, id))
+          .where(and(eq(departments.id, id), eq(departments.engineType, 'default')))
           .returning();
 
         return { department: updatedDept, flow: newFlow };
@@ -361,7 +362,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -370,7 +371,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
 
       await db
         .delete(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)));
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')));
 
       res.json({ success: true });
     } catch (error: any) {
@@ -395,7 +396,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -484,7 +485,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -542,7 +543,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -576,7 +577,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const ivrConfigs = await db
         .select()
         .from(ivrConfigurations)
-        .where(eq(ivrConfigurations.userId, req.userId!));
+        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'default')));
 
       res.json(ivrConfigs);
     } catch (error: any) {
@@ -609,7 +610,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         const deptCheck = await db
           .select()
           .from(departments)
-          .where(and(eq(departments.id, fallbackDepartmentId), eq(departments.userId, req.userId!)))
+          .where(and(eq(departments.id, fallbackDepartmentId), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
           .limit(1);
         if (deptCheck.length === 0) {
           return res.status(400).json({ error: "Invalid fallback department" });
@@ -623,7 +624,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
             const optDeptCheck = await db
               .select()
               .from(departments)
-              .where(and(eq(departments.id, option.departmentId), eq(departments.userId, req.userId!)))
+              .where(and(eq(departments.id, option.departmentId), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
               .limit(1);
             if (optDeptCheck.length === 0) {
               return res.status(400).json({ error: `Invalid department in menu option: ${option.label}` });
@@ -647,7 +648,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
             fallbackDepartmentId,
             updatedAt: new Date(),
           })
-          .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!)))
+          .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'default')))
           .returning();
 
         res.json(updated[0]);
@@ -658,7 +659,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
           const userDepartments = await db
             .select()
             .from(departments)
-            .where(eq(departments.userId, req.userId!))
+            .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
             .orderBy(asc(departments.sortOrder));
           
           if (userDepartments.length > 0) {
@@ -684,6 +685,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
             menuOptions: finalMenuOptions,
             languageOptions,
             fallbackDepartmentId,
+            engineType: 'default',
           })
           .returning();
 
@@ -735,7 +737,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const updated = await db
         .update(ivrConfigurations)
         .set(updateData)
-        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!)))
+        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'default')))
         .returning();
 
       if (updated.length === 0) {
@@ -758,7 +760,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
 
       await db
         .delete(ivrConfigurations)
-        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!)));
+        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'default')));
 
       res.json({ success: true });
     } catch (error: any) {
@@ -775,7 +777,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const userDepartments = await db
         .select()
         .from(departments)
-        .where(eq(departments.userId, req.userId!))
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'default')))
         .orderBy(asc(departments.sortOrder));
 
       const deptStats = await Promise.all(
@@ -806,7 +808,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
       const ivrConfigs = await db
         .select()
         .from(ivrConfigurations)
-        .where(eq(ivrConfigurations.userId, req.userId!));
+        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'default')));
 
       const activeIvrCount = ivrConfigs.filter(ivr => ivr.isActive).length;
 
@@ -837,11 +839,11 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
 
       await db
         .delete(departments)
-        .where(eq(departments.userId, req.userId!));
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'default')));
 
       await db
         .delete(ivrConfigurations)
-        .where(eq(ivrConfigurations.userId, req.userId!));
+        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'default')));
 
       res.json({ success: true });
     } catch (error: any) {
@@ -1001,7 +1003,7 @@ export function createIvrAudioRoutes() {
       const ivrConfig = await db
         .select()
         .from(ivrConfigurations)
-        .where(eq(ivrConfigurations.id, ivrId))
+        .where(and(eq(ivrConfigurations.id, ivrId), eq(ivrConfigurations.engineType, 'default')))
         .limit(1);
 
       if (!ivrConfig.length) {

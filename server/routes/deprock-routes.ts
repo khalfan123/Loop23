@@ -149,7 +149,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const userDepartments = await db
         .select()
         .from(departments)
-        .where(eq(departments.userId, req.userId!))
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .orderBy(asc(departments.sortOrder));
 
       res.json(userDepartments);
@@ -166,7 +166,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const department = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .limit(1);
 
       if (department.length === 0) {
@@ -205,7 +205,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const existingCount = await db
         .select()
         .from(departments)
-        .where(eq(departments.userId, req.userId!));
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
 
       const flowId = nanoid();
       const { nodes, edges } = generateDefaultFlowNodes(validatedData.name);
@@ -233,6 +233,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
             ...validatedData,
             sortOrder: existingCount.length,
             flowId: flowId,
+            engineType: 'bedrock-polly',
           })
           .returning();
 
@@ -254,7 +255,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -272,7 +273,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           ...(sortOrder !== undefined && { sortOrder }),
           updatedAt: new Date(),
         })
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .returning();
 
       res.json(updated[0]);
@@ -289,7 +290,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const [existingDept] = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .limit(1);
 
       if (!existingDept) {
@@ -321,7 +322,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         const [updatedDept] = await tx
           .update(departments)
           .set({ flowId: flowId, updatedAt: new Date() })
-          .where(eq(departments.id, id))
+          .where(and(eq(departments.id, id), eq(departments.engineType, 'bedrock-polly')))
           .returning();
 
         return { department: updatedDept, flow: newFlow };
@@ -342,7 +343,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -351,7 +352,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
       await db
         .delete(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)));
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
 
       res.json({ success: true });
     } catch (error: any) {
@@ -372,7 +373,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -453,7 +454,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -506,7 +507,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const existingDept = await db
         .select()
         .from(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!)))
+        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .limit(1);
 
       if (existingDept.length === 0) {
@@ -537,7 +538,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const ivrConfigs = await db
         .select()
         .from(ivrConfigurations)
-        .where(eq(ivrConfigurations.userId, req.userId!));
+        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')));
 
       res.json(ivrConfigs);
     } catch (error: any) {
@@ -565,7 +566,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         const deptCheck = await db
           .select()
           .from(departments)
-          .where(and(eq(departments.id, fallbackDepartmentId), eq(departments.userId, req.userId!)))
+          .where(and(eq(departments.id, fallbackDepartmentId), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
           .limit(1);
         if (deptCheck.length === 0) {
           return res.status(400).json({ error: "Invalid fallback department" });
@@ -578,7 +579,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
             const optDeptCheck = await db
               .select()
               .from(departments)
-              .where(and(eq(departments.id, option.departmentId), eq(departments.userId, req.userId!)))
+              .where(and(eq(departments.id, option.departmentId), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
               .limit(1);
             if (optDeptCheck.length === 0) {
               return res.status(400).json({ error: `Invalid department in menu option: ${option.label}` });
@@ -602,7 +603,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
             fallbackDepartmentId,
             updatedAt: new Date(),
           })
-          .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!)))
+          .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')))
           .returning();
 
         res.json(updated[0]);
@@ -612,7 +613,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           const userDepartments = await db
             .select()
             .from(departments)
-            .where(eq(departments.userId, req.userId!))
+            .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
             .orderBy(asc(departments.sortOrder));
           
           if (userDepartments.length > 0) {
@@ -638,6 +639,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
             menuOptions: finalMenuOptions,
             languageOptions,
             fallbackDepartmentId,
+            engineType: 'bedrock-polly',
           })
           .returning();
 
@@ -684,7 +686,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const updated = await db
         .update(ivrConfigurations)
         .set(updateData)
-        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!)))
+        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')))
         .returning();
 
       if (updated.length === 0) {
@@ -704,7 +706,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
       await db
         .delete(ivrConfigurations)
-        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!)));
+        .where(and(eq(ivrConfigurations.id, id), eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')));
 
       res.json({ success: true });
     } catch (error: any) {
@@ -718,7 +720,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const userDepartments = await db
         .select()
         .from(departments)
-        .where(eq(departments.userId, req.userId!))
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')))
         .orderBy(asc(departments.sortOrder));
 
       const deptStats = await Promise.all(
@@ -749,7 +751,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const ivrConfigs = await db
         .select()
         .from(ivrConfigurations)
-        .where(eq(ivrConfigurations.userId, req.userId!));
+        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')));
 
       const activeIvrCount = ivrConfigs.filter(ivr => ivr.isActive).length;
 
@@ -777,11 +779,11 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
       await db
         .delete(departments)
-        .where(eq(departments.userId, req.userId!));
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
 
       await db
         .delete(ivrConfigurations)
-        .where(eq(ivrConfigurations.userId, req.userId!));
+        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')));
 
       res.json({ success: true });
     } catch (error: any) {
@@ -914,7 +916,7 @@ export function createDeprockIvrAudioRoutes() {
       const ivrConfig = await db
         .select()
         .from(ivrConfigurations)
-        .where(eq(ivrConfigurations.id, ivrId))
+        .where(and(eq(ivrConfigurations.id, ivrId), eq(ivrConfigurations.engineType, 'bedrock-polly')))
         .limit(1);
 
       if (!ivrConfig.length) {

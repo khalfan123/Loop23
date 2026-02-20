@@ -244,6 +244,7 @@ export const departments = pgTable("departments", {
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   flowId: varchar("flow_id"), // Reference to auto-generated flow for this department
+  engineType: text("engine_type").notNull().default("default"), // 'default' for Department, 'bedrock-polly' for Deprock
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -270,6 +271,7 @@ export const ivrConfigurations = pgTable("ivr_configurations", {
   greetingMessage: text("greeting_message"), // Initial IVR greeting
   voiceId: text("voice_id"), // Voice for IVR prompts
   voiceName: text("voice_name"), // Display name of the voice
+  engineType: text("engine_type").notNull().default("default"), // 'default' for Department, 'bedrock-polly' for Deprock
   menuOptions: jsonb("menu_options").$type<{
     key: string;
     label: string;

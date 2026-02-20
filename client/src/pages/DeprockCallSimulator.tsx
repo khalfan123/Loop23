@@ -642,7 +642,7 @@ export default function DeprockCallSimulator() {
                                 ? "bg-indigo-600 text-white border-indigo-700"
                                 : "opacity-40"
                             }`}
-                            disabled={loading || playingAudio || !isHint}
+                            disabled={loading || !isHint}
                             onClick={() => handleDigitPress(digit)}
                             data-testid={`button-digit-${digit}`}
                           >

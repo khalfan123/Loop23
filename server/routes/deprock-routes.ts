@@ -559,6 +559,12 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       }
 
       if (!resolvedAgentId && trimmedAgentName) {
+        const userKBs = await db
+          .select({ id: knowledgeBase.id })
+          .from(knowledgeBase)
+          .where(eq(knowledgeBase.userId, req.userId!));
+        const kbIds = userKBs.map(kb => kb.id);
+
         const [newAgent] = await db
           .insert(agents)
           .values({
@@ -570,11 +576,12 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
             systemPrompt: systemPrompt || null,
             openaiVoice: voiceId || null,
             voiceTone: voiceTone || null,
-            knowledgeBaseOnly: false,
+            knowledgeBaseOnly: kbIds.length > 0,
+            knowledgeBaseIds: kbIds.length > 0 ? kbIds : null,
           })
           .returning();
         resolvedAgentId = newAgent.id;
-        console.log(`[Deprock] Created new agent "${trimmedAgentName}" (${newAgent.id}) for language ${language}`);
+        console.log(`[Deprock] Created new agent "${trimmedAgentName}" (${newAgent.id}) for language ${language}, linked ${kbIds.length} knowledge bases`);
       }
 
       const newDeptAgent = await db

@@ -208,7 +208,7 @@ CRITICAL BEHAVIORAL RULES:
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
-              message: 'No specific details available on this topic. Offer to help with something else or connect them with a team member.' 
+              message: 'No additional details found beyond what you already know from your Agent Identity. Use your system prompt knowledge to answer the question naturally. If your prompt contains relevant information, USE IT confidently. Only say you don\'t have details if your prompt truly has no relevant information either.' 
             };
           }
           
@@ -223,7 +223,7 @@ CRITICAL BEHAVIORAL RULES:
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: 'Could not retrieve details at the moment. Offer to help with something else or connect them with a team member.' 
+            message: 'Could not retrieve additional details. Fall back to using the information in your Agent Identity and system prompt to answer naturally.' 
           };
         }
       },
@@ -233,18 +233,19 @@ CRITICAL BEHAVIORAL RULES:
 
 YOUR KNOWLEDGE BASE (THE BRAIN):
 =====================================
-The knowledge base is your BRAIN - the source of all factual information. Your Agent Identity (the BODY) defines HOW you deliver information, but the knowledge base defines WHAT information you deliver.
+The knowledge base is your BRAIN - an additional source of factual information. Your Agent Identity (the BODY) defines WHO you are and contains core knowledge about your role, company, and services. The knowledge base extends this with additional detailed facts.
 
 BRAIN FUNCTION PROTOCOL:
-1. ALWAYS consult the knowledge base BEFORE answering any factual question
-2. Evaluate relevance critically - if the caller asks about products/services/pricing, do NOT use results about careers, HR, or internal policies
-3. Synthesize knowledge base results naturally - weave facts into conversational responses, never read them verbatim
-4. Cross-reference multiple results when available for comprehensive answers
+1. Your Agent Identity (BODY) is your PRIMARY knowledge source - it contains your role, company info, services, and expertise. USE THIS FIRST.
+2. The knowledge base tool provides ADDITIONAL details beyond your prompt. If the tool returns no results, that does NOT mean you have no information - your Agent Identity prompt likely already contains what you need.
+3. Synthesize all knowledge naturally - weave facts into conversational responses, never read them verbatim
+4. Cross-reference multiple sources when available for comprehensive answers
 5. If results are partial, provide what you know and offer to find more: "I have some information on that - let me share what I know"
-6. NEVER tell the caller you're "checking your knowledge base", "looking that up in my database", or that you "don't have details in the knowledge base" - these are internal systems the caller must never hear about
-7. When you don't have information, say it naturally: "I don't have the exact details on that right now, but I can connect you with someone who can help" - NEVER mention any internal system names
-8. Weave knowledge base facts into natural conversation - don't recite them as a list
-9. Your BODY (personality) and BRAIN (knowledge base) work together seamlessly - the caller should never know they exist as separate systems`;
+6. NEVER tell the caller you're "checking", "looking something up", or that you "don't have details" when your own prompt already contains the answer
+7. NEVER mention "knowledge base", "database", "system", "brain", or any technical/internal terms to the caller
+8. Weave facts into natural conversation - don't recite them as a list
+9. Your BODY (personality + core knowledge) and BRAIN (additional knowledge base) work together seamlessly - the caller should never know they exist as separate systems
+10. CRITICAL: If the knowledge base returns empty but your Agent Identity prompt has relevant information, ANSWER CONFIDENTLY using your prompt knowledge. Do NOT say you lack information.`;
 
     let enhancedSystemPrompt = config.systemPrompt + brainPrompt;
 

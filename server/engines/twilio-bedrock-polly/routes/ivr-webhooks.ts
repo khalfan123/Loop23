@@ -79,11 +79,8 @@ function escapeXml(str: string): string {
 
 function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false): string {
   const engine = GENERATIVE_VOICES.includes(voiceId) ? 'generative' : 'neural';
-  let result = `<Say voice="Polly.${escapeXml(voiceId)}" engine="${engine}"><prosody rate="88%">${escapeXml(text)}</prosody></Say>`;
-  if (addBreakAfter) {
-    result += `<break time="350ms"/>`;
-  }
-  return result;
+  const breakSsml = addBreakAfter ? '<break time="350ms"/>' : '';
+  return `<Say voice="Polly.${escapeXml(voiceId)}" engine="${engine}"><prosody rate="88%">${escapeXml(text)}</prosody>${breakSsml}</Say>`;
 }
 
 function buildBaseUrl(): string {

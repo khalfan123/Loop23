@@ -1518,6 +1518,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const deprockIvrAudioRoutes = createDeprockIvrAudioRoutes();
   app.use("/api/deprock", deprockIvrAudioRoutes);
 
+  // Deprock IVR webhook routes - MUST be mounted before authenticated deprock routes
+  // These are called by Twilio and cannot require authentication
+  const { deprockIvrRouter } = await import("./engines/twilio-bedrock-polly/routes/ivr-webhooks");
+  app.use("/api/deprock/ivr", deprockIvrRouter);
+
   // Website Widget routes - Embeddable voice widgets (isolated module)
   // Public widget routes must be registered BEFORE authenticated routes to allow external website embedding
   app.use("/api/public", publicWidgetRoutes);

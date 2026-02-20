@@ -306,8 +306,6 @@ function generateDefaultFlowNodes(departmentName: string, agentName: string = "y
 export function createDeprockRoutes(authenticateToken: (req: Request, res: Response, next: Function) => void) {
   const router = Router();
 
-  router.use('/ivr', deprockIvrRouter);
-
   router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userDepartments = await db

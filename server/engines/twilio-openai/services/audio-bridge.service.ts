@@ -159,7 +159,6 @@ export class TwilioOpenAIAudioBridge {
         console.error(`[TwilioOpenAI Bridge] OpenAI error for ${callSid}:`, error);
         session.status = 'error';
         openaiPoolManager.removeConnection(session.callSid);
-        this.activeSessions.delete(callSid);
         reject(error);
       });
 

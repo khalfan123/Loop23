@@ -900,9 +900,9 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
    * End and clean up a session, firing the end callback with transcript
    * and duration information.
    */
-  static async endSession(callSid: string): Promise<void> {
+  static async endSession(callSid: string): Promise<{ duration: number; transcript: string }> {
     const session = this.activeSessions.get(callSid);
-    if (!session) return;
+    if (!session) return { duration: 0, transcript: '' };
 
     console.log(`[BedrockPolly Bridge] Ending session for ${callSid}`);
 
@@ -920,8 +920,16 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     bargeInFlags.delete(callSid);
     twilioStreamReady.delete(callSid);
 
+    const durationMs = session.endedAt.getTime() - session.startedAt.getTime();
+    const duration = Math.floor(durationMs / 1000);
+    const transcript = session.transcriptParts
+      .map((p) => `${p.role}: ${p.text}`)
+      .join('\n');
+
     this.fireEndCallback(session);
     this.activeSessions.delete(callSid);
+
+    return { duration, transcript };
   }
 
   /**

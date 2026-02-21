@@ -1,6 +1,7 @@
 'use strict';
 import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import { nanoid } from 'nanoid';
 import { db } from '../../../db';
 import { agents, globalSettings, twilioOpenaiCalls } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -264,19 +265,44 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
       );
     }
 
+    let resolvedCallId = callId;
+    if (!resolvedCallId) {
+      try {
+        resolvedCallId = nanoid();
+        const simCallSid = `SIM_${Date.now()}`;
+        await db.insert(twilioOpenaiCalls).values({
+          id: resolvedCallId,
+          userId: agent.userId || null,
+          agentId: agent.id,
+          twilioCallSid: simCallSid,
+          fromNumber: 'browser-simulator',
+          toNumber: agent.name || 'AI Agent',
+          openaiVoice: (agent.openaiVoice || 'Ruth') as any,
+          openaiModel: 'gpt-4o-realtime' as any,
+          status: 'in-progress',
+          callDirection: 'inbound',
+          createdAt: new Date(),
+          startedAt: new Date(),
+        });
+        console.log(`[BrowserVoice] Auto-created call record ${resolvedCallId} for session ${sessionId}`);
+      } catch (dbErr: any) {
+        console.error(`[BrowserVoice] Failed to auto-create call record:`, dbErr.message);
+      }
+    }
+
     const session: BrowserVoiceSession = {
       sessionId,
       agentConfig,
       language: agentLanguage,
-      callId,
+      callId: resolvedCallId,
       startedAt: new Date(),
       messages: [],
       transcript: '',
       ws,
     };
 
-    if (callId) {
-      console.log(`[BrowserVoice] Session ${sessionId} linked to call record ${callId}`);
+    if (resolvedCallId) {
+      console.log(`[BrowserVoice] Session ${sessionId} linked to call record ${resolvedCallId}`);
     }
 
     activeSessions.set(sessionId, session);
@@ -307,7 +333,7 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
 
     try {
       liveCallRegistry.registerCall({
-        callId: callId || sessionId,
+        callId: resolvedCallId || sessionId,
         userId: agent.userId || '',
         direction: 'inbound',
         status: 'in-progress',
@@ -318,7 +344,7 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
         answeredAt: session.startedAt,
         metadata: { source: 'browser-simulator', sessionId },
       });
-      console.log(`[BrowserVoice] Registered call ${callId || sessionId} in live monitoring`);
+      console.log(`[BrowserVoice] Registered call ${resolvedCallId || sessionId} in live monitoring`);
     } catch (regErr: any) {
       console.warn(`[BrowserVoice] Failed to register in live monitoring: ${regErr.message}`);
     }

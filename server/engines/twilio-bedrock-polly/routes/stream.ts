@@ -108,9 +108,10 @@ function handleBedrockPollyStreamConnection(ws: WebSocket, callSid: string): voi
 
     liveCallRegistry.endCallByTwilioSid(callSid);
 
+    let sessionResult: { duration: number; transcript: string } = { duration: 0, transcript: '' };
     try {
-      await BedrockPollyAudioBridge.endSession(callSid);
-      logger.info(`Session ended for ${callSid}`, undefined, 'BedrockPolly Stream');
+      sessionResult = await BedrockPollyAudioBridge.endSession(callSid);
+      logger.info(`Session ended for ${callSid}: duration=${sessionResult.duration}s, transcript=${sessionResult.transcript.length} chars`, undefined, 'BedrockPolly Stream');
     } catch (err: any) {
       console.error(`[BedrockPolly Stream] Error ending audio session for ${callSid}:`, err.message);
     }
@@ -128,6 +129,8 @@ function handleBedrockPollyStreamConnection(ws: WebSocket, callSid: string): voi
           .set({
             status: 'completed',
             endedAt: new Date(),
+            duration: sessionResult.duration > 0 ? sessionResult.duration : null,
+            transcript: sessionResult.transcript.length > 0 ? sessionResult.transcript : null,
           })
           .where(eq(twilioOpenaiCalls.id, callRecord.id));
         logger.info(`Marked call ${callRecord.id} as completed in DB`, undefined, 'BedrockPolly Stream');

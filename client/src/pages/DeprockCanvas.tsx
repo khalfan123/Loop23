@@ -110,14 +110,18 @@ const NATIVE_NAME_EXAMPLES: Record<string, string[]> = {
   tr: ["Ayşe Yılmaz", "Mehmet Kaya", "Elif Demir", "Burak Çelik", "Zeynep Öztürk"],
 };
 
-function getRandomName(language: string, agentId: string): string {
+function pickRandomName(language: string, agentId: string): string {
   const names = NATIVE_NAME_EXAMPLES[language] || NATIVE_NAME_EXAMPLES.en;
   let hash = 0;
   for (let i = 0; i < agentId.length; i++) {
     hash = ((hash << 5) - hash) + agentId.charCodeAt(i);
     hash |= 0;
   }
-  return "e.g. " + names[Math.abs(hash) % names.length];
+  return names[Math.abs(hash) % names.length];
+}
+
+function getRandomName(language: string, agentId: string): string {
+  return "e.g. " + pickRandomName(language, agentId);
 }
 
 const DEFAULT_FIRST_MESSAGES: Record<string, string> = {
@@ -851,7 +855,7 @@ function DepartmentCard({
     const updates: Partial<LanguageAgent> = {
       language: newLangCode,
       agentId: bestAgent?.id || null,
-      agentName: bestAgent?.name || null,
+      agentName: bestAgent?.name || pickRandomName(newLangCode, langAgentId),
       firstMessage: DEFAULT_FIRST_MESSAGES[newLangCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
@@ -931,7 +935,7 @@ function DepartmentCard({
       id: langAgentId,
       language: langCode,
       agentId: bestAgent?.id || null,
-      agentName: bestAgent?.name || null,
+      agentName: bestAgent?.name || pickRandomName(langCode, langAgentId),
       firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
@@ -1583,7 +1587,7 @@ function DepartmentsStep({
         id: langAgentId,
         language: langCode,
         agentId: bestAgent?.id || null,
-        agentName: bestAgent?.name || null,
+        agentName: bestAgent?.name || pickRandomName(langCode, langAgentId),
         firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
         systemPrompt,
         voiceId: bestVoice || null,

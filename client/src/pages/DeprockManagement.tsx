@@ -2957,7 +2957,7 @@ export default function DeprockManagement() {
                   {(() => {
                     const currentVoiceId = editAgentDetail.voiceId;
                     const isPollyVoice = POLLY_VOICES.some(v => v.id === currentVoiceId);
-                    const filteredVoices = POLLY_VOICES.filter(v => v.languages.includes(viewAgentDetail.language) || v.languages.includes('en'));
+                    const filteredVoices = POLLY_VOICES.filter(v => v.languages.includes(viewAgentDetail.language));
                     const currentInFiltered = filteredVoices.some(v => v.id === currentVoiceId);
                     return (
                       <Select

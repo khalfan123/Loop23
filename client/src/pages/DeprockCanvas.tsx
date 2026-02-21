@@ -2077,8 +2077,8 @@ function IVRRouterStep({
                         <SelectValue placeholder="Select a voice..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
-                        {POLLY_VOICES.map((voice) => (
+                        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices (English)</div>
+                        {POLLY_VOICES.filter(v => v.languages.includes('en')).map((voice) => (
                           <SelectItem key={voice.id} value={voice.id}>
                             {voice.name} - {voice.gender}, {voice.style}
                           </SelectItem>
@@ -2288,8 +2288,8 @@ function IVRRouterStep({
                       <SelectValue placeholder="Select a voice..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
-                      {POLLY_VOICES.map((voice) => (
+                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices ({SUPPORTED_LANGUAGES.find(l => l.code === (languageOptions[0]?.language || 'en'))?.label || 'English'})</div>
+                      {POLLY_VOICES.filter(v => v.languages.includes(languageOptions[0]?.language || 'en')).map((voice) => (
                         <SelectItem key={voice.id} value={voice.id}>
                           {voice.name} - {voice.gender}, {voice.style}
                         </SelectItem>

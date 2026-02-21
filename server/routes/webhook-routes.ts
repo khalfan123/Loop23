@@ -30,6 +30,7 @@ import twilio from 'twilio';
 import crypto from 'crypto';
 import { storage } from '../storage';
 import { webhookDeliveryService } from '../services/webhook-delivery';
+import { liveCallRegistry } from '../services/live-call-registry';
 import { recordWebhookReceived } from '../engines/payment/webhook-helper';
 import { CreditDeductionResult } from '../services/credit-service';
 import { 
@@ -1778,11 +1779,29 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
       updateData.fromNumber = From;
     }
     
+    if (CallStatus === 'in-progress') {
+      liveCallRegistry.registerCall({
+        callId: callId as string,
+        userId: '',
+        twilioCallSid: CallSid,
+        direction: Direction === 'inbound' ? 'inbound' : 'outbound',
+        status: 'in-progress',
+        fromNumber: From || undefined,
+        toNumber: To || undefined,
+        engine: 'twilio-elevenlabs',
+        startedAt: new Date(),
+        answeredAt: new Date(),
+      });
+    }
+
     if (CallStatus === 'completed') {
       updateData.endedAt = new Date();
       if (CallDuration) {
         updateData.duration = parseInt(CallDuration, 10);
       }
+      liveCallRegistry.updateCall(callId as string, { status: 'completed' });
+    } else if (['failed', 'busy', 'no-answer', 'canceled'].includes(CallStatus)) {
+      liveCallRegistry.updateCall(callId as string, { status: CallStatus as any });
     }
 
     await db

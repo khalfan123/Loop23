@@ -107,6 +107,8 @@ import { createTemplateRoutes } from "./routes/template-routes";
 import { createSubscriptionRoutes } from "./routes/subscription-routes";
 import crmRoutes from "./routes/crm-routes";
 import searchRoutes from "./routes/search-routes";
+import { createLiveMonitoringRoutes } from "./routes/live-monitoring-routes";
+import { liveMonitoringWs } from "./services/live-monitoring-ws";
 import integrationRoutes from "./routes/integration-routes";
 import adminIntegrationTestsRouter from "./routes/admin-integration-tests";
 import integrationOAuthCallback from "./routes/integration-oauth-callback";
@@ -1545,6 +1547,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const deprockRoutes = createDeprockRoutes(routeContext.authenticateHybrid);
   app.use("/api/deprock", deprockRoutes);
 
+  // Live Call Monitoring routes
+  const liveMonitoringRoutes = createLiveMonitoringRoutes(routeContext.authenticateHybrid);
+  app.use(liveMonitoringRoutes);
+
   // This must be registered on the httpServer to properly handle Twilio WebSocket streams
   httpServer.on('upgrade', (request, socket, head) => {
     const pathname = request.url?.split('?')[0] || '';
@@ -2853,6 +2859,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup Browser Voice WebSocket stream for Call Simulator real-time conversation
   setupBrowserVoiceStreamHandler(httpServer);
+  
+  // Setup Live Call Monitoring WebSocket for real-time supervisor dashboard
+  liveMonitoringWs.setup(httpServer);
   
   return httpServer;
 }

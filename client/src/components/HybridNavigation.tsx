@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, BarChart3, Users, Phone,
   Building2, PhoneCall, PhoneIncoming, PhoneOutgoing,
   Bot, BookOpen, Calendar, FileText, Home, Plus, Plug, Webhook, Zap, Mountain,
+  Radio,
   type LucideIcon
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -109,6 +110,7 @@ export function HybridNavigation({
   const topItems: NavItem[] = [
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics", icon: BarChart3 },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: PhoneCall },
+    { title: 'Live Monitoring', url: "/app/live-monitoring", icon: Radio },
   ];
   
   const returnToAppItem: NavItem = { 

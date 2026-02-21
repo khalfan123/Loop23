@@ -23,6 +23,7 @@ import { OpenAIPoolService } from './openai-pool.service';
 import { CallInsightsService } from '../../../services/call-insights.service';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { CRMLeadService } from '../../../services/crm-lead.service';
+import { liveCallRegistry } from '../../../services/live-call-registry';
 
 type InsertPlivoCall = typeof plivoCalls.$inferInsert;
 type PlivoCallRecord = typeof plivoCalls.$inferSelect;
@@ -449,9 +450,24 @@ export class PlivoCallService {
 
     if (status === 'in-progress') {
       updateData.answeredAt = new Date();
+      liveCallRegistry.registerCall({
+        callId: call.id,
+        userId: call.userId || '',
+        plivoCallUuid: call.plivoCallUuid || undefined,
+        direction: call.callDirection === 'inbound' ? 'inbound' : 'outbound',
+        status: 'in-progress',
+        fromNumber: call.fromNumber || undefined,
+        toNumber: call.toNumber || undefined,
+        agentId: call.agentId || undefined,
+        campaignId: call.campaignId || undefined,
+        engine: 'plivo-openai',
+        startedAt: call.startedAt || new Date(),
+        answeredAt: new Date(),
+      });
     }
 
     if (['completed', 'busy', 'failed', 'no-answer', 'canceled'].includes(status)) {
+      liveCallRegistry.updateCall(call.id, { status: status as any });
       updateData.endedAt = new Date();
 
       if (call.openaiCredentialId) {

@@ -99,6 +99,7 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
   ],
   calls: [
     { url: "/app/calls", icon: Phone, label: "Call History", group: "evaluate", iconColor: "text-blue-500" },
+    { url: "/app/live-monitoring", icon: Phone, label: "Live Monitoring", group: "evaluate", iconColor: "text-red-500" },
   ],
   analytics: [
     { url: "/app/analytics", icon: BarChart3, label: "Analytics", group: "evaluate", iconColor: "text-purple-500" },

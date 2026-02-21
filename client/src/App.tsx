@@ -74,6 +74,7 @@ import TransactionHistory from "@/pages/TransactionHistory";
 import IntegrationMarketplace from "@/pages/IntegrationMarketplace";
 import IntegrationDetail from "@/pages/IntegrationDetail";
 import RockCenter from "@/pages/RockCenter";
+import LiveMonitoring from "@/pages/LiveMonitoring";
 import LoginPage from "@/pages/LoginPage";
 import TeamMemberLogin from "@/pages/TeamMemberLogin";
 import AdminTeamLogin from "@/pages/AdminTeamLogin";
@@ -247,6 +248,7 @@ function UserRouter() {
           <Route path="/app/settings/:rest*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/rock-center" component={RockCenter} />
+          <Route path="/app/live-monitoring" component={LiveMonitoring} />
           <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
           <Route component={NotFound} />
         </Switch>
@@ -333,6 +335,7 @@ function TeamMemberRouter() {
           <Route path="/app/settings/:rest*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/rock-center" component={RockCenter} />
+          <Route path="/app/live-monitoring" component={LiveMonitoring} />
           <Route path="/admin" component={AdminDashboard} />
           <Route component={NotFound} />
         </Switch>

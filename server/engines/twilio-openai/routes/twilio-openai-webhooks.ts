@@ -27,6 +27,7 @@ import { getTwilioClient } from '../../../services/twilio-connector';
 import { logger } from '../../../utils/logger';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { validateTwilioWebhook } from '../../../middleware/webhookValidation';
+import { liveCallRegistry } from '../../../services/live-call-registry';
 import type { TwilioWebhookParams } from '../types';
 
 const router = Router();
@@ -296,6 +297,21 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       logger.error(`Failed to trigger inbound_call.answered webhook: ${webhookError.message}`, undefined, 'TwilioOpenAI');
     }
 
+    liveCallRegistry.registerCall({
+      callId,
+      userId: phoneRecord.userId!,
+      twilioCallSid: CallSid,
+      direction: 'inbound',
+      status: 'in-progress',
+      fromNumber: normalizePhoneForStorage(From),
+      toNumber: normalizedTo,
+      agentId: agent.id,
+      agentName: agent.name || undefined,
+      engine: 'twilio-openai',
+      startedAt: new Date(),
+      answeredAt: new Date(),
+    });
+
     const streamUrl = getStreamWebhookUrl(CallSid);
     const twiml = generateTwiML({
       streamUrl,
@@ -352,6 +368,21 @@ router.post('/voice/answer', async (req: Request, res: Response) => {
         answeredAt: new Date(),
       })
       .where(eq(twilioOpenaiCalls.id, callRecord.id));
+
+    liveCallRegistry.registerCall({
+      callId: callRecord.id,
+      userId: callRecord.userId || '',
+      twilioCallSid: CallSid,
+      direction: 'outbound',
+      status: 'in-progress',
+      fromNumber: callRecord.fromNumber || undefined,
+      toNumber: callRecord.toNumber || undefined,
+      agentId: callRecord.agentId || undefined,
+      campaignId: callRecord.campaignId || undefined,
+      engine: 'twilio-openai',
+      startedAt: callRecord.startedAt || new Date(),
+      answeredAt: new Date(),
+    });
 
     const session = TwilioOpenAIAudioBridge.getSession(CallSid);
     if (!session) {
@@ -482,6 +513,8 @@ router.post('/voice/status', async (req: Request, res: Response) => {
       if (duration > 0) {
         updates.duration = duration;
       }
+
+      liveCallRegistry.updateCall(callRecord.id, { status: CallStatus as any });
 
       const sessionResult = await TwilioOpenAIAudioBridge.endSession(CallSid);
       if (sessionResult.transcript) {

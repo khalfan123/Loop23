@@ -1602,22 +1602,22 @@ function DepartmentsStep({
   const addDepartment = (template: typeof departmentTemplates[0] | { type: "custom"; name: string }) => {
     const deptType = template.type;
     const newDeptId = `dept-${Date.now()}`;
-    const langCode = "en";
-    const langAgentId = `la-${Date.now()}`;
-    const bestVoice = deptType !== "custom" ? getBestVoiceForDept(deptType, langCode) : null;
-    const bestTone = deptType !== "custom" ? getBestToneForDept(deptType) : null;
-    const bestAgent = deptType !== "custom" ? getBestAgentForDept(deptType, langCode) : null;
 
-    const agentFound = !!bestAgent;
-    const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
-    const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
+    const existingLangs = canvasDepartments.length > 0
+      ? canvasDepartments[canvasDepartments.length - 1].languageAgents?.map((la) => la.language) || ["en"]
+      : ["en"];
+    const langsToAdd = Array.from(new Set(existingLangs));
 
-    const newDept: CanvasDepartment = {
-      id: newDeptId,
-      type: deptType as any,
-      name: template.name,
-      description: deptType === "custom" ? "Custom department" : (template as any).description || "",
-      languageAgents: [{
+    const languageAgents: LanguageAgent[] = langsToAdd.map((langCode, idx) => {
+      const langAgentId = `la-${Date.now()}-${idx}`;
+      const bestVoice = deptType !== "custom" ? getBestVoiceForDept(deptType, langCode) : getDefaultVoiceForLanguage(langCode);
+      const bestTone = deptType !== "custom" ? getBestToneForDept(deptType) : null;
+      const bestAgent = deptType !== "custom" ? getBestAgentForDept(deptType, langCode) : null;
+      const agentFound = !!bestAgent;
+      const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
+      const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
+
+      return {
         id: langAgentId,
         language: langCode,
         agentId: bestAgent?.id || null,
@@ -1626,7 +1626,15 @@ function DepartmentsStep({
         systemPrompt,
         voiceId: bestVoice || null,
         voiceTone: voiceTone || null,
-      }],
+      };
+    });
+
+    const newDept: CanvasDepartment = {
+      id: newDeptId,
+      type: deptType as any,
+      name: template.name,
+      description: deptType === "custom" ? "Custom department" : (template as any).description || "",
+      languageAgents,
       enableTransfer: true,
       enableRecording: true,
       enableLanguageDetection: true,
@@ -1639,16 +1647,20 @@ function DepartmentsStep({
     setActiveDeptId(newDeptId);
 
     if (deptType !== "custom") {
-      const agentMsg = agentFound ? ` with "${bestAgent.name}" —` : " —";
+      const langCount = langsToAdd.length;
+      const langLabels = langsToAdd.map(lc => SUPPORTED_LANGUAGES.find(l => l.code === lc)?.label || lc).join(", ");
       toast({
         title: "Deprock Department Added",
-        description: `${template.name} created${agentMsg} generating AI prompt...`,
+        description: `${template.name} created with ${langCount} language${langCount > 1 ? "s" : ""} (${langLabels}) — generating AI prompts...`,
       });
-      generatePromptForNewDept(newDeptId, langAgentId, deptType, template.name, langCode);
+      languageAgents.forEach((la) => {
+        generatePromptForNewDept(newDeptId, la.id, deptType, template.name, la.language);
+      });
     } else {
+      const langCount = langsToAdd.length;
       toast({
         title: "Deprock Department Added",
-        description: `${template.name} created`,
+        description: `${template.name} created with ${langCount} language${langCount > 1 ? "s" : ""}`,
       });
     }
   };

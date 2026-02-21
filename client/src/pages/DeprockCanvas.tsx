@@ -2420,9 +2420,10 @@ export default function DeprockCanvas() {
     queryKey: ["/api/campaigns"],
   });
 
-  const { data: allIncomingConns = [] } = useQuery<{ id: number; phoneNumberId: string | null; name: string }[]>({
+  const { data: incomingConnsData } = useQuery<{ allConnections: { id: number; phoneNumberId: string | null; name: string }[] }>({
     queryKey: ["/api/incoming-connections"],
   });
+  const allIncomingConns = incomingConnsData?.allConnections ?? [];
 
   const usedPhoneMap = useMemo(() => {
     const map = new Map<string, string>();

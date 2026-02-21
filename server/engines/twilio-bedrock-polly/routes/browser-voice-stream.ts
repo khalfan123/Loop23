@@ -9,6 +9,7 @@ import { awsPollyService } from '../../../services/aws-polly';
 import { BedrockAgentFactory } from '../services/bedrock-agent-factory';
 import { BEDROCK_POLLY_CONFIG } from '../config/config';
 import type { AgentConfig, PollyVoiceId, BedrockModel } from '../types';
+import { humanizeToSSML } from '../services/ssml-humanizer';
 
 interface BrowserVoiceSession {
   sessionId: string;
@@ -64,13 +65,7 @@ async function synthesizeSpeech(text: string, voiceId: string): Promise<Buffer> 
   const MAX_POLLY_CHARS = 3000;
   const synthesisText = text.length > MAX_POLLY_CHARS ? text.substring(0, MAX_POLLY_CHARS) : text;
 
-  const escapedText = synthesisText
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-  const ssmlText = `<speak><prosody rate="medium" pitch="medium">${escapedText}</prosody></speak>`;
+  const ssmlText = humanizeToSSML(synthesisText);
 
   let result;
   try {

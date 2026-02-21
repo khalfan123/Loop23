@@ -30,6 +30,7 @@ import type {
   TwilioMediaStreamEvent,
   BedrockConversationMessage,
 } from '../types';
+import { humanizeToSSML } from './ssml-humanizer';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -581,8 +582,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         ? trimmedText.substring(0, MAX_POLLY_CHARS) 
         : trimmedText;
 
-      const escapedText = synthesisText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-      const ssmlText = `<speak><prosody rate="medium" pitch="medium">${escapedText}</prosody></speak>`;
+      const ssmlText = humanizeToSSML(synthesisText);
 
       let result;
       try {

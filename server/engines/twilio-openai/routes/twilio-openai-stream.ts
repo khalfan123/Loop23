@@ -138,6 +138,16 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
         .limit(1);
       
       if (callRecord) {
+        await db
+          .update(twilioOpenaiCalls)
+          .set({
+            status: 'completed',
+            endedAt: new Date(),
+            duration: result.duration || null,
+          })
+          .where(eq(twilioOpenaiCalls.id, callRecord.id));
+        logger.info(`Marked call ${callRecord.id} as completed in DB`, undefined, 'TwilioOpenAI Stream');
+
         // Save transcript to database
         if (result.transcript) {
           await db

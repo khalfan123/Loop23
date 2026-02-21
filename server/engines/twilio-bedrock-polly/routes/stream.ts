@@ -119,6 +119,15 @@ function handleBedrockPollyStreamConnection(ws: WebSocket, callSid: string): voi
         .limit(1);
 
       if (callRecord) {
+        await db
+          .update(twilioOpenaiCalls)
+          .set({
+            status: 'completed',
+            endedAt: new Date(),
+          })
+          .where(eq(twilioOpenaiCalls.id, callRecord.id));
+        logger.info(`Marked call ${callRecord.id} as completed in DB`, undefined, 'BedrockPolly Stream');
+
         try {
           const [flowExec] = await db
             .select()

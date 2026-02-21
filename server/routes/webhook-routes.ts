@@ -2153,6 +2153,24 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
     
     if (callId) {
       liveCallRegistry.endCall(callId);
+
+      try {
+        await db
+          .update(calls)
+          .set({
+            status: 'completed',
+            endedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(calls.id, callId),
+              sql`${calls.status} != 'completed'`
+            )
+          );
+        console.log(`[Twilio] Marked call ${callId} as completed in DB`);
+      } catch (dbErr: any) {
+        console.error(`[Twilio] Failed to update call status in DB:`, dbErr.message);
+      }
     }
 
     await formatAndSaveTranscript(callId, conversationHistory);

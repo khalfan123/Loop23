@@ -1,5 +1,8 @@
 'use strict';
 import { EventEmitter } from 'events';
+import { db } from '../db';
+import { calls, twilioOpenaiCalls, plivoCalls } from '../../shared/schema';
+import { eq, and, lt, sql, inArray } from 'drizzle-orm';
 
 export interface LiveCall {
   callId: string;
@@ -176,7 +179,54 @@ class LiveCallRegistry extends EventEmitter {
           this.endCall(callId);
         }
       }
+
+      this.cleanupStaleDbCalls().catch((err) => {
+        console.error(`📞 [LiveRegistry] DB stale call cleanup error:`, err.message);
+      });
     }, STALE_CALL_CHECK_INTERVAL_MS);
+  }
+
+  private async cleanupStaleDbCalls(): Promise<void> {
+    const cutoff = new Date(Date.now() - STALE_CALL_MAX_AGE_MS);
+
+    const result1 = await db
+      .update(calls)
+      .set({
+        status: 'completed',
+        endedAt: sql`COALESCE(${calls.endedAt}, NOW())`,
+      })
+      .where(
+        and(
+          inArray(calls.status, ['in-progress', 'ringing', 'initiated']),
+          lt(calls.createdAt, cutoff)
+        )
+      );
+
+    const result2 = await db
+      .update(twilioOpenaiCalls)
+      .set({
+        status: 'completed',
+        endedAt: sql`COALESCE(${twilioOpenaiCalls.endedAt}, NOW())`,
+      })
+      .where(
+        and(
+          inArray(twilioOpenaiCalls.status, ['in-progress', 'ringing', 'initiated']),
+          lt(twilioOpenaiCalls.createdAt, cutoff)
+        )
+      );
+
+    const result3 = await db
+      .update(plivoCalls)
+      .set({
+        status: 'completed',
+        endedAt: sql`COALESCE(${plivoCalls.endedAt}, NOW())`,
+      })
+      .where(
+        and(
+          inArray(plivoCalls.status, ['in-progress', 'ringing', 'initiated']),
+          lt(plivoCalls.createdAt, cutoff)
+        )
+      );
   }
 }
 

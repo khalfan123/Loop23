@@ -133,7 +133,16 @@ function handlePlivoStreamConnection(ws: WebSocket, callUuid: string): void {
       // Get call to update transcript and trigger credit deduction
       const call = await PlivoCallService.getCallByUuid(callUuid);
       if (call) {
-        // Update call with transcript first
+        await db
+          .update(plivoCalls)
+          .set({
+            status: 'completed',
+            endedAt: new Date(),
+            duration: result.duration || null,
+          })
+          .where(eq(plivoCalls.id, call.id));
+        logger.info(`Marked call ${call.id} as completed in DB`, undefined, 'PlivoStream');
+
         if (result.transcript) {
           await db
             .update(plivoCalls)

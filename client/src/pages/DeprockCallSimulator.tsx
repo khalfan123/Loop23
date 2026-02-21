@@ -22,6 +22,7 @@ interface ParsedTwiml {
   streamUrl: string | null;
   hangup: boolean;
   agentId: string | null;
+  callId: string | null;
 }
 
 function parseTwiml(xml: string): ParsedTwiml {
@@ -56,7 +57,10 @@ function parseTwiml(xml: string): ParsedTwiml {
   const agentParam = stream?.querySelector('Parameter[name="agentId"]');
   const agentId = agentParam?.getAttribute("value") || null;
 
-  return { saySteps, gatherAction, gatherHints, redirectUrl, streamUrl, hangup, agentId };
+  const callIdParam = stream?.querySelector('Parameter[name="callId"]');
+  const callId = callIdParam?.getAttribute("value") || null;
+
+  return { saySteps, gatherAction, gatherHints, redirectUrl, streamUrl, hangup, agentId, callId };
 }
 
 type CallState = "idle" | "ivr" | "connecting" | "agent-ready" | "recording" | "processing" | "agent-speaking" | "ended";
@@ -226,7 +230,7 @@ export default function DeprockCallSimulator() {
     [playAudioForStep]
   );
 
-  const connectToAgent = useCallback(async (agentId: string) => {
+  const connectToAgent = useCallback(async (agentId: string, callId?: string | null) => {
     setCallState("connecting");
     const sid = `sim-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     sessionIdRef.current = sid;
@@ -240,7 +244,7 @@ export default function DeprockCallSimulator() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: "init", agentId, sessionId: sid }));
+        ws.send(JSON.stringify({ type: "init", agentId, sessionId: sid, ...(callId ? { callId } : {}) }));
         addTranscript("system", "Connecting to AI agent...");
       };
 
@@ -415,7 +419,7 @@ export default function DeprockCallSimulator() {
           if (parsed.saySteps.length > 0) {
             await playAllSteps(parsed.saySteps);
           }
-          connectToAgent(parsed.agentId);
+          connectToAgent(parsed.agentId, parsed.callId);
           return parsed;
         }
 

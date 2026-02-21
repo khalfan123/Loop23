@@ -2,7 +2,7 @@
 import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { db } from '../../../db';
-import { agents, globalSettings } from '@shared/schema';
+import { agents, globalSettings, twilioOpenaiCalls } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { awsBedrockService } from '../../../services/aws-bedrock';
 import { awsPollyService } from '../../../services/aws-polly';
@@ -15,6 +15,8 @@ interface BrowserVoiceSession {
   sessionId: string;
   agentConfig: AgentConfig;
   language: string;
+  callId?: string;
+  startedAt: Date;
   messages: { role: 'user' | 'assistant'; content: string; timestamp: Date }[];
   transcript: string;
   ws: WebSocket;
@@ -216,7 +218,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
   return content;
 }
 
-async function handleInit(ws: WebSocket, agentId: string, sessionId: string): Promise<void> {
+async function handleInit(ws: WebSocket, agentId: string, sessionId: string, callId?: string): Promise<void> {
   try {
     const [agent] = await db
       .select()
@@ -265,10 +267,16 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string): Pr
       sessionId,
       agentConfig,
       language: agentLanguage,
+      callId,
+      startedAt: new Date(),
       messages: [],
       transcript: '',
       ws,
     };
+
+    if (callId) {
+      console.log(`[BrowserVoice] Session ${sessionId} linked to call record ${callId}`);
+    }
 
     activeSessions.set(sessionId, session);
 
@@ -363,9 +371,38 @@ async function handleAudio(session: BrowserVoiceSession, data: string): Promise<
   }
 }
 
+async function completeCallRecord(session: BrowserVoiceSession): Promise<void> {
+  if (!session.callId) return;
+
+  const callIdToComplete = session.callId;
+  session.callId = undefined;
+
+  try {
+    const duration = Math.floor((Date.now() - session.startedAt.getTime()) / 1000);
+    const transcript = session.messages
+      .map(m => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content}`)
+      .join('\n');
+
+    await db
+      .update(twilioOpenaiCalls)
+      .set({
+        status: 'completed',
+        endedAt: new Date(),
+        duration: duration > 0 ? duration : null,
+        transcript: transcript || null,
+      })
+      .where(eq(twilioOpenaiCalls.id, callIdToComplete));
+
+    console.log(`[BrowserVoice] Call record ${callIdToComplete} marked as completed (duration: ${duration}s)`);
+  } catch (error: any) {
+    console.error(`[BrowserVoice] Failed to complete call record ${callIdToComplete}:`, error.message);
+  }
+}
+
 function handleEnd(sessionId: string, ws: WebSocket): void {
   const session = activeSessions.get(sessionId);
   if (session) {
+    completeCallRecord(session);
     activeSessions.delete(sessionId);
     console.log(`[BrowserVoice] Session ${sessionId} ended`);
   }
@@ -382,7 +419,7 @@ function handleConnection(ws: WebSocket, sessionId: string): void {
       switch (message.type) {
         case 'init': {
           currentSessionId = message.sessionId || sessionId;
-          await handleInit(ws, message.agentId, currentSessionId);
+          await handleInit(ws, message.agentId, currentSessionId, message.callId);
           break;
         }
         case 'audio': {
@@ -410,6 +447,7 @@ function handleConnection(ws: WebSocket, sessionId: string): void {
   ws.on('close', () => {
     const session = activeSessions.get(currentSessionId);
     if (session) {
+      completeCallRecord(session);
       activeSessions.delete(currentSessionId);
       console.log(`[BrowserVoice] Session ${currentSessionId} closed`);
     }

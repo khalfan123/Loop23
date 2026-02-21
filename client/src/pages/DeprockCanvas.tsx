@@ -668,10 +668,12 @@ function PhoneSelectionStep({
   phoneNumbers,
   selectedPhoneIds,
   onTogglePhone,
+  usedPhoneMap,
 }: {
   phoneNumbers: PhoneNumber[];
   selectedPhoneIds: string[];
   onTogglePhone: (id: string) => void;
+  usedPhoneMap: Map<string, string>;
 }) {
   const [, setLocation] = useLocation();
 
@@ -712,22 +714,27 @@ function PhoneSelectionStep({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {phoneNumbers.map((phone) => {
               const isSelected = selectedPhoneIds.includes(phone.id);
+              const usedByLabel = usedPhoneMap.get(phone.id);
+              const isUsed = !!usedByLabel && !isSelected;
               return (
                 <Card
                   key={phone.id}
-                  className={`cursor-pointer toggle-elevate ${isSelected ? "toggle-elevated border-green-500" : ""}`}
-                  onClick={() => onTogglePhone(phone.id)}
+                  className={`transition-colors ${isUsed ? "opacity-50 cursor-not-allowed" : "cursor-pointer toggle-elevate"} ${isSelected ? "toggle-elevated border-green-500" : ""}`}
+                  onClick={() => { if (!isUsed) onTogglePhone(phone.id); }}
                   data-testid={`card-phone-${phone.id}`}
                 >
                   <CardContent className="p-4 flex items-center gap-3">
-                    <div className={`p-2 rounded-md ${isSelected ? "bg-green-100 dark:bg-green-900/30" : "bg-muted"}`}>
+                    <div className={`p-2 rounded-md ${isSelected ? "bg-green-100 dark:bg-green-900/30" : isUsed ? "bg-muted/50" : "bg-muted"}`}>
                       <Phone className={`h-4 w-4 ${isSelected ? "text-green-600" : "text-muted-foreground"}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{phone.phoneNumber}</div>
+                      <div className={`font-medium text-sm truncate ${isUsed ? "text-muted-foreground" : ""}`}>{phone.phoneNumber}</div>
                       <div className="text-xs text-muted-foreground">{phone.provider}</div>
                       {phone.friendlyName && (
                         <div className="text-xs text-muted-foreground truncate">{phone.friendlyName}</div>
+                      )}
+                      {isUsed && (
+                        <div className="text-[10px] text-orange-500 dark:text-orange-400 mt-0.5 font-medium">In use: {usedByLabel}</div>
                       )}
                     </div>
                     {isSelected && (
@@ -2405,6 +2412,39 @@ export default function DeprockCanvas() {
     queryKey: ["/api/knowledge-base"],
   });
 
+  const { data: allIvrConfigs = [] } = useQuery<{ id: string; phoneNumberId: string | null; name: string | null; engineType: string | null }[]>({
+    queryKey: ["/api/deprock/ivr-configs-all"],
+  });
+
+  const { data: allCampaigns = [] } = useQuery<{ id: string; phoneNumberId: string | null; name: string }[]>({
+    queryKey: ["/api/campaigns"],
+  });
+
+  const { data: allIncomingConns = [] } = useQuery<{ id: number; phoneNumberId: string | null; name: string }[]>({
+    queryKey: ["/api/incoming-connections"],
+  });
+
+  const usedPhoneMap = useMemo(() => {
+    const map = new Map<string, string>();
+    allIvrConfigs.forEach((ivr) => {
+      if (ivr.phoneNumberId) {
+        const label = ivr.name || (ivr.engineType === 'bedrock-polly' ? 'Deprock IVR' : 'Department IVR');
+        map.set(ivr.phoneNumberId, label);
+      }
+    });
+    allCampaigns.forEach((c) => {
+      if (c.phoneNumberId && !map.has(c.phoneNumberId)) {
+        map.set(c.phoneNumberId, `Campaign: ${c.name}`);
+      }
+    });
+    allIncomingConns.forEach((conn) => {
+      if (conn.phoneNumberId && !map.has(conn.phoneNumberId)) {
+        map.set(conn.phoneNumberId, `Connection: ${conn.name || 'Incoming'}`);
+      }
+    });
+    return map;
+  }, [allIvrConfigs, allCampaigns, allIncomingConns]);
+
   const allDeptLanguages = useMemo(() => {
     const langSet = new Set<string>();
     canvasDepartments.forEach(d => {
@@ -2585,6 +2625,7 @@ export default function DeprockCanvas() {
               phoneNumbers={phoneNumbers}
               selectedPhoneIds={selectedPhoneIds}
               onTogglePhone={togglePhone}
+              usedPhoneMap={usedPhoneMap}
             />
           )}
           {currentStep === 2 && (

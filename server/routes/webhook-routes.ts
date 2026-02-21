@@ -1780,18 +1780,57 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
     }
     
     if (CallStatus === 'in-progress') {
-      liveCallRegistry.registerCall({
-        callId: callId as string,
-        userId: '',
-        twilioCallSid: CallSid,
-        direction: Direction === 'inbound' ? 'inbound' : 'outbound',
-        status: 'in-progress',
-        fromNumber: From || undefined,
-        toNumber: To || undefined,
-        engine: 'twilio-elevenlabs',
-        startedAt: new Date(),
-        answeredAt: new Date(),
-      });
+      try {
+        const [callRecordForRegistry] = await db
+          .select({
+            userId: calls.userId,
+            agentId: calls.agentId,
+            campaignId: calls.campaignId,
+            startedAt: calls.startedAt,
+          })
+          .from(calls)
+          .where(eq(calls.id, callId as string))
+          .limit(1);
+
+        let agentName: string | undefined;
+        if (callRecordForRegistry?.agentId) {
+          const [agentRecord] = await db
+            .select({ name: agents.name })
+            .from(agents)
+            .where(eq(agents.id, callRecordForRegistry.agentId))
+            .limit(1);
+          agentName = agentRecord?.name || undefined;
+        }
+
+        let campaignName: string | undefined;
+        if (callRecordForRegistry?.campaignId) {
+          const [campaignRecord] = await db
+            .select({ name: campaigns.name })
+            .from(campaigns)
+            .where(eq(campaigns.id, callRecordForRegistry.campaignId))
+            .limit(1);
+          campaignName = campaignRecord?.name || undefined;
+        }
+
+        liveCallRegistry.registerCall({
+          callId: callId as string,
+          userId: callRecordForRegistry?.userId || '',
+          twilioCallSid: CallSid,
+          direction: Direction === 'inbound' ? 'inbound' : 'outbound',
+          status: 'in-progress',
+          fromNumber: From || undefined,
+          toNumber: To || undefined,
+          agentId: callRecordForRegistry?.agentId || undefined,
+          agentName,
+          campaignId: callRecordForRegistry?.campaignId || undefined,
+          campaignName,
+          engine: 'twilio-elevenlabs',
+          startedAt: callRecordForRegistry?.startedAt || new Date(),
+          answeredAt: new Date(),
+        });
+      } catch (registryErr) {
+        console.error(`⚠️ [Status Webhook] Failed to register call in live registry:`, registryErr);
+      }
     }
 
     if (CallStatus === 'completed') {

@@ -15,6 +15,7 @@ import { db } from '../../../db';
 import { agents, plivoPhoneNumbers, users, flowExecutions, plivoCalls } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
+import { liveCallRegistry } from '../../../services/live-call-registry';
 
 export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): void {
   
@@ -86,6 +87,12 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
       if (CallStatus === 'completed' || CallStatus === 'failed' || CallStatus === 'busy' || CallStatus === 'no-answer') {
         const result = await ElevenLabsBridgeService.endSession(CallUUID);
         logger.info(`Session ended: duration=${result.duration}s, transcript parts=${result.transcript.length}`, undefined, 'PlivoElevenLabs');
+
+        try {
+          liveCallRegistry.updateCall(CallUUID, { status: CallStatus as any });
+        } catch (regErr: any) {
+          logger.warn(`Failed to update live registry: ${regErr.message}`, undefined, 'PlivoElevenLabs');
+        }
         
         // Update flow execution status - find the call by Plivo UUID first
         try {
@@ -214,6 +221,25 @@ export function setupPlivoElevenLabsWebhooks(app: Express, baseUrl: string): voi
       });
       
       const streamUrl = getSipStreamUrl(CallUUID);
+
+      try {
+        liveCallRegistry.registerCall({
+          callId: CallUUID,
+          userId: agent.userId,
+          plivoCallUuid: CallUUID,
+          direction: 'inbound',
+          status: 'in-progress',
+          fromNumber: From || undefined,
+          toNumber: To || undefined,
+          agentId: agent.id,
+          agentName: agent.name || undefined,
+          engine: 'plivo-elevenlabs',
+          startedAt: new Date(),
+          answeredAt: new Date(),
+        });
+      } catch (regErr: any) {
+        logger.warn(`Failed to register call in live registry: ${regErr.message}`, undefined, 'PlivoElevenLabs');
+      }
       
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>

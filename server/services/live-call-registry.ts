@@ -43,7 +43,10 @@ class LiveCallRegistry extends EventEmitter {
 
   updateCall(callId: string, updates: Partial<LiveCall>): void {
     const existing = this.activeCalls.get(callId);
-    if (!existing) return;
+    if (!existing) {
+      console.log(`📞 [LiveRegistry] updateCall skipped - call not found: ${callId}`);
+      return;
+    }
 
     const updated = { ...existing, ...updates };
     this.activeCalls.set(callId, updated);

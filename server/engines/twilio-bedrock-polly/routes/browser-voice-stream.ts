@@ -10,6 +10,7 @@ import { BedrockAgentFactory } from '../services/bedrock-agent-factory';
 import { BEDROCK_POLLY_CONFIG } from '../config/config';
 import type { AgentConfig, PollyVoiceId, BedrockModel } from '../types';
 import { humanizeToSSML } from '../services/ssml-humanizer';
+import { liveCallRegistry } from '../../../services/live-call-registry';
 
 interface BrowserVoiceSession {
   sessionId: string;
@@ -303,6 +304,24 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
     }
 
     console.log(`[BrowserVoice] Session ${sessionId} initialized for agent ${agent.name}`);
+
+    try {
+      liveCallRegistry.registerCall({
+        callId: callId || sessionId,
+        userId: agent.userId || '',
+        direction: 'inbound',
+        status: 'in-progress',
+        agentId: agent.id,
+        agentName: agent.name || undefined,
+        engine: 'twilio-bedrock-polly',
+        startedAt: session.startedAt,
+        answeredAt: session.startedAt,
+        metadata: { source: 'browser-simulator', sessionId },
+      });
+      console.log(`[BrowserVoice] Registered call ${callId || sessionId} in live monitoring`);
+    } catch (regErr: any) {
+      console.warn(`[BrowserVoice] Failed to register in live monitoring: ${regErr.message}`);
+    }
   } catch (error: any) {
     console.error(`[BrowserVoice] Init error:`, error.message);
     sendMessage(ws, { type: 'error', message: 'Failed to initialize session' });
@@ -325,6 +344,9 @@ async function handleAudio(session: BrowserVoiceSession, data: string): Promise<
     }
 
     sendMessage(ws, { type: 'transcript', role: 'user', text: transcription });
+
+    const liveCallId = session.callId || session.sessionId;
+    liveCallRegistry.addTranscriptMessage(liveCallId, transcription, 'caller');
 
     session.messages.push({
       role: 'user',
@@ -350,6 +372,8 @@ async function handleAudio(session: BrowserVoiceSession, data: string): Promise<
     session.transcript += `Agent: ${responseText}\n`;
 
     sendMessage(ws, { type: 'transcript', role: 'agent', text: responseText });
+
+    liveCallRegistry.addTranscriptMessage(liveCallId, responseText, 'agent');
 
     sendMessage(ws, { type: 'processing', stage: 'speaking' });
 
@@ -402,6 +426,8 @@ async function completeCallRecord(session: BrowserVoiceSession): Promise<void> {
 function handleEnd(sessionId: string, ws: WebSocket): void {
   const session = activeSessions.get(sessionId);
   if (session) {
+    const liveCallId = session.callId || session.sessionId;
+    liveCallRegistry.endCall(liveCallId);
     completeCallRecord(session);
     activeSessions.delete(sessionId);
     console.log(`[BrowserVoice] Session ${sessionId} ended`);
@@ -447,6 +473,8 @@ function handleConnection(ws: WebSocket, sessionId: string): void {
   ws.on('close', () => {
     const session = activeSessions.get(currentSessionId);
     if (session) {
+      const liveCallId = session.callId || session.sessionId;
+      liveCallRegistry.endCall(liveCallId);
       completeCallRecord(session);
       activeSessions.delete(currentSessionId);
       console.log(`[BrowserVoice] Session ${currentSessionId} closed`);

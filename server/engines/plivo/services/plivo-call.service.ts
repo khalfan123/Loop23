@@ -470,6 +470,15 @@ export class PlivoCallService {
       liveCallRegistry.updateCall(call.id, { status: status as any });
       updateData.endedAt = new Date();
 
+      let endReason: string = status;
+      const hangupCause = metadata?.hangupCause as string | undefined;
+      if (status === 'completed') {
+        endReason = hangupCause || 'hangup';
+      } else if (status === 'failed') {
+        endReason = hangupCause ? `failed-${hangupCause}` : 'failed';
+      }
+      (updateData as any).endReason = endReason;
+
       if (call.openaiCredentialId) {
         await OpenAIPoolService.releaseSlot(call.openaiCredentialId);
       }

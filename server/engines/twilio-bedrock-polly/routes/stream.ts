@@ -309,6 +309,7 @@ async function initializeSession(
         const updates: Record<string, unknown> = {
           status: 'completed',
           endedAt: new Date(),
+          endReason: 'hangup',
         };
 
         if (sessionData?.transcript) {
@@ -316,30 +317,26 @@ async function initializeSession(
 
           if (sessionData.transcript.length > 50) {
             try {
-              const openaiApiKey = process.env.OPENAI_API_KEY;
-              if (openaiApiKey) {
-                const insights = await CallInsightsService.analyzeTranscript(
-                  sessionData.transcript,
-                  {
-                    callId: callId,
-                    fromNumber: fromNumber || undefined,
-                    toNumber: toNumber || undefined,
-                    duration: sessionData?.duration
-                  },
-                  openaiApiKey
-                );
-
-                if (insights) {
-                  updates.aiSummary = insights.aiSummary;
-                  updates.sentiment = insights.sentiment;
-                  updates.classification = insights.classification;
-                  if (insights.keyPoints) updates.keyPoints = insights.keyPoints;
-                  if (insights.nextActions) updates.nextActions = insights.nextActions;
-                  logger.info(`Generated AI insights for call ${callId}`, {
-                    sentiment: insights.sentiment,
-                    classification: insights.classification
-                  }, 'BedrockPolly Stream');
+              const insights = await CallInsightsService.analyzeTranscript(
+                sessionData.transcript,
+                {
+                  callId: callId,
+                  fromNumber: fromNumber || undefined,
+                  toNumber: toNumber || undefined,
+                  duration: sessionData?.duration
                 }
+              );
+
+              if (insights) {
+                updates.aiSummary = insights.aiSummary;
+                updates.sentiment = insights.sentiment;
+                updates.classification = insights.classification;
+                if (insights.keyPoints) updates.keyPoints = insights.keyPoints;
+                if (insights.nextActions) updates.nextActions = insights.nextActions;
+                logger.info(`Generated AI insights for call ${callId}`, {
+                  sentiment: insights.sentiment,
+                  classification: insights.classification
+                }, 'BedrockPolly Stream');
               }
             } catch (insightError: any) {
               logger.error('Failed to generate call insights', insightError, 'BedrockPolly Stream');

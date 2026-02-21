@@ -501,9 +501,29 @@ router.post('/voice/status', async (req: Request, res: Response) => {
       updates.recordingDuration = parseInt(RecordingDuration, 10);
     }
 
+    const SipResponseCode = (params as any).SipResponseCode;
+    const AnsweredBy = (params as any).AnsweredBy;
+
     if (CallStatus === 'completed' || CallStatus === 'busy' ||
         CallStatus === 'failed' || CallStatus === 'no-answer' || CallStatus === 'canceled') {
       updates.endedAt = new Date();
+
+      let endReason = CallStatus;
+      if (CallStatus === 'completed') {
+        endReason = 'hangup';
+      } else if (CallStatus === 'no-answer') {
+        endReason = 'no-answer';
+      } else if (CallStatus === 'busy') {
+        endReason = 'busy';
+      } else if (CallStatus === 'failed') {
+        endReason = SipResponseCode ? `failed-sip-${SipResponseCode}` : 'failed';
+      } else if (CallStatus === 'canceled') {
+        endReason = 'canceled';
+      }
+      if (AnsweredBy && AnsweredBy.startsWith('machine')) {
+        endReason = `voicemail-${AnsweredBy}`;
+      }
+      updates.endReason = endReason;
 
       const duration = CallDuration ? parseInt(CallDuration, 10) : 0;
       if (duration > 0) {

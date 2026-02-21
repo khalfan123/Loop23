@@ -1,13 +1,7 @@
 'use strict';
-/**
- * CallInsightsService - AI-powered call transcript analysis
- * 
- * Uses OpenAI Chat Completions API to analyze call transcripts
- * and generate structured insights including sentiment, classification,
- * key points, and recommended next actions.
- */
-
 import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import { AWSBedrockService } from './aws-bedrock';
 import { logger } from '../utils/logger';
 
 export interface CallInsights {
@@ -50,18 +44,17 @@ Sentiment guide:
 
 export class CallInsightsService {
   private static openai: OpenAI | null = null;
+  private static bedrockService = new AWSBedrockService();
 
-  private static getOpenAIClient(apiKey?: string): OpenAI {
-    // If a specific API key is provided, create a new client for it
+  private static getOpenAIClient(apiKey?: string): OpenAI | null {
     if (apiKey) {
       return new OpenAI({ apiKey });
     }
     
-    // Otherwise use the cached client with env var
     if (!this.openai) {
       const envApiKey = process.env.OPENAI_API_KEY;
       if (!envApiKey) {
-        throw new Error('OPENAI_API_KEY environment variable is not set');
+        return null;
       }
       this.openai = new OpenAI({ apiKey: envApiKey });
     }
@@ -80,55 +73,139 @@ export class CallInsightsService {
       return null;
     }
 
-    try {
-      const openai = this.getOpenAIClient(apiKey);
-      
-      const userMessage = this.buildUserMessage(transcript, metadata);
-      
-      logger.info(`Analyzing transcript for call ${metadata.callId}`, {
-        transcriptLength: transcript.length,
-        duration: metadata.duration
-      }, source);
+    const userMessage = this.buildUserMessage(transcript, metadata);
+    
+    logger.info(`Analyzing transcript for call ${metadata.callId}`, {
+      transcriptLength: transcript.length,
+      duration: metadata.duration
+    }, source);
 
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userMessage }
-        ],
-        response_format: { type: 'json_object' },
-        max_tokens: 500,
-        temperature: 0.3
-      });
-
-      const content = response.choices[0]?.message?.content;
-      
-      if (!content) {
-        logger.error('Empty response from OpenAI', { callId: metadata.callId }, source);
-        return null;
+    const openai = this.getOpenAIClient(apiKey);
+    if (openai) {
+      try {
+        const result = await this.analyzeWithOpenAI(openai, userMessage, metadata.callId);
+        if (result) return result;
+      } catch (error: any) {
+        logger.warn(`OpenAI analysis failed for call ${metadata.callId}, trying fallbacks`, {
+          error: error.message
+        }, source);
       }
-
-      const insights = JSON.parse(content) as CallInsights;
-      
-      if (!this.validateInsights(insights)) {
-        logger.error('Invalid insights structure from OpenAI', { callId: metadata.callId, content }, source);
-        return null;
-      }
-
-      logger.info(`Successfully analyzed call ${metadata.callId}`, {
-        sentiment: insights.sentiment,
-        classification: insights.classification
-      }, source);
-
-      return insights;
-
-    } catch (error: any) {
-      logger.error(`Failed to analyze transcript for call ${metadata.callId}`, {
-        error: error.message,
-        code: error.code
-      }, source);
-      return null;
     }
+
+    try {
+      const anthropic = new Anthropic();
+      const result = await this.analyzeWithAnthropic(anthropic, userMessage, metadata.callId);
+      if (result) return result;
+    } catch (error: any) {
+      logger.warn(`Anthropic analysis failed for call ${metadata.callId}, trying Bedrock`, {
+        error: error.message
+      }, source);
+    }
+
+    if (this.bedrockService.isConfigured()) {
+      try {
+        const result = await this.analyzeWithBedrock(userMessage, metadata.callId);
+        if (result) return result;
+      } catch (error: any) {
+        logger.error(`Bedrock analysis failed for call ${metadata.callId}`, {
+          error: error.message
+        }, source);
+      }
+    }
+
+    logger.error(`All AI providers failed for call ${metadata.callId}`, undefined, source);
+    return null;
+  }
+
+  private static async analyzeWithOpenAI(
+    openai: OpenAI,
+    userMessage: string,
+    callId: string
+  ): Promise<CallInsights | null> {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userMessage }
+      ],
+      response_format: { type: 'json_object' },
+      max_tokens: 500,
+      temperature: 0.3
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) return null;
+
+    const insights = JSON.parse(content) as CallInsights;
+    if (!this.validateInsights(insights)) return null;
+
+    logger.info(`OpenAI analyzed call ${callId}`, {
+      sentiment: insights.sentiment,
+      classification: insights.classification
+    }, 'CallInsightsService');
+
+    return insights;
+  }
+
+  private static async analyzeWithAnthropic(
+    anthropic: Anthropic,
+    userMessage: string,
+    callId: string
+  ): Promise<CallInsights | null> {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      system: SYSTEM_PROMPT,
+      messages: [
+        { role: 'user', content: userMessage }
+      ],
+    });
+
+    const textBlock = response.content.find(b => b.type === 'text');
+    const content = textBlock?.type === 'text' ? textBlock.text : null;
+    if (!content) return null;
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const insights = JSON.parse(jsonMatch[0]) as CallInsights;
+    if (!this.validateInsights(insights)) return null;
+
+    logger.info(`Anthropic analyzed call ${callId}`, {
+      sentiment: insights.sentiment,
+      classification: insights.classification
+    }, 'CallInsightsService');
+
+    return insights;
+  }
+
+  private static async analyzeWithBedrock(
+    userMessage: string,
+    callId: string
+  ): Promise<CallInsights | null> {
+    const response = await this.bedrockService.invoke({
+      model: 'claude-3-haiku',
+      systemPrompt: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userMessage }],
+      maxTokens: 500,
+      temperature: 0.3,
+    });
+
+    const content = response.content;
+    if (!content) return null;
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const insights = JSON.parse(jsonMatch[0]) as CallInsights;
+    if (!this.validateInsights(insights)) return null;
+
+    logger.info(`Bedrock analyzed call ${callId}`, {
+      sentiment: insights.sentiment,
+      classification: insights.classification
+    }, 'CallInsightsService');
+
+    return insights;
   }
 
   private static buildUserMessage(transcript: string, metadata: CallMetadata): string {

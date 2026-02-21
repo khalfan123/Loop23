@@ -38,10 +38,28 @@ async function getOpenAIApiKey(): Promise<string> {
 }
 
 async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
+  if (audioBuffer.length < 1000) {
+    console.log(`[BrowserVoice] Audio too short (${audioBuffer.length} bytes), skipping transcription`);
+    return '';
+  }
+
   const apiKey = await getOpenAIApiKey();
 
+  const isWebm = audioBuffer[0] === 0x1A && audioBuffer[1] === 0x45 && audioBuffer[2] === 0xDF && audioBuffer[3] === 0xA3;
+  const isOgg = audioBuffer[0] === 0x4F && audioBuffer[1] === 0x67 && audioBuffer[2] === 0x67 && audioBuffer[3] === 0x53;
+
+  let mimeType = 'audio/webm';
+  let fileName = 'audio.webm';
+  if (isOgg) {
+    mimeType = 'audio/ogg';
+    fileName = 'audio.ogg';
+  } else if (!isWebm) {
+    mimeType = 'audio/mp4';
+    fileName = 'audio.mp4';
+  }
+
   const formData = new FormData();
-  formData.append('file', new Blob([audioBuffer], { type: 'audio/webm' }), 'audio.webm');
+  formData.append('file', new Blob([audioBuffer], { type: mimeType }), fileName);
   formData.append('model', 'whisper-1');
 
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -301,7 +319,12 @@ async function handleAudio(session: BrowserVoiceSession, data: string): Promise<
     });
   } catch (error: any) {
     console.error(`[BrowserVoice] Audio processing error for session ${session.sessionId}:`, error.message);
-    sendMessage(ws, { type: 'error', message: 'Failed to process audio' });
+    if (error.message?.includes('could not be decoded') || error.message?.includes('format is not supported')) {
+      sendMessage(ws, { type: 'error', message: 'Audio format not recognized. Please try speaking for a bit longer and release the button.' });
+    } else {
+      sendMessage(ws, { type: 'error', message: 'Failed to process audio. Please try again.' });
+    }
+    sendMessage(ws, { type: 'processing', stage: 'idle' });
   }
 }
 

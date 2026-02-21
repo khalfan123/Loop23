@@ -471,7 +471,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       const allIvrConfigs = await db
         .select()
         .from(ivrConfigurations)
-        .where(eq(ivrConfigurations.userId, req.userId!));
+        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')));
       res.json(allIvrConfigs);
     } catch (error: any) {
       console.error('[IVR Configs All] Error:', error.message);

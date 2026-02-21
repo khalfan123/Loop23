@@ -74,6 +74,7 @@ interface Agent {
   voiceName: string | null;
   openaiVoice: string | null;
   systemPrompt: string | null;
+  firstMessage: string | null;
   voiceTone: string | null;
 }
 
@@ -82,10 +83,63 @@ interface LanguageAgent {
   language: string;
   agentId: string | null;
   agentName: string | null;
+  firstMessage: string | null;
   systemPrompt: string | null;
   voiceId: string | null;
   voiceTone: string | null;
 }
+
+const NATIVE_NAME_EXAMPLES: Record<string, string[]> = {
+  en: ["Sarah Mitchell", "James Anderson", "Emily Parker", "David Thompson", "Rachel Foster"],
+  es: ["María García López", "Carlos Rodríguez", "Sofía Martínez", "Alejandro Herrera", "Lucía Fernández"],
+  fr: ["Marie Dupont", "Pierre Laurent", "Camille Moreau", "Antoine Lefevre", "Chloé Bernard"],
+  de: ["Anna Schmidt", "Hans Müller", "Lena Fischer", "Maximilian Weber", "Sophie Bauer"],
+  it: ["Giulia Rossi", "Marco Bianchi", "Francesca Conti", "Alessandro Ferrari", "Elena Moretti"],
+  pt: ["Ana Silva", "João Oliveira", "Beatriz Santos", "Pedro Costa", "Mariana Ferreira"],
+  zh: ["李小明", "王美玲", "张小红", "陈志强", "刘晓芳"],
+  hi: ["प्रिया शर्मा", "राहुल वर्मा", "अनिता गुप्ता", "विकास सिंह", "नेहा पटेल"],
+  ar: ["خلفان السلامي", "فاطمة الزهراء", "أحمد المنصوري", "نور الهدى", "سلطان الكعبي"],
+  ja: ["田中さくら", "佐藤太郎", "山本花子", "鈴木一郎", "高橋美咲"],
+  ko: ["김지민", "이민수", "박서연", "최준호", "정하윤"],
+  nl: ["Sophie de Vries", "Jan van den Berg", "Emma Bakker", "Thomas Visser", "Lisa Jansen"],
+  pl: ["Anna Kowalska", "Piotr Wiśniewski", "Katarzyna Nowak", "Tomasz Kamiński", "Maja Lewandowska"],
+  sv: ["Astrid Lindgren", "Erik Johansson", "Maja Andersson", "Oscar Nilsson", "Elsa Eriksson"],
+  no: ["Ingrid Hansen", "Ole Johansen", "Nora Larsen", "Magnus Olsen", "Sofie Berg"],
+  fi: ["Aino Virtanen", "Matti Korhonen", "Emilia Mäkinen", "Juhani Laine", "Saara Nieminen"],
+  da: ["Ida Nielsen", "Lars Jensen", "Freja Pedersen", "Mikkel Andersen", "Clara Christensen"],
+  tr: ["Ayşe Yılmaz", "Mehmet Kaya", "Elif Demir", "Burak Çelik", "Zeynep Öztürk"],
+};
+
+function getRandomName(language: string, agentId: string): string {
+  const names = NATIVE_NAME_EXAMPLES[language] || NATIVE_NAME_EXAMPLES.en;
+  let hash = 0;
+  for (let i = 0; i < agentId.length; i++) {
+    hash = ((hash << 5) - hash) + agentId.charCodeAt(i);
+    hash |= 0;
+  }
+  return "e.g. " + names[Math.abs(hash) % names.length];
+}
+
+const DEFAULT_FIRST_MESSAGES: Record<string, string> = {
+  en: "Hello! How can I help you today?",
+  es: "¡Hola! ¿En qué puedo ayudarle hoy?",
+  fr: "Bonjour ! Comment puis-je vous aider aujourd'hui ?",
+  de: "Hallo! Wie kann ich Ihnen heute helfen?",
+  it: "Ciao! Come posso aiutarla oggi?",
+  pt: "Olá! Como posso ajudá-lo hoje?",
+  zh: "您好！今天我能为您做些什么？",
+  hi: "नमस्ते! आज मैं आपकी कैसे मदद कर सकता हूं?",
+  ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟",
+  ja: "こんにちは！本日はどのようなご用件でしょうか？",
+  ko: "안녕하세요! 오늘 어떻게 도와드릴까요?",
+  nl: "Hallo! Hoe kan ik u vandaag helpen?",
+  pl: "Dzień dobry! Jak mogę Panu/Pani dzisiaj pomóc?",
+  sv: "Hej! Hur kan jag hjälpa dig idag?",
+  no: "Hei! Hvordan kan jeg hjelpe deg i dag?",
+  fi: "Hei! Kuinka voin auttaa sinua tänään?",
+  da: "Hej! Hvordan kan jeg hjælpe dig i dag?",
+  tr: "Merhaba! Size bugün nasıl yardımcı olabilirim?",
+};
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
@@ -721,6 +775,7 @@ function DepartmentCard({
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [generatingLangIds, setGeneratingLangIds] = useState<Set<string>>(new Set());
+  const [featuresOpen, setFeaturesOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isLangGenerating = (langId: string) =>
@@ -797,6 +852,7 @@ function DepartmentCard({
       language: newLangCode,
       agentId: bestAgent?.id || null,
       agentName: bestAgent?.name || null,
+      firstMessage: DEFAULT_FIRST_MESSAGES[newLangCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
       voiceTone: voiceTone || null,
@@ -876,6 +932,7 @@ function DepartmentCard({
       language: langCode,
       agentId: bestAgent?.id || null,
       agentName: bestAgent?.name || null,
+      firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
       voiceTone: voiceTone || null,
@@ -962,6 +1019,7 @@ function DepartmentCard({
       const agentUpdates: Partial<LanguageAgent> = {
         agentId: agent.id,
         agentName: agent.name,
+        firstMessage: agent.firstMessage || DEFAULT_FIRST_MESSAGES[language] || DEFAULT_FIRST_MESSAGES.en,
         systemPrompt: agent.systemPrompt || null,
         voiceId: bestVoice,
         voiceTone: agent.voiceTone || bestTone,
@@ -1159,8 +1217,20 @@ function DepartmentCard({
                   className="mt-1.5"
                   value={activeLangAgent.agentName || ""}
                   onChange={(e) => updateLanguageAgent(activeLangAgent.id, { agentName: e.target.value })}
-                  placeholder="Enter agent name (e.g. Sarah, Ahmed, Maria)..."
+                  placeholder={getRandomName(activeLangAgent.language, activeLangAgent.id)}
                   data-testid="input-agent-name"
+                />
+              </div>
+
+              <div>
+                <Label>First Message</Label>
+                <p className="text-xs text-muted-foreground mb-1">The greeting the agent speaks when the call connects</p>
+                <Input
+                  className="mt-1"
+                  value={activeLangAgent.firstMessage || ""}
+                  onChange={(e) => updateLanguageAgent(activeLangAgent.id, { firstMessage: e.target.value })}
+                  placeholder={DEFAULT_FIRST_MESSAGES[activeLangAgent.language] || DEFAULT_FIRST_MESSAGES.en}
+                  data-testid="input-first-message"
                 />
               </div>
 
@@ -1273,176 +1343,156 @@ function DepartmentCard({
           )}
 
           <div className="pt-2">
-            <Label className="text-sm font-medium">Agent Features</Label>
-            <div className="space-y-3 mt-3">
-              <div className="p-3 space-y-3 border rounded-lg">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <PhoneForwarded className="h-4 w-4 text-blue-500" />
-                    <div>
-                      <Label className="text-sm">Enable Call Transfer</Label>
-                      <p className="text-xs text-muted-foreground">Transfer to human operators</p>
+            <button
+              type="button"
+              className="flex items-center gap-2 w-full text-left"
+              onClick={() => setFeaturesOpen(!featuresOpen)}
+              aria-expanded={featuresOpen}
+              data-testid="button-toggle-features"
+            >
+              <Label className="text-sm font-medium cursor-pointer">Agent Features</Label>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${featuresOpen ? 'rotate-180' : ''}`} />
+              <span className="text-xs text-muted-foreground ml-auto">
+                {[dept.enableTransfer, dept.enableLanguageDetection, dept.enableEndConversation, dept.enableAppointmentBooking, dept.enableRecording].filter(Boolean).length}/5 enabled
+              </span>
+            </button>
+            {featuresOpen && <div className="mt-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-2.5 border rounded-lg space-y-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <PhoneForwarded className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                      <Label className="text-xs">Transfer</Label>
                     </div>
+                    <Switch
+                      checked={dept.enableTransfer}
+                      onCheckedChange={(val) => onUpdate({ enableTransfer: val })}
+                      data-testid="switch-dept-transfer"
+                      className="scale-75"
+                    />
                   </div>
-                  <Switch
-                    checked={dept.enableTransfer}
-                    onCheckedChange={(val) => onUpdate({ enableTransfer: val })}
-                    data-testid="switch-dept-transfer"
-                  />
-                </div>
-                {dept.enableTransfer && (
-                  <div className="space-y-2 pl-6 border-l-2 border-blue-200">
-                    <div>
-                      <Label className="text-xs">Transfer Number</Label>
+                  {dept.enableTransfer && (
+                    <div className="space-y-1.5 pt-1 border-t">
                       <Input
                         value={dept.transferNumber || ""}
                         onChange={(e) => onUpdate({ transferNumber: e.target.value })}
                         placeholder="+1 (555) 123-4567"
-                        className="mt-1"
+                        className="h-7 text-xs"
                         data-testid="input-transfer-number"
                       />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Transfer Message</Label>
                       <Input
                         value={dept.transferMessage || ""}
                         onChange={(e) => onUpdate({ transferMessage: e.target.value })}
-                        placeholder="Please hold while I transfer you..."
-                        className="mt-1"
+                        placeholder="Transfer message..."
+                        className="h-7 text-xs"
                         data-testid="input-transfer-message"
                       />
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3 space-y-3 border rounded-lg">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Languages className="h-4 w-4 text-green-500" />
-                    <div>
-                      <Label className="text-sm">Enable Language Detection</Label>
-                      <p className="text-xs text-muted-foreground">Auto-detect caller's language (99 languages)</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={dept.enableLanguageDetection}
-                    onCheckedChange={(val) => onUpdate({ enableLanguageDetection: val })}
-                    data-testid="switch-lang-detection"
-                  />
+                  )}
                 </div>
-                {dept.enableLanguageDetection && (
-                  <div className="pl-6 border-l-2 border-green-200">
-                    <p className="text-xs text-muted-foreground">
-                      AI will automatically detect the caller's language and respond accordingly.
-                      Supports 99 languages including English, Spanish, French, German, Chinese, Japanese, Arabic, Hindi, and more.
-                    </p>
-                  </div>
-                )}
-              </div>
 
-              <div className="p-3 space-y-3 border rounded-lg">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <PhoneOff className="h-4 w-4 text-orange-500" />
-                    <div>
-                      <Label className="text-sm">Enable End Conversation</Label>
-                      <p className="text-xs text-muted-foreground">Intelligently end calls when appropriate</p>
+                <div className="p-2.5 border rounded-lg space-y-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <Languages className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                      <Label className="text-xs">Lang Detect</Label>
                     </div>
-                  </div>
-                  <Switch
-                    checked={dept.enableEndConversation}
-                    onCheckedChange={(val) => onUpdate({ enableEndConversation: val })}
-                    data-testid="switch-end-conversation"
-                  />
-                </div>
-                {dept.enableEndConversation && (
-                  <div className="pl-6 border-l-2 border-orange-200">
-                    <Label className="text-xs">End Conversation Triggers</Label>
-                    <Textarea
-                      value={(dept.endConversationPhrases || ["goodbye", "thank you for calling", "have a nice day"]).join("\n")}
-                      onChange={(e) => onUpdate({
-                        endConversationPhrases: e.target.value.split("\n").filter(p => p.trim())
-                      })}
-                      placeholder={"goodbye\nthank you\nhave a nice day"}
-                      rows={3}
-                      className="mt-1 text-xs"
-                      data-testid="input-end-phrases"
+                    <Switch
+                      checked={dept.enableLanguageDetection}
+                      onCheckedChange={(val) => onUpdate({ enableLanguageDetection: val })}
+                      data-testid="switch-lang-detection"
+                      className="scale-75"
                     />
-                    <p className="text-[10px] text-muted-foreground mt-1">One phrase per line</p>
                   </div>
-                )}
-              </div>
-
-              <div className="p-3 space-y-3 border rounded-lg">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <CalendarCheck className="h-4 w-4 text-purple-500" />
-                    <div>
-                      <Label className="text-sm">Enable Appointment Booking</Label>
-                      <p className="text-xs text-muted-foreground">Book appointments during calls</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={dept.enableAppointmentBooking}
-                    onCheckedChange={(val) => onUpdate({ enableAppointmentBooking: val })}
-                    data-testid="switch-appointment"
-                  />
+                  {dept.enableLanguageDetection && (
+                    <p className="text-[10px] text-muted-foreground pt-1 border-t">Auto-detect 99 languages</p>
+                  )}
                 </div>
-                {dept.enableAppointmentBooking && (
-                  <div className="space-y-2 pl-6 border-l-2 border-purple-200">
-                    <div>
-                      <Label className="text-xs">Calendar/Booking URL</Label>
+
+                <div className="p-2.5 border rounded-lg space-y-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <PhoneOff className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                      <Label className="text-xs">End Call</Label>
+                    </div>
+                    <Switch
+                      checked={dept.enableEndConversation}
+                      onCheckedChange={(val) => onUpdate({ enableEndConversation: val })}
+                      data-testid="switch-end-conversation"
+                      className="scale-75"
+                    />
+                  </div>
+                  {dept.enableEndConversation && (
+                    <div className="pt-1 border-t">
+                      <Textarea
+                        value={(dept.endConversationPhrases || ["goodbye", "thank you for calling", "have a nice day"]).join("\n")}
+                        onChange={(e) => onUpdate({
+                          endConversationPhrases: e.target.value.split("\n").filter(p => p.trim())
+                        })}
+                        placeholder={"goodbye\nthank you"}
+                        rows={2}
+                        className="text-[10px] min-h-0"
+                        data-testid="input-end-phrases"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-2.5 border rounded-lg space-y-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <CalendarCheck className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                      <Label className="text-xs">Booking</Label>
+                    </div>
+                    <Switch
+                      checked={dept.enableAppointmentBooking}
+                      onCheckedChange={(val) => onUpdate({ enableAppointmentBooking: val })}
+                      data-testid="switch-appointment"
+                      className="scale-75"
+                    />
+                  </div>
+                  {dept.enableAppointmentBooking && (
+                    <div className="space-y-1.5 pt-1 border-t">
                       <Input
                         value={dept.calendarUrl || ""}
                         onChange={(e) => onUpdate({ calendarUrl: e.target.value })}
-                        placeholder="https://calendly.com/your-calendar"
-                        className="mt-1"
+                        placeholder="Calendar URL..."
+                        className="h-7 text-xs"
                         data-testid="input-calendar-url"
                       />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Booking Instructions</Label>
                       <Textarea
                         value={dept.bookingInstructions || ""}
                         onChange={(e) => onUpdate({ bookingInstructions: e.target.value })}
-                        placeholder="Collect name, email, preferred date/time, and reason for appointment..."
+                        placeholder="Booking instructions..."
                         rows={2}
-                        className="mt-1 text-xs"
+                        className="text-[10px] min-h-0"
                         data-testid="input-booking-instructions"
                       />
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3 space-y-3 border rounded-lg">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Circle className="h-4 w-4 text-red-500" />
-                    <div>
-                      <Label className="text-sm">Enable Call Recording</Label>
-                      <p className="text-xs text-muted-foreground">Record for quality and training</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={dept.enableRecording}
-                    onCheckedChange={(val) => onUpdate({ enableRecording: val })}
-                    data-testid="switch-dept-recording"
-                  />
+                  )}
                 </div>
-                {dept.enableRecording && (
-                  <div className="pl-6 border-l-2 border-red-200">
-                    <p className="text-xs text-muted-foreground">
-                      Calls will be recorded and stored securely. A disclosure message will be played at the start of each call.
-                    </p>
-                    <Badge variant="outline" className="mt-2 text-[10px]">
-                      Recording disclosure enabled
-                    </Badge>
+
+                <div className="p-2.5 border rounded-lg space-y-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <Circle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      <Label className="text-xs">Recording</Label>
+                    </div>
+                    <Switch
+                      checked={dept.enableRecording}
+                      onCheckedChange={(val) => onUpdate({ enableRecording: val })}
+                      data-testid="switch-dept-recording"
+                      className="scale-75"
+                    />
                   </div>
-                )}
+                  {dept.enableRecording && (
+                    <div className="pt-1 border-t">
+                      <Badge variant="outline" className="text-[10px]">Disclosure enabled</Badge>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            </div>}
           </div>
 
           <div className="pt-2">
@@ -1572,6 +1622,7 @@ function DepartmentsStep({
         language: langCode,
         agentId: bestAgent?.id || null,
         agentName: bestAgent?.name || null,
+        firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
         systemPrompt,
         voiceId: bestVoice || null,
         voiceTone: voiceTone || null,

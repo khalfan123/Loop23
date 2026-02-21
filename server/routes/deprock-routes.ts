@@ -1236,7 +1236,8 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
   router.post("/generate-name", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { language, departmentType } = req.body;
+      const { language, departmentType, voiceTone } = req.body;
+      const userId = req.userId!;
       if (!language) {
         return res.status(400).json({ error: "language is required" });
       }
@@ -1246,27 +1247,125 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         ? ` who works in a ${departmentType} department`
         : '';
 
-      if (!awsBedrockService.isConfigured()) {
-        return res.status(503).json({ error: "AWS Bedrock is not configured" });
+      const toneContext = voiceTone
+        ? ` The name should feel appropriate for someone with a ${voiceTone} communication style.`
+        : '';
+
+      let companyContext = "";
+      try {
+        const kbEntries = await db
+          .select({ title: knowledgeBase.title, content: knowledgeBase.content, type: knowledgeBase.type })
+          .from(knowledgeBase)
+          .where(eq(knowledgeBase.userId, userId));
+
+        if (kbEntries.length > 0) {
+          const summaryParts: string[] = [];
+          for (const entry of kbEntries) {
+            const snippet = entry.content ? entry.content.substring(0, 200) : "";
+            if (snippet) {
+              summaryParts.push(`- ${entry.title}: ${snippet}`);
+            }
+            if (summaryParts.length >= 5) break;
+          }
+          companyContext = ` The agent represents a company with this background: ${summaryParts.join("; ")}. Choose a name that fits the company's brand and culture.`;
+        }
+      } catch (kbErr) {
+        console.warn("[Deprock] Could not fetch knowledge base for name generation:", kbErr);
       }
 
-      const result = await awsBedrockService.invoke({
-        model: "claude-3-5-sonnet",
-        maxTokens: 50,
+      const openai = await getOpenAIClient();
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_completion_tokens: 50,
         temperature: 1.0,
         messages: [
           {
             role: "user",
-            content: `Generate exactly one realistic full name (first name and last name) for a person${deptContext} who is a native ${langLabel} speaker. The name MUST be written in the native script/alphabet of ${langLabel} (e.g. Arabic script for Arabic, Kanji/Hiragana for Japanese, Hangul for Korean, Devanagari for Hindi, Chinese characters for Chinese). Do NOT transliterate into Latin/English letters. Output ONLY the name, nothing else.`,
+            content: `Generate exactly one realistic full name (first name and last name) for a person${deptContext} who is a native ${langLabel} speaker.${toneContext}${companyContext} The name MUST be written in the native script/alphabet of ${langLabel} (e.g. Arabic script for Arabic, Kanji/Hiragana for Japanese, Hangul for Korean, Devanagari for Hindi, Chinese characters for Chinese). Do NOT transliterate into Latin/English letters. Output ONLY the name, nothing else.`,
           },
         ],
       });
 
-      const name = result.content.trim().replace(/^["']|["']$/g, '');
+      const name = response.choices[0]?.message?.content?.trim().replace(/^["']|["']$/g, '') || "";
       res.json({ name });
     } catch (error: any) {
       console.error("[Deprock] Generate name error:", error);
       res.status(500).json({ error: error.message || "Failed to generate name" });
+    }
+  });
+
+  router.post("/generate-first-message", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { language, departmentType, departmentName, voiceTone, agentName } = req.body;
+      const userId = req.userId!;
+      if (!language) {
+        return res.status(400).json({ error: "language is required" });
+      }
+
+      const langLabel = SUPPORTED_LANGUAGES[language] || language;
+      const deptContext = departmentType && departmentType !== 'custom'
+        ? `for a ${departmentType} department called "${departmentName || departmentType}"`
+        : departmentName ? `for the "${departmentName}" department` : '';
+
+      const toneContext = voiceTone
+        ? `The tone should be ${voiceTone}.`
+        : 'The tone should be professional.';
+
+      const nameContext = agentName
+        ? `The agent's name is "${agentName}" — include a natural self-introduction with this name.`
+        : '';
+
+      let companyContext = "";
+      try {
+        const kbEntries = await db
+          .select({ title: knowledgeBase.title, content: knowledgeBase.content, type: knowledgeBase.type })
+          .from(knowledgeBase)
+          .where(eq(knowledgeBase.userId, userId));
+
+        if (kbEntries.length > 0) {
+          const summaryParts: string[] = [];
+          for (const entry of kbEntries) {
+            const snippet = entry.content ? entry.content.substring(0, 200) : "";
+            if (snippet) {
+              summaryParts.push(`- ${entry.title}: ${snippet}`);
+            }
+            if (summaryParts.length >= 5) break;
+          }
+          companyContext = `\nCOMPANY KNOWLEDGE BASE — use this to personalize the greeting with the company name, services, or brand:\n${summaryParts.join("\n")}`;
+        }
+      } catch (kbErr) {
+        console.warn("[Deprock] Could not fetch knowledge base for first message generation:", kbErr);
+      }
+
+      const openai = await getOpenAIClient();
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_completion_tokens: 200,
+        messages: [
+          {
+            role: "system",
+            content: `You generate short, natural first greeting messages for AI phone agents. The message should be 1-2 sentences max. It is the very first thing the agent says when answering a call. ${toneContext} The ENTIRE message MUST be written in ${langLabel}. Output ONLY the greeting message, no explanations or markdown.`
+          },
+          {
+            role: "user",
+            content: `Generate a first greeting message ${deptContext}. ${nameContext}${companyContext}\n\nThe message should feel natural, welcoming, and match the ${voiceTone || 'professional'} tone. Write it entirely in ${langLabel}.`
+          }
+        ],
+      });
+
+      const firstMessage = response.choices[0]?.message?.content?.trim().replace(/^["']|["']$/g, '') || "";
+      res.json({ firstMessage });
+    } catch (error: any) {
+      console.error("[Deprock] Generate first message error:", error);
+      const fallbackMessages: Record<string, string> = {
+        en: "Hello! How can I help you today?", es: "¡Hola! ¿En qué puedo ayudarle hoy?",
+        fr: "Bonjour ! Comment puis-je vous aider aujourd'hui ?", de: "Hallo! Wie kann ich Ihnen heute helfen?",
+        it: "Ciao! Come posso aiutarla oggi?", pt: "Olá! Como posso ajudá-lo hoje?",
+        ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟", ja: "こんにちは！本日はどのようなご用件でしょうか？",
+      };
+      const lang = req.body?.language || "en";
+      const fallback = fallbackMessages[lang] || fallbackMessages.en;
+      res.json({ firstMessage: fallback, fallback: true });
     }
   });
 

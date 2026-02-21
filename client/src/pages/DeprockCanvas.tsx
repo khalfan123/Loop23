@@ -992,16 +992,51 @@ function DepartmentCard({
   };
 
   const generateAiAgentName = async (langAgentId: string, langCode: string) => {
+    const langAgent = languageAgents.find(la => la.id === langAgentId);
+    setGeneratingLangIds(prev => new Set(prev).add(langAgentId));
     try {
       const response = await apiRequest("POST", "/api/deprock/generate-name", {
         language: langCode,
         departmentType: dept.type,
+        voiceTone: langAgent?.voiceTone || undefined,
       });
       const data = await response.json();
       if (data.name) {
         updateLanguageAgent(langAgentId, { agentName: data.name });
       }
     } catch {
+    } finally {
+      setGeneratingLangIds(prev => {
+        const next = new Set(prev);
+        next.delete(langAgentId);
+        return next;
+      });
+    }
+  };
+
+  const generateAiFirstMessage = async (langAgentId: string, langCode: string) => {
+    const langAgent = languageAgents.find(la => la.id === langAgentId);
+    const translatedDeptName = translateDeptName(dept.name, dept.type, langCode);
+    setGeneratingLangIds(prev => new Set(prev).add(langAgentId));
+    try {
+      const response = await apiRequest("POST", "/api/deprock/generate-first-message", {
+        language: langCode,
+        departmentType: dept.type,
+        departmentName: translatedDeptName,
+        voiceTone: langAgent?.voiceTone || undefined,
+        agentName: langAgent?.agentName || undefined,
+      });
+      const data = await response.json();
+      if (data.firstMessage) {
+        updateLanguageAgent(langAgentId, { firstMessage: data.firstMessage });
+      }
+    } catch {
+    } finally {
+      setGeneratingLangIds(prev => {
+        const next = new Set(prev);
+        next.delete(langAgentId);
+        return next;
+      });
     }
   };
 
@@ -1247,7 +1282,23 @@ function DepartmentCard({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label className="text-[11px] text-muted-foreground">Agent Name</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] text-muted-foreground">Agent Name</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-1"
+                      disabled={isLangGenerating(activeLangAgent.id)}
+                      onClick={() => generateAiAgentName(activeLangAgent.id, activeLangAgent.language)}
+                      data-testid="button-generate-agent-name"
+                    >
+                      {isLangGenerating(activeLangAgent.id) ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
                   <Input
                     className="mt-0.5 h-7 text-xs"
                     value={activeLangAgent.agentName || ""}
@@ -1276,7 +1327,23 @@ function DepartmentCard({
               </div>
 
               <div>
-                <Label className="text-[11px] text-muted-foreground">First Message</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] text-muted-foreground">First Message</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1"
+                    disabled={isLangGenerating(activeLangAgent.id)}
+                    onClick={() => generateAiFirstMessage(activeLangAgent.id, activeLangAgent.language)}
+                    data-testid="button-generate-first-message"
+                  >
+                    {isLangGenerating(activeLangAgent.id) ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
                 <Input
                   className="mt-0.5 h-7 text-xs"
                   value={activeLangAgent.firstMessage || ""}

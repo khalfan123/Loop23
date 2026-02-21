@@ -145,10 +145,33 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
   const content = response.content || '';
 
-  const toolCallMatch = content.match(/\[TOOL_CALL\]\s*(\{[\s\S]*?\})/);
-  if (toolCallMatch) {
+  const toolCallIdx = content.indexOf('[TOOL_CALL]');
+  if (toolCallIdx !== -1) {
+    const afterTag = content.substring(toolCallIdx + '[TOOL_CALL]'.length).trim();
+    const jsonStart = afterTag.indexOf('{');
+    let jsonStr = '';
+    if (jsonStart !== -1) {
+      let depth = 0;
+      let jsonEnd = -1;
+      for (let i = jsonStart; i < afterTag.length; i++) {
+        if (afterTag[i] === '{') depth++;
+        else if (afterTag[i] === '}') {
+          depth--;
+          if (depth === 0) { jsonEnd = i; break; }
+        }
+      }
+      if (jsonEnd !== -1) {
+        jsonStr = afterTag.substring(jsonStart, jsonEnd + 1);
+      }
+    }
+
+    const remainingText = jsonStr
+      ? afterTag.substring(afterTag.indexOf(jsonStr) + jsonStr.length).trim()
+      : afterTag;
+    const textBeforeToolCall = content.substring(0, toolCallIdx).trim();
+
     try {
-      const toolCall = JSON.parse(toolCallMatch[1]) as {
+      const toolCall = JSON.parse(jsonStr) as {
         name: string;
         params: Record<string, unknown>;
       };
@@ -178,7 +201,8 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       return getBedrockResponse(session);
     } catch (parseError: any) {
       console.error(`[BrowserVoice] Failed to parse tool call:`, parseError.message);
-      return content.replace(/\[TOOL_CALL\][\s\S]*/, '').trim() || content;
+      const cleanText = (textBeforeToolCall + ' ' + remainingText).trim();
+      return cleanText || 'How can I help you?';
     }
   }
 

@@ -14,6 +14,7 @@ import { humanizeToSSML } from '../services/ssml-humanizer';
 interface BrowserVoiceSession {
   sessionId: string;
   agentConfig: AgentConfig;
+  language: string;
   messages: { role: 'user' | 'assistant'; content: string; timestamp: Date }[];
   transcript: string;
   ws: WebSocket;
@@ -37,7 +38,7 @@ async function getOpenAIApiKey(): Promise<string> {
   throw new Error('No OpenAI API key found. Configure it in Admin Settings or as an environment variable.');
 }
 
-async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
+async function transcribeAudio(audioBuffer: Buffer, language?: string): Promise<string> {
   if (audioBuffer.length < 1000) {
     console.log(`[BrowserVoice] Audio too short (${audioBuffer.length} bytes), skipping transcription`);
     return '';
@@ -58,9 +59,15 @@ async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
     fileName = 'audio.mp4';
   }
 
+  const whisperLang = language ? language.split('-')[0].toLowerCase() : undefined;
+
   const formData = new FormData();
   formData.append('file', new Blob([audioBuffer], { type: mimeType }), fileName);
   formData.append('model', 'whisper-1');
+  if (whisperLang) {
+    formData.append('language', whisperLang);
+    console.log(`[BrowserVoice] Whisper language hint: ${whisperLang}`);
+  }
 
   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
@@ -257,6 +264,7 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string): Pr
     const session: BrowserVoiceSession = {
       sessionId,
       agentConfig,
+      language: agentLanguage,
       messages: [],
       transcript: '',
       ws,
@@ -301,7 +309,7 @@ async function handleAudio(session: BrowserVoiceSession, data: string): Promise<
 
     sendMessage(ws, { type: 'processing', stage: 'transcribing' });
 
-    const transcription = await transcribeAudio(audioBuffer);
+    const transcription = await transcribeAudio(audioBuffer, session.language);
 
     if (!transcription || transcription.trim().length === 0) {
       console.log(`[BrowserVoice] Empty transcription for session ${session.sessionId}`);

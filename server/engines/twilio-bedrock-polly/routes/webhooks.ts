@@ -201,6 +201,15 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       engine: 'bedrock-polly',
     };
 
+    const webhookLanguage = agent.language || 'en';
+    const localizedWebhookFirst = await BedrockAgentFactory.localizeFirstMessage(
+      agent.firstMessage,
+      webhookLanguage
+    );
+    if (localizedWebhookFirst) {
+      callMetadata.firstMessage = localizedWebhookFirst;
+    }
+
     if (agent.type === 'flow' && agent.flowId) {
       logger.info(`Loading flow data for incoming call to flow agent ${agent.id}`, undefined, 'BedrockPolly');
       const [flow] = await db
@@ -213,7 +222,11 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
         callMetadata.isFlowAgent = true;
         callMetadata.flowId = flow.id;
         callMetadata.systemPrompt = flow.compiledSystemPrompt;
-        callMetadata.firstMessage = flow.compiledFirstMessage || agent.firstMessage;
+        const localizedFlowFirst = await BedrockAgentFactory.localizeFirstMessage(
+          flow.compiledFirstMessage || agent.firstMessage,
+          webhookLanguage
+        );
+        callMetadata.firstMessage = localizedFlowFirst || flow.compiledFirstMessage || agent.firstMessage;
         callMetadata.compiledTools = flow.compiledTools;
         logger.info(`Stored ${(flow.compiledTools as any[]).length} compiled flow tools for incoming call`, undefined, 'BedrockPolly');
       }

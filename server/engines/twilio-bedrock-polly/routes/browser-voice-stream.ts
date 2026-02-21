@@ -183,12 +183,19 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string): Pr
     const voice = (agent.openaiVoice || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId;
     const model = BEDROCK_POLLY_CONFIG.defaultModel as BedrockModel;
 
+    const agentLanguage = (agent as any).language || 'en';
+    const localizedFirstMessage = await BedrockAgentFactory.localizeFirstMessage(
+      agent.firstMessage,
+      agentLanguage
+    );
+
     let agentConfig = BedrockAgentFactory.createAgentConfig({
       voice,
       model,
       systemPrompt: agent.systemPrompt || 'You are a helpful AI assistant.',
-      firstMessage: agent.firstMessage || undefined,
+      firstMessage: localizedFirstMessage,
       temperature: agent.temperature ?? 0.7,
+      language: agentLanguage,
       toolContext: {
         userId: agent.userId || '',
         agentId: agent.id,
@@ -218,16 +225,16 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string): Pr
     sendMessage(ws, {
       type: 'ready',
       agentName: agent.name || 'AI Agent',
-      firstMessage: agent.firstMessage || '',
+      firstMessage: localizedFirstMessage || '',
     });
 
-    if (agent.firstMessage) {
+    if (localizedFirstMessage) {
       try {
-        const audioBuffer = await synthesizeSpeech(agent.firstMessage, agentConfig.voice);
+        const audioBuffer = await synthesizeSpeech(localizedFirstMessage, agentConfig.voice);
         sendMessage(ws, {
           type: 'audio',
           data: audioBuffer.toString('base64'),
-          text: agent.firstMessage,
+          text: localizedFirstMessage,
         });
       } catch (err: any) {
         console.error(`[BrowserVoice] Failed to synthesize first message:`, err.message);

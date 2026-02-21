@@ -117,7 +117,8 @@ export class BedrockPollyCallService {
             logger.info(`Using pre-compiled flow data (${(flow.compiledTools as any[]).length} tools)`, undefined, 'BedrockPollyCall');
             
             const systemPrompt = flow.compiledSystemPrompt;
-            const firstMessage = flow.compiledFirstMessage || undefined;
+            const rawFirstMessage = flow.compiledFirstMessage || undefined;
+            const firstMessage = await BedrockAgentFactory.localizeFirstMessage(rawFirstMessage, language);
             
             const compiledTools = flow.compiledTools as CompiledFunctionTool[];
             const hydratedTools = hydrateCompiledTools(compiledTools, {
@@ -153,9 +154,14 @@ export class BedrockPollyCallService {
               }
             );
             
+            const localizedCompiledFirst = await BedrockAgentFactory.localizeFirstMessage(
+              compiledResult.firstMessage ?? undefined,
+              language
+            );
+
             agentConfig = hydrateCompiledFlow({
               compiledSystemPrompt: compiledResult.systemPrompt,
-              compiledFirstMessage: compiledResult.firstMessage ?? null,
+              compiledFirstMessage: localizedCompiledFirst ?? null,
               compiledTools: compiledResult.tools as CompiledFunctionTool[],
               compiledStates: compiledResult.conversationStates as CompiledConversationState[],
               voice: (agent.openaiVoice as PollyVoiceId) || defaultVoice,
@@ -178,12 +184,19 @@ export class BedrockPollyCallService {
       const isFlowAgent = agentConfig !== undefined;
       
       if (!agentConfig) {
+        const agentLanguage = agent.language || 'en';
+        const localizedFirstMessage = await BedrockAgentFactory.localizeFirstMessage(
+          agent.firstMessage,
+          agentLanguage
+        );
+
         let naturalConfig = BedrockAgentFactory.createAgentConfig({
           voice: (agent.openaiVoice as PollyVoiceId) || defaultVoice,
           model: defaultModel,
           systemPrompt: agent.systemPrompt || 'You are a helpful AI assistant.',
-          firstMessage: agent.firstMessage || undefined,
+          firstMessage: localizedFirstMessage,
           temperature: agent.temperature ?? 0.7,
+          language: agentLanguage,
           toolContext: {
             userId,
             agentId,

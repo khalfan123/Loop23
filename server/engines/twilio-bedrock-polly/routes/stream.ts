@@ -186,23 +186,36 @@ async function initializeSession(
         transferPhoneNumber: metadata?.transferPhoneNumber as string || undefined,
       });
 
+      const streamLanguage = (metadata?.language as string) || 'en';
+      const localizedFlowFirstMsg = await BedrockAgentFactory.localizeFirstMessage(
+        (metadata?.firstMessage as string) || undefined,
+        streamLanguage
+      );
+
       agentConfig = {
         voice: ((callRecord.openaiVoice as PollyVoiceId) || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId,
         model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
-        firstMessage: (metadata?.firstMessage as string) || undefined,
+        firstMessage: localizedFlowFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,
         tools: hydratedTools,
       };
 
       logger.info(`Flow agent initialized with ${hydratedTools.length} tools`, undefined, 'BedrockPolly Stream');
     } else {
+      const streamLanguage = (metadata?.language as string) || 'en';
+      const localizedNaturalFirstMsg = await BedrockAgentFactory.localizeFirstMessage(
+        (metadata?.firstMessage as string) || undefined,
+        streamLanguage
+      );
+
       agentConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as PollyVoiceId) || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId,
         model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
-        firstMessage: (metadata?.firstMessage as string) || undefined,
+        firstMessage: localizedNaturalFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,
+        language: streamLanguage,
         toolContext: {
           userId: callRecord.userId || '',
           agentId: callRecord.agentId || '',

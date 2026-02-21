@@ -794,6 +794,51 @@ You are in BRAIN-ONLY mode. This means:
     };
   }
 
+  static async localizeFirstMessage(
+    firstMessage: string | undefined | null,
+    language: string
+  ): Promise<string | undefined> {
+    if (!firstMessage || !language || language === 'en') {
+      return firstMessage || undefined;
+    }
+
+    const languageName = this.getLanguageName(language);
+    console.log(`[Bedrock Agent Factory] Localizing first message to ${languageName} (${language})`);
+
+    try {
+      const { awsBedrockService } = await import('../../../services/aws-bedrock');
+
+      const translationPrompt = `Translate the following phone greeting message into ${languageName}. 
+Rules:
+- Output ONLY the translated text, nothing else
+- Keep the same tone and warmth
+- Make it sound natural in ${languageName}, not a word-for-word translation
+- Do not add quotes or explanations
+
+Message to translate:
+${firstMessage}`;
+
+      const response = await awsBedrockService.invoke({
+        model: 'claude-3-5-sonnet',
+        messages: [{ role: 'user', content: translationPrompt }],
+        systemPrompt: `You are a professional translator. Translate exactly as instructed. Output only the translation.`,
+        temperature: 0.3,
+        maxTokens: 500,
+      });
+
+      const translated = response?.content?.trim();
+      if (translated && translated.length > 0) {
+        console.log(`[Bedrock Agent Factory] Localized first message: "${translated.substring(0, 80)}..."`);
+        return translated;
+      }
+
+      return firstMessage;
+    } catch (error: any) {
+      console.error(`[Bedrock Agent Factory] Failed to localize first message: ${error.message}`);
+      return firstMessage;
+    }
+  }
+
   static enableLanguageDetection(config: AgentConfigWithContext): AgentConfigWithContext {
     console.log(`[Bedrock Agent Factory] Enabling language detection`);
 
@@ -1579,13 +1624,17 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
         language: agent.language || 'en',
       });
     } else {
+      const agentLang = agent.language || 'en';
+      const localizedFirst = await this.localizeFirstMessage(agent.firstMessage, agentLang);
+
       config = this.createAgentConfig({
         voice,
         model,
         systemPrompt: agent.systemPrompt || 'You are a helpful AI assistant.',
-        firstMessage: agent.firstMessage || undefined,
+        firstMessage: localizedFirst,
         temperature: agent.temperature || 0.7,
         userTier,
+        language: agentLang,
         toolContext: {
           userId: agent.userId,
           agentId: agent.id,

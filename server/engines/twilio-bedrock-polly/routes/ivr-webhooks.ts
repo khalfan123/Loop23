@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid';
 import { generateTwiML, BEDROCK_POLLY_CONFIG } from '../config/config';
 import { logger } from '../../../utils/logger';
 import { getDomain } from '../../../utils/domain';
+import { applyArabicPronunciationFixes } from '../services/ssml-humanizer';
 
 const router = Router();
 
@@ -82,7 +83,8 @@ function escapeXml(str: string): string {
 function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false): string {
   const engine = GENERATIVE_VOICES.includes(voiceId) ? 'generative' : 'neural';
   const breakSsml = addBreakAfter ? '<break time="350ms"/>' : '';
-  return `<Say voice="Polly.${escapeXml(voiceId)}" engine="${engine}"><prosody rate="88%">${escapeXml(text)}</prosody>${breakSsml}</Say>`;
+  const corrected = applyArabicPronunciationFixes(text);
+  return `<Say voice="Polly.${escapeXml(voiceId)}" engine="${engine}"><prosody rate="88%">${escapeXml(corrected)}</prosody>${breakSsml}</Say>`;
 }
 
 function buildBaseUrl(): string {

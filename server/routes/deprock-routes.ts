@@ -11,6 +11,7 @@ import { awsBedrockService } from "../services/aws-bedrock";
 import { nanoid } from "nanoid";
 import { getOpenAIClient } from "../services/openai-modelfarm";
 import { deprockIvrRouter } from "../engines/twilio-bedrock-polly/routes/ivr-webhooks";
+import { applyArabicPronunciationFixes } from "../engines/twilio-bedrock-polly/services/ssml-humanizer";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -1468,10 +1469,12 @@ The prompt should:
 
       const selectedEngine = engine || 'neural';
 
+      const correctedText = applyArabicPronunciationFixes(text);
+
       let result;
       try {
         result = await awsPollyService.synthesizeSpeech({
-          text,
+          text: correctedText,
           voiceId,
           engine: selectedEngine as any,
           outputFormat: 'mp3',
@@ -1480,7 +1483,7 @@ The prompt should:
       } catch (engineError: any) {
         if (selectedEngine !== 'neural') {
           result = await awsPollyService.synthesizeSpeech({
-            text,
+            text: correctedText,
             voiceId,
             engine: 'neural' as any,
             outputFormat: 'mp3',

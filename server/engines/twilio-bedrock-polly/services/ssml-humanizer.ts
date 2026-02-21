@@ -1,5 +1,19 @@
 'use strict';
 
+const ARABIC_PRONUNCIATION_MAP: Array<[RegExp, string]> = [
+  [/تجوال/g, 'تقوال'],
+  [/تِجوال/g, 'تِقوال'],
+  [/Tejwal/gi, 'Tegwal'],
+];
+
+export function applyArabicPronunciationFixes(text: string): string {
+  let result = text;
+  for (const [pattern, replacement] of ARABIC_PRONUNCIATION_MAP) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
 function escapeXml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -93,7 +107,7 @@ function wrapSentence(escaped: string, original: string): string {
 }
 
 export function humanizeToSSML(text: string): string {
-  const trimmed = text.trim();
+  const trimmed = applyArabicPronunciationFixes(text.trim());
   if (!trimmed) return '<speak></speak>';
 
   const sentences = splitIntoSentences(trimmed);
@@ -128,5 +142,5 @@ export function humanizeToSSML(text: string): string {
 }
 
 export function humanizeToSSMLPlainFallback(text: string): string {
-  return text.trim();
+  return applyArabicPronunciationFixes(text.trim());
 }

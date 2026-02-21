@@ -111,7 +111,11 @@ function handleBedrockPollyStreamConnection(ws: WebSocket, callSid: string): voi
     try {
       await BedrockPollyAudioBridge.endSession(callSid);
       logger.info(`Session ended for ${callSid}`, undefined, 'BedrockPolly Stream');
+    } catch (err: any) {
+      console.error(`[BedrockPolly Stream] Error ending audio session for ${callSid}:`, err.message);
+    }
 
+    try {
       const [callRecord] = await db
         .select()
         .from(twilioOpenaiCalls)
@@ -148,9 +152,11 @@ function handleBedrockPollyStreamConnection(ws: WebSocket, callSid: string): voi
         } catch (flowExecError: any) {
           logger.warn(`Failed to update flow execution status: ${flowExecError.message}`, undefined, 'BedrockPolly Stream');
         }
+      } else {
+        logger.warn(`No call record found for twilioCallSid=${callSid}, cannot mark completed`, undefined, 'BedrockPolly Stream');
       }
-    } catch (err: any) {
-      console.error(`[BedrockPolly Stream] Error ending session:`, err.message);
+    } catch (dbErr: any) {
+      console.error(`[BedrockPolly Stream] Failed to update call record in DB for ${callSid}:`, dbErr.message);
     }
   });
 

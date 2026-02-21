@@ -125,12 +125,16 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
     console.log(`[TwilioOpenAI Stream] WebSocket closed for ${callSid}: ${code} ${reason?.toString() || ''}`);
 
     liveCallRegistry.endCallByTwilioSid(callSid);
-    
+
+    let sessionResult: { duration?: number; transcript?: string } = {};
     try {
-      const result = await TwilioOpenAIAudioBridge.endSession(callSid);
-      logger.info(`Session ended: duration ${result.duration}s, transcript length: ${result.transcript?.length || 0}`, undefined, 'TwilioOpenAI Stream');
-      
-      // Get call record by Twilio CallSid
+      sessionResult = await TwilioOpenAIAudioBridge.endSession(callSid);
+      logger.info(`Session ended: duration ${sessionResult.duration}s, transcript length: ${sessionResult.transcript?.length || 0}`, undefined, 'TwilioOpenAI Stream');
+    } catch (err: any) {
+      console.error(`[TwilioOpenAI Stream] Error ending audio session for ${callSid}:`, err.message);
+    }
+
+    try {
       const [callRecord] = await db
         .select()
         .from(twilioOpenaiCalls)
@@ -143,34 +147,25 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
           .set({
             status: 'completed',
             endedAt: new Date(),
-            duration: result.duration || null,
+            duration: sessionResult.duration || null,
+            transcript: sessionResult.transcript || null,
           })
           .where(eq(twilioOpenaiCalls.id, callRecord.id));
         logger.info(`Marked call ${callRecord.id} as completed in DB`, undefined, 'TwilioOpenAI Stream');
-
-        // Save transcript to database
-        if (result.transcript) {
-          await db
-            .update(twilioOpenaiCalls)
-            .set({ transcript: result.transcript })
-            .where(eq(twilioOpenaiCalls.id, callRecord.id));
-          logger.info(`Saved transcript for call ${callRecord.id}`, undefined, 'TwilioOpenAI Stream');
-        }
         
-        // Generate AI insights from transcript if available
-        if (result.transcript && result.transcript.length > 50 && callRecord.openaiCredentialId) {
+        if (sessionResult.transcript && sessionResult.transcript.length > 50 && callRecord.openaiCredentialId) {
           try {
             const credential = await OpenAIPoolService.getCredentialById(callRecord.openaiCredentialId);
             
             if (credential?.apiKey) {
               logger.info(`Generating AI insights for call ${callRecord.id}`, undefined, 'TwilioOpenAI Stream');
               const insights = await CallInsightsService.analyzeTranscript(
-                result.transcript,
+                sessionResult.transcript,
                 {
                   callId: callRecord.id,
                   fromNumber: callRecord.fromNumber || undefined,
                   toNumber: callRecord.toNumber || undefined,
-                  duration: result.duration
+                  duration: sessionResult.duration
                 },
                 credential.apiKey
               );
@@ -186,15 +181,12 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
                   .where(eq(twilioOpenaiCalls.id, callRecord.id));
                 logger.info(`Generated AI insights for call ${callRecord.id}: sentiment=${insights.sentiment}, classification=${insights.classification}`, undefined, 'TwilioOpenAI Stream');
               }
-            } else {
-              logger.warn(`No OpenAI credential available for AI analysis on call ${callRecord.id}`, undefined, 'TwilioOpenAI Stream');
             }
           } catch (insightError: any) {
             logger.error(`Failed to generate call insights for ${callRecord.id}`, insightError, 'TwilioOpenAI Stream');
           }
         }
         
-        // Update flow execution status to completed
         try {
           const [flowExec] = await db
             .select()
@@ -215,9 +207,11 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
         } catch (flowExecError: any) {
           logger.warn(`Failed to update flow execution status: ${flowExecError.message}`, undefined, 'TwilioOpenAI Stream');
         }
+      } else {
+        logger.warn(`No call record found for twilioCallSid=${callSid}, cannot mark completed`, undefined, 'TwilioOpenAI Stream');
       }
-    } catch (err: any) {
-      console.error(`[TwilioOpenAI Stream] Error ending session:`, err.message);
+    } catch (dbErr: any) {
+      console.error(`[TwilioOpenAI Stream] Failed to update call record in DB for ${callSid}:`, dbErr.message);
     }
   });
 

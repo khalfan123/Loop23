@@ -125,12 +125,17 @@ function handlePlivoStreamConnection(ws: WebSocket, callUuid: string): void {
     logger.info(`Connection closed for ${callUuid}`, undefined, 'PlivoStream');
 
     liveCallRegistry.endCallByPlivoUuid(callUuid);
-    
+
+    let sessionResult: { duration?: number; transcript?: string } = {};
     try {
-      const result = await AudioBridgeService.endSession(callUuid);
-      logger.info(`Session ended: duration ${result.duration}s, transcript length: ${result.transcript?.length || 0}`, undefined, 'PlivoStream');
-      
-      // Get call to update transcript and trigger credit deduction
+      sessionResult = await AudioBridgeService.endSession(callUuid);
+      logger.info(`Session ended: duration ${sessionResult.duration}s, transcript length: ${sessionResult.transcript?.length || 0}`, undefined, 'PlivoStream');
+    } catch (sessionErr: any) {
+      logger.error(`Error ending audio session for ${callUuid}: ${sessionErr.message}`, sessionErr, 'PlivoStream');
+    }
+
+    try {
+      const result = sessionResult as { duration: number; transcript?: string };
       const call = await PlivoCallService.getCallByUuid(callUuid);
       if (call) {
         await db

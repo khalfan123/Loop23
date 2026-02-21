@@ -237,20 +237,18 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       metadata: callMetadata,
     });
 
-    // Start call recording if enabled
-    if (TWILIO_OPENAI_CONFIG.recordCalls) {
-      try {
-        const twilioClient = await getTwilioClient();
-        const recordingCallback = getRecordingWebhookUrl();
-        await twilioClient.calls(CallSid).recordings.create({
-          recordingStatusCallback: recordingCallback,
-          recordingStatusCallbackEvent: ['completed'],
-          recordingChannels: 'dual',
-        });
-        logger.info(`Recording started for call ${callId}`, undefined, 'TwilioOpenAI');
-      } catch (recordError: any) {
-        logger.error('Failed to start recording', recordError, 'TwilioOpenAI');
-      }
+    // Start call recording (mandatory for all calls)
+    try {
+      const twilioClient = await getTwilioClient();
+      const recordingCallback = getRecordingWebhookUrl();
+      await twilioClient.calls(CallSid).recordings.create({
+        recordingStatusCallback: recordingCallback,
+        recordingStatusCallbackEvent: ['completed'],
+        recordingChannels: 'dual',
+      });
+      logger.info(`Recording started for call ${callId}`, undefined, 'TwilioOpenAI');
+    } catch (recordError: any) {
+      logger.error('Failed to start recording', recordError, 'TwilioOpenAI');
     }
 
     // NOTE: Session creation is now deferred to the stream handler
@@ -396,20 +394,18 @@ router.post('/voice/answer', async (req: Request, res: Response) => {
       return;
     }
 
-    // Start call recording for outbound calls (after session validation)
-    if (TWILIO_OPENAI_CONFIG.recordCalls) {
-      try {
-        const twilioClient = await getTwilioClient();
-        const recordingCallback = getRecordingWebhookUrl();
-        await twilioClient.calls(CallSid).recordings.create({
-          recordingStatusCallback: recordingCallback,
-          recordingStatusCallbackEvent: ['completed'],
-          recordingChannels: 'dual',
-        });
-        logger.info(`Recording started for outbound call ${callRecord.id}`, undefined, 'TwilioOpenAI');
-      } catch (recordError: any) {
-        logger.error('Failed to start recording for outbound call', recordError, 'TwilioOpenAI');
-      }
+    // Start call recording for outbound calls (mandatory for all calls)
+    try {
+      const twilioClient = await getTwilioClient();
+      const recordingCallback = getRecordingWebhookUrl();
+      await twilioClient.calls(CallSid).recordings.create({
+        recordingStatusCallback: recordingCallback,
+        recordingStatusCallbackEvent: ['completed'],
+        recordingChannels: 'dual',
+      });
+      logger.info(`Recording started for outbound call ${callRecord.id}`, undefined, 'TwilioOpenAI');
+    } catch (recordError: any) {
+      logger.error('Failed to start recording for outbound call', recordError, 'TwilioOpenAI');
     }
 
     const streamUrl = getStreamWebhookUrl(CallSid);

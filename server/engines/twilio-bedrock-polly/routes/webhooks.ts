@@ -251,19 +251,18 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       metadata: callMetadata,
     });
 
-    if (BEDROCK_POLLY_CONFIG.recordCalls) {
-      try {
-        const twilioClient = await getTwilioClient();
-        const recordingCallback = getRecordingWebhookUrl();
-        await twilioClient.calls(CallSid).recordings.create({
-          recordingStatusCallback: recordingCallback,
-          recordingStatusCallbackEvent: ['completed'],
-          recordingChannels: 'dual',
-        });
-        logger.info(`Recording started for call ${callId}`, undefined, 'BedrockPolly');
-      } catch (recordError: any) {
-        logger.error('Failed to start recording', recordError, 'BedrockPolly');
-      }
+    // Start call recording (mandatory for all calls)
+    try {
+      const twilioClient = await getTwilioClient();
+      const recordingCallback = getRecordingWebhookUrl();
+      await twilioClient.calls(CallSid).recordings.create({
+        recordingStatusCallback: recordingCallback,
+        recordingStatusCallbackEvent: ['completed'],
+        recordingChannels: 'dual',
+      });
+      logger.info(`Recording started for call ${callId}`, undefined, 'BedrockPolly');
+    } catch (recordError: any) {
+      logger.error('Failed to start recording', recordError, 'BedrockPolly');
     }
 
     logger.info(`Incoming call ${callId} prepared, session will be created when stream connects`, undefined, 'BedrockPolly');
@@ -403,19 +402,18 @@ router.post('/voice/answer', async (req: Request, res: Response) => {
       return;
     }
 
-    if (BEDROCK_POLLY_CONFIG.recordCalls) {
-      try {
-        const twilioClient = await getTwilioClient();
-        const recordingCallback = getRecordingWebhookUrl();
-        await twilioClient.calls(CallSid).recordings.create({
-          recordingStatusCallback: recordingCallback,
-          recordingStatusCallbackEvent: ['completed'],
-          recordingChannels: 'dual',
-        });
-        logger.info(`Recording started for outbound call ${callRecord.id}`, undefined, 'BedrockPolly');
-      } catch (recordError: any) {
-        logger.error('Failed to start recording for outbound call', recordError, 'BedrockPolly');
-      }
+    // Start call recording for outbound calls (mandatory for all calls)
+    try {
+      const twilioClient = await getTwilioClient();
+      const recordingCallback = getRecordingWebhookUrl();
+      await twilioClient.calls(CallSid).recordings.create({
+        recordingStatusCallback: recordingCallback,
+        recordingStatusCallbackEvent: ['completed'],
+        recordingChannels: 'dual',
+      });
+      logger.info(`Recording started for outbound call ${callRecord.id}`, undefined, 'BedrockPolly');
+    } catch (recordError: any) {
+      logger.error('Failed to start recording for outbound call', recordError, 'BedrockPolly');
     }
 
     const streamUrl = getStreamWebhookUrl(CallSid);

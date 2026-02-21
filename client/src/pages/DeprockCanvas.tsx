@@ -1076,252 +1076,160 @@ function DepartmentCard({
   const activeLangAgent = languageAgents[activeTabIdx];
   const availableAgentsForActive = activeLangAgent ? getAgentsForLanguage(activeLangAgent.language) : [];
 
+  const enabledFeaturesCount = [dept.enableTransfer, dept.enableLanguageDetection, dept.enableEndConversation, dept.enableAppointmentBooking, dept.enableRecording].filter(Boolean).length;
+
   return (
-    <Card data-testid={`card-dept-${dept.id}`}>
+    <Card className="shadow-sm border" data-testid={`card-dept-${dept.id}`}>
       <div
-        className="flex items-center justify-between gap-2 sm:gap-3 p-3 sm:p-4 cursor-pointer min-h-[44px]"
+        className="flex items-center justify-between gap-2 px-3 py-2.5 cursor-pointer"
         onClick={onToggleExpand}
         data-testid={`button-expand-dept-${dept.id}`}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="p-2 bg-muted rounded-md">
-            <Icon className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-1.5 bg-muted rounded">
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <div className="font-medium text-sm truncate">{dept.name}</div>
-            <div className="text-xs text-muted-foreground truncate">{dept.description}</div>
+            <div className="font-medium text-[13px] truncate">{dept.name}</div>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Badge variant="outline" className="text-xs">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
             {languageAgents.length} lang
+          </Badge>
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
+            {enabledFeaturesCount}/5
           </Badge>
           <Button
             variant="ghost"
             size="icon"
+            className="h-6 w-6"
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             data-testid={`button-quick-delete-dept-${dept.id}`}
           >
-            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <Trash2 className="h-3 w-3 text-muted-foreground" />
           </Button>
-          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </div>
 
       {isExpanded && (
-        <CardContent className="px-3 sm:px-4 pb-4 pt-0 space-y-4 border-t">
-          <div className="pt-4">
-            <Label>Deprock Department Name</Label>
-            <Input
-              value={dept.name || ""}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              className="mt-1.5"
-              data-testid="input-dept-name"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-              <Label>Language Agents</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={languageAgents.length >= SUPPORTED_LANGUAGES.length}
-                    data-testid="button-add-language"
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1" />
-                    Add Language
-                    <ChevronDown className="h-3.5 w-3.5 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {SUPPORTED_LANGUAGES
-                    .filter((l) => !languageAgents.some((la) => la.language === l.code))
-                    .map((lang) => (
-                      <DropdownMenuItem
-                        key={lang.code}
-                        onClick={() => addLanguageAgent(lang.code)}
-                        data-testid={`menu-add-language-${lang.code}`}
-                      >
-                        <Globe className="h-3.5 w-3.5 mr-2" />
-                        {lang.label}
-                      </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+        <CardContent className="px-3 pb-3 pt-0 space-y-3 border-t">
+          <div className="pt-3 grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs text-muted-foreground">Department Name</Label>
+              <Input
+                value={dept.name || ""}
+                onChange={(e) => onUpdate({ name: e.target.value })}
+                className="mt-1 h-8 text-sm"
+                data-testid="input-dept-name"
+              />
             </div>
-
-            {languageAgents.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {languageAgents.map((la, idx) => (
-                  <Badge
-                    key={la.id}
-                    variant={idx === activeTabIdx ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => setActiveTabIdx(idx)}
-                    data-testid={`badge-lang-${la.language}`}
-                  >
-                    {isLangGenerating(la.id) && (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    )}
-                    {SUPPORTED_LANGUAGES.find((l) => l.code === la.language)?.label || la.language}
-                  </Badge>
-                ))}
+            <div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Languages</Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="text-[10px] text-primary hover:underline font-medium disabled:opacity-50"
+                      disabled={languageAgents.length >= SUPPORTED_LANGUAGES.length}
+                      data-testid="button-add-language"
+                    >
+                      + Add
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {SUPPORTED_LANGUAGES
+                      .filter((l) => !languageAgents.some((la) => la.language === l.code))
+                      .map((lang) => (
+                        <DropdownMenuItem
+                          key={lang.code}
+                          onClick={() => addLanguageAgent(lang.code)}
+                          data-testid={`menu-add-language-${lang.code}`}
+                        >
+                          <Globe className="h-3 w-3 mr-1.5" />
+                          {lang.label}
+                        </DropdownMenuItem>
+                      ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            )}
-
-            {languageAgents.length === 0 && (
-              <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-                Click "Add Language" to configure agents
-              </div>
-            )}
+              {languageAgents.length > 0 ? (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {languageAgents.map((la, idx) => (
+                    <Badge
+                      key={la.id}
+                      variant={idx === activeTabIdx ? "default" : "outline"}
+                      className="cursor-pointer text-[10px] px-1.5 py-0 h-5"
+                      onClick={() => setActiveTabIdx(idx)}
+                      data-testid={`badge-lang-${la.language}`}
+                    >
+                      {isLangGenerating(la.id) && (
+                        <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />
+                      )}
+                      {SUPPORTED_LANGUAGES.find((l) => l.code === la.language)?.label || la.language}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-1 text-[11px] text-muted-foreground italic">No languages configured</div>
+              )}
+            </div>
           </div>
 
           {activeLangAgent && (
-            <div className="p-3 sm:p-4 space-y-4 border rounded-lg bg-muted/30">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <Select
-                  value={activeLangAgent.language}
-                  onValueChange={(val) => handleLanguageChange(activeLangAgent.id, val)}
-                >
-                  <SelectTrigger className="w-32" data-testid="select-lang-tab">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_LANGUAGES.map((lang) => (
-                      <SelectItem
-                        key={lang.code}
-                        value={lang.code}
-                        disabled={languageAgents.some((la) => la.id !== activeLangAgent.id && la.language === lang.code)}
-                      >
-                        {lang.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="p-2.5 space-y-2.5 border rounded bg-muted/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Select
+                    value={activeLangAgent.language}
+                    onValueChange={(val) => handleLanguageChange(activeLangAgent.id, val)}
+                  >
+                    <SelectTrigger className="w-28 h-7 text-xs" data-testid="select-lang-tab">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <SelectItem
+                          key={lang.code}
+                          value={lang.code}
+                          disabled={languageAgents.some((la) => la.id !== activeLangAgent.id && la.language === lang.code)}
+                        >
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-[10px] text-muted-foreground">Agent Config</span>
+                </div>
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="h-6 w-6"
                   onClick={() => removeLanguageAgent(activeLangAgent.id)}
                   data-testid="button-remove-lang-agent"
                 >
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                  <Trash2 className="h-3 w-3 text-muted-foreground" />
                 </Button>
               </div>
 
-              <div>
-                <Label>Agent Name</Label>
-                <Input
-                  className="mt-1.5"
-                  value={activeLangAgent.agentName || ""}
-                  onChange={(e) => updateLanguageAgent(activeLangAgent.id, { agentName: e.target.value })}
-                  placeholder={getRandomName(activeLangAgent.language, activeLangAgent.id)}
-                  data-testid="input-agent-name"
-                />
-              </div>
-
-              <div>
-                <Label>First Message</Label>
-                <p className="text-xs text-muted-foreground mb-1">The greeting the agent speaks when the call connects</p>
-                <Input
-                  className="mt-1"
-                  value={activeLangAgent.firstMessage || ""}
-                  onChange={(e) => updateLanguageAgent(activeLangAgent.id, { firstMessage: e.target.value })}
-                  placeholder={DEFAULT_FIRST_MESSAGES[activeLangAgent.language] || DEFAULT_FIRST_MESSAGES.en}
-                  data-testid="input-first-message"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <Label>System Prompt</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={isGeneratingPrompt || isLangGenerating(activeLangAgent.id)}
-                    onClick={() => generatePromptForAgent(activeLangAgent.id, activeLangAgent.agentName || "", activeLangAgent.language)}
-                    data-testid="button-generate-prompt"
-                  >
-                    {(isGeneratingPrompt || isLangGenerating(activeLangAgent.id)) ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    {(isGeneratingPrompt || isLangGenerating(activeLangAgent.id)) ? "Generating..." : "AI Generate"}
-                  </Button>
-                </div>
-                <div className="relative mt-1.5">
-                  <Textarea
-                    value={activeLangAgent.systemPrompt || ""}
-                    onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}
-                    rows={4}
-                    disabled={isLangGenerating(activeLangAgent.id)}
-                    placeholder={isLangGenerating(activeLangAgent.id) ? "Generating prompt with AI..." : "Instructions for the AI agent..."}
-                    data-testid="input-agent-prompt"
-                  />
-                  {isLangGenerating(activeLangAgent.id) && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-md">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Generating AI prompt...</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label>Voice</Label>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <Select
-                    value={activeLangAgent.voiceId || ""}
-                    onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceId: val })}
-                  >
-                    <SelectTrigger className="flex-1" data-testid="select-voice">
-                      <SelectValue placeholder="Select a voice..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getVoicesForLanguage(activeLangAgent.language).length > 0 ? (
-                        <>
-                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
-                          {getVoicesForLanguage(activeLangAgent.language).map((voice) => (
-                            <SelectItem key={voice.id} value={voice.id}>
-                              {voice.name} - {voice.gender}, {voice.style}
-                            </SelectItem>
-                          ))}
-                        </>
-                      ) : (
-                        <div className="px-2 py-2 text-sm text-muted-foreground">No voices available for this language</div>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {activeLangAgent.voiceId && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handlePlayVoice(activeLangAgent.voiceId!)}
-                      data-testid="button-preview-voice"
-                    >
-                      {playingVoiceId === activeLangAgent.voiceId ? (
-                        <Square className="h-4 w-4" />
-                      ) : (
-                        <Volume2 className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label>Voice Tone</Label>
+                  <Label className="text-[11px] text-muted-foreground">Agent Name</Label>
+                  <Input
+                    className="mt-0.5 h-7 text-xs"
+                    value={activeLangAgent.agentName || ""}
+                    onChange={(e) => updateLanguageAgent(activeLangAgent.id, { agentName: e.target.value })}
+                    placeholder={getRandomName(activeLangAgent.language, activeLangAgent.id)}
+                    data-testid="input-agent-name"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] text-muted-foreground">Voice Tone</Label>
                   <Select
                     value={activeLangAgent.voiceTone || ""}
                     onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceTone: val })}
                   >
-                    <SelectTrigger className="mt-1.5" data-testid="select-voice-tone">
+                    <SelectTrigger className="mt-0.5 h-7 text-xs" data-testid="select-voice-tone">
                       <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -1332,96 +1240,176 @@ function DepartmentCard({
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>Language</Label>
-                  <div className="mt-1.5 p-2 bg-muted rounded text-sm">
-                    {SUPPORTED_LANGUAGES.find((l) => l.code === activeLangAgent.language)?.label}
-                  </div>
+              </div>
+
+              <div>
+                <Label className="text-[11px] text-muted-foreground">First Message</Label>
+                <Input
+                  className="mt-0.5 h-7 text-xs"
+                  value={activeLangAgent.firstMessage || ""}
+                  onChange={(e) => updateLanguageAgent(activeLangAgent.id, { firstMessage: e.target.value })}
+                  placeholder={DEFAULT_FIRST_MESSAGES[activeLangAgent.language] || DEFAULT_FIRST_MESSAGES.en}
+                  data-testid="input-first-message"
+                />
+              </div>
+
+              <div>
+                <Label className="text-[11px] text-muted-foreground">Voice</Label>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Select
+                    value={activeLangAgent.voiceId || ""}
+                    onValueChange={(val) => updateLanguageAgent(activeLangAgent.id, { voiceId: val })}
+                  >
+                    <SelectTrigger className="flex-1 h-7 text-xs" data-testid="select-voice">
+                      <SelectValue placeholder="Select a voice..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getVoicesForLanguage(activeLangAgent.language).length > 0 ? (
+                        <>
+                          <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground">AWS Polly Neural Voices</div>
+                          {getVoicesForLanguage(activeLangAgent.language).map((voice) => (
+                            <SelectItem key={voice.id} value={voice.id}>
+                              {voice.name} - {voice.gender}, {voice.style}
+                            </SelectItem>
+                          ))}
+                        </>
+                      ) : (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">No voices for this language</div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {activeLangAgent.voiceId && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => handlePlayVoice(activeLangAgent.voiceId!)}
+                      data-testid="button-preview-voice"
+                    >
+                      {playingVoiceId === activeLangAgent.voiceId ? (
+                        <Square className="h-3 w-3" />
+                      ) : (
+                        <Volume2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] text-muted-foreground">System Prompt</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-1.5 text-[10px]"
+                    disabled={isGeneratingPrompt || isLangGenerating(activeLangAgent.id)}
+                    onClick={() => generatePromptForAgent(activeLangAgent.id, activeLangAgent.agentName || "", activeLangAgent.language)}
+                    data-testid="button-generate-prompt"
+                  >
+                    {(isGeneratingPrompt || isLangGenerating(activeLangAgent.id)) ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    {(isGeneratingPrompt || isLangGenerating(activeLangAgent.id)) ? "Generating..." : "AI Generate"}
+                  </Button>
+                </div>
+                <div className="relative mt-0.5">
+                  <Textarea
+                    value={activeLangAgent.systemPrompt || ""}
+                    onChange={(e) => updateLanguageAgent(activeLangAgent.id, { systemPrompt: e.target.value })}
+                    rows={3}
+                    className="text-xs"
+                    disabled={isLangGenerating(activeLangAgent.id)}
+                    placeholder={isLangGenerating(activeLangAgent.id) ? "Generating prompt with AI..." : "Instructions for the AI agent..."}
+                    data-testid="input-agent-prompt"
+                  />
+                  {isLangGenerating(activeLangAgent.id) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-md">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Generating AI prompt...</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          <div className="pt-2">
+          <div>
             <button
               type="button"
-              className="flex items-center gap-2 w-full text-left"
+              className="flex items-center gap-1.5 w-full text-left py-1"
               onClick={() => setFeaturesOpen(!featuresOpen)}
               aria-expanded={featuresOpen}
               data-testid="button-toggle-features"
             >
-              <Label className="text-sm font-medium cursor-pointer">Agent Features</Label>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${featuresOpen ? 'rotate-180' : ''}`} />
-              <span className="text-xs text-muted-foreground ml-auto">
-                {[dept.enableTransfer, dept.enableLanguageDetection, dept.enableEndConversation, dept.enableAppointmentBooking, dept.enableRecording].filter(Boolean).length}/5 enabled
-              </span>
+              <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${featuresOpen ? 'rotate-180' : ''}`} />
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Features</span>
+              <span className="text-[10px] text-muted-foreground ml-auto">{enabledFeaturesCount}/5</span>
             </button>
-            {featuresOpen && <div className="mt-3">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="p-2.5 border rounded-lg space-y-2">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <PhoneForwarded className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                      <Label className="text-xs">Transfer</Label>
-                    </div>
+            {featuresOpen && <div className="mt-2">
+              <div className="grid grid-cols-5 gap-1.5">
+                <div className="p-2 border rounded space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <PhoneForwarded className="h-3 w-3 text-blue-500" />
                     <Switch
                       checked={dept.enableTransfer}
                       onCheckedChange={(val) => onUpdate({ enableTransfer: val })}
                       data-testid="switch-dept-transfer"
-                      className="scale-75"
+                      className="scale-[0.65]"
                     />
                   </div>
+                  <div className="text-[10px] font-medium leading-tight">Transfer</div>
                   {dept.enableTransfer && (
-                    <div className="space-y-1.5 pt-1 border-t">
+                    <div className="space-y-1 pt-1 border-t">
                       <Input
                         value={dept.transferNumber || ""}
                         onChange={(e) => onUpdate({ transferNumber: e.target.value })}
-                        placeholder="+1 (555) 123-4567"
-                        className="h-7 text-xs"
+                        placeholder="+1 555..."
+                        className="h-6 text-[10px] px-1.5"
                         data-testid="input-transfer-number"
                       />
                       <Input
                         value={dept.transferMessage || ""}
                         onChange={(e) => onUpdate({ transferMessage: e.target.value })}
-                        placeholder="Transfer message..."
-                        className="h-7 text-xs"
+                        placeholder="Message..."
+                        className="h-6 text-[10px] px-1.5"
                         data-testid="input-transfer-message"
                       />
                     </div>
                   )}
                 </div>
 
-                <div className="p-2.5 border rounded-lg space-y-2">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <Languages className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                      <Label className="text-xs">Lang Detect</Label>
-                    </div>
+                <div className="p-2 border rounded space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Languages className="h-3 w-3 text-green-500" />
                     <Switch
                       checked={dept.enableLanguageDetection}
                       onCheckedChange={(val) => onUpdate({ enableLanguageDetection: val })}
                       data-testid="switch-lang-detection"
-                      className="scale-75"
+                      className="scale-[0.65]"
                     />
                   </div>
+                  <div className="text-[10px] font-medium leading-tight">Detect</div>
                   {dept.enableLanguageDetection && (
-                    <p className="text-[10px] text-muted-foreground pt-1 border-t">Auto-detect 99 languages</p>
+                    <p className="text-[9px] text-muted-foreground pt-1 border-t leading-tight">99 languages</p>
                   )}
                 </div>
 
-                <div className="p-2.5 border rounded-lg space-y-2">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <PhoneOff className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-                      <Label className="text-xs">End Call</Label>
-                    </div>
+                <div className="p-2 border rounded space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <PhoneOff className="h-3 w-3 text-orange-500" />
                     <Switch
                       checked={dept.enableEndConversation}
                       onCheckedChange={(val) => onUpdate({ enableEndConversation: val })}
                       data-testid="switch-end-conversation"
-                      className="scale-75"
+                      className="scale-[0.65]"
                     />
                   </div>
+                  <div className="text-[10px] font-medium leading-tight">End Call</div>
                   {dept.enableEndConversation && (
                     <div className="pt-1 border-t">
                       <Textarea
@@ -1431,80 +1419,54 @@ function DepartmentCard({
                         })}
                         placeholder={"goodbye\nthank you"}
                         rows={2}
-                        className="text-[10px] min-h-0"
+                        className="text-[9px] min-h-0 px-1.5"
                         data-testid="input-end-phrases"
                       />
                     </div>
                   )}
                 </div>
 
-                <div className="p-2.5 border rounded-lg space-y-2">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <CalendarCheck className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-                      <Label className="text-xs">Booking</Label>
-                    </div>
+                <div className="p-2 border rounded space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <CalendarCheck className="h-3 w-3 text-purple-500" />
                     <Switch
                       checked={dept.enableAppointmentBooking}
                       onCheckedChange={(val) => onUpdate({ enableAppointmentBooking: val })}
                       data-testid="switch-appointment"
-                      className="scale-75"
+                      className="scale-[0.65]"
                     />
                   </div>
+                  <div className="text-[10px] font-medium leading-tight">Booking</div>
                   {dept.enableAppointmentBooking && (
-                    <div className="space-y-1.5 pt-1 border-t">
+                    <div className="space-y-1 pt-1 border-t">
                       <Input
                         value={dept.calendarUrl || ""}
                         onChange={(e) => onUpdate({ calendarUrl: e.target.value })}
-                        placeholder="Calendar URL..."
-                        className="h-7 text-xs"
+                        placeholder="URL..."
+                        className="h-6 text-[10px] px-1.5"
                         data-testid="input-calendar-url"
-                      />
-                      <Textarea
-                        value={dept.bookingInstructions || ""}
-                        onChange={(e) => onUpdate({ bookingInstructions: e.target.value })}
-                        placeholder="Booking instructions..."
-                        rows={2}
-                        className="text-[10px] min-h-0"
-                        data-testid="input-booking-instructions"
                       />
                     </div>
                   )}
                 </div>
 
-                <div className="p-2.5 border rounded-lg space-y-2">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <Circle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                      <Label className="text-xs">Recording</Label>
-                    </div>
+                <div className="p-2 border rounded space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Circle className="h-3 w-3 text-red-500" />
                     <Switch
                       checked={dept.enableRecording}
                       onCheckedChange={(val) => onUpdate({ enableRecording: val })}
                       data-testid="switch-dept-recording"
-                      className="scale-75"
+                      className="scale-[0.65]"
                     />
                   </div>
+                  <div className="text-[10px] font-medium leading-tight">Record</div>
                   {dept.enableRecording && (
-                    <div className="pt-1 border-t">
-                      <Badge variant="outline" className="text-[10px]">Disclosure enabled</Badge>
-                    </div>
+                    <p className="text-[9px] text-muted-foreground pt-1 border-t leading-tight">Disclosure on</p>
                   )}
                 </div>
               </div>
             </div>}
-          </div>
-
-          <div className="pt-2">
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={onDelete}
-              data-testid="button-delete-dept"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Remove Deprock Department
-            </Button>
           </div>
         </CardContent>
       )}

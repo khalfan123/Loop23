@@ -1284,156 +1284,162 @@ export default function DeprockManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-3 lg:gap-0 items-stretch" data-testid="deprock-call-center-org-card">
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center mb-2">
-                  <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <div className="rounded-lg border border-border bg-card overflow-hidden" data-testid="deprock-call-center-org-card">
+              <div className="flex items-stretch overflow-x-auto">
+
+                <div className="flex-1 min-w-[120px] flex flex-col items-center justify-center text-center px-3 py-3 relative group">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="w-6 h-6 rounded-md bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
+                      <Phone className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <span className="text-xs font-semibold tracking-tight">Inbound</span>
+                  </div>
+                  {assignedPhones.length > 0 ? (
+                    <div className="flex flex-col items-center gap-0">
+                      {assignedPhones.slice(0, 2).map((phone) => (
+                        <span key={phone.id} className="text-[10px] text-muted-foreground font-mono leading-tight" data-testid={`deprock-text-assigned-phone-${phone.id}`}>
+                          {phone.phoneNumber}
+                        </span>
+                      ))}
+                      {assignedPhones.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground">+{assignedPhones.length - 2}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground font-mono">No number</span>
+                  )}
+                  {unassignedPhones.length > 0 && (
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 cursor-pointer mt-0.5 text-orange-500 dark:text-orange-400 border-orange-300 dark:border-orange-600" onClick={() => setShowIvrSettingsDialog(true)} data-testid="deprock-unassigned-numbers-panel">
+                      {unassignedPhones.length} unassigned
+                    </Badge>
+                  )}
                 </div>
-                <span className="text-sm font-medium">Inbound</span>
-                {assignedPhones.length > 0 ? (
-                  <div className="flex flex-col items-center gap-0.5 mt-0.5">
-                    {assignedPhones.map((phone) => (
-                      <span key={phone.id} className="text-xs text-muted-foreground font-mono" data-testid={`deprock-text-assigned-phone-${phone.id}`}>
-                        {phone.phoneNumber}
+
+                <div className="flex items-center px-0.5 shrink-0">
+                  <div className="w-6 border-t border-foreground/20 relative">
+                    <ChevronRight className="h-3 w-3 text-foreground/30 absolute -right-1.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-[120px] flex flex-col items-center justify-center text-center px-3 py-3 border-l border-r border-border/40">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="w-6 h-6 rounded-md bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center">
+                      <GitBranch className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    {editingIvrName && ivrConfigurations.length > 0 ? (
+                      <div className="flex items-center gap-0.5">
+                        <Input
+                          value={editIvrNameValue}
+                          onChange={(e) => setEditIvrNameValue(e.target.value)}
+                          className="text-xs text-center w-24"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && editIvrNameValue.trim()) {
+                              updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
+                            } else if (e.key === "Escape") {
+                              setEditingIvrName(null);
+                              setEditIvrNameValue("");
+                            }
+                          }}
+                          data-testid="deprock-input-edit-ivr-name"
+                        />
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          onClick={() => {
+                            if (editIvrNameValue.trim()) {
+                              updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
+                            }
+                          }}
+                          data-testid="deprock-button-confirm-ivr-name"
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span
+                        className="text-xs font-semibold tracking-tight cursor-pointer hover:underline transition-all"
+                        onClick={() => {
+                          const activeIvrItem = ivrConfigurations.find(i => i.isActive);
+                          if (activeIvrItem) {
+                            setEditingIvrName(activeIvrItem.id);
+                            setEditIvrNameValue(activeIvrItem.name || "Auto Distribution");
+                          }
+                        }}
+                        data-testid="deprock-ivr-name-editable"
+                      >
+                        IVR Router
                       </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground mt-0.5 font-mono">No number</span>
-                )}
-                {unassignedPhones.length > 0 && (
-                  <Badge variant="outline" className="text-xs mt-1 cursor-pointer" onClick={() => setShowIvrSettingsDialog(true)} data-testid="deprock-unassigned-numbers-panel">
-                    {unassignedPhones.length} unassigned
-                  </Badge>
-                )}
-              </div>
-
-              <div className="hidden lg:flex items-center justify-center px-1">
-                <div className="w-full border-t-2 border-dashed border-foreground/30 relative">
-                  <ChevronRight className="h-4 w-4 text-foreground/50 absolute -right-2 top-1/2 -translate-y-1/2" />
-                </div>
-              </div>
-              <div className="flex lg:hidden items-center justify-center py-1">
-                <ChevronDown className="h-4 w-4 text-foreground/50" />
-              </div>
-
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center mb-2">
-                  <GitBranch className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                {editingIvrName && ivrConfigurations.length > 0 ? (
-                  <div className="flex items-center gap-1 w-full">
-                    <Input
-                      value={editIvrNameValue}
-                      onChange={(e) => setEditIvrNameValue(e.target.value)}
-                      className="h-6 text-sm text-center"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && editIvrNameValue.trim()) {
-                          updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
-                        } else if (e.key === "Escape") {
-                          setEditingIvrName(null);
-                          setEditIvrNameValue("");
-                        }
-                      }}
-                      data-testid="deprock-input-edit-ivr-name"
-                    />
-                    <Button 
-                      size="icon" 
-                      variant="ghost"
-                      onClick={() => {
-                        if (editIvrNameValue.trim()) {
-                          updateIvrMutation.mutate({ id: editingIvrName, name: editIvrNameValue });
-                        }
-                      }}
-                      data-testid="deprock-button-confirm-ivr-name"
-                    >
-                      <Check className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ) : (
-                  <span
-                    className="text-sm font-medium cursor-pointer"
-                    onClick={() => {
-                      const activeIvrItem = ivrConfigurations.find(i => i.isActive);
-                      if (activeIvrItem) {
-                        setEditingIvrName(activeIvrItem.id);
-                        setEditIvrNameValue(activeIvrItem.name || "Auto Distribution");
-                      }
-                    }}
-                    data-testid="deprock-ivr-name-editable"
-                  >
-                    IVR Router
-                  </span>
-                )}
-                <span className="text-xs text-muted-foreground mt-0.5">{ivrConfigurations.find(i => i.isActive)?.name || "Auto Distribution"}</span>
-                {multiLangEnabled && languageOptions.length > 1 && (
-                  <Badge variant="outline" className="text-xs mt-1">{languageOptions.length} Languages</Badge>
-                )}
-              </div>
-
-              <div className="hidden lg:flex items-center justify-center px-1">
-                <div className="w-full border-t-2 border-dashed border-foreground/30 relative">
-                  <ChevronRight className="h-4 w-4 text-foreground/50 absolute -right-2 top-1/2 -translate-y-1/2" />
-                </div>
-              </div>
-              <div className="flex lg:hidden items-center justify-center py-1">
-                <ChevronDown className="h-4 w-4 text-foreground/50" />
-              </div>
-
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center mb-2">
-                  <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <span className="text-sm font-medium">Departments</span>
-                <span className="text-xs text-muted-foreground mt-0.5">{departments.length} Active</span>
-                {departments.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-1 mt-1.5 max-w-full">
-                    {departments.slice(0, 3).map((dept) => (
-                      <Badge key={dept.id} variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {dept.name}
-                      </Badge>
-                    ))}
-                    {departments.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground">+{departments.length - 3}</span>
                     )}
                   </div>
-                )}
+                  <span className="text-[10px] text-muted-foreground leading-tight">{ivrConfigurations.find(i => i.isActive)?.name || "Auto Distribution"}</span>
+                  {multiLangEnabled && languageOptions.length > 1 && (
+                    <span className="text-[9px] text-blue-500 dark:text-blue-400 font-medium mt-0.5">{languageOptions.length} languages</span>
+                  )}
+                </div>
+
+                <div className="flex items-center px-0.5 shrink-0">
+                  <div className="w-6 border-t border-foreground/20 relative">
+                    <ChevronRight className="h-3 w-3 text-foreground/30 absolute -right-1.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-[120px] flex flex-col items-center justify-center text-center px-3 py-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="w-6 h-6 rounded-md bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
+                      <Building2 className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <span className="text-xs font-semibold tracking-tight">Departments</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground leading-tight">{departments.length} active</span>
+                  {departments.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-center gap-0.5 mt-1 max-w-[140px]">
+                      {departments.slice(0, 3).map((dept) => (
+                        <Badge key={dept.id} variant="secondary" className="text-[9px] px-1 py-0" data-testid={`deprock-badge-dept-${dept.id}`}>
+                          {dept.name}
+                        </Badge>
+                      ))}
+                      {departments.length > 3 && (
+                        <span className="text-[9px] text-muted-foreground" data-testid="deprock-text-dept-overflow">+{departments.length - 3}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center px-0.5 shrink-0">
+                  <div className="w-6 border-t border-foreground/20 relative">
+                    <ChevronRight className="h-3 w-3 text-foreground/30 absolute -right-1.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-[100px] flex flex-col items-center justify-center text-center px-3 py-3 border-l border-r border-border/40">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="w-6 h-6 rounded-md bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
+                      <Mic className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <span className="text-xs font-semibold tracking-tight">AI Agents</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground leading-tight">{agents?.length || 0} enabled</span>
+                </div>
+
+                <div className="flex items-center px-0.5 shrink-0">
+                  <div className="w-6 border-t border-foreground/20 relative">
+                    <ChevronRight className="h-3 w-3 text-foreground/30 absolute -right-1.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-[100px] flex flex-col items-center justify-center text-center px-3 py-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="w-6 h-6 rounded-md bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center">
+                      <BookOpen className="h-3 w-3 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <span className="text-xs font-semibold tracking-tight">Knowledge</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground leading-tight">AI Brain</span>
+                </div>
+
               </div>
 
-              <div className="hidden lg:flex items-center justify-center px-1">
-                <div className="w-full border-t-2 border-dashed border-foreground/30 relative">
-                  <ChevronRight className="h-4 w-4 text-foreground/50 absolute -right-2 top-1/2 -translate-y-1/2" />
-                </div>
-              </div>
-              <div className="flex lg:hidden items-center justify-center py-1">
-                <ChevronDown className="h-4 w-4 text-foreground/50" />
-              </div>
-
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center mb-2">
-                  <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                </div>
-                <span className="text-sm font-medium">AI Agents</span>
-                <span className="text-xs text-muted-foreground mt-0.5">{agents?.length || 0} Enabled</span>
-              </div>
-
-              <div className="hidden lg:flex items-center justify-center px-1">
-                <div className="w-full border-t-2 border-dashed border-foreground/30 relative">
-                  <ChevronRight className="h-4 w-4 text-foreground/50 absolute -right-2 top-1/2 -translate-y-1/2" />
-                </div>
-              </div>
-              <div className="flex lg:hidden items-center justify-center py-1">
-                <ChevronDown className="h-4 w-4 text-foreground/50" />
-              </div>
-
-              <div className="lg:col-span-1 flex flex-col items-center justify-center text-center p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm">
-                <div className="w-9 h-9 rounded-xl bg-rose-500/10 dark:bg-rose-500/20 flex items-center justify-center mb-2">
-                  <BookOpen className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-                </div>
-                <span className="text-sm font-medium">Knowledge Base</span>
-                <span className="text-xs text-muted-foreground mt-0.5">AI Brain</span>
-              </div>
             </div>
 
             <div>

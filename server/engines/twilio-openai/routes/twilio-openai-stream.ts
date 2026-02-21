@@ -25,6 +25,7 @@ import { eq, sql } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
 import { TWILIO_OPENAI_CONFIG } from '../config/twilio-openai-config';
 import { CallInsightsService } from '../../../services/call-insights.service';
+import { liveCallRegistry } from '../../../services/live-call-registry';
 import type { TwilioMediaStreamEvent } from '../types';
 import type { OpenAIVoice, OpenAIRealtimeModel, AgentTool } from '../types';
 
@@ -122,6 +123,8 @@ function handleTwilioStreamConnection(ws: WebSocket, callSid: string): void {
 
   ws.on('close', async (code: number, reason: Buffer) => {
     console.log(`[TwilioOpenAI Stream] WebSocket closed for ${callSid}: ${code} ${reason?.toString() || ''}`);
+
+    liveCallRegistry.endCallByTwilioSid(callSid);
     
     try {
       const result = await TwilioOpenAIAudioBridge.endSession(callSid);

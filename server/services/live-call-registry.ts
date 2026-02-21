@@ -30,9 +30,18 @@ export type LiveCallEvent =
   | { type: 'call_ended'; callId: string; userId: string }
   | { type: 'transcript_update'; callId: string; userId: string; message: string; role: 'agent' | 'caller' };
 
+const STALE_CALL_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+const STALE_CALL_CHECK_INTERVAL_MS = 60 * 1000;
+
 class LiveCallRegistry extends EventEmitter {
   private activeCalls: Map<string, LiveCall> = new Map();
   private durationIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private staleCleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    super();
+    this.startStaleCallCleanup();
+  }
 
   registerCall(call: LiveCall): void {
     this.activeCalls.set(call.callId, { ...call });
@@ -111,6 +120,30 @@ class LiveCallRegistry extends EventEmitter {
     return this.activeCalls.size;
   }
 
+  endCallByTwilioSid(callSid: string): void {
+    const entries = Array.from(this.activeCalls.entries());
+    for (let i = 0; i < entries.length; i++) {
+      const [callId, call] = entries[i];
+      if (call.twilioCallSid === callSid) {
+        this.endCall(callId);
+        return;
+      }
+    }
+    console.log(`📞 [LiveRegistry] endCallByTwilioSid skipped - no call found for SID: ${callSid}`);
+  }
+
+  endCallByPlivoUuid(callUuid: string): void {
+    const entries = Array.from(this.activeCalls.entries());
+    for (let i = 0; i < entries.length; i++) {
+      const [callId, call] = entries[i];
+      if (call.plivoCallUuid === callUuid || callId === callUuid) {
+        this.endCall(callId);
+        return;
+      }
+    }
+    console.log(`📞 [LiveRegistry] endCallByPlivoUuid skipped - no call found for UUID: ${callUuid}`);
+  }
+
   private startDurationTracker(callId: string): void {
     const interval = setInterval(() => {
       const call = this.activeCalls.get(callId);
@@ -129,6 +162,21 @@ class LiveCallRegistry extends EventEmitter {
       clearInterval(interval);
       this.durationIntervals.delete(callId);
     }
+  }
+
+  private startStaleCallCleanup(): void {
+    this.staleCleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const entries = Array.from(this.activeCalls.entries());
+      for (let i = 0; i < entries.length; i++) {
+        const [callId, call] = entries[i];
+        const age = now - call.startedAt.getTime();
+        if (age > STALE_CALL_MAX_AGE_MS) {
+          console.log(`📞 [LiveRegistry] Auto-removing stale call ${callId} (age: ${Math.round(age / 60000)}min)`);
+          this.endCall(callId);
+        }
+      }
+    }, STALE_CALL_CHECK_INTERVAL_MS);
   }
 }
 

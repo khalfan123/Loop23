@@ -18,6 +18,7 @@ import { PlivoCallService } from '../services/plivo-call.service';
 import { OpenAIPoolService } from '../services/openai-pool.service';
 import { OpenAIAgentFactory } from '../services/openai-agent-factory';
 import { CallInsightsService } from '../../../services/call-insights.service';
+import { liveCallRegistry } from '../../../services/live-call-registry';
 import { db } from '../../../db';
 import { plivoCalls, agents, users, flowExecutions } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -122,6 +123,8 @@ function handlePlivoStreamConnection(ws: WebSocket, callUuid: string): void {
 
   ws.on('close', async () => {
     logger.info(`Connection closed for ${callUuid}`, undefined, 'PlivoStream');
+
+    liveCallRegistry.endCallByPlivoUuid(callUuid);
     
     try {
       const result = await AudioBridgeService.endSession(callUuid);

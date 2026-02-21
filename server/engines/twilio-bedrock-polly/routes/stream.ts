@@ -9,6 +9,7 @@ import { eq, sql } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
 import { BEDROCK_POLLY_CONFIG } from '../config/config';
 import { CallInsightsService } from '../../../services/call-insights.service';
+import { liveCallRegistry } from '../../../services/live-call-registry';
 import type { TwilioMediaStreamEvent, AgentConfig, PollyVoiceId, BedrockModel } from '../types';
 
 let sharedWss: WebSocketServer | null = null;
@@ -104,6 +105,8 @@ function handleBedrockPollyStreamConnection(ws: WebSocket, callSid: string): voi
 
   ws.on('close', async (code: number, reason: Buffer) => {
     console.log(`[BedrockPolly Stream] WebSocket closed for ${callSid}: ${code} ${reason?.toString() || ''}`);
+
+    liveCallRegistry.endCallByTwilioSid(callSid);
 
     try {
       await BedrockPollyAudioBridge.endSession(callSid);

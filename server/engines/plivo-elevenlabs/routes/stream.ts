@@ -16,6 +16,7 @@
 import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { ElevenLabsBridgeService } from '../services/elevenlabs-bridge.service';
+import { liveCallRegistry } from '../../../services/live-call-registry';
 
 interface PlivoStreamMessage {
   event: string;
@@ -140,6 +141,8 @@ function handleStreamConnection(ws: WebSocket, callUuid: string): void {
   ws.on('close', async (code: number, reason: Buffer) => {
     console.log(`[Plivo-ElevenLabs Stream] WebSocket closed for ${callUuid}: ${code}`);
     isConnected = false;
+
+    liveCallRegistry.endCallByPlivoUuid(callUuid);
     
     if (!sessionMissing) {
       try {

@@ -2151,6 +2151,10 @@ export async function handleTwilioStreamWebSocket(ws: WebSocket, req: Request) {
     console.log(`[Twilio] Conversation history length: ${conversationHistory.length}`);
     console.log(`[Twilio] CallId present: ${!!callId}`);
     
+    if (callId) {
+      liveCallRegistry.endCall(callId);
+    }
+
     await formatAndSaveTranscript(callId, conversationHistory);
     
     if (elevenLabsWs) {

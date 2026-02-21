@@ -272,12 +272,15 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string): Pr
 
     if (localizedFirstMessage) {
       try {
+        console.log(`[BrowserVoice] Synthesizing first message (${localizedFirstMessage.length} chars) with voice ${agentConfig.voice}`);
         const audioBuffer = await synthesizeSpeech(localizedFirstMessage, agentConfig.voice);
+        console.log(`[BrowserVoice] First message audio: ${audioBuffer.length} bytes`);
         sendMessage(ws, {
           type: 'audio',
           data: audioBuffer.toString('base64'),
           text: localizedFirstMessage,
         });
+        console.log(`[BrowserVoice] First message audio sent to client`);
       } catch (err: any) {
         console.error(`[BrowserVoice] Failed to synthesize first message:`, err.message);
       }

@@ -303,27 +303,35 @@ export default function DeprockCallSimulator() {
 
   const playAgentAudio = useCallback((base64Data: string) => {
     try {
+      console.log(`[CallSim] Playing agent audio: ${base64Data.length} base64 chars`);
       const binaryStr = atob(base64Data);
       const bytes = new Uint8Array(binaryStr.length);
       for (let i = 0; i < binaryStr.length; i++) {
         bytes[i] = binaryStr.charCodeAt(i);
       }
+      console.log(`[CallSim] Audio decoded: ${bytes.length} bytes`);
       const audioBlob = new Blob([bytes], { type: "audio/mpeg" });
       const url = URL.createObjectURL(audioBlob);
       const audio = new Audio(url);
       agentAudioRef.current = audio;
       audio.onended = () => {
+        console.log(`[CallSim] Audio playback ended`);
         URL.revokeObjectURL(url);
         setCallState(prev => prev === "agent-speaking" ? "agent-ready" : prev);
       };
-      audio.onerror = () => {
+      audio.onerror = (e) => {
+        console.error(`[CallSim] Audio playback error:`, e);
         URL.revokeObjectURL(url);
         setCallState(prev => prev === "agent-speaking" ? "agent-ready" : prev);
       };
-      audio.play().catch(() => {
+      audio.play().then(() => {
+        console.log(`[CallSim] Audio play started successfully`);
+      }).catch((err) => {
+        console.error(`[CallSim] Audio play failed:`, err);
         setCallState(prev => prev === "agent-speaking" ? "agent-ready" : prev);
       });
-    } catch {
+    } catch (err) {
+      console.error(`[CallSim] Audio decode error:`, err);
       setCallState(prev => prev === "agent-speaking" ? "agent-ready" : prev);
     }
   }, []);

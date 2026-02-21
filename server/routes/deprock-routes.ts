@@ -7,6 +7,7 @@ import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/sc
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
 import { awsPollyService } from "../services/aws-polly";
+import { awsBedrockService } from "../services/aws-bedrock";
 import { nanoid } from "nanoid";
 import { getOpenAIClient } from "../services/openai-modelfarm";
 import { deprockIvrRouter } from "../engines/twilio-bedrock-polly/routes/ivr-webhooks";
@@ -14,6 +15,13 @@ import { deprockIvrRouter } from "../engines/twilio-bedrock-polly/routes/ivr-web
 interface AuthRequest extends Request {
   userId?: string;
 }
+
+const SUPPORTED_LANGUAGES: Record<string, string> = {
+  en: "English", es: "Spanish", fr: "French", de: "German", it: "Italian",
+  pt: "Portuguese", zh: "Chinese", hi: "Hindi", ar: "Arabic", ja: "Japanese",
+  ko: "Korean", nl: "Dutch", pl: "Polish", sv: "Swedish", no: "Norwegian",
+  fi: "Finnish", da: "Danish", tr: "Turkish",
+};
 
 function getDepartmentType(name: string): "sales" | "support" | "scheduling" | "custom" {
   const lowerName = name.toLowerCase();
@@ -1223,6 +1231,42 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
     } catch (error: any) {
       console.error("[Deprock] Voice preview error:", error);
       res.status(500).json({ error: error.message || "Failed to generate voice preview" });
+    }
+  });
+
+  router.post("/generate-name", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { language, departmentType } = req.body;
+      if (!language) {
+        return res.status(400).json({ error: "language is required" });
+      }
+
+      const langLabel = SUPPORTED_LANGUAGES[language] || language;
+      const deptContext = departmentType && departmentType !== 'custom'
+        ? ` who works in a ${departmentType} department`
+        : '';
+
+      if (!awsBedrockService.isConfigured()) {
+        return res.status(503).json({ error: "AWS Bedrock is not configured" });
+      }
+
+      const result = await awsBedrockService.invoke({
+        model: "claude-3-5-sonnet",
+        maxTokens: 50,
+        temperature: 1.0,
+        messages: [
+          {
+            role: "user",
+            content: `Generate exactly one realistic full name (first name and last name) for a person${deptContext} who is a native ${langLabel} speaker. The name MUST be written in the native script/alphabet of ${langLabel} (e.g. Arabic script for Arabic, Kanji/Hiragana for Japanese, Hangul for Korean, Devanagari for Hindi, Chinese characters for Chinese). Do NOT transliterate into Latin/English letters. Output ONLY the name, nothing else.`,
+          },
+        ],
+      });
+
+      const name = result.content.trim().replace(/^["']|["']$/g, '');
+      res.json({ name });
+    } catch (error: any) {
+      console.error("[Deprock] Generate name error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate name" });
     }
   });
 

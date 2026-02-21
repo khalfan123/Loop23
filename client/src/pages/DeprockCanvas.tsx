@@ -859,10 +859,11 @@ function DepartmentCard({
     const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
     const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
 
+    const placeholderName = pickRandomName(newLangCode, langAgentId);
     const updates: Partial<LanguageAgent> = {
       language: newLangCode,
       agentId: bestAgent?.id || null,
-      agentName: bestAgent?.name || pickRandomName(newLangCode, langAgentId),
+      agentName: bestAgent?.name || placeholderName,
       firstMessage: DEFAULT_FIRST_MESSAGES[newLangCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
@@ -876,13 +877,16 @@ function DepartmentCard({
         title: "Language Changed",
         description: `Auto-selected agent "${bestAgent.name}" for ${SUPPORTED_LANGUAGES.find(l => l.code === newLangCode)?.label}`,
       });
-    } else if (dept.type !== "custom") {
-      const updatedList = languageAgents.map(la => la.id === langAgentId ? { ...la, ...updates } : la);
-      toast({
-        title: "Language Changed",
-        description: `Generating AI prompt for ${SUPPORTED_LANGUAGES.find(l => l.code === newLangCode)?.label}...`,
-      });
-      generatePromptForLangAgent(langAgentId, dept.type, dept.name, newLangCode, updatedList);
+    } else {
+      generateAiAgentName(langAgentId, newLangCode);
+      if (dept.type !== "custom") {
+        const updatedList = languageAgents.map(la => la.id === langAgentId ? { ...la, ...updates } : la);
+        toast({
+          title: "Language Changed",
+          description: `Generating AI prompt for ${SUPPORTED_LANGUAGES.find(l => l.code === newLangCode)?.label}...`,
+        });
+        generatePromptForLangAgent(langAgentId, dept.type, dept.name, newLangCode, updatedList);
+      }
     }
   };
 
@@ -953,6 +957,10 @@ function DepartmentCard({
     onUpdate({ languageAgents: updatedList });
     setActiveTabIdx(languageAgents.length);
 
+    if (!agentFound) {
+      generateAiAgentName(langAgentId, langCode);
+    }
+
     if (dept.type !== "custom") {
       const agentMsg = agentFound ? ` — "${bestAgent.name}" selected,` : " added —";
       toast({
@@ -981,6 +989,20 @@ function DepartmentCard({
       la.id === id ? { ...la, ...updates } : la
     );
     onUpdate({ languageAgents: newList });
+  };
+
+  const generateAiAgentName = async (langAgentId: string, langCode: string) => {
+    try {
+      const response = await apiRequest("POST", "/api/deprock/generate-name", {
+        language: langCode,
+        departmentType: dept.type,
+      });
+      const data = await response.json();
+      if (data.name) {
+        updateLanguageAgent(langAgentId, { agentName: data.name });
+      }
+    } catch {
+    }
   };
 
   const generatePromptForAgent = async (langAgentId: string, agentName: string, language: string, preserveUpdates?: Partial<LanguageAgent>) => {
@@ -1529,6 +1551,30 @@ function DepartmentsStep({
     return { id: langAgents[0].id, name: langAgents[0].name, systemPrompt: langAgents[0].systemPrompt, voiceTone: langAgents[0].voiceTone };
   };
 
+  const generateAiNameForNewDept = async (deptId: string, langAgentId: string, langCode: string, deptType: string) => {
+    try {
+      const response = await apiRequest("POST", "/api/deprock/generate-name", {
+        language: langCode,
+        departmentType: deptType,
+      });
+      const data = await response.json();
+      if (data.name) {
+        setCanvasDepartments((prev) =>
+          prev.map((dept) => {
+            if (dept.id !== deptId) return dept;
+            return {
+              ...dept,
+              languageAgents: (dept.languageAgents || []).map((la) =>
+                la.id === langAgentId ? { ...la, agentName: data.name } : la
+              ),
+            };
+          })
+        );
+      }
+    } catch {
+    }
+  };
+
   const generatePromptForNewDept = async (deptId: string, langAgentId: string, deptType: string, deptName: string, langCode: string) => {
     setGeneratingDeptLangIds((prev) => new Set(prev).add(langAgentId));
     try {
@@ -1618,6 +1664,12 @@ function DepartmentsStep({
 
     setCanvasDepartments((prev) => [...prev, newDept]);
     setActiveDeptId(newDeptId);
+
+    languageAgents.forEach((la) => {
+      if (!la.agentId) {
+        generateAiNameForNewDept(newDeptId, la.id, la.language, deptType);
+      }
+    });
 
     if (deptType !== "custom") {
       const langCount = langsToAdd.length;

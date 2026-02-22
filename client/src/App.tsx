@@ -179,6 +179,7 @@ function UserRouter() {
           <Route path="/app/campaigns/new" component={CreateCampaign} />
           <Route path="/app/campaigns/:id" component={CampaignDetail} />
           <Route path="/app/campaigns" component={Campaigns} />
+          <Route path="/app/forms" component={FormsPage} />
           <Route path="/app/calls/:id" component={CallDetail} />
           <Route path="/app/calls" component={Calls} />
           <Route path="/app/contacts" component={AllContacts} />
@@ -273,6 +274,7 @@ function TeamMemberRouter() {
           <Route path="/app/campaigns/new" component={CreateCampaign} />
           <Route path="/app/campaigns/:id" component={CampaignDetail} />
           <Route path="/app/campaigns" component={Campaigns} />
+          <Route path="/app/forms" component={FormsPage} />
           <Route path="/app/calls/:id" component={CallDetail} />
           <Route path="/app/calls" component={Calls} />
           <Route path="/app/contacts" component={AllContacts} />

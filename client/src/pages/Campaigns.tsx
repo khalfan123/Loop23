@@ -20,12 +20,11 @@ import { useLocation } from "wouter";
 import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
-import FormsPage from "@/pages/FormsPage";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, FileText } from "lucide-react";
+import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,7 +81,7 @@ interface DeduplicatedContact {
   callCount: number;
 }
 
-type ViewMode = 'batch' | 'contacts' | 'forms';
+type ViewMode = 'batch' | 'contacts';
 
 export default function Campaigns() {
   const [, setLocation] = useLocation();
@@ -268,15 +267,6 @@ export default function Campaigns() {
           isActive={activeView === 'contacts'}
           badge={activeView === 'contacts' ? contacts.length : undefined}
           onClick={() => setActiveView('contacts')}
-        />
-      </SubPanelSection>
-      
-      <SubPanelSection title={t('campaigns.tools', 'TOOLS')}>
-        <SubPanelItem
-          icon={<FileText className="w-4 h-4" />}
-          label={t('nav.forms', 'Forms')}
-          isActive={activeView === 'forms'}
-          onClick={() => setActiveView('forms')}
         />
       </SubPanelSection>
 
@@ -603,11 +593,7 @@ export default function Campaigns() {
       subPanelWidth="sm"
       subPanelHeader={<span className="font-medium text-sm">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>}
     >
-      {activeView === 'batch' ? renderBatchCallView() : activeView === 'forms' ? (
-        <div className="p-6 overflow-auto h-[calc(100vh-120px)]">
-          <FormsPage />
-        </div>
-      ) : renderContactsView()}
+      {activeView === 'batch' ? renderBatchCallView() : renderContactsView()}
     </ThreeColumnLayout>
   );
 }

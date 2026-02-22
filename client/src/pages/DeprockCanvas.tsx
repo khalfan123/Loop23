@@ -227,7 +227,40 @@ const POLLY_VOICES = [
   { id: 'Burcu', name: 'Burcu', gender: 'female', style: 'natural', languages: ['tr'] },
 ];
 
-const ALL_IVR_VOICES = POLLY_VOICES;
+const ELEVENLABS_VOICES = [
+  { id: "el_rachel", name: "Rachel (ElevenLabs)", gender: "female", style: "warm", languages: ["en"] },
+  { id: "el_domi", name: "Domi (ElevenLabs)", gender: "female", style: "strong", languages: ["en"] },
+  { id: "el_bella", name: "Bella (ElevenLabs)", gender: "female", style: "soft", languages: ["en"] },
+  { id: "el_antoni", name: "Antoni (ElevenLabs)", gender: "male", style: "well-rounded", languages: ["en"] },
+  { id: "el_elli", name: "Elli (ElevenLabs)", gender: "female", style: "young", languages: ["en"] },
+  { id: "el_josh", name: "Josh (ElevenLabs)", gender: "male", style: "deep", languages: ["en"] },
+  { id: "el_arnold", name: "Arnold (ElevenLabs)", gender: "male", style: "crisp", languages: ["en"] },
+  { id: "el_adam", name: "Adam (ElevenLabs)", gender: "male", style: "deep", languages: ["en"] },
+  { id: "el_sam", name: "Sam (ElevenLabs)", gender: "male", style: "raspy", languages: ["en"] },
+  { id: "el_nicole", name: "Nicole (ElevenLabs)", gender: "female", style: "whisper", languages: ["en"] },
+  { id: "el_marie", name: "Marie (ElevenLabs)", gender: "female", style: "soft", languages: ["fr"] },
+  { id: "el_pierre", name: "Pierre (ElevenLabs)", gender: "male", style: "warm", languages: ["fr"] },
+  { id: "el_giulia", name: "Giulia (ElevenLabs)", gender: "female", style: "expressive", languages: ["it"] },
+  { id: "el_marco", name: "Marco (ElevenLabs)", gender: "male", style: "warm", languages: ["it"] },
+  { id: "el_xiaoli", name: "Xiaoli (ElevenLabs)", gender: "female", style: "clear", languages: ["zh"] },
+  { id: "el_wei", name: "Wei (ElevenLabs)", gender: "male", style: "professional", languages: ["zh"] },
+  { id: "el_priya", name: "Priya (ElevenLabs)", gender: "female", style: "warm", languages: ["hi"] },
+  { id: "el_raj", name: "Raj (ElevenLabs)", gender: "male", style: "deep", languages: ["hi"] },
+  { id: "el_fatima", name: "Fatima (ElevenLabs)", gender: "female", style: "warm", languages: ["ar"] },
+  { id: "el_omar", name: "Omar (ElevenLabs)", gender: "male", style: "deep", languages: ["ar"] },
+];
+
+const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_");
+
+const ALL_IVR_VOICES = [...POLLY_VOICES, ...ELEVENLABS_VOICES];
+
+const getPollyVoicesForLanguage = (languageCode: string) => {
+  return POLLY_VOICES.filter(voice => voice.languages.includes(languageCode));
+};
+
+const getElevenLabsVoicesForLanguage = (languageCode: string) => {
+  return ELEVENLABS_VOICES.filter(voice => voice.languages.includes(languageCode));
+};
 
 const getVoicesForLanguage = (languageCode: string) => {
   return ALL_IVR_VOICES.filter(voice => voice.languages.includes(languageCode));
@@ -1101,7 +1134,7 @@ function DepartmentCard({
     }
   };
 
-  const handlePlayVoice = async (voiceId: string) => {
+  const handlePlayVoice = async (voiceId: string, customText?: string) => {
     if (!audioRef.current) return;
 
     if (playingVoiceId === voiceId) {
@@ -1114,7 +1147,7 @@ function DepartmentCard({
     setPlayingVoiceId(voiceId);
     try {
       const langCode = activeLangAgent?.language || "en";
-      const sampleText = DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
+      const sampleText = customText || DEFAULT_GREETINGS[langCode] || DEFAULT_GREETINGS.en;
       const response = await apiRequest("POST", "/api/deprock/voice-preview", {
         voiceId,
         text: sampleText,
@@ -1366,12 +1399,26 @@ function DepartmentCard({
                     <SelectContent>
                       {getVoicesForLanguage(activeLangAgent.language).length > 0 ? (
                         <>
-                          <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground">AWS Polly Neural Voices</div>
-                          {getVoicesForLanguage(activeLangAgent.language).map((voice) => (
-                            <SelectItem key={voice.id} value={voice.id}>
-                              {voice.name} - {voice.gender}, {voice.style}
-                            </SelectItem>
-                          ))}
+                          {getPollyVoicesForLanguage(activeLangAgent.language).length > 0 && (
+                            <>
+                              <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground">AWS Polly Neural Voices</div>
+                              {getPollyVoicesForLanguage(activeLangAgent.language).map((voice) => (
+                                <SelectItem key={voice.id} value={voice.id}>
+                                  {voice.name} - {voice.gender}, {voice.style}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          {getElevenLabsVoicesForLanguage(activeLangAgent.language).length > 0 && (
+                            <>
+                              <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground">ElevenLabs Voices</div>
+                              {getElevenLabsVoicesForLanguage(activeLangAgent.language).map((voice) => (
+                                <SelectItem key={voice.id} value={voice.id}>
+                                  {voice.name} - {voice.gender}, {voice.style}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
                         </>
                       ) : (
                         <div className="px-2 py-1.5 text-xs text-muted-foreground">No voices for this language</div>
@@ -2232,12 +2279,22 @@ function IVRRouterStep({
                         <SelectValue placeholder="Select a voice..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices (English)</div>
+                        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Neural Voices (English)</div>
                         {POLLY_VOICES.filter(v => v.languages.includes('en')).map((voice) => (
                           <SelectItem key={voice.id} value={voice.id}>
                             {voice.name} - {voice.gender}, {voice.style}
                           </SelectItem>
                         ))}
+                        {ELEVENLABS_VOICES.filter(v => v.languages.includes('en')).length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">ElevenLabs Voices (English)</div>
+                            {ELEVENLABS_VOICES.filter(v => v.languages.includes('en')).map((voice) => (
+                              <SelectItem key={voice.id} value={voice.id}>
+                                {voice.name} - {voice.gender}, {voice.style}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                     <Button
@@ -2443,12 +2500,39 @@ function IVRRouterStep({
                       <SelectValue placeholder="Select a voice..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices ({SUPPORTED_LANGUAGES.find(l => l.code === (languageOptions[0]?.language || 'en'))?.label || 'English'})</div>
-                      {POLLY_VOICES.filter(v => v.languages.includes(languageOptions[0]?.language || 'en')).map((voice) => (
-                        <SelectItem key={voice.id} value={voice.id}>
-                          {voice.name} - {voice.gender}, {voice.style}
-                        </SelectItem>
-                      ))}
+                      {(() => {
+                        const lang = languageOptions[0]?.language || 'en';
+                        const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === lang)?.label || 'English';
+                        const pollyVoices = POLLY_VOICES.filter(v => v.languages.includes(lang));
+                        const elVoices = ELEVENLABS_VOICES.filter(v => v.languages.includes(lang));
+                        return (
+                          <>
+                            {pollyVoices.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Neural Voices ({langLabel})</div>
+                                {pollyVoices.map((voice) => (
+                                  <SelectItem key={voice.id} value={voice.id}>
+                                    {voice.name} - {voice.gender}, {voice.style}
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                            {elVoices.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">ElevenLabs Voices ({langLabel})</div>
+                                {elVoices.map((voice) => (
+                                  <SelectItem key={voice.id} value={voice.id}>
+                                    {voice.name} - {voice.gender}, {voice.style}
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                            {pollyVoices.length === 0 && elVoices.length === 0 && (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">No voices for this language</div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </SelectContent>
                   </Select>
                   <Button

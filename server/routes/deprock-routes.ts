@@ -8,6 +8,7 @@ import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
 import { awsPollyService } from "../services/aws-polly";
 import { awsBedrockService } from "../services/aws-bedrock";
+import { ElevenLabsService } from "../services/elevenlabs";
 import { nanoid } from "nanoid";
 import { getOpenAIClient } from "../services/openai-modelfarm";
 import { deprockIvrRouter } from "../engines/twilio-bedrock-polly/routes/ivr-webhooks";
@@ -1218,17 +1219,41 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       if (!voiceId || !text) {
         return res.status(400).json({ error: "voiceId and text are required" });
       }
-      
-      const result = await awsPollyService.synthesizeSpeech({
-        text,
-        voiceId,
-        engine: 'neural',
-        outputFormat: 'mp3',
-      });
-      
-      res.setHeader("Content-Type", "audio/mpeg");
-      res.setHeader("Content-Disposition", "inline; filename=preview.mp3");
-      res.send(result.audioStream);
+
+      const isElevenLabsVoice = voiceId.startsWith("el_");
+
+      if (isElevenLabsVoice) {
+        const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+        if (!elevenLabsApiKey) {
+          return res.status(400).json({ error: "ElevenLabs API key not configured" });
+        }
+
+        const realVoiceId = getElevenLabsVoiceId(voiceId);
+        if (!realVoiceId) {
+          return res.status(400).json({ error: "Invalid ElevenLabs voice ID" });
+        }
+
+        const elevenLabsService = new ElevenLabsService(elevenLabsApiKey);
+        const audioBuffer = await elevenLabsService.generateVoicePreview({
+          voiceId: realVoiceId,
+          text,
+        });
+
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Content-Disposition", "inline; filename=preview.mp3");
+        res.send(audioBuffer);
+      } else {
+        const result = await awsPollyService.synthesizeSpeech({
+          text,
+          voiceId,
+          engine: 'neural',
+          outputFormat: 'mp3',
+        });
+
+        res.setHeader("Content-Type", "audio/mpeg");
+        res.setHeader("Content-Disposition", "inline; filename=preview.mp3");
+        res.send(result.audioStream);
+      }
     } catch (error: any) {
       console.error("[Deprock] Voice preview error:", error);
       res.status(500).json({ error: error.message || "Failed to generate voice preview" });
@@ -1652,6 +1677,32 @@ export function createDeprockIvrAudioRoutes() {
 
 const deprockTtsAudioCache = new Map<string, { buffer: Buffer; timestamp: number }>();
 const DEPROCK_TTS_CACHE_TTL = 10 * 60 * 1000;
+
+function getElevenLabsVoiceId(internalId: string): string | null {
+  const voiceMap: Record<string, string> = {
+    el_rachel: "21m00Tcm4TlvDq8ikWAM",
+    el_domi: "AZnzlk1XvdvUeBnXmlld",
+    el_bella: "EXAVITQu4vr4xnSDxMaL",
+    el_antoni: "ErXwobaYiN019PkySvjV",
+    el_elli: "MF3mGyEYCl7XYWbV9V6O",
+    el_josh: "TxGEqnHWrfWFTfGW9XjX",
+    el_arnold: "VR6AewLTigWG4xSOukaG",
+    el_adam: "pNInz6obpgDQGcFmaJgB",
+    el_sam: "yoZ06aMxZJJ28mfd3POQ",
+    el_nicole: "piTKgcLEGmPE4e6mEKli",
+    el_marie: "6vTyAgAT8PncODBcLjRf",
+    el_pierre: "aQROLel5sQbj1vuIVi6B",
+    el_giulia: "gfKKsLN1k0oYYN9n2dXX",
+    el_marco: "W71zT1VwIFFx3mMGH2uZ",
+    el_xiaoli: "ByhETIclHirOlWnWKhHc",
+    el_wei: "4VZIsMPtgggwNg7OXbPY",
+    el_priya: "KYiVPerWcenyBTIvWbfY",
+    el_raj: "zT03pEAEi0VHKciJODfn",
+    el_fatima: "u0TsaWvt0v8migutHM3M",
+    el_omar: "G1HOkzin3NMwRHSq60UI",
+  };
+  return voiceMap[internalId] || null;
+}
 
 function hashText(text: string): string {
   let hash = 0;

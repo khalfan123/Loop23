@@ -29,7 +29,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, Pencil } from "lucide-react";
+import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, Pencil, Plug, Webhook, Mail, Globe, Users, Check, Loader2, Copy } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -77,10 +78,279 @@ interface FormWithFields extends Form {
   fields: FormField[];
 }
 
+interface FormIntegration {
+  id: string;
+  form_id: string;
+  type: string;
+  enabled: boolean;
+  config: Record<string, any>;
+}
+
+interface IntegrationTypeConfig {
+  type: string;
+  icon: any;
+  title: string;
+  description: string;
+  color: string;
+  configFields: { key: string; label: string; placeholder: string; type?: string }[];
+}
+
+function ConfigTextInput({ label, placeholder, initialValue, onSave, saving, testId }: {
+  label: string;
+  placeholder: string;
+  initialValue: string;
+  onSave: (value: string) => void;
+  saving: boolean;
+  testId: string;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const save = () => {
+    if (value !== initialValue) onSave(value);
+  };
+  return (
+    <div>
+      <Label className="text-xs font-normal text-muted-foreground mb-1.5 block">{label}</Label>
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        className="h-9 text-xs rounded-lg"
+        onBlur={save}
+        onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+        disabled={saving}
+        data-testid={testId}
+      />
+    </div>
+  );
+}
+
+function FormIntegrationsView({ form, onBack }: { form: Form; onBack: () => void }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+
+  const integrationTypes: IntegrationTypeConfig[] = [
+    {
+      type: "webhook",
+      icon: Webhook,
+      title: t("forms.integrations.webhook", "Webhook"),
+      description: t("forms.integrations.webhookDesc", "Send form submission data to a custom URL via POST request"),
+      color: "text-orange-500",
+      configFields: [
+        { key: "url", label: t("forms.integrations.webhookUrl", "Webhook URL"), placeholder: "https://api.example.com/webhook" },
+        { key: "secret", label: t("forms.integrations.webhookSecret", "Secret (optional)"), placeholder: "whsec_..." },
+      ],
+    },
+    {
+      type: "crm_sync",
+      icon: Users,
+      title: t("forms.integrations.crmSync", "CRM Sync"),
+      description: t("forms.integrations.crmSyncDesc", "Automatically create or update leads in your CRM from form responses"),
+      color: "text-blue-500",
+      configFields: [
+        { key: "createLead", label: t("forms.integrations.autoCreateLead", "Auto-create lead on submission"), placeholder: "", type: "toggle" },
+        { key: "nameField", label: t("forms.integrations.nameFieldMapping", "Name field mapping"), placeholder: "Select form field for contact name" },
+        { key: "phoneField", label: t("forms.integrations.phoneFieldMapping", "Phone field mapping"), placeholder: "Select form field for phone" },
+      ],
+    },
+    {
+      type: "email_notification",
+      icon: Mail,
+      title: t("forms.integrations.emailNotification", "Email Notification"),
+      description: t("forms.integrations.emailNotificationDesc", "Send an email with form responses when a new submission is received"),
+      color: "text-green-500",
+      configFields: [
+        { key: "recipients", label: t("forms.integrations.recipients", "Recipients (comma-separated)"), placeholder: "admin@company.com, team@company.com" },
+        { key: "subject", label: t("forms.integrations.emailSubject", "Email Subject"), placeholder: "New form submission: {{formName}}" },
+      ],
+    },
+    {
+      type: "api_endpoint",
+      icon: Globe,
+      title: t("forms.integrations.apiEndpoint", "API Endpoint"),
+      description: t("forms.integrations.apiEndpointDesc", "Generate a public API endpoint to receive external submissions into this form"),
+      color: "text-purple-500",
+      configFields: [
+        { key: "apiKey", label: t("forms.integrations.apiKey", "API Key"), placeholder: "Auto-generated", type: "readonly" },
+      ],
+    },
+  ];
+
+  const { data: integrationData, isLoading } = useQuery<{ integrations: FormIntegration[]; fields: FormField[] }>({
+    queryKey: [`/api/flow-automation/forms/${form.id}/integrations`],
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ type, enabled, config }: { type: string; enabled: boolean; config: Record<string, any> }) => {
+      const res = await apiRequest("PUT", `/api/flow-automation/forms/${form.id}/integrations/${type}`, { enabled, config });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/flow-automation/forms/${form.id}/integrations`] });
+      toast({ title: t("forms.integrations.saved", "Integration saved") });
+    },
+    onError: (error: any) => {
+      toast({ title: t("forms.integrations.saveFailed", "Failed to save integration"), description: error.message, variant: "destructive" });
+    },
+  });
+
+  const getIntegrationState = (type: string): { enabled: boolean; config: Record<string, any> } => {
+    const existing = integrationData?.integrations?.find((i) => i.type === type);
+    return {
+      enabled: existing?.enabled ?? false,
+      config: existing?.config ?? {},
+    };
+  };
+
+  const handleToggle = (type: string, enabled: boolean) => {
+    const current = getIntegrationState(type);
+    let config = { ...current.config };
+    if (type === "api_endpoint" && enabled && !config.apiKey) {
+      config.apiKey = `fk_${form.id.slice(0, 8)}_${Math.random().toString(36).slice(2, 10)}`;
+    }
+    saveMutation.mutate({ type, enabled, config });
+  };
+
+  const handleConfigChange = (type: string, key: string, value: string) => {
+    const current = getIntegrationState(type);
+    saveMutation.mutate({ type, enabled: current.enabled, config: { ...current.config, [key]: value } });
+  };
+
+  const formFields = integrationData?.fields || [];
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: t("forms.integrations.copied", "Copied to clipboard") });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onBack} data-testid="button-back-from-integrations">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-semibold truncate" data-testid="text-integrations-title">
+            {t("forms.integrations.title", "Integration Points")}
+          </h2>
+          <p className="text-sm text-muted-foreground font-light truncate">{form.name} · #{form.id.slice(0, 8).toUpperCase()}</p>
+        </div>
+      </div>
+
+      {formFields.length > 0 && (
+        <div className="rounded-2xl bg-card border p-4 mb-5">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3" data-testid="text-form-fields-header">
+            {t("forms.integrations.formFieldsData", "Form Fields Data")}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {formFields.map((field) => (
+              <Badge key={field.id} variant="secondary" className="rounded-full text-xs font-normal px-2.5 py-1" data-testid={`badge-field-${field.id}`}>
+                {field.label || (field as any).question}
+                <span className="ml-1.5 text-muted-foreground/50 text-[10px]">{field.type || (field as any).fieldType}</span>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {integrationTypes.map((intType) => {
+          const state = getIntegrationState(intType.type);
+          const Icon = intType.icon;
+          return (
+            <div key={intType.type} className="rounded-2xl bg-card border overflow-hidden" data-testid={`card-integration-${intType.type}`}>
+              <div className="flex items-center gap-3.5 px-4 py-3.5">
+                <div className={`h-10 w-10 rounded-[12px] bg-muted/50 flex items-center justify-center shrink-0`}>
+                  <Icon className={`h-[18px] w-[18px] ${intType.color}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-[14px] leading-tight">{intType.title}</div>
+                  <div className="text-[11px] text-muted-foreground/60 font-light mt-0.5">{intType.description}</div>
+                </div>
+                <Switch
+                  checked={state.enabled}
+                  onCheckedChange={(checked) => handleToggle(intType.type, checked)}
+                  disabled={saveMutation.isPending}
+                  data-testid={`switch-integration-${intType.type}`}
+                />
+              </div>
+
+              {state.enabled && (
+                <div className="px-4 pb-4 pt-1 border-t border-border/50">
+                  <div className="space-y-3 mt-3">
+                    {intType.configFields.map((cf) => {
+                      if (cf.type === "toggle") {
+                        return (
+                          <div key={cf.key} className="flex items-center justify-between">
+                            <Label className="text-xs font-normal text-muted-foreground">{cf.label}</Label>
+                            <Switch
+                              checked={state.config[cf.key] === true || state.config[cf.key] === "true"}
+                              onCheckedChange={(checked) => handleConfigChange(intType.type, cf.key, String(checked))}
+                              disabled={saveMutation.isPending}
+                              data-testid={`switch-config-${intType.type}-${cf.key}`}
+                            />
+                          </div>
+                        );
+                      }
+                      if (cf.type === "readonly") {
+                        const val = state.config[cf.key] || cf.placeholder;
+                        return (
+                          <div key={cf.key}>
+                            <Label className="text-xs font-normal text-muted-foreground mb-1.5 block">{cf.label}</Label>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={val}
+                                readOnly
+                                className="h-9 text-xs rounded-lg bg-muted/30 font-mono"
+                                data-testid={`input-config-${intType.type}-${cf.key}`}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-lg shrink-0"
+                                onClick={() => copyToClipboard(val)}
+                                data-testid={`button-copy-${intType.type}-${cf.key}`}
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <ConfigTextInput
+                          key={`${intType.type}-${cf.key}`}
+                          label={cf.label}
+                          placeholder={cf.placeholder}
+                          initialValue={state.config[cf.key] || ""}
+                          onSave={(value) => handleConfigChange(intType.type, cf.key, value)}
+                          saving={saveMutation.isPending}
+                          testId={`input-config-${intType.type}-${cf.key}`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function FormsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const [currentView, setCurrentView] = useState<"list" | "templates" | "submissions">("list");
+  const [currentView, setCurrentView] = useState<"list" | "templates" | "submissions" | "integrations">("list");
   const [editorDialogOpen, setEditorDialogOpen] = useState(false);
   const [submissionSearch, setSubmissionSearch] = useState("");
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
@@ -346,6 +616,11 @@ export default function FormsPage() {
     setSelectedForm(form);
     setSubmissionSearch("");
     setCurrentView("submissions");
+  };
+
+  const handleViewIntegrations = (form: Form) => {
+    setSelectedForm(form);
+    setCurrentView("integrations");
   };
 
   const handleDownloadCSV = () => {
@@ -634,6 +909,10 @@ export default function FormsPage() {
 
   if (currentView === "submissions") {
     return renderSubmissionsPage();
+  }
+
+  if (currentView === "integrations" && selectedForm) {
+    return <FormIntegrationsView form={selectedForm} onBack={handleBackToList} />;
   }
 
   if (currentView === "templates") {
@@ -926,6 +1205,15 @@ export default function FormsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full text-muted-foreground/60 hover:text-foreground"
+                  onClick={() => handleViewIntegrations(form)}
+                  data-testid={`button-integrations-${form.id}`}
+                >
+                  <Plug className="h-3.5 w-3.5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"

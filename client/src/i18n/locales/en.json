@@ -2904,7 +2904,30 @@
     "templatesAvailable": "templates available",
     "showing": "showing",
     "fields": "fields",
-    "backToTemplates": "Back to Templates"
+    "backToTemplates": "Back to Templates",
+    "integrations": {
+      "title": "Integration Points",
+      "formFieldsData": "Form Fields Data",
+      "webhook": "Webhook",
+      "webhookDesc": "Send form submission data to a custom URL via POST request",
+      "webhookUrl": "Webhook URL",
+      "webhookSecret": "Secret (optional)",
+      "crmSync": "CRM Sync",
+      "crmSyncDesc": "Automatically create or update leads in your CRM from form responses",
+      "autoCreateLead": "Auto-create lead on submission",
+      "nameFieldMapping": "Name field mapping",
+      "phoneFieldMapping": "Phone field mapping",
+      "emailNotification": "Email Notification",
+      "emailNotificationDesc": "Send an email with form responses when a new submission is received",
+      "recipients": "Recipients (comma-separated)",
+      "emailSubject": "Email Subject",
+      "apiEndpoint": "API Endpoint",
+      "apiEndpointDesc": "Generate a public API endpoint to receive external submissions into this form",
+      "apiKey": "API Key",
+      "saved": "Integration saved",
+      "saveFailed": "Failed to save integration",
+      "copied": "Copied to clipboard"
+    }
   },
   "appointments": {
     "title": "Appointments",

@@ -2598,6 +2598,86 @@ router.delete("/forms/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ==================== Form Integrations ====================
+
+const ensureFormIntegrationsTable = async () => {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS form_integrations (
+      id VARCHAR PRIMARY KEY,
+      form_id VARCHAR NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
+      user_id VARCHAR NOT NULL,
+      type VARCHAR(50) NOT NULL,
+      enabled BOOLEAN DEFAULT false NOT NULL,
+      config JSONB DEFAULT '{}'::jsonb NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      UNIQUE(form_id, type)
+    )
+  `);
+};
+
+let formIntegrationsTableReady = false;
+const getFormIntegrationsReady = async () => {
+  if (!formIntegrationsTableReady) {
+    await ensureFormIntegrationsTable();
+    formIntegrationsTableReady = true;
+  }
+};
+
+router.get("/forms/:id/integrations", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+    await getFormIntegrationsReady();
+    
+    const { id } = req.params;
+    const userId = req.userId!;
+
+    const form = await db.select().from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId))).limit(1);
+    if (form.length === 0) return res.status(404).json({ error: "Form not found" });
+
+    const result = await db.execute(sql`
+      SELECT * FROM form_integrations WHERE form_id = ${id} AND user_id = ${userId}
+    `);
+
+    const fields = await db.select().from(formFields).where(eq(formFields.formId, id)).orderBy(formFields.order);
+
+    res.json({ integrations: result.rows || [], fields });
+  } catch (error: any) {
+    console.error("Error fetching form integrations:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/forms/:id/integrations/:type", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+    await getFormIntegrationsReady();
+
+    const { id, type } = req.params;
+    const userId = req.userId!;
+    const { enabled, config } = req.body;
+
+    const form = await db.select().from(forms).where(and(eq(forms.id, id), eq(forms.userId, userId))).limit(1);
+    if (form.length === 0) return res.status(404).json({ error: "Form not found" });
+
+    const integrationId = nanoid();
+    const result = await db.execute(sql`
+      INSERT INTO form_integrations (id, form_id, user_id, type, enabled, config, created_at, updated_at)
+      VALUES (${integrationId}, ${id}, ${userId}, ${type}, ${enabled ?? false}, ${JSON.stringify(config || {})}::jsonb, NOW(), NOW())
+      ON CONFLICT (form_id, type) DO UPDATE SET
+        enabled = ${enabled ?? false},
+        config = ${JSON.stringify(config || {})}::jsonb,
+        updated_at = NOW()
+      RETURNING *
+    `);
+
+    res.json(result.rows?.[0] || {});
+  } catch (error: any) {
+    console.error("Error saving form integration:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/forms/:id/submissions", async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) {

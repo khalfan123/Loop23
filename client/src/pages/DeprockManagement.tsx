@@ -3317,52 +3317,69 @@ function DeprockDepartmentCard({
       </div>
       
       {isExpanded && (
-        <div className="space-y-1.5" data-testid={`deprock-agent-list-${department.id}`}>
+        <div data-testid={`deprock-agent-list-${department.id}`}>
           {agents.length > 0 ? (
-            agents.map((agent: any) => (
-              <div 
-                key={agent.id} 
-                className="flex items-center gap-2 text-sm p-2 rounded-lg bg-background/60 dark:bg-background/30 cursor-pointer hover:bg-muted/40"
-                onClick={() => onViewAgent({
-                  id: agent.id,
-                  agentId: agent.agentId,
-                  departmentId: department.id,
-                  agentName: agent.agentName,
-                  language: agent.language,
-                  systemPrompt: agent.systemPrompt ?? null,
-                  voiceTone: agent.voiceTone ?? null,
-                  voiceId: agent.voiceId ?? null,
-                  voiceProvider: agent.voiceProvider ?? null,
-                  knowledgeBaseIds: agent.knowledgeBaseIds ?? null,
-                  isPrimary: agent.isPrimary ?? false,
-                  agentType: agent.agentType ?? 'incoming',
-                  firstMessage: agent.firstMessage ?? null,
-                })}
-                data-testid={`deprock-view-agent-${agent.id}`}
+            <div className="flex items-start gap-3 flex-wrap py-1">
+              {agents.map((agent: any) => {
+                const initials = agent.agentName
+                  .split(/\s+/)
+                  .map((w: string) => w.charAt(0).toUpperCase())
+                  .slice(0, 2)
+                  .join('');
+                const langLabel = languages.find(l => l.value === agent.language)?.label || agent.language;
+                return (
+                  <div
+                    key={agent.id}
+                    className="flex flex-col items-center gap-1 cursor-pointer group"
+                    onClick={() => onViewAgent({
+                      id: agent.id,
+                      agentId: agent.agentId,
+                      departmentId: department.id,
+                      agentName: agent.agentName,
+                      language: agent.language,
+                      systemPrompt: agent.systemPrompt ?? null,
+                      voiceTone: agent.voiceTone ?? null,
+                      voiceId: agent.voiceId ?? null,
+                      voiceProvider: agent.voiceProvider ?? null,
+                      knowledgeBaseIds: agent.knowledgeBaseIds ?? null,
+                      isPrimary: agent.isPrimary ?? false,
+                      agentType: agent.agentType ?? 'incoming',
+                      firstMessage: agent.firstMessage ?? null,
+                    })}
+                    data-testid={`deprock-view-agent-${agent.id}`}
+                  >
+                    <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors" title={agent.agentName}>
+                      <span className="text-xs font-semibold text-primary">{initials}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/70 leading-tight text-center max-w-[52px] truncate">{langLabel}</span>
+                  </div>
+                );
+              })}
+              <div
+                className="flex flex-col items-center gap-1 cursor-pointer group"
+                onClick={onAddAgent}
+                data-testid={`deprock-button-add-agent-${department.id}`}
               >
-                <div className="w-6 h-6 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
-                  <Mic className="h-3 w-3 text-muted-foreground/60" />
+                <div className="w-9 h-9 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70" />
                 </div>
-                <span className="text-sm font-medium truncate flex-1">{agent.agentName}</span>
-                <Badge variant="secondary" className="text-[10px] shrink-0">
-                  {languages.find(l => l.value === agent.language)?.label || agent.language}
-                </Badge>
-                <Eye className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                <span className="text-[10px] text-muted-foreground/50 leading-tight">Add</span>
               </div>
-            ))
+            </div>
           ) : (
-            <div className="text-xs text-muted-foreground/60 text-center py-3">No agents assigned yet</div>
+            <div className="flex items-center justify-center py-3">
+              <div
+                className="flex flex-col items-center gap-1 cursor-pointer group"
+                onClick={onAddAgent}
+                data-testid={`deprock-button-add-agent-${department.id}`}
+              >
+                <div className="w-9 h-9 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70" />
+                </div>
+                <span className="text-[10px] text-muted-foreground/50 leading-tight">Add Agent</span>
+              </div>
+            </div>
           )}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full justify-center text-xs" 
-            onClick={onAddAgent}
-            data-testid={`deprock-button-add-agent-${department.id}`}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add Agent
-          </Button>
         </div>
       )}
 

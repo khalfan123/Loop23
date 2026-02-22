@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -32,18 +31,22 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Upload,
-  FileText,
   FileSpreadsheet,
   Cloud,
   CheckCircle2,
   AlertCircle,
   Loader2,
   ArrowLeft,
-  X,
   ExternalLink,
   Users,
   Contact2,
   Mail,
+  ChevronRight,
+  FolderUp,
+  Shield,
+  Zap,
+  Database,
+  ArrowUpRight,
 } from "lucide-react";
 import { SiGoogle, SiHubspot, SiSalesforce } from "react-icons/si";
 
@@ -76,43 +79,43 @@ const SOURCE_OPTIONS: Array<{
   description: string;
   icon: any;
   iconColor: string;
-  bgColor: string;
+  iconBg: string;
   category: "file" | "cloud";
 }> = [
   {
     id: "csv",
     label: "CSV / Excel",
-    description: "Upload a CSV or Excel file with contacts",
+    description: "Upload spreadsheet files with contact data",
     icon: FileSpreadsheet,
-    iconColor: "text-green-600 dark:text-green-400",
-    bgColor: "bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-800",
+    iconColor: "text-emerald-600 dark:text-emerald-400",
+    iconBg: "bg-emerald-100 dark:bg-emerald-500/15",
     category: "file",
   },
   {
     id: "vcard",
     label: "vCard (.vcf)",
-    description: "Import contacts from a vCard file",
+    description: "Standard contact file format",
     icon: Contact2,
-    iconColor: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-800",
+    iconColor: "text-indigo-600 dark:text-indigo-400",
+    iconBg: "bg-indigo-100 dark:bg-indigo-500/15",
     category: "file",
   },
   {
     id: "google",
     label: "Google Contacts",
-    description: "Sync contacts from your Google account",
+    description: "Sync from your Google account",
     icon: SiGoogle,
     iconColor: "text-red-500",
-    bgColor: "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-800",
+    iconBg: "bg-red-50 dark:bg-red-500/10",
     category: "cloud",
   },
   {
     id: "microsoft",
-    label: "Outlook / Microsoft 365",
-    description: "Import contacts from Outlook or Microsoft 365",
+    label: "Microsoft Outlook",
+    description: "Import from Outlook or Microsoft 365",
     icon: Mail,
-    iconColor: "text-blue-500",
-    bgColor: "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-800",
+    iconColor: "text-blue-600 dark:text-blue-400",
+    iconBg: "bg-blue-100 dark:bg-blue-500/15",
     category: "cloud",
   },
   {
@@ -121,19 +124,27 @@ const SOURCE_OPTIONS: Array<{
     description: "Sync contacts from HubSpot",
     icon: SiHubspot,
     iconColor: "text-orange-500",
-    bgColor: "bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-800",
+    iconBg: "bg-orange-50 dark:bg-orange-500/10",
     category: "cloud",
   },
   {
     id: "salesforce",
     label: "Salesforce",
-    description: "Import contacts from Salesforce CRM",
+    description: "Import from Salesforce CRM",
     icon: SiSalesforce,
     iconColor: "text-sky-500",
-    bgColor: "bg-sky-50 dark:bg-sky-500/10 border-sky-200 dark:border-sky-800",
+    iconBg: "bg-sky-50 dark:bg-sky-500/10",
     category: "cloud",
   },
 ];
+
+const STEP_LABELS: Record<ImportStep, { number: number; label: string }> = {
+  "select-source": { number: 1, label: "Source" },
+  "configure": { number: 2, label: "Configure" },
+  "select-campaign": { number: 3, label: "Campaign" },
+  "importing": { number: 4, label: "Import" },
+  "result": { number: 4, label: "Results" },
+};
 
 export default function ImportContactsDialog({
   open,
@@ -182,11 +193,7 @@ export default function ImportContactsDialog({
 
   const handleSourceSelect = (source: ImportSource) => {
     setSelectedSource(source);
-    if (source === "csv" || source === "vcard") {
-      setStep("configure");
-    } else {
-      setStep("configure");
-    }
+    setStep("configure");
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -278,7 +285,6 @@ export default function ImportContactsDialog({
               }
             }
           } catch {
-            // Cross-origin - expected until redirect completes
           }
         }, 500);
       }
@@ -375,70 +381,143 @@ export default function ImportContactsDialog({
     }
   };
 
-  const needsCampaignBeforeImport = selectedSource === "csv" || selectedSource === "vcard";
+  const completedSteps = (() => {
+    switch (step) {
+      case "select-source": return 0;
+      case "configure": return 1;
+      case "select-campaign": return 2;
+      case "importing": return 3;
+      case "result": return 4;
+      default: return 0;
+    }
+  })();
+
+  const renderStepIndicator = () => {
+    const steps = [
+      { number: 1, label: "Source" },
+      { number: 2, label: "Configure" },
+      { number: 3, label: "Campaign" },
+      { number: 4, label: "Import" },
+    ];
+
+    return (
+      <div className="flex items-center justify-between px-2 mb-6">
+        {steps.map((s, idx) => {
+          const isActive = s.number === STEP_LABELS[step].number;
+          const isCompleted = s.number < STEP_LABELS[step].number;
+          return (
+            <div key={s.number} className="flex items-center flex-1">
+              <div className="flex flex-col items-center gap-1.5">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
+                    isCompleted
+                      ? "bg-primary text-primary-foreground"
+                      : isActive
+                      ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {isCompleted ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    s.number
+                  )}
+                </div>
+                <span className={`text-[10px] font-medium ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                  {s.label}
+                </span>
+              </div>
+              {idx < steps.length - 1 && (
+                <div className={`flex-1 h-[2px] mx-2 mt-[-16px] transition-colors duration-200 ${
+                  isCompleted ? "bg-primary" : "bg-muted"
+                }`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderSourceSelection = () => (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">File Upload</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex items-center gap-2 mb-3">
+          <FolderUp className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">File Upload</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {SOURCE_OPTIONS.filter(s => s.category === "file").map((source) => {
             const Icon = source.icon;
             return (
-              <Card
+              <button
                 key={source.id}
-                className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] border-2 ${source.bgColor} p-4`}
+                className="group flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-accent/50 transition-all duration-150 text-left w-full"
                 onClick={() => handleSourceSelect(source.id)}
                 data-testid={`card-import-source-${source.id}`}
               >
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg bg-white/80 dark:bg-white/10`}>
-                    <Icon className={`h-5 w-5 ${source.iconColor}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-sm">{source.label}</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">{source.description}</p>
-                  </div>
+                <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${source.iconBg} flex items-center justify-center`}>
+                  <Icon className={`h-5 w-5 ${source.iconColor}`} />
                 </div>
-              </Card>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-foreground">{source.label}</div>
+                  <div className="text-xs text-muted-foreground leading-tight mt-0.5">{source.description}</div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors flex-shrink-0" />
+              </button>
             );
           })}
         </div>
       </div>
 
+      <div className="h-px bg-border" />
+
       <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Cloud & CRM Sync</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex items-center gap-2 mb-3">
+          <Cloud className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cloud & CRM Integrations</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {SOURCE_OPTIONS.filter(s => s.category === "cloud").map((source) => {
             const Icon = source.icon;
             return (
-              <Card
+              <button
                 key={source.id}
-                className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] border-2 ${source.bgColor} p-4`}
+                className="group flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-accent/50 transition-all duration-150 text-left w-full"
                 onClick={() => handleSourceSelect(source.id)}
                 data-testid={`card-import-source-${source.id}`}
               >
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg bg-white/80 dark:bg-white/10`}>
-                    <Icon className={`h-5 w-5 ${source.iconColor}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-sm">{source.label}</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">{source.description}</p>
-                  </div>
+                <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${source.iconBg} flex items-center justify-center`}>
+                  <Icon className={`h-5 w-5 ${source.iconColor}`} />
                 </div>
-              </Card>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-foreground">{source.label}</div>
+                  <div className="text-xs text-muted-foreground leading-tight mt-0.5">{source.description}</div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors flex-shrink-0" />
+              </button>
             );
           })}
         </div>
+      </div>
+
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border border-border/60">
+        <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Your data is encrypted in transit. Maximum 10,000 contacts per import. All contacts require a campaign assignment.
+        </p>
       </div>
     </div>
   );
 
   const renderFileUploadConfig = () => (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div
-        className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+        className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+          selectedFile
+            ? "border-primary/30 bg-primary/5"
+            : "border-muted-foreground/20 hover:border-primary/40 hover:bg-accent/30"
+        }`}
         onClick={() => fileInputRef.current?.click()}
         data-testid="dropzone-file-upload"
       >
@@ -451,52 +530,72 @@ export default function ImportContactsDialog({
           data-testid="input-file-upload"
         />
         {selectedFile ? (
-          <div className="flex flex-col items-center gap-2">
-            <CheckCircle2 className="h-10 w-10 text-green-500" />
-            <p className="font-medium">{selectedFile.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {(selectedFile.size / 1024).toFixed(1)} KB
-            </p>
-            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setCsvPreview(null); }}>
-              Choose different file
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <CheckCircle2 className="h-7 w-7 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-foreground">{selectedFile.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {(selectedFile.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-7 text-muted-foreground hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setCsvPreview(null); }}
+            >
+              Change file
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2">
-            <Upload className="h-10 w-10 text-muted-foreground/50" />
-            <p className="font-medium">
-              Click to upload {selectedSource === "csv" ? "CSV / Excel" : "vCard"} file
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {selectedSource === "csv" ? "Supports .csv, .xlsx, .xls files" : "Supports .vcf files"}
-            </p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-muted/80 dark:bg-muted/40 flex items-center justify-center">
+              <Upload className="h-7 w-7 text-muted-foreground/60" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-foreground">
+                Click to upload {selectedSource === "csv" ? "spreadsheet" : "vCard"} file
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedSource === "csv" ? "CSV, XLSX, XLS up to 20MB" : "VCF files up to 20MB"}
+              </p>
+            </div>
           </div>
         )}
       </div>
 
       {csvPreview && (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">Preview ({csvPreview.totalRows} rows detected)</h4>
-            <Badge variant="outline">{csvPreview.headers.length} columns</Badge>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Data Preview</span>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-[10px] font-medium h-5">
+                {csvPreview.totalRows} rows
+              </Badge>
+              <Badge variant="outline" className="text-[10px] font-medium h-5">
+                {csvPreview.headers.length} columns
+              </Badge>
+            </div>
           </div>
-          <div className="rounded-lg border overflow-x-auto max-h-48">
+          <div className="rounded-lg border overflow-x-auto max-h-40">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/30">
                   {csvPreview.headers.slice(0, 6).map((header) => (
-                    <TableHead key={header} className="text-xs whitespace-nowrap">{header}</TableHead>
+                    <TableHead key={header} className="text-[11px] font-semibold whitespace-nowrap py-2 h-auto">{header}</TableHead>
                   ))}
-                  {csvPreview.headers.length > 6 && <TableHead className="text-xs">...</TableHead>}
+                  {csvPreview.headers.length > 6 && <TableHead className="text-[11px] py-2 h-auto">...</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {csvPreview.preview.map((row, idx) => (
                   <TableRow key={idx}>
                     {csvPreview.headers.slice(0, 6).map((header) => (
-                      <TableCell key={header} className="text-xs py-1">{String(row[header] || "")}</TableCell>
+                      <TableCell key={header} className="text-[11px] py-1.5">{String(row[header] || "")}</TableCell>
                     ))}
-                    {csvPreview.headers.length > 6 && <TableCell className="text-xs py-1">...</TableCell>}
+                    {csvPreview.headers.length > 6 && <TableCell className="text-[11px] py-1.5">...</TableCell>}
                   </TableRow>
                 ))}
               </TableBody>
@@ -506,31 +605,37 @@ export default function ImportContactsDialog({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="campaign-select">Select Campaign</Label>
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Destination Campaign</Label>
         <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-          <SelectTrigger data-testid="select-campaign">
-            <SelectValue placeholder="Choose a campaign to import into..." />
+          <SelectTrigger className="h-10" data-testid="select-campaign">
+            <SelectValue placeholder="Select a campaign..." />
           </SelectTrigger>
           <SelectContent>
             {campaignsList.map((campaign) => (
               <SelectItem key={campaign.id} value={campaign.id}>
-                {campaign.name} ({campaign.totalContacts} contacts)
+                <div className="flex items-center gap-2">
+                  <span>{campaign.name}</span>
+                  <span className="text-muted-foreground text-xs">({campaign.totalContacts} contacts)</span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {campaignsList.length === 0 && !campaignsLoading && (
+          <p className="text-xs text-muted-foreground">No campaigns available. Create one first.</p>
+        )}
       </div>
 
       <Button
         onClick={handleImport}
         disabled={!selectedFile || !selectedCampaignId || isImporting}
-        className="w-full"
+        className="w-full h-11"
         data-testid="button-start-import"
       >
         {isImporting ? (
-          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...</>
+          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
         ) : (
-          <><Upload className="h-4 w-4 mr-2" /> Import Contacts</>
+          <><ArrowUpRight className="h-4 w-4 mr-2" /> Start Import</>
         )}
       </Button>
     </div>
@@ -539,28 +644,35 @@ export default function ImportContactsDialog({
   const renderOAuthConfig = () => {
     const sourceConfig = SOURCE_OPTIONS.find(s => s.id === selectedSource);
     const isConnected = !!oauthAccessToken;
+    const SourceIcon = sourceConfig?.icon;
 
     if (selectedSource === "hubspot" || selectedSource === "salesforce") {
       return (
-        <div className="space-y-4">
-          <div className="rounded-lg border bg-muted/30 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              {sourceConfig && <sourceConfig.icon className={`h-5 w-5 ${sourceConfig.iconColor}`} />}
-              <h4 className="font-medium">{sourceConfig?.label}</h4>
+        <div className="space-y-5">
+          <div className="rounded-xl border bg-card p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-10 h-10 rounded-lg ${sourceConfig?.iconBg} flex items-center justify-center`}>
+                {SourceIcon && <SourceIcon className={`h-5 w-5 ${sourceConfig?.iconColor}`} />}
+              </div>
+              <div>
+                <h4 className="font-semibold text-sm">{sourceConfig?.label}</h4>
+                <p className="text-xs text-muted-foreground">API token authentication</p>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              To import contacts from {sourceConfig?.label}, connect your {sourceConfig?.label} account from the
-              Integrations page first, then use the access token here.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Connect your {sourceConfig?.label} account by providing an API access token.
+              You can generate one from your {sourceConfig?.label} account settings.
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label>Access Token</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Access Token</Label>
             <Input
               type="password"
               placeholder={`Paste your ${sourceConfig?.label} access token`}
               value={oauthAccessToken}
               onChange={(e) => setOauthAccessToken(e.target.value)}
+              className="h-10 font-mono text-sm"
               data-testid="input-access-token"
             />
           </div>
@@ -568,15 +680,18 @@ export default function ImportContactsDialog({
           {oauthAccessToken && (
             <>
               <div className="space-y-2">
-                <Label>Select Campaign</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Destination Campaign</Label>
                 <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-                  <SelectTrigger data-testid="select-campaign-oauth">
-                    <SelectValue placeholder="Choose a campaign..." />
+                  <SelectTrigger className="h-10" data-testid="select-campaign-oauth">
+                    <SelectValue placeholder="Select a campaign..." />
                   </SelectTrigger>
                   <SelectContent>
                     {campaignsList.map((campaign) => (
                       <SelectItem key={campaign.id} value={campaign.id}>
-                        {campaign.name} ({campaign.totalContacts} contacts)
+                        <div className="flex items-center gap-2">
+                          <span>{campaign.name}</span>
+                          <span className="text-muted-foreground text-xs">({campaign.totalContacts} contacts)</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -586,13 +701,13 @@ export default function ImportContactsDialog({
               <Button
                 onClick={handleImport}
                 disabled={!selectedCampaignId || isImporting}
-                className="w-full"
+                className="w-full h-11"
                 data-testid="button-start-crm-import"
               >
                 {isImporting ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...</>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
                 ) : (
-                  <><Cloud className="h-4 w-4 mr-2" /> Import from {sourceConfig?.label}</>
+                  <><Database className="h-4 w-4 mr-2" /> Import from {sourceConfig?.label}</>
                 )}
               </Button>
             </>
@@ -602,207 +717,278 @@ export default function ImportContactsDialog({
     }
 
     return (
-      <div className="space-y-4">
-        <div className="rounded-lg border bg-muted/30 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            {sourceConfig && <sourceConfig.icon className={`h-5 w-5 ${sourceConfig.iconColor}`} />}
-            <h4 className="font-medium">Connect {sourceConfig?.label}</h4>
+      <div className="space-y-5">
+        <div className="rounded-xl border bg-card p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className={`w-10 h-10 rounded-lg ${sourceConfig?.iconBg} flex items-center justify-center`}>
+              {SourceIcon && <SourceIcon className={`h-5 w-5 ${sourceConfig?.iconColor}`} />}
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm">Connect {sourceConfig?.label}</h4>
+              <p className="text-xs text-muted-foreground">OAuth 2.0 authentication</p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground mb-3">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             {selectedSource === "google"
-              ? "Enter your Google Cloud OAuth credentials to import contacts. You need a project with the People API enabled."
-              : "Enter your Microsoft Azure AD app credentials to import Outlook contacts."}
+              ? "Provide your Google Cloud OAuth credentials. Requires a project with the People API enabled."
+              : "Provide your Microsoft Azure AD app credentials to access Outlook contacts."}
           </p>
-
-          {!isConnected && (
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Client ID</Label>
-                <Input
-                  placeholder="Enter Client ID"
-                  value={oauthCredentials.clientId}
-                  onChange={(e) => setOauthCredentials(prev => ({ ...prev, clientId: e.target.value }))}
-                  data-testid="input-oauth-client-id"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Client Secret</Label>
-                <Input
-                  type="password"
-                  placeholder="Enter Client Secret"
-                  value={oauthCredentials.clientSecret}
-                  onChange={(e) => setOauthCredentials(prev => ({ ...prev, clientSecret: e.target.value }))}
-                  data-testid="input-oauth-client-secret"
-                />
-              </div>
-              <Button
-                onClick={handleOAuthConnect}
-                disabled={!oauthCredentials.clientId || !oauthCredentials.clientSecret}
-                className="w-full"
-                data-testid="button-oauth-connect"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Connect with {sourceConfig?.label}
-              </Button>
-            </div>
-          )}
-
-          {isConnected && oauthAccountInfo && (
-            <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-500/10 rounded-lg">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <div className="text-sm">
-                <span className="font-medium">{oauthAccountInfo.name}</span>
-                {oauthAccountInfo.email && (
-                  <span className="text-muted-foreground ml-1">({oauthAccountInfo.email})</span>
-                )}
-              </div>
-            </div>
-          )}
         </div>
+
+        {!isConnected && (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client ID</Label>
+              <Input
+                placeholder="Enter your OAuth Client ID"
+                value={oauthCredentials.clientId}
+                onChange={(e) => setOauthCredentials(prev => ({ ...prev, clientId: e.target.value }))}
+                className="h-10 font-mono text-sm"
+                data-testid="input-oauth-client-id"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client Secret</Label>
+              <Input
+                type="password"
+                placeholder="Enter your OAuth Client Secret"
+                value={oauthCredentials.clientSecret}
+                onChange={(e) => setOauthCredentials(prev => ({ ...prev, clientSecret: e.target.value }))}
+                className="h-10 font-mono text-sm"
+                data-testid="input-oauth-client-secret"
+              />
+            </div>
+            <Button
+              onClick={handleOAuthConnect}
+              disabled={!oauthCredentials.clientId || !oauthCredentials.clientSecret}
+              className="w-full h-11"
+              data-testid="button-oauth-connect"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Authorize with {sourceConfig?.label}
+            </Button>
+          </div>
+        )}
+
+        {isConnected && oauthAccountInfo && (
+          <div className="flex items-center gap-3 p-3.5 bg-primary/5 border border-primary/20 rounded-xl">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{oauthAccountInfo.name}</p>
+              {oauthAccountInfo.email && (
+                <p className="text-xs text-muted-foreground truncate">{oauthAccountInfo.email}</p>
+              )}
+            </div>
+            <Badge variant="secondary" className="ml-auto text-[10px] flex-shrink-0">Connected</Badge>
+          </div>
+        )}
       </div>
     );
   };
 
   const renderCampaignSelection = () => (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {oauthAccountInfo && (
-        <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-500/10 rounded-lg border border-green-200 dark:border-green-800">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <div>
-            <p className="font-medium text-sm">Connected to {oauthAccountInfo.name}</p>
-            {oauthAccountInfo.email && <p className="text-xs text-muted-foreground">{oauthAccountInfo.email}</p>}
+        <div className="flex items-center gap-3 p-3.5 bg-primary/5 border border-primary/20 rounded-xl">
+          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
           </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{oauthAccountInfo.name}</p>
+            {oauthAccountInfo.email && (
+              <p className="text-xs text-muted-foreground truncate">{oauthAccountInfo.email}</p>
+            )}
+          </div>
+          <Badge variant="secondary" className="ml-auto text-[10px] flex-shrink-0">Connected</Badge>
         </div>
       )}
 
       <div className="space-y-2">
-        <Label>Select Campaign to Import Into</Label>
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Destination Campaign</Label>
+        <p className="text-xs text-muted-foreground">Choose which campaign to import your contacts into.</p>
         <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-          <SelectTrigger data-testid="select-campaign-cloud">
-            <SelectValue placeholder="Choose a campaign..." />
+          <SelectTrigger className="h-10" data-testid="select-campaign-cloud">
+            <SelectValue placeholder="Select a campaign..." />
           </SelectTrigger>
           <SelectContent>
             {campaignsList.map((campaign) => (
               <SelectItem key={campaign.id} value={campaign.id}>
-                {campaign.name} ({campaign.totalContacts} contacts)
+                <div className="flex items-center gap-2">
+                  <span>{campaign.name}</span>
+                  <span className="text-muted-foreground text-xs">({campaign.totalContacts} contacts)</span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {campaignsList.length === 0 && !campaignsLoading && (
-          <p className="text-sm text-muted-foreground">No campaigns found. Create a campaign first.</p>
+          <p className="text-xs text-amber-600 dark:text-amber-400">No campaigns available. Please create a campaign first.</p>
         )}
       </div>
 
       <Button
         onClick={handleImport}
         disabled={!selectedCampaignId || isImporting}
-        className="w-full"
+        className="w-full h-11"
         data-testid="button-import-cloud-contacts"
       >
         {isImporting ? (
-          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing contacts...</>
+          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
         ) : (
-          <><Cloud className="h-4 w-4 mr-2" /> Import Contacts</>
+          <><ArrowUpRight className="h-4 w-4 mr-2" /> Start Import</>
         )}
       </Button>
     </div>
   );
 
   const renderImporting = () => (
-    <div className="flex flex-col items-center justify-center py-12 gap-4">
-      <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      <div className="text-center">
-        <h3 className="font-semibold text-lg">Importing Contacts</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Fetching and importing contacts from {SOURCE_OPTIONS.find(s => s.id === selectedSource)?.label}...
+    <div className="flex flex-col items-center justify-center py-14 gap-5">
+      <div className="relative">
+        <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+        <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-card border-2 border-background flex items-center justify-center">
+          <Zap className="h-4 w-4 text-amber-500" />
+        </div>
+      </div>
+      <div className="text-center space-y-1.5">
+        <h3 className="font-semibold text-base text-foreground">Importing Contacts</h3>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          Fetching and processing contacts from {SOURCE_OPTIONS.find(s => s.id === selectedSource)?.label}. This may take a moment.
         </p>
       </div>
     </div>
   );
 
-  const renderResult = () => (
-    <div className="space-y-4">
-      <div className="flex flex-col items-center py-6 gap-3">
-        {importResult && importResult.imported > 0 ? (
-          <CheckCircle2 className="h-16 w-16 text-green-500" />
-        ) : (
-          <AlertCircle className="h-16 w-16 text-yellow-500" />
+  const renderResult = () => {
+    const isSuccess = importResult && importResult.imported > 0;
+    const hasErrors = importResult?.errors && importResult.errors.length > 0;
+
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-col items-center py-6 gap-3">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+            isSuccess ? "bg-emerald-100 dark:bg-emerald-500/15" : "bg-amber-100 dark:bg-amber-500/15"
+          }`}>
+            {isSuccess ? (
+              <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            )}
+          </div>
+          <div className="text-center">
+            <h3 className="font-semibold text-lg text-foreground">
+              {isSuccess ? "Import Complete" : "Import Finished"}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {isSuccess
+                ? `Successfully imported ${importResult?.imported} contacts`
+                : "No new contacts were imported"}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="text-center p-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{importResult?.imported || 0}</div>
+            <div className="text-[11px] font-medium text-emerald-600/70 dark:text-emerald-400/70 mt-0.5">Imported</div>
+          </div>
+          <div className="text-center p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20">
+            <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">{importResult?.skipped || 0}</div>
+            <div className="text-[11px] font-medium text-amber-600/70 dark:text-amber-400/70 mt-0.5">Skipped</div>
+          </div>
+          <div className="text-center p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20">
+            <div className="text-2xl font-bold text-red-700 dark:text-red-400">{importResult?.errors?.length || 0}</div>
+            <div className="text-[11px] font-medium text-red-600/70 dark:text-red-400/70 mt-0.5">Errors</div>
+          </div>
+        </div>
+
+        {hasErrors && (
+          <div className="rounded-xl border border-red-200 dark:border-red-500/20 overflow-hidden">
+            <div className="bg-red-50 dark:bg-red-500/10 px-4 py-2.5 border-b border-red-200 dark:border-red-500/20">
+              <p className="text-xs font-semibold uppercase tracking-wider text-red-700 dark:text-red-400">Error Details</p>
+            </div>
+            <div className="p-3 space-y-1 max-h-32 overflow-y-auto">
+              {importResult!.errors.map((err, idx) => (
+                <div key={idx} className="flex items-start gap-2 text-xs text-red-600 dark:text-red-400">
+                  <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  <span>{err}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
-        <h3 className="font-semibold text-xl">
-          {importResult && importResult.imported > 0 ? "Import Successful!" : "Import Complete"}
-        </h3>
-      </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div className="text-center p-3 bg-green-50 dark:bg-green-500/10 rounded-lg">
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{importResult?.imported || 0}</div>
-          <div className="text-xs text-muted-foreground">Imported</div>
-        </div>
-        <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-500/10 rounded-lg">
-          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{importResult?.skipped || 0}</div>
-          <div className="text-xs text-muted-foreground">Skipped</div>
-        </div>
-        <div className="text-center p-3 bg-red-50 dark:bg-red-500/10 rounded-lg">
-          <div className="text-2xl font-bold text-red-600 dark:text-red-400">{importResult?.errors?.length || 0}</div>
-          <div className="text-xs text-muted-foreground">Errors</div>
+        <div className="flex gap-3 pt-1">
+          <Button variant="outline" onClick={resetState} className="flex-1 h-10" data-testid="button-import-more">
+            Import More
+          </Button>
+          <Button onClick={handleClose} className="flex-1 h-10" data-testid="button-close-import">
+            Done
+          </Button>
         </div>
       </div>
-
-      {importResult?.errors && importResult.errors.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-500/10 p-3 rounded-lg border border-red-200 dark:border-red-800">
-          <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-1">Errors:</p>
-          {importResult.errors.map((err, idx) => (
-            <p key={idx} className="text-xs text-red-600 dark:text-red-400">{err}</p>
-          ))}
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={resetState} className="flex-1" data-testid="button-import-more">
-          Import More
-        </Button>
-        <Button onClick={handleClose} className="flex-1" data-testid="button-close-import">
-          Done
-        </Button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const getStepTitle = () => {
     switch (step) {
       case "select-source": return "Import Contacts";
-      case "configure": return `Import from ${SOURCE_OPTIONS.find(s => s.id === selectedSource)?.label || ""}`;
+      case "configure": return SOURCE_OPTIONS.find(s => s.id === selectedSource)?.label || "Configure";
       case "select-campaign": return "Select Campaign";
-      case "importing": return "Importing...";
+      case "importing": return "Processing";
       case "result": return "Import Results";
       default: return "Import Contacts";
     }
   };
 
+  const getStepDescription = () => {
+    switch (step) {
+      case "select-source": return "Choose where to import your contacts from";
+      case "configure": return `Set up your ${SOURCE_OPTIONS.find(s => s.id === selectedSource)?.label || ""} import`;
+      case "select-campaign": return "Choose a campaign for your imported contacts";
+      case "importing": return "Please wait while we process your contacts";
+      case "result": return "Review your import summary";
+      default: return "";
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            {step !== "select-source" && step !== "importing" && (
-              <Button variant="ghost" size="icon" onClick={goBack} className="h-8 w-8" data-testid="button-back">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              {getStepTitle()}
-            </DialogTitle>
-          </div>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto p-0 gap-0">
+        <div className="px-6 pt-6 pb-4 border-b bg-muted/30">
+          <DialogHeader className="space-y-1">
+            <div className="flex items-center gap-3">
+              {step !== "select-source" && step !== "importing" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={goBack}
+                  className="h-8 w-8 rounded-full flex-shrink-0"
+                  data-testid="button-back"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+              <div className="flex-1">
+                <DialogTitle className="text-base font-semibold">{getStepTitle()}</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">{getStepDescription()}</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+        </div>
 
-        {step === "select-source" && renderSourceSelection()}
-        {step === "configure" && (selectedSource === "csv" || selectedSource === "vcard") && renderFileUploadConfig()}
-        {step === "configure" && selectedSource && !["csv", "vcard"].includes(selectedSource) && renderOAuthConfig()}
-        {step === "select-campaign" && renderCampaignSelection()}
-        {step === "importing" && renderImporting()}
-        {step === "result" && renderResult()}
+        <div className="px-6 pt-5 pb-6">
+          {step !== "result" && renderStepIndicator()}
+          {step === "select-source" && renderSourceSelection()}
+          {step === "configure" && (selectedSource === "csv" || selectedSource === "vcard") && renderFileUploadConfig()}
+          {step === "configure" && selectedSource && !["csv", "vcard"].includes(selectedSource) && renderOAuthConfig()}
+          {step === "select-campaign" && renderCampaignSelection()}
+          {step === "importing" && renderImporting()}
+          {step === "result" && renderResult()}
+        </div>
       </DialogContent>
     </Dialog>
   );

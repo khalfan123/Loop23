@@ -204,8 +204,8 @@ function UserRouter() {
             <Redirect to="/app/knowledge-base" />
           </Route>
           <Route path="/app/appointments" component={AppointmentsPage} />
-          <Route path="/app/departments" component={DepartmentManagement} />
-          <Route path="/app/departments/canvas" component={DepartmentCanvas} />
+          <Route path="/app/departtest" component={DepartmentManagement} />
+          <Route path="/app/departtest/canvas" component={DepartmentCanvas} />
           <Route path="/app/deprock" component={DeprockManagement} />
           <Route path="/app/deprock/canvas" component={DeprockCanvas} />
           <Route path="/app/deprock/flows/:id" component={FlowBuilderPage} />
@@ -295,8 +295,6 @@ function TeamMemberRouter() {
             <Redirect to="/app/knowledge-base" />
           </Route>
           <Route path="/app/appointments" component={AppointmentsPage} />
-          <Route path="/app/departments" component={DepartmentManagement} />
-          <Route path="/app/departments/canvas" component={DepartmentCanvas} />
           <Route path="/app/deprock" component={DeprockManagement} />
           <Route path="/app/deprock/canvas" component={DeprockCanvas} />
           <Route path="/app/deprock/flows/:id" component={FlowBuilderPage} />

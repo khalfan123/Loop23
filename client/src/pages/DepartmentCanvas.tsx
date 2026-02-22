@@ -2659,7 +2659,7 @@ export default function DepartmentCanvas() {
         title: "Configuration Saved",
         description: "All departments and routing have been created successfully.",
       });
-      setLocation("/app/departments");
+      setLocation("/app/departtest");
     },
     onError: (error: any) => {
       toast({
@@ -2689,7 +2689,7 @@ export default function DepartmentCanvas() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setLocation("/app/departments")}
+            onClick={() => setLocation("/app/departtest")}
             data-testid="button-back"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />

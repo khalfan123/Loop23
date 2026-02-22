@@ -153,7 +153,6 @@ export function AppSidebar() {
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
     { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
-    { title: t('nav.departments', 'Departments'), url: "/app/departments" },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns" },
   ];
 

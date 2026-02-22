@@ -104,7 +104,6 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone, iconColor: "text-emerald-500", description: "Manage phone numbers" },
     { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500", description: "AI voice agents" },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500", description: "Train your AI" },
-    { title: t('nav.departments'), url: "/app/departments", icon: Building2, iconColor: "text-sky-500", description: "Department management" },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500", description: "Batch calling campaigns" },
     { title: t('nav.integrations', 'Integrations'), url: "/app/integrations", icon: Plug, iconColor: "text-indigo-500", description: "Connect business tools" },
   ];

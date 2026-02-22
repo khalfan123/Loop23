@@ -651,7 +651,7 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
       {!embedded && (
         <div className="flex items-center justify-between px-4 py-3 border-b bg-background gap-2 flex-wrap">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/app/departments")} data-testid="button-back-human">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/app/departtest")} data-testid="button-back-human">
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
@@ -691,7 +691,7 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
               if (embedded) {
                 setWizardMode("list");
               } else {
-                setLocation("/app/departments");
+                setLocation("/app/departtest");
               }
             } else {
               goBack();

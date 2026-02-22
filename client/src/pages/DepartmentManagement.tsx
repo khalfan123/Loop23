@@ -1180,7 +1180,7 @@ export default function DepartmentManagement() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setLocation("/app/departments/canvas")}
+                  onClick={() => setLocation("/app/departtest/canvas")}
                   data-testid="button-open-canvas"
                 >
                   <LayoutGrid className="h-4 w-4 mr-2" />

@@ -797,7 +797,7 @@ export default function DeprockManagement() {
 
   const handleFlowClick = (dept: Department) => {
     if (dept.flowId) {
-      setLocation(`/app/flows/${dept.flowId}`);
+      setLocation(`/app/deprock/flows/${dept.flowId}`);
     } else {
       generateFlowMutation.mutate(dept.id);
     }

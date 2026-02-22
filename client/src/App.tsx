@@ -207,6 +207,7 @@ function UserRouter() {
           <Route path="/app/departments/canvas" component={DepartmentCanvas} />
           <Route path="/app/deprock" component={DeprockManagement} />
           <Route path="/app/deprock/canvas" component={DeprockCanvas} />
+          <Route path="/app/deprock/flows/:id" component={FlowBuilderPage} />
           <Route path="/app/call-simulator" component={DeprockCallSimulator} />
           <Route path="/app/agents/new" component={AgentEditor} />
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
@@ -296,6 +297,7 @@ function TeamMemberRouter() {
           <Route path="/app/departments/canvas" component={DepartmentCanvas} />
           <Route path="/app/deprock" component={DeprockManagement} />
           <Route path="/app/deprock/canvas" component={DeprockCanvas} />
+          <Route path="/app/deprock/flows/:id" component={FlowBuilderPage} />
           <Route path="/app/call-simulator" component={DeprockCallSimulator} />
           <Route path="/app/agents/new" component={AgentEditor} />
           <Route path="/app/agents/:id/edit" component={AgentEditor} />

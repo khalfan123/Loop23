@@ -261,9 +261,11 @@ export default function FlowBuilderPage() {
   const { t } = useTranslation();
   const [, settingsParams] = useRoute("/app/settings/flows/:id");
   const [, legacyParams] = useRoute("/app/flows/:id");
-  const params = settingsParams || legacyParams;
+  const [, deprockParams] = useRoute("/app/deprock/flows/:id");
+  const params = settingsParams || legacyParams || deprockParams;
   const [, setLocation] = useLocation();
   const flowId = params?.id;
+  const isDeprockContext = !!deprockParams;
   
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>([]);
@@ -417,9 +419,8 @@ export default function FlowBuilderPage() {
         queryClient.invalidateQueries({ queryKey: [`/api/flow-automation/flows/${flowId}`] });
       }
       
-      // Navigate to edit mode if this was a new flow
       if (isNewFlow && data?.id) {
-        setLocation(`/app/settings/flows/${data.id}`);
+        setLocation(isDeprockContext ? `/app/deprock/flows/${data.id}` : `/app/settings/flows/${data.id}`);
       }
     },
     onError: (error: any) => {
@@ -494,12 +495,12 @@ export default function FlowBuilderPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setLocation("/app/settings/flows")}
+            onClick={() => setLocation(isDeprockContext ? "/app/deprock" : "/app/settings/flows")}
             className="mb-3 -ml-2"
             data-testid="button-back"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            {t("flows.backToFlows")}
+            {isDeprockContext ? t("flows.backToDeprock", "Back to Deprock") : t("flows.backToFlows")}
           </Button>
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">

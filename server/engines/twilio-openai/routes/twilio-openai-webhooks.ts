@@ -523,7 +523,7 @@ router.post('/voice/status', async (req: Request, res: Response) => {
       if (AnsweredBy && (AnsweredBy.startsWith('machine'))) {
         endReason = `voicemail-${AnsweredBy}`;
       }
-      updates.endReason = endReason;
+      updates.metadata = sql`COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ endReason })}::jsonb`;
 
       const duration = CallDuration ? parseInt(CallDuration, 10) : 0;
       if (duration > 0) {

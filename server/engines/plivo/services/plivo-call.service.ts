@@ -477,7 +477,7 @@ export class PlivoCallService {
       } else if (status === 'failed') {
         endReason = hangupCause ? `failed-${hangupCause}` : 'failed';
       }
-      (updateData as any).endReason = endReason;
+      (updateData as any).metadata = sql`COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ endReason })}::jsonb`;
 
       if (call.openaiCredentialId) {
         await OpenAIPoolService.releaseSlot(call.openaiCredentialId);

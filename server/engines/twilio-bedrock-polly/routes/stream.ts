@@ -309,7 +309,6 @@ async function initializeSession(
         const updates: Record<string, unknown> = {
           status: 'completed',
           endedAt: new Date(),
-          endReason: 'hangup',
         };
 
         if (sessionData?.transcript) {

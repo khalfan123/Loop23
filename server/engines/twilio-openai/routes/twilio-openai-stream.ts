@@ -387,10 +387,6 @@ async function initializeSession(
           endedAt: new Date(),
         };
 
-        if (!updates.endReason) {
-          updates.endReason = 'hangup';
-        }
-        
         if (sessionData?.transcript) {
           updates.transcript = sessionData.transcript;
           

@@ -449,6 +449,8 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
     };
 
     try {
+      console.log('[Contact Import] OAuth callback received. Full query:', JSON.stringify(req.query));
+      console.log('[Contact Import] OAuth callback URL:', req.originalUrl);
       const { code, state, error: oauthError } = req.query;
 
       if (oauthError) {

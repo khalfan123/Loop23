@@ -323,34 +323,48 @@ const DEPT_MENU_TEMPLATES: Record<string, { prefix: string; pressKey: string; se
 
 const DEPT_NAME_TRANSLATIONS: Record<string, Record<string, string>> = {
   Sales: {
-    en: "Sales", fr: "Ventes", it: "Vendite", zh: "销售", hi: "बिक्री", ar: "المبيعات"
+    en: "Sales", fr: "Ventes", it: "Vendite", zh: "销售", hi: "बिक्री", ar: "المبيعات",
+    es: "Ventas", de: "Vertrieb", ja: "営業", ko: "영업", pt: "Vendas", ru: "Продажи", tr: "Satış", ur: "سیلز"
   },
   Support: {
-    en: "Support", fr: "Assistance", it: "Supporto", zh: "客服", hi: "सहायता", ar: "الدعم"
+    en: "Support", fr: "Assistance", it: "Supporto", zh: "客服", hi: "सहायता", ar: "الدعم",
+    es: "Soporte", de: "Kundendienst", ja: "サポート", ko: "고객 지원", pt: "Suporte", ru: "Поддержка", tr: "Destek", ur: "سپورٹ"
   },
   Scheduling: {
-    en: "Scheduling", fr: "Planification", it: "Programmazione", zh: "预约", hi: "शेड्यूलिंग", ar: "الجدولة"
+    en: "Scheduling", fr: "Planification", it: "Programmazione", zh: "预约", hi: "शेड्यूलिंग", ar: "الجدولة",
+    es: "Citas", de: "Terminvereinbarung", ja: "予約", ko: "예약", pt: "Agendamento", ru: "Запись на приём", tr: "Randevu", ur: "اپائنٹمنٹ"
   },
   Billing: {
-    en: "Billing", fr: "Facturation", it: "Fatturazione", zh: "账单", hi: "बिलिंग", ar: "الفواتير"
+    en: "Billing", fr: "Facturation", it: "Fatturazione", zh: "账单", hi: "बिलिंग", ar: "الفواتير",
+    es: "Facturación", de: "Rechnungsabteilung", ja: "請求", ko: "청구", pt: "Faturamento", ru: "Выставление счетов", tr: "Fatura", ur: "بلنگ"
   },
   "Technical Support": {
-    en: "Technical Support", fr: "Support Technique", it: "Supporto Tecnico", zh: "技术支持", hi: "तकनीकी सहायता", ar: "الدعم الفني"
+    en: "Technical Support", fr: "Support Technique", it: "Supporto Tecnico", zh: "技术支持", hi: "तकनीकी सहायता", ar: "الدعم الفني",
+    es: "Soporte Técnico", de: "Technischer Support", ja: "テクニカルサポート", ko: "기술 지원", pt: "Suporte Técnico", ru: "Техническая поддержка", tr: "Teknik Destek", ur: "ٹیکنیکل سپورٹ"
   },
   "Customer Service": {
-    en: "Customer Service", fr: "Service Client", it: "Servizio Clienti", zh: "客户服务", hi: "ग्राहक सेवा", ar: "خدمة العملاء"
+    en: "Customer Service", fr: "Service Client", it: "Servizio Clienti", zh: "客户服务", hi: "ग्राहक सेवा", ar: "خدمة العملاء",
+    es: "Atención al Cliente", de: "Kundenservice", ja: "カスタマーサービス", ko: "고객 서비스", pt: "Atendimento ao Cliente", ru: "Обслуживание клиентов", tr: "Müşteri Hizmetleri", ur: "کسٹمر سروس"
   },
   Appointments: {
-    en: "Appointments", fr: "Rendez-vous", it: "Appuntamenti", zh: "预约", hi: "अपॉइंटमेंट", ar: "المواعيد"
+    en: "Appointments", fr: "Rendez-vous", it: "Appuntamenti", zh: "预约", hi: "अपॉइंटमेंट", ar: "المواعيد",
+    es: "Citas", de: "Termine", ja: "予約", ko: "예약", pt: "Agendamento", ru: "Запись", tr: "Randevu", ur: "اپائنٹمنٹ"
   },
   General: {
-    en: "General", fr: "Général", it: "Generale", zh: "通用", hi: "सामान्य", ar: "عام"
+    en: "General", fr: "Général", it: "Generale", zh: "通用", hi: "सामान्य", ar: "عام",
+    es: "General", de: "Allgemein", ja: "一般", ko: "일반", pt: "Geral", ru: "Общий", tr: "Genel", ur: "عمومی"
   },
   Marketing: {
-    en: "Marketing", fr: "Marketing", it: "Marketing", zh: "市场营销", hi: "मार्केटिंग", ar: "التسويق"
+    en: "Marketing", fr: "Marketing", it: "Marketing", zh: "市场营销", hi: "मार्केटिंग", ar: "التسويق",
+    es: "Marketing", de: "Marketing", ja: "マーケティング", ko: "마케팅", pt: "Marketing", ru: "Маркетинг", tr: "Pazarlama", ur: "مارکیٹنگ"
   },
   "Human Resources": {
-    en: "Human Resources", fr: "Ressources Humaines", it: "Risorse Umane", zh: "人力资源", hi: "मानव संसाधन", ar: "الموارد البشرية"
+    en: "Human Resources", fr: "Ressources Humaines", it: "Risorse Umane", zh: "人力资源", hi: "मानव संसाधन", ar: "الموارد البشرية",
+    es: "Recursos Humanos", de: "Personalabteilung", ja: "人事", ko: "인사", pt: "Recursos Humanos", ru: "Кадры", tr: "İnsan Kaynakları", ur: "ہیومن ریسورسز"
+  },
+  Complaints: {
+    en: "Complaints", fr: "Réclamations", it: "Reclami", zh: "投诉", hi: "शिकायत", ar: "الشكاوى",
+    es: "Quejas", de: "Beschwerden", ja: "苦情", ko: "불만", pt: "Reclamações", ru: "Жалобы", tr: "Şikâyet", ur: "شکایات"
   },
 };
 
@@ -358,6 +372,12 @@ const translateDeptName = (name: string, langCode: string): string => {
   const translations = DEPT_NAME_TRANSLATIONS[name];
   if (translations && translations[langCode]) {
     return translations[langCode];
+  }
+  const lower = name.toLowerCase().trim();
+  for (const [key, trans] of Object.entries(DEPT_NAME_TRANSLATIONS)) {
+    if (lower.includes(key.toLowerCase()) && trans[langCode]) {
+      return trans[langCode];
+    }
   }
   return name;
 };

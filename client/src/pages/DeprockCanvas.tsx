@@ -386,71 +386,127 @@ const DEPT_MENU_TRANSLATIONS: Record<string, Record<string, Record<string, strin
     Sales: { menuItem: "For Sales, press" },
     Support: { menuItem: "For Customer Support, press" },
     Scheduling: { menuItem: "For Scheduling, press" },
+    Billing: { menuItem: "For Billing, press" },
+    HR: { menuItem: "For Human Resources, press" },
+    Marketing: { menuItem: "For Marketing, press" },
+    Complaints: { menuItem: "For Complaints, press" },
   },
   fr: {
     Sales: { menuItem: "Pour les ventes, appuyez sur le" },
     Support: { menuItem: "Pour le service client, appuyez sur le" },
     Scheduling: { menuItem: "Pour la prise de rendez-vous, appuyez sur le" },
+    Billing: { menuItem: "Pour la facturation, appuyez sur le" },
+    HR: { menuItem: "Pour les ressources humaines, appuyez sur le" },
+    Marketing: { menuItem: "Pour le marketing, appuyez sur le" },
+    Complaints: { menuItem: "Pour les réclamations, appuyez sur le" },
   },
   it: {
     Sales: { menuItem: "Per il reparto vendite, premere" },
     Support: { menuItem: "Per l'assistenza clienti, premere" },
     Scheduling: { menuItem: "Per le prenotazioni, premere" },
+    Billing: { menuItem: "Per la fatturazione, premere" },
+    HR: { menuItem: "Per le risorse umane, premere" },
+    Marketing: { menuItem: "Per il marketing, premere" },
+    Complaints: { menuItem: "Per i reclami, premere" },
   },
   zh: {
     Sales: { menuItem: "销售部门请按" },
     Support: { menuItem: "客户支持请按" },
     Scheduling: { menuItem: "预约服务请按" },
+    Billing: { menuItem: "账单部门请按" },
+    HR: { menuItem: "人力资源请按" },
+    Marketing: { menuItem: "市场营销请按" },
+    Complaints: { menuItem: "投诉部门请按" },
   },
   hi: {
     Sales: { menuItem: "बिक्री विभाग के लिए दबाएं" },
     Support: { menuItem: "ग्राहक सहायता के लिए दबाएं" },
     Scheduling: { menuItem: "अपॉइंटमेंट शेड्यूलिंग के लिए दबाएं" },
+    Billing: { menuItem: "बिलिंग के लिए दबाएं" },
+    HR: { menuItem: "मानव संसाधन के लिए दबाएं" },
+    Marketing: { menuItem: "मार्केटिंग के लिए दबाएं" },
+    Complaints: { menuItem: "शिकायत के लिए दबाएं" },
   },
   ar: {
     Sales: { menuItem: "لقسم المبيعات، اضغط" },
     Support: { menuItem: "لخدمة العملاء، اضغط" },
     Scheduling: { menuItem: "لحجز المواعيد، اضغط" },
+    Billing: { menuItem: "لقسم الفواتير، اضغط" },
+    HR: { menuItem: "لقسم الموارد البشرية، اضغط" },
+    Marketing: { menuItem: "لقسم التسويق، اضغط" },
+    Complaints: { menuItem: "لقسم الشكاوى، اضغط" },
   },
   es: {
     Sales: { menuItem: "Para ventas, presione" },
     Support: { menuItem: "Para atención al cliente, presione" },
     Scheduling: { menuItem: "Para agendar una cita, presione" },
+    Billing: { menuItem: "Para facturación, presione" },
+    HR: { menuItem: "Para recursos humanos, presione" },
+    Marketing: { menuItem: "Para marketing, presione" },
+    Complaints: { menuItem: "Para quejas, presione" },
   },
   de: {
     Sales: { menuItem: "Für den Vertrieb, drücken Sie" },
     Support: { menuItem: "Für den Kundendienst, drücken Sie" },
     Scheduling: { menuItem: "Für die Terminvereinbarung, drücken Sie" },
+    Billing: { menuItem: "Für die Rechnungsabteilung, drücken Sie" },
+    HR: { menuItem: "Für die Personalabteilung, drücken Sie" },
+    Marketing: { menuItem: "Für das Marketing, drücken Sie" },
+    Complaints: { menuItem: "Für Beschwerden, drücken Sie" },
   },
   ja: {
     Sales: { menuItem: "営業部門は" },
     Support: { menuItem: "カスタマーサポートは" },
     Scheduling: { menuItem: "予約は" },
+    Billing: { menuItem: "請求部門は" },
+    HR: { menuItem: "人事部門は" },
+    Marketing: { menuItem: "マーケティング部門は" },
+    Complaints: { menuItem: "苦情対応は" },
   },
   ko: {
     Sales: { menuItem: "영업부는" },
     Support: { menuItem: "고객 지원은" },
     Scheduling: { menuItem: "예약은" },
+    Billing: { menuItem: "청구부는" },
+    HR: { menuItem: "인사부는" },
+    Marketing: { menuItem: "마케팅부는" },
+    Complaints: { menuItem: "불만 접수는" },
   },
   pt: {
     Sales: { menuItem: "Para vendas, pressione" },
     Support: { menuItem: "Para atendimento ao cliente, pressione" },
     Scheduling: { menuItem: "Para agendamento, pressione" },
+    Billing: { menuItem: "Para faturamento, pressione" },
+    HR: { menuItem: "Para recursos humanos, pressione" },
+    Marketing: { menuItem: "Para marketing, pressione" },
+    Complaints: { menuItem: "Para reclamações, pressione" },
   },
   ru: {
     Sales: { menuItem: "Для отдела продаж нажмите" },
     Support: { menuItem: "Для службы поддержки нажмите" },
     Scheduling: { menuItem: "Для записи на приём нажмите" },
+    Billing: { menuItem: "Для отдела выставления счетов нажмите" },
+    HR: { menuItem: "Для отдела кадров нажмите" },
+    Marketing: { menuItem: "Для отдела маркетинга нажмите" },
+    Complaints: { menuItem: "Для подачи жалобы нажмите" },
   },
   tr: {
     Sales: { menuItem: "Satış için" },
     Support: { menuItem: "Müşteri destek için" },
     Scheduling: { menuItem: "Randevu almak için" },
+    Billing: { menuItem: "Fatura için" },
+    HR: { menuItem: "İnsan kaynakları için" },
+    Marketing: { menuItem: "Pazarlama için" },
+    Complaints: { menuItem: "Şikâyet için" },
   },
   ur: {
     Sales: { menuItem: "سیلز کے لیے دبائیں" },
     Support: { menuItem: "کسٹمر سپورٹ کے لیے دبائیں" },
     Scheduling: { menuItem: "اپائنٹمنٹ کے لیے دبائیں" },
+    Billing: { menuItem: "بلنگ کے لیے دبائیں" },
+    HR: { menuItem: "ہیومن ریسورسز کے لیے دبائیں" },
+    Marketing: { menuItem: "مارکیٹنگ کے لیے دبائیں" },
+    Complaints: { menuItem: "شکایات کے لیے دبائیں" },
   },
 };
 
@@ -458,6 +514,10 @@ const DEPT_TYPE_TO_KEY: Record<string, string> = {
   sales: "Sales",
   support: "Support",
   scheduling: "Scheduling",
+  billing: "Billing",
+  hr: "HR",
+  marketing: "Marketing",
+  complaints: "Complaints",
   custom: "custom",
 };
 
@@ -469,6 +529,10 @@ const normalizeDeptKey = (name: string, type?: string): string => {
   if (lower.includes("sales") || lower.includes("sale")) return "Sales";
   if (lower.includes("support") || lower.includes("customer")) return "Support";
   if (lower.includes("schedul") || lower.includes("appointment") || lower.includes("booking")) return "Scheduling";
+  if (lower.includes("billing") || lower.includes("invoice") || lower.includes("payment")) return "Billing";
+  if (lower.includes("hr") || lower.includes("human resource")) return "HR";
+  if (lower.includes("marketing")) return "Marketing";
+  if (lower.includes("complaint") || lower.includes("escalat")) return "Complaints";
   return name;
 };
 
@@ -505,20 +569,20 @@ const translateDeptMenuItem = (name: string, type: string, langCode: string, key
 const translateDeptName = (name: string, type: string, langCode: string): string => {
   const key = normalizeDeptKey(name, type);
   const deptNameMap: Record<string, Record<string, string>> = {
-    en: { Sales: "Sales", Support: "Customer Support", Scheduling: "Scheduling" },
-    fr: { Sales: "ventes", Support: "service client", Scheduling: "prise de rendez-vous" },
-    it: { Sales: "vendite", Support: "assistenza clienti", Scheduling: "prenotazioni" },
-    zh: { Sales: "销售部门", Support: "客户支持", Scheduling: "预约服务" },
-    hi: { Sales: "बिक्री विभाग", Support: "ग्राहक सहायता", Scheduling: "अपॉइंटमेंट शेड्यूलिंग" },
-    ar: { Sales: "المبيعات", Support: "خدمة العملاء", Scheduling: "المواعيد" },
-    es: { Sales: "ventas", Support: "atención al cliente", Scheduling: "citas" },
-    de: { Sales: "Vertrieb", Support: "Kundendienst", Scheduling: "Terminvereinbarung" },
-    ja: { Sales: "営業", Support: "カスタマーサポート", Scheduling: "予約" },
-    ko: { Sales: "영업", Support: "고객 지원", Scheduling: "예약" },
-    pt: { Sales: "vendas", Support: "atendimento ao cliente", Scheduling: "agendamento" },
-    ru: { Sales: "продажи", Support: "поддержка", Scheduling: "запись на приём" },
-    tr: { Sales: "satış", Support: "müşteri destek", Scheduling: "randevu" },
-    ur: { Sales: "سیلز", Support: "کسٹمر سپورٹ", Scheduling: "اپائنٹمنٹ" },
+    en: { Sales: "Sales", Support: "Customer Support", Scheduling: "Scheduling", Billing: "Billing", HR: "Human Resources", Marketing: "Marketing", Complaints: "Complaints" },
+    fr: { Sales: "ventes", Support: "service client", Scheduling: "prise de rendez-vous", Billing: "facturation", HR: "ressources humaines", Marketing: "marketing", Complaints: "réclamations" },
+    it: { Sales: "vendite", Support: "assistenza clienti", Scheduling: "prenotazioni", Billing: "fatturazione", HR: "risorse umane", Marketing: "marketing", Complaints: "reclami" },
+    zh: { Sales: "销售部门", Support: "客户支持", Scheduling: "预约服务", Billing: "账单部门", HR: "人力资源", Marketing: "市场营销", Complaints: "投诉部门" },
+    hi: { Sales: "बिक्री विभाग", Support: "ग्राहक सहायता", Scheduling: "अपॉइंटमेंट शेड्यूलिंग", Billing: "बिलिंग", HR: "मानव संसाधन", Marketing: "मार्केटिंग", Complaints: "शिकायत" },
+    ar: { Sales: "المبيعات", Support: "خدمة العملاء", Scheduling: "المواعيد", Billing: "الفواتير", HR: "الموارد البشرية", Marketing: "التسويق", Complaints: "الشكاوى" },
+    es: { Sales: "ventas", Support: "atención al cliente", Scheduling: "citas", Billing: "facturación", HR: "recursos humanos", Marketing: "marketing", Complaints: "quejas" },
+    de: { Sales: "Vertrieb", Support: "Kundendienst", Scheduling: "Terminvereinbarung", Billing: "Rechnungsabteilung", HR: "Personalabteilung", Marketing: "Marketing", Complaints: "Beschwerden" },
+    ja: { Sales: "営業", Support: "カスタマーサポート", Scheduling: "予約", Billing: "請求", HR: "人事", Marketing: "マーケティング", Complaints: "苦情対応" },
+    ko: { Sales: "영업", Support: "고객 지원", Scheduling: "예약", Billing: "청구", HR: "인사", Marketing: "마케팅", Complaints: "불만 접수" },
+    pt: { Sales: "vendas", Support: "atendimento ao cliente", Scheduling: "agendamento", Billing: "faturamento", HR: "recursos humanos", Marketing: "marketing", Complaints: "reclamações" },
+    ru: { Sales: "продажи", Support: "поддержка", Scheduling: "запись на приём", Billing: "выставление счетов", HR: "кадры", Marketing: "маркетинг", Complaints: "жалобы" },
+    tr: { Sales: "satış", Support: "müşteri destek", Scheduling: "randevu", Billing: "fatura", HR: "insan kaynakları", Marketing: "pazarlama", Complaints: "şikâyet" },
+    ur: { Sales: "سیلز", Support: "کسٹمر سپورٹ", Scheduling: "اپائنٹمنٹ", Billing: "بلنگ", HR: "ہیومن ریسورسز", Marketing: "مارکیٹنگ", Complaints: "شکایات" },
   };
   return deptNameMap[langCode]?.[key] || name;
 };

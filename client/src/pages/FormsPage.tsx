@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, User, Hash } from "lucide-react";
+import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -348,101 +348,38 @@ export default function FormsPage() {
   }
 
   const renderSubmissionsPage = () => {
-    const totalResponses = filteredSubmissions.reduce((sum, sub) => sum + (sub.responses?.length || 0), 0);
-    const uniqueContacts = new Set(filteredSubmissions.map(s => s.contactPhone).filter(Boolean)).size;
-    const latestSubmission = filteredSubmissions.length > 0
-      ? format(new Date(filteredSubmissions[0].submittedAt), "MMM d, yyyy")
-      : t("forms.noData");
-
     return (
-      <div className="space-y-8">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleBackToList}
-                data-testid="button-back-from-submissions"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-submissions-title">
-                  {t("forms.formSubmissions")}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1 font-light">{selectedForm?.name}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {submissions.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadCSV}
-                  data-testid="button-download-csv"
-                >
-                  <Download className="h-3.5 w-3.5 mr-1.5" />
-                  {t("forms.downloadCSV")}
-                </Button>
-              )}
+      <div className="space-y-5">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleBackToList}
+              data-testid="button-back-from-submissions"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-submissions-title">
+                {t("forms.formSubmissions")}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1 font-light">{selectedForm?.name}</p>
             </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold tracking-tight">{submissions.length}</div>
-                  <div className="text-xs text-muted-foreground font-light">{t("forms.totalSubmissions")}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold tracking-tight">{uniqueContacts}</div>
-                  <div className="text-xs text-muted-foreground font-light">{t("forms.uniqueContacts")}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                  <Hash className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold tracking-tight">{totalResponses}</div>
-                  <div className="text-xs text-muted-foreground font-light">{t("forms.totalResponses")}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold tracking-tight">{latestSubmission}</div>
-                  <div className="text-xs text-muted-foreground font-light">{t("forms.latestSubmission")}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex items-center gap-2">
+            {submissions.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadCSV}
+                data-testid="button-download-csv"
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                {t("forms.downloadCSV")}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">

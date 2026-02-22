@@ -453,14 +453,14 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
 
       if (oauthError) {
         return sendPopupMessage(
-          `window.opener.postMessage({ type: 'oauth-error', error: ${JSON.stringify(String(oauthError))} }, '*'); window.close();`,
+          `window.opener.postMessage({ type: 'oauth-error', error: ${JSON.stringify(String(oauthError))} }, window.location.origin); window.close();`,
           'Authorization failed. You can close this window.'
         );
       }
 
       if (!code || !state) {
         return sendPopupMessage(
-          `window.opener.postMessage({ type: 'oauth-error', error: 'missing_params' }, '*'); window.close();`,
+          `window.opener.postMessage({ type: 'oauth-error', error: 'missing_params' }, window.location.origin); window.close();`,
           'Missing parameters. You can close this window.'
         );
       }
@@ -468,7 +468,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
       const stateData = oauthService.verifyState(state as string);
       if (!stateData) {
         return sendPopupMessage(
-          `window.opener.postMessage({ type: 'oauth-error', error: 'invalid_state' }, '*'); window.close();`,
+          `window.opener.postMessage({ type: 'oauth-error', error: 'invalid_state' }, window.location.origin); window.close();`,
           'Invalid or expired state. You can close this window.'
         );
       }
@@ -477,7 +477,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
       const credentials = getProviderCredentials(providerSlug);
       if (!credentials) {
         return sendPopupMessage(
-          `window.opener.postMessage({ type: 'oauth-error', error: 'no_credentials' }, '*'); window.close();`,
+          `window.opener.postMessage({ type: 'oauth-error', error: 'no_credentials' }, window.location.origin); window.close();`,
           'Platform credentials not configured. You can close this window.'
         );
       }
@@ -495,7 +495,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
       const provider = getOAuthProvider(providerSlug);
       if (!provider) {
         return sendPopupMessage(
-          `window.opener.postMessage({ type: 'oauth-error', error: 'unknown_provider' }, '*'); window.close();`,
+          `window.opener.postMessage({ type: 'oauth-error', error: 'unknown_provider' }, window.location.origin); window.close();`,
           'Unknown provider. You can close this window.'
         );
       }
@@ -510,7 +510,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         const errorText = await tokenResponse.text();
         console.error(`[Contact Import] Token exchange failed: ${tokenResponse.status} ${errorText}`);
         return sendPopupMessage(
-          `window.opener.postMessage({ type: 'oauth-error', error: 'token_exchange_failed' }, '*'); window.close();`,
+          `window.opener.postMessage({ type: 'oauth-error', error: 'token_exchange_failed' }, window.location.origin); window.close();`,
           'Failed to exchange authorization code. You can close this window.'
         );
       }
@@ -529,13 +529,13 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
       });
 
       sendPopupMessage(
-        `window.opener.postMessage(${messageData}, '*'); window.close();`,
+        `window.opener.postMessage(${messageData}, window.location.origin); window.close();`,
         'Authorization successful! You can close this window.'
       );
     } catch (error: any) {
       console.error('[Contact Import] OAuth callback error:', error);
       sendPopupMessage(
-        `window.opener.postMessage({ type: 'oauth-error', error: 'server_error' }, '*'); window.close();`,
+        `window.opener.postMessage({ type: 'oauth-error', error: 'server_error' }, window.location.origin); window.close();`,
         'An error occurred. You can close this window.'
       );
     }
@@ -681,7 +681,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         redirect_uri: callbackUri,
         response_type: 'code',
         state,
-        scope: 'Contacts.Read User.Read offline_access',
+        scope: 'openid profile email offline_access Contacts.Read User.Read',
         prompt: 'consent',
       });
 

@@ -858,12 +858,13 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
    */
   router.post("/voice-preview", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { voiceId, text } = req.body;
+      const { voiceId, text, speed } = req.body;
       
       if (!voiceId || !text) {
         return res.status(400).json({ error: "voiceId and text are required" });
       }
       
+      const voiceSpeed = typeof speed === 'number' ? Math.max(0.5, Math.min(1.5, speed)) : 1.0;
       const isElevenLabsVoice = voiceId.startsWith("el_");
       
       if (isElevenLabsVoice) {
@@ -881,6 +882,7 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         const audioBuffer = await elevenLabsService.generateVoicePreview({
           voiceId: elevenLabsVoiceId,
           text,
+          voiceSettings: { speed: voiceSpeed },
         });
         
         res.setHeader("Content-Type", "audio/mpeg");
@@ -1027,7 +1029,9 @@ export function createIvrAudioRoutes() {
         }
       }
 
-      const cacheKey = `${ivrId}-${voiceId}-${hashText(text)}`;
+      const speedParam = req.query.speed as string | undefined;
+      const voiceSpeed = speedParam ? Math.max(0.5, Math.min(1.5, parseFloat(speedParam))) : 0.92;
+      const cacheKey = `${ivrId}-${voiceId}-${hashText(text)}-spd${voiceSpeed}`;
       const cached = ttsAudioCache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp) < TTS_CACHE_TTL) {
         res.setHeader("Content-Type", "audio/mpeg");
@@ -1055,7 +1059,7 @@ export function createIvrAudioRoutes() {
           voiceSettings: {
             stability: hasArabic ? 0.75 : 0.6,
             similarity_boost: hasArabic ? 0.85 : 0.8,
-            speed: hasArabic ? 0.85 : 1.0,
+            speed: voiceSpeed,
           },
         });
       } else {

@@ -1266,11 +1266,12 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
   router.post("/voice-preview", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { voiceId, text } = req.body;
+      const { voiceId, text, speed } = req.body;
       if (!voiceId || !text) {
         return res.status(400).json({ error: "voiceId and text are required" });
       }
 
+      const voiceSpeed = typeof speed === 'number' ? Math.max(0.5, Math.min(1.5, speed)) : 1.0;
       const isElevenLabsVoice = voiceId.startsWith("el_");
 
       if (isElevenLabsVoice) {
@@ -1288,17 +1289,21 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         const audioBuffer = await elevenLabsService.generateVoicePreview({
           voiceId: realVoiceId,
           text,
+          voiceSettings: { speed: voiceSpeed },
         });
 
         res.setHeader("Content-Type", "audio/mpeg");
         res.setHeader("Content-Disposition", "inline; filename=preview.mp3");
         res.send(audioBuffer);
       } else {
+        const prosodyRate = `${Math.round(voiceSpeed * 100)}%`;
+        const ssmlText = `<speak><prosody rate="${prosodyRate}">${applyArabicPronunciationFixes(text)}</prosody></speak>`;
         const result = await awsPollyService.synthesizeSpeech({
-          text,
+          text: ssmlText,
           voiceId,
           engine: 'neural',
           outputFormat: 'mp3',
+          textType: 'ssml',
         });
 
         res.setHeader("Content-Type", "audio/mpeg");
@@ -1533,7 +1538,7 @@ The prompt should:
 
   router.post('/tts-preview', async (req: AuthRequest, res: Response) => {
     try {
-      const { voiceId, text, engine } = req.body;
+      const { voiceId, text, engine, speed } = req.body;
       
       if (!voiceId || !text) {
         return res.status(400).json({ error: 'voiceId and text are required' });
@@ -1544,26 +1549,29 @@ The prompt should:
       }
 
       const selectedEngine = engine || 'neural';
+      const voiceSpeed = typeof speed === 'number' ? Math.max(0.5, Math.min(1.5, speed)) : 0.92;
 
       const correctedText = applyArabicPronunciationFixes(text);
+      const prosodyRate = `${Math.round(voiceSpeed * 100)}%`;
+      const ssmlText = `<speak><prosody rate="${prosodyRate}">${correctedText}</prosody></speak>`;
 
       let result;
       try {
         result = await awsPollyService.synthesizeSpeech({
-          text: correctedText,
+          text: ssmlText,
           voiceId,
           engine: selectedEngine as any,
           outputFormat: 'mp3',
-          textType: 'text',
+          textType: 'ssml',
         });
       } catch (engineError: any) {
         if (selectedEngine !== 'neural') {
           result = await awsPollyService.synthesizeSpeech({
-            text: correctedText,
+            text: ssmlText,
             voiceId,
             engine: 'neural' as any,
             outputFormat: 'mp3',
-            textType: 'text',
+            textType: 'ssml',
           });
         } else {
           throw engineError;
@@ -1686,7 +1694,9 @@ export function createDeprockIvrAudioRoutes() {
         }
       }
 
-      const cacheKey = `deprock-${ivrId}-${voiceId}-${hashText(text)}`;
+      const speedParam = req.query.speed as string | undefined;
+      const voiceSpeed = speedParam ? Math.max(0.5, Math.min(1.5, parseFloat(speedParam))) : 0.92;
+      const cacheKey = `deprock-${ivrId}-${voiceId}-${hashText(text)}-spd${voiceSpeed}`;
       const cached = deprockTtsAudioCache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp) < DEPROCK_TTS_CACHE_TTL) {
         res.setHeader("Content-Type", "audio/mpeg");
@@ -1704,23 +1714,29 @@ export function createDeprockIvrAudioRoutes() {
         if (elevenLabsApiKey && realId) {
           try {
             const elService = new ElevenLabsService(elevenLabsApiKey);
-            audioBuffer = await elService.generateVoicePreview({ voiceId: realId, text });
+            audioBuffer = await elService.generateVoicePreview({ voiceId: realId, text, voiceSettings: { speed: voiceSpeed } });
           } catch (err) {
             console.warn('[Deprock IVR Audio] ElevenLabs TTS failed, falling back to Polly:', err);
+            const prosodyRate = `${Math.round(voiceSpeed * 100)}%`;
+            const ssmlText = `<speak><prosody rate="${prosodyRate}">${text}</prosody></speak>`;
             const result = await awsPollyService.synthesizeSpeech({
-              text, voiceId: 'Joanna', engine: 'neural', outputFormat: 'mp3',
+              text: ssmlText, voiceId: 'Joanna', engine: 'neural', outputFormat: 'mp3', textType: 'ssml',
             });
             audioBuffer = result.audioStream;
           }
         } else {
+          const prosodyRate = `${Math.round(voiceSpeed * 100)}%`;
+          const ssmlText = `<speak><prosody rate="${prosodyRate}">${text}</prosody></speak>`;
           const result = await awsPollyService.synthesizeSpeech({
-            text, voiceId: 'Joanna', engine: 'neural', outputFormat: 'mp3',
+            text: ssmlText, voiceId: 'Joanna', engine: 'neural', outputFormat: 'mp3', textType: 'ssml',
           });
           audioBuffer = result.audioStream;
         }
       } else {
+        const prosodyRate = `${Math.round(voiceSpeed * 100)}%`;
+        const ssmlText = `<speak><prosody rate="${prosodyRate}">${text}</prosody></speak>`;
         const result = await awsPollyService.synthesizeSpeech({
-          text, voiceId, engine: 'neural', outputFormat: 'mp3',
+          text: ssmlText, voiceId, engine: 'neural', outputFormat: 'mp3', textType: 'ssml',
         });
         audioBuffer = result.audioStream;
       }

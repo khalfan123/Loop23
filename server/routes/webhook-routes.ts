@@ -808,10 +808,10 @@ const IVR_LANG_CONFIRMATIONS: Record<string, string> = {
   ar: '\u0644\u0642\u062F \u0627\u062E\u062A\u0631\u062A \u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629. \u0644\u062D\u0638\u0629 \u0645\u0646 \u0641\u0636\u0644\u0643.',
 };
 
-// Helper: add SSML prosody to a TwiML say element for slower IVR speech
-function saySlow(parent: any, attrs: Record<string, any>, text: string) {
+function saySlow(parent: any, attrs: Record<string, any>, text: string, speed: number = 0.92) {
   const sayEl = parent.say(attrs);
-  sayEl.prosody({ rate: '88%' }, text);
+  const prosodyRate = `${Math.round(speed * 100)}%`;
+  sayEl.prosody({ rate: prosodyRate }, text);
 }
 
 // Department name translations for IVR spoken menus
@@ -838,12 +838,13 @@ function isNonPollyVoice(voiceId: string | null | undefined): boolean {
   return !voiceId.startsWith('Polly.');
 }
 
-function playOrSay(parent: any, voiceId: string, text: string, ivrId: string, domain: string, pollyAttrs?: Record<string, any>) {
+function playOrSay(parent: any, voiceId: string, text: string, ivrId: string, domain: string, pollyAttrs?: Record<string, any>, speed: number = 0.92) {
   if (voiceId && (voiceId.startsWith('el_') || OPENAI_VOICES.includes(voiceId))) {
-    const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrId}?voiceId=${encodeURIComponent(voiceId)}&text=${encodeURIComponent(text)}&_t=${Date.now()}`;
+    const speedParam = speed !== 1.0 ? `&speed=${speed}` : '';
+    const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrId}?voiceId=${encodeURIComponent(voiceId)}&text=${encodeURIComponent(text)}${speedParam}&_t=${Date.now()}`;
     parent.play(audioUrl);
   } else {
-    saySlow(parent, pollyAttrs || { voice: voiceId || 'Polly.Joanna' }, text);
+    saySlow(parent, pollyAttrs || { voice: voiceId || 'Polly.Joanna' }, text, speed);
   }
 }
 
@@ -924,7 +925,8 @@ async function handleIvrCall(
     const response = new VoiceResponse();
     
     const menuOptions = ivrConfig.menuOptions || [];
-    const langOptions = ivrConfig.languageOptions as { id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }[] | null;
+    const langOptions = ivrConfig.languageOptions as { id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[]; speed?: number }[] | null;
+    const defaultSpeed = langOptions?.[0]?.speed ?? 0.92;
     
     let companyName = '';
     if (phone.userId) {
@@ -943,13 +945,12 @@ async function handleIvrCall(
       const noMenuGreeting = companyName
         ? `Thank you for calling ${companyName}. We are currently updating our systems to serve you better. Please try again shortly. We apologize for any inconvenience.`
         : 'Thank you for calling. We are currently updating our systems to serve you better. Please try again shortly. We apologize for any inconvenience.';
-      saySlow(response, { voice: 'Polly.Joanna' }, noMenuGreeting);
+      saySlow(response, { voice: 'Polly.Joanna' }, noMenuGreeting, defaultSpeed);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
     }
 
-    // Multi-language mode: play language selection with each option spoken in its native voice
     if (langOptions && langOptions.length > 1) {
       console.log(`📞 [IVR Call] Multi-language mode with ${langOptions.length} languages`);
       
@@ -960,7 +961,6 @@ async function handleIvrCall(
         timeout: 10,
       });
       
-      // Play language selection greeting
       const greetingText = ivrConfig.greetingMessage || (companyName 
         ? `Thank you for calling ${companyName}. Your call is important to us. Please select your preferred language.`
         : 'Thank you for calling. Your call is important to us. Please select your preferred language.');
@@ -969,16 +969,16 @@ async function handleIvrCall(
       const mainVoiceId = ivrConfig.voiceId || null;
       
       if (mainVoiceId && (mainVoiceId.startsWith('el_') || OPENAI_VOICES.includes(mainVoiceId))) {
-        const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrConfig.id}?text=${encodeURIComponent(greetingText)}&_t=${Date.now()}`;
+        const speedParam = defaultSpeed !== 1.0 ? `&speed=${defaultSpeed}` : '';
+        const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrConfig.id}?text=${encodeURIComponent(greetingText)}${speedParam}&_t=${Date.now()}`;
         gather.play(audioUrl);
       } else {
         const pollyVoice = getVoiceForLanguage('en');
-        saySlow(gather, { voice: pollyVoice, language: getTwilioLangCode('en') as any }, greetingText);
+        saySlow(gather, { voice: pollyVoice, language: getTwilioLangCode('en') as any }, greetingText, defaultSpeed);
       }
       gather.pause({ length: 1 });
-      console.log(`   Greeting: "${greetingText}" (voice: ${mainVoiceId || 'Polly default'})`);
+      console.log(`   Greeting: "${greetingText}" (voice: ${mainVoiceId || 'Polly default'}, speed: ${defaultSpeed})`);
       
-      // Only append per-language voice prompts if the greeting doesn't already include language press options
       const greetingLower = greetingText.toLowerCase();
       const hasLangOptions = greetingLower.includes('press 1') || greetingLower.includes('اضغط') || greetingLower.includes('请按') || greetingLower.includes('दबाएं') || greetingLower.includes('appuyez') || greetingLower.includes('premere');
       
@@ -991,22 +991,23 @@ async function handleIvrCall(
           const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
           const keyNum = idx + 1;
           const promptText = `${prompt} ${spokenNumber(keyNum, opt.language)}.`;
+          const optSpeed = opt.speed ?? defaultSpeed;
           
           if (optVoiceId && (optVoiceId.startsWith('el_') || OPENAI_VOICES.includes(optVoiceId))) {
-            playOrSay(gather, optVoiceId, promptText, ivrConfig.id, domain);
+            playOrSay(gather, optVoiceId, promptText, ivrConfig.id, domain, undefined, optSpeed);
           } else {
-            saySlow(gather, { voice, language: lang as any }, promptText);
+            saySlow(gather, { voice, language: lang as any }, promptText, optSpeed);
           }
           gather.pause({ length: 1 });
-          console.log(`   Lang option ${keyNum}: ${opt.language} → voice=${optVoiceId || voice}, lang=${lang}`);
+          console.log(`   Lang option ${keyNum}: ${opt.language} → voice=${optVoiceId || voice}, lang=${lang}, speed=${optSpeed}`);
         }
       }
       
       const noSelectionMsg = 'We did not receive a response. Please try your call again. Thank you for calling.';
       if (ivrConfig.voiceId && (ivrConfig.voiceId.startsWith('el_') || OPENAI_VOICES.includes(ivrConfig.voiceId))) {
-        playOrSay(response, ivrConfig.voiceId, noSelectionMsg, ivrConfig.id, domain);
+        playOrSay(response, ivrConfig.voiceId, noSelectionMsg, ivrConfig.id, domain, undefined, defaultSpeed);
       } else {
-        saySlow(response, { voice: 'Polly.Joanna' }, noSelectionMsg);
+        saySlow(response, { voice: 'Polly.Joanna' }, noSelectionMsg, defaultSpeed);
       }
       response.redirect(`/api/webhooks/twilio/incoming`);
       
@@ -1015,18 +1016,18 @@ async function handleIvrCall(
       return res.send(response.toString());
     }
 
-    // Single language mode: go straight to department menu
     const langCode = langOptions?.[0]?.language || 'en';
     const singleVoiceId = langOptions?.[0]?.voiceId || ivrConfig.voiceId || null;
+    const singleSpeed = langOptions?.[0]?.speed ?? defaultSpeed;
     const voice = getVoiceForLanguage(langCode);
     const lang = getTwilioLangCode(langCode);
     
     if (ivrConfig.greetingMessage) {
       if (singleVoiceId && (singleVoiceId.startsWith('el_') || OPENAI_VOICES.includes(singleVoiceId))) {
         const domain = getDomain(req.headers.host as string);
-        playOrSay(response, singleVoiceId, ivrConfig.greetingMessage, ivrConfig.id, domain);
+        playOrSay(response, singleVoiceId, ivrConfig.greetingMessage, ivrConfig.id, domain, undefined, singleSpeed);
       } else {
-        saySlow(response, { voice, language: lang as any }, ivrConfig.greetingMessage);
+        saySlow(response, { voice, language: lang as any }, ivrConfig.greetingMessage, singleSpeed);
       }
       response.pause({ length: 1 });
     }
@@ -1043,17 +1044,17 @@ async function handleIvrCall(
     
     if (singleVoiceId && (singleVoiceId.startsWith('el_') || OPENAI_VOICES.includes(singleVoiceId))) {
       const domain = getDomain(req.headers.host as string);
-      playOrSay(gather, singleVoiceId, deptMenuPrompt, ivrConfig.id, domain);
+      playOrSay(gather, singleVoiceId, deptMenuPrompt, ivrConfig.id, domain, undefined, singleSpeed);
     } else {
-      saySlow(gather, { voice, language: lang as any }, deptMenuPrompt);
+      saySlow(gather, { voice, language: lang as any }, deptMenuPrompt, singleSpeed);
     }
 
     const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
     if (singleVoiceId && (singleVoiceId.startsWith('el_') || OPENAI_VOICES.includes(singleVoiceId))) {
       const domainForNoInput = getDomain(req.headers.host as string);
-      playOrSay(response, singleVoiceId, template.noInputMsg, ivrConfig.id, domainForNoInput);
+      playOrSay(response, singleVoiceId, template.noInputMsg, ivrConfig.id, domainForNoInput, undefined, singleSpeed);
     } else {
-      saySlow(response, { voice, language: lang as any }, template.noInputMsg);
+      saySlow(response, { voice, language: lang as any }, template.noInputMsg, singleSpeed);
     }
     response.redirect(`/api/webhooks/twilio/incoming`);
 
@@ -1099,8 +1100,9 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       return res.send(response.toString());
     }
     
-    const langOptions = ivrConfig[0].languageOptions as { id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }[] | null;
+    const langOptions = ivrConfig[0].languageOptions as { id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[]; speed?: number }[] | null;
     const menuOptions = ivrConfig[0].menuOptions || [];
+    const defaultSpeed = langOptions?.[0]?.speed ?? 0.92;
     
     if (!langOptions || langOptions.length === 0) {
       console.error(`❌ [IVR Language] No language options configured`);
@@ -1119,7 +1121,7 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       const langSelDomain = getDomain(req.headers.host as string);
       
       if (langSelVoiceId && (langSelVoiceId.startsWith('el_') || OPENAI_VOICES.includes(langSelVoiceId))) {
-        playOrSay(response, langSelVoiceId!, 'Invalid selection.', ivrId as string, langSelDomain);
+        playOrSay(response, langSelVoiceId!, 'Invalid selection.', ivrId as string, langSelDomain, undefined, defaultSpeed);
       } else {
         const invalidVoice = getVoiceForLanguage('en');
         response.say({ voice: invalidVoice }, 'Invalid selection.');
@@ -1139,18 +1141,19 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
         const lang = getTwilioLangCode(opt.language);
         const prompt = IVR_LANGUAGE_PROMPTS[opt.language] || `For ${opt.language}, press`;
         const promptText = `${prompt} ${spokenNumber(idx + 1, opt.language)}.`;
+        const optSpeed = opt.speed ?? defaultSpeed;
         if (optVoiceId && (optVoiceId.startsWith('el_') || OPENAI_VOICES.includes(optVoiceId))) {
-          playOrSay(gather, optVoiceId!, promptText, ivrId as string, langSelDomain);
+          playOrSay(gather, optVoiceId!, promptText, ivrId as string, langSelDomain, undefined, optSpeed);
         } else {
-          saySlow(gather, { voice, language: lang as any }, promptText);
+          saySlow(gather, { voice, language: lang as any }, promptText, optSpeed);
         }
         gather.pause({ length: 1 });
       }
       
       if (langSelVoiceId && (langSelVoiceId.startsWith('el_') || OPENAI_VOICES.includes(langSelVoiceId))) {
-        playOrSay(response, langSelVoiceId!, 'Thank you for calling. Goodbye.', ivrId as string, langSelDomain);
+        playOrSay(response, langSelVoiceId!, 'Thank you for calling. Goodbye.', ivrId as string, langSelDomain, undefined, defaultSpeed);
       } else {
-        saySlow(response, { voice: 'Polly.Joanna' }, 'Thank you for calling. Goodbye.');
+        saySlow(response, { voice: 'Polly.Joanna' }, 'Thank you for calling. Goodbye.', defaultSpeed);
       }
       response.hangup();
       res.type('text/xml');
@@ -1159,18 +1162,20 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     
     const langCode = selectedLang.language;
     const selectedVoiceId = selectedLang.voiceId || null;
+    const selectedSpeed = selectedLang.speed ?? defaultSpeed;
     const voice = getVoiceForLanguage(langCode);
     const lang = getTwilioLangCode(langCode);
     
-    console.log(`📞 [IVR Language] Selected language: ${langCode}, voice: ${selectedVoiceId || voice}`);
+    console.log(`📞 [IVR Language] Selected language: ${langCode}, voice: ${selectedVoiceId || voice}, speed: ${selectedSpeed}`);
     
     const confirmMsg = IVR_LANG_CONFIRMATIONS[langCode] || IVR_LANG_CONFIRMATIONS.en;
     const confirmDomain = getDomain(req.headers.host as string);
     if (selectedVoiceId && (selectedVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selectedVoiceId))) {
-      const confirmAudioUrl = `${confirmDomain}/api/departments/ivr-greeting-audio/${ivrConfig[0].id}?voiceId=${encodeURIComponent(selectedVoiceId)}&text=${encodeURIComponent(confirmMsg)}&_t=${Date.now()}`;
+      const speedParam = selectedSpeed !== 1.0 ? `&speed=${selectedSpeed}` : '';
+      const confirmAudioUrl = `${confirmDomain}/api/departments/ivr-greeting-audio/${ivrConfig[0].id}?voiceId=${encodeURIComponent(selectedVoiceId)}&text=${encodeURIComponent(confirmMsg)}${speedParam}&_t=${Date.now()}`;
       response.play(confirmAudioUrl);
     } else {
-      saySlow(response, { voice, language: lang as any }, confirmMsg);
+      saySlow(response, { voice, language: lang as any }, confirmMsg, selectedSpeed);
     }
     response.pause({ length: 1 });
     
@@ -1178,14 +1183,14 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     if (selectedLang.greeting) {
       const domain = getDomain(req.headers.host as string);
       if (selectedVoiceId && (selectedVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selectedVoiceId))) {
-        const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrConfig[0].id}?voiceId=${encodeURIComponent(selectedVoiceId)}&text=${encodeURIComponent(selectedLang.greeting)}&_t=${Date.now()}`;
+        const speedParam = selectedSpeed !== 1.0 ? `&speed=${selectedSpeed}` : '';
+        const audioUrl = `${domain}/api/departments/ivr-greeting-audio/${ivrConfig[0].id}?voiceId=${encodeURIComponent(selectedVoiceId)}&text=${encodeURIComponent(selectedLang.greeting)}${speedParam}&_t=${Date.now()}`;
         response.play(audioUrl);
       } else {
-        saySlow(response, { voice, language: lang as any }, selectedLang.greeting);
+        saySlow(response, { voice, language: lang as any }, selectedLang.greeting, selectedSpeed);
       }
     }
     
-    // Filter departments to only those selected for this language (if configured)
     let filteredMenuOptions = menuOptions;
     if (selectedLang.selectedDepartments && selectedLang.selectedDepartments.length > 0) {
       filteredMenuOptions = menuOptions.filter((opt: any) => 
@@ -1196,15 +1201,13 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
       }
     }
     
-    // Build department menu prompt in the selected language
     const deptNames = filteredMenuOptions.map((opt: any) => opt.label);
     const deptMenuPrompt = buildDeptMenuPrompt(deptNames, langCode);
     
-    console.log(`📞 [IVR Language] Department menu (${langCode}): ${deptMenuPrompt}`);
+    console.log(`📞 [IVR Language] Department menu (${langCode}): ${deptMenuPrompt}, speed: ${selectedSpeed}`);
     
     response.pause({ length: 1 });
     
-    // Create gather for department selection
     const gather = response.gather({
       numDigits: 1,
       action: `/api/webhooks/ivr/handle-selection?ivrId=${ivrId}&callSid=${callSid}&caller=${encodeURIComponent(caller as string || '')}&lang=${langCode}`,
@@ -1214,17 +1217,17 @@ export async function handleIvrLanguageSelection(req: Request, res: Response) {
     
     if (selectedVoiceId && (selectedVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selectedVoiceId))) {
       const domain = getDomain(req.headers.host as string);
-      playOrSay(gather, selectedVoiceId!, deptMenuPrompt, ivrId as string, domain);
+      playOrSay(gather, selectedVoiceId!, deptMenuPrompt, ivrId as string, domain, undefined, selectedSpeed);
     } else {
-      saySlow(gather, { voice, language: lang as any }, deptMenuPrompt);
+      saySlow(gather, { voice, language: lang as any }, deptMenuPrompt, selectedSpeed);
     }
     
     const template = IVR_DEPT_TEMPLATES[langCode] || IVR_DEPT_TEMPLATES.en;
     if (selectedVoiceId && (selectedVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selectedVoiceId))) {
       const domain = getDomain(req.headers.host as string);
-      playOrSay(response, selectedVoiceId!, template.noInputMsg, ivrId as string, domain);
+      playOrSay(response, selectedVoiceId!, template.noInputMsg, ivrId as string, domain, undefined, selectedSpeed);
     } else {
-      saySlow(response, { voice, language: lang as any }, template.noInputMsg);
+      saySlow(response, { voice, language: lang as any }, template.noInputMsg, selectedSpeed);
     }
     response.redirect(`/api/webhooks/twilio/incoming`);
     
@@ -1269,22 +1272,23 @@ export async function handleIvrSelection(req: Request, res: Response) {
     
     if (!ivrConfig.length) {
       console.error(`❌ [IVR Selection] IVR config not found or inactive: ${ivrId}`);
-      saySlow(response, { voice, language: langTag as any }, template.invalidMsg);
+      saySlow(response, { voice, language: langTag as any }, template.invalidMsg, 0.92);
       response.hangup();
       res.type('text/xml');
       return res.send(response.toString());
     }
     
-    const selLangOptions = ivrConfig[0].languageOptions as { id: string; language: string; voiceId: string; greeting: string }[] | null;
+    const selLangOptions = ivrConfig[0].languageOptions as { id: string; language: string; voiceId: string; greeting: string; speed?: number }[] | null;
     const selLangOpt = selLangOptions?.find(lo => lo.language === langCode);
     const selVoiceId = selLangOpt?.voiceId || ivrConfig[0].voiceId || null;
+    const selSpeed = selLangOpt?.speed ?? 0.92;
     const selDomain = getDomain(req.headers.host as string);
     
     const sayWithVoice = (parent: any, text: string) => {
       if (selVoiceId && (selVoiceId.startsWith('el_') || OPENAI_VOICES.includes(selVoiceId))) {
-        playOrSay(parent, selVoiceId!, text, ivrId as string, selDomain);
+        playOrSay(parent, selVoiceId!, text, ivrId as string, selDomain, undefined, selSpeed);
       } else {
-        saySlow(parent, { voice, language: langTag as any }, text);
+        saySlow(parent, { voice, language: langTag as any }, text, selSpeed);
       }
     };
     

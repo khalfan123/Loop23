@@ -23,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
@@ -609,6 +610,7 @@ interface LanguageOption {
   voiceId: string;
   greeting: string;
   selectedDepartments?: string[];
+  speed?: number;
 }
 
 const generateDefaultLangGreeting = (langOpts: LanguageOption[], companyName?: string): string => {
@@ -2110,6 +2112,8 @@ function IVRRouterStep({
   companyDisplayName,
   canvasDepartments,
   selectedPhoneIds,
+  ivrVoiceSpeed,
+  setIvrVoiceSpeed,
   toast,
 }: {
   ivrEnabled: boolean;
@@ -2126,6 +2130,8 @@ function IVRRouterStep({
   companyDisplayName: string;
   canvasDepartments: CanvasDepartment[];
   selectedPhoneIds: string[];
+  ivrVoiceSpeed: number;
+  setIvrVoiceSpeed: (val: number) => void;
   toast: ReturnType<typeof useToast>["toast"];
 }) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -2210,7 +2216,7 @@ function IVRRouterStep({
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
 
-  const handlePlayVoice = async (voiceId: string, text?: string) => {
+  const handlePlayVoice = async (voiceId: string, text?: string, speed?: number) => {
     if (!audioRef.current) return;
 
     if (playingVoiceId === voiceId) {
@@ -2223,7 +2229,7 @@ function IVRRouterStep({
     const sampleText = text || DEFAULT_GREETINGS.en;
     try {
       setPlayingVoiceId(voiceId);
-      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: sampleText });
+      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: sampleText, speed });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -2364,7 +2370,7 @@ function IVRRouterStep({
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => handlePlayVoice(languageSelectionGreetingVoice, languageSelectionGreetingText)}
+                      onClick={() => handlePlayVoice(languageSelectionGreetingVoice, languageSelectionGreetingText, ivrVoiceSpeed)}
                       data-testid="button-preview-greeting-voice"
                     >
                       {playingVoiceId === languageSelectionGreetingVoice ? (
@@ -2374,6 +2380,22 @@ function IVRRouterStep({
                       )}
                     </Button>
                   </div>
+                </div>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">Voice Speed</Label>
+                    <span className="text-xs font-mono text-muted-foreground" data-testid="text-greeting-voice-speed">{ivrVoiceSpeed.toFixed(2)}x</span>
+                  </div>
+                  <Slider
+                    value={[ivrVoiceSpeed]}
+                    onValueChange={([value]) => setIvrVoiceSpeed(value)}
+                    min={0.5}
+                    max={1.5}
+                    step={0.05}
+                    className="mt-1.5"
+                    data-testid="slider-greeting-voice-speed"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Slower speeds improve clarity for IVR menus (recommended: 0.85-0.95)</p>
                 </div>
               </div>
 
@@ -2455,7 +2477,7 @@ function IVRRouterStep({
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => handlePlayVoice(opt.voiceId, opt.greeting)}
+                          onClick={() => handlePlayVoice(opt.voiceId, opt.greeting, opt.speed ?? 0.92)}
                           data-testid={`button-preview-voice-${idx}`}
                         >
                           {playingVoiceId === opt.voiceId ? (
@@ -2465,6 +2487,23 @@ function IVRRouterStep({
                           )}
                         </Button>
                       </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs text-muted-foreground">Voice Speed</Label>
+                        <span className="text-xs font-mono text-muted-foreground" data-testid={`text-voice-speed-${idx}`}>{(opt.speed ?? 0.92).toFixed(2)}x</span>
+                      </div>
+                      <Slider
+                        value={[opt.speed ?? 0.92]}
+                        onValueChange={([value]) => updateLanguageOption(opt.id, { speed: value })}
+                        min={0.5}
+                        max={1.5}
+                        step={0.05}
+                        className="mt-1.5"
+                        data-testid={`slider-voice-speed-${idx}`}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Slower speeds improve clarity for IVR menus (recommended: 0.85-0.95)</p>
                     </div>
 
                     <div>
@@ -2604,7 +2643,8 @@ function IVRRouterStep({
                     size="icon"
                     onClick={() => handlePlayVoice(
                       languageOptions[0]?.voiceId || "Joanna",
-                      languageOptions[0]?.greeting || DEFAULT_GREETINGS.en
+                      languageOptions[0]?.greeting || DEFAULT_GREETINGS.en,
+                      languageOptions[0]?.speed ?? ivrVoiceSpeed
                     )}
                     data-testid="button-preview-default-voice"
                   >
@@ -2614,6 +2654,27 @@ function IVRRouterStep({
                       <Volume2 className="h-4 w-4" />
                     )}
                   </Button>
+                </div>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">Voice Speed</Label>
+                    <span className="text-xs font-mono text-muted-foreground" data-testid="text-default-voice-speed">{(languageOptions[0]?.speed ?? ivrVoiceSpeed).toFixed(2)}x</span>
+                  </div>
+                  <Slider
+                    value={[languageOptions[0]?.speed ?? ivrVoiceSpeed]}
+                    onValueChange={([value]) => {
+                      if (languageOptions[0]) {
+                        updateLanguageOption(languageOptions[0].id, { speed: value });
+                      }
+                      setIvrVoiceSpeed(value);
+                    }}
+                    min={0.5}
+                    max={1.5}
+                    step={0.05}
+                    className="mt-1.5"
+                    data-testid="slider-default-voice-speed"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Slower speeds improve clarity for IVR menus (recommended: 0.85-0.95)</p>
                 </div>
               </div>
             </div>
@@ -2660,6 +2721,7 @@ export default function DeprockCanvas() {
   ]);
   const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
   const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('Joanna');
+  const [ivrVoiceSpeed, setIvrVoiceSpeed] = useState(0.92);
   const isGreetingCustomized = useRef(false);
 
   const { data: userProfile } = useQuery<{ company?: string; name?: string }>({
@@ -2832,7 +2894,10 @@ export default function DeprockCanvas() {
             greetingMessage,
             voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'Joanna'),
             menuOptions,
-            languageOptions: multiLangEnabled ? languageOptions : languageOptions,
+            languageOptions: (multiLangEnabled ? languageOptions : languageOptions).map(opt => ({
+              ...opt,
+              speed: opt.speed ?? ivrVoiceSpeed,
+            })),
           });
         }
       }
@@ -2920,6 +2985,8 @@ export default function DeprockCanvas() {
               companyDisplayName={companyDisplayName}
               canvasDepartments={canvasDepartments}
               selectedPhoneIds={selectedPhoneIds}
+              ivrVoiceSpeed={ivrVoiceSpeed}
+              setIvrVoiceSpeed={setIvrVoiceSpeed}
               toast={toast}
             />
           )}

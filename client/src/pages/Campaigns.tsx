@@ -24,7 +24,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing } from "lucide-react";
+import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, Plus } from "lucide-react";
+import ImportContactsDialog from "@/components/ImportContactsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,6 +92,7 @@ export default function Campaigns() {
   const [activeView, setActiveView] = useState<ViewMode>('batch');
   const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [deletingContact, setDeletingContact] = useState<DeduplicatedContact | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
@@ -409,15 +411,24 @@ export default function Campaigns() {
           <Users className="h-4 w-4 text-foreground" />
           <span className="font-medium">{t('contacts.title', 'Contacts')}</span>
         </div>
-        <Button 
-          onClick={exportToCSV}
-          disabled={contacts.length === 0}
-          variant="outline"
-          data-testid="button-export-contacts"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          {t('contacts.exportContacts', 'Export CSV')}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setImportDialogOpen(true)}
+            data-testid="button-import-contacts"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t('contacts.importContacts', 'Import Contacts')}
+          </Button>
+          <Button 
+            onClick={exportToCSV}
+            disabled={contacts.length === 0}
+            variant="outline"
+            data-testid="button-export-contacts"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t('contacts.exportContacts', 'Export CSV')}
+          </Button>
+        </div>
       </div>
 
       <div className="mb-3 px-1">
@@ -588,12 +599,15 @@ export default function Campaigns() {
   );
 
   return (
-    <ThreeColumnLayout 
-      subPanel={subPanelContent} 
-      subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>}
-    >
-      {activeView === 'batch' ? renderBatchCallView() : renderContactsView()}
-    </ThreeColumnLayout>
+    <>
+      <ThreeColumnLayout 
+        subPanel={subPanelContent} 
+        subPanelWidth="sm"
+        subPanelHeader={<span className="font-medium text-sm">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>}
+      >
+        {activeView === 'batch' ? renderBatchCallView() : renderContactsView()}
+      </ThreeColumnLayout>
+      <ImportContactsDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
+    </>
   );
 }

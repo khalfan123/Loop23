@@ -2866,6 +2866,8 @@
     "anonymousContact": "Anonymous Contact",
     "noResponseData": "No response data recorded for this submission",
     "noData": "—",
+    "searchForms": "Search forms...",
+    "noFormsSearch": "No forms match your search",
     "callId": "Call ID",
     "createdOn": "Created",
     "loading": "Loading forms...",

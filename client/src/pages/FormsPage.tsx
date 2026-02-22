@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, CheckSquare, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, User, Hash } from "lucide-react";
+import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, User, Hash } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -92,6 +92,7 @@ export default function FormsPage() {
     options: string;
   }>>([]);
 
+  const [formSearch, setFormSearch] = useState("");
   const [templateSearch, setTemplateSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
@@ -236,6 +237,16 @@ export default function FormsPage() {
     });
   }, [submissions, submissionSearch]);
 
+  const filteredForms = useMemo(() => {
+    if (!formSearch) return forms;
+    const q = formSearch.toLowerCase();
+    return forms.filter((form) => {
+      if (form.name.toLowerCase().includes(q)) return true;
+      if (form.description?.toLowerCase().includes(q)) return true;
+      return false;
+    });
+  }, [forms, formSearch]);
+
   const addField = () => {
     setFields([
       ...fields,
@@ -331,9 +342,6 @@ export default function FormsPage() {
       </div>
     );
   }
-
-  const totalForms = forms.length;
-  const totalSubmissions = forms.reduce((sum, form) => sum + ((form as any).submissionCount || 0), 0);
 
   const renderSubmissionsPage = () => {
     const totalResponses = filteredSubmissions.reduce((sum, sub) => sum + (sub.responses?.length || 0), 0);
@@ -806,99 +814,98 @@ export default function FormsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-page-title">
-              {t("forms.title")}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1 font-light">{t("forms.subtitle")}</p>
-          </div>
-          <Button 
-            onClick={() => setCurrentView("templates")}
-            size="sm"
-            data-testid="button-create-form"
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            {t("forms.createForm")}
-          </Button>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-page-title">
+            {t("forms.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 font-light">{t("forms.subtitle")}</p>
         </div>
+        <Button 
+          onClick={() => setCurrentView("templates")}
+          size="sm"
+          className="rounded-full px-4"
+          data-testid="button-create-form"
+        >
+          <Plus className="h-4 w-4 mr-1.5" />
+          {t("forms.createForm")}
+        </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <div className="text-2xl font-semibold tracking-tight">{totalForms}</div>
-                <div className="text-xs text-muted-foreground font-light">{t("forms.totalForms")}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                <CheckSquare className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <div className="text-2xl font-semibold tracking-tight">{totalSubmissions}</div>
-                <div className="text-xs text-muted-foreground font-light">{t("forms.submissions")}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+        <Input
+          placeholder={t("forms.searchForms")}
+          value={formSearch}
+          onChange={(e) => setFormSearch(e.target.value)}
+          className="pl-10 h-10 rounded-xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-ring/30"
+          data-testid="input-form-search"
+        />
+        {formSearch && (
+          <button
+            onClick={() => setFormSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+            data-testid="button-clear-form-search"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {forms.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+          <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
             <FileText className="h-5 w-5 text-muted-foreground" />
           </div>
           <h3 className="text-base font-medium mb-1">{t("forms.noForms")}</h3>
           <p className="text-sm text-muted-foreground max-w-sm mb-5 font-light">
             {t("forms.noFormsDescription")}
           </p>
-          <Button onClick={() => setCurrentView("templates")} size="sm" data-testid="button-create-first-form">
+          <Button onClick={() => setCurrentView("templates")} size="sm" className="rounded-full px-4" data-testid="button-create-first-form">
             <Plus className="h-4 w-4 mr-1.5" />
             {t("forms.createFirstForm")}
           </Button>
         </div>
+      ) : filteredForms.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Search className="h-6 w-6 text-muted-foreground/40 mb-3" />
+          <p className="text-sm text-muted-foreground font-light">{t("forms.noFormsSearch")}</p>
+        </div>
       ) : (
-        <Card>
-          <CardContent className="p-0 divide-y">
-          {forms.map((form) => (
+        <div className="rounded-2xl bg-card border overflow-hidden">
+          {filteredForms.map((form, idx) => (
             <div 
               key={form.id} 
-              className="flex items-center justify-between p-4 gap-4 hover-elevate"
+              className={`flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-muted/40 active:bg-muted/60 cursor-default ${idx < filteredForms.length - 1 ? "border-b border-border/50" : ""}`}
               data-testid={`card-form-${form.id}`}
             >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-[12px] bg-primary/8 dark:bg-primary/15 flex items-center justify-center shrink-0">
+                <FileText className="h-[18px] w-[18px] text-primary/70" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-[14px] leading-tight truncate" data-testid={`text-form-name-${form.id}`}>
+                  {form.name}
                 </div>
-                <div className="min-w-0">
-                  <div className="font-medium text-sm truncate" data-testid={`text-form-name-${form.id}`}>
-                    {form.name}
-                  </div>
-                  <div className="text-xs text-muted-foreground font-light mt-0.5">
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-xs text-muted-foreground/70 font-light">
                     {format(new Date(form.createdAt), "MMM d, yyyy")}
-                    {form.description && <span className="ml-2">{form.description}</span>}
-                  </div>
+                  </span>
+                  {(form as any).submissionCount > 0 && (
+                    <>
+                      <span className="text-muted-foreground/30">·</span>
+                      <span className="text-xs text-muted-foreground/70 font-light">
+                        {(form as any).submissionCount} {t("forms.submissions").toLowerCase()}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="secondary" className="text-xs font-normal" data-testid={`badge-submissions-${form.id}`}>
-                  {(form as any).submissionCount || 0}
-                </Badge>
+              <div className="flex items-center gap-0.5 shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="h-8 w-8 rounded-full text-muted-foreground/60 hover:text-foreground"
                   onClick={() => handleViewSubmissions(form)}
                   data-testid={`button-view-submissions-${form.id}`}
                 >
@@ -907,17 +914,17 @@ export default function FormsPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="h-8 w-8 rounded-full text-muted-foreground/40 hover:text-destructive"
                   onClick={() => deleteMutation.mutate(form.id)}
                   disabled={deleteMutation.isPending}
                   data-testid={`button-delete-${form.id}`}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
           ))}
-          </CardContent>
-        </Card>
+        </div>
       )}
 
     </div>

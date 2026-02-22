@@ -2,13 +2,12 @@
 import { Router, Request, Response } from 'express';
 import { RouteContext, AuthRequest } from './common';
 import Papa from 'papaparse';
-import { contacts, campaigns } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
 import { oauthService } from '../services/oauth';
 import { batchInsertContacts } from '../utils/batch-utils';
 import type { InsertContact } from '@shared/schema';
 
 const MAX_IMPORT_CONTACTS = 10000;
+const IMPORT_CAMPAIGN_NAME = 'Imported Contacts';
 
 interface ContactImportResult {
   imported: number;
@@ -288,21 +287,18 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
   const { db, storage, authenticateToken, upload } = ctx;
   const router = Router();
 
-  router.get('/campaigns-list', authenticateToken, async (req: AuthRequest, res: Response) => {
-    try {
-      const userCampaigns = await storage.getUserCampaigns(req.userId!);
-      const campaignList = userCampaigns.map(c => ({
-        id: c.id,
-        name: c.name,
-        totalContacts: c.totalContacts,
-        status: c.status,
-      }));
-      res.json(campaignList);
-    } catch (error: any) {
-      console.error('[Contact Import] Error fetching campaigns:', error);
-      res.status(500).json({ error: 'Failed to fetch campaigns' });
-    }
-  });
+  async function getOrCreateImportCampaign(userId: string) {
+    const userCampaigns = await storage.getUserCampaigns(userId);
+    const existing = userCampaigns.find(c => c.name === IMPORT_CAMPAIGN_NAME);
+    if (existing) return existing;
+    return await storage.createCampaign({
+      userId,
+      name: IMPORT_CAMPAIGN_NAME,
+      type: 'outbound',
+      status: 'pending',
+      totalContacts: 0,
+    } as any);
+  }
 
   router.post('/csv', authenticateToken, upload.single('file'), async (req: AuthRequest, res: Response) => {
     try {
@@ -310,15 +306,8 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: 'No file uploaded' });
       }
 
-      const campaignId = req.body.campaignId;
-      if (!campaignId) {
-        return res.status(400).json({ error: 'Campaign ID is required' });
-      }
-
-      const campaign = await storage.getCampaign(campaignId);
-      if (!campaign || campaign.userId !== req.userId) {
-        return res.status(404).json({ error: 'Campaign not found' });
-      }
+      const campaign = await getOrCreateImportCampaign(req.userId!);
+      const campaignId = campaign.id;
 
       const fileContent = req.file.buffer
         ? req.file.buffer.toString('utf-8')
@@ -375,15 +364,8 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: 'No file uploaded' });
       }
 
-      const campaignId = req.body.campaignId;
-      if (!campaignId) {
-        return res.status(400).json({ error: 'Campaign ID is required' });
-      }
-
-      const campaign = await storage.getCampaign(campaignId);
-      if (!campaign || campaign.userId !== req.userId) {
-        return res.status(404).json({ error: 'Campaign not found' });
-      }
+      const campaign = await getOrCreateImportCampaign(req.userId!);
+      const campaignId = campaign.id;
 
       const fileContent = req.file.buffer
         ? req.file.buffer.toString('utf-8')
@@ -489,19 +471,14 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
 
   router.post('/google/fetch', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { accessToken, campaignId } = req.body;
+      const { accessToken } = req.body;
 
       if (!accessToken) {
         return res.status(400).json({ error: 'Access token is required' });
       }
-      if (!campaignId) {
-        return res.status(400).json({ error: 'Campaign ID is required' });
-      }
 
-      const campaign = await storage.getCampaign(campaignId);
-      if (!campaign || campaign.userId !== req.userId) {
-        return res.status(404).json({ error: 'Campaign not found' });
-      }
+      const campaign = await getOrCreateImportCampaign(req.userId!);
+      const campaignId = campaign.id;
 
       const googleContacts = await fetchGoogleContacts(accessToken);
       const validContacts = googleContacts.filter(c => c.phone || c.email).slice(0, MAX_IMPORT_CONTACTS);
@@ -621,19 +598,14 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
 
   router.post('/microsoft/fetch', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { accessToken, campaignId } = req.body;
+      const { accessToken } = req.body;
 
       if (!accessToken) {
         return res.status(400).json({ error: 'Access token is required' });
       }
-      if (!campaignId) {
-        return res.status(400).json({ error: 'Campaign ID is required' });
-      }
 
-      const campaign = await storage.getCampaign(campaignId);
-      if (!campaign || campaign.userId !== req.userId) {
-        return res.status(404).json({ error: 'Campaign not found' });
-      }
+      const campaign = await getOrCreateImportCampaign(req.userId!);
+      const campaignId = campaign.id;
 
       const msContacts = await fetchMicrosoftContacts(accessToken);
       const validContacts = msContacts.filter(c => c.phone || c.email).slice(0, MAX_IMPORT_CONTACTS);
@@ -672,19 +644,14 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
 
   router.post('/hubspot/fetch', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { accessToken, campaignId } = req.body;
+      const { accessToken } = req.body;
 
       if (!accessToken) {
         return res.status(400).json({ error: 'Access token is required' });
       }
-      if (!campaignId) {
-        return res.status(400).json({ error: 'Campaign ID is required' });
-      }
 
-      const campaign = await storage.getCampaign(campaignId);
-      if (!campaign || campaign.userId !== req.userId) {
-        return res.status(404).json({ error: 'Campaign not found' });
-      }
+      const campaign = await getOrCreateImportCampaign(req.userId!);
+      const campaignId = campaign.id;
 
       const hubspotContacts = await fetchHubSpotContacts(accessToken);
       const validContacts = hubspotContacts.filter(c => c.phone || c.email);
@@ -723,19 +690,14 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
 
   router.post('/salesforce/fetch', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { accessToken, campaignId, instanceUrl } = req.body;
+      const { accessToken, instanceUrl } = req.body;
 
       if (!accessToken) {
         return res.status(400).json({ error: 'Access token is required' });
       }
-      if (!campaignId) {
-        return res.status(400).json({ error: 'Campaign ID is required' });
-      }
 
-      const campaign = await storage.getCampaign(campaignId);
-      if (!campaign || campaign.userId !== req.userId) {
-        return res.status(404).json({ error: 'Campaign not found' });
-      }
+      const campaign = await getOrCreateImportCampaign(req.userId!);
+      const campaignId = campaign.id;
 
       const sfContacts = await fetchSalesforceContacts(accessToken, instanceUrl);
       const validContacts = sfContacts.filter(c => c.phone || c.email);

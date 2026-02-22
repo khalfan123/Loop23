@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -12,13 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -51,20 +43,13 @@ import {
 import { SiGoogle, SiHubspot, SiSalesforce } from "react-icons/si";
 
 type ImportSource = "csv" | "vcard" | "google" | "microsoft" | "hubspot" | "salesforce";
-type ImportStep = "select-source" | "configure" | "select-campaign" | "importing" | "result";
+type ImportStep = "select-source" | "configure" | "importing" | "result";
 
 interface ImportResult {
   imported: number;
   skipped: number;
   errors: string[];
   source: string;
-}
-
-interface CampaignOption {
-  id: string;
-  name: string;
-  totalContacts: number;
-  status: string;
 }
 
 interface CSVPreview {
@@ -138,12 +123,11 @@ const SOURCE_OPTIONS: Array<{
   },
 ];
 
-const STEP_LABELS: Record<ImportStep, { number: number; label: string }> = {
+const STEP_META: Record<ImportStep, { number: number; label: string }> = {
   "select-source": { number: 1, label: "Source" },
   "configure": { number: 2, label: "Configure" },
-  "select-campaign": { number: 3, label: "Campaign" },
-  "importing": { number: 4, label: "Import" },
-  "result": { number: 4, label: "Results" },
+  "importing": { number: 3, label: "Import" },
+  "result": { number: 3, label: "Results" },
 };
 
 export default function ImportContactsDialog({
@@ -159,7 +143,6 @@ export default function ImportContactsDialog({
 
   const [step, setStep] = useState<ImportStep>("select-source");
   const [selectedSource, setSelectedSource] = useState<ImportSource | null>(null);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<CSVPreview | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -168,15 +151,9 @@ export default function ImportContactsDialog({
   const [oauthAccountInfo, setOauthAccountInfo] = useState<{ name: string; email: string } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
-  const { data: campaignsList = [], isLoading: campaignsLoading } = useQuery<CampaignOption[]>({
-    queryKey: ["/api/contact-import/campaigns-list"],
-    enabled: open,
-  });
-
   const resetState = useCallback(() => {
     setStep("select-source");
     setSelectedSource(null);
-    setSelectedCampaignId("");
     setSelectedFile(null);
     setCsvPreview(null);
     setImportResult(null);
@@ -279,7 +256,6 @@ export default function ImportContactsDialog({
                     name: tokenData.accountName || "",
                     email: tokenData.accountEmail || "",
                   });
-                  setStep("select-campaign");
                   toast({ title: `Connected to ${selectedSource === "google" ? "Google" : "Microsoft"} successfully` });
                 }
               }
@@ -298,7 +274,7 @@ export default function ImportContactsDialog({
   };
 
   const handleImport = async () => {
-    if (!selectedCampaignId || !selectedSource) return;
+    if (!selectedSource) return;
 
     setIsImporting(true);
     setStep("importing");
@@ -316,7 +292,6 @@ export default function ImportContactsDialog({
 
         const formData = new FormData();
         formData.append("file", selectedFile);
-        formData.append("campaignId", selectedCampaignId);
 
         const endpoint = selectedSource === "csv"
           ? "/api/contact-import/csv"
@@ -341,7 +316,6 @@ export default function ImportContactsDialog({
 
         const res = await apiRequest("POST", fetchEndpoint, {
           accessToken: oauthAccessToken,
-          campaignId: selectedCampaignId,
         });
 
         if (!res.ok) {
@@ -356,7 +330,6 @@ export default function ImportContactsDialog({
       setStep("result");
       queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/contact-import/campaigns-list"] });
     } catch (error: any) {
       toast({
         title: "Import failed",
@@ -374,37 +347,23 @@ export default function ImportContactsDialog({
       setStep("select-source");
       setSelectedFile(null);
       setCsvPreview(null);
-    } else if (step === "select-campaign") {
-      setStep("configure");
     } else if (step === "result") {
       resetState();
     }
   };
 
-  const completedSteps = (() => {
-    switch (step) {
-      case "select-source": return 0;
-      case "configure": return 1;
-      case "select-campaign": return 2;
-      case "importing": return 3;
-      case "result": return 4;
-      default: return 0;
-    }
-  })();
-
   const renderStepIndicator = () => {
     const steps = [
       { number: 1, label: "Source" },
       { number: 2, label: "Configure" },
-      { number: 3, label: "Campaign" },
-      { number: 4, label: "Import" },
+      { number: 3, label: "Import" },
     ];
 
     return (
       <div className="flex items-center justify-between px-2 mb-6">
         {steps.map((s, idx) => {
-          const isActive = s.number === STEP_LABELS[step].number;
-          const isCompleted = s.number < STEP_LABELS[step].number;
+          const isActive = s.number === STEP_META[step].number;
+          const isCompleted = s.number < STEP_META[step].number;
           return (
             <div key={s.number} className="flex items-center flex-1">
               <div className="flex flex-col items-center gap-1.5">
@@ -504,7 +463,7 @@ export default function ImportContactsDialog({
       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border border-border/60">
         <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Your data is encrypted in transit. Maximum 10,000 contacts per import. All contacts require a campaign assignment.
+          Your data is encrypted in transit. Maximum 10,000 contacts per import. Contacts are automatically organized for you.
         </p>
       </div>
     </div>
@@ -604,38 +563,16 @@ export default function ImportContactsDialog({
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Destination Campaign</Label>
-        <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-          <SelectTrigger className="h-10" data-testid="select-campaign">
-            <SelectValue placeholder="Select a campaign..." />
-          </SelectTrigger>
-          <SelectContent>
-            {campaignsList.map((campaign) => (
-              <SelectItem key={campaign.id} value={campaign.id}>
-                <div className="flex items-center gap-2">
-                  <span>{campaign.name}</span>
-                  <span className="text-muted-foreground text-xs">({campaign.totalContacts} contacts)</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {campaignsList.length === 0 && !campaignsLoading && (
-          <p className="text-xs text-muted-foreground">No campaigns available. Create one first.</p>
-        )}
-      </div>
-
       <Button
         onClick={handleImport}
-        disabled={!selectedFile || !selectedCampaignId || isImporting}
+        disabled={!selectedFile || isImporting}
         className="w-full h-11"
         data-testid="button-start-import"
       >
         {isImporting ? (
           <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
         ) : (
-          <><ArrowUpRight className="h-4 w-4 mr-2" /> Start Import</>
+          <><ArrowUpRight className="h-4 w-4 mr-2" /> Import Contacts</>
         )}
       </Button>
     </div>
@@ -678,39 +615,18 @@ export default function ImportContactsDialog({
           </div>
 
           {oauthAccessToken && (
-            <>
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Destination Campaign</Label>
-                <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-                  <SelectTrigger className="h-10" data-testid="select-campaign-oauth">
-                    <SelectValue placeholder="Select a campaign..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {campaignsList.map((campaign) => (
-                      <SelectItem key={campaign.id} value={campaign.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{campaign.name}</span>
-                          <span className="text-muted-foreground text-xs">({campaign.totalContacts} contacts)</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                onClick={handleImport}
-                disabled={!selectedCampaignId || isImporting}
-                className="w-full h-11"
-                data-testid="button-start-crm-import"
-              >
-                {isImporting ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
-                ) : (
-                  <><Database className="h-4 w-4 mr-2" /> Import from {sourceConfig?.label}</>
-                )}
-              </Button>
-            </>
+            <Button
+              onClick={handleImport}
+              disabled={isImporting}
+              className="w-full h-11"
+              data-testid="button-start-crm-import"
+            >
+              {isImporting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
+              ) : (
+                <><Database className="h-4 w-4 mr-2" /> Import from {sourceConfig?.label}</>
+              )}
+            </Button>
           )}
         </div>
       );
@@ -771,77 +687,37 @@ export default function ImportContactsDialog({
         )}
 
         {isConnected && oauthAccountInfo && (
-          <div className="flex items-center gap-3 p-3.5 bg-primary/5 border border-primary/20 rounded-xl">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3.5 bg-primary/5 border border-primary/20 rounded-xl">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{oauthAccountInfo.name}</p>
+                {oauthAccountInfo.email && (
+                  <p className="text-xs text-muted-foreground truncate">{oauthAccountInfo.email}</p>
+                )}
+              </div>
+              <Badge variant="secondary" className="ml-auto text-[10px] flex-shrink-0">Connected</Badge>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">{oauthAccountInfo.name}</p>
-              {oauthAccountInfo.email && (
-                <p className="text-xs text-muted-foreground truncate">{oauthAccountInfo.email}</p>
+
+            <Button
+              onClick={handleImport}
+              disabled={isImporting}
+              className="w-full h-11"
+              data-testid="button-import-cloud-contacts"
+            >
+              {isImporting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
+              ) : (
+                <><ArrowUpRight className="h-4 w-4 mr-2" /> Import Contacts</>
               )}
-            </div>
-            <Badge variant="secondary" className="ml-auto text-[10px] flex-shrink-0">Connected</Badge>
+            </Button>
           </div>
         )}
       </div>
     );
   };
-
-  const renderCampaignSelection = () => (
-    <div className="space-y-5">
-      {oauthAccountInfo && (
-        <div className="flex items-center gap-3 p-3.5 bg-primary/5 border border-primary/20 rounded-xl">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{oauthAccountInfo.name}</p>
-            {oauthAccountInfo.email && (
-              <p className="text-xs text-muted-foreground truncate">{oauthAccountInfo.email}</p>
-            )}
-          </div>
-          <Badge variant="secondary" className="ml-auto text-[10px] flex-shrink-0">Connected</Badge>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Destination Campaign</Label>
-        <p className="text-xs text-muted-foreground">Choose which campaign to import your contacts into.</p>
-        <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-          <SelectTrigger className="h-10" data-testid="select-campaign-cloud">
-            <SelectValue placeholder="Select a campaign..." />
-          </SelectTrigger>
-          <SelectContent>
-            {campaignsList.map((campaign) => (
-              <SelectItem key={campaign.id} value={campaign.id}>
-                <div className="flex items-center gap-2">
-                  <span>{campaign.name}</span>
-                  <span className="text-muted-foreground text-xs">({campaign.totalContacts} contacts)</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {campaignsList.length === 0 && !campaignsLoading && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">No campaigns available. Please create a campaign first.</p>
-        )}
-      </div>
-
-      <Button
-        onClick={handleImport}
-        disabled={!selectedCampaignId || isImporting}
-        className="w-full h-11"
-        data-testid="button-import-cloud-contacts"
-      >
-        {isImporting ? (
-          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
-        ) : (
-          <><ArrowUpRight className="h-4 w-4 mr-2" /> Start Import</>
-        )}
-      </Button>
-    </div>
-  );
 
   const renderImporting = () => (
     <div className="flex flex-col items-center justify-center py-14 gap-5">
@@ -937,7 +813,6 @@ export default function ImportContactsDialog({
     switch (step) {
       case "select-source": return "Import Contacts";
       case "configure": return SOURCE_OPTIONS.find(s => s.id === selectedSource)?.label || "Configure";
-      case "select-campaign": return "Select Campaign";
       case "importing": return "Processing";
       case "result": return "Import Results";
       default: return "Import Contacts";
@@ -948,7 +823,6 @@ export default function ImportContactsDialog({
     switch (step) {
       case "select-source": return "Choose where to import your contacts from";
       case "configure": return `Set up your ${SOURCE_OPTIONS.find(s => s.id === selectedSource)?.label || ""} import`;
-      case "select-campaign": return "Choose a campaign for your imported contacts";
       case "importing": return "Please wait while we process your contacts";
       case "result": return "Review your import summary";
       default: return "";
@@ -985,7 +859,6 @@ export default function ImportContactsDialog({
           {step === "select-source" && renderSourceSelection()}
           {step === "configure" && (selectedSource === "csv" || selectedSource === "vcard") && renderFileUploadConfig()}
           {step === "configure" && selectedSource && !["csv", "vcard"].includes(selectedSource) && renderOAuthConfig()}
-          {step === "select-campaign" && renderCampaignSelection()}
           {step === "importing" && renderImporting()}
           {step === "result" && renderResult()}
         </div>

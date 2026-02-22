@@ -43,8 +43,9 @@ import {
   ExternalLink,
   Users,
   Contact2,
+  Mail,
 } from "lucide-react";
-import { SiGoogle, SiMicrosoft, SiHubspot, SiSalesforce } from "react-icons/si";
+import { SiGoogle, SiHubspot, SiSalesforce } from "react-icons/si";
 
 type ImportSource = "csv" | "vcard" | "google" | "microsoft" | "hubspot" | "salesforce";
 type ImportStep = "select-source" | "configure" | "select-campaign" | "importing" | "result";
@@ -109,7 +110,7 @@ const SOURCE_OPTIONS: Array<{
     id: "microsoft",
     label: "Outlook / Microsoft 365",
     description: "Import contacts from Outlook or Microsoft 365",
-    icon: SiMicrosoft,
+    icon: Mail,
     iconColor: "text-blue-500",
     bgColor: "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-800",
     category: "cloud",

@@ -96,6 +96,8 @@ export default function FormsPage() {
     options: string;
   }>>([]);
 
+  const [editingFormId, setEditingFormId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
   const [formSearch, setFormSearch] = useState("");
   const [templateSearch, setTemplateSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -214,6 +216,40 @@ export default function FormsPage() {
       });
     },
   });
+
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      await apiRequest("PATCH", `/api/flow-automation/forms/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/forms"] });
+      toast({ title: t("forms.toast.renamed") });
+      setEditingFormId(null);
+      setEditingName("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("forms.toast.renameFailed"),
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleStartRename = (form: Form) => {
+    setEditingFormId(form.id);
+    setEditingName(form.name);
+  };
+
+  const handleConfirmRename = () => {
+    if (!editingFormId || !editingName.trim()) return;
+    renameMutation.mutate({ id: editingFormId, name: editingName.trim() });
+  };
+
+  const handleCancelRename = () => {
+    setEditingFormId(null);
+    setEditingName("");
+  };
 
   const handleCloseEditor = () => {
     setEditorDialogOpen(false);
@@ -825,9 +861,49 @@ export default function FormsPage() {
                 <FileText className="h-[18px] w-[18px] text-primary/70" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-[14px] leading-tight truncate" data-testid={`text-form-name-${form.id}`}>
-                  {form.name}
-                </div>
+                {editingFormId === form.id ? (
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleConfirmRename();
+                        if (e.key === "Escape") handleCancelRename();
+                      }}
+                      autoFocus
+                      className="h-7 text-[14px] font-medium rounded-lg px-2"
+                      data-testid={`input-rename-${form.id}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-primary shrink-0"
+                      onClick={handleConfirmRename}
+                      disabled={renameMutation.isPending || !editingName.trim()}
+                      data-testid={`button-confirm-rename-${form.id}`}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-muted-foreground shrink-0"
+                      onClick={handleCancelRename}
+                      data-testid={`button-cancel-rename-${form.id}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="font-medium text-[14px] leading-tight truncate cursor-pointer hover:text-primary/80 transition-colors"
+                    onClick={() => handleStartRename(form)}
+                    title={t("forms.clickToRename")}
+                    data-testid={`text-form-name-${form.id}`}
+                  >
+                    {form.name}
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                   <span className="text-[11px] text-muted-foreground/60 font-light">
                     {format(new Date(form.createdAt), "MMM d, yyyy")}

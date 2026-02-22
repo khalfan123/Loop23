@@ -2868,6 +2868,7 @@
     "noData": "—",
     "searchForms": "Search forms...",
     "noFormsSearch": "No forms match your search",
+    "clickToRename": "Click to rename",
     "callId": "Call ID",
     "createdOn": "Created",
     "loading": "Loading forms...",
@@ -2883,6 +2884,8 @@
       "createFailed": "Failed to create form",
       "deleted": "Form deleted successfully!",
       "deleteFailed": "Failed to delete form",
+      "renamed": "Form renamed successfully!",
+      "renameFailed": "Failed to rename form",
       "downloadSuccess": "Form submissions downloaded"
     },
     "downloadCSV": "Download CSV",

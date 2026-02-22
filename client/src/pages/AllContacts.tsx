@@ -21,8 +21,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Search, Users, Trash2, Phone, PhoneIncoming, PhoneOutgoing, Upload, Download } from "lucide-react";
+import { Search, Users, Trash2, Phone, PhoneIncoming, PhoneOutgoing, Upload, Download, Plus } from "lucide-react";
 import { useState } from "react";
+import ImportContactsDialog from "@/components/ImportContactsDialog";
 import {
   Table,
   TableBody,
@@ -59,6 +60,7 @@ export default function AllContacts() {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingContact, setDeletingContact] = useState<DeduplicatedContact | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: contacts = [], isLoading } = useQuery<DeduplicatedContact[]>({
@@ -164,15 +166,26 @@ export default function AllContacts() {
               <p className="text-muted-foreground mt-0.5">{t('contacts.description')}</p>
             </div>
           </div>
-          <Button 
-            onClick={exportToCSV}
-            disabled={contacts.length === 0}
-            className="bg-teal-600 hover:bg-teal-700 text-white"
-            data-testid="button-export-contacts"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            {t('contacts.exportContacts')}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setImportDialogOpen(true)}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              data-testid="button-import-contacts"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Import Contacts
+            </Button>
+            <Button 
+              onClick={exportToCSV}
+              disabled={contacts.length === 0}
+              variant="outline"
+              className="border-teal-200 text-teal-700 hover:bg-teal-50 dark:border-teal-800 dark:text-teal-300 dark:hover:bg-teal-900/30"
+              data-testid="button-export-contacts"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {t('contacts.exportContacts')}
+            </Button>
+          </div>
         </div>
         
         {/* Stats Row */}
@@ -364,6 +377,8 @@ export default function AllContacts() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportContactsDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
     </div>
   );
 }

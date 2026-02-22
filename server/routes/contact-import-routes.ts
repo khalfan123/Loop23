@@ -1,0 +1,776 @@
+'use strict';
+import { Router, Request, Response } from 'express';
+import { RouteContext, AuthRequest } from './common';
+import Papa from 'papaparse';
+import { contacts, campaigns } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
+import { oauthService } from '../services/oauth';
+import { batchInsertContacts } from '../utils/batch-utils';
+import type { InsertContact } from '@shared/schema';
+
+const MAX_IMPORT_CONTACTS = 10000;
+
+interface ContactImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  source: string;
+}
+
+interface ParsedImportContact {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  customFields: Record<string, any> | null;
+}
+
+function parseVCard(content: string): ParsedImportContact[] {
+  const vcards = content.split('BEGIN:VCARD');
+  const parsed: ParsedImportContact[] = [];
+
+  for (const vcard of vcards) {
+    if (!vcard.trim()) continue;
+
+    const lines = vcard.split(/\r?\n/);
+    let firstName = '';
+    let lastName = '';
+    let phone = '';
+    let email: string | null = null;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith('N:') || trimmed.startsWith('N;')) {
+        const nValue = trimmed.replace(/^N[;:][^:]*:?/, '').replace(/^N:/, '');
+        const parts = nValue.split(';');
+        lastName = parts[0] || '';
+        firstName = parts[1] || '';
+      } else if (trimmed.startsWith('FN:') || trimmed.startsWith('FN;')) {
+        if (!firstName && !lastName) {
+          const fnValue = trimmed.replace(/^FN[;:][^:]*:?/, '').replace(/^FN:/, '');
+          const parts = fnValue.trim().split(/\s+/);
+          firstName = parts[0] || '';
+          lastName = parts.slice(1).join(' ') || '';
+        }
+      } else if ((trimmed.startsWith('TEL:') || trimmed.startsWith('TEL;')) && !phone) {
+        phone = trimmed.replace(/^TEL[;:][^:]*:?/, '').replace(/^TEL:/, '').replace(/[\s-()]/g, '');
+      } else if ((trimmed.startsWith('EMAIL:') || trimmed.startsWith('EMAIL;')) && !email) {
+        email = trimmed.replace(/^EMAIL[;:][^:]*:?/, '').replace(/^EMAIL:/, '').trim();
+      }
+    }
+
+    if (phone || firstName || email) {
+      parsed.push({
+        firstName: firstName || 'Unknown',
+        lastName: lastName || '',
+        phone: phone || '',
+        email: email || null,
+        customFields: null,
+      });
+    }
+  }
+
+  return parsed;
+}
+
+function parseCSVContacts(fileContent: string): ParsedImportContact[] {
+  const parsed = Papa.parse(fileContent, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  const standardFields = [
+    'firstName', 'FirstName', 'first_name',
+    'lastName', 'LastName', 'last_name',
+    'name', 'Name', 'Full Name', 'full_name',
+    'phone', 'Phone', 'phone_number', 'Phone Number', 'Mobile', 'mobile',
+    'email', 'Email', 'E-mail', 'e-mail', 'Email Address',
+  ];
+
+  return parsed.data.map((row: any) => {
+    let firstName = row.firstName || row.FirstName || row.first_name || '';
+    let lastName = row.lastName || row.LastName || row.last_name || '';
+    const phone = row.phone || row.Phone || row.phone_number || row['Phone Number'] || row.Mobile || row.mobile || '';
+    const email = row.email || row.Email || row['E-mail'] || row['e-mail'] || row['Email Address'] || null;
+
+    if (!firstName && (row.name || row.Name || row['Full Name'] || row.full_name)) {
+      const fullName = row.name || row.Name || row['Full Name'] || row.full_name || '';
+      const parts = fullName.trim().split(/\s+/);
+      firstName = parts[0] || '';
+      lastName = parts.slice(1).join(' ') || '';
+    }
+
+    const customFields: Record<string, any> = {};
+    for (const key of Object.keys(row)) {
+      if (!standardFields.includes(key) && row[key] && String(row[key]).trim() !== '') {
+        customFields[key] = row[key];
+      }
+    }
+
+    return {
+      firstName: firstName || 'Unknown',
+      lastName: lastName || '',
+      phone,
+      email: email || null,
+      customFields: Object.keys(customFields).length > 0 ? customFields : null,
+    };
+  });
+}
+
+async function fetchGoogleContacts(accessToken: string): Promise<ParsedImportContact[]> {
+  const allContacts: ParsedImportContact[] = [];
+  let nextPageToken: string | undefined;
+
+  do {
+    const url = new URL('https://people.googleapis.com/v1/people/me/connections');
+    url.searchParams.set('personFields', 'names,phoneNumbers,emailAddresses');
+    url.searchParams.set('pageSize', '1000');
+    if (nextPageToken) {
+      url.searchParams.set('pageToken', nextPageToken);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Google People API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const connections = data.connections || [];
+
+    for (const person of connections) {
+      const name = person.names?.[0] || {};
+      const phone = person.phoneNumbers?.[0]?.value || '';
+      const email = person.emailAddresses?.[0]?.value || null;
+
+      if (phone || name.displayName || email) {
+        allContacts.push({
+          firstName: name.givenName || name.displayName?.split(' ')[0] || 'Unknown',
+          lastName: name.familyName || name.displayName?.split(' ').slice(1).join(' ') || '',
+          phone: phone.replace(/[\s-()]/g, ''),
+          email,
+          customFields: null,
+        });
+      }
+    }
+
+    nextPageToken = data.nextPageToken;
+  } while (nextPageToken);
+
+  return allContacts;
+}
+
+async function fetchMicrosoftContacts(accessToken: string): Promise<ParsedImportContact[]> {
+  const allContacts: ParsedImportContact[] = [];
+  let nextLink: string | undefined = 'https://graph.microsoft.com/v1.0/me/contacts?$top=100&$select=givenName,surname,displayName,mobilePhone,homePhones,businessPhones,emailAddresses';
+
+  while (nextLink) {
+    const response = await fetch(nextLink, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Microsoft Graph API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const msContacts = data.value || [];
+
+    for (const contact of msContacts) {
+      const phone = contact.mobilePhone ||
+        contact.businessPhones?.[0] ||
+        contact.homePhones?.[0] || '';
+      const email = contact.emailAddresses?.[0]?.address || null;
+
+      if (phone || contact.displayName || email) {
+        allContacts.push({
+          firstName: contact.givenName || contact.displayName?.split(' ')[0] || 'Unknown',
+          lastName: contact.surname || contact.displayName?.split(' ').slice(1).join(' ') || '',
+          phone: phone.replace(/[\s-()]/g, ''),
+          email,
+          customFields: null,
+        });
+      }
+    }
+
+    nextLink = data['@odata.nextLink'];
+  }
+
+  return allContacts;
+}
+
+async function fetchHubSpotContacts(accessToken: string): Promise<ParsedImportContact[]> {
+  const allContacts: ParsedImportContact[] = [];
+  let after: string | undefined;
+
+  do {
+    const url = new URL('https://api.hubapi.com/crm/v3/objects/contacts');
+    url.searchParams.set('limit', '100');
+    url.searchParams.set('properties', 'firstname,lastname,phone,mobilephone,email');
+    if (after) {
+      url.searchParams.set('after', after);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HubSpot API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const results = data.results || [];
+
+    for (const contact of results) {
+      const props = contact.properties || {};
+      const phone = props.phone || props.mobilephone || '';
+      const email = props.email || null;
+
+      if (phone || props.firstname || email) {
+        allContacts.push({
+          firstName: props.firstname || 'Unknown',
+          lastName: props.lastname || '',
+          phone: phone.replace(/[\s-()]/g, ''),
+          email,
+          customFields: null,
+        });
+      }
+    }
+
+    after = data.paging?.next?.after;
+  } while (after);
+
+  return allContacts;
+}
+
+async function fetchSalesforceContacts(accessToken: string, instanceUrl?: string): Promise<ParsedImportContact[]> {
+  const baseUrl = instanceUrl || 'https://login.salesforce.com';
+  const allContacts: ParsedImportContact[] = [];
+
+  const response = await fetch(`${baseUrl}/services/data/v59.0/query?q=SELECT+FirstName,LastName,Phone,MobilePhone,Email+FROM+Contact+LIMIT+2000`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Salesforce API error: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const records = data.records || [];
+
+  for (const contact of records) {
+    const phone = contact.Phone || contact.MobilePhone || '';
+    const email = contact.Email || null;
+
+    if (phone || contact.FirstName || email) {
+      allContacts.push({
+        firstName: contact.FirstName || 'Unknown',
+        lastName: contact.LastName || '',
+        phone: phone.replace(/[\s-()]/g, ''),
+        email,
+        customFields: null,
+      });
+    }
+  }
+
+  return allContacts;
+}
+
+export default function contactImportRoutes(ctx: RouteContext): Router {
+  const { db, storage, authenticateToken, upload } = ctx;
+  const router = Router();
+
+  router.get('/campaigns-list', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userCampaigns = await storage.getUserCampaigns(req.userId!);
+      const campaignList = userCampaigns.map(c => ({
+        id: c.id,
+        name: c.name,
+        totalContacts: c.totalContacts,
+        status: c.status,
+      }));
+      res.json(campaignList);
+    } catch (error: any) {
+      console.error('[Contact Import] Error fetching campaigns:', error);
+      res.status(500).json({ error: 'Failed to fetch campaigns' });
+    }
+  });
+
+  router.post('/csv', authenticateToken, upload.single('file'), async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const campaignId = req.body.campaignId;
+      if (!campaignId) {
+        return res.status(400).json({ error: 'Campaign ID is required' });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.userId) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      const fileContent = req.file.buffer
+        ? req.file.buffer.toString('utf-8')
+        : '';
+
+      if (!fileContent.trim()) {
+        return res.status(400).json({ error: 'File is empty' });
+      }
+
+      const parsedContacts = parseCSVContacts(fileContent);
+      const validContacts = parsedContacts.filter(c => c.phone || c.email);
+
+      if (validContacts.length === 0) {
+        return res.status(400).json({ error: 'No valid contacts found in CSV. Ensure the file has phone or email columns.' });
+      }
+
+      if (validContacts.length > MAX_IMPORT_CONTACTS) {
+        return res.status(400).json({ error: `Too many contacts. Maximum ${MAX_IMPORT_CONTACTS} contacts per import. Found ${validContacts.length}.` });
+      }
+
+      const insertData: InsertContact[] = validContacts.map(c => ({
+        campaignId,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        phone: c.phone,
+        email: c.email,
+        customFields: c.customFields,
+        status: 'pending',
+      }));
+
+      const result = await batchInsertContacts(insertData, '📥 [CSV Import]');
+
+      await storage.updateCampaign(campaignId, {
+        totalContacts: campaign.totalContacts + result.inserted,
+      });
+
+      const importResult: ContactImportResult = {
+        imported: result.inserted,
+        skipped: parsedContacts.length - validContacts.length,
+        errors: result.failed > 0 ? [`${result.failed} contacts failed to insert`] : [],
+        source: 'csv',
+      };
+
+      res.json(importResult);
+    } catch (error: any) {
+      console.error('[Contact Import] CSV error:', error);
+      res.status(500).json({ error: 'Failed to import CSV contacts: ' + error.message });
+    }
+  });
+
+  router.post('/vcard', authenticateToken, upload.single('file'), async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const campaignId = req.body.campaignId;
+      if (!campaignId) {
+        return res.status(400).json({ error: 'Campaign ID is required' });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.userId) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      const fileContent = req.file.buffer
+        ? req.file.buffer.toString('utf-8')
+        : '';
+
+      if (!fileContent.trim()) {
+        return res.status(400).json({ error: 'File is empty' });
+      }
+
+      const parsedContacts = parseVCard(fileContent);
+      const validContacts = parsedContacts.filter(c => c.phone || c.email);
+
+      if (validContacts.length === 0) {
+        return res.status(400).json({ error: 'No valid contacts found in vCard file' });
+      }
+
+      const insertData: InsertContact[] = validContacts.map(c => ({
+        campaignId,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        phone: c.phone,
+        email: c.email,
+        customFields: c.customFields,
+        status: 'pending',
+      }));
+
+      const result = await batchInsertContacts(insertData, '📥 [vCard Import]');
+
+      await storage.updateCampaign(campaignId, {
+        totalContacts: campaign.totalContacts + result.inserted,
+      });
+
+      const importResult: ContactImportResult = {
+        imported: result.inserted,
+        skipped: parsedContacts.length - validContacts.length,
+        errors: result.failed > 0 ? [`${result.failed} contacts failed to insert`] : [],
+        source: 'vcard',
+      };
+
+      res.json(importResult);
+    } catch (error: any) {
+      console.error('[Contact Import] vCard error:', error);
+      res.status(500).json({ error: 'Failed to import vCard contacts: ' + error.message });
+    }
+  });
+
+  router.post('/preview-csv', authenticateToken, upload.single('file'), async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const fileContent = req.file.buffer
+        ? req.file.buffer.toString('utf-8')
+        : '';
+
+      const parsed = Papa.parse(fileContent, {
+        header: true,
+        skipEmptyLines: true,
+        preview: 5,
+      });
+
+      res.json({
+        headers: parsed.meta.fields || [],
+        preview: parsed.data.slice(0, 5),
+        totalRows: fileContent.split('\n').length - 1,
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] Preview error:', error);
+      res.status(500).json({ error: 'Failed to preview CSV' });
+    }
+  });
+
+  router.post('/google/auth-url', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { clientId, clientSecret } = req.body;
+
+      if (!clientId || !clientSecret) {
+        return res.status(400).json({ error: 'Google Client ID and Client Secret are required' });
+      }
+
+      const state = oauthService.generateState('contact-import', req.userId!, 'google-contacts');
+      const redirectUri = oauthService.getRedirectUri();
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        state,
+        scope: 'https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+        access_type: 'offline',
+        prompt: 'consent',
+      });
+
+      res.json({
+        authUrl: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] Google auth URL error:', error);
+      res.status(500).json({ error: 'Failed to generate Google auth URL' });
+    }
+  });
+
+  router.post('/google/fetch', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { accessToken, campaignId } = req.body;
+
+      if (!accessToken) {
+        return res.status(400).json({ error: 'Access token is required' });
+      }
+      if (!campaignId) {
+        return res.status(400).json({ error: 'Campaign ID is required' });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.userId) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      const googleContacts = await fetchGoogleContacts(accessToken);
+      const validContacts = googleContacts.filter(c => c.phone || c.email).slice(0, MAX_IMPORT_CONTACTS);
+
+      if (validContacts.length === 0) {
+        return res.json({ imported: 0, skipped: 0, errors: ['No contacts with phone or email found in Google'], source: 'google' });
+      }
+
+      const insertData: InsertContact[] = validContacts.map(c => ({
+        campaignId,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        phone: c.phone,
+        email: c.email,
+        customFields: c.customFields,
+        status: 'pending',
+      }));
+
+      const result = await batchInsertContacts(insertData, '📥 [Google Import]');
+
+      await storage.updateCampaign(campaignId, {
+        totalContacts: campaign.totalContacts + result.inserted,
+      });
+
+      res.json({
+        imported: result.inserted,
+        skipped: googleContacts.length - validContacts.length,
+        errors: result.failed > 0 ? [`${result.failed} contacts failed to insert`] : [],
+        source: 'google',
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] Google fetch error:', error);
+      res.status(500).json({ error: 'Failed to import Google contacts: ' + error.message });
+    }
+  });
+
+  router.post('/google/exchange-code', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { code, clientId, clientSecret } = req.body;
+
+      if (!code || !clientId || !clientSecret) {
+        return res.status(400).json({ error: 'Authorization code and credentials are required' });
+      }
+
+      const tokens = await oauthService.exchangeCodeForTokens('google-contacts', code, { clientId, clientSecret });
+      if (!tokens) {
+        return res.status(400).json({ error: 'Failed to exchange authorization code' });
+      }
+
+      const accountInfo = await oauthService.fetchAccountInfo('google-contacts', tokens.accessToken);
+
+      res.json({
+        accessToken: tokens.accessToken,
+        accountName: accountInfo?.accountName || null,
+        accountEmail: accountInfo?.accountEmail || null,
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] Google code exchange error:', error);
+      res.status(500).json({ error: 'Failed to exchange Google auth code' });
+    }
+  });
+
+  router.post('/microsoft/auth-url', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { clientId, clientSecret } = req.body;
+
+      if (!clientId || !clientSecret) {
+        return res.status(400).json({ error: 'Microsoft Client ID and Client Secret are required' });
+      }
+
+      const state = oauthService.generateState('contact-import', req.userId!, 'microsoft-contacts');
+      const redirectUri = oauthService.getRedirectUri();
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        state,
+        scope: 'Contacts.Read User.Read offline_access',
+        prompt: 'consent',
+      });
+
+      res.json({
+        authUrl: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`,
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] Microsoft auth URL error:', error);
+      res.status(500).json({ error: 'Failed to generate Microsoft auth URL' });
+    }
+  });
+
+  router.post('/microsoft/exchange-code', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { code, clientId, clientSecret } = req.body;
+
+      if (!code || !clientId || !clientSecret) {
+        return res.status(400).json({ error: 'Authorization code and credentials are required' });
+      }
+
+      const tokens = await oauthService.exchangeCodeForTokens('microsoft-contacts', code, { clientId, clientSecret });
+      if (!tokens) {
+        return res.status(400).json({ error: 'Failed to exchange authorization code' });
+      }
+
+      const accountInfo = await oauthService.fetchAccountInfo('microsoft-contacts', tokens.accessToken);
+
+      res.json({
+        accessToken: tokens.accessToken,
+        accountName: accountInfo?.accountName || null,
+        accountEmail: accountInfo?.accountEmail || null,
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] Microsoft code exchange error:', error);
+      res.status(500).json({ error: 'Failed to exchange Microsoft auth code' });
+    }
+  });
+
+  router.post('/microsoft/fetch', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { accessToken, campaignId } = req.body;
+
+      if (!accessToken) {
+        return res.status(400).json({ error: 'Access token is required' });
+      }
+      if (!campaignId) {
+        return res.status(400).json({ error: 'Campaign ID is required' });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.userId) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      const msContacts = await fetchMicrosoftContacts(accessToken);
+      const validContacts = msContacts.filter(c => c.phone || c.email).slice(0, MAX_IMPORT_CONTACTS);
+
+      if (validContacts.length === 0) {
+        return res.json({ imported: 0, skipped: 0, errors: ['No contacts with phone or email found in Outlook'], source: 'microsoft' });
+      }
+
+      const insertData: InsertContact[] = validContacts.map(c => ({
+        campaignId,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        phone: c.phone,
+        email: c.email,
+        customFields: c.customFields,
+        status: 'pending',
+      }));
+
+      const result = await batchInsertContacts(insertData, '📥 [Microsoft Import]');
+
+      await storage.updateCampaign(campaignId, {
+        totalContacts: campaign.totalContacts + result.inserted,
+      });
+
+      res.json({
+        imported: result.inserted,
+        skipped: msContacts.length - validContacts.length,
+        errors: result.failed > 0 ? [`${result.failed} contacts failed to insert`] : [],
+        source: 'microsoft',
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] Microsoft fetch error:', error);
+      res.status(500).json({ error: 'Failed to import Outlook contacts: ' + error.message });
+    }
+  });
+
+  router.post('/hubspot/fetch', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { accessToken, campaignId } = req.body;
+
+      if (!accessToken) {
+        return res.status(400).json({ error: 'Access token is required' });
+      }
+      if (!campaignId) {
+        return res.status(400).json({ error: 'Campaign ID is required' });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.userId) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      const hubspotContacts = await fetchHubSpotContacts(accessToken);
+      const validContacts = hubspotContacts.filter(c => c.phone || c.email);
+
+      if (validContacts.length === 0) {
+        return res.json({ imported: 0, skipped: 0, errors: ['No contacts with phone or email found in HubSpot'], source: 'hubspot' });
+      }
+
+      const insertData: InsertContact[] = validContacts.map(c => ({
+        campaignId,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        phone: c.phone,
+        email: c.email,
+        customFields: c.customFields,
+        status: 'pending',
+      }));
+
+      const result = await batchInsertContacts(insertData, '📥 [HubSpot Import]');
+
+      await storage.updateCampaign(campaignId, {
+        totalContacts: campaign.totalContacts + result.inserted,
+      });
+
+      res.json({
+        imported: result.inserted,
+        skipped: hubspotContacts.length - validContacts.length,
+        errors: result.failed > 0 ? [`${result.failed} contacts failed to insert`] : [],
+        source: 'hubspot',
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] HubSpot fetch error:', error);
+      res.status(500).json({ error: 'Failed to import HubSpot contacts: ' + error.message });
+    }
+  });
+
+  router.post('/salesforce/fetch', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { accessToken, campaignId, instanceUrl } = req.body;
+
+      if (!accessToken) {
+        return res.status(400).json({ error: 'Access token is required' });
+      }
+      if (!campaignId) {
+        return res.status(400).json({ error: 'Campaign ID is required' });
+      }
+
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.userId) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+
+      const sfContacts = await fetchSalesforceContacts(accessToken, instanceUrl);
+      const validContacts = sfContacts.filter(c => c.phone || c.email);
+
+      if (validContacts.length === 0) {
+        return res.json({ imported: 0, skipped: 0, errors: ['No contacts with phone or email found in Salesforce'], source: 'salesforce' });
+      }
+
+      const insertData: InsertContact[] = validContacts.map(c => ({
+        campaignId,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        phone: c.phone,
+        email: c.email,
+        customFields: c.customFields,
+        status: 'pending',
+      }));
+
+      const result = await batchInsertContacts(insertData, '📥 [Salesforce Import]');
+
+      await storage.updateCampaign(campaignId, {
+        totalContacts: campaign.totalContacts + result.inserted,
+      });
+
+      res.json({
+        imported: result.inserted,
+        skipped: sfContacts.length - validContacts.length,
+        errors: result.failed > 0 ? [`${result.failed} contacts failed to insert`] : [],
+        source: 'salesforce',
+      });
+    } catch (error: any) {
+      console.error('[Contact Import] Salesforce fetch error:', error);
+      res.status(500).json({ error: 'Failed to import Salesforce contacts: ' + error.message });
+    }
+  });
+
+  return router;
+}

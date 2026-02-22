@@ -112,6 +112,7 @@ import { liveMonitoringWs } from "./services/live-monitoring-ws";
 import integrationRoutes from "./routes/integration-routes";
 import adminIntegrationTestsRouter from "./routes/admin-integration-tests";
 import integrationOAuthCallback from "./routes/integration-oauth-callback";
+import contactImportRoutes from "./routes/contact-import-routes";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
 import bcrypt from "bcrypt";
 import multer from "multer";
@@ -1507,6 +1508,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Integration Marketplace routes (n8n-powered)
   app.use("/api/integrations", routeContext.authenticateHybrid as unknown as import('express').RequestHandler, integrationRoutes);
+
+  // Contact Import routes (CSV, vCard, Google, Microsoft, CRM sync)
+  app.use("/api/contact-import", contactImportRoutes(routeContext));
 
   // Public Platform Languages route - for i18n dynamic loading (no auth required)
   // Must be registered BEFORE publicWidgetRoutes to ensure specific path matches first

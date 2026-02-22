@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, CheckSquare, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles } from "lucide-react";
+import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, CheckSquare, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, User, Hash } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -76,9 +76,9 @@ interface FormWithFields extends Form {
 export default function FormsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const [currentView, setCurrentView] = useState<"list" | "templates">("list");
+  const [currentView, setCurrentView] = useState<"list" | "templates" | "submissions">("list");
   const [editorDialogOpen, setEditorDialogOpen] = useState(false);
-  const [submissionsDialogOpen, setSubmissionsDialogOpen] = useState(false);
+  const [submissionSearch, setSubmissionSearch] = useState("");
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -220,7 +220,21 @@ export default function FormsPage() {
     setCurrentView("list");
     setTemplateSearch("");
     setSelectedCategory("All");
+    setSubmissionSearch("");
+    setSelectedForm(null);
   };
+
+  const filteredSubmissions = useMemo(() => {
+    if (!submissionSearch) return submissions;
+    const q = submissionSearch.toLowerCase();
+    return submissions.filter((sub) => {
+      if (sub.contactName?.toLowerCase().includes(q)) return true;
+      if (sub.contactPhone?.toLowerCase().includes(q)) return true;
+      if (sub.callId?.toLowerCase().includes(q)) return true;
+      if ((sub.responses || []).some(r => (r.answer || "").toLowerCase().includes(q) || (r.question || "").toLowerCase().includes(q))) return true;
+      return false;
+    });
+  }, [submissions, submissionSearch]);
 
   const addField = () => {
     setFields([
@@ -257,7 +271,8 @@ export default function FormsPage() {
 
   const handleViewSubmissions = (form: Form) => {
     setSelectedForm(form);
-    setSubmissionsDialogOpen(true);
+    setSubmissionSearch("");
+    setCurrentView("submissions");
   };
 
   const handleDownloadCSV = () => {
@@ -319,6 +334,197 @@ export default function FormsPage() {
 
   const totalForms = forms.length;
   const totalSubmissions = forms.reduce((sum, form) => sum + ((form as any).submissionCount || 0), 0);
+
+  const renderSubmissionsPage = () => {
+    const totalResponses = filteredSubmissions.reduce((sum, sub) => sum + (sub.responses?.length || 0), 0);
+    const uniqueContacts = new Set(filteredSubmissions.map(s => s.contactPhone).filter(Boolean)).size;
+    const latestSubmission = filteredSubmissions.length > 0
+      ? format(new Date(filteredSubmissions[0].submittedAt), "MMM d, yyyy")
+      : t("forms.noData");
+
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBackToList}
+                data-testid="button-back-from-submissions"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-submissions-title">
+                  {t("forms.formSubmissions")}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1 font-light">{selectedForm?.name}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {submissions.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadCSV}
+                  data-testid="button-download-csv"
+                >
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  {t("forms.downloadCSV")}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold tracking-tight">{submissions.length}</div>
+                  <div className="text-xs text-muted-foreground font-light">{t("forms.totalSubmissions")}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold tracking-tight">{uniqueContacts}</div>
+                  <div className="text-xs text-muted-foreground font-light">{t("forms.uniqueContacts")}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                  <Hash className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-2xl font-semibold tracking-tight">{totalResponses}</div>
+                  <div className="text-xs text-muted-foreground font-light">{t("forms.totalResponses")}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold tracking-tight">{latestSubmission}</div>
+                  <div className="text-xs text-muted-foreground font-light">{t("forms.latestSubmission")}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t("forms.searchSubmissions")}
+              value={submissionSearch}
+              onChange={(e) => setSubmissionSearch(e.target.value)}
+              className="pl-9"
+              data-testid="input-submission-search"
+            />
+          </div>
+          <div className="text-xs text-muted-foreground font-light shrink-0">
+            {filteredSubmissions.length} / {submissions.length} {t("forms.records")}
+          </div>
+        </div>
+
+        {filteredSubmissions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+              <ClipboardList className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <h3 className="text-base font-medium mb-1">{t("forms.noSubmissions")}</h3>
+            <p className="text-sm text-muted-foreground max-w-sm font-light">
+              {submissionSearch ? t("forms.noSubmissionsSearch") : t("forms.noSubmissionsYet")}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredSubmissions.map((submission, idx) => (
+              <Card key={submission.id} className="hover-elevate" data-testid={`card-submission-${submission.id}`}>
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-xs font-semibold text-primary">#{idx + 1}</span>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium" data-testid={`text-submission-contact-${submission.id}`}>
+                            {submission.contactName || t("forms.anonymousContact")}
+                          </div>
+                          {submission.contactPhone && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground font-light">
+                              <Phone className="h-3 w-3" />
+                              {submission.contactPhone}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {submission.callId && (
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          data-testid={`button-view-call-${submission.id}`}
+                        >
+                          <Link href={`/app/calls/${submission.callId}`}>
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            {t("forms.viewCall")}
+                          </Link>
+                        </Button>
+                      )}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-light">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                      {(submission.responses || []).map((response, rIdx) => (
+                        <div key={rIdx} className="space-y-1" data-testid={`text-response-${submission.id}-${rIdx}`}>
+                          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{response.question}</div>
+                          <div className="text-sm">{response.answer || t("forms.noData")}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {(!submission.responses || submission.responses.length === 0) && (
+                      <p className="text-sm text-muted-foreground font-light italic">{t("forms.noResponseData")}</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderTemplateGallery = () => (
     <div className="space-y-8">
@@ -418,6 +624,10 @@ export default function FormsPage() {
       )}
     </div>
   );
+
+  if (currentView === "submissions") {
+    return renderSubmissionsPage();
+  }
 
   if (currentView === "templates") {
     return (
@@ -710,93 +920,6 @@ export default function FormsPage() {
         </Card>
       )}
 
-      <Dialog open={submissionsDialogOpen} onOpenChange={setSubmissionsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold" data-testid="text-submissions-dialog-title">
-              {t("forms.formSubmissions")}
-            </DialogTitle>
-            <DialogDescription className="font-light">
-              {selectedForm?.name}
-            </DialogDescription>
-          </DialogHeader>
-
-          {submissions.length > 0 && (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadCSV}
-                data-testid="button-download-csv"
-              >
-                <Download className="h-3.5 w-3.5 mr-1.5" />
-                {t("forms.downloadCSV")}
-              </Button>
-            </div>
-          )}
-
-          <ScrollArea className="h-96">
-            {submissions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground font-light">{t("forms.noSubmissions")}</p>
-              </div>
-            ) : (
-              <div className="divide-y rounded-xl border">
-                {submissions.map((submission) => (
-                  <div key={submission.id} className="p-4 space-y-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {t("forms.callId")}: {submission.callId ? submission.callId.slice(0, 12) + '...' : 'N/A'}
-                        </span>
-                        {submission.callId && (
-                          <Button
-                            asChild
-                            variant="ghost"
-                            size="sm"
-                            data-testid={`button-view-call-${submission.id}`}
-                          >
-                            <Link href={`/app/calls/${submission.callId}`}>
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              {t("forms.viewCall")}
-                            </Link>
-                          </Button>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-light">
-                        {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      {submission.contactName && (
-                        <div className="flex gap-3 text-sm">
-                          <div className="text-muted-foreground min-w-[120px] text-xs">{t("forms.contactName")}</div>
-                          <div className="flex-1 text-sm">{submission.contactName}</div>
-                        </div>
-                      )}
-                      {submission.contactPhone && (
-                        <div className="flex gap-3 text-sm">
-                          <div className="text-muted-foreground min-w-[120px] text-xs">{t("forms.contactPhone")}</div>
-                          <div className="flex-1 text-sm">{submission.contactPhone}</div>
-                        </div>
-                      )}
-                      {(submission.responses || []).map((response, idx) => (
-                        <div key={idx} className="flex gap-3 text-sm">
-                          <div className="text-muted-foreground min-w-[120px] text-xs">{response.question}</div>
-                          <div className="flex-1 text-sm">{response.answer}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

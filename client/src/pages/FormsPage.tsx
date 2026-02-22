@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -29,10 +29,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, CheckSquare, Download, ExternalLink, ChevronRight } from "lucide-react";
+import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, CheckSquare, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { AuthStorage } from "@/lib/auth-storage";
+import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
 
 interface Form {
   id: string;
@@ -89,6 +90,52 @@ export default function FormsPage() {
     required: boolean;
     options: string;
   }>>([]);
+
+  const [createStep, setCreateStep] = useState<"templates" | "editor">("templates");
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const filteredTemplates = useMemo(() => {
+    return FORM_TEMPLATES.filter((tpl) => {
+      const matchCategory = selectedCategory === "All" || tpl.category === selectedCategory;
+      const matchSearch = !templateSearch || 
+        tpl.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
+        tpl.description.toLowerCase().includes(templateSearch.toLowerCase()) ||
+        tpl.category.toLowerCase().includes(templateSearch.toLowerCase());
+      return matchCategory && matchSearch;
+    });
+  }, [selectedCategory, templateSearch]);
+
+  const categoryCountMap = useMemo(() => {
+    const map: Record<string, number> = { All: FORM_TEMPLATES.length };
+    FORM_TEMPLATES.forEach((tpl) => {
+      map[tpl.category] = (map[tpl.category] || 0) + 1;
+    });
+    return map;
+  }, []);
+
+  const handleSelectTemplate = (template: FormTemplate) => {
+    setFormData({
+      name: template.name,
+      description: template.description,
+    });
+    setFields(
+      template.fields.map((f, i) => ({
+        tempId: `temp-${Date.now()}-${i}`,
+        label: f.label,
+        type: f.type,
+        required: f.required,
+        options: f.options ? f.options.join(", ") : "",
+      }))
+    );
+    setCreateStep("editor");
+  };
+
+  const handleStartFromScratch = () => {
+    setFormData({ name: "", description: "" });
+    setFields([]);
+    setCreateStep("editor");
+  };
 
   const fieldTypeOptions = [
     { value: "text", label: t("forms.fieldTypes.text") },
@@ -166,6 +213,9 @@ export default function FormsPage() {
     setCreateDialogOpen(false);
     setFormData({ name: "", description: "" });
     setFields([]);
+    setCreateStep("templates");
+    setTemplateSearch("");
+    setSelectedCategory("All");
   };
 
   const addField = () => {
@@ -381,171 +431,274 @@ export default function FormsPage() {
         </Card>
       )}
 
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold" data-testid="text-create-dialog-title">{t("forms.createForm")}</DialogTitle>
-            <DialogDescription className="text-sm font-light">{t("forms.buildCustomForm")}</DialogDescription>
-          </DialogHeader>
+      <Dialog open={createDialogOpen} onOpenChange={(open) => { if (!open) handleCloseCreate(); else setCreateDialogOpen(true); }}>
+        <DialogContent className={`max-h-[90vh] overflow-hidden flex flex-col ${createStep === "templates" ? "max-w-4xl" : "max-w-2xl"}`}>
+          {createStep === "templates" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-semibold flex items-center gap-2" data-testid="text-template-dialog-title">
+                  <LayoutTemplate className="h-5 w-5" />
+                  {t("forms.chooseTemplate")}
+                </DialogTitle>
+                <DialogDescription className="text-sm font-light">
+                  {t("forms.chooseTemplateDescription")}
+                </DialogDescription>
+              </DialogHeader>
 
-          <div className="space-y-6 py-2">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="form-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formNameRequired")}</Label>
-                <Input
-                  id="form-name"
-                  placeholder={t("forms.formNamePlaceholder")}
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  data-testid="input-form-name"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="form-description" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formDescription")}</Label>
-                <Textarea
-                  id="form-description"
-                  placeholder={t("forms.descriptionPlaceholder")}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={2}
-                  data-testid="input-form-description"
-                />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-sm font-medium">{t("forms.formFields")}</h3>
-                <Button onClick={addField} variant="outline" size="sm" data-testid="button-add-field">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" />
-                  {t("forms.addField")}
+              <div className="flex items-center gap-3 pt-1">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={t("forms.searchTemplates")}
+                    value={templateSearch}
+                    onChange={(e) => setTemplateSearch(e.target.value)}
+                    className="pl-9"
+                    data-testid="input-template-search"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleStartFromScratch}
+                  data-testid="button-start-from-scratch"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  {t("forms.startFromScratch")}
                 </Button>
               </div>
 
-              {fields.length === 0 ? (
-                <div className="text-center py-10 text-sm text-muted-foreground font-light border border-dashed rounded-xl">
-                  {t("forms.addFieldHint")}
-                </div>
-              ) : (
-                <ScrollArea className="h-80">
-                  <div className="space-y-3 pr-4">
-                    {fields.map((field, index) => (
-                      <div key={field.tempId} className="rounded-xl border p-4">
-                        <div className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <div className="flex flex-col items-center gap-0.5 pt-6">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => moveField(field.tempId, "up")}
-                                disabled={index === 0}
-                                data-testid={`button-move-up-${field.tempId}`}
-                              >
-                                <ChevronRight className="h-3.5 w-3.5 -rotate-90" />
-                              </Button>
-                              <GripVertical className="h-4 w-4 text-muted-foreground" />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => moveField(field.tempId, "down")}
-                                disabled={index === fields.length - 1}
-                                data-testid={`button-move-down-${field.tempId}`}
-                              >
-                                <ChevronRight className="h-3.5 w-3.5 rotate-90" />
-                              </Button>
-                            </div>
+              <div className="flex gap-1.5 flex-wrap pt-1">
+                {FORM_TEMPLATE_CATEGORIES.map((cat) => (
+                  <Button
+                    key={cat}
+                    variant={selectedCategory === cat ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setSelectedCategory(cat)}
+                    data-testid={`button-category-${cat.replace(/[^a-zA-Z]/g, "-").toLowerCase()}`}
+                  >
+                    {cat}
+                    <span className="ml-1 opacity-60">({categoryCountMap[cat] || 0})</span>
+                  </Button>
+                ))}
+              </div>
 
-                            <div className="flex-1 space-y-3">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldLabel")}</Label>
-                                  <Input
-                                    placeholder={t("forms.fieldLabelPlaceholder")}
-                                    value={field.label}
-                                    onChange={(e) => updateField(field.tempId, { label: e.target.value })}
-                                    data-testid={`input-field-label-${field.tempId}`}
-                                  />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldType")}</Label>
-                                  <Select
-                                    value={field.type}
-                                    onValueChange={(value) => updateField(field.tempId, { type: value })}
-                                  >
-                                    <SelectTrigger data-testid={`select-field-type-${field.tempId}`}>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {fieldTypeOptions.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                          {option.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-
-                              {field.type === "multiple_choice" && (
-                                <div className="space-y-1.5">
-                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldOptions")}</Label>
-                                  <Input
-                                    placeholder={t("forms.optionsPlaceholder")}
-                                    value={field.options}
-                                    onChange={(e) => updateField(field.tempId, { options: e.target.value })}
-                                    data-testid={`input-field-options-${field.tempId}`}
-                                  />
-                                </div>
-                              )}
-
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  id={`required-${field.tempId}`}
-                                  checked={field.required}
-                                  onChange={(e) => updateField(field.tempId, { required: e.target.checked })}
-                                  data-testid={`checkbox-required-${field.tempId}`}
-                                  className="h-4 w-4 rounded"
-                                />
-                                <Label htmlFor={`required-${field.tempId}`} className="cursor-pointer text-sm font-light">
-                                  {t("forms.requiredField")}
-                                </Label>
-                              </div>
-                            </div>
-
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeField(field.tempId)}
-                              data-testid={`button-remove-field-${field.tempId}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+              <ScrollArea className="flex-1 min-h-0 max-h-[50vh] mt-2">
+                {filteredTemplates.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <Search className="h-8 w-8 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground font-light">{t("forms.noTemplatesFound")}</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-4 pb-2">
+                    {filteredTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="group rounded-xl border p-4 cursor-pointer transition-all hover:border-primary/50 hover:shadow-sm"
+                        onClick={() => handleSelectTemplate(template)}
+                        data-testid={`card-template-${template.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-sm truncate">{template.name}</div>
+                            <div className="text-xs text-muted-foreground font-light mt-0.5 line-clamp-2">{template.description}</div>
                           </div>
+                          <Sparkles className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
+                        </div>
+                        <div className="flex items-center gap-2 mt-3">
+                          <Badge variant="secondary" className="text-[10px] font-normal">{template.category}</Badge>
+                          <span className="text-[10px] text-muted-foreground font-light">{template.fields.length} {t("forms.fields")}</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
-              )}
-            </div>
-          </div>
+                )}
+              </ScrollArea>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseCreate} data-testid="button-cancel-create">
-              {t("common.cancel")}
-            </Button>
-            <Button
-              onClick={() => createMutation.mutate()}
-              disabled={!formData.name || fields.length === 0 || createMutation.isPending}
-              data-testid="button-submit-create"
-            >
-              {t("forms.createFormButton")}
-            </Button>
-          </DialogFooter>
+              <div className="flex items-center justify-between pt-2 border-t text-xs text-muted-foreground font-light">
+                <span>{FORM_TEMPLATES.length} {t("forms.templatesAvailable")}</span>
+                <span>{filteredTemplates.length} {t("forms.showing")}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setCreateStep("templates")}
+                    data-testid="button-back-to-templates"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <div>
+                    <DialogTitle className="text-lg font-semibold" data-testid="text-create-dialog-title">{t("forms.createForm")}</DialogTitle>
+                    <DialogDescription className="text-sm font-light">{t("forms.buildCustomForm")}</DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <ScrollArea className="flex-1 min-h-0 max-h-[60vh]">
+                <div className="space-y-6 py-2 pr-4">
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="form-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formNameRequired")}</Label>
+                      <Input
+                        id="form-name"
+                        placeholder={t("forms.formNamePlaceholder")}
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        data-testid="input-form-name"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="form-description" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formDescription")}</Label>
+                      <Textarea
+                        id="form-description"
+                        placeholder={t("forms.descriptionPlaceholder")}
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        rows={2}
+                        data-testid="input-form-description"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h3 className="text-sm font-medium">{t("forms.formFields")}</h3>
+                      <Button onClick={addField} variant="outline" size="sm" data-testid="button-add-field">
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        {t("forms.addField")}
+                      </Button>
+                    </div>
+
+                    {fields.length === 0 ? (
+                      <div className="text-center py-10 text-sm text-muted-foreground font-light border border-dashed rounded-xl">
+                        {t("forms.addFieldHint")}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {fields.map((field, index) => (
+                          <div key={field.tempId} className="rounded-xl border p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-start gap-3">
+                                <div className="flex flex-col items-center gap-0.5 pt-6">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => moveField(field.tempId, "up")}
+                                    disabled={index === 0}
+                                    data-testid={`button-move-up-${field.tempId}`}
+                                  >
+                                    <ChevronRight className="h-3.5 w-3.5 -rotate-90" />
+                                  </Button>
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => moveField(field.tempId, "down")}
+                                    disabled={index === fields.length - 1}
+                                    data-testid={`button-move-down-${field.tempId}`}
+                                  >
+                                    <ChevronRight className="h-3.5 w-3.5 rotate-90" />
+                                  </Button>
+                                </div>
+
+                                <div className="flex-1 space-y-3">
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs text-muted-foreground">{t("forms.fieldLabel")}</Label>
+                                      <Input
+                                        placeholder={t("forms.fieldLabelPlaceholder")}
+                                        value={field.label}
+                                        onChange={(e) => updateField(field.tempId, { label: e.target.value })}
+                                        data-testid={`input-field-label-${field.tempId}`}
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs text-muted-foreground">{t("forms.fieldType")}</Label>
+                                      <Select
+                                        value={field.type}
+                                        onValueChange={(value) => updateField(field.tempId, { type: value })}
+                                      >
+                                        <SelectTrigger data-testid={`select-field-type-${field.tempId}`}>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {fieldTypeOptions.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                              {option.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+
+                                  {field.type === "multiple_choice" && (
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs text-muted-foreground">{t("forms.fieldOptions")}</Label>
+                                      <Input
+                                        placeholder={t("forms.optionsPlaceholder")}
+                                        value={field.options}
+                                        onChange={(e) => updateField(field.tempId, { options: e.target.value })}
+                                        data-testid={`input-field-options-${field.tempId}`}
+                                      />
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`required-${field.tempId}`}
+                                      checked={field.required}
+                                      onChange={(e) => updateField(field.tempId, { required: e.target.checked })}
+                                      data-testid={`checkbox-required-${field.tempId}`}
+                                      className="h-4 w-4 rounded"
+                                    />
+                                    <Label htmlFor={`required-${field.tempId}`} className="cursor-pointer text-sm font-light">
+                                      {t("forms.requiredField")}
+                                    </Label>
+                                  </div>
+                                </div>
+
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeField(field.tempId)}
+                                  data-testid={`button-remove-field-${field.tempId}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </ScrollArea>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={handleCloseCreate} data-testid="button-cancel-create">
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  onClick={() => createMutation.mutate()}
+                  disabled={!formData.name || fields.length === 0 || createMutation.isPending}
+                  data-testid="button-submit-create"
+                >
+                  {t("forms.createFormButton")}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

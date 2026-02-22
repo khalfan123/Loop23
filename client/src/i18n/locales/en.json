@@ -2875,7 +2875,16 @@
     "downloadCSV": "Download CSV",
     "contactName": "Contact Name",
     "contactPhone": "Contact Phone",
-    "viewCall": "View Call"
+    "viewCall": "View Call",
+    "chooseTemplate": "Choose a Template",
+    "chooseTemplateDescription": "Pick a ready-made form template or start from scratch. You can customize any template after selecting it.",
+    "searchTemplates": "Search templates...",
+    "startFromScratch": "Start from Scratch",
+    "noTemplatesFound": "No templates found matching your search.",
+    "templatesAvailable": "templates available",
+    "showing": "showing",
+    "fields": "fields",
+    "backToTemplates": "Back to Templates"
   },
   "appointments": {
     "title": "Appointments",

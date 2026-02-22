@@ -9,9 +9,11 @@ import { Phone, PhoneOff, Volume2, Loader2, ArrowLeft, Hash, Mic, MicOff, Bot, U
 import { Link } from "wouter";
 
 interface TwimlStep {
+  type: "say" | "play";
   voice: string;
   engine: string;
   text: string;
+  playUrl?: string;
 }
 
 interface ParsedTwiml {
@@ -30,14 +32,24 @@ function parseTwiml(xml: string): ParsedTwiml {
   const doc = parser.parseFromString(xml, "text/xml");
 
   const saySteps: TwimlStep[] = [];
-  const sayElements = doc.querySelectorAll("Say");
-  sayElements.forEach((el) => {
-    const voice = el.getAttribute("voice") || "Polly.Joanna";
-    const engine = el.getAttribute("engine") || "neural";
-    const prosody = el.querySelector("prosody");
-    const text = prosody ? prosody.textContent || "" : el.textContent || "";
-    if (text.trim()) {
-      saySteps.push({ voice: voice.replace("Polly.", ""), engine, text: text.trim() });
+
+  const allElements = doc.querySelectorAll("Say, Play");
+  allElements.forEach((el) => {
+    if (el.tagName === "Say") {
+      const voice = el.getAttribute("voice") || "Polly.Joanna";
+      const engine = el.getAttribute("engine") || "neural";
+      const prosody = el.querySelector("prosody");
+      const text = prosody ? prosody.textContent || "" : el.textContent || "";
+      if (text.trim()) {
+        saySteps.push({ type: "say", voice: voice.replace("Polly.", ""), engine, text: text.trim() });
+      }
+    } else if (el.tagName === "Play") {
+      const playUrl = el.textContent?.trim() || "";
+      if (playUrl) {
+        const urlParams = new URLSearchParams(playUrl.split("?")[1] || "");
+        const text = urlParams.get("text") || "";
+        saySteps.push({ type: "play", voice: "", engine: "", text: text || "(audio)", playUrl });
+      }
     }
   });
 
@@ -173,18 +185,28 @@ export default function DeprockCallSimulator() {
 
         const fetchAudio = async () => {
           try {
-            const res = await apiRequest("POST", "/api/deprock/tts-preview", {
-              voiceId: step.voice,
-              text: step.text,
-              engine: step.engine,
-            });
+            let blob: Blob;
+
+            if (step.type === "play" && step.playUrl) {
+              const audioRes = await fetch(step.playUrl);
+              if (!audioRes.ok) {
+                throw new Error(`Audio fetch failed: ${audioRes.status}`);
+              }
+              blob = await audioRes.blob();
+            } else {
+              const res = await apiRequest("POST", "/api/deprock/tts-preview", {
+                voiceId: step.voice,
+                text: step.text,
+                engine: step.engine,
+              });
+              blob = await res.blob();
+            }
 
             if (!playingRef.current) {
               resolve();
               return;
             }
 
-            const blob = await res.blob();
             const url = URL.createObjectURL(blob);
 
             if (audioRef.current) {

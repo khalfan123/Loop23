@@ -95,6 +95,32 @@ interface IntegrationTypeConfig {
   configFields: { key: string; label: string; placeholder: string; type?: string }[];
 }
 
+interface CrmApp {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  category: string;
+  logoUrl: string | null;
+  isPopular: boolean;
+  isActive: boolean;
+}
+
+interface UserIntegration {
+  id: string;
+  appId: string;
+  userId: string;
+  status: string;
+  app?: CrmApp;
+}
+
+interface LeadStage {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+}
+
 function ConfigTextInput({ label, placeholder, initialValue, onSave, saving, testId }: {
   label: string;
   placeholder: string;
@@ -124,6 +150,176 @@ function ConfigTextInput({ label, placeholder, initialValue, onSave, saving, tes
   );
 }
 
+function CrmSyncConfig({ state, crmApps, connectedIntegrations, leadStages, formFields, onConfigChange, saving }: {
+  state: { enabled: boolean; config: Record<string, any> };
+  crmApps: CrmApp[];
+  connectedIntegrations: UserIntegration[];
+  leadStages: LeadStage[];
+  formFields: FormField[];
+  onConfigChange: (key: string, value: string) => void;
+  saving: boolean;
+}) {
+  const { t } = useTranslation();
+
+  const connectedAppIds = new Set(connectedIntegrations.filter(c => c.status === 'active' || c.status === 'connected').map(c => c.appId));
+
+  const allCrmOptions = [
+    { id: "builtin", name: t("forms.integrations.builtInCrm", "Built-in CRM"), slug: "builtin", connected: true, isBuiltIn: true },
+    ...crmApps.map(app => ({
+      id: app.id,
+      name: app.name,
+      slug: app.slug,
+      connected: connectedAppIds.has(app.id),
+      isBuiltIn: false,
+    })),
+  ];
+
+  const selectedCrm = state.config.crmProvider || "builtin";
+  const selectedCrmInfo = allCrmOptions.find(c => c.id === selectedCrm || c.slug === selectedCrm);
+
+  const leadFieldOptions = formFields.map(f => ({
+    value: f.id,
+    label: f.label || (f as any).question || f.id,
+  }));
+
+  return (
+    <div className="px-4 pb-4 pt-1 border-t border-border/50">
+      <div className="space-y-4 mt-3">
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+            {t("forms.integrations.selectCrm", "Select CRM Provider")}
+          </Label>
+          <Select
+            value={selectedCrm}
+            onValueChange={(val) => onConfigChange("crmProvider", val)}
+            disabled={saving}
+          >
+            <SelectTrigger className="h-9 text-xs rounded-lg" data-testid="select-crm-provider">
+              <SelectValue placeholder={t("forms.integrations.chooseCrm", "Choose a CRM...")} />
+            </SelectTrigger>
+            <SelectContent>
+              {allCrmOptions.map((crm) => (
+                <SelectItem key={crm.id} value={crm.id} data-testid={`option-crm-${crm.slug}`}>
+                  <div className="flex items-center gap-2">
+                    <span>{crm.name}</span>
+                    {crm.connected ? (
+                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 rounded-full bg-green-500/10 text-green-600 border-0">
+                        {t("forms.integrations.connected", "Connected")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 rounded-full bg-muted text-muted-foreground border-0">
+                        {t("forms.integrations.notConnected", "Not Connected")}
+                      </Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {selectedCrmInfo && !selectedCrmInfo.connected && !selectedCrmInfo.isBuiltIn && (
+          <div className="rounded-xl bg-amber-500/5 border border-amber-500/20 p-3">
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {t("forms.integrations.crmNotConnectedWarning", "This CRM is not connected yet. Go to Integrations to set it up.")}
+            </p>
+            <Link href="/app/integrations">
+              <Button variant="outline" size="sm" className="mt-2 h-7 text-xs rounded-lg" data-testid="button-go-to-integrations">
+                <ExternalLink className="h-3 w-3 mr-1.5" />
+                {t("forms.integrations.goToIntegrations", "Go to Integrations")}
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        <div className="border-t border-border/40" />
+
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-normal text-muted-foreground">
+            {t("forms.integrations.autoCreateLead", "Auto-create lead on submission")}
+          </Label>
+          <Switch
+            checked={state.config.createLead === true || state.config.createLead === "true"}
+            onCheckedChange={(checked) => onConfigChange("createLead", String(checked))}
+            disabled={saving}
+            data-testid="switch-config-crm_sync-createLead"
+          />
+        </div>
+
+        {selectedCrm === "builtin" && leadStages.length > 0 && (
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+              {t("forms.integrations.leadStage", "Assign to Lead Stage")}
+            </Label>
+            <Select
+              value={state.config.leadStageId || ""}
+              onValueChange={(val) => onConfigChange("leadStageId", val)}
+              disabled={saving}
+            >
+              <SelectTrigger className="h-9 text-xs rounded-lg" data-testid="select-lead-stage">
+                <SelectValue placeholder={t("forms.integrations.selectStage", "Select a stage...")} />
+              </SelectTrigger>
+              <SelectContent>
+                {leadStages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id} data-testid={`option-stage-${stage.id}`}>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+                      <span>{stage.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+            {t("forms.integrations.fieldMapping", "Field Mapping")}
+          </Label>
+          <p className="text-[11px] text-muted-foreground/50 mb-3">
+            {t("forms.integrations.fieldMappingDesc", "Map your form fields to CRM lead fields")}
+          </p>
+          <div className="space-y-2.5">
+            {[
+              { key: "nameField", label: t("forms.integrations.nameFieldMapping", "Name"), crmField: "Contact Name" },
+              { key: "phoneField", label: t("forms.integrations.phoneFieldMapping", "Phone"), crmField: "Phone Number" },
+              { key: "emailField", label: t("forms.integrations.emailFieldMapping", "Email"), crmField: "Email Address" },
+              { key: "companyField", label: t("forms.integrations.companyFieldMapping", "Company"), crmField: "Company Name" },
+            ].map((mapping) => (
+              <div key={mapping.key} className="flex items-center gap-2">
+                <div className="w-24 shrink-0">
+                  <span className="text-xs text-muted-foreground">{mapping.crmField}</span>
+                </div>
+                <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                <Select
+                  value={state.config[mapping.key] || ""}
+                  onValueChange={(val) => onConfigChange(mapping.key, val)}
+                  disabled={saving}
+                >
+                  <SelectTrigger className="h-8 text-xs rounded-lg flex-1" data-testid={`select-mapping-${mapping.key}`}>
+                    <SelectValue placeholder={t("forms.integrations.selectField", "Select form field...")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" data-testid={`option-mapping-${mapping.key}-none`}>
+                      <span className="text-muted-foreground italic">{t("forms.integrations.noMapping", "— None —")}</span>
+                    </SelectItem>
+                    {leadFieldOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value} data-testid={`option-mapping-${mapping.key}-${opt.value}`}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FormIntegrationsView({ form, onBack }: { form: Form; onBack: () => void }) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -146,11 +342,7 @@ function FormIntegrationsView({ form, onBack }: { form: Form; onBack: () => void
       title: t("forms.integrations.crmSync", "CRM Sync"),
       description: t("forms.integrations.crmSyncDesc", "Automatically create or update leads in your CRM from form responses"),
       color: "text-blue-500",
-      configFields: [
-        { key: "createLead", label: t("forms.integrations.autoCreateLead", "Auto-create lead on submission"), placeholder: "", type: "toggle" },
-        { key: "nameField", label: t("forms.integrations.nameFieldMapping", "Name field mapping"), placeholder: "Select form field for contact name" },
-        { key: "phoneField", label: t("forms.integrations.phoneFieldMapping", "Phone field mapping"), placeholder: "Select form field for phone" },
-      ],
+      configFields: [],
     },
     {
       type: "email_notification",
@@ -177,6 +369,18 @@ function FormIntegrationsView({ form, onBack }: { form: Form; onBack: () => void
 
   const { data: integrationData, isLoading } = useQuery<{ integrations: FormIntegration[]; fields: FormField[] }>({
     queryKey: [`/api/flow-automation/forms/${form.id}/integrations`],
+  });
+
+  const { data: crmApps = [] } = useQuery<CrmApp[]>({
+    queryKey: ['/api/integrations/apps?category=crm'],
+  });
+
+  const { data: connectedIntegrations = [] } = useQuery<UserIntegration[]>({
+    queryKey: ['/api/integrations/connected'],
+  });
+
+  const { data: leadStages = [] } = useQuery<LeadStage[]>({
+    queryKey: ['/api/crm/stages'],
   });
 
   const saveMutation = useMutation({
@@ -282,7 +486,19 @@ function FormIntegrationsView({ form, onBack }: { form: Form; onBack: () => void
                 />
               </div>
 
-              {state.enabled && (
+              {state.enabled && intType.type === "crm_sync" && (
+                <CrmSyncConfig
+                  state={state}
+                  crmApps={crmApps}
+                  connectedIntegrations={connectedIntegrations}
+                  leadStages={leadStages}
+                  formFields={formFields}
+                  onConfigChange={(key, value) => handleConfigChange("crm_sync", key, value)}
+                  saving={saveMutation.isPending}
+                />
+              )}
+
+              {state.enabled && intType.type !== "crm_sync" && (
                 <div className="px-4 pb-4 pt-1 border-t border-border/50">
                   <div className="space-y-3 mt-3">
                     {intType.configFields.map((cf) => {

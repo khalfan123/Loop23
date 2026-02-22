@@ -685,9 +685,11 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         prompt: 'consent',
       });
 
-      res.json({
-        authUrl: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`,
-      });
+      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
+      console.log('[Contact Import] Microsoft auth URL generated:', authUrl);
+      console.log('[Contact Import] Microsoft client_id used:', credentials.clientId);
+      console.log('[Contact Import] Microsoft redirect_uri:', callbackUri);
+      res.json({ authUrl });
     } catch (error: any) {
       console.error('[Contact Import] Microsoft auth URL error:', error);
       res.status(500).json({ error: 'Failed to generate Microsoft auth URL' });

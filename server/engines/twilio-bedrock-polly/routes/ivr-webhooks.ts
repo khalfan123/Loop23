@@ -80,11 +80,38 @@ function escapeXml(str: string): string {
     .replace(/'/g, '&apos;');
 }
 
+function isElevenLabsVoice(voiceId: string): boolean {
+  return voiceId.startsWith('el_');
+}
+
+function safePollyVoiceId(voiceId: string): string {
+  if (isElevenLabsVoice(voiceId) || ['alloy','echo','fable','onyx','nova','shimmer'].includes(voiceId)) return 'Joanna';
+  return voiceId;
+}
+
 function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false): string {
-  const engine = GENERATIVE_VOICES.includes(voiceId) ? 'generative' : 'neural';
+  const safeVoice = safePollyVoiceId(voiceId);
+  const engine = GENERATIVE_VOICES.includes(safeVoice) ? 'generative' : 'neural';
   const breakSsml = addBreakAfter ? '<break time="350ms"/>' : '';
   const corrected = applyArabicPronunciationFixes(text);
-  return `<Say voice="Polly.${escapeXml(voiceId)}" engine="${engine}"><prosody rate="88%">${escapeXml(corrected)}</prosody>${breakSsml}</Say>`;
+  return `<Say voice="Polly.${escapeXml(safeVoice)}" engine="${engine}"><prosody rate="88%">${escapeXml(corrected)}</prosody>${breakSsml}</Say>`;
+}
+
+function sayOrPlay(voiceId: string, text: string, ivrId: string, addBreakAfter: boolean = false): string {
+  if (isElevenLabsVoice(voiceId)) {
+    const corrected = applyArabicPronunciationFixes(text);
+    const baseUrl = buildBaseUrl();
+    const encodedText = encodeURIComponent(corrected);
+    const maxUrlLen = 2000;
+    const baseUrlPart = `${baseUrl}/api/deprock/ivr-greeting-audio/${encodeURIComponent(ivrId)}?voiceId=${encodeURIComponent(voiceId)}&_t=${Date.now()}&text=`;
+    if (baseUrlPart.length + encodedText.length > maxUrlLen) {
+      return sayWithPolly(safePollyVoiceId(voiceId), text, addBreakAfter);
+    }
+    const audioUrl = `${baseUrlPart}${encodedText}`;
+    const pause = addBreakAfter ? '<Pause length="1"/>' : '';
+    return `<Play>${escapeXml(audioUrl)}</Play>${pause}`;
+  }
+  return sayWithPolly(voiceId, text, addBreakAfter);
 }
 
 function buildBaseUrl(): string {
@@ -161,25 +188,25 @@ router.post('/answer', async (req: Request, res: Response) => {
       twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${langHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
       if (config.greetingMessage) {
-        twiml += sayWithPolly(voiceId, config.greetingMessage);
+        twiml += sayOrPlay(voiceId, config.greetingMessage, ivrId);
       } else {
-        twiml += sayWithPolly(voiceId, getTemplate('en').greeting);
+        twiml += sayOrPlay(voiceId, getTemplate('en').greeting, ivrId);
         langOptions.forEach((opt, index) => {
           const digit = index + 1;
           const langTemplate = getTemplate(opt.language);
           const langVoice = opt.voiceId || voiceId;
           const langName = LANGUAGE_NAMES[opt.language] || opt.language;
           const isLast = index === langOptions.length - 1;
-          twiml += sayWithPolly(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`, !isLast);
+          twiml += sayOrPlay(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`, ivrId, !isLast);
         });
       }
-      twiml += sayWithPolly(voiceId, getTemplate('en').repeatMsg);
+      twiml += sayOrPlay(voiceId, getTemplate('en').repeatMsg, ivrId);
 
       twiml += `</Gather>`;
 
       const template = getTemplate('en');
       const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
-      twiml += sayWithPolly(voiceId, template.stillThereMsg);
+      twiml += sayOrPlay(voiceId, template.stillThereMsg, ivrId);
       twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
       twiml += `</Response>`;
 
@@ -194,9 +221,9 @@ router.post('/answer', async (req: Request, res: Response) => {
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
 
       if (config.greetingMessage) {
-        twiml += sayWithPolly(voiceId, config.greetingMessage);
+        twiml += sayOrPlay(voiceId, config.greetingMessage, ivrId);
       } else {
-        twiml += sayWithPolly(voiceId, template.greeting);
+        twiml += sayOrPlay(voiceId, template.greeting, ivrId);
       }
 
       const actionUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(CallSid || '')}&caller=${encodeURIComponent(From || '')}&lang=${encodeURIComponent(lang)}&attempt=1`;
@@ -207,14 +234,14 @@ router.post('/answer', async (req: Request, res: Response) => {
         const digit = parseInt(opt.key, 10);
         const numberWord = getNumberWord(lang, digit);
         const isLast = index === menuOptions.length - 1;
-        twiml += sayWithPolly(voiceId, `${template.pressKey} ${numberWord}, ${opt.label}`, !isLast);
+        twiml += sayOrPlay(voiceId, `${template.pressKey} ${numberWord}, ${opt.label}`, ivrId, !isLast);
       });
-      twiml += sayWithPolly(voiceId, template.repeatMsg);
+      twiml += sayOrPlay(voiceId, template.repeatMsg, ivrId);
 
       twiml += `</Gather>`;
 
       const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
-      twiml += sayWithPolly(voiceId, template.stillThereMsg);
+      twiml += sayOrPlay(voiceId, template.stillThereMsg, ivrId);
       twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
       twiml += `</Response>`;
 
@@ -223,7 +250,7 @@ router.post('/answer', async (req: Request, res: Response) => {
     }
 
     res.type('text/xml');
-    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="Polly.${escapeXml(voiceId)}">No menu options configured. Goodbye.</Say><Hangup/></Response>`);
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayOrPlay(voiceId, 'No menu options configured. Goodbye.', ivrId)}<Hangup/></Response>`);
 
   } catch (error: any) {
     logger.error('[Deprock IVR] Error in /answer', error, 'DeprockIVR');
@@ -287,7 +314,7 @@ router.post('/handle-language', async (req: Request, res: Response) => {
       const retryUrl = `${baseUrl}/api/deprock/ivr/handle-language?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&attempt=${attempt + 1}`;
 
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
-      twiml += sayWithPolly(voiceId, template.invalidMsg);
+      twiml += sayOrPlay(voiceId, template.invalidMsg, ivrId);
       const retryHints = langOptions.map((_, i) => String(i + 1)).join(' ') + ' 0';
       twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${retryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
       langOptions.forEach((opt, index) => {
@@ -296,9 +323,9 @@ router.post('/handle-language', async (req: Request, res: Response) => {
         const langVoice = opt.voiceId || voiceId;
         const langName = LANGUAGE_NAMES[opt.language] || opt.language;
         const isLast = index === langOptions.length - 1;
-        twiml += sayWithPolly(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`, !isLast);
+        twiml += sayOrPlay(langVoice, `${langName}, ${langTemplate.pressKey} ${getNumberWord(opt.language, digit)}`, ivrId, !isLast);
       });
-      twiml += sayWithPolly(voiceId, template.repeatMsg);
+      twiml += sayOrPlay(voiceId, template.repeatMsg, ivrId);
       twiml += `</Gather>`;
       twiml += `</Response>`;
 
@@ -321,7 +348,7 @@ router.post('/handle-language', async (req: Request, res: Response) => {
 
     if (!menuOpts || menuOpts.length === 0) {
       res.type('text/xml');
-      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(langVoice, template.noAgentMsg)}<Hangup/></Response>`);
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayOrPlay(langVoice, template.noAgentMsg, ivrId)}<Hangup/></Response>`);
     }
 
     const baseUrl = buildBaseUrl();
@@ -332,23 +359,23 @@ router.post('/handle-language', async (req: Request, res: Response) => {
     twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${deptHints}" action="${escapeXml(actionUrl)}" method="POST">`;
 
     if (selectedLang.greeting) {
-      twiml += sayWithPolly(langVoice, selectedLang.greeting);
+      twiml += sayOrPlay(langVoice, selectedLang.greeting, ivrId);
     } else {
-      twiml += sayWithPolly(langVoice, template.greeting);
+      twiml += sayOrPlay(langVoice, template.greeting, ivrId);
       menuOpts.forEach((opt, index) => {
         const digit = parseInt(opt.key, 10);
         const numberWord = getNumberWord(lang, digit);
         const isLast = index === menuOpts!.length - 1;
-        twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`, !isLast);
+        twiml += sayOrPlay(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`, ivrId, !isLast);
       });
     }
-    twiml += sayWithPolly(langVoice, template.repeatMsg);
+    twiml += sayOrPlay(langVoice, template.repeatMsg, ivrId);
 
     twiml += `</Gather>`;
 
-    const retryUrl = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
-    twiml += sayWithPolly(langVoice, template.stillThereMsg);
-    twiml += `<Redirect method="POST">${escapeXml(retryUrl)}</Redirect>`;
+    const retryUrl2 = `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(ivrId)}&attempt=${attempt + 1}`;
+    twiml += sayOrPlay(langVoice, template.stillThereMsg, ivrId);
+    twiml += `<Redirect method="POST">${escapeXml(retryUrl2)}</Redirect>`;
     twiml += `</Response>`;
 
     res.type('text/xml');
@@ -412,7 +439,7 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
 
     if (!menuOpts || menuOpts.length === 0) {
       res.type('text/xml');
-      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(langVoice, template.noAgentMsg)}<Hangup/></Response>`);
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayOrPlay(langVoice, template.noAgentMsg, ivrId)}<Hangup/></Response>`);
     }
 
     const selectedOption = menuOpts.find(opt => opt.key === Digits);
@@ -428,16 +455,16 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
       const retryUrl = `${baseUrl}/api/deprock/ivr/handle-selection?ivrId=${encodeURIComponent(ivrId)}&callSid=${encodeURIComponent(callSid)}&caller=${encodeURIComponent(caller)}&lang=${encodeURIComponent(lang)}&attempt=${attempt + 1}`;
 
       let twiml = `<?xml version="1.0" encoding="UTF-8"?><Response>`;
-      twiml += sayWithPolly(langVoice, template.invalidMsg);
+      twiml += sayOrPlay(langVoice, template.invalidMsg, ivrId);
       const selRetryHints = menuOpts.map(opt => opt.key).join(' ') + ' 0';
       twiml += `<Gather input="dtmf speech" timeout="10" numDigits="1" speechTimeout="3" hints="${selRetryHints}" action="${escapeXml(retryUrl)}" method="POST">`;
       menuOpts.forEach((opt, index) => {
         const digit = parseInt(opt.key, 10);
         const numberWord = getNumberWord(lang, digit);
         const isLast = index === menuOpts!.length - 1;
-        twiml += sayWithPolly(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`, !isLast);
+        twiml += sayOrPlay(langVoice, `${template.pressKey} ${numberWord}, ${opt.label}`, ivrId, !isLast);
       });
-      twiml += sayWithPolly(langVoice, template.repeatMsg);
+      twiml += sayOrPlay(langVoice, template.repeatMsg, ivrId);
       twiml += `</Gather>`;
       twiml += `</Response>`;
 
@@ -460,7 +487,7 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
     if (!deptAgents || deptAgents.length === 0) {
       logger.info(`[Deprock IVR] No agents found for department ${departmentId}`, undefined, 'DeprockIVR');
       res.type('text/xml');
-      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(langVoice, template.noAgentMsg)}<Hangup/></Response>`);
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayOrPlay(langVoice, template.noAgentMsg, ivrId)}<Hangup/></Response>`);
     }
 
     let bestAgent = deptAgents.find(da => da.departmentAgent.language === lang);
@@ -530,7 +557,7 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  ${sayWithPolly(langVoice, template.holdMsg)}
+  ${sayOrPlay(langVoice, template.holdMsg, ivrId)}
   <Connect>
     <Stream url="${escapeXml(streamUrl)}">
       <Parameter name="callId" value="${escapeXml(callId)}" />
@@ -577,7 +604,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
       const voiceId = config?.voiceId || 'Joanna';
       const template = getTemplate(lang);
       res.type('text/xml');
-      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(voiceId, template.goodbyeMsg)}<Hangup/></Response>`);
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayOrPlay(voiceId, template.goodbyeMsg, ivrId)}<Hangup/></Response>`);
     }
 
     const voiceId = config.voiceId || 'Joanna';
@@ -594,7 +621,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
 
     if (!deptAgents || deptAgents.length === 0) {
       res.type('text/xml');
-      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayWithPolly(voiceId, template.noAgentMsg)}<Hangup/></Response>`);
+      return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${sayOrPlay(voiceId, template.noAgentMsg, ivrId)}<Hangup/></Response>`);
     }
 
     let bestAgent = deptAgents.find(da => da.departmentAgent.language === lang);
@@ -656,7 +683,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  ${sayWithPolly(langVoice, template.holdMsg)}
+  ${sayOrPlay(langVoice, template.holdMsg, ivrId)}
   <Connect>
     <Stream url="${escapeXml(streamUrl)}">
       <Parameter name="callId" value="${escapeXml(callId)}" />

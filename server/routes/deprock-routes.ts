@@ -331,8 +331,13 @@ async function generateDeptIvrTwiml(config: any, step: string, digits?: string, 
   const menuOptions = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> || [];
   const langOptions = config.languageOptions as Array<{ id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }> | null;
   const rawVoiceId = config.voiceId || 'Joanna';
-  const voiceId = (rawVoiceId.startsWith('el_') || ['alloy','echo','fable','onyx','nova','shimmer'].includes(rawVoiceId)) ? 'Joanna' : rawVoiceId;
+  const isElVoice = rawVoiceId.startsWith('el_');
+  const voiceId = (isElVoice || ['alloy','echo','fable','onyx','nova','shimmer'].includes(rawVoiceId)) ? 'Joanna' : rawVoiceId;
   const pollyVoice = `Polly.${voiceId}`;
+
+  function isElevenLabsVid(vid: string | undefined): boolean {
+    return !!vid && vid.startsWith('el_');
+  }
 
   function safePollyVoice(vid: string | undefined): string {
     if (!vid) return pollyVoice;
@@ -344,15 +349,33 @@ async function generateDeptIvrTwiml(config: any, step: string, digits?: string, 
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  async function generateElevenLabsTts(text: string, elVoiceId: string): Promise<Buffer | null> {
+    try {
+      const apiKey = process.env.ELEVENLABS_API_KEY;
+      if (!apiKey) return null;
+      const realId = getElevenLabsVoiceId(elVoiceId);
+      if (!realId) return null;
+      const elService = new ElevenLabsService(apiKey);
+      return await elService.generateVoicePreview({ voiceId: realId, text });
+    } catch (err) {
+      console.error('[Deprock IVR] ElevenLabs TTS failed, falling back to Polly:', err);
+      return null;
+    }
+  }
+
+  function sayTwiml(vid: string | undefined, text: string): string {
+    const voice = safePollyVoice(vid);
+    return `<Say voice="${voice}">${escapeXml(text)}</Say>`;
+  }
+
   if (step === 'answer') {
     if (langOptions && langOptions.length > 1) {
       const greetingText = config.greetingMessage || 'Thank you for calling. Please select your preferred language.';
-      let sayParts = `<Say voice="${pollyVoice}">${escapeXml(greetingText)}</Say>`;
+      let sayParts = sayTwiml(rawVoiceId, greetingText);
       for (let idx = 0; idx < langOptions.length; idx++) {
         const opt = langOptions[idx];
-        const optVoice = safePollyVoice(opt.voiceId);
         const prompt = LANG_PROMPTS[opt.language] || `For ${opt.language}, press`;
-        sayParts += `<Say voice="${optVoice}">${escapeXml(prompt)} ${idx + 1}.</Say>`;
+        sayParts += sayTwiml(opt.voiceId, `${prompt} ${idx + 1}.`);
       }
       return `<?xml version="1.0" encoding="UTF-8"?><Response><Gather numDigits="1" action="/api/deprock/ivr/sim-dept-lang" method="POST" timeout="10">${sayParts}</Gather><Say voice="${pollyVoice}">We did not receive a response.</Say></Response>`;
     }
@@ -361,14 +384,14 @@ async function generateDeptIvrTwiml(config: any, step: string, digits?: string, 
     const template = DEPT_TEMPLATES[langCode] || DEPT_TEMPLATES.en;
     let sayParts = '';
     if (config.greetingMessage) {
-      sayParts += `<Say voice="${pollyVoice}">${escapeXml(config.greetingMessage)}</Say>`;
+      sayParts += sayTwiml(rawVoiceId, config.greetingMessage);
     }
-    sayParts += `<Say voice="${pollyVoice}">${escapeXml(template.greeting)}</Say>`;
+    sayParts += sayTwiml(rawVoiceId, template.greeting);
     for (let i = 0; i < menuOptions.length; i++) {
-      sayParts += `<Say voice="${pollyVoice}">${escapeXml(template.pressKey)} ${i + 1} ${escapeXml(menuOptions[i].label)}.</Say>`;
+      sayParts += sayTwiml(rawVoiceId, `${template.pressKey} ${i + 1} ${menuOptions[i].label}.`);
     }
-    sayParts += `<Say voice="${pollyVoice}">${escapeXml(template.repeatMsg)}</Say>`;
-    return `<?xml version="1.0" encoding="UTF-8"?><Response><Gather numDigits="1" action="/api/deprock/ivr/sim-dept-select" method="POST" timeout="10">${sayParts}</Gather><Say voice="${pollyVoice}">${escapeXml(template.noInputMsg)}</Say></Response>`;
+    sayParts += sayTwiml(rawVoiceId, template.repeatMsg);
+    return `<?xml version="1.0" encoding="UTF-8"?><Response><Gather numDigits="1" action="/api/deprock/ivr/sim-dept-select" method="POST" timeout="10">${sayParts}</Gather>${sayTwiml(rawVoiceId, template.noInputMsg)}</Response>`;
   }
 
   if (step === 'handle-language') {
@@ -395,7 +418,7 @@ async function generateDeptIvrTwiml(config: any, step: string, digits?: string, 
 
     let sayParts = '';
     if (selectedLang.greeting) {
-      sayParts += `<Say voice="${langVoice}">${escapeXml(selectedLang.greeting)}</Say>`;
+      sayParts += sayTwiml(selectedLang.voiceId, selectedLang.greeting);
     }
     sayParts += `<Say voice="${langVoice}">${escapeXml(template.greeting)}</Say>`;
     for (let i = 0; i < filteredMenu.length; i++) {
@@ -726,23 +749,33 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           .where(eq(knowledgeBase.userId, req.userId!));
         const kbIds = userKBs.map(kb => kb.id);
 
+        const isElVoice = voiceId && voiceId.startsWith('el_');
+        const agentValues: Record<string, any> = {
+          userId: req.userId!,
+          name: trimmedAgentName,
+          type: 'inbound',
+          language: language || 'en',
+          telephonyProvider: 'twilio',
+          systemPrompt: systemPrompt || null,
+          openaiVoice: voiceId || null,
+          voiceTone: voiceTone || null,
+          knowledgeBaseOnly: kbIds.length > 0,
+          knowledgeBaseIds: kbIds.length > 0 ? kbIds : null,
+        };
+        if (isElVoice) {
+          agentValues.voiceProvider = 'elevenlabs';
+          agentValues.elevenLabsVoiceId = getElevenLabsVoiceId(voiceId) || voiceId;
+        } else if (voiceId) {
+          agentValues.voiceProvider = 'aws_polly';
+          agentValues.awsPollyVoiceId = voiceId;
+        }
+
         const [newAgent] = await db
           .insert(agents)
-          .values({
-            userId: req.userId!,
-            name: trimmedAgentName,
-            type: 'inbound',
-            language: language || 'en',
-            telephonyProvider: 'twilio',
-            systemPrompt: systemPrompt || null,
-            openaiVoice: voiceId || null,
-            voiceTone: voiceTone || null,
-            knowledgeBaseOnly: kbIds.length > 0,
-            knowledgeBaseIds: kbIds.length > 0 ? kbIds : null,
-          })
+          .values(agentValues)
           .returning();
         resolvedAgentId = newAgent.id;
-        console.log(`[Deprock] Created new agent "${trimmedAgentName}" (${newAgent.id}) for language ${language}, linked ${kbIds.length} knowledge bases`);
+        console.log(`[Deprock] Created new agent "${trimmedAgentName}" (${newAgent.id}) for language ${language}, linked ${kbIds.length} knowledge bases, voiceProvider=${isElVoice ? 'elevenlabs' : 'aws_polly'}`);
       }
 
       const newDeptAgent = await db
@@ -760,7 +793,16 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       if (systemPrompt || voiceId || voiceTone) {
         const agentUpdate: Record<string, any> = {};
         if (systemPrompt) agentUpdate.systemPrompt = systemPrompt;
-        if (voiceId) agentUpdate.openaiVoice = voiceId;
+        if (voiceId) {
+          agentUpdate.openaiVoice = voiceId;
+          if (voiceId.startsWith('el_')) {
+            agentUpdate.voiceProvider = 'elevenlabs';
+            agentUpdate.elevenLabsVoiceId = getElevenLabsVoiceId(voiceId) || voiceId;
+          } else {
+            agentUpdate.voiceProvider = 'aws_polly';
+            agentUpdate.awsPollyVoiceId = voiceId;
+          }
+        }
         if (voiceTone) agentUpdate.voiceTone = voiceTone;
 
         await db
@@ -892,7 +934,16 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       }
 
       const agentUpdate: Record<string, any> = {};
-      if (voiceId !== undefined) agentUpdate.openaiVoice = voiceId;
+      if (voiceId !== undefined) {
+        agentUpdate.openaiVoice = voiceId;
+        if (voiceId.startsWith('el_')) {
+          agentUpdate.voiceProvider = 'elevenlabs';
+          agentUpdate.elevenLabsVoiceId = getElevenLabsVoiceId(voiceId) || voiceId;
+        } else {
+          agentUpdate.voiceProvider = 'aws_polly';
+          agentUpdate.awsPollyVoiceId = voiceId;
+        }
+      }
       if (voiceTone !== undefined) agentUpdate.voiceTone = voiceTone;
       if (systemPrompt !== undefined) agentUpdate.systemPrompt = systemPrompt;
       if (firstMessage !== undefined) agentUpdate.firstMessage = firstMessage;
@@ -1643,14 +1694,36 @@ export function createDeprockIvrAudioRoutes() {
         return res.send(cached.buffer);
       }
 
-      const result = await awsPollyService.synthesizeSpeech({
-        text,
-        voiceId,
-        engine: 'neural',
-        outputFormat: 'mp3',
-      });
+      let audioBuffer: Buffer;
+      const isElVoice = voiceId.startsWith('el_');
 
-      const audioBuffer = result.audioStream;
+      if (isElVoice) {
+        const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+        const realId = getElevenLabsVoiceId(voiceId);
+
+        if (elevenLabsApiKey && realId) {
+          try {
+            const elService = new ElevenLabsService(elevenLabsApiKey);
+            audioBuffer = await elService.generateVoicePreview({ voiceId: realId, text });
+          } catch (err) {
+            console.warn('[Deprock IVR Audio] ElevenLabs TTS failed, falling back to Polly:', err);
+            const result = await awsPollyService.synthesizeSpeech({
+              text, voiceId: 'Joanna', engine: 'neural', outputFormat: 'mp3',
+            });
+            audioBuffer = result.audioStream;
+          }
+        } else {
+          const result = await awsPollyService.synthesizeSpeech({
+            text, voiceId: 'Joanna', engine: 'neural', outputFormat: 'mp3',
+          });
+          audioBuffer = result.audioStream;
+        }
+      } else {
+        const result = await awsPollyService.synthesizeSpeech({
+          text, voiceId, engine: 'neural', outputFormat: 'mp3',
+        });
+        audioBuffer = result.audioStream;
+      }
 
       deprockTtsAudioCache.set(cacheKey, { buffer: audioBuffer, timestamp: Date.now() });
 

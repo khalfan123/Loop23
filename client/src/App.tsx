@@ -245,7 +245,7 @@ function UserRouter() {
             <Redirect to="/app/settings/flows" />
           </Route>
           <Route path="/app/outbound" component={() => <div className="text-center py-16 text-muted-foreground">Outbound page coming soon</div>} />
-          <Route path="/app/settings/:rest*" component={SettingsHub} />
+          <Route path="/app/settings/*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/rock-center" component={RockCenter} />
           <Route path="/app/live-monitoring" component={LiveMonitoring} />
@@ -332,7 +332,7 @@ function TeamMemberRouter() {
           <Route path="/app/flows">
             <Redirect to="/app/settings/flows" />
           </Route>
-          <Route path="/app/settings/:rest*" component={SettingsHub} />
+          <Route path="/app/settings/*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/rock-center" component={RockCenter} />
           <Route path="/app/live-monitoring" component={LiveMonitoring} />

@@ -79,6 +79,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Slider } from "@/components/ui/slider";
 
 interface Department {
   id: string;
@@ -158,6 +159,7 @@ interface LanguageAgentConfig {
   systemPrompt: string | null;
   voiceId: string | null;
   voiceTone: string | null;
+  voiceSpeed?: number;
 }
 
 interface NewAgentConfig {
@@ -168,6 +170,7 @@ interface NewAgentConfig {
   voiceId: string;
   voiceTone: string;
   systemPrompt: string;
+  voiceSpeed?: number;
 }
 
 const SUPPORTED_LANGUAGES = [
@@ -407,6 +410,7 @@ interface LanguageOption {
   voiceId: string;
   greeting: string;
   selectedDepartments?: string[];
+  speed?: number;
 }
 
 const departmentIcons = [
@@ -461,12 +465,13 @@ export default function DeprockManagement() {
     color: "#3b82f6",
   });
   
-  const [selectedAgent, setSelectedAgent] = useState<{ agentId: string; language: string; systemPrompt: string; voiceTone: string; voiceId: string }>({
+  const [selectedAgent, setSelectedAgent] = useState<{ agentId: string; language: string; systemPrompt: string; voiceTone: string; voiceId: string; voiceSpeed: number }>({
     agentId: "",
     language: "en",
     systemPrompt: "",
     voiceTone: "",
     voiceId: "",
+    voiceSpeed: 1.0,
   });
   
   const [viewAgentDetail, setViewAgentDetail] = useState<{
@@ -490,6 +495,7 @@ export default function DeprockManagement() {
     voiceTone: string;
     firstMessage: string;
     systemPrompt: string;
+    voiceSpeed: number;
   } | null>(null);
 
   const [generatingPromptFor, setGeneratingPromptFor] = useState<'firstMessage' | 'systemPrompt' | null>(null);
@@ -512,6 +518,7 @@ export default function DeprockManagement() {
   const [ivrPlayingVoiceId, setIvrPlayingVoiceId] = useState<string | null>(null);
   const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
   const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('Joanna');
+  const [ivrVoiceSpeed, setIvrVoiceSpeed] = useState(0.92);
   const isGreetingCustomized = useRef(false);
   
   const [languageAgents, setLanguageAgents] = useState<LanguageAgentConfig[]>([]);
@@ -552,6 +559,7 @@ export default function DeprockManagement() {
         voiceTone: viewAgentDetail.voiceTone || '',
         firstMessage: viewAgentDetail.firstMessage || '',
         systemPrompt: viewAgentDetail.systemPrompt || '',
+        voiceSpeed: (viewAgentDetail as any).voiceSpeed ?? 1.0,
       });
     } else {
       setEditAgentDetail(null);
@@ -599,6 +607,7 @@ export default function DeprockManagement() {
               systemPrompt: agent.systemPrompt || undefined,
               voiceTone: agent.voiceTone || undefined,
               voiceId: agent.voiceId || undefined,
+              voiceSpeed: agent.voiceSpeed,
             });
           } catch (e) {
             console.error("Failed to add agent:", e);
@@ -668,15 +677,15 @@ export default function DeprockManagement() {
   });
 
   const addAgentMutation = useMutation({
-    mutationFn: async ({ departmentId, agentId, language, systemPrompt, voiceTone }: { departmentId: string; agentId: string; language: string; systemPrompt?: string; voiceTone?: string }) => {
-      return apiRequest("POST", `/api/deprock/${departmentId}/agents`, { agentId, language, systemPrompt, voiceTone });
+    mutationFn: async ({ departmentId, agentId, language, systemPrompt, voiceTone, voiceId, voiceSpeed }: { departmentId: string; agentId: string; language: string; systemPrompt?: string; voiceTone?: string; voiceId?: string; voiceSpeed?: number }) => {
+      return apiRequest("POST", `/api/deprock/${departmentId}/agents`, { agentId, language, systemPrompt, voiceTone, voiceId, voiceSpeed });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deprock"] });
       queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
       refetchDepartmentAgents();
       setShowAddAgentDialog(false);
-      setSelectedAgent({ agentId: "", language: "en", systemPrompt: "", voiceTone: "", voiceId: "" });
+      setSelectedAgent({ agentId: "", language: "en", systemPrompt: "", voiceTone: "", voiceId: "", voiceSpeed: 1.0 });
       toast({ title: "Agent added to deprock department" });
     },
     onError: () => {
@@ -700,12 +709,13 @@ export default function DeprockManagement() {
   });
 
   const updateAgentConfigMutation = useMutation({
-    mutationFn: async (data: { departmentId: string; departmentAgentId: string; voiceId: string; voiceTone: string; firstMessage: string; systemPrompt: string }) => {
+    mutationFn: async (data: { departmentId: string; departmentAgentId: string; voiceId: string; voiceTone: string; firstMessage: string; systemPrompt: string; voiceSpeed?: number }) => {
       return apiRequest("PATCH", `/api/deprock/${data.departmentId}/agents/${data.departmentAgentId}`, {
         voiceId: data.voiceId,
         voiceTone: data.voiceTone,
         firstMessage: data.firstMessage,
         systemPrompt: data.systemPrompt,
+        voiceSpeed: data.voiceSpeed,
       });
     },
     onSuccess: () => {
@@ -771,12 +781,17 @@ export default function DeprockManagement() {
         ? languageSelectionGreetingText || generateDefaultLanguageSelectionGreeting()
         : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
 
+      const singleLangOptions = [{
+        ...languageOptions[0] || { id: "default", language: "en", voiceId: "Joanna", greeting: DEFAULT_GREETINGS.en },
+        speed: languageOptions[0]?.speed ?? ivrVoiceSpeed,
+      }];
+
       if (activeIvr) {
         return apiRequest("PATCH", `/api/deprock/ivr/${activeIvr.id}`, {
           isActive: ivrEnabled,
           greetingMessage,
           voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'Joanna'),
-          languageOptions: multiLangEnabled ? languageOptions : undefined,
+          languageOptions: multiLangEnabled ? languageOptions : singleLangOptions,
         });
       } else {
         return apiRequest("POST", "/api/deprock/ivr", {
@@ -784,7 +799,7 @@ export default function DeprockManagement() {
           isActive: ivrEnabled,
           greetingMessage,
           voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'Joanna'),
-          languageOptions: multiLangEnabled ? languageOptions : undefined,
+          languageOptions: multiLangEnabled ? languageOptions : singleLangOptions,
         });
       }
     },
@@ -898,7 +913,7 @@ export default function DeprockManagement() {
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
 
-  const handleIvrVoicePreview = async (voiceId: string, greetingText: string) => {
+  const handleIvrVoicePreview = async (voiceId: string, greetingText: string, speed?: number) => {
     if (!ivrAudioRef.current) return;
     
     if (ivrPlayingVoiceId === voiceId) {
@@ -910,7 +925,7 @@ export default function DeprockManagement() {
     
     try {
       setIvrPlayingVoiceId(voiceId);
-      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: greetingText });
+      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: greetingText, speed: speed ?? ivrVoiceSpeed });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -1097,7 +1112,7 @@ export default function DeprockManagement() {
     }
   };
   
-  const handlePlayVoice = async (voiceId: string, text?: string) => {
+  const handlePlayVoice = async (voiceId: string, text?: string, speed?: number) => {
     if (!audioRef.current) return;
     
     if (playingVoiceId === voiceId) {
@@ -1109,7 +1124,7 @@ export default function DeprockManagement() {
     
     try {
       setPlayingVoiceId(voiceId);
-      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: text || "Hello, this is a voice preview." });
+      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: text || "Hello, this is a voice preview.", speed: speed ?? 1.0 });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -1157,6 +1172,9 @@ export default function DeprockManagement() {
       } else if (savedLangOptions && savedLangOptions.length === 1) {
         setMultiLangEnabled(false);
         setLanguageOptions(savedLangOptions);
+        if (savedLangOptions[0].speed !== undefined) {
+          setIvrVoiceSpeed(savedLangOptions[0].speed);
+        }
       }
       if ((activeIvr as any).greetingMessage) {
         setLanguageSelectionGreetingText((activeIvr as any).greetingMessage);
@@ -1903,10 +1921,31 @@ export default function DeprockManagement() {
                               </SelectContent>
                             </Select>
                             {agent.voiceId && (
-                              <Button variant="outline" size="icon" onClick={() => handlePlayVoice(agent.voiceId)} data-testid={`deprock-button-preview-voice-${idx}`}>
+                              <Button variant="outline" size="icon" onClick={() => handlePlayVoice(agent.voiceId, undefined, agent.voiceSpeed ?? 1.0)} data-testid={`deprock-button-preview-voice-${idx}`}>
                                 {playingVoiceId === agent.voiceId ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                               </Button>
                             )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs">Agent Voice Speed</Label>
+                            <span className="text-xs font-mono text-muted-foreground" data-testid={`text-mgmt-new-agent-speed-${idx}`}>{(agent.voiceSpeed ?? 1.0).toFixed(2)}x</span>
+                          </div>
+                          <Slider
+                            value={[agent.voiceSpeed ?? 1.0]}
+                            min={0.5}
+                            max={1.5}
+                            step={0.01}
+                            onValueChange={([val]) => updateNewAgent(agent.id, { voiceSpeed: val })}
+                            className="mt-1"
+                            data-testid={`slider-mgmt-new-agent-speed-${idx}`}
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+                            <span>0.5x Slow</span>
+                            <span>1.0x Normal</span>
+                            <span>1.5x Fast</span>
                           </div>
                         </div>
 
@@ -2061,7 +2100,7 @@ export default function DeprockManagement() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => handlePlayVoice(selectedAgent.voiceId)}
+                    onClick={() => handlePlayVoice(selectedAgent.voiceId, undefined, selectedAgent.voiceSpeed ?? 1.0)}
                     data-testid="deprock-button-preview-agent-voice"
                   >
                     {playingVoiceId === selectedAgent.voiceId ? (
@@ -2071,6 +2110,26 @@ export default function DeprockManagement() {
                     )}
                   </Button>
                 )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Agent Voice Speed</Label>
+                <span className="text-xs font-mono text-muted-foreground" data-testid="text-mgmt-selected-agent-speed">{(selectedAgent.voiceSpeed ?? 1.0).toFixed(2)}x</span>
+              </div>
+              <Slider
+                value={[selectedAgent.voiceSpeed ?? 1.0]}
+                min={0.5}
+                max={1.5}
+                step={0.01}
+                onValueChange={([val]) => setSelectedAgent({ ...selectedAgent, voiceSpeed: val })}
+                className="mt-1"
+                data-testid="slider-mgmt-selected-agent-speed"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+                <span>0.5x Slow</span>
+                <span>1.0x Normal</span>
+                <span>1.5x Fast</span>
               </div>
             </div>
             <div className="space-y-2">
@@ -2135,6 +2194,8 @@ export default function DeprockManagement() {
                     language: selectedAgent.language,
                     systemPrompt: selectedAgent.systemPrompt || undefined,
                     voiceTone: selectedAgent.voiceTone || undefined,
+                    voiceId: selectedAgent.voiceId || undefined,
+                    voiceSpeed: selectedAgent.voiceSpeed,
                   });
                 }
               }}
@@ -2424,7 +2485,7 @@ export default function DeprockManagement() {
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => handlePlayVoice(activeLangAgent.voiceId!)}
+                            onClick={() => handlePlayVoice(activeLangAgent.voiceId!, undefined, activeLangAgent.voiceSpeed ?? 1.0)}
                             data-testid="deprock-button-preview-voice"
                           >
                             {playingVoiceId === activeLangAgent.voiceId ? (
@@ -2437,6 +2498,27 @@ export default function DeprockManagement() {
                       </div>
                     </div>
                     
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">Agent Voice Speed</Label>
+                        <span className="text-xs font-mono text-muted-foreground" data-testid="text-mgmt-agent-voice-speed">{(activeLangAgent.voiceSpeed ?? 1.0).toFixed(2)}x</span>
+                      </div>
+                      <Slider
+                        value={[activeLangAgent.voiceSpeed ?? 1.0]}
+                        min={0.5}
+                        max={1.5}
+                        step={0.01}
+                        onValueChange={([val]) => updateLanguageAgent(activeLangAgent.id, { voiceSpeed: val })}
+                        className="mt-1"
+                        data-testid="slider-mgmt-agent-voice-speed"
+                      />
+                      <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+                        <span>0.5x Slow</span>
+                        <span>1.0x Normal</span>
+                        <span>1.5x Fast</span>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <Label>Voice Tone</Label>
@@ -2707,7 +2789,7 @@ export default function DeprockManagement() {
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={() => handleIvrVoicePreview(languageSelectionGreetingVoice, languageSelectionGreetingText)}
+                              onClick={() => handleIvrVoicePreview(languageSelectionGreetingVoice, languageSelectionGreetingText, ivrVoiceSpeed)}
                               data-testid="deprock-button-preview-greeting-voice"
                             >
                               {ivrPlayingVoiceId === languageSelectionGreetingVoice ? (
@@ -2716,6 +2798,26 @@ export default function DeprockManagement() {
                                 <Volume2 className="h-4 w-4" />
                               )}
                             </Button>
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs text-muted-foreground">Voice Speed</Label>
+                            <span className="text-xs font-mono text-muted-foreground" data-testid="text-mgmt-greeting-voice-speed">{ivrVoiceSpeed.toFixed(2)}x</span>
+                          </div>
+                          <Slider
+                            value={[ivrVoiceSpeed]}
+                            min={0.5}
+                            max={1.5}
+                            step={0.01}
+                            onValueChange={([val]) => setIvrVoiceSpeed(val)}
+                            className="mt-1"
+                            data-testid="slider-mgmt-greeting-voice-speed"
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+                            <span>0.5x Slow</span>
+                            <span>1.0x Normal</span>
+                            <span>1.5x Fast</span>
                           </div>
                         </div>
                       </div>
@@ -2799,7 +2901,7 @@ export default function DeprockManagement() {
                                   <Button
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => handleIvrVoicePreview(opt.voiceId, opt.greeting)}
+                                    onClick={() => handleIvrVoicePreview(opt.voiceId, opt.greeting, opt.speed ?? 0.92)}
                                     data-testid={`deprock-button-preview-voice-${idx}`}
                                   >
                                     {ivrPlayingVoiceId === opt.voiceId ? (
@@ -2811,6 +2913,27 @@ export default function DeprockManagement() {
                                 </div>
                               </div>
                               
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-xs text-muted-foreground">Voice Speed</Label>
+                                  <span className="text-xs font-mono text-muted-foreground" data-testid={`text-mgmt-voice-speed-${idx}`}>{(opt.speed ?? 0.92).toFixed(2)}x</span>
+                                </div>
+                                <Slider
+                                  value={[opt.speed ?? 0.92]}
+                                  min={0.5}
+                                  max={1.5}
+                                  step={0.01}
+                                  onValueChange={([val]) => updateLanguageOption(opt.id, { speed: val })}
+                                  className="mt-1"
+                                  data-testid={`slider-mgmt-voice-speed-${idx}`}
+                                />
+                                <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+                                  <span>0.5x Slow</span>
+                                  <span>1.0x Normal</span>
+                                  <span>1.5x Fast</span>
+                                </div>
+                              </div>
+
                               <div>
                                 <Label className="text-xs text-muted-foreground">Menu Departments</Label>
                                 <div className="mt-1 space-y-1">
@@ -2879,27 +3002,54 @@ export default function DeprockManagement() {
                   )}
                   
                   {!multiLangEnabled && (
-                    <div>
-                      <Label>Default Greeting Message</Label>
-                      <Textarea
-                        value={languageOptions[0]?.greeting || DEFAULT_GREETINGS.en}
-                        onChange={(e) => {
-                          if (languageOptions.length === 0) {
-                            setLanguageOptions([{
-                              id: "default",
-                              language: "en",
-                              voiceId: "Joanna",
-                              greeting: e.target.value,
-                            }]);
-                          } else {
-                            updateLanguageOption(languageOptions[0].id, { greeting: e.target.value });
-                          }
-                        }}
-                        rows={3}
-                        className="mt-1.5"
-                        placeholder="Thank you for calling..."
-                        data-testid="deprock-textarea-default-greeting"
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Default Greeting Message</Label>
+                        <Textarea
+                          value={languageOptions[0]?.greeting || DEFAULT_GREETINGS.en}
+                          onChange={(e) => {
+                            if (languageOptions.length === 0) {
+                              setLanguageOptions([{
+                                id: "default",
+                                language: "en",
+                                voiceId: "Joanna",
+                                greeting: e.target.value,
+                              }]);
+                            } else {
+                              updateLanguageOption(languageOptions[0].id, { greeting: e.target.value });
+                            }
+                          }}
+                          rows={3}
+                          className="mt-1.5"
+                          placeholder="Thank you for calling..."
+                          data-testid="deprock-textarea-default-greeting"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">Voice Speed</Label>
+                          <span className="text-xs font-mono text-muted-foreground" data-testid="text-mgmt-default-voice-speed">{(languageOptions[0]?.speed ?? ivrVoiceSpeed).toFixed(2)}x</span>
+                        </div>
+                        <Slider
+                          value={[languageOptions[0]?.speed ?? ivrVoiceSpeed]}
+                          min={0.5}
+                          max={1.5}
+                          step={0.01}
+                          onValueChange={([val]) => {
+                            setIvrVoiceSpeed(val);
+                            if (languageOptions.length > 0) {
+                              updateLanguageOption(languageOptions[0].id, { speed: val });
+                            }
+                          }}
+                          className="mt-1"
+                          data-testid="slider-mgmt-default-voice-speed"
+                        />
+                        <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+                          <span>0.5x Slow</span>
+                          <span>1.0x Normal</span>
+                          <span>1.5x Fast</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </>
@@ -2985,6 +3135,7 @@ export default function DeprockManagement() {
                           const res = await apiRequest("POST", "/api/deprock/voice-preview", {
                             voiceId: editAgentDetail.voiceId,
                             text: sampleText.substring(0, 200),
+                            speed: editAgentDetail.voiceSpeed ?? 1.0,
                           });
                           const blob = await res.blob();
                           const url = URL.createObjectURL(blob);
@@ -3057,6 +3208,27 @@ export default function DeprockManagement() {
                       </Select>
                     );
                   })()}
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">Agent Voice Speed</Label>
+                    <span className="text-xs font-mono text-muted-foreground" data-testid="text-agent-detail-voice-speed">{(editAgentDetail.voiceSpeed ?? 1.0).toFixed(2)}x</span>
+                  </div>
+                  <Slider
+                    value={[editAgentDetail.voiceSpeed ?? 1.0]}
+                    min={0.5}
+                    max={1.5}
+                    step={0.01}
+                    onValueChange={([val]) => setEditAgentDetail(prev => prev ? { ...prev, voiceSpeed: val } : prev)}
+                    className="mt-1"
+                    data-testid="slider-agent-detail-voice-speed"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+                    <span>0.5x Slow</span>
+                    <span>1.0x Normal</span>
+                    <span>1.5x Fast</span>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -3202,6 +3374,7 @@ export default function DeprockManagement() {
                         voiceTone: editAgentDetail.voiceTone,
                         firstMessage: editAgentDetail.firstMessage,
                         systemPrompt: editAgentDetail.systemPrompt,
+                        voiceSpeed: editAgentDetail.voiceSpeed,
                       });
                     }}
                     disabled={updateAgentConfigMutation.isPending}

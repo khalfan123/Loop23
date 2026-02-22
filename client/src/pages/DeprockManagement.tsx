@@ -252,7 +252,30 @@ const POLLY_VOICES = [
   { id: 'Burcu', name: 'Burcu', gender: 'female', style: 'natural', languages: ['tr'] },
 ];
 
-const ALL_IVR_VOICES = POLLY_VOICES;
+const ELEVENLABS_VOICES = [
+  { id: "el_rachel", name: "Rachel (ElevenLabs)", gender: "female", style: "warm", languages: ["en"] },
+  { id: "el_domi", name: "Domi (ElevenLabs)", gender: "female", style: "strong", languages: ["en"] },
+  { id: "el_bella", name: "Bella (ElevenLabs)", gender: "female", style: "soft", languages: ["en"] },
+  { id: "el_antoni", name: "Antoni (ElevenLabs)", gender: "male", style: "well-rounded", languages: ["en"] },
+  { id: "el_elli", name: "Elli (ElevenLabs)", gender: "female", style: "young", languages: ["en"] },
+  { id: "el_josh", name: "Josh (ElevenLabs)", gender: "male", style: "deep", languages: ["en"] },
+  { id: "el_arnold", name: "Arnold (ElevenLabs)", gender: "male", style: "crisp", languages: ["en"] },
+  { id: "el_adam", name: "Adam (ElevenLabs)", gender: "male", style: "deep", languages: ["en"] },
+  { id: "el_sam", name: "Sam (ElevenLabs)", gender: "male", style: "raspy", languages: ["en"] },
+  { id: "el_nicole", name: "Nicole (ElevenLabs)", gender: "female", style: "whisper", languages: ["en"] },
+  { id: "el_marie", name: "Marie (ElevenLabs)", gender: "female", style: "soft", languages: ["fr"] },
+  { id: "el_pierre", name: "Pierre (ElevenLabs)", gender: "male", style: "warm", languages: ["fr"] },
+  { id: "el_giulia", name: "Giulia (ElevenLabs)", gender: "female", style: "expressive", languages: ["it"] },
+  { id: "el_marco", name: "Marco (ElevenLabs)", gender: "male", style: "warm", languages: ["it"] },
+  { id: "el_xiaoli", name: "Xiaoli (ElevenLabs)", gender: "female", style: "clear", languages: ["zh"] },
+  { id: "el_wei", name: "Wei (ElevenLabs)", gender: "male", style: "professional", languages: ["zh"] },
+  { id: "el_priya", name: "Priya (ElevenLabs)", gender: "female", style: "warm", languages: ["hi"] },
+  { id: "el_raj", name: "Raj (ElevenLabs)", gender: "male", style: "deep", languages: ["hi"] },
+  { id: "el_fatima", name: "Fatima (ElevenLabs)", gender: "female", style: "warm", languages: ["ar"] },
+  { id: "el_omar", name: "Omar (ElevenLabs)", gender: "male", style: "deep", languages: ["ar"] },
+];
+
+const ALL_IVR_VOICES = [...POLLY_VOICES, ...ELEVENLABS_VOICES];
 
 
 const getVoicesForLanguage = (languageCode: string) => {
@@ -1848,7 +1871,15 @@ export default function DeprockManagement() {
                               </SelectTrigger>
                               <SelectContent>
                                 <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
-                                {ALL_IVR_VOICES.filter(v => v.languages.includes(agent.language)).map(voice => (
+                                {POLLY_VOICES.filter(v => v.languages.includes(agent.language)).map(voice => (
+                                  <SelectItem key={voice.id} value={voice.id}>
+                                    {voice.name} - {voice.gender}
+                                  </SelectItem>
+                                ))}
+                                {ELEVENLABS_VOICES.filter(v => v.languages.includes(agent.language)).length > 0 && (
+                                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">ElevenLabs Voices</div>
+                                )}
+                                {ELEVENLABS_VOICES.filter(v => v.languages.includes(agent.language)).map(voice => (
                                   <SelectItem key={voice.id} value={voice.id}>
                                     {voice.name} - {voice.gender}
                                   </SelectItem>
@@ -2647,6 +2678,14 @@ export default function DeprockManagement() {
                                     {voice.name} - {voice.gender}, {voice.style}
                                   </SelectItem>
                                 ))}
+                                {ELEVENLABS_VOICES.filter(v => v.languages.includes("en")).length > 0 && (
+                                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">ElevenLabs Voices</div>
+                                )}
+                                {ELEVENLABS_VOICES.filter(v => v.languages.includes("en")).map((voice) => (
+                                  <SelectItem key={voice.id} value={voice.id}>
+                                    {voice.name} - {voice.gender}, {voice.style}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             <Button
@@ -2912,11 +2951,11 @@ export default function DeprockManagement() {
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <Label className="text-xs text-muted-foreground">Voice (AWS Polly)</Label>
+                    <Label className="text-xs text-muted-foreground">Voice</Label>
                     <Button
                       variant="ghost"
                       size="icon"
-                      disabled={previewingVoice || !editAgentDetail.voiceId || !POLLY_VOICES.some(v => v.id === editAgentDetail.voiceId)}
+                      disabled={previewingVoice || !editAgentDetail.voiceId || !ALL_IVR_VOICES.some(v => v.id === editAgentDetail.voiceId)}
                       onClick={async () => {
                         if (!editAgentDetail.voiceId) return;
                         setPreviewingVoice(true);
@@ -2925,7 +2964,7 @@ export default function DeprockManagement() {
                             previewAudioRef.current.pause();
                             previewAudioRef.current = null;
                           }
-                          const voiceName = POLLY_VOICES.find(v => v.id === editAgentDetail.voiceId)?.name || editAgentDetail.voiceId;
+                          const voiceName = ALL_IVR_VOICES.find(v => v.id === editAgentDetail.voiceId)?.name || editAgentDetail.voiceId;
                           const sampleText = editAgentDetail.firstMessage || `Hello, I am ${voiceName}. This is how I sound.`;
                           const res = await apiRequest("POST", "/api/deprock/voice-preview", {
                             voiceId: editAgentDetail.voiceId,
@@ -2962,28 +3001,38 @@ export default function DeprockManagement() {
                   </div>
                   {(() => {
                     const currentVoiceId = editAgentDetail.voiceId;
-                    const isPollyVoice = POLLY_VOICES.some(v => v.id === currentVoiceId);
-                    const filteredVoices = POLLY_VOICES.filter(v => v.languages.includes(viewAgentDetail.language));
-                    const currentInFiltered = filteredVoices.some(v => v.id === currentVoiceId);
+                    const isKnownVoice = ALL_IVR_VOICES.some(v => v.id === currentVoiceId);
+                    const filteredPolly = POLLY_VOICES.filter(v => v.languages.includes(viewAgentDetail.language));
+                    const filteredEL = ELEVENLABS_VOICES.filter(v => v.languages.includes(viewAgentDetail.language));
+                    const currentInFiltered = [...filteredPolly, ...filteredEL].some(v => v.id === currentVoiceId);
                     return (
                       <Select
-                        value={isPollyVoice ? currentVoiceId : ''}
+                        value={isKnownVoice ? currentVoiceId : ''}
                         onValueChange={(val) => setEditAgentDetail(prev => prev ? { ...prev, voiceId: val } : prev)}
                       >
                         <SelectTrigger data-testid="deprock-agent-detail-select-voice">
                           <SelectValue placeholder={
-                            currentVoiceId && !isPollyVoice 
-                              ? `${currentVoiceId} (non-Polly)` 
+                            currentVoiceId && !isKnownVoice 
+                              ? `${currentVoiceId} (unknown)` 
                               : "Select a voice"
                           } />
                         </SelectTrigger>
                         <SelectContent>
-                          {!currentInFiltered && isPollyVoice && currentVoiceId && (
+                          {!currentInFiltered && isKnownVoice && currentVoiceId && (
                             <SelectItem key={currentVoiceId} value={currentVoiceId} data-testid={`deprock-agent-detail-voice-option-${currentVoiceId}`}>
-                              {POLLY_VOICES.find(v => v.id === currentVoiceId)?.name || currentVoiceId} (current)
+                              {ALL_IVR_VOICES.find(v => v.id === currentVoiceId)?.name || currentVoiceId} (current)
                             </SelectItem>
                           )}
-                          {filteredVoices.map(voice => (
+                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
+                          {filteredPolly.map(voice => (
+                            <SelectItem key={voice.id} value={voice.id} data-testid={`deprock-agent-detail-voice-option-${voice.id}`}>
+                              {voice.name} ({voice.gender}, {voice.style})
+                            </SelectItem>
+                          ))}
+                          {filteredEL.length > 0 && (
+                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">ElevenLabs Voices</div>
+                          )}
+                          {filteredEL.map(voice => (
                             <SelectItem key={voice.id} value={voice.id} data-testid={`deprock-agent-detail-voice-option-${voice.id}`}>
                               {voice.name} ({voice.gender}, {voice.style})
                             </SelectItem>

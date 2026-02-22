@@ -2416,16 +2416,24 @@ router.get("/forms", async (req: AuthRequest, res: Response) => {
           .where(eq(formFields.formId, form.id))
           .orderBy(formFields.order);
         
-        // Get submission count
-        const [submissionResult] = await db
-          .select({ count: sql<number>`count(*)` })
+        const formSubs = await db
+          .select()
           .from(formSubmissions)
-          .where(eq(formSubmissions.formId, form.id));
+          .where(eq(formSubmissions.formId, form.id))
+          .orderBy(desc(formSubmissions.submittedAt));
+        
+        const submissionCount = formSubs.length;
+        const uniqueContacts = new Set(formSubs.map(s => s.contactPhone).filter(Boolean)).size;
+        const totalResponses = formSubs.reduce((sum, s) => sum + (Array.isArray(s.responses) ? s.responses.length : 0), 0);
+        const latestSubmission = formSubs.length > 0 ? formSubs[0].submittedAt : null;
         
         return { 
           ...form, 
           fields,
-          submissionCount: Number(submissionResult?.count || 0)
+          submissionCount,
+          uniqueContacts,
+          totalResponses,
+          latestSubmission,
         };
       })
     );

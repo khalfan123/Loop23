@@ -41,6 +41,10 @@ interface Form {
   name: string;
   description: string | null;
   createdAt: string;
+  submissionCount?: number;
+  uniqueContacts?: number;
+  totalResponses?: number;
+  latestSubmission?: string | null;
 }
 
 interface FormField {
@@ -887,15 +891,27 @@ export default function FormsPage() {
                 <div className="font-medium text-[14px] leading-tight truncate" data-testid={`text-form-name-${form.id}`}>
                   {form.name}
                 </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-xs text-muted-foreground/70 font-light">
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  <span className="text-[11px] text-muted-foreground/60 font-light">
                     {format(new Date(form.createdAt), "MMM d, yyyy")}
                   </span>
-                  {(form as any).submissionCount > 0 && (
+                  <span className="text-muted-foreground/25">·</span>
+                  <span className="text-[11px] text-muted-foreground/60 font-light">
+                    {form.submissionCount || 0} {t("forms.totalSubmissions").toLowerCase()}
+                  </span>
+                  <span className="text-muted-foreground/25">·</span>
+                  <span className="text-[11px] text-muted-foreground/60 font-light">
+                    {form.uniqueContacts || 0} {t("forms.uniqueContacts").toLowerCase()}
+                  </span>
+                  <span className="text-muted-foreground/25">·</span>
+                  <span className="text-[11px] text-muted-foreground/60 font-light">
+                    {form.totalResponses || 0} {t("forms.totalResponses").toLowerCase()}
+                  </span>
+                  {form.latestSubmission && (
                     <>
-                      <span className="text-muted-foreground/30">·</span>
-                      <span className="text-xs text-muted-foreground/70 font-light">
-                        {(form as any).submissionCount} {t("forms.submissions").toLowerCase()}
+                      <span className="text-muted-foreground/25">·</span>
+                      <span className="text-[11px] text-muted-foreground/60 font-light">
+                        {t("forms.latestSubmission").toLowerCase()}: {format(new Date(form.latestSubmission), "MMM d")}
                       </span>
                     </>
                   )}

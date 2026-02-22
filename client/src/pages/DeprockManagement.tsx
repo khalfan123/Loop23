@@ -1475,8 +1475,6 @@ export default function DeprockManagement() {
                     key={dept.id}
                     department={dept}
                     index={idx + 1}
-                    isExpanded={expandedDepartments.has(dept.id)}
-                    onToggleExpand={() => toggleDepartmentExpanded(dept.id)}
                     onEdit={() => openConfigSheet(dept)}
                     onDelete={() => {
                       setSelectedDepartment(dept);
@@ -1617,8 +1615,6 @@ export default function DeprockManagement() {
                   key={dept.id}
                   department={dept}
                   index={idx + 1}
-                  isExpanded={expandedDepartments.has(dept.id)}
-                  onToggleExpand={() => toggleDepartmentExpanded(dept.id)}
                   onEdit={() => openConfigSheet(dept)}
                   onDelete={() => {
                     setSelectedDepartment(dept);
@@ -3210,8 +3206,6 @@ export default function DeprockManagement() {
 interface DeprockDepartmentCardProps {
   department: Department;
   index: number;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onFlow: () => void;
@@ -3222,8 +3216,6 @@ interface DeprockDepartmentCardProps {
 function DeprockDepartmentCard({
   department,
   index,
-  isExpanded,
-  onToggleExpand,
   onEdit,
   onDelete,
   onFlow,
@@ -3283,105 +3275,70 @@ function DeprockDepartmentCard({
         </div>
       </div>
 
-      <div 
-        className="flex items-center gap-1.5 cursor-pointer rounded-lg p-2 -mx-1 hover-elevate" 
-        onClick={onToggleExpand}
-        data-testid={`deprock-toggle-expand-${department.id}`}
-      >
-        {isExpanded ? (
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+      <div data-testid={`deprock-agent-list-${department.id}`}>
+        {agents.length > 0 ? (
+          <div className="flex items-start gap-3 flex-wrap py-1">
+            {agents.map((agent: any) => {
+              const initials = agent.agentName
+                .split(/\s+/)
+                .map((w: string) => w.charAt(0).toUpperCase())
+                .slice(0, 2)
+                .join('');
+              const langLabel = languages.find(l => l.value === agent.language)?.label || agent.language;
+              return (
+                <div
+                  key={agent.id}
+                  className="flex flex-col items-center gap-1 cursor-pointer group"
+                  onClick={() => onViewAgent({
+                    id: agent.id,
+                    agentId: agent.agentId,
+                    departmentId: department.id,
+                    agentName: agent.agentName,
+                    language: agent.language,
+                    systemPrompt: agent.systemPrompt ?? null,
+                    voiceTone: agent.voiceTone ?? null,
+                    voiceId: agent.voiceId ?? null,
+                    voiceProvider: agent.voiceProvider ?? null,
+                    knowledgeBaseIds: agent.knowledgeBaseIds ?? null,
+                    isPrimary: agent.isPrimary ?? false,
+                    agentType: agent.agentType ?? 'incoming',
+                    firstMessage: agent.firstMessage ?? null,
+                  })}
+                  data-testid={`deprock-view-agent-${agent.id}`}
+                >
+                  <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors" title={agent.agentName}>
+                    <span className="text-xs font-semibold text-primary">{initials}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/70 leading-tight text-center max-w-[52px] truncate">{langLabel}</span>
+                </div>
+              );
+            })}
+            <div
+              className="flex flex-col items-center gap-1 cursor-pointer group"
+              onClick={onAddAgent}
+              data-testid={`deprock-button-add-agent-${department.id}`}
+            >
+              <div className="w-9 h-9 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
+                <Plus className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70" />
+              </div>
+              <span className="text-[10px] text-muted-foreground/50 leading-tight">Add</span>
+            </div>
+          </div>
         ) : (
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
-        )}
-        <span className="text-xs text-muted-foreground/70 flex-1">
-          {agentCount > 0 ? `${agentCount} assigned agent${agentCount !== 1 ? 's' : ''}` : 'No agents assigned'}
-        </span>
-        {agentCount > 0 && (
-          <div className="flex -space-x-1">
-            {agents.slice(0, 3).map((agent: { id: string; agentId: string; agentName: string; language: string }) => (
-              <div 
-                key={agent.id} 
-                className="w-5 h-5 rounded-full bg-background border border-border/50 flex items-center justify-center"
-                title={agent.agentName}
-              >
-                <span className="text-[8px] font-medium text-foreground/70">{agent.agentName.charAt(0).toUpperCase()}</span>
+          <div className="flex items-center justify-center py-3">
+            <div
+              className="flex flex-col items-center gap-1 cursor-pointer group"
+              onClick={onAddAgent}
+              data-testid={`deprock-button-add-agent-${department.id}`}
+            >
+              <div className="w-9 h-9 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
+                <Plus className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70" />
               </div>
-            ))}
-            {agents.length > 3 && (
-              <div className="w-5 h-5 rounded-full bg-background border border-border/50 flex items-center justify-center">
-                <span className="text-[8px] font-medium text-muted-foreground">+{agents.length - 3}</span>
-              </div>
-            )}
+              <span className="text-[10px] text-muted-foreground/50 leading-tight">Add Agent</span>
+            </div>
           </div>
         )}
       </div>
-      
-      {isExpanded && (
-        <div data-testid={`deprock-agent-list-${department.id}`}>
-          {agents.length > 0 ? (
-            <div className="flex items-start gap-3 flex-wrap py-1">
-              {agents.map((agent: any) => {
-                const initials = agent.agentName
-                  .split(/\s+/)
-                  .map((w: string) => w.charAt(0).toUpperCase())
-                  .slice(0, 2)
-                  .join('');
-                const langLabel = languages.find(l => l.value === agent.language)?.label || agent.language;
-                return (
-                  <div
-                    key={agent.id}
-                    className="flex flex-col items-center gap-1 cursor-pointer group"
-                    onClick={() => onViewAgent({
-                      id: agent.id,
-                      agentId: agent.agentId,
-                      departmentId: department.id,
-                      agentName: agent.agentName,
-                      language: agent.language,
-                      systemPrompt: agent.systemPrompt ?? null,
-                      voiceTone: agent.voiceTone ?? null,
-                      voiceId: agent.voiceId ?? null,
-                      voiceProvider: agent.voiceProvider ?? null,
-                      knowledgeBaseIds: agent.knowledgeBaseIds ?? null,
-                      isPrimary: agent.isPrimary ?? false,
-                      agentType: agent.agentType ?? 'incoming',
-                      firstMessage: agent.firstMessage ?? null,
-                    })}
-                    data-testid={`deprock-view-agent-${agent.id}`}
-                  >
-                    <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors" title={agent.agentName}>
-                      <span className="text-xs font-semibold text-primary">{initials}</span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground/70 leading-tight text-center max-w-[52px] truncate">{langLabel}</span>
-                  </div>
-                );
-              })}
-              <div
-                className="flex flex-col items-center gap-1 cursor-pointer group"
-                onClick={onAddAgent}
-                data-testid={`deprock-button-add-agent-${department.id}`}
-              >
-                <div className="w-9 h-9 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70" />
-                </div>
-                <span className="text-[10px] text-muted-foreground/50 leading-tight">Add</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-3">
-              <div
-                className="flex flex-col items-center gap-1 cursor-pointer group"
-                onClick={onAddAgent}
-                data-testid={`deprock-button-add-agent-${department.id}`}
-              >
-                <div className="w-9 h-9 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70" />
-                </div>
-                <span className="text-[10px] text-muted-foreground/50 leading-tight">Add Agent</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       <Button variant="ghost" size="sm" onClick={onFlow} className="w-full text-xs text-muted-foreground" data-testid={`deprock-button-flow-${department.id}`}>
         <GitBranch className="h-3.5 w-3.5 mr-1.5" />

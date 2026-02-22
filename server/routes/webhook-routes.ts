@@ -733,11 +733,18 @@ const TWILIO_LANGUAGE_VOICES: Record<string, { voice: string; lang: string }> = 
   zh: { voice: 'Polly.Zhiyu', lang: 'cmn-CN' },
   hi: { voice: 'Polly.Kajal', lang: 'hi-IN' },
   ar: { voice: 'Polly.Hala-Neural', lang: 'ar-AE' },
+  es: { voice: 'Polly.Lupe', lang: 'es-US' },
+  de: { voice: 'Polly.Vicki', lang: 'de-DE' },
+  ja: { voice: 'Polly.Kazuha', lang: 'ja-JP' },
+  ko: { voice: 'Polly.Seoyeon', lang: 'ko-KR' },
+  pt: { voice: 'Polly.Camila', lang: 'pt-BR' },
+  ru: { voice: 'Polly.Tatyana', lang: 'ru-RU' },
+  tr: { voice: 'Polly.Filiz', lang: 'tr-TR' },
+  ur: { voice: 'Polly.Joanna', lang: 'en-US' },
 };
 
 const OPENAI_VOICES = ["alloy", "echo", "shimmer", "ash", "coral", "sage", "verse", "nova", "fable", "onyx"];
 
-// Language selection prompts spoken in their native language
 const IVR_LANGUAGE_PROMPTS: Record<string, string> = {
   en: 'For English, please press',
   fr: 'Pour continuer en fran\u00e7ais, veuillez appuyer sur le',
@@ -745,6 +752,14 @@ const IVR_LANGUAGE_PROMPTS: Record<string, string> = {
   zh: '\u5982\u9700\u4E2D\u6587\u670D\u52A1\uFF0C\u8BF7\u6309',
   hi: '\u0939\u093F\u0902\u0926\u0940 \u092E\u0947\u0902 \u0938\u0947\u0935\u093E \u0915\u0947 \u0932\u093F\u090F, \u0915\u0943\u092A\u092F\u093E \u0926\u092C\u093E\u090F\u0902',
   ar: '\u0644\u0644\u0645\u062A\u0627\u0628\u0639\u0629 \u0628\u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629\u060C \u064A\u0631\u062C\u0649 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649',
+  es: 'Para espa\u00f1ol, por favor presione',
+  de: 'F\u00fcr Deutsch, dr\u00fccken Sie bitte',
+  ja: '\u65E5\u672C\u8A9E\u306E\u5834\u5408\u306F\u3001\u62BC\u3057\u3066\u304F\u3060\u3055\u3044',
+  ko: '\uD55C\uAD6D\uC5B4\uB294, \uB204\uB974\uC138\uC694',
+  pt: 'Para portugu\u00eas, por favor pressione',
+  ru: '\u0414\u043B\u044F \u0440\u0443\u0441\u0441\u043A\u043E\u0433\u043E \u044F\u0437\u044B\u043A\u0430, \u043D\u0430\u0436\u043C\u0438\u0442\u0435',
+  tr: 'T\u00fcrk\u00e7e i\u00e7in, l\u00fctfen bas\u0131n',
+  ur: '\u0627\u0631\u062F\u0648 \u06A9\u06D2 \u0644\u06CC\u06D2\u060C \u0628\u0631\u0627\u06C1 \u06A9\u0631\u0645 \u062F\u0628\u0627\u0626\u06CC\u06BA',
 };
 
 // Department menu templates for each language
@@ -797,6 +812,70 @@ const IVR_DEPT_TEMPLATES: Record<string, { prefix: string; pressKey: string; hol
     invalidMsg: '\u0639\u0630\u0631\u0627\u064B\u060C \u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u062A\u0639\u0631\u0641 \u0639\u0644\u0649 \u0627\u062E\u062A\u064A\u0627\u0631\u0643. \u064A\u0631\u062C\u0649 \u0627\u0644\u0627\u0633\u062A\u0645\u0627\u0639 \u0628\u0639\u0646\u0627\u064A\u0629 \u0648\u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.',
     noInputMsg: '\u0644\u0645 \u0646\u062A\u0644\u0642\u0651 \u0627\u062E\u062A\u064A\u0627\u0631\u0643. \u064A\u0631\u062C\u0649 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0627\u062A\u0635\u0627\u0644.',
   },
+  es: {
+    prefix: 'Para',
+    pressKey: 'presione',
+    holdMsg: 'Gracias. Por favor espere mientras lo conectamos con el pr\u00f3ximo representante disponible.',
+    noAgentMsg: 'Disculpe las molestias. Todos nuestros representantes est\u00e1n ocupados. Por favor intente nuevamente en unos momentos.',
+    invalidMsg: 'Lo sentimos, esa selecci\u00f3n no fue reconocida. Por favor escuche con atenci\u00f3n e intente de nuevo.',
+    noInputMsg: 'No recibimos su selecci\u00f3n. Por favor intente su llamada nuevamente.',
+  },
+  de: {
+    prefix: 'F\u00fcr',
+    pressKey: 'dr\u00fccken Sie',
+    holdMsg: 'Vielen Dank. Bitte warten Sie, w\u00e4hrend wir Sie mit dem n\u00e4chsten verf\u00fcgbaren Mitarbeiter verbinden.',
+    noAgentMsg: 'Wir entschuldigen uns f\u00fcr die Unannehmlichkeiten. Alle unsere Mitarbeiter sind derzeit besch\u00e4ftigt. Bitte versuchen Sie es in K\u00fcrze erneut.',
+    invalidMsg: 'Leider wurde Ihre Auswahl nicht erkannt. Bitte h\u00f6ren Sie aufmerksam zu und versuchen Sie es erneut.',
+    noInputMsg: 'Wir haben Ihre Auswahl nicht erhalten. Bitte versuchen Sie es erneut.',
+  },
+  ja: {
+    prefix: '',
+    pressKey: '\u3092\u62BC\u3057\u3066\u304F\u3060\u3055\u3044',
+    holdMsg: '\u3042\u308A\u304C\u3068\u3046\u3054\u3056\u3044\u307E\u3059\u3002\u6B21\u306E\u62C5\u5F53\u8005\u306B\u304A\u3064\u306A\u304E\u3057\u307E\u3059\u306E\u3067\u3001\u5C11\u3005\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u3002',
+    noAgentMsg: '\u7533\u3057\u8A33\u3054\u3056\u3044\u307E\u305B\u3093\u3002\u73FE\u5728\u5BFE\u5FDC\u53EF\u80FD\u306A\u62C5\u5F53\u8005\u304C\u304A\u308A\u307E\u305B\u3093\u3002\u5C11\u3005\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u3002',
+    invalidMsg: '\u7533\u3057\u8A33\u3054\u3056\u3044\u307E\u305B\u3093\u3001\u305D\u306E\u9078\u629E\u306F\u8A8D\u8B58\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u3082\u3046\u4E00\u5EA6\u304A\u8A66\u3057\u304F\u3060\u3055\u3044\u3002',
+    noInputMsg: '\u9078\u629E\u3092\u53D7\u3051\u53D6\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002\u304A\u304B\u3051\u76F4\u3057\u304F\u3060\u3055\u3044\u3002',
+  },
+  ko: {
+    prefix: '',
+    pressKey: '\uBC88\uC744 \uB204\uB974\uC138\uC694',
+    holdMsg: '\uAC10\uC0AC\uD569\uB2C8\uB2E4. \uB2E4\uC74C \uC0C1\uB2F4\uC6D0\uC5D0\uAC8C \uC5F0\uACB0\uD574 \uB4DC\uB9AC\uACA0\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824 \uC8FC\uC138\uC694.',
+    noAgentMsg: '\uBD88\uD3B8\uC744 \uB4DC\uB824 \uC8C4\uC1A1\uD569\uB2C8\uB2E4. \uD604\uC7AC \uBAA8\uB4E0 \uC0C1\uB2F4\uC6D0\uC774 \uD1B5\uD654 \uC911\uC785\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4\uC5D0 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.',
+    invalidMsg: '\uC8C4\uC1A1\uD569\uB2C8\uB2E4, \uD574\uB2F9 \uC120\uD0DD\uC744 \uC778\uC2DD\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.',
+    noInputMsg: '\uC120\uD0DD\uC744 \uBC1B\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC804\uD654\uD574 \uC8FC\uC138\uC694.',
+  },
+  pt: {
+    prefix: 'Para',
+    pressKey: 'pressione',
+    holdMsg: 'Obrigado. Por favor aguarde enquanto conectamos voc\u00ea ao pr\u00f3ximo representante dispon\u00edvel.',
+    noAgentMsg: 'Pedimos desculpas pelo inconveniente. Todos os nossos representantes est\u00e3o ocupados. Por favor tente novamente em breve.',
+    invalidMsg: 'Desculpe, essa sele\u00e7\u00e3o n\u00e3o foi reconhecida. Por favor ou\u00e7a com aten\u00e7\u00e3o e tente novamente.',
+    noInputMsg: 'N\u00e3o recebemos sua sele\u00e7\u00e3o. Por favor tente sua liga\u00e7\u00e3o novamente.',
+  },
+  ru: {
+    prefix: '\u0414\u043B\u044F',
+    pressKey: '\u043D\u0430\u0436\u043C\u0438\u0442\u0435',
+    holdMsg: '\u0421\u043F\u0430\u0441\u0438\u0431\u043E. \u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u043F\u043E\u0434\u043E\u0436\u0434\u0438\u0442\u0435, \u043C\u044B \u0441\u043E\u0435\u0434\u0438\u043D\u044F\u0435\u043C \u0432\u0430\u0441 \u0441\u043E \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u043C \u0441\u0432\u043E\u0431\u043E\u0434\u043D\u044B\u043C \u043E\u043F\u0435\u0440\u0430\u0442\u043E\u0440\u043E\u043C.',
+    noAgentMsg: '\u041F\u0440\u0438\u043D\u043E\u0441\u0438\u043C \u0438\u0437\u0432\u0438\u043D\u0435\u043D\u0438\u044F. \u0412\u0441\u0435 \u043E\u043F\u0435\u0440\u0430\u0442\u043E\u0440\u044B \u0441\u0435\u0439\u0447\u0430\u0441 \u0437\u0430\u043D\u044F\u0442\u044B. \u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u043F\u0435\u0440\u0435\u0437\u0432\u043E\u043D\u0438\u0442\u0435 \u043F\u043E\u0437\u0436\u0435.',
+    invalidMsg: '\u0418\u0437\u0432\u0438\u043D\u0438\u0442\u0435, \u0432\u0430\u0448 \u0432\u044B\u0431\u043E\u0440 \u043D\u0435 \u0440\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u043D. \u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u0432\u043D\u0438\u043C\u0430\u0442\u0435\u043B\u044C\u043D\u043E \u043F\u0440\u043E\u0441\u043B\u0443\u0448\u0430\u0439\u0442\u0435 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430.',
+    noInputMsg: '\u041C\u044B \u043D\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u043B\u0438 \u0432\u0430\u0448 \u0432\u044B\u0431\u043E\u0440. \u041F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u043F\u0435\u0440\u0435\u0437\u0432\u043E\u043D\u0438\u0442\u0435.',
+  },
+  tr: {
+    prefix: '',
+    pressKey: 'tu\u015Funa bas\u0131n',
+    holdMsg: 'Te\u015Fekk\u00fcr ederiz. Sizi bir sonraki m\u00fcsait temsilciye ba\u011Flarken l\u00fctfen bekleyin.',
+    noAgentMsg: 'Rahats\u0131zl\u0131k i\u00e7in \u00f6z\u00fcr dileriz. T\u00fcm temsilcilerimiz \u015Fu anda me\u015Fgul. L\u00fctfen k\u0131sa bir s\u00fcre sonra tekrar deneyin.',
+    invalidMsg: '\u00dczg\u00fcn\u00fcz, bu se\u00e7im tan\u0131nmad\u0131. L\u00fctfen dikkatli dinleyin ve tekrar deneyin.',
+    noInputMsg: 'Se\u00e7iminizi alamad\u0131k. L\u00fctfen tekrar aray\u0131n.',
+  },
+  ur: {
+    prefix: '',
+    pressKey: '\u062F\u0628\u0627\u0626\u06CC\u06BA',
+    holdMsg: '\u0634\u06A9\u0631\u06CC\u06C1\u06D4 \u0628\u0631\u0627\u06C1 \u06A9\u0631\u0645 \u0627\u0646\u062A\u0638\u0627\u0631 \u06A9\u0631\u06CC\u06BA\u060C \u06C1\u0645 \u0622\u067E \u06A9\u0648 \u0627\u06AF\u0644\u06D2 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u0645\u0627\u0626\u0646\u062F\u06D2 \u0633\u06D2 \u062C\u0648\u0691 \u0631\u06C1\u06D2 \u06C1\u06CC\u06BA\u06D4',
+    noAgentMsg: '\u0627\u0633 \u0648\u0642\u062A \u06A9\u0648\u0626\u06CC \u0646\u0645\u0627\u0626\u0646\u062F\u06C1 \u062F\u0633\u062A\u06CC\u0627\u0628 \u0646\u06C1\u06CC\u06BA\u06D4 \u0628\u0631\u0627\u06C1 \u06A9\u0631\u0645 \u062A\u06BE\u0648\u0691\u06CC \u062F\u06CC\u0631 \u0628\u0639\u062F \u062F\u0648\u0628\u0627\u0631\u06C1 \u06A9\u0648\u0634\u0634 \u06A9\u0631\u06CC\u06BA\u06D4',
+    invalidMsg: '\u0645\u0639\u0630\u0631\u062A\u060C \u0622\u067E \u06A9\u0627 \u0627\u0646\u062A\u062E\u0627\u0628 \u067E\u06C1\u0686\u0627\u0646\u0627 \u0646\u06C1\u06CC\u06BA \u06AF\u06CC\u0627\u06D4 \u0628\u0631\u0627\u06C1 \u06A9\u0631\u0645 \u063A\u0648\u0631 \u0633\u06D2 \u0633\u0646\u06CC\u06BA \u0627\u0648\u0631 \u062F\u0648\u0628\u0627\u0631\u06C1 \u06A9\u0648\u0634\u0634 \u06A9\u0631\u06CC\u06BA\u06D4',
+    noInputMsg: '\u06C1\u0645\u06CC\u06BA \u0622\u067E \u06A9\u0627 \u0627\u0646\u062A\u062E\u0627\u0628 \u0645\u0648\u0635\u0648\u0644 \u0646\u06C1\u06CC\u06BA \u06C1\u0648\u0627\u06D4 \u0628\u0631\u0627\u06C1 \u06A9\u0631\u0645 \u062F\u0648\u0628\u0627\u0631\u06C1 \u06A9\u0627\u0644 \u06A9\u0631\u06CC\u06BA\u06D4',
+  },
 };
 
 const IVR_LANG_CONFIRMATIONS: Record<string, string> = {
@@ -806,6 +885,14 @@ const IVR_LANG_CONFIRMATIONS: Record<string, string> = {
   zh: '\u60A8\u5DF2\u9009\u62E9\u4E2D\u6587\u670D\u52A1\u3002\u8BF7\u7A0D\u5019\u3002',
   hi: '\u0906\u092A\u0928\u0947 \u0939\u093F\u0902\u0926\u0940 \u091A\u0941\u0928\u0940 \u0939\u0948\u0964 \u0915\u0943\u092A\u092F\u093E \u090F\u0915 \u0915\u094D\u0937\u0923 \u092A\u094D\u0930\u0924\u0940\u0915\u094D\u0937\u093E \u0915\u0930\u0947\u0902\u0964',
   ar: '\u0644\u0642\u062F \u0627\u062E\u062A\u0631\u062A \u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629. \u0644\u062D\u0638\u0629 \u0645\u0646 \u0641\u0636\u0644\u0643.',
+  es: 'Ha seleccionado espa\u00f1ol. Un momento, por favor.',
+  de: 'Sie haben Deutsch gew\u00e4hlt. Einen Moment bitte.',
+  ja: '\u65E5\u672C\u8A9E\u3092\u9078\u629E\u3055\u308C\u307E\u3057\u305F\u3002\u5C11\u3005\u304A\u5F85\u3061\u304F\u3060\u3055\u3044\u3002',
+  ko: '\uD55C\uAD6D\uC5B4\uB97C \uC120\uD0DD\uD558\uC168\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824 \uC8FC\uC138\uC694.',
+  pt: 'Voc\u00ea selecionou portugu\u00eas. Um momento, por favor.',
+  ru: '\u0412\u044B \u0432\u044B\u0431\u0440\u0430\u043B\u0438 \u0440\u0443\u0441\u0441\u043A\u0438\u0439 \u044F\u0437\u044B\u043A. \u041E\u0434\u043D\u0443 \u043C\u0438\u043D\u0443\u0442\u0443, \u043F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430.',
+  tr: 'T\u00fcrk\u00e7e se\u00e7tiniz. L\u00fctfen bir dakika bekleyin.',
+  ur: '\u0622\u067E \u0646\u06D2 \u0627\u0631\u062F\u0648 \u0645\u0646\u062A\u062E\u0628 \u06A9\u06CC \u06C1\u06D2\u06D4 \u0628\u0631\u0627\u06C1 \u06A9\u0631\u0645 \u0627\u06CC\u06A9 \u0644\u0645\u062D\u06C1 \u0627\u0646\u062A\u0638\u0627\u0631 \u06A9\u0631\u06CC\u06BA\u06D4',
 };
 
 function saySlow(parent: any, attrs: Record<string, any>, text: string, speed: number = 0.92) {
@@ -879,6 +966,14 @@ const NUMBER_WORDS: Record<string, string[]> = {
   zh: ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'],
   hi: ['शून्य', 'एक', 'दो', 'तीन', 'चार', 'पाँच', 'छह', 'सात', 'आठ', 'नौ'],
   ar: ['صفر', 'واحد', 'اثنين', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'],
+  es: ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'],
+  de: ['null', 'eins', 'zwei', 'drei', 'vier', 'f\u00fcnf', 'sechs', 'sieben', 'acht', 'neun'],
+  ja: ['\u30BC\u30ED', '\u4E00', '\u4E8C', '\u4E09', '\u56DB', '\u4E94', '\u516D', '\u4E03', '\u516B', '\u4E5D'],
+  ko: ['\uC601', '\uC77C', '\uC774', '\uC0BC', '\uC0AC', '\uC624', '\uC721', '\uCE60', '\uD314', '\uAD6C'],
+  pt: ['zero', 'um', 'dois', 'tr\u00eas', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'],
+  ru: ['\u043D\u043E\u043B\u044C', '\u043E\u0434\u0438\u043D', '\u0434\u0432\u0430', '\u0442\u0440\u0438', '\u0447\u0435\u0442\u044B\u0440\u0435', '\u043F\u044F\u0442\u044C', '\u0448\u0435\u0441\u0442\u044C', '\u0441\u0435\u043C\u044C', '\u0432\u043E\u0441\u0435\u043C\u044C', '\u0434\u0435\u0432\u044F\u0442\u044C'],
+  tr: ['s\u0131f\u0131r', 'bir', 'iki', '\u00fc\u00e7', 'd\u00f6rt', 'be\u015F', 'alt\u0131', 'yedi', 'sekiz', 'dokuz'],
+  ur: ['\u0635\u0641\u0631', '\u0627\u06CC\u06A9', '\u062F\u0648', '\u062A\u06CC\u0646', '\u0686\u0627\u0631', '\u067E\u0627\u0646\u0686', '\u0686\u06BE', '\u0633\u0627\u062A', '\u0622\u0679\u06BE', '\u0646\u0648'],
 };
 
 function spokenNumber(num: number, langCode: string): string {

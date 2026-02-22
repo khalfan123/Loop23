@@ -32,6 +32,8 @@ const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invali
   fi: { pressKey: 'paina', invalidMsg: 'Virheellinen valinta. Yritä uudelleen.', noInputMsg: 'Emme saaneet vastausta.', holdMsg: 'Odota hetki, yhdistämme sinut.', noAgentMsg: 'Valitettavasti yhtään agenttia ei ole saatavilla tällä hetkellä.', goodbyeMsg: 'Kiitos soitostasi. Näkemiin.', greeting: 'Tervetuloa. Kuuntele seuraavat vaihtoehdot.', repeatMsg: 'Toistaaksesi nämä vaihtoehdot, paina 0.', stillThereMsg: 'Oletko vielä siellä?' },
   da: { pressKey: 'tryk', invalidMsg: 'Ugyldigt valg. Prøv igen.', noInputMsg: 'Vi modtog ikke noget svar.', holdMsg: 'Vent venligst, mens vi forbinder dig.', noAgentMsg: 'Beklager, der er ingen agent tilgængelig i øjeblikket.', goodbyeMsg: 'Tak fordi du ringede. Farvel.', greeting: 'Velkommen. Lyt venligst til følgende muligheder.', repeatMsg: 'For at gentage disse muligheder, tryk 0.', stillThereMsg: 'Er du stadig der?' },
   tr: { pressKey: 'basın', invalidMsg: 'Geçersiz seçim. Lütfen tekrar deneyin.', noInputMsg: 'Yanıt alamadık.', holdMsg: 'Sizi bağlarken lütfen bekleyin.', noAgentMsg: 'Üzgünüz, şu anda müsait bir temsilci yok.', goodbyeMsg: 'Aramanız için teşekkür ederiz. Hoşça kalın.', greeting: 'Hoş geldiniz. Lütfen aşağıdaki seçenekleri dinleyin.', repeatMsg: 'Bu seçenekleri tekrarlamak için 0 tuşuna basın.', stillThereMsg: 'Hâlâ orada mısınız?' },
+  ru: { pressKey: 'нажмите', invalidMsg: 'Неверный выбор. Пожалуйста, попробуйте ещё раз.', noInputMsg: 'Мы не получили ответа.', holdMsg: 'Пожалуйста, подождите, мы вас соединяем.', noAgentMsg: 'К сожалению, в данный момент нет свободных операторов.', goodbyeMsg: 'Спасибо за звонок. До свидания.', greeting: 'Добро пожаловать. Пожалуйста, прослушайте следующие варианты.', repeatMsg: 'Чтобы повторить эти варианты, нажмите 0.', stillThereMsg: 'Вы ещё на линии?' },
+  ur: { pressKey: 'دبائیں', invalidMsg: 'غلط انتخاب۔ براہ کرم دوبارہ کوشش کریں۔', noInputMsg: 'ہمیں کوئی جواب نہیں ملا۔', holdMsg: 'براہ کرم انتظار کریں، ہم آپ کو جوڑ رہے ہیں۔', noAgentMsg: 'معذرت، اس وقت کوئی ایجنٹ دستیاب نہیں ہے۔', goodbyeMsg: 'کال کرنے کا شکریہ۔ خدا حافظ۔', greeting: 'خوش آمدید۔ براہ کرم درج ذیل اختیارات سنیں۔', repeatMsg: 'ان اختیارات کو دہرانے کے لیے 0 دبائیں۔', stillThereMsg: 'کیا آپ ابھی بھی یہاں ہیں؟' },
 };
 
 const NUMBER_WORDS: Record<string, string[]> = {
@@ -53,6 +55,8 @@ const NUMBER_WORDS: Record<string, string[]> = {
   fi: ['nolla', 'yksi', 'kaksi', 'kolme', 'neljä', 'viisi', 'kuusi', 'seitsemän', 'kahdeksan', 'yhdeksän'],
   da: ['nul', 'en', 'to', 'tre', 'fire', 'fem', 'seks', 'syv', 'otte', 'ni'],
   tr: ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'],
+  ru: ['ноль', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'],
+  ur: ['صفر', 'ایک', 'دو', 'تین', 'چار', 'پانچ', 'چھ', 'سات', 'آٹھ', 'نو'],
 };
 
 function getTemplate(lang: string) {
@@ -68,7 +72,7 @@ const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', ar: 'العربية', es: 'Español', fr: 'Français', de: 'Deutsch',
   it: 'Italiano', pt: 'Português', zh: '中文', hi: 'हिन्दी', ja: '日本語',
   ko: '한국어', nl: 'Nederlands', pl: 'Polski', sv: 'Svenska', no: 'Norsk',
-  fi: 'Suomi', tr: 'Türkçe',
+  fi: 'Suomi', tr: 'Türkçe', ru: 'Русский', ur: 'اردو',
 };
 
 function escapeXml(str: string): string {

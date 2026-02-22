@@ -71,7 +71,7 @@ export class BedrockAgentFactory {
   }
 
   static createAgentConfig(params: {
-    voice: PollyVoiceId;
+    voice: string;
     model: BedrockModel;
     systemPrompt: string;
     firstMessage?: string;
@@ -79,9 +79,12 @@ export class BedrockAgentFactory {
     userTier?: 'free' | 'pro';
     toolContext?: ToolContext;
     language?: string;
+    ttsProvider?: 'aws_polly' | 'elevenlabs';
+    elevenLabsVoiceId?: string;
+    elevenLabsApiKey?: string;
   }): AgentConfigWithContext {
     const tier = params.userTier || 'free';
-    const voice = this.validateVoice(params.voice);
+    const voice = params.ttsProvider === 'elevenlabs' ? params.voice : this.validateVoice(params.voice);
     const model = this.validateModel(params.model, tier);
     const language = params.language || 'en';
 
@@ -168,6 +171,9 @@ CRITICAL BEHAVIORAL RULES:
       temperature: params.temperature ?? 0.7,
       tools: [],
       toolContext: params.toolContext,
+      ttsProvider: params.ttsProvider,
+      elevenLabsVoiceId: params.elevenLabsVoiceId,
+      elevenLabsApiKey: params.elevenLabsApiKey,
     };
   }
 

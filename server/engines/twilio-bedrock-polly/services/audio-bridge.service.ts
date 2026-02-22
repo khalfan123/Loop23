@@ -115,8 +115,9 @@ export class BedrockPollyAudioBridge {
   static async createSession(params: CreateSessionParams): Promise<BedrockPollyBridgeSession> {
     const { callSid, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection } = params;
 
+    const ttsLabel = agentConfig.ttsProvider === 'elevenlabs' ? 'ElevenLabs' : 'AWS Polly';
     console.log(`[BedrockPolly Bridge] Creating session for call ${callSid} (direction: ${callDirection || 'unknown'})`);
-    console.log(`[BedrockPolly Bridge] Voice: ${agentConfig.voice}, Model: ${agentConfig.model}`);
+    console.log(`[BedrockPolly Bridge] TTS: ${ttsLabel}, Voice: ${agentConfig.ttsProvider === 'elevenlabs' ? agentConfig.elevenLabsVoiceId : agentConfig.voice}, Model: ${agentConfig.model}`);
 
     const session: BedrockPollyBridgeSession = {
       callSid,
@@ -141,6 +142,7 @@ export class BedrockPollyAudioBridge {
       pendingAudioQueue: [],
       isProcessing: false,
       pollyEngine: 'neural',
+      ttsProvider: agentConfig.ttsProvider || 'aws_polly',
     };
 
     if (agentConfig.tools) {
@@ -578,14 +580,60 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
   }
 
   /**
-   * Synthesize the given text into speech via AWS Polly and stream
+   * Synthesize text to speech via ElevenLabs TTS API returning PCM audio buffer.
+   * Uses the /v1/text-to-speech/{voice_id} endpoint with pcm_16000 output format,
+   * then downsamples to 8kHz PCM for Twilio mulaw conversion.
+   */
+  private static async synthesizeWithElevenLabs(
+    text: string,
+    voiceId: string,
+    apiKey: string
+  ): Promise<Buffer> {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=pcm_16000`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.55,
+          similarity_boost: 0.85,
+          speed: 1.0,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`ElevenLabs TTS API error ${response.status}: ${errorText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const pcm16k = Buffer.from(arrayBuffer);
+
+    const sampleCount = pcm16k.length / 2;
+    const outputCount = Math.floor(sampleCount / 2);
+    const pcm8k = Buffer.alloc(outputCount * 2);
+    for (let i = 0; i < outputCount; i++) {
+      pcm8k.writeInt16LE(pcm16k.readInt16LE(i * 4), i * 2);
+    }
+
+    return pcm8k;
+  }
+
+  /**
+   * Synthesize the given text into speech and stream
    * the resulting audio back to the Twilio WebSocket as mulaw chunks.
+   * Routes to ElevenLabs or AWS Polly based on session ttsProvider.
    */
   private static async synthesizeAndSend(
     session: BedrockPollyBridgeSession,
     text: string
   ): Promise<void> {
-    const { callSid, agentConfig, twilioWs, streamSid } = session;
+    const { callSid, agentConfig, twilioWs, streamSid, ttsProvider } = session;
 
     if (!twilioWs || twilioWs.readyState !== WebSocket.OPEN || !streamSid) {
       console.warn(`[BedrockPolly Bridge] Cannot send audio — stream not ready for ${callSid}`);
@@ -599,35 +647,30 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         return;
       }
 
-      const MAX_POLLY_CHARS = 3000;
-      const synthesisText = trimmedText.length > MAX_POLLY_CHARS 
-        ? trimmedText.substring(0, MAX_POLLY_CHARS) 
+      const MAX_CHARS = 3000;
+      const synthesisText = trimmedText.length > MAX_CHARS 
+        ? trimmedText.substring(0, MAX_CHARS) 
         : trimmedText;
 
-      const ssmlText = humanizeToSSML(synthesisText);
+      let pcmBuffer: Buffer;
 
-      let result;
-      try {
-        result = await awsPollyService.synthesizeSpeech({
-          text: ssmlText,
-          voiceId: agentConfig.voice,
-          engine: 'neural',
-          outputFormat: 'pcm',
-          sampleRate: '8000',
-          textType: 'ssml',
-        });
-      } catch (neuralError: any) {
-        console.warn(`[BedrockPolly Bridge] Neural SSML failed for voice ${agentConfig.voice}, trying plain text: ${neuralError.message}`);
-        result = await awsPollyService.synthesizeSpeech({
-          text: synthesisText,
-          voiceId: agentConfig.voice,
-          engine: 'neural',
-          outputFormat: 'pcm',
-          sampleRate: '8000',
-        });
+      if (ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId) {
+        const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
+        if (!apiKey) {
+          console.warn(`[BedrockPolly Bridge] No ElevenLabs API key for ${callSid}, falling back to Polly`);
+          pcmBuffer = await this.synthesizeWithPolly(synthesisText, agentConfig.voice);
+        } else {
+          try {
+            pcmBuffer = await this.synthesizeWithElevenLabs(synthesisText, agentConfig.elevenLabsVoiceId, apiKey);
+          } catch (elError: any) {
+            console.warn(`[BedrockPolly Bridge] ElevenLabs TTS failed for ${callSid}, falling back to Polly: ${elError.message}`);
+            pcmBuffer = await this.synthesizeWithPolly(synthesisText, agentConfig.voice);
+          }
+        }
+      } else {
+        pcmBuffer = await this.synthesizeWithPolly(synthesisText, agentConfig.voice);
       }
 
-      const pcmBuffer = result.audioStream;
       const mulawBuffer = this.pcmToMulaw(pcmBuffer);
 
       for (let offset = 0; offset < mulawBuffer.length; offset += this.AUDIO_CHUNK_SIZE) {
@@ -654,8 +697,38 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         session.onAudioCallback(mulawBuffer.toString('base64'));
       }
     } catch (error: any) {
-      console.error(`[BedrockPolly Bridge] Polly synthesis error for ${callSid}:`, error.message);
+      console.error(`[BedrockPolly Bridge] TTS synthesis error for ${callSid}:`, error.message);
     }
+  }
+
+  /**
+   * Synthesize text using AWS Polly returning 8kHz PCM buffer.
+   */
+  private static async synthesizeWithPolly(text: string, voiceId: string): Promise<Buffer> {
+    const ssmlText = humanizeToSSML(text);
+
+    let result;
+    try {
+      result = await awsPollyService.synthesizeSpeech({
+        text: ssmlText,
+        voiceId,
+        engine: 'neural',
+        outputFormat: 'pcm',
+        sampleRate: '8000',
+        textType: 'ssml',
+      });
+    } catch (neuralError: any) {
+      console.warn(`[BedrockPolly Bridge] Neural SSML failed for voice ${voiceId}, trying plain text: ${neuralError.message}`);
+      result = await awsPollyService.synthesizeSpeech({
+        text,
+        voiceId,
+        engine: 'neural',
+        outputFormat: 'pcm',
+        sampleRate: '8000',
+      });
+    }
+
+    return result.audioStream;
   }
 
   /**

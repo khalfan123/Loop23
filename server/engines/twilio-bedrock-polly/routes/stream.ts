@@ -10,7 +10,7 @@ import { logger } from '../../../utils/logger';
 import { BEDROCK_POLLY_CONFIG } from '../config/config';
 import { CallInsightsService } from '../../../services/call-insights.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
-import type { TwilioMediaStreamEvent, AgentConfig, PollyVoiceId, BedrockModel } from '../types';
+import type { TwilioMediaStreamEvent, AgentConfig, PollyVoiceId, BedrockModel, TtsProvider } from '../types';
 
 let sharedWss: WebSocketServer | null = null;
 
@@ -214,12 +214,15 @@ async function initializeSession(
       );
 
       agentConfig = {
-        voice: ((callRecord.openaiVoice as PollyVoiceId) || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId,
+        voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
         model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: localizedFlowFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,
         tools: hydratedTools,
+        ttsProvider: (metadata?.ttsProvider as TtsProvider) || 'aws_polly',
+        elevenLabsVoiceId: (metadata?.elevenLabsVoiceId as string) || undefined,
+        elevenLabsApiKey: (metadata?.elevenLabsApiKey as string) || undefined,
       };
 
       logger.info(`Flow agent initialized with ${hydratedTools.length} tools`, undefined, 'BedrockPolly Stream');
@@ -231,7 +234,7 @@ async function initializeSession(
       );
 
       agentConfig = BedrockAgentFactory.createAgentConfig({
-        voice: ((callRecord.openaiVoice as PollyVoiceId) || BEDROCK_POLLY_CONFIG.defaultVoice) as PollyVoiceId,
+        voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
         model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: localizedNaturalFirstMsg,
@@ -276,6 +279,12 @@ async function initializeSession(
 
       if (metadata?.detectLanguageEnabled) {
         agentConfig = BedrockAgentFactory.enableLanguageDetection(agentConfig);
+      }
+
+      if (metadata?.ttsProvider) {
+        agentConfig.ttsProvider = metadata.ttsProvider as TtsProvider;
+        agentConfig.elevenLabsVoiceId = (metadata.elevenLabsVoiceId as string) || undefined;
+        agentConfig.elevenLabsApiKey = (metadata.elevenLabsApiKey as string) || undefined;
       }
     }
 

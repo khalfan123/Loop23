@@ -167,13 +167,15 @@ export interface AgentTool {
   handler: (params: Record<string, unknown>) => Promise<unknown>;
 }
 
+export type TtsProvider = 'aws_polly' | 'elevenlabs';
+
 /**
  * Agent configuration for a Bedrock+Polly call session.
  * No vadSettings or audio format — this engine uses text-based
  * Bedrock conversation, not a realtime WebSocket.
  */
 export interface AgentConfig {
-  voice: PollyVoiceId;
+  voice: string;
   model: BedrockModel;
   systemPrompt: string;
   firstMessage?: string;
@@ -181,6 +183,9 @@ export interface AgentConfig {
   tools?: AgentTool[];
   knowledgeBaseIds?: string[];
   flowConfig?: CompiledFlowConfig;
+  ttsProvider?: TtsProvider;
+  elevenLabsVoiceId?: string;
+  elevenLabsApiKey?: string;
 }
 
 /**
@@ -325,6 +330,7 @@ export interface BedrockPollyBridgeSession {
   pendingAudioQueue: PendingAudioRequest[];
   isProcessing: boolean;
   pollyEngine: 'neural' | 'generative';
+  ttsProvider: TtsProvider;
 }
 
 /**

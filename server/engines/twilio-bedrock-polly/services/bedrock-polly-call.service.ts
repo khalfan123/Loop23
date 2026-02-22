@@ -16,7 +16,8 @@ import {
   agents, 
   phoneNumbers,
   flows,
-  users 
+  users,
+  elevenLabsCredentials 
 } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
@@ -35,7 +36,7 @@ import {
   OpenAIVoiceAgentCompiler 
 } from '../../../services/openai-voice-agent';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
-import type { AgentConfig, PollyVoiceId, BedrockModel, CompiledFlowConfig } from '../types';
+import type { AgentConfig, PollyVoiceId, BedrockModel, CompiledFlowConfig, TtsProvider } from '../types';
 import type { CompiledFunctionTool, CompiledConversationState } from '@shared/schema';
 
 export interface InitiateCallParams {
@@ -101,6 +102,27 @@ export class BedrockPollyCallService {
       const effectiveFlowId = overrideFlowId || agent.flowId;
       const defaultVoice: PollyVoiceId = 'Joanna';
       const defaultModel: BedrockModel = 'claude-3-5-sonnet';
+
+      const ttsProvider: TtsProvider = agent.voiceProvider === 'elevenlabs' ? 'elevenlabs' : 'aws_polly';
+      let elevenLabsApiKey: string | undefined;
+      const elevenLabsVoiceId = agent.elevenLabsVoiceId || undefined;
+
+      if (ttsProvider === 'elevenlabs') {
+        if (agent.elevenLabsCredentialId) {
+          const [cred] = await db
+            .select()
+            .from(elevenLabsCredentials)
+            .where(eq(elevenLabsCredentials.id, agent.elevenLabsCredentialId))
+            .limit(1);
+          if (cred) {
+            elevenLabsApiKey = cred.apiKey;
+          }
+        }
+        if (!elevenLabsApiKey) {
+          elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+        }
+        logger.info(`Using ElevenLabs TTS for agent ${agentId}, voice: ${elevenLabsVoiceId}`, undefined, 'BedrockPollyCall');
+      }
       
       if (agent.type === 'flow' && effectiveFlowId) {
         logger.info(`Agent is flow-based, fetching flow ${effectiveFlowId}${overrideFlowId ? ' (override from test)' : ''}`, undefined, 'BedrockPollyCall');
@@ -130,12 +152,15 @@ export class BedrockPollyCallService {
             });
             
             agentConfig = {
-              voice: (agent.openaiVoice as PollyVoiceId) || defaultVoice,
+              voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,
               model: defaultModel,
               systemPrompt,
               firstMessage,
               temperature: agent.temperature ?? 0.7,
               tools: hydratedTools,
+              ttsProvider,
+              elevenLabsVoiceId,
+              elevenLabsApiKey,
             };
           } else {
             logger.info(`Flow loaded with ${(flow.nodes as any[]).length} nodes, language: ${language}, compiling at runtime`, undefined, 'BedrockPollyCall');
@@ -159,12 +184,12 @@ export class BedrockPollyCallService {
               language
             );
 
-            agentConfig = hydrateCompiledFlow({
+            const hydratedFlowConfig = hydrateCompiledFlow({
               compiledSystemPrompt: compiledResult.systemPrompt,
               compiledFirstMessage: localizedCompiledFirst ?? null,
               compiledTools: compiledResult.tools as CompiledFunctionTool[],
               compiledStates: compiledResult.conversationStates as CompiledConversationState[],
-              voice: (agent.openaiVoice as PollyVoiceId) || defaultVoice,
+              voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,
               model: defaultModel,
               temperature: agent.temperature ?? 0.7,
               toolContext: {
@@ -177,6 +202,12 @@ export class BedrockPollyCallService {
               transferPhoneNumber: agent.transferPhoneNumber || undefined,
               transferEnabled: agent.transferEnabled || false,
             });
+            agentConfig = {
+              ...hydratedFlowConfig,
+              ttsProvider,
+              elevenLabsVoiceId,
+              elevenLabsApiKey,
+            };
           }
         }
       }
@@ -191,11 +222,14 @@ export class BedrockPollyCallService {
         );
 
         let naturalConfig = BedrockAgentFactory.createAgentConfig({
-          voice: (agent.openaiVoice as PollyVoiceId) || defaultVoice,
+          voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,
           model: defaultModel,
           systemPrompt: agent.systemPrompt || 'You are a helpful AI assistant.',
           firstMessage: localizedFirstMessage,
           temperature: agent.temperature ?? 0.7,
+          ttsProvider,
+          elevenLabsVoiceId,
+          elevenLabsApiKey,
           language: agentLanguage,
           toolContext: {
             userId,
@@ -272,12 +306,17 @@ export class BedrockPollyCallService {
         twilioCallSid: call.sid,
         fromNumber: normalizedFromNumber,
         toNumber: normalizedToNumber,
-        openaiVoice: (agent.openaiVoice as any) || defaultVoice,
+        openaiVoice: (agent.awsPollyVoiceId || agent.openaiVoice as any) || defaultVoice,
         openaiModel: defaultModel,
         status: 'initiated',
         callDirection: 'outbound',
         startedAt: new Date(),
-        metadata,
+        metadata: {
+          ...metadata,
+          ttsProvider,
+          elevenLabsVoiceId: elevenLabsVoiceId || null,
+          elevenLabsApiKey: elevenLabsApiKey || null,
+        },
       });
 
       logger.info(`Call initiated: ${callId} -> Twilio SID: ${call.sid}`, undefined, 'BedrockPollyCall');

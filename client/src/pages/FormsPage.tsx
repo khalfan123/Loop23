@@ -884,11 +884,20 @@ export default function FormsPage() {
                 <FileText className="h-[18px] w-[18px] text-primary/70" />
               </div>
               <div className="min-w-0 flex-1">
-                <div
-                  className="font-medium text-[14px] leading-tight truncate"
-                  data-testid={`text-form-name-${form.id}`}
-                >
-                  {form.name}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="font-medium text-[14px] leading-tight truncate"
+                    data-testid={`text-form-name-${form.id}`}
+                  >
+                    {form.name}
+                  </div>
+                  <span
+                    className="text-[10px] font-mono text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-md shrink-0 select-all"
+                    onClick={(e) => e.stopPropagation()}
+                    data-testid={`text-form-id-${form.id}`}
+                  >
+                    #{form.id.slice(0, 8).toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                   <span className="text-[11px] text-muted-foreground/60 font-light">

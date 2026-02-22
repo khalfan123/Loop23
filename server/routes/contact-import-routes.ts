@@ -482,7 +482,8 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         );
       }
 
-      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const callbackUri = `${protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
       const tokenBody = new URLSearchParams({
         grant_type: 'authorization_code',
         code: code as string,
@@ -549,7 +550,8 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
       }
 
       const state = oauthService.generateState('contact-import', req.userId!, 'google-contacts');
-      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const callbackUri = `${protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
 
       const params = new URLSearchParams({
         client_id: credentials.clientId,
@@ -629,7 +631,8 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         return res.status(500).json({ error: 'Google OAuth credentials are not configured on the platform' });
       }
 
-      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const callbackUri = `${protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
       const tokenBody = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
@@ -674,7 +677,8 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
       }
 
       const state = oauthService.generateState('contact-import', req.userId!, 'microsoft-contacts');
-      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const callbackUri = `${protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
 
       const params = new URLSearchParams({
         client_id: credentials.clientId,
@@ -709,7 +713,8 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         return res.status(500).json({ error: 'Microsoft OAuth credentials are not configured on the platform' });
       }
 
-      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const callbackUri = `${protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
       const tokenBody = new URLSearchParams({
         grant_type: 'authorization_code',
         code,

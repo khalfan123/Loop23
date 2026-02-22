@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone } from "lucide-react";
+import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -96,6 +96,7 @@ export default function FormsPage() {
     options: string;
   }>>([]);
 
+  const [editingFormForId, setEditingFormForId] = useState<string | null>(null);
   const [editingFormId, setEditingFormId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [formSearch, setFormSearch] = useState("");
@@ -251,8 +252,65 @@ export default function FormsPage() {
     setEditingName("");
   };
 
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingFormForId) return;
+      const mappedFields = fields.map((field, index) => {
+        let options = null;
+        if (field.type === "multiple_choice" && field.options.trim()) {
+          options = field.options.split(",").map((o) => o.trim()).filter(Boolean);
+        }
+        return {
+          question: field.label,
+          fieldType: field.type,
+          isRequired: field.required,
+          options,
+          order: index,
+        };
+      });
+
+      await apiRequest("PATCH", `/api/flow-automation/forms/${editingFormForId}`, {
+        name: formData.name,
+        description: formData.description || null,
+        fields: mappedFields,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/flow-automation/forms"] });
+      toast({ title: t("forms.toast.updated") });
+      handleCloseEditor();
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("forms.toast.updateFailed"),
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditForm = (form: Form) => {
+    const formWithFields = form as any;
+    setEditingFormForId(form.id);
+    setFormData({
+      name: form.name,
+      description: form.description || "",
+    });
+    setFields(
+      (formWithFields.fields || []).map((f: any, i: number) => ({
+        tempId: `temp-${Date.now()}-${i}`,
+        label: f.question,
+        type: f.fieldType,
+        required: f.isRequired ?? true,
+        options: f.options ? (Array.isArray(f.options) ? f.options.join(", ") : f.options) : "",
+      }))
+    );
+    setEditorDialogOpen(true);
+  };
+
   const handleCloseEditor = () => {
     setEditorDialogOpen(false);
+    setEditingFormForId(null);
     setFormData({ name: "", description: "" });
     setFields([]);
   };
@@ -622,7 +680,7 @@ export default function FormsPage() {
         <Dialog open={editorDialogOpen} onOpenChange={(open) => { if (!open) handleCloseEditor(); else setEditorDialogOpen(true); }}>
           <DialogContent className="max-h-[90vh] flex flex-col max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-lg font-semibold" data-testid="text-create-dialog-title">{t("forms.createForm")}</DialogTitle>
+              <DialogTitle className="text-lg font-semibold" data-testid="text-create-dialog-title">{editingFormForId ? t("forms.editForm") : t("forms.createForm")}</DialogTitle>
               <DialogDescription className="text-sm font-light">{t("forms.buildCustomForm")}</DialogDescription>
             </DialogHeader>
 
@@ -777,11 +835,11 @@ export default function FormsPage() {
                 {t("common.cancel")}
               </Button>
               <Button
-                onClick={() => createMutation.mutate()}
-                disabled={!formData.name || fields.length === 0 || createMutation.isPending}
+                onClick={() => editingFormForId ? updateMutation.mutate() : createMutation.mutate()}
+                disabled={!formData.name || fields.length === 0 || createMutation.isPending || updateMutation.isPending}
                 data-testid="button-submit-create"
               >
-                {t("forms.createFormButton")}
+                {editingFormForId ? t("forms.saveChanges") : t("forms.createFormButton")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -935,6 +993,15 @@ export default function FormsPage() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 rounded-full text-muted-foreground/60 hover:text-foreground"
+                  onClick={() => handleEditForm(form)}
+                  data-testid={`button-edit-form-${form.id}`}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full text-muted-foreground/60 hover:text-foreground"
                   onClick={() => handleViewSubmissions(form)}
                   data-testid={`button-view-submissions-${form.id}`}
                 >
@@ -955,6 +1022,146 @@ export default function FormsPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={editorDialogOpen && currentView === "list"} onOpenChange={(open) => { if (!open) handleCloseEditor(); else setEditorDialogOpen(true); }}>
+        <DialogContent className="max-h-[90vh] flex flex-col max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold" data-testid="text-edit-dialog-title">{editingFormForId ? t("forms.editForm") : t("forms.createForm")}</DialogTitle>
+            <DialogDescription className="text-sm font-light">{t("forms.buildCustomForm")}</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+            <div className="space-y-6 py-2">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-form-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formNameRequired")}</Label>
+                  <Input
+                    id="edit-form-name"
+                    placeholder={t("forms.formNamePlaceholder")}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    data-testid="input-edit-form-name"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-form-description" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formDescription")}</Label>
+                  <Textarea
+                    id="edit-form-description"
+                    placeholder={t("forms.descriptionPlaceholder")}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={2}
+                    data-testid="input-edit-form-description"
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-sm font-medium">{t("forms.formFields")}</h3>
+                  <Button onClick={addField} variant="outline" size="sm" data-testid="button-edit-add-field">
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    {t("forms.addField")}
+                  </Button>
+                </div>
+
+                {fields.length === 0 ? (
+                  <div className="text-center py-10 text-sm text-muted-foreground font-light border border-dashed rounded-xl">
+                    {t("forms.addFieldHint")}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {fields.map((field, index) => (
+                      <div key={field.tempId} className="rounded-xl border p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <div className="flex flex-col items-center gap-0.5 pt-6">
+                              <Button variant="ghost" size="icon" onClick={() => moveField(field.tempId, "up")} disabled={index === 0}>
+                                <ChevronRight className="h-3.5 w-3.5 -rotate-90" />
+                              </Button>
+                              <GripVertical className="h-4 w-4 text-muted-foreground" />
+                              <Button variant="ghost" size="icon" onClick={() => moveField(field.tempId, "down")} disabled={index === fields.length - 1}>
+                                <ChevronRight className="h-3.5 w-3.5 rotate-90" />
+                              </Button>
+                            </div>
+
+                            <div className="flex-1 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldLabel")}</Label>
+                                  <Input
+                                    placeholder={t("forms.fieldLabelPlaceholder")}
+                                    value={field.label}
+                                    onChange={(e) => updateField(field.tempId, { label: e.target.value })}
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldType")}</Label>
+                                  <Select value={field.type} onValueChange={(value) => updateField(field.tempId, { type: value })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {fieldTypeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+
+                              {field.type === "multiple_choice" && (
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">{t("forms.fieldOptions")}</Label>
+                                  <Input
+                                    placeholder={t("forms.optionsPlaceholder")}
+                                    value={field.options}
+                                    onChange={(e) => updateField(field.tempId, { options: e.target.value })}
+                                  />
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id={`edit-required-${field.tempId}`}
+                                  checked={field.required}
+                                  onChange={(e) => updateField(field.tempId, { required: e.target.checked })}
+                                  className="h-4 w-4 rounded"
+                                />
+                                <Label htmlFor={`edit-required-${field.tempId}`} className="cursor-pointer text-sm font-light">
+                                  {t("forms.requiredField")}
+                                </Label>
+                              </div>
+                            </div>
+
+                            <Button variant="ghost" size="icon" onClick={() => removeField(field.tempId)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseEditor}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => editingFormForId ? updateMutation.mutate() : createMutation.mutate()}
+              disabled={!formData.name || fields.length === 0 || createMutation.isPending || updateMutation.isPending}
+            >
+              {editingFormForId ? t("forms.saveChanges") : t("forms.createFormButton")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

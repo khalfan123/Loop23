@@ -425,14 +425,14 @@ export default function FormsPage() {
         {renderTemplateGallery()}
 
         <Dialog open={editorDialogOpen} onOpenChange={(open) => { if (!open) handleCloseEditor(); else setEditorDialogOpen(true); }}>
-          <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col max-w-2xl">
+          <DialogContent className="max-h-[90vh] flex flex-col max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-lg font-semibold" data-testid="text-create-dialog-title">{t("forms.createForm")}</DialogTitle>
               <DialogDescription className="text-sm font-light">{t("forms.buildCustomForm")}</DialogDescription>
             </DialogHeader>
 
-            <ScrollArea className="flex-1 min-h-0 max-h-[60vh]">
-              <div className="space-y-6 py-2 pr-4">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="space-y-6 py-2">
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="form-name" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("forms.formNameRequired")}</Label>
@@ -575,7 +575,7 @@ export default function FormsPage() {
                   )}
                 </div>
               </div>
-            </ScrollArea>
+            </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={handleCloseEditor} data-testid="button-cancel-create">

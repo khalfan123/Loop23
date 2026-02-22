@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { RouteContext, AuthRequest } from './common';
 import Papa from 'papaparse';
 import { oauthService } from '../services/oauth';
+import { getProviderCredentials } from '../services/oauth-providers';
 import { batchInsertContacts } from '../utils/batch-utils';
 import type { InsertContact } from '@shared/schema';
 
@@ -168,16 +169,16 @@ async function fetchMicrosoftContacts(accessToken: string): Promise<ParsedImport
   let nextLink: string | undefined = 'https://graph.microsoft.com/v1.0/me/contacts?$top=100&$select=givenName,surname,displayName,mobilePhone,homePhones,businessPhones,emailAddresses';
 
   while (nextLink) {
-    const response = await fetch(nextLink, {
+    const msResponse = await fetch(nextLink, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Microsoft Graph API error: ${response.status} ${errorText}`);
+    if (!msResponse.ok) {
+      const errorText = await msResponse.text();
+      throw new Error(`Microsoft Graph API error: ${msResponse.status} ${errorText}`);
     }
 
-    const data = await response.json();
+    const data: any = await msResponse.json();
     const msContacts = data.value || [];
 
     for (const contact of msContacts) {
@@ -439,20 +440,120 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
     }
   });
 
+  router.get('/oauth/callback', async (req: Request, res: Response) => {
+    const sendPopupMessage = (script: string, fallbackText: string) => {
+      res.send(`<!DOCTYPE html><html><head><title>Authorization</title></head><body>
+        <script>${script}</script>
+        <p>${fallbackText}</p>
+      </body></html>`);
+    };
+
+    try {
+      const { code, state, error: oauthError } = req.query;
+
+      if (oauthError) {
+        return sendPopupMessage(
+          `window.opener.postMessage({ type: 'oauth-error', error: ${JSON.stringify(String(oauthError))} }, '*'); window.close();`,
+          'Authorization failed. You can close this window.'
+        );
+      }
+
+      if (!code || !state) {
+        return sendPopupMessage(
+          `window.opener.postMessage({ type: 'oauth-error', error: 'missing_params' }, '*'); window.close();`,
+          'Missing parameters. You can close this window.'
+        );
+      }
+
+      const stateData = oauthService.verifyState(state as string);
+      if (!stateData) {
+        return sendPopupMessage(
+          `window.opener.postMessage({ type: 'oauth-error', error: 'invalid_state' }, '*'); window.close();`,
+          'Invalid or expired state. You can close this window.'
+        );
+      }
+
+      const providerSlug = stateData.slug;
+      const credentials = getProviderCredentials(providerSlug);
+      if (!credentials) {
+        return sendPopupMessage(
+          `window.opener.postMessage({ type: 'oauth-error', error: 'no_credentials' }, '*'); window.close();`,
+          'Platform credentials not configured. You can close this window.'
+        );
+      }
+
+      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
+      const tokenBody = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code as string,
+        redirect_uri: callbackUri,
+        client_id: credentials.clientId,
+        client_secret: credentials.clientSecret,
+      });
+
+      const { getOAuthProvider } = await import('../services/oauth-providers');
+      const provider = getOAuthProvider(providerSlug);
+      if (!provider) {
+        return sendPopupMessage(
+          `window.opener.postMessage({ type: 'oauth-error', error: 'unknown_provider' }, '*'); window.close();`,
+          'Unknown provider. You can close this window.'
+        );
+      }
+
+      const tokenResponse = await fetch(provider.tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: tokenBody.toString(),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error(`[Contact Import] Token exchange failed: ${tokenResponse.status} ${errorText}`);
+        return sendPopupMessage(
+          `window.opener.postMessage({ type: 'oauth-error', error: 'token_exchange_failed' }, '*'); window.close();`,
+          'Failed to exchange authorization code. You can close this window.'
+        );
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      const accountInfo = await oauthService.fetchAccountInfo(providerSlug, accessToken);
+
+      const messageData = JSON.stringify({
+        type: 'oauth-success',
+        provider: providerSlug,
+        accessToken: accessToken,
+        accountName: accountInfo?.accountName || '',
+        accountEmail: accountInfo?.accountEmail || '',
+      });
+
+      sendPopupMessage(
+        `window.opener.postMessage(${messageData}, '*'); window.close();`,
+        'Authorization successful! You can close this window.'
+      );
+    } catch (error: any) {
+      console.error('[Contact Import] OAuth callback error:', error);
+      sendPopupMessage(
+        `window.opener.postMessage({ type: 'oauth-error', error: 'server_error' }, '*'); window.close();`,
+        'An error occurred. You can close this window.'
+      );
+    }
+  });
+
   router.post('/google/auth-url', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { clientId, clientSecret } = req.body;
-
-      if (!clientId || !clientSecret) {
-        return res.status(400).json({ error: 'Google Client ID and Client Secret are required' });
+      const credentials = getProviderCredentials('google-contacts');
+      if (!credentials) {
+        return res.status(500).json({ error: 'Google OAuth credentials are not configured on the platform' });
       }
 
       const state = oauthService.generateState('contact-import', req.userId!, 'google-contacts');
-      const redirectUri = oauthService.getRedirectUri();
+      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
 
       const params = new URLSearchParams({
-        client_id: clientId,
-        redirect_uri: redirectUri,
+        client_id: credentials.clientId,
+        redirect_uri: callbackUri,
         response_type: 'code',
         state,
         scope: 'https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
@@ -517,21 +618,45 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
 
   router.post('/google/exchange-code', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { code, clientId, clientSecret } = req.body;
+      const { code } = req.body;
 
-      if (!code || !clientId || !clientSecret) {
-        return res.status(400).json({ error: 'Authorization code and credentials are required' });
+      if (!code) {
+        return res.status(400).json({ error: 'Authorization code is required' });
       }
 
-      const tokens = await oauthService.exchangeCodeForTokens('google-contacts', code, { clientId, clientSecret });
-      if (!tokens) {
+      const credentials = getProviderCredentials('google-contacts');
+      if (!credentials) {
+        return res.status(500).json({ error: 'Google OAuth credentials are not configured on the platform' });
+      }
+
+      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
+      const tokenBody = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: callbackUri,
+        client_id: credentials.clientId,
+        client_secret: credentials.clientSecret,
+      });
+
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: tokenBody.toString(),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error(`[Contact Import] Google token exchange failed: ${tokenResponse.status} ${errorText}`);
         return res.status(400).json({ error: 'Failed to exchange authorization code' });
       }
 
-      const accountInfo = await oauthService.fetchAccountInfo('google-contacts', tokens.accessToken);
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      const accountInfo = await oauthService.fetchAccountInfo('google-contacts', accessToken);
 
       res.json({
-        accessToken: tokens.accessToken,
+        accessToken,
         accountName: accountInfo?.accountName || null,
         accountEmail: accountInfo?.accountEmail || null,
       });
@@ -543,18 +668,17 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
 
   router.post('/microsoft/auth-url', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { clientId, clientSecret } = req.body;
-
-      if (!clientId || !clientSecret) {
-        return res.status(400).json({ error: 'Microsoft Client ID and Client Secret are required' });
+      const credentials = getProviderCredentials('microsoft-contacts');
+      if (!credentials) {
+        return res.status(500).json({ error: 'Microsoft OAuth credentials are not configured on the platform' });
       }
 
       const state = oauthService.generateState('contact-import', req.userId!, 'microsoft-contacts');
-      const redirectUri = oauthService.getRedirectUri();
+      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
 
       const params = new URLSearchParams({
-        client_id: clientId,
-        redirect_uri: redirectUri,
+        client_id: credentials.clientId,
+        redirect_uri: callbackUri,
         response_type: 'code',
         state,
         scope: 'Contacts.Read User.Read offline_access',
@@ -572,21 +696,45 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
 
   router.post('/microsoft/exchange-code', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { code, clientId, clientSecret } = req.body;
+      const { code } = req.body;
 
-      if (!code || !clientId || !clientSecret) {
-        return res.status(400).json({ error: 'Authorization code and credentials are required' });
+      if (!code) {
+        return res.status(400).json({ error: 'Authorization code is required' });
       }
 
-      const tokens = await oauthService.exchangeCodeForTokens('microsoft-contacts', code, { clientId, clientSecret });
-      if (!tokens) {
+      const credentials = getProviderCredentials('microsoft-contacts');
+      if (!credentials) {
+        return res.status(500).json({ error: 'Microsoft OAuth credentials are not configured on the platform' });
+      }
+
+      const callbackUri = `${req.protocol}://${req.get('host')}/api/contact-import/oauth/callback`;
+      const tokenBody = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: callbackUri,
+        client_id: credentials.clientId,
+        client_secret: credentials.clientSecret,
+      });
+
+      const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: tokenBody.toString(),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error(`[Contact Import] Microsoft token exchange failed: ${tokenResponse.status} ${errorText}`);
         return res.status(400).json({ error: 'Failed to exchange authorization code' });
       }
 
-      const accountInfo = await oauthService.fetchAccountInfo('microsoft-contacts', tokens.accessToken);
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      const accountInfo = await oauthService.fetchAccountInfo('microsoft-contacts', accessToken);
 
       res.json({
-        accessToken: tokens.accessToken,
+        accessToken,
         accountName: accountInfo?.accountName || null,
         accountEmail: accountInfo?.accountEmail || null,
       });

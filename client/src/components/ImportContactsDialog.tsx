@@ -29,8 +29,6 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
-  ExternalLink,
-  Users,
   Contact2,
   Mail,
   ChevronRight,
@@ -146,10 +144,10 @@ export default function ImportContactsDialog({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<CSVPreview | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [oauthCredentials, setOauthCredentials] = useState({ clientId: "", clientSecret: "" });
   const [oauthAccessToken, setOauthAccessToken] = useState<string>("");
   const [oauthAccountInfo, setOauthAccountInfo] = useState<{ name: string; email: string } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const resetState = useCallback(() => {
     setStep("select-source");
@@ -157,10 +155,10 @@ export default function ImportContactsDialog({
     setSelectedFile(null);
     setCsvPreview(null);
     setImportResult(null);
-    setOauthCredentials({ clientId: "", clientSecret: "" });
     setOauthAccessToken("");
     setOauthAccountInfo(null);
     setIsImporting(false);
+    setIsConnecting(false);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -202,15 +200,14 @@ export default function ImportContactsDialog({
   const handleOAuthConnect = async () => {
     if (!selectedSource) return;
 
+    setIsConnecting(true);
+
     try {
       const endpoint = selectedSource === "google"
         ? "/api/contact-import/google/auth-url"
         : "/api/contact-import/microsoft/auth-url";
 
-      const res = await apiRequest("POST", endpoint, {
-        clientId: oauthCredentials.clientId,
-        clientSecret: oauthCredentials.clientSecret,
-      });
+      const res = await apiRequest("POST", endpoint, {});
       const data = await res.json();
 
       if (data.authUrl) {
@@ -225,46 +222,44 @@ export default function ImportContactsDialog({
           `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
         );
 
-        const checkPopup = setInterval(async () => {
-          try {
-            if (popup?.closed) {
-              clearInterval(checkPopup);
-              return;
-            }
-            const popupUrl = popup?.location?.href;
-            if (popupUrl && popupUrl.includes("code=")) {
-              clearInterval(checkPopup);
-              const urlParams = new URLSearchParams(new URL(popupUrl).search);
-              const code = urlParams.get("code");
-              popup?.close();
+        const handleMessage = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return;
+          if (!event.data || typeof event.data !== 'object') return;
 
-              if (code) {
-                const exchangeEndpoint = selectedSource === "google"
-                  ? "/api/contact-import/google/exchange-code"
-                  : "/api/contact-import/microsoft/exchange-code";
+          if (event.data.type === 'oauth-success') {
+            window.removeEventListener('message', handleMessage);
+            setIsConnecting(false);
+            setOauthAccessToken(event.data.accessToken);
+            setOauthAccountInfo({
+              name: event.data.accountName || "",
+              email: event.data.accountEmail || "",
+            });
+            toast({ title: `Connected to ${selectedSource === "google" ? "Google" : "Microsoft"} successfully` });
+          } else if (event.data.type === 'oauth-error') {
+            window.removeEventListener('message', handleMessage);
+            setIsConnecting(false);
+            toast({
+              title: "Connection failed",
+              description: `Authorization error: ${event.data.error || 'Unknown error'}`,
+              variant: "destructive",
+            });
+          }
+        };
 
-                const tokenRes = await apiRequest("POST", exchangeEndpoint, {
-                  code,
-                  clientId: oauthCredentials.clientId,
-                  clientSecret: oauthCredentials.clientSecret,
-                });
-                const tokenData = await tokenRes.json();
+        window.addEventListener('message', handleMessage);
 
-                if (tokenData.accessToken) {
-                  setOauthAccessToken(tokenData.accessToken);
-                  setOauthAccountInfo({
-                    name: tokenData.accountName || "",
-                    email: tokenData.accountEmail || "",
-                  });
-                  toast({ title: `Connected to ${selectedSource === "google" ? "Google" : "Microsoft"} successfully` });
-                }
-              }
-            }
-          } catch {
+        const checkClosed = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(checkClosed);
+            setTimeout(() => {
+              setIsConnecting(false);
+              window.removeEventListener('message', handleMessage);
+            }, 1000);
           }
         }, 500);
       }
     } catch (error: any) {
+      setIsConnecting(false);
       toast({
         title: "Connection failed",
         description: error.message || "Failed to connect",
@@ -641,49 +636,36 @@ export default function ImportContactsDialog({
             </div>
             <div>
               <h4 className="font-semibold text-sm">Connect {sourceConfig?.label}</h4>
-              <p className="text-xs text-muted-foreground">OAuth 2.0 authentication</p>
+              <p className="text-xs text-muted-foreground">Secure sign-in with your account</p>
             </div>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
             {selectedSource === "google"
-              ? "Provide your Google Cloud OAuth credentials. Requires a project with the People API enabled."
-              : "Provide your Microsoft Azure AD app credentials to access Outlook contacts."}
+              ? "Sign in with your Google account to import contacts from your Google Contacts."
+              : "Sign in with your Microsoft account to import contacts from Outlook or Microsoft 365."}
           </p>
         </div>
 
         {!isConnected && (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client ID</Label>
-              <Input
-                placeholder="Enter your OAuth Client ID"
-                value={oauthCredentials.clientId}
-                onChange={(e) => setOauthCredentials(prev => ({ ...prev, clientId: e.target.value }))}
-                className="h-10 font-mono text-sm"
-                data-testid="input-oauth-client-id"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client Secret</Label>
-              <Input
-                type="password"
-                placeholder="Enter your OAuth Client Secret"
-                value={oauthCredentials.clientSecret}
-                onChange={(e) => setOauthCredentials(prev => ({ ...prev, clientSecret: e.target.value }))}
-                className="h-10 font-mono text-sm"
-                data-testid="input-oauth-client-secret"
-              />
-            </div>
-            <Button
-              onClick={handleOAuthConnect}
-              disabled={!oauthCredentials.clientId || !oauthCredentials.clientSecret}
-              className="w-full h-11"
-              data-testid="button-oauth-connect"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Authorize with {sourceConfig?.label}
-            </Button>
-          </div>
+          <Button
+            onClick={handleOAuthConnect}
+            disabled={isConnecting}
+            className={`w-full h-12 text-sm font-medium ${
+              selectedSource === "google"
+                ? "bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm"
+                : "bg-[#2F2F2F] hover:bg-[#404040] text-white"
+            }`}
+            data-testid="button-oauth-connect"
+          >
+            {isConnecting ? (
+              <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Connecting...</>
+            ) : (
+              <>
+                {SourceIcon && <SourceIcon className={`h-5 w-5 mr-2 ${selectedSource === "google" ? "text-red-500" : "text-white"}`} />}
+                Sign in with {sourceConfig?.label}
+              </>
+            )}
+          </Button>
         )}
 
         {isConnected && oauthAccountInfo && (

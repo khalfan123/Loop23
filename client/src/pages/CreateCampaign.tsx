@@ -1125,45 +1125,72 @@ export default function CreateCampaign() {
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {filteredSelectableFlows.map((item) => {
-                        const isSelected = formData.flowId === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => handleSelectFlow(item)}
-                            className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-colors ${
-                              isSelected
-                                ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                : 'border-border hover:border-muted-foreground/40 dark:hover:border-muted-foreground/40'
-                            }`}
-                            data-testid={`campaign-flow-${item.id}`}
-                          >
-                            <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              isSelected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                            }`}>
-                              {item.source === 'template' ? <LayoutTemplate className="h-4 w-4" /> : item.source === 'form' ? <ClipboardList className="h-4 w-4" /> : <GitBranch className="h-4 w-4" />}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <p className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}>{item.name}</p>
-                                <Badge variant="secondary" className="text-[9px] h-4 px-1 shrink-0">
-                                  {item.source === 'template' ? 'Template' : item.source === 'form' ? 'Form' : 'Custom'}
-                                </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" className="w-full justify-between h-auto min-h-[44px] px-3 py-2.5" data-testid="dropdown-select-flow">
+                          {formData.flowId ? (() => {
+                            const selected = allSelectableFlows.find(f => f.id === formData.flowId);
+                            if (!selected) return <span className="text-muted-foreground text-sm">Select a flow or form...</span>;
+                            return (
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                  {selected.source === 'template' ? <LayoutTemplate className="h-4 w-4 text-primary" /> : selected.source === 'form' ? <ClipboardList className="h-4 w-4 text-primary" /> : <GitBranch className="h-4 w-4 text-primary" />}
+                                </div>
+                                <div className="min-w-0 text-left">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-medium truncate">{selected.name}</span>
+                                    <Badge variant="secondary" className="text-[9px] h-4 px-1 shrink-0">
+                                      {selected.source === 'template' ? 'Template' : selected.source === 'form' ? 'Form' : 'Custom'}
+                                    </Badge>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground truncate block">{selected.description}</span>
+                                </div>
                               </div>
-                              <p className="text-xs text-muted-foreground truncate">{item.description}</p>
-                              {item.nodeCount !== undefined && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5">{item.nodeCount} steps</p>
-                              )}
-                              {item.fieldCount !== undefined && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5">{item.fieldCount} fields</p>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                            );
+                          })() : (
+                            <span className="text-muted-foreground text-sm">Select a flow or form...</span>
+                          )}
+                          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-[320px] overflow-y-auto">
+                        {filteredSelectableFlows.map((item) => {
+                          const isSelected = formData.flowId === item.id;
+                          return (
+                            <DropdownMenuItem
+                              key={item.id}
+                              onClick={() => handleSelectFlow(item)}
+                              className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                              data-testid={`campaign-flow-${item.id}`}
+                            >
+                              <div className={`h-7 w-7 rounded-md flex items-center justify-center flex-shrink-0 ${
+                                isSelected ? 'bg-primary/10 text-primary' : item.source === 'form' ? 'bg-violet-500/10 text-violet-600' : item.source === 'template' ? 'bg-blue-500/10 text-blue-600' : 'bg-emerald-500/10 text-emerald-600'
+                              }`}>
+                                {item.source === 'template' ? <LayoutTemplate className="h-3.5 w-3.5" /> : item.source === 'form' ? <ClipboardList className="h-3.5 w-3.5" /> : <GitBranch className="h-3.5 w-3.5" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`text-sm font-medium truncate ${isSelected ? 'text-primary' : ''}`}>{item.name}</span>
+                                  <Badge variant="secondary" className="text-[9px] h-4 px-1 shrink-0">
+                                    {item.source === 'template' ? 'Template' : item.source === 'form' ? 'Form' : 'Custom'}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground truncate">{item.description}</span>
+                                  {item.nodeCount !== undefined && (
+                                    <span className="text-[10px] text-muted-foreground shrink-0">{item.nodeCount} steps</span>
+                                  )}
+                                  {item.fieldCount !== undefined && (
+                                    <span className="text-[10px] text-muted-foreground shrink-0">{item.fieldCount} fields</span>
+                                  )}
+                                </div>
+                              </div>
+                              {isSelected && <div className="h-2 w-2 rounded-full bg-primary shrink-0" />}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
 
                   {/* Flow/Form Detail Preview */}

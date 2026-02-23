@@ -251,13 +251,11 @@ export default function CreateCampaign() {
   const [wizardStep, setWizardStep] = useState(1);
   const [batchMode, setBatchModeRaw] = useState<'flow_template' | 'dynamic_form' | null>(null);
   const [selectedFormId, setSelectedFormId] = useState<string>("");
-  const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<string[]>([]);
 
   const setBatchMode = useCallback((mode: 'flow_template' | 'dynamic_form' | null) => {
     setBatchModeRaw(mode);
     if (mode !== 'dynamic_form') {
       setSelectedFormId("");
-      setSelectedKnowledgeBaseIds([]);
     }
   }, []);
   const [greetingMessage, setGreetingMessage] = useState("Hello! Thank you for taking my call. How are you doing today?");
@@ -374,7 +372,7 @@ export default function CreateCampaign() {
       payload.languageOptions = languageOptions;
       if (batchMode === 'dynamic_form') {
         payload.selectedFormId = selectedFormId || undefined;
-        payload.knowledgeBaseIds = selectedKnowledgeBaseIds;
+        payload.knowledgeBaseIds = knowledgeBases.map(kb => kb.id);
       }
       const res = await apiRequest("POST", "/api/campaigns", payload);
       return res.json();
@@ -716,11 +714,6 @@ export default function CreateCampaign() {
     setLanguageOptions(prev => prev.filter(l => l !== lang));
   }, []);
 
-  const toggleKnowledgeBase = useCallback((kbId: string) => {
-    setSelectedKnowledgeBaseIds(prev =>
-      prev.includes(kbId) ? prev.filter(id => id !== kbId) : [...prev, kbId]
-    );
-  }, []);
 
   return (
     <>
@@ -864,61 +857,25 @@ export default function CreateCampaign() {
                   </div>
 
                   {/* Batch Mode Selector */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label className="text-sm font-medium">Batch Call Type</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => { setBatchMode('flow_template'); setFormData(prev => ({ ...prev, flowId: '' })); }}
-                        className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all text-left ${
-                          batchMode === 'flow_template'
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/30'
-                        }`}
-                        data-testid="card-mode-flow-template"
-                      >
-                        {batchMode === 'flow_template' && (
-                          <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                            <div className="h-2 w-2 rounded-full bg-white" />
-                          </div>
-                        )}
-                        <div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                          <GitBranch className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold">Flow Template</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                            Use a pre-built conversation flow with scripted steps and branching logic
-                          </p>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => { setBatchMode('dynamic_form'); setFormData(prev => ({ ...prev, flowId: '' })); }}
-                        className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all text-left ${
-                          batchMode === 'dynamic_form'
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/30'
-                        }`}
-                        data-testid="card-mode-dynamic-form"
-                      >
-                        {batchMode === 'dynamic_form' && (
-                          <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                            <div className="h-2 w-2 rounded-full bg-white" />
-                          </div>
-                        )}
-                        <div className="h-9 w-9 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                          <FileText className="h-4.5 w-4.5 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold">Dynamic Form</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                            Collect custom data from calls using AI powered by your knowledge base
-                          </p>
-                        </div>
-                      </button>
-                    </div>
+                    <Select
+                      value={batchMode || "none"}
+                      onValueChange={(value) => {
+                        const mode = value === "none" ? null : value as 'flow_template' | 'dynamic_form';
+                        setBatchMode(mode);
+                        setFormData(prev => ({ ...prev, flowId: '' }));
+                      }}
+                    >
+                      <SelectTrigger className="h-9" data-testid="select-batch-mode">
+                        <SelectValue placeholder="Select batch call type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Select batch call type</SelectItem>
+                        <SelectItem value="flow_template">Flow Template - Pre-built conversation flow with scripted steps</SelectItem>
+                        <SelectItem value="dynamic_form">Dynamic Form - Collect custom data using AI and knowledge base</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* === FLOW TEMPLATE MODE === */}
@@ -1155,14 +1112,14 @@ export default function CreateCampaign() {
                         )}
                       </div>
 
-                      {/* Knowledge Base (Brain) Selector */}
+                      {/* Knowledge Base - Auto-connected */}
                       <div className="space-y-2">
                         <Label className="text-sm font-medium flex items-center gap-1.5">
                           <Brain className="h-3.5 w-3.5" />
-                          Knowledge Base (Brain)
+                          Knowledge Base
                         </Label>
                         <p className="text-[11px] text-muted-foreground">
-                          Attach knowledge bases so the AI can answer personalized questions using your data via AWS Bedrock.
+                          All your knowledge bases are automatically connected so the AI can answer personalized questions using your data via AWS Bedrock.
                         </p>
                         {knowledgeBases.length === 0 ? (
                           <div className="rounded-lg border border-dashed p-3 text-center">
@@ -1170,75 +1127,34 @@ export default function CreateCampaign() {
                             <p className="text-xs text-muted-foreground">No knowledge bases available. Create one from the Knowledge Base page.</p>
                           </div>
                         ) : (
-                          <div className="space-y-1 max-h-[160px] overflow-y-auto">
-                            {knowledgeBases.map(kb => (
-                              <label
-                                key={kb.id}
-                                className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer border"
-                                data-testid={`kb-option-${kb.id}`}
-                              >
-                                <Checkbox
-                                  checked={selectedKnowledgeBaseIds.includes(kb.id)}
-                                  onCheckedChange={() => toggleKnowledgeBase(kb.id)}
-                                />
-                                <Brain className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <span className="text-sm truncate block">{kb.title}</span>
-                                  <span className="text-[10px] text-muted-foreground">{kb.type}</span>
+                          <div className="rounded-lg border bg-purple-50/50 dark:bg-purple-950/20 p-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-center h-6 w-6 rounded-full bg-purple-100 dark:bg-purple-900/40">
+                                <Brain className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                              </div>
+                              <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                                {knowledgeBases.length} knowledge base{knowledgeBases.length !== 1 ? 's' : ''} connected
+                              </span>
+                            </div>
+                            <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                              {knowledgeBases.map(kb => (
+                                <div
+                                  key={kb.id}
+                                  className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/60 dark:bg-card/40 border border-purple-100 dark:border-purple-800/30"
+                                  data-testid={`kb-connected-${kb.id}`}
+                                >
+                                  <Brain className="h-3 w-3 text-purple-500 shrink-0" />
+                                  <span className="text-xs truncate flex-1">{kb.title}</span>
+                                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{kb.type}</Badge>
                                 </div>
-                              </label>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
                     </>
                   )}
 
-                  {/* Conversation Pipeline Visualization - shown for both modes when a mode is selected */}
-                  {batchMode && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Voice Conversation Pipeline</Label>
-                      <div className="rounded-lg border bg-gradient-to-r from-muted/20 to-muted/40 p-3">
-                        <div className="flex items-center gap-1 flex-wrap justify-center">
-                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800">
-                            <MessageSquare className="h-3 w-3 text-green-600 dark:text-green-400" />
-                            <span className="text-[10px] font-medium text-green-700 dark:text-green-300">Greeting</span>
-                          </div>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
-                            <Languages className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                            <span className="text-[10px] font-medium text-blue-700 dark:text-blue-300">Language</span>
-                          </div>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800">
-                            <Bot className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                            <span className="text-[10px] font-medium text-purple-700 dark:text-purple-300">Bedrock AI</span>
-                          </div>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800">
-                            <Volume2 className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300">Voice</span>
-                          </div>
-                        </div>
-                        <div className="mt-2 pt-2 border-t border-muted">
-                          <div className="grid grid-cols-4 gap-1.5 text-center">
-                            <div>
-                              <p className="text-[9px] text-muted-foreground">Caller hears greeting & selects language</p>
-                            </div>
-                            <div>
-                              <p className="text-[9px] text-muted-foreground">Twilio captures audio</p>
-                            </div>
-                            <div>
-                              <p className="text-[9px] text-muted-foreground">Whisper transcribes → Bedrock Claude responds</p>
-                            </div>
-                            <div>
-                              <p className="text-[9px] text-muted-foreground">Polly / ElevenLabs speaks back</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Agent Selection - always visible */}
                   <div className="space-y-1.5">

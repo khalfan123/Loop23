@@ -781,7 +781,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const phone of phones) {
         const existing = await db.execute(sql`SELECT 1 FROM contact_group_members WHERE group_id = ${req.params.id} AND contact_phone = ${phone}`);
         if (existing.rows.length === 0) {
-          await db.execute(sql`INSERT INTO contact_group_members (group_id, contact_phone) VALUES (${req.params.id}, ${phone})`);
+          const memberId = nanoid();
+          await db.execute(sql`INSERT INTO contact_group_members (id, group_id, contact_phone) VALUES (${memberId}, ${req.params.id}, ${phone}) ON CONFLICT (group_id, contact_phone) DO NOTHING`);
           added++;
         }
       }

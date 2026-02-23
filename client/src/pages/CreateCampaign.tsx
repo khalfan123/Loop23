@@ -317,6 +317,11 @@ export default function CreateCampaign() {
     enabled: !!formData.flowId && batchMode === 'flow_template' && isTemplateId,
   });
 
+  const { data: customFlowDetail } = useQuery<{ id: string; name: string; description?: string; nodes: any[] }>({
+    queryKey: ["/api/flow-automation/flows", formData.flowId],
+    enabled: !!formData.flowId && !isTemplateId,
+  });
+
   const { data: existingForms = [] } = useQuery<FormItem[]>({
     queryKey: ["/api/flow-automation/forms"],
     enabled: batchMode === 'dynamic_form',
@@ -1063,6 +1068,76 @@ export default function CreateCampaign() {
                       })}
                     </div>
                   )}
+
+                  {/* Flow Detail Preview */}
+                  {formData.flowId && (() => {
+                    const detail = isTemplateId ? flowTemplateDetail : customFlowDetail;
+                    if (!detail) return null;
+                    const nodes = (detail.nodes || []).filter((n: any) => {
+                      const nodeType = n.data?.type || n.type;
+                      return nodeType !== 'start' && nodeType !== 'trigger';
+                    });
+                    const selectedFlowInfo = allSelectableFlows.find(f => f.id === formData.flowId);
+                    return (
+                      <div className="rounded-lg border bg-muted/20 p-4 space-y-3 mt-3" data-testid="flow-detail-preview">
+                        <div className="flex items-start gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <MessageSquare className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">{detail.name}</p>
+                            {detail.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{detail.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="secondary" className="text-[9px]">
+                                {selectedFlowInfo?.source === 'template' ? 'Template' : 'Custom'}
+                              </Badge>
+                              {nodes.length > 0 && (
+                                <span className="text-[10px] text-muted-foreground">{nodes.length} conversation steps</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {nodes.length > 0 && (
+                          <div className="space-y-1.5 pl-11">
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Conversation Flow</p>
+                            {nodes.slice(0, 8).map((node: any, idx: number) => {
+                              const label = node.data?.label || node.data?.config?.type || 'Step';
+                              const message = node.data?.config?.message || node.data?.config?.question || '';
+                              const nodeType = node.data?.type || node.data?.config?.type || '';
+                              return (
+                                <div key={node.id || idx} className="flex items-start gap-2" data-testid={`flow-step-${idx}`}>
+                                  <div className="flex flex-col items-center">
+                                    <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                      <span className="text-[9px] font-bold text-primary">{idx + 1}</span>
+                                    </div>
+                                    {idx < Math.min(nodes.length, 8) - 1 && (
+                                      <div className="w-px h-3 bg-border" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1 pb-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-medium">{label}</span>
+                                      {nodeType && (
+                                        <Badge variant="outline" className="text-[8px] h-3.5 px-1">{nodeType}</Badge>
+                                      )}
+                                    </div>
+                                    {message && (
+                                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">&ldquo;{message}&rdquo;</p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {nodes.length > 8 && (
+                              <p className="text-[10px] text-muted-foreground pl-7">+{nodes.length - 8} more steps</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

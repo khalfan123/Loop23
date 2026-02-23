@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, Pencil, Plug, Webhook, Mail, Globe, Users, Check, Loader2, Copy } from "lucide-react";
+import { Plus, FileText, Trash2, Eye, GripVertical, X, ClipboardList, Download, ExternalLink, ChevronRight, Search, LayoutTemplate, ArrowLeft, Sparkles, Calendar, Phone, Pencil, Plug, Webhook, Mail, Globe, Users, Check, Loader2, Copy, Brain, BookOpen, MessageSquare } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { Link } from "wouter";
@@ -638,6 +638,10 @@ export default function FormsPage() {
 
   const { data: forms = [], isLoading } = useQuery<Form[]>({
     queryKey: ["/api/flow-automation/forms"],
+  });
+
+  const { data: knowledgeBases = [] } = useQuery<{ id: string; title: string; type: string }[]>({
+    queryKey: ["/api/knowledge-base"],
   });
 
   const { data: submissions = [] } = useQuery<FormSubmission[]>({
@@ -1327,6 +1331,39 @@ export default function FormsPage() {
         </Button>
       </div>
 
+      {/* Knowledge Base + Forms Context Banner */}
+      <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-background to-primary/3 p-4 space-y-3" data-testid="banner-forms-kb-context">
+        <div className="flex items-start gap-3">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Brain className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Forms + Knowledge Base = Personalized AI Calls</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Forms tell your AI agent <span className="font-medium text-foreground">what data to collect</span> during calls. 
+              Your Knowledge Base is the agent's <span className="font-medium text-foreground">brain</span> — it shapes how the AI speaks, responds, and personalizes every conversation.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 pl-12">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <MessageSquare className="h-3.5 w-3.5 text-primary/60" />
+            <span><span className="font-medium text-foreground">{forms.length}</span> form{forms.length !== 1 ? 's' : ''} created</span>
+          </div>
+          <span className="text-muted-foreground/30">·</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <BookOpen className="h-3.5 w-3.5 text-primary/60" />
+            <span><span className="font-medium text-foreground">{knowledgeBases.length}</span> knowledge base item{knowledgeBases.length !== 1 ? 's' : ''}</span>
+          </div>
+          <span className="text-muted-foreground/30">·</span>
+          <Link href="/app/knowledge-base">
+            <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs text-primary hover:text-primary" data-testid="link-go-to-kb">
+              <BookOpen className="h-3 w-3 mr-1" /> Manage Knowledge Base
+            </Button>
+          </Link>
+        </div>
+      </div>
+
       <div className="relative">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
         <Input
@@ -1348,18 +1385,29 @@ export default function FormsPage() {
       </div>
 
       {forms.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="h-12 w-12 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
-            <FileText className="h-5 w-5 text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="h-14 w-14 rounded-2xl bg-primary/8 flex items-center justify-center mb-4">
+            <ClipboardList className="h-6 w-6 text-primary/60" />
           </div>
           <h3 className="text-base font-medium mb-1">{t("forms.noForms")}</h3>
-          <p className="text-sm text-muted-foreground max-w-sm mb-5 font-light">
+          <p className="text-sm text-muted-foreground max-w-md mb-2 font-light">
             {t("forms.noFormsDescription")}
           </p>
-          <Button onClick={() => setCurrentView("templates")} size="sm" className="rounded-full px-4" data-testid="button-create-first-form">
-            <Plus className="h-4 w-4 mr-1.5" />
-            {t("forms.createFirstForm")}
-          </Button>
+          <p className="text-xs text-muted-foreground max-w-md mb-5">
+            Create a form to instruct your AI agent what information to collect during calls. 
+            Pair it with your Knowledge Base to give the AI context for natural, personalized conversations.
+          </p>
+          <div className="flex items-center gap-3">
+            <Button onClick={() => setCurrentView("templates")} size="sm" className="rounded-full px-4" data-testid="button-create-first-form">
+              <Plus className="h-4 w-4 mr-1.5" />
+              {t("forms.createFirstForm")}
+            </Button>
+            <Link href="/app/knowledge-base">
+              <Button type="button" variant="outline" size="sm" className="rounded-full px-4" data-testid="link-setup-kb">
+                <Brain className="h-4 w-4 mr-1.5" /> Set Up Knowledge Base
+              </Button>
+            </Link>
+          </div>
         </div>
       ) : filteredForms.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">

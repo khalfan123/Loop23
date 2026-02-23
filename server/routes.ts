@@ -563,6 +563,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/contacts/all", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const count = await storage.deleteAllUserContacts(req.userId!);
+      res.json({ success: true, deleted: count });
+    } catch (error: any) {
+      console.error("Delete all contacts error:", error);
+      res.status(500).json({ error: "Failed to delete contacts" });
+    }
+  });
+
   app.delete("/api/contacts/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const contact = await storage.getContact(req.params.id);
@@ -581,6 +591,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Delete contact error:", error);
       res.status(500).json({ error: "Failed to delete contact" });
+    }
+  });
+
+  app.post("/api/contacts", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { firstName, lastName, phone, email, campaignId } = req.body;
+      if (!phone && !email) {
+        return res.status(400).json({ error: "Phone or email is required" });
+      }
+      let targetCampaignId = campaignId;
+      if (targetCampaignId) {
+        const campaign = await storage.getCampaign(targetCampaignId);
+        if (!campaign || campaign.userId !== req.userId) {
+          return res.status(403).json({ error: "Not authorized to add contacts to this campaign" });
+        }
+      } else {
+        const userCampaigns = await storage.getUserCampaigns(req.userId!);
+        let importCampaign = userCampaigns.find(c => c.name === 'Imported Contacts');
+        if (!importCampaign) {
+          importCampaign = await storage.createCampaign({
+            name: 'Imported Contacts',
+            userId: req.userId!,
+            status: 'active',
+          });
+        }
+        targetCampaignId = importCampaign.id;
+      }
+      const contact = await storage.createContact({
+        campaignId: targetCampaignId,
+        firstName: firstName || '',
+        lastName: lastName || '',
+        phone: phone || '',
+        email: email || null,
+        status: 'pending',
+      });
+      res.json(contact);
+    } catch (error: any) {
+      console.error("Create contact error:", error);
+      res.status(500).json({ error: "Failed to create contact" });
+    }
+  });
+
+  app.put("/api/contacts/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const contact = await storage.getContact(req.params.id);
+      if (!contact) return res.status(404).json({ error: "Contact not found" });
+      const campaign = await storage.getCampaign(contact.campaignId);
+      if (!campaign || campaign.userId !== req.userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const { firstName, lastName, phone, email } = req.body;
+      const updated = await storage.updateContact(req.params.id, {
+        ...(firstName !== undefined && { firstName }),
+        ...(lastName !== undefined && { lastName }),
+        ...(phone !== undefined && { phone }),
+        ...(email !== undefined && { email }),
+      });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Update contact error:", error);
+      res.status(500).json({ error: "Failed to update contact" });
     }
   });
 

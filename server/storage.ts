@@ -127,6 +127,8 @@ export interface IStorage {
   getUserContactsDeduplicated(userId: string): Promise<any[]>;
   createContact(contact: InsertContact): Promise<Contact>;
   createContacts(contacts: InsertContact[]): Promise<Contact[]>;
+  updateContact(id: string, data: Partial<InsertContact>): Promise<Contact>;
+  deleteAllUserContacts(userId: string): Promise<number>;
 
   // Calls
   getCall(id: string): Promise<Call | undefined>;
@@ -686,6 +688,19 @@ export class DbStorage implements IStorage {
 
   async deleteContact(id: string): Promise<void> {
     await db.delete(contacts).where(eq(contacts.id, id));
+  }
+
+  async updateContact(id: string, data: Partial<InsertContact>): Promise<Contact> {
+    const [updated] = await db.update(contacts).set(data).where(eq(contacts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteAllUserContacts(userId: string): Promise<number> {
+    const userCampaigns = await db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.userId, userId));
+    if (userCampaigns.length === 0) return 0;
+    const campaignIds = userCampaigns.map(c => c.id);
+    const result = await db.delete(contacts).where(inArray(contacts.campaignId, campaignIds)).returning();
+    return result.length;
   }
 
   // Calls

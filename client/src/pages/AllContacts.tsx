@@ -21,9 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Search, Users, Trash2, Phone, PhoneIncoming, PhoneOutgoing, Upload, Download, Plus } from "lucide-react";
-import { useState } from "react";
-import ImportContactsDialog from "@/components/ImportContactsDialog";
+import { useState, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -42,8 +40,41 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Search,
+  Users,
+  Trash2,
+  Phone,
+  PhoneIncoming,
+  PhoneOutgoing,
+  Upload,
+  Download,
+  UserPlus,
+  Pencil,
+  FileSpreadsheet,
+  Contact2,
+  Mail,
+  Loader2,
+} from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 
 interface DeduplicatedContact {
   id: string;
@@ -60,7 +91,13 @@ export default function AllContacts() {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingContact, setDeletingContact] = useState<DeduplicatedContact | null>(null);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<DeduplicatedContact | null>(null);
+  const [addForm, setAddForm] = useState({ firstName: "", lastName: "", phone: "", email: "" });
+  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", phone: "", email: "" });
+  const csvFileRef = useRef<HTMLInputElement>(null);
+  const vcardFileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const { data: contacts = [], isLoading } = useQuery<DeduplicatedContact[]>({
@@ -86,6 +123,194 @@ export default function AllContacts() {
       });
     },
   });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/contacts/all");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      setDeleteAllOpen(false);
+      toast({ title: "All contacts deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to delete all contacts",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addContactMutation = useMutation({
+    mutationFn: async (data: { firstName: string; lastName: string; phone: string; email: string }) => {
+      const res = await apiRequest("POST", "/api/contacts", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      setAddDialogOpen(false);
+      setAddForm({ firstName: "", lastName: "", phone: "", email: "" });
+      toast({ title: "Contact added successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to add contact",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editContactMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { firstName: string; lastName: string; phone: string; email: string } }) => {
+      const res = await apiRequest("PUT", `/api/contacts/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      setEditingContact(null);
+      toast({ title: "Contact updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update contact",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileUpload = async (file: File, type: "csv" | "vcard") => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const endpoint = type === "csv" ? "/api/contact-import/csv" : "/api/contact-import/vcard";
+
+    toast({ title: `Importing ${type === "csv" ? "CSV/Excel" : "vCard"} file...` });
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Import failed");
+      }
+
+      const result = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      toast({
+        title: "Import completed",
+        description: `Imported ${result.imported} contacts${result.skipped ? `, ${result.skipped} skipped` : ""}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Import failed",
+        description: error.message || "An error occurred during import",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOAuthImport = async (provider: "google" | "microsoft") => {
+    try {
+      const endpoint = provider === "google"
+        ? "/api/contact-import/google/auth-url"
+        : "/api/contact-import/microsoft/auth-url";
+
+      const res = await apiRequest("POST", endpoint, {});
+      const data = await res.json();
+
+      if (data.authUrl) {
+        const width = 600;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+
+        const popup = window.open(
+          data.authUrl,
+          `${provider}-auth`,
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+        );
+
+        toast({ title: `Connecting to ${provider === "google" ? "Google" : "Microsoft"}...` });
+
+        const handleMessage = async (event: MessageEvent) => {
+          const protocol = window.location.protocol;
+          const host = window.location.host;
+          if (event.origin !== `${protocol}//${host}`) return;
+          if (!event.data || typeof event.data !== 'object') return;
+
+          if (event.data.type === 'oauth-success') {
+            window.removeEventListener('message', handleMessage);
+
+            toast({ title: `Importing contacts from ${provider === "google" ? "Google" : "Microsoft"}...` });
+
+            try {
+              const fetchEndpoint = `/api/contact-import/${provider}/fetch`;
+              const fetchRes = await apiRequest("POST", fetchEndpoint, {
+                accessToken: event.data.accessToken,
+              });
+
+              if (!fetchRes.ok) {
+                const err = await fetchRes.json();
+                throw new Error(err.error || "Import failed");
+              }
+
+              const result = await fetchRes.json();
+              queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+              toast({
+                title: "Import completed",
+                description: `Imported ${result.imported} contacts${result.skipped ? `, ${result.skipped} skipped` : ""}`,
+              });
+            } catch (fetchError: any) {
+              toast({
+                title: "Import failed",
+                description: fetchError.message || "Failed to import contacts",
+                variant: "destructive",
+              });
+            }
+          } else if (event.data.type === 'oauth-error') {
+            window.removeEventListener('message', handleMessage);
+            toast({
+              title: "Connection failed",
+              description: `Authorization error: ${event.data.error || 'Unknown error'}`,
+              variant: "destructive",
+            });
+          }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        const checkClosed = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(checkClosed);
+            setTimeout(() => {
+              window.removeEventListener('message', handleMessage);
+            }, 1000);
+          }
+        }, 500);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Connection failed",
+        description: error.message || "Failed to connect",
+        variant: "destructive",
+      });
+    }
+  };
 
   const exportToCSV = () => {
     if (contacts.length === 0) {
@@ -148,12 +373,46 @@ export default function AllContacts() {
 
   const campaignContactsCount = contacts.filter(c => c.source === 'campaign').length;
   const callOnlyContactsCount = contacts.filter(c => c.source === 'call').length;
-  const totalCallCount = contacts.reduce((sum, c) => sum + (c.callCount || 0), 0);
   const campaignCount = new Set(contacts.flatMap(c => c.campaigns.map(camp => camp.id))).size;
+
+  const openEditDialog = (contact: DeduplicatedContact) => {
+    const firstNameEntry = contact.names[0];
+    setEditForm({
+      firstName: firstNameEntry?.firstName || "",
+      lastName: firstNameEntry?.lastName || "",
+      phone: contact.phone,
+      email: contact.email || "",
+    });
+    setEditingContact(contact);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Page Header with Light Gradient */}
+      <input
+        ref={csvFileRef}
+        type="file"
+        accept=".csv,.xlsx,.xls,.txt"
+        className="hidden"
+        data-testid="input-csv-file"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFileUpload(file, "csv");
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={vcardFileRef}
+        type="file"
+        accept=".vcf,.vcard"
+        className="hidden"
+        data-testid="input-vcard-file"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFileUpload(file, "vcard");
+          e.target.value = "";
+        }}
+      />
+
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-50 via-cyan-100/50 to-emerald-50 dark:from-teal-950/40 dark:via-cyan-900/30 dark:to-emerald-950/40 border border-teal-100 dark:border-teal-900/50 p-6 md:p-8">
         <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -166,29 +425,92 @@ export default function AllContacts() {
               <p className="text-muted-foreground mt-0.5">{t('contacts.description')}</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => setImportDialogOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-              data-testid="button-import-contacts"
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => setAddDialogOpen(true)}
+              data-testid="button-add-contact"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Import Contacts
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add Contact
             </Button>
-            <Button 
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" data-testid="button-import-contacts">
+                  <Download className="h-4 w-4 mr-2" />
+                  Import
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Import Contacts</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => csvFileRef.current?.click()}
+                  data-testid="menu-import-csv"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Upload CSV/Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => vcardFileRef.current?.click()}
+                  data-testid="menu-import-vcard"
+                >
+                  <Contact2 className="h-4 w-4 mr-2" />
+                  Upload vCard
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleOAuthImport("google")}
+                  data-testid="menu-import-google"
+                >
+                  <SiGoogle className="h-4 w-4 mr-2" />
+                  Google Contacts
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleOAuthImport("microsoft")}
+                  data-testid="menu-import-microsoft"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Microsoft Outlook
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled data-testid="menu-import-hubspot">
+                  <span className="flex items-center gap-2 w-full">
+                    HubSpot
+                    <Badge variant="secondary" className="text-[10px] ml-auto">coming soon</Badge>
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled data-testid="menu-import-salesforce">
+                  <span className="flex items-center gap-2 w-full">
+                    Salesforce
+                    <Badge variant="secondary" className="text-[10px] ml-auto">coming soon</Badge>
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
               onClick={exportToCSV}
               disabled={contacts.length === 0}
               variant="outline"
-              className="border-teal-200 text-teal-700 hover:bg-teal-50 dark:border-teal-800 dark:text-teal-300 dark:hover:bg-teal-900/30"
               data-testid="button-export-contacts"
             >
-              <Download className="h-4 w-4 mr-2" />
+              <Upload className="h-4 w-4 mr-2" />
               {t('contacts.exportContacts')}
+            </Button>
+
+            <Button
+              onClick={() => setDeleteAllOpen(true)}
+              disabled={contacts.length === 0}
+              variant="destructive"
+              data-testid="button-delete-all"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete All
             </Button>
           </div>
         </div>
-        
-        {/* Stats Row */}
+
         <div className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="bg-white/80 dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-teal-100/50 dark:border-teal-800/30">
             <div className="text-2xl font-bold text-teal-700 dark:text-teal-300" data-testid="text-total-contacts">{contacts.length}</div>
@@ -217,7 +539,6 @@ export default function AllContacts() {
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -240,7 +561,7 @@ export default function AllContacts() {
                 <TableHead className="hidden md:table-cell">{t('contacts.fields.email')}</TableHead>
                 <TableHead className="hidden lg:table-cell">{t('contacts.fields.campaigns')}</TableHead>
                 <TableHead>{t('contacts.fields.status')}</TableHead>
-                <TableHead className="w-[80px]">{t('contacts.fields.actions')}</TableHead>
+                <TableHead className="w-[100px]">{t('contacts.fields.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -325,18 +646,28 @@ export default function AllContacts() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      {contact.source === 'campaign' ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeletingContact(contact)}
-                          data-testid={`button-delete-contact-${contact.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">-</span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {contact.source === 'campaign' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(contact)}
+                            data-testid={`button-edit-contact-${contact.id}`}
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        )}
+                        {contact.source === 'campaign' ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeletingContact(contact)}
+                            data-testid={`button-delete-contact-${contact.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        ) : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -378,7 +709,165 @@ export default function AllContacts() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <ImportContactsDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
+      <AlertDialog open={deleteAllOpen} onOpenChange={setDeleteAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Contacts</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete all {contacts.length} contacts? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-all">{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteAllMutation.mutate()}
+              disabled={deleteAllMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-all"
+            >
+              {deleteAllMutation.isPending ? "Deleting..." : "Delete All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Contact</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="add-firstName">First Name</Label>
+                <Input
+                  id="add-firstName"
+                  value={addForm.firstName}
+                  onChange={(e) => setAddForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  placeholder="First name"
+                  data-testid="input-add-firstname"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-lastName">Last Name</Label>
+                <Input
+                  id="add-lastName"
+                  value={addForm.lastName}
+                  onChange={(e) => setAddForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  placeholder="Last name"
+                  data-testid="input-add-lastname"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-phone">Phone</Label>
+              <Input
+                id="add-phone"
+                value={addForm.phone}
+                onChange={(e) => setAddForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="+1234567890"
+                data-testid="input-add-phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-email">Email</Label>
+              <Input
+                id="add-email"
+                type="email"
+                value={addForm.email}
+                onChange={(e) => setAddForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="email@example.com"
+                data-testid="input-add-email"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)} data-testid="button-cancel-add">
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => addContactMutation.mutate(addForm)}
+              disabled={addContactMutation.isPending || !addForm.phone}
+              data-testid="button-confirm-add"
+            >
+              {addContactMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Adding...</>
+              ) : (
+                "Add Contact"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingContact} onOpenChange={(open) => { if (!open) setEditingContact(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Contact</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">First Name</Label>
+                <Input
+                  id="edit-firstName"
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  placeholder="First name"
+                  data-testid="input-edit-firstname"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">Last Name</Label>
+                <Input
+                  id="edit-lastName"
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  placeholder="Last name"
+                  data-testid="input-edit-lastname"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="+1234567890"
+                data-testid="input-edit-phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="email@example.com"
+                data-testid="input-edit-email"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingContact(null)} data-testid="button-cancel-edit">
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => editingContact && editContactMutation.mutate({ id: editingContact.id, data: editForm })}
+              disabled={editContactMutation.isPending || !editForm.phone}
+              data-testid="button-confirm-edit"
+            >
+              {editContactMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

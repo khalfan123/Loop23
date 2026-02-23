@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, Plus, FileSpreadsheet, Contact2, Mail, Pencil, GripVertical, LayoutGrid, List, Globe, Star } from "lucide-react";
+import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, Plus, FileSpreadsheet, Contact2, Mail, Pencil, GripVertical, LayoutGrid, List, Globe, Tag, Check, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -140,6 +140,21 @@ interface DeduplicatedContact {
   callCount: number;
 }
 
+interface ContactGroup {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+interface GroupMembership {
+  contact_phone: string;
+  group_id: string;
+  group_name: string;
+  group_color: string;
+}
+
 type ViewMode = 'batch' | 'contacts';
 
 export default function Campaigns() {
@@ -153,8 +168,11 @@ export default function Campaigns() {
   const [editingContact, setEditingContact] = useState<DeduplicatedContact | null>(null);
   const [editForm, setEditForm] = useState({ firstName: "", lastName: "", phone: "", email: "" });
   const [contactSortBy, setContactSortBy] = useState<'name' | 'phone'>('name');
-  const [contactViewMode, setContactViewMode] = useState<'list' | 'country' | 'vip'>('list');
-  const [vipContacts, setVipContacts] = useState<Set<string>>(new Set());
+  const [contactViewMode, setContactViewMode] = useState<'list' | 'country' | 'groups'>('list');
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string | null>(null);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupColor, setNewGroupColor] = useState("#6366f1");
   const [colWidths, setColWidths] = useState({ name: 160, phone: 140, email: 200, actions: 50 });
   const resizingCol = useRef<{ col: string; startX: number; startW: number } | null>(null);
   const csvFileRef = useRef<HTMLInputElement>(null);
@@ -170,6 +188,16 @@ export default function Campaigns() {
 
   const { data: contacts = [], isLoading: contactsLoading } = useQuery<DeduplicatedContact[]>({
     queryKey: ["/api/contacts/deduplicated"],
+    enabled: activeView === 'contacts',
+  });
+
+  const { data: contactGroups = [] } = useQuery<ContactGroup[]>({
+    queryKey: ["/api/contact-groups"],
+    enabled: activeView === 'contacts',
+  });
+
+  const { data: groupMemberships = [] } = useQuery<GroupMembership[]>({
+    queryKey: ["/api/contact-group-memberships"],
     enabled: activeView === 'contacts',
   });
 
@@ -209,14 +237,57 @@ export default function Campaigns() {
     },
   });
 
-  const toggleVip = useCallback((id: string) => {
-    setVipContacts(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const createGroupMutation = useMutation({
+    mutationFn: async (data: { name: string; color: string }) => {
+      const res = await apiRequest("POST", "/api/contact-groups", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-groups"] });
+      setCreateGroupOpen(false);
+      setNewGroupName("");
+      toast({ title: "Group created" });
+    },
+  });
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/contact-groups/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-group-memberships"] });
+      if (selectedGroupFilter) setSelectedGroupFilter(null);
+      toast({ title: "Group deleted" });
+    },
+  });
+
+  const addToGroupMutation = useMutation({
+    mutationFn: async ({ groupId, contactPhone }: { groupId: string; contactPhone: string }) => {
+      const res = await apiRequest("POST", `/api/contact-groups/${groupId}/members`, { contactPhone });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-group-memberships"] });
+      toast({ title: "Added to group" });
+    },
+  });
+
+  const removeFromGroupMutation = useMutation({
+    mutationFn: async ({ groupId, contactPhone }: { groupId: string; contactPhone: string }) => {
+      const res = await apiRequest("DELETE", `/api/contact-groups/${groupId}/members/${encodeURIComponent(contactPhone)}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-group-memberships"] });
+      toast({ title: "Removed from group" });
+    },
+  });
+
+  const getContactGroups = useCallback((phone: string) => {
+    return groupMemberships.filter(m => m.contact_phone === phone);
+  }, [groupMemberships]);
 
   const openEditDialog = (contact: DeduplicatedContact) => {
     if (contact.source !== 'campaign') return;
@@ -436,11 +507,12 @@ export default function Campaigns() {
     .filter((contact) => {
       const searchLower = contactSearchQuery.toLowerCase();
       const allNames = contact.names.map(n => `${n.firstName} ${n.lastName || ""}`).join(" ").toLowerCase();
-      return (
-        allNames.includes(searchLower) ||
-        contact.phone.toLowerCase().includes(searchLower) ||
-        contact.email?.toLowerCase().includes(searchLower)
-      );
+      const matchesSearch = allNames.includes(searchLower) || contact.phone.toLowerCase().includes(searchLower) || contact.email?.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+      if (contactViewMode === 'groups' && selectedGroupFilter) {
+        return groupMemberships.some(m => m.contact_phone === contact.phone && m.group_id === selectedGroupFilter);
+      }
+      return true;
     })
     .sort((a, b) => {
       if (contactSortBy === 'name') {
@@ -462,11 +534,6 @@ export default function Campaigns() {
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredContacts]);
 
-  const vipFilteredContacts = useMemo(() =>
-    filteredContacts.filter(c => vipContacts.has(c.id)),
-    [filteredContacts, vipContacts]
-  );
-
   const {
     currentPage,
     totalPages,
@@ -476,16 +543,6 @@ export default function Campaigns() {
     handlePageChange,
     handleItemsPerPageChange,
   } = usePagination(filteredContacts, 25);
-
-  const {
-    currentPage: vipCurrentPage,
-    totalPages: vipTotalPages,
-    totalItems: vipTotalItems,
-    itemsPerPage: vipItemsPerPage,
-    paginatedItems: vipPaginatedItems,
-    handlePageChange: vipHandlePageChange,
-    handleItemsPerPageChange: vipHandleItemsPerPageChange,
-  } = usePagination(vipFilteredContacts, 25);
 
   const subPanelContent = (
     <div className="space-y-1">
@@ -726,7 +783,7 @@ export default function Campaigns() {
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" data-testid="button-view-mode">
               <LayoutGrid className="h-4 w-4 mr-1" />
-              {contactViewMode === 'list' ? 'List' : contactViewMode === 'country' ? 'By Country' : 'VIP'}
+              {contactViewMode === 'list' ? 'List' : contactViewMode === 'country' ? 'By Country' : 'Groups'}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -736,13 +793,52 @@ export default function Campaigns() {
             <DropdownMenuItem onClick={() => setContactViewMode('country')}>
               <Globe className="h-4 w-4 mr-2" /> Group by Country
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setContactViewMode('vip')}>
-              <Star className="h-4 w-4 mr-2" /> VIP Only
+            <DropdownMenuItem onClick={() => setContactViewMode('groups')}>
+              <Tag className="h-4 w-4 mr-2" /> Groups
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <span className="text-xs text-muted-foreground">{filteredContacts.length} contacts</span>
       </div>
+
+      {contactViewMode === 'groups' && (
+        <div className="mb-3 px-1 flex items-center gap-2 flex-wrap">
+          <Button
+            variant={selectedGroupFilter === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedGroupFilter(null)}
+          >
+            All
+          </Button>
+          {contactGroups.map(group => {
+            const count = groupMemberships.filter(m => m.group_id === group.id).length;
+            return (
+              <Button
+                key={group.id}
+                variant={selectedGroupFilter === group.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedGroupFilter(group.id === selectedGroupFilter ? null : group.id)}
+                className="gap-1.5"
+              >
+                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: group.color }} />
+                {group.name}
+                <Badge variant="secondary" className="text-[10px] ml-1">{count}</Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 ml-0.5 -mr-1"
+                  onClick={(e) => { e.stopPropagation(); deleteGroupMutation.mutate(group.id); }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Button>
+            );
+          })}
+          <Button variant="ghost" size="sm" onClick={() => setCreateGroupOpen(true)} data-testid="button-new-group">
+            <Plus className="h-4 w-4 mr-1" /> New Group
+          </Button>
+        </div>
+      )}
 
       <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-hidden">
         {contactsLoading ? (
@@ -796,6 +892,11 @@ export default function Campaigns() {
                                   <span className="font-medium text-sm" title={fullName}>
                                     {displayName || <span className="text-muted-foreground italic">Unknown</span>}
                                   </span>
+                                  {getContactGroups(contact.phone).map(g => (
+                                    <span key={g.group_id} className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white ml-1" style={{ backgroundColor: g.group_color }}>
+                                      {g.group_name}
+                                    </span>
+                                  ))}
                                 </div>
                               </TableCell>
                               <TableCell className="font-mono text-xs overflow-hidden text-ellipsis whitespace-nowrap">{contact.phone}</TableCell>
@@ -804,19 +905,47 @@ export default function Campaigns() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={(e) => { e.stopPropagation(); toggleVip(contact.id); }}
-                                    data-testid={`button-vip-${contact.id}`}
-                                  >
-                                    {vipContacts.has(contact.id) ? (
-                                      <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                                    ) : (
-                                      <Star className="h-4 w-4 text-muted-foreground" />
-                                    )}
-                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()} data-testid={`button-groups-${contact.id}`}>
+                                        <Tag className="h-4 w-4 text-muted-foreground" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                      <DropdownMenuLabel>Assign to Group</DropdownMenuLabel>
+                                      <DropdownMenuSeparator />
+                                      {contactGroups.length === 0 ? (
+                                        <DropdownMenuItem disabled>No groups yet</DropdownMenuItem>
+                                      ) : (
+                                        contactGroups.map(group => {
+                                          const isMember = groupMemberships.some(m => m.contact_phone === contact.phone && m.group_id === group.id);
+                                          return (
+                                            <DropdownMenuItem
+                                              key={group.id}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isMember) {
+                                                  removeFromGroupMutation.mutate({ groupId: group.id, contactPhone: contact.phone });
+                                                } else {
+                                                  addToGroupMutation.mutate({ groupId: group.id, contactPhone: contact.phone });
+                                                }
+                                              }}
+                                            >
+                                              <div className="flex items-center gap-2 w-full">
+                                                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: group.color }} />
+                                                <span>{group.name}</span>
+                                                {isMember && <Check className="h-3 w-3 ml-auto" />}
+                                              </div>
+                                            </DropdownMenuItem>
+                                          );
+                                        })
+                                      )}
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setCreateGroupOpen(true); }}>
+                                        <Plus className="h-4 w-4 mr-2" /> New Group
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                   {contact.source === 'campaign' && (
                                     <Button
                                       variant="ghost"
@@ -864,7 +993,7 @@ export default function Campaigns() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(contactViewMode === 'vip' ? vipPaginatedItems : paginatedItems).map((contact) => {
+                  {paginatedItems.map((contact) => {
                     const primaryName = contact.names[0];
                     const fullName = primaryName
                       ? `${primaryName.firstName} ${primaryName.lastName || ""}`.trim()
@@ -885,6 +1014,11 @@ export default function Campaigns() {
                             <span className="font-medium text-sm" title={fullName}>
                               {displayName || <span className="text-muted-foreground italic">Unknown</span>}
                             </span>
+                            {getContactGroups(contact.phone).map(g => (
+                              <span key={g.group_id} className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white ml-1" style={{ backgroundColor: g.group_color }}>
+                                {g.group_name}
+                              </span>
+                            ))}
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-xs overflow-hidden text-ellipsis whitespace-nowrap">{contact.phone}</TableCell>
@@ -893,19 +1027,47 @@ export default function Campaigns() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => { e.stopPropagation(); toggleVip(contact.id); }}
-                              data-testid={`button-vip-${contact.id}`}
-                            >
-                              {vipContacts.has(contact.id) ? (
-                                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                              ) : (
-                                <Star className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()} data-testid={`button-groups-${contact.id}`}>
+                                  <Tag className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuLabel>Assign to Group</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {contactGroups.length === 0 ? (
+                                  <DropdownMenuItem disabled>No groups yet</DropdownMenuItem>
+                                ) : (
+                                  contactGroups.map(group => {
+                                    const isMember = groupMemberships.some(m => m.contact_phone === contact.phone && m.group_id === group.id);
+                                    return (
+                                      <DropdownMenuItem
+                                        key={group.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (isMember) {
+                                            removeFromGroupMutation.mutate({ groupId: group.id, contactPhone: contact.phone });
+                                          } else {
+                                            addToGroupMutation.mutate({ groupId: group.id, contactPhone: contact.phone });
+                                          }
+                                        }}
+                                      >
+                                        <div className="flex items-center gap-2 w-full">
+                                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: group.color }} />
+                                          <span>{group.name}</span>
+                                          {isMember && <Check className="h-3 w-3 ml-auto" />}
+                                        </div>
+                                      </DropdownMenuItem>
+                                    );
+                                  })
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setCreateGroupOpen(true); }}>
+                                  <Plus className="h-4 w-4 mr-2" /> New Group
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                             {contact.source === 'campaign' && (
                               <Button
                                 variant="ghost"
@@ -929,7 +1091,7 @@ export default function Campaigns() {
         )}
       </div>
 
-      {contactViewMode === 'list' && filteredContacts.length > 0 && (
+      {(contactViewMode === 'list' || contactViewMode === 'groups') && filteredContacts.length > 0 && (
         <div className="pt-3 px-1">
           <DataPagination
             currentPage={currentPage}
@@ -938,20 +1100,6 @@ export default function Campaigns() {
             itemsPerPage={itemsPerPage}
             onPageChange={handlePageChange}
             onItemsPerPageChange={handleItemsPerPageChange}
-            showItemsPerPage={true}
-          />
-        </div>
-      )}
-
-      {contactViewMode === 'vip' && vipFilteredContacts.length > 0 && (
-        <div className="pt-3 px-1">
-          <DataPagination
-            currentPage={vipCurrentPage}
-            totalPages={vipTotalPages}
-            totalItems={vipTotalItems}
-            itemsPerPage={vipItemsPerPage}
-            onPageChange={vipHandlePageChange}
-            onItemsPerPageChange={vipHandleItemsPerPageChange}
             showItemsPerPage={true}
           />
         </div>
@@ -1043,6 +1191,51 @@ export default function Campaigns() {
               ) : (
                 "Save Changes"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={createGroupOpen} onOpenChange={setCreateGroupOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Create New Group</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="group-name">Group Name</Label>
+              <Input
+                id="group-name"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="e.g. VIP, Priority, Follow-up"
+                data-testid="input-group-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex gap-2 flex-wrap">
+                {['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#64748b'].map(color => (
+                  <button
+                    key={color}
+                    type="button"
+                    className={`h-8 w-8 rounded-full border-2 ${newGroupColor === color ? 'border-foreground scale-110' : 'border-transparent'}`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setNewGroupColor(color)}
+                    data-testid={`button-color-${color}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateGroupOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createGroupMutation.mutate({ name: newGroupName, color: newGroupColor })}
+              disabled={createGroupMutation.isPending || !newGroupName.trim()}
+              data-testid="button-create-group"
+            >
+              {createGroupMutation.isPending ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</>) : "Create Group"}
             </Button>
           </DialogFooter>
         </DialogContent>

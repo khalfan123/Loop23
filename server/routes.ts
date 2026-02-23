@@ -20,6 +20,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
 import { db } from "./db";
+import { nanoid } from "nanoid";
 import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions, twilioOpenaiCalls, globalSettings } from "@shared/schema";
 import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import { authenticateToken, requireRole, generateTokenAsync, checkActiveMembership, checkUserActive, type AuthRequest } from "./middleware/auth";
@@ -652,6 +653,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Update contact error:", error);
       res.status(500).json({ error: "Failed to update contact" });
+    }
+  });
+
+  // Contact Groups routes
+  app.get("/api/contact-groups", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const result = await db.execute(sql`SELECT * FROM contact_groups WHERE user_id = ${req.userId} ORDER BY created_at ASC`);
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Get contact groups error:", error);
+      res.status(500).json({ error: "Failed to get contact groups" });
+    }
+  });
+
+  app.post("/api/contact-groups", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { name, color } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ error: "Group name is required" });
+      const id = nanoid();
+      await db.execute(sql`INSERT INTO contact_groups (id, user_id, name, color) VALUES (${id}, ${req.userId}, ${name.trim()}, ${color || '#6366f1'})`);
+      const result = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${id}`);
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      console.error("Create contact group error:", error);
+      res.status(500).json({ error: "Failed to create group" });
+    }
+  });
+
+  app.put("/api/contact-groups/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { name, color } = req.body;
+      const group = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${req.params.id} AND user_id = ${req.userId}`);
+      if (group.rows.length === 0) return res.status(404).json({ error: "Group not found" });
+      await db.execute(sql`UPDATE contact_groups SET name = COALESCE(${name || null}, name), color = COALESCE(${color || null}, color) WHERE id = ${req.params.id}`);
+      const result = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${req.params.id}`);
+      res.json(result.rows[0]);
+    } catch (error: any) {
+      console.error("Update contact group error:", error);
+      res.status(500).json({ error: "Failed to update group" });
+    }
+  });
+
+  app.delete("/api/contact-groups/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const group = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${req.params.id} AND user_id = ${req.userId}`);
+      if (group.rows.length === 0) return res.status(404).json({ error: "Group not found" });
+      await db.execute(sql`DELETE FROM contact_groups WHERE id = ${req.params.id}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete contact group error:", error);
+      res.status(500).json({ error: "Failed to delete group" });
+    }
+  });
+
+  app.get("/api/contact-groups/:id/members", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const group = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${req.params.id} AND user_id = ${req.userId}`);
+      if (group.rows.length === 0) return res.status(404).json({ error: "Group not found" });
+      const members = await db.execute(sql`SELECT contact_phone FROM contact_group_members WHERE group_id = ${req.params.id}`);
+      res.json(members.rows.map((r: any) => r.contact_phone));
+    } catch (error: any) {
+      console.error("Get group members error:", error);
+      res.status(500).json({ error: "Failed to get group members" });
+    }
+  });
+
+  app.post("/api/contact-groups/:id/members", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { contactPhone } = req.body;
+      if (!contactPhone) return res.status(400).json({ error: "Contact phone is required" });
+      const group = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${req.params.id} AND user_id = ${req.userId}`);
+      if (group.rows.length === 0) return res.status(404).json({ error: "Group not found" });
+      const id = nanoid();
+      await db.execute(sql`INSERT INTO contact_group_members (id, group_id, contact_phone) VALUES (${id}, ${req.params.id}, ${contactPhone}) ON CONFLICT (group_id, contact_phone) DO NOTHING`);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Add group member error:", error);
+      res.status(500).json({ error: "Failed to add member" });
+    }
+  });
+
+  app.delete("/api/contact-groups/:id/members/:phone", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const group = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${req.params.id} AND user_id = ${req.userId}`);
+      if (group.rows.length === 0) return res.status(404).json({ error: "Group not found" });
+      const phone = decodeURIComponent(req.params.phone);
+      await db.execute(sql`DELETE FROM contact_group_members WHERE group_id = ${req.params.id} AND contact_phone = ${phone}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Remove group member error:", error);
+      res.status(500).json({ error: "Failed to remove member" });
+    }
+  });
+
+  app.get("/api/contact-group-memberships", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT cgm.contact_phone, cgm.group_id, cg.name as group_name, cg.color as group_color 
+        FROM contact_group_members cgm 
+        JOIN contact_groups cg ON cgm.group_id = cg.id 
+        WHERE cg.user_id = ${req.userId}
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Get memberships error:", error);
+      res.status(500).json({ error: "Failed to get memberships" });
     }
   });
 

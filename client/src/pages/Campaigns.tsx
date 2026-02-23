@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from 'react-i18next';
@@ -24,8 +24,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, Plus } from "lucide-react";
-import ImportContactsDialog from "@/components/ImportContactsDialog";
+import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, Plus, FileSpreadsheet, Contact2, Mail } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,7 +100,8 @@ export default function Campaigns() {
   const [activeView, setActiveView] = useState<ViewMode>('batch');
   const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [deletingContact, setDeletingContact] = useState<DeduplicatedContact | null>(null);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const csvFileRef = useRef<HTMLInputElement>(null);
+  const vcardFileRef = useRef<HTMLInputElement>(null);
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
     queryKey: ["/api/auth/me"],
@@ -163,6 +172,74 @@ export default function Campaigns() {
     URL.revokeObjectURL(url);
 
     toast({ title: `Exported ${contacts.length} contacts to CSV` });
+  };
+
+  const handleFileUpload = async (file: File, type: "csv" | "vcard") => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const endpoint = type === "csv" ? "/api/contact-import/csv" : "/api/contact-import/vcard";
+    toast({ title: `Importing ${type === "csv" ? "CSV/Excel" : "vCard"} file...` });
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Import failed");
+      }
+      const result = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      toast({
+        title: "Import completed",
+        description: `Imported ${result.imported} contacts${result.skipped ? `, ${result.skipped} skipped` : ""}`,
+      });
+    } catch (error: any) {
+      toast({ title: "Import failed", description: error.message || "An error occurred", variant: "destructive" });
+    }
+  };
+
+  const handleOAuthImport = async (provider: "google" | "microsoft") => {
+    try {
+      const endpoint = provider === "google" ? "/api/contact-import/google/auth-url" : "/api/contact-import/microsoft/auth-url";
+      const res = await apiRequest("POST", endpoint, {});
+      const data = await res.json();
+      if (data.authUrl) {
+        const width = 600, height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        const popup = window.open(data.authUrl, `${provider}-auth`, `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`);
+        toast({ title: `Connecting to ${provider === "google" ? "Google" : "Microsoft"}...` });
+        const handleMessage = async (event: MessageEvent) => {
+          const origin = `${window.location.protocol}//${window.location.host}`;
+          if (event.origin !== origin) return;
+          if (!event.data || typeof event.data !== 'object') return;
+          if (event.data.type === 'oauth-success') {
+            window.removeEventListener('message', handleMessage);
+            toast({ title: `Importing contacts from ${provider === "google" ? "Google" : "Microsoft"}...` });
+            try {
+              const fetchRes = await apiRequest("POST", `/api/contact-import/${provider}/fetch`, { accessToken: event.data.accessToken });
+              if (!fetchRes.ok) { const err = await fetchRes.json(); throw new Error(err.error || "Import failed"); }
+              const result = await fetchRes.json();
+              queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+              toast({ title: "Import completed", description: `Imported ${result.imported} contacts${result.skipped ? `, ${result.skipped} skipped` : ""}` });
+            } catch (fetchError: any) {
+              toast({ title: "Import failed", description: fetchError.message || "Failed to import contacts", variant: "destructive" });
+            }
+          } else if (event.data.type === 'oauth-error') {
+            window.removeEventListener('message', handleMessage);
+            toast({ title: "Connection failed", description: `Authorization error: ${event.data.error || 'Unknown error'}`, variant: "destructive" });
+          }
+        };
+        window.addEventListener('message', handleMessage);
+        const checkClosed = setInterval(() => { if (popup?.closed) { clearInterval(checkClosed); setTimeout(() => window.removeEventListener('message', handleMessage), 1000); } }, 500);
+      }
+    } catch (error: any) {
+      toast({ title: "Connection failed", description: error.message || "Failed to connect", variant: "destructive" });
+    }
   };
 
   const isPro = user?.planType === "pro";
@@ -412,13 +489,48 @@ export default function Campaigns() {
           <span className="font-medium">{t('contacts.title', 'Contacts')}</span>
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={() => setImportDialogOpen(true)}
-            data-testid="button-import-contacts"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t('contacts.importContacts', 'Import Contacts')}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button data-testid="button-import-contacts">
+                <Download className="h-4 w-4 mr-2" />
+                {t('contacts.importContacts', 'Import Contacts')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Import Contacts</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => csvFileRef.current?.click()} data-testid="menu-import-csv">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Upload CSV/Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => vcardFileRef.current?.click()} data-testid="menu-import-vcard">
+                <Contact2 className="h-4 w-4 mr-2" />
+                Upload vCard
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleOAuthImport("google")} data-testid="menu-import-google">
+                <SiGoogle className="h-4 w-4 mr-2" />
+                Google Contacts
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleOAuthImport("microsoft")} data-testid="menu-import-microsoft">
+                <Mail className="h-4 w-4 mr-2" />
+                Microsoft Outlook
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled data-testid="menu-import-hubspot">
+                <span className="flex items-center gap-2 w-full">
+                  HubSpot
+                  <Badge variant="secondary" className="text-[10px] ml-auto">coming soon</Badge>
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled data-testid="menu-import-salesforce">
+                <span className="flex items-center gap-2 w-full">
+                  Salesforce
+                  <Badge variant="secondary" className="text-[10px] ml-auto">coming soon</Badge>
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button 
             onClick={exportToCSV}
             disabled={contacts.length === 0}
@@ -607,7 +719,8 @@ export default function Campaigns() {
       >
         {activeView === 'batch' ? renderBatchCallView() : renderContactsView()}
       </ThreeColumnLayout>
-      <ImportContactsDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
+      <input ref={csvFileRef} type="file" accept=".csv,.xlsx,.xls,.txt" className="hidden" data-testid="input-csv-file" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file, "csv"); e.target.value = ""; }} />
+      <input ref={vcardFileRef} type="file" accept=".vcf,.vcard" className="hidden" data-testid="input-vcard-file" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file, "vcard"); e.target.value = ""; }} />
     </>
   );
 }

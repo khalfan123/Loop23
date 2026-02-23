@@ -632,6 +632,8 @@ export default function AllContacts() {
                         className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
                           contact.status === "completed"
                             ? "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400"
+                            : contact.status === "imported"
+                            ? "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400"
                             : contact.status === "pending"
                             ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400"
                             : contact.status === "incoming_call"
@@ -642,7 +644,8 @@ export default function AllContacts() {
                         }`}
                       >
                         {contact.status === 'incoming_call' ? t('calls.filters.incoming') : 
-                         contact.status === 'outgoing_call' ? t('calls.filters.outgoing') : contact.status}
+                         contact.status === 'outgoing_call' ? t('calls.filters.outgoing') : 
+                         contact.status === 'imported' ? 'Imported' : contact.status}
                       </span>
                     </TableCell>
                     <TableCell>

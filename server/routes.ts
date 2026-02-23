@@ -624,7 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: lastName || '',
         phone: phone || '',
         email: email || null,
-        status: 'pending',
+        status: 'imported',
       });
       res.json(contact);
     } catch (error: any) {

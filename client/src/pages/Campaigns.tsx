@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from 'react-i18next';
@@ -24,7 +24,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, Plus, FileSpreadsheet, Contact2, Mail } from "lucide-react";
+import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, Plus, FileSpreadsheet, Contact2, Mail, Pencil, GripVertical } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { SiGoogle } from "react-icons/si";
 import {
   DropdownMenu,
@@ -100,7 +108,11 @@ export default function Campaigns() {
   const [activeView, setActiveView] = useState<ViewMode>('batch');
   const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [deletingContact, setDeletingContact] = useState<DeduplicatedContact | null>(null);
+  const [editingContact, setEditingContact] = useState<DeduplicatedContact | null>(null);
+  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", phone: "", email: "" });
   const [contactSortBy, setContactSortBy] = useState<'name' | 'phone' | 'status'>('name');
+  const [colWidths, setColWidths] = useState({ name: 160, phone: 140, email: 200, status: 100, actions: 50 });
+  const resizingCol = useRef<{ col: string; startX: number; startW: number } | null>(null);
   const csvFileRef = useRef<HTMLInputElement>(null);
   const vcardFileRef = useRef<HTMLInputElement>(null);
 
@@ -136,6 +148,62 @@ export default function Campaigns() {
       });
     },
   });
+
+  const editContactMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { firstName: string; lastName: string; phone: string; email: string } }) => {
+      const res = await apiRequest("PUT", `/api/contacts/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      setEditingContact(null);
+      toast({ title: "Contact updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update contact", description: error.message || "Please try again", variant: "destructive" });
+    },
+  });
+
+  const openEditDialog = (contact: DeduplicatedContact) => {
+    if (contact.source !== 'campaign') return;
+    const first = contact.names[0];
+    setEditForm({
+      firstName: first?.firstName || "",
+      lastName: first?.lastName || "",
+      phone: contact.phone,
+      email: contact.email || "",
+    });
+    setEditingContact(contact);
+  };
+
+  const handleResizeStart = useCallback((col: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = colWidths[col as keyof typeof colWidths] || 150;
+    resizingCol.current = { col, startX, startW };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizingCol.current) return;
+      const diff = ev.clientX - resizingCol.current.startX;
+      const newW = Math.max(60, resizingCol.current.startW + diff);
+      setColWidths(prev => ({ ...prev, [resizingCol.current!.col]: newW }));
+    };
+
+    const onMouseUp = () => {
+      resizingCol.current = null;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [colWidths]);
 
   const exportToCSV = () => {
     if (contacts.length === 0) {
@@ -595,13 +663,32 @@ export default function Campaigns() {
           </div>
         ) : (
           <ScrollArea className="h-full" type="always">
-            <Table className="table-fixed w-full">
+            <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+              <colgroup>
+                <col style={{ width: colWidths.name }} />
+                <col style={{ width: colWidths.phone }} />
+                <col style={{ width: colWidths.email }} className="hidden md:table-column" />
+                <col style={{ width: colWidths.status }} />
+                <col style={{ width: colWidths.actions }} />
+              </colgroup>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="font-medium w-[160px]">{t('contacts.fields.names', 'Name')}</TableHead>
-                  <TableHead className="font-medium w-[140px]">{t('contacts.fields.phone', 'Phone')}</TableHead>
-                  <TableHead className="font-medium hidden md:table-cell">{t('contacts.fields.email', 'Email')}</TableHead>
-                  <TableHead className="font-medium w-[100px]">{t('contacts.fields.status', 'Status')}</TableHead>
+                  <TableHead className="font-medium relative select-none">
+                    {t('contacts.fields.names', 'Name')}
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50" onMouseDown={(e) => handleResizeStart('name', e)} />
+                  </TableHead>
+                  <TableHead className="font-medium relative select-none">
+                    {t('contacts.fields.phone', 'Phone')}
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50" onMouseDown={(e) => handleResizeStart('phone', e)} />
+                  </TableHead>
+                  <TableHead className="font-medium hidden md:table-cell relative select-none">
+                    {t('contacts.fields.email', 'Email')}
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50" onMouseDown={(e) => handleResizeStart('email', e)} />
+                  </TableHead>
+                  <TableHead className="font-medium relative select-none">
+                    {t('contacts.fields.status', 'Status')}
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50" onMouseDown={(e) => handleResizeStart('status', e)} />
+                  </TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -613,7 +700,12 @@ export default function Campaigns() {
                     : "";
                   const displayName = fullName.length > 14 ? fullName.slice(0, 14) + "..." : fullName;
                   return (
-                    <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
+                    <TableRow
+                      key={contact.id}
+                      data-testid={`row-contact-${contact.id}`}
+                      className={contact.source === 'campaign' ? "cursor-pointer hover:bg-muted/50" : ""}
+                      onClick={() => openEditDialog(contact)}
+                    >
                       <TableCell data-testid={`cell-names-${contact.id}`} className="overflow-hidden">
                         <div className="flex items-center gap-2">
                           <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
@@ -624,8 +716,8 @@ export default function Campaigns() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-xs overflow-hidden text-ellipsis">{contact.phone}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm hidden md:table-cell overflow-hidden text-ellipsis">
+                      <TableCell className="font-mono text-xs overflow-hidden text-ellipsis whitespace-nowrap">{contact.phone}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm hidden md:table-cell overflow-hidden text-ellipsis whitespace-nowrap">
                         {contact.email || "-"}
                       </TableCell>
                       <TableCell>
@@ -634,6 +726,8 @@ export default function Campaigns() {
                           className={
                             contact.status === "completed"
                               ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-700"
+                              : contact.status === "imported"
+                              ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-700"
                               : contact.status === "pending"
                               ? "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-700"
                               : contact.status === "incoming_call"
@@ -647,6 +741,8 @@ export default function Campaigns() {
                             <><PhoneIncoming className="h-3 w-3 mr-1" />{t('calls.filters.incoming', 'Incoming')}</>
                           ) : contact.status === 'outgoing_call' ? (
                             <><PhoneOutgoing className="h-3 w-3 mr-1" />{t('calls.filters.outgoing', 'Outgoing')}</>
+                          ) : contact.status === 'imported' ? (
+                            'Imported'
                           ) : (
                             contact.status
                           )}
@@ -658,7 +754,7 @@ export default function Campaigns() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => setDeletingContact(contact)}
+                            onClick={(e) => { e.stopPropagation(); setDeletingContact(contact); }}
                             data-testid={`button-delete-contact-${contact.id}`}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -709,6 +805,75 @@ export default function Campaigns() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!editingContact} onOpenChange={(open) => { if (!open) setEditingContact(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Contact</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">First Name</Label>
+                <Input
+                  id="edit-firstName"
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  placeholder="First name"
+                  data-testid="input-edit-firstname"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">Last Name</Label>
+                <Input
+                  id="edit-lastName"
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  placeholder="Last name"
+                  data-testid="input-edit-lastname"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="+1234567890"
+                data-testid="input-edit-phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="email@example.com"
+                data-testid="input-edit-email"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingContact(null)} data-testid="button-cancel-edit">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => editingContact && editContactMutation.mutate({ id: editingContact.id, data: editForm })}
+              disabled={editContactMutation.isPending || !editForm.phone}
+              data-testid="button-confirm-edit"
+            >
+              {editContactMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 

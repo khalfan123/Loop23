@@ -405,7 +405,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         phone: c.phone,
         email: c.email,
         customFields: c.customFields,
-        status: 'pending',
+        status: 'imported',
       }));
 
       const result = await batchInsertContacts(insertData, '📥 [CSV Import]');
@@ -459,7 +459,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         phone: c.phone,
         email: c.email,
         customFields: c.customFields,
-        status: 'pending',
+        status: 'imported',
       }));
 
       const result = await batchInsertContacts(insertData, '📥 [vCard Import]');
@@ -692,7 +692,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         phone: c.phone,
         email: c.email,
         customFields: c.customFields,
-        status: 'pending',
+        status: 'imported',
       }));
 
       const result = await batchInsertContacts(insertData, '📥 [Google Import]');
@@ -871,7 +871,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         phone: c.phone,
         email: c.email,
         customFields: c.customFields,
-        status: 'pending',
+        status: 'imported',
       }));
 
       const result = await batchInsertContacts(insertData, '📥 [Microsoft Import]');
@@ -917,7 +917,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         phone: c.phone,
         email: c.email,
         customFields: c.customFields,
-        status: 'pending',
+        status: 'imported',
       }));
 
       const result = await batchInsertContacts(insertData, '📥 [HubSpot Import]');
@@ -963,7 +963,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         phone: c.phone,
         email: c.email,
         customFields: c.customFields,
-        status: 'pending',
+        status: 'imported',
       }));
 
       const result = await batchInsertContacts(insertData, '📥 [Salesforce Import]');

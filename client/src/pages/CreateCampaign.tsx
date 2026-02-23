@@ -585,9 +585,9 @@ export default function CreateCampaign() {
         onSuccess={handleTimezoneSet}
       />
 
-      <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] bg-white dark:bg-card rounded-xl border overflow-hidden">
+      <div className="flex flex-col md:flex-row md:h-[calc(100vh-120px)] bg-white dark:bg-card rounded-xl border md:overflow-hidden">
         {/* Left Form Column */}
-        <div className="w-full md:w-[320px] flex-shrink-0 border-b md:border-b-0 md:border-r flex flex-col overflow-hidden">
+        <div className="w-full md:w-[320px] flex-shrink-0 border-b md:border-b-0 md:border-r flex flex-col md:min-h-0 md:overflow-hidden">
           {/* Header */}
           <div className="p-4 border-b">
             <div className="flex items-center gap-2">

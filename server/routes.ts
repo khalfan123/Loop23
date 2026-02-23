@@ -747,6 +747,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/contacts/bulk-delete", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { contactIds } = req.body;
+      if (!Array.isArray(contactIds) || contactIds.length === 0) {
+        return res.status(400).json({ error: "contactIds array is required" });
+      }
+      let deleted = 0;
+      for (const id of contactIds) {
+        const contact = await storage.getContact(id);
+        if (!contact) continue;
+        const campaign = await storage.getCampaign(contact.campaignId);
+        if (!campaign || campaign.userId !== req.userId) continue;
+        await storage.deleteContact(id);
+        deleted++;
+      }
+      res.json({ success: true, deleted });
+    } catch (error: any) {
+      console.error("Bulk delete contacts error:", error);
+      res.status(500).json({ error: "Failed to bulk delete contacts" });
+    }
+  });
+
+  app.post("/api/contact-groups/:id/members/bulk", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const group = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${req.params.id} AND user_id = ${req.userId}`);
+      if (group.rows.length === 0) return res.status(404).json({ error: "Group not found" });
+      const { phones } = req.body;
+      if (!Array.isArray(phones) || phones.length === 0) {
+        return res.status(400).json({ error: "phones array is required" });
+      }
+      let added = 0;
+      for (const phone of phones) {
+        const existing = await db.execute(sql`SELECT 1 FROM contact_group_members WHERE group_id = ${req.params.id} AND contact_phone = ${phone}`);
+        if (existing.rows.length === 0) {
+          await db.execute(sql`INSERT INTO contact_group_members (group_id, contact_phone) VALUES (${req.params.id}, ${phone})`);
+          added++;
+        }
+      }
+      res.json({ success: true, added });
+    } catch (error: any) {
+      console.error("Bulk add group members error:", error);
+      res.status(500).json({ error: "Failed to bulk add members" });
+    }
+  });
+
+  app.post("/api/contact-groups/:id/members/bulk-remove", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const group = await db.execute(sql`SELECT * FROM contact_groups WHERE id = ${req.params.id} AND user_id = ${req.userId}`);
+      if (group.rows.length === 0) return res.status(404).json({ error: "Group not found" });
+      const { phones } = req.body;
+      if (!Array.isArray(phones) || phones.length === 0) {
+        return res.status(400).json({ error: "phones array is required" });
+      }
+      for (const phone of phones) {
+        await db.execute(sql`DELETE FROM contact_group_members WHERE group_id = ${req.params.id} AND contact_phone = ${phone}`);
+      }
+      res.json({ success: true, removed: phones.length });
+    } catch (error: any) {
+      console.error("Bulk remove group members error:", error);
+      res.status(500).json({ error: "Failed to bulk remove members" });
+    }
+  });
+
   app.get("/api/contact-group-memberships", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const result = await db.execute(sql`

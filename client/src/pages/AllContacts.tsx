@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -83,6 +83,7 @@ import {
 } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 
 function getCountryFromPhone(phone: string): string {
   const cleaned = phone.replace(/\s/g, '');
@@ -166,9 +167,12 @@ export default function AllContacts() {
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("#6366f1");
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const csvFileRef = useRef<HTMLInputElement>(null);
   const vcardFileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => { setSelectedContacts(new Set()); }, [contactViewMode]);
 
   const { data: contacts = [], isLoading } = useQuery<DeduplicatedContact[]>({
     queryKey: ["/api/contacts/deduplicated"],
@@ -308,6 +312,43 @@ export default function AllContacts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contact-group-memberships"] });
       toast({ title: "Removed from group" });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (contactIds: string[]) => {
+      const res = await apiRequest("POST", "/api/contacts/bulk-delete", { contactIds });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+      setSelectedContacts(new Set());
+      toast({ title: `Deleted ${data.deleted} contacts` });
+    },
+  });
+
+  const bulkAssignGroupMutation = useMutation({
+    mutationFn: async ({ groupId, phones }: { groupId: string; phones: string[] }) => {
+      const res = await apiRequest("POST", `/api/contact-groups/${groupId}/members/bulk`, { phones });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-group-memberships"] });
+      setSelectedContacts(new Set());
+      toast({ title: `Added ${data.added} contacts to group` });
+    },
+  });
+
+  const bulkRemoveGroupMutation = useMutation({
+    mutationFn: async ({ groupId, phones }: { groupId: string; phones: string[] }) => {
+      const res = await apiRequest("POST", `/api/contact-groups/${groupId}/members/bulk-remove`, { phones });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contact-group-memberships"] });
+      setSelectedContacts(new Set());
+      toast({ title: "Removed contacts from group" });
     },
   });
 
@@ -513,6 +554,50 @@ export default function AllContacts() {
     handlePageChange,
     handleItemsPerPageChange,
   } = usePagination(filteredContacts, 10);
+
+  const toggleContactSelection = useCallback((id: string) => {
+    setSelectedContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedContacts.size === paginatedItems.length) {
+      setSelectedContacts(new Set());
+    } else {
+      setSelectedContacts(new Set(paginatedItems.map(c => c.id)));
+    }
+  }, [paginatedItems, selectedContacts.size]);
+
+  const selectedPhones = useMemo(() => {
+    return contacts.filter(c => selectedContacts.has(c.id)).map(c => c.phone);
+  }, [contacts, selectedContacts]);
+
+  const bulkExportSelected = useCallback(() => {
+    const selected = contacts.filter(c => selectedContacts.has(c.id));
+    if (selected.length === 0) return;
+    const headers = ["Phone", "Names", "Email", "Source"];
+    const rows = selected.map(contact => [
+      contact.phone,
+      contact.names.map(n => `${n.firstName} ${n.lastName || ""}`).join("; "),
+      contact.email || "",
+      contact.source,
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `contacts_selected_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: `Exported ${selected.length} contacts` });
+  }, [contacts, selectedContacts, toast]);
 
   const campaignContactsCount = contacts.filter(c => c.source === 'campaign').length;
   const callOnlyContactsCount = contacts.filter(c => c.source === 'call').length;
@@ -755,6 +840,67 @@ export default function AllContacts() {
         </Button>
       </div>
 
+      {selectedContacts.size > 0 && (
+        <div className="px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">{selectedContacts.size} selected</span>
+          <div className="h-4 w-px bg-border" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-bulk-assign-group">
+                <Tag className="h-4 w-4 mr-1" /> Assign to Group
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {contactGroups.map(group => (
+                <DropdownMenuItem
+                  key={group.id}
+                  onClick={() => bulkAssignGroupMutation.mutate({ groupId: group.id, phones: selectedPhones })}
+                >
+                  <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: group.color }} />
+                  {group.name}
+                </DropdownMenuItem>
+              ))}
+              {contactGroups.length === 0 && <DropdownMenuItem disabled>No groups yet</DropdownMenuItem>}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-bulk-remove-group">
+                <X className="h-4 w-4 mr-1" /> Remove from Group
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {contactGroups.map(group => (
+                <DropdownMenuItem
+                  key={group.id}
+                  onClick={() => bulkRemoveGroupMutation.mutate({ groupId: group.id, phones: selectedPhones })}
+                >
+                  <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: group.color }} />
+                  {group.name}
+                </DropdownMenuItem>
+              ))}
+              {contactGroups.length === 0 && <DropdownMenuItem disabled>No groups yet</DropdownMenuItem>}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="outline" size="sm" onClick={bulkExportSelected} data-testid="button-bulk-export">
+            <Download className="h-4 w-4 mr-1" /> Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={() => bulkDeleteMutation.mutate(Array.from(selectedContacts))}
+            disabled={bulkDeleteMutation.isPending}
+            data-testid="button-bulk-delete"
+          >
+            <Trash2 className="h-4 w-4 mr-1" /> Delete
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedContacts(new Set())} className="ml-auto">
+            Clear
+          </Button>
+        </div>
+      )}
+
       {contactViewMode === 'country' ? (
         <Card>
           <ScrollArea className="h-[600px]" type="always">
@@ -779,6 +925,7 @@ export default function AllContacts() {
                       <TableBody>
                         {groupContacts.map((contact) => (
                           <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
+                            <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedContacts.has(contact.id)} onCheckedChange={() => toggleContactSelection(contact.id)} data-testid={`checkbox-contact-${contact.id}`} /></TableCell>
                             <TableCell>
                               {contact.source === 'campaign' ? (
                                 <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-700">
@@ -933,6 +1080,9 @@ export default function AllContacts() {
                       className="bg-background border rounded-xl p-4 flex flex-col items-center text-center gap-2 hover:shadow-md transition-shadow cursor-pointer group relative"
                       onClick={() => contact.source === 'campaign' && openEditDialog(contact)}
                     >
+                      <div className="absolute top-2 left-2">
+                        <Checkbox checked={selectedContacts.has(contact.id)} onCheckedChange={() => toggleContactSelection(contact.id)} onClick={(e: any) => e.stopPropagation()} data-testid={`checkbox-contact-${contact.id}`} />
+                      </div>
                       <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -1029,6 +1179,7 @@ export default function AllContacts() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]"><Checkbox checked={paginatedItems.length > 0 && selectedContacts.size === paginatedItems.length} onCheckedChange={toggleSelectAll} data-testid="checkbox-select-all" /></TableHead>
                     <TableHead>{t('contacts.fields.source')}</TableHead>
                     <TableHead>{t('contacts.fields.names')}</TableHead>
                     <TableHead>{t('contacts.fields.phone')}</TableHead>
@@ -1040,19 +1191,20 @@ export default function AllContacts() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
                         {t('contacts.loading')}
                       </TableCell>
                     </TableRow>
                   ) : paginatedItems.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
                         {searchQuery ? t('contacts.noMatchingSearch') : t('contacts.noContacts')}
                       </TableCell>
                     </TableRow>
                   ) : (
                     paginatedItems.map((contact) => (
                       <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
+                        <TableCell onClick={(e) => e.stopPropagation()}><Checkbox checked={selectedContacts.has(contact.id)} onCheckedChange={() => toggleContactSelection(contact.id)} data-testid={`checkbox-contact-${contact.id}`} /></TableCell>
                         <TableCell>
                           {contact.source === 'campaign' ? (
                             <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-700">

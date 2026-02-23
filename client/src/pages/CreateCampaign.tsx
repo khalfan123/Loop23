@@ -597,18 +597,59 @@ export default function CreateCampaign() {
       />
 
       <div className="flex flex-col md:flex-row md:h-[calc(100vh-120px)] bg-white dark:bg-card rounded-xl border md:overflow-hidden">
-        {/* Left Form Column */}
-        <div className="w-full md:w-[320px] flex-shrink-0 border-b md:border-b-0 md:border-r flex flex-col md:min-h-0 md:overflow-hidden">
-          {/* Header */}
-          <div className="p-4 border-b">
+        {/* Left Recipients Column */}
+        <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden min-h-[200px] md:min-h-0 border-b md:border-b-0 md:border-r">
+          <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div>
-                <h2 className="font-semibold text-base">{t('campaigns.createBatchCall', 'Create a batch call')}</h2>
-                <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
+              <h3 className="font-semibold text-sm">{t('campaigns.recipients', 'Recipients')}</h3>
+            </div>
+            {resolvedContacts.length > 0 && (
+              <Badge variant="secondary" className="text-xs">{resolvedContacts.length}</Badge>
+            )}
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
+            {resolvedContacts.length === 0 ? (
+              <div className="text-center text-muted-foreground">
+                <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-sm font-medium mb-1">{t('campaigns.noRecipientsYet', 'No recipients yet')}</p>
+                <p className="text-xs">{recipientMode === 'csv' ? t('campaigns.pleaseUploadRecipients', 'Please upload recipients first') : 'Select contacts from groups, countries, or individually'}</p>
               </div>
+            ) : (
+              <ScrollArea className="h-full w-full">
+                <div className="space-y-2 p-2">
+                  {resolvedContacts.map((contact, idx) => {
+                    const displayName = contact.first_name ? `${contact.first_name} ${contact.last_name || ""}`.trim() : "";
+                    return (
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-white dark:bg-card rounded-lg border" data-testid={`recipient-row-${idx}`}>
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-medium">{idx + 1}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm">{getCountryFlag(getCountryFromPhone(contact.phone_number))}</span>
+                            <span className="text-sm font-medium truncate">{contact.phone_number}</span>
+                          </div>
+                          {displayName && <p className="text-xs text-muted-foreground truncate">{displayName}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            )}
+          </div>
+        </div>
+
+        {/* Right Form Column - Create a batch call */}
+        <div className="w-full md:w-[380px] flex-shrink-0 flex flex-col md:min-h-0 md:overflow-hidden">
+          {/* Header */}
+          <div className="p-4 border-b">
+            <div>
+              <h2 className="font-semibold text-base">{t('campaigns.createBatchCall', 'Create a batch call')}</h2>
+              <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
             </div>
           </div>
 
@@ -1146,44 +1187,6 @@ export default function CreateCampaign() {
           </div>
         </div>
 
-        {/* Right Recipients Column */}
-        <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden min-h-[200px] md:min-h-0">
-          <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
-            <h3 className="font-semibold text-sm">{t('campaigns.recipients', 'Recipients')}</h3>
-            {resolvedContacts.length > 0 && (
-              <Badge variant="secondary" className="text-xs">{resolvedContacts.length}</Badge>
-            )}
-          </div>
-          <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
-            {resolvedContacts.length === 0 ? (
-              <div className="text-center text-muted-foreground">
-                <p className="text-sm">{recipientMode === 'csv' ? t('campaigns.pleaseUploadRecipients', 'Please upload recipients first') : 'Select contacts from groups, countries, or individually'}</p>
-              </div>
-            ) : (
-              <ScrollArea className="h-full w-full">
-                <div className="space-y-2 p-2">
-                  {resolvedContacts.map((contact, idx) => {
-                    const displayName = contact.first_name ? `${contact.first_name} ${contact.last_name || ""}`.trim() : "";
-                    return (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-white dark:bg-card rounded-lg border" data-testid={`recipient-row-${idx}`}>
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-medium">{idx + 1}</span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm">{getCountryFlag(getCountryFromPhone(contact.phone_number))}</span>
-                            <span className="text-sm font-medium truncate">{contact.phone_number}</span>
-                          </div>
-                          {displayName && <p className="text-xs text-muted-foreground truncate">{displayName}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            )}
-          </div>
-        </div>
       </div>
 
       <PhoneConflictDialog

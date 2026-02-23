@@ -33,6 +33,7 @@ import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal"
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "@/components/PhoneConflictDialog";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
 interface Agent {
@@ -956,6 +957,89 @@ export default function CreateCampaign() {
                     </Select>
                   </div>
 
+                  {/* Data Collection Form - shown right after batch type when dynamic_form */}
+                  {batchMode === 'dynamic_form' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium flex items-center gap-1.5">
+                          <ClipboardList className="h-3.5 w-3.5" />
+                          Data Collection Form
+                        </Label>
+                        <div className="flex items-center gap-1.5">
+                          {selectedForm && selectedForm.fields.length > 0 && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1" data-testid="button-show-fields">
+                                  <FileText className="h-3 w-3" /> Show Fields
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center gap-2">
+                                    <ClipboardList className="h-4 w-4" />
+                                    {selectedForm.name} - Fields
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="rounded-lg border bg-muted/20 divide-y max-h-[400px] overflow-y-auto">
+                                  {selectedForm.fields
+                                    .sort((a, b) => a.order - b.order)
+                                    .map((field, idx) => (
+                                    <div key={field.id} className="flex items-center gap-2 px-3 py-2.5" data-testid={`form-field-preview-${idx}`}>
+                                      <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary/10 text-[10px] font-medium text-primary shrink-0">
+                                        {idx + 1}
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium truncate">{field.question}</p>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                          <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{field.fieldType}</Badge>
+                                          {field.isRequired && <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-amber-300 text-amber-600">Required</Badge>}
+                                          {field.options && field.options.length > 0 && (
+                                            <span className="text-[9px] text-muted-foreground">{field.options.length} options</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                          <Link href="/app/forms">
+                            <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" data-testid="button-manage-forms">
+                              <ExternalLink className="h-3 w-3" /> Manage Forms
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                      <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+                        <SelectTrigger className="h-9" data-testid="select-form">
+                          <SelectValue placeholder={existingForms.length === 0 ? "No forms available" : "Select a form"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {existingForms.filter(f => f.isActive).map(form => (
+                            <SelectItem key={form.id} value={form.id}>
+                              <div className="flex items-center gap-2">
+                                <span>{form.name}</span>
+                                <span className="text-[10px] text-muted-foreground">({form.fields?.length || 0} fields)</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {existingForms.length === 0 && (
+                        <div className="rounded-lg border border-dashed p-3 text-center">
+                          <ClipboardList className="h-5 w-5 mx-auto text-muted-foreground/40 mb-1.5" />
+                          <p className="text-xs text-muted-foreground mb-2">No forms created yet.</p>
+                          <Link href="/app/forms">
+                            <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" data-testid="button-create-form">
+                              <Plus className="h-3 w-3" /> Create a Form
+                            </Button>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* === FLOW TEMPLATE MODE === */}
                   {batchMode === 'flow_template' && (
                     <>
@@ -1140,75 +1224,6 @@ export default function CreateCampaign() {
                         </div>
                       </div>
 
-                      {/* Data Collection Form Selector */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium flex items-center gap-1.5">
-                            <ClipboardList className="h-3.5 w-3.5" />
-                            Data Collection Form
-                          </Label>
-                          <Link href="/app/forms">
-                            <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" data-testid="button-manage-forms">
-                              <ExternalLink className="h-3 w-3" /> Manage Forms
-                            </Button>
-                          </Link>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          Select a form from your Forms library. The AI will ask these questions naturally during the conversation to collect data.
-                        </p>
-                        <Select value={selectedFormId} onValueChange={setSelectedFormId}>
-                          <SelectTrigger className="h-9" data-testid="select-form">
-                            <SelectValue placeholder={existingForms.length === 0 ? "No forms available" : "Select a form"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {existingForms.filter(f => f.isActive).map(form => (
-                              <SelectItem key={form.id} value={form.id}>
-                                <div className="flex items-center gap-2">
-                                  <span>{form.name}</span>
-                                  <span className="text-[10px] text-muted-foreground">({form.fields?.length || 0} fields)</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {existingForms.length === 0 && (
-                          <div className="rounded-lg border border-dashed p-3 text-center">
-                            <ClipboardList className="h-5 w-5 mx-auto text-muted-foreground/40 mb-1.5" />
-                            <p className="text-xs text-muted-foreground mb-2">No forms created yet.</p>
-                            <Link href="/app/forms">
-                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" data-testid="button-create-form">
-                                <Plus className="h-3 w-3" /> Create a Form
-                              </Button>
-                            </Link>
-                          </div>
-                        )}
-                        {selectedForm && selectedForm.fields.length > 0 && (
-                          <div className="space-y-1.5">
-                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Form Fields Preview</p>
-                            <div className="rounded-lg border bg-muted/20 divide-y">
-                              {selectedForm.fields
-                                .sort((a, b) => a.order - b.order)
-                                .map((field, idx) => (
-                                <div key={field.id} className="flex items-center gap-2 px-3 py-2" data-testid={`form-field-preview-${idx}`}>
-                                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary/10 text-[10px] font-medium text-primary shrink-0">
-                                    {idx + 1}
-                                  </span>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium truncate">{field.question}</p>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                      <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{field.fieldType}</Badge>
-                                      {field.isRequired && <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-amber-300 text-amber-600">Required</Badge>}
-                                      {field.options && field.options.length > 0 && (
-                                        <span className="text-[9px] text-muted-foreground">{field.options.length} options</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
 
                     </>
                   )}

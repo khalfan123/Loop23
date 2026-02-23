@@ -451,7 +451,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
     try {
       console.log('[Contact Import] OAuth callback received. Full query:', JSON.stringify(req.query));
       console.log('[Contact Import] OAuth callback URL:', req.originalUrl);
-      const { code, state, error: oauthError } = req.query;
+      const { code, state, error: oauthError, scope: grantedScope } = req.query;
 
       if (oauthError) {
         return sendPopupMessage(
@@ -476,6 +476,18 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
       }
 
       const providerSlug = stateData.slug;
+
+      if (providerSlug === 'google-contacts' && grantedScope) {
+        const scopeStr = String(grantedScope);
+        if (!scopeStr.includes('contacts.readonly')) {
+          console.warn('[Contact Import] Google did not grant contacts.readonly scope. Granted:', scopeStr);
+          return sendPopupMessage(
+            `window.opener.postMessage({ type: 'oauth-error', error: 'Google did not grant contacts permission. Please ensure the Google People API is enabled in your Google Cloud Console, then try again.' }, window.location.origin); window.close();`,
+            'Contacts permission was not granted. Please enable the Google People API and try again.'
+          );
+        }
+      }
+
       const credentials = getProviderCredentials(providerSlug);
       if (!credentials) {
         return sendPopupMessage(
@@ -563,6 +575,7 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
         scope: 'https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
         access_type: 'offline',
         prompt: 'consent',
+        include_granted_scopes: 'true',
       });
 
       res.json({
@@ -585,7 +598,18 @@ export default function contactImportRoutes(ctx: RouteContext): Router {
       const campaign = await getOrCreateImportCampaign(req.userId!);
       const campaignId = campaign.id;
 
-      const googleContacts = await fetchGoogleContacts(accessToken);
+      let googleContacts;
+      try {
+        googleContacts = await fetchGoogleContacts(accessToken);
+      } catch (fetchErr: any) {
+        if (fetchErr.message?.includes('403') && fetchErr.message?.includes('SCOPE_INSUFFICIENT')) {
+          return res.status(403).json({ 
+            error: 'Google Contacts permission was not granted. Please sign in with Google again and make sure to allow contacts access.',
+            code: 'SCOPE_INSUFFICIENT'
+          });
+        }
+        throw fetchErr;
+      }
       const validContacts = googleContacts.filter(c => c.phone || c.email).slice(0, MAX_IMPORT_CONTACTS);
 
       if (validContacts.length === 0) {

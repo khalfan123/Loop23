@@ -315,6 +315,17 @@ export default function ImportContactsDialog({
 
         if (!res.ok) {
           const err = await res.json();
+          if (err.code === 'SCOPE_INSUFFICIENT') {
+            setOauthAccessToken("");
+            setOauthAccountInfo(null);
+            setStep("configure");
+            toast({
+              title: "Permission not granted",
+              description: "Please sign in again and make sure to allow contacts access when prompted by Google.",
+              variant: "destructive",
+            });
+            return;
+          }
           throw new Error(err.error || "Import failed");
         }
 

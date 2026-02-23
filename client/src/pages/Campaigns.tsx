@@ -163,6 +163,7 @@ export default function Campaigns() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [showPhoneNumberAlert, setShowPhoneNumberAlert] = useState(false);
+  const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewMode>('batch');
   const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [deletingContact, setDeletingContact] = useState<DeduplicatedContact | null>(null);
@@ -223,6 +224,20 @@ export default function Campaigns() {
         description: error.message || "Please try again",
         variant: "destructive",
       });
+    },
+  });
+
+  const deleteCampaignMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      await apiRequest("DELETE", `/api/campaigns/${campaignId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      setDeletingCampaignId(null);
+      toast({ title: "Campaign deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete campaign", description: error.message || "Please try again", variant: "destructive" });
     },
   });
 
@@ -640,13 +655,6 @@ export default function Campaigns() {
           badge={campaigns.length}
           onClick={() => setActiveView('batch')}
         />
-        <SubPanelItem
-          icon={<Users className="w-4 h-4" />}
-          label={t('nav.contacts', 'Contacts')}
-          isActive={activeView === 'contacts'}
-          badge={activeView === 'contacts' ? contacts.length : undefined}
-          onClick={() => setActiveView('contacts')}
-        />
       </SubPanelSection>
 
       <SubPanelSection title={t('campaigns.status.title', 'STATUS')}>
@@ -664,6 +672,13 @@ export default function Campaigns() {
             <span className="font-medium">{pendingCampaigns}</span>
           </div>
         </div>
+        <SubPanelItem
+          icon={<Users className="w-4 h-4" />}
+          label={t('nav.contacts', 'Contacts')}
+          isActive={activeView === 'contacts'}
+          badge={activeView === 'contacts' ? contacts.length : undefined}
+          onClick={() => setActiveView('contacts')}
+        />
       </SubPanelSection>
     </div>
   );
@@ -711,6 +726,7 @@ export default function Campaigns() {
                     </div>
                   </TableHead>
                   <TableHead className="font-medium">{t('campaigns.table.lastUpdated', 'Last Updated')}</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -739,6 +755,17 @@ export default function Campaigns() {
                     </TableCell>
                     <TableCell className="text-muted-foreground" data-testid={`text-date-${campaign.id}`}>
                       {formatDate(campaign.updatedAt || campaign.createdAt)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); setDeletingCampaignId(campaign.id); }}
+                        data-testid={`button-delete-campaign-${campaign.id}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -774,6 +801,27 @@ export default function Campaigns() {
               setLocation('/app/phone-numbers');
             }}>
               {t('campaigns.managePhoneNumbers', 'Manage Phone Numbers')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletingCampaignId} onOpenChange={(open) => { if (!open) setDeletingCampaignId(null); }}>
+        <AlertDialogContent data-testid="dialog-delete-campaign">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Batch Call</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this batch call? This action cannot be undone and all associated contacts and call history will be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deletingCampaignId) deleteCampaignMutation.mutate(deletingCampaignId); }}
+              data-testid="button-confirm-delete-campaign"
+            >
+              {deleteCampaignMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

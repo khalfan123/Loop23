@@ -27,7 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X, GitBranch, FileText, Brain, Mic, Phone, ArrowRight, MessageSquare, Languages, Bot, Volume2, ClipboardList, ExternalLink } from "lucide-react";
+import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X, GitBranch, FileText, Mic, Phone, ArrowRight, MessageSquare, Languages, ClipboardList, ExternalLink, Sparkles } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "@/components/PhoneConflictDialog";
@@ -360,6 +360,24 @@ export default function CreateCampaign() {
     });
 
   const dayKeys = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
+
+  const generateGreetingMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/campaigns/generate-greeting", {
+        callType: batchMode,
+        campaignName: formData.name,
+      });
+      return res.json();
+    },
+    onSuccess: (data: { greeting: string }) => {
+      if (data.greeting) {
+        setGreetingMessage(data.greeting);
+      }
+    },
+    onError: () => {
+      toast({ title: "Could not generate greeting", description: "Please try again or write one manually.", variant: "destructive" });
+    },
+  });
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -986,24 +1004,44 @@ export default function CreateCampaign() {
                     </>
                   )}
 
-                  {/* === DYNAMIC FORM MODE === */}
-                  {batchMode === 'dynamic_form' && (
-                    <>
-                      {/* Greeting Message */}
-                      <div className="space-y-1.5">
+                  {/* Greeting Message - shown for both modes */}
+                  {batchMode && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
                         <Label className="text-sm font-medium flex items-center gap-1.5">
                           <MessageSquare className="h-3.5 w-3.5" />
                           Greeting Message
                         </Label>
-                        <Textarea
-                          value={greetingMessage}
-                          onChange={(e) => setGreetingMessage(e.target.value)}
-                          placeholder="Enter the greeting the AI will use when calling..."
-                          className="text-sm min-h-[60px] resize-none"
-                          data-testid="input-greeting-message"
-                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => generateGreetingMutation.mutate()}
+                          disabled={generateGreetingMutation.isPending}
+                          data-testid="button-ai-generate-greeting"
+                        >
+                          {generateGreetingMutation.isPending ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3 w-3" />
+                          )}
+                          {generateGreetingMutation.isPending ? "Generating..." : `AI Generate (${batchMode === 'flow_template' ? 'Flow' : 'Data Collection'})`}
+                        </Button>
                       </div>
+                      <Textarea
+                        value={greetingMessage}
+                        onChange={(e) => setGreetingMessage(e.target.value)}
+                        placeholder="Enter the greeting the AI will use when calling..."
+                        className="text-sm min-h-[60px] resize-none"
+                        data-testid="input-greeting-message"
+                      />
+                    </div>
+                  )}
 
+                  {/* === DYNAMIC FORM MODE === */}
+                  {batchMode === 'dynamic_form' && (
+                    <>
                       {/* Language Selection */}
                       <div className="space-y-1.5">
                         <Label className="text-sm font-medium flex items-center gap-1.5">
@@ -1112,46 +1150,6 @@ export default function CreateCampaign() {
                         )}
                       </div>
 
-                      {/* Knowledge Base - Auto-connected */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium flex items-center gap-1.5">
-                          <Brain className="h-3.5 w-3.5" />
-                          Knowledge Base
-                        </Label>
-                        <p className="text-[11px] text-muted-foreground">
-                          All your knowledge bases are automatically connected so the AI can answer personalized questions using your data via AWS Bedrock.
-                        </p>
-                        {knowledgeBases.length === 0 ? (
-                          <div className="rounded-lg border border-dashed p-3 text-center">
-                            <Brain className="h-5 w-5 mx-auto text-muted-foreground/40 mb-1.5" />
-                            <p className="text-xs text-muted-foreground">No knowledge bases available. Create one from the Knowledge Base page.</p>
-                          </div>
-                        ) : (
-                          <div className="rounded-lg border bg-purple-50/50 dark:bg-purple-950/20 p-3 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center justify-center h-6 w-6 rounded-full bg-purple-100 dark:bg-purple-900/40">
-                                <Brain className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                              </div>
-                              <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                                {knowledgeBases.length} knowledge base{knowledgeBases.length !== 1 ? 's' : ''} connected
-                              </span>
-                            </div>
-                            <div className="space-y-1 max-h-[120px] overflow-y-auto">
-                              {knowledgeBases.map(kb => (
-                                <div
-                                  key={kb.id}
-                                  className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/60 dark:bg-card/40 border border-purple-100 dark:border-purple-800/30"
-                                  data-testid={`kb-connected-${kb.id}`}
-                                >
-                                  <Brain className="h-3 w-3 text-purple-500 shrink-0" />
-                                  <span className="text-xs truncate flex-1">{kb.title}</span>
-                                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{kb.type}</Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
                     </>
                   )}
 

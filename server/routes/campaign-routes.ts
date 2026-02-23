@@ -113,6 +113,48 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
     }
   });
 
+  // AI Generate Greeting Message
+  router.post("/api/campaigns/generate-greeting", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { callType, campaignName } = req.body;
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      let contextPrompt = "";
+      if (callType === "flow_template") {
+        contextPrompt = "This is a flow-based calling campaign that follows scripted conversation steps with branching logic.";
+      } else if (callType === "dynamic_form") {
+        contextPrompt = "This is a data collection campaign where the AI agent collects information from contacts using a dynamic form.";
+      } else {
+        contextPrompt = "This is a general calling campaign.";
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5-nano",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional greeting message writer for AI calling campaigns. Generate a natural, warm, and professional greeting message that the AI agent will say when calling contacts. Keep it concise (1-3 sentences). Do not use quotes around the message. Only output the greeting text, nothing else."
+          },
+          {
+            role: "user",
+            content: `Generate a greeting message for a calling campaign${campaignName ? ` called "${campaignName}"` : ''}. ${contextPrompt}`
+          }
+        ],
+        max_completion_tokens: 150,
+      });
+
+      const greeting = response.choices[0]?.message?.content?.trim() || "";
+      res.json({ greeting });
+    } catch (error: any) {
+      console.error("Error generating greeting:", error);
+      res.status(500).json({ error: "Failed to generate greeting message" });
+    }
+  });
+
   // Create campaign
   router.post("/api/campaigns", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {

@@ -69,6 +69,7 @@ import AppointmentsPage from "@/pages/AppointmentsPage";
 import FlowTemplatesPage from "@/pages/FlowTemplatesPage";
 import IncomingConnections from "@/pages/IncomingConnections";
 import IncomingCallCanvas from "@/pages/IncomingCallCanvas";
+import OutboundCanvas from "@/pages/OutboundCanvas";
 import PromptTemplates from "@/pages/PromptTemplates";
 import TransactionHistory from "@/pages/TransactionHistory";
 import IntegrationMarketplace from "@/pages/IntegrationMarketplace";
@@ -246,7 +247,7 @@ function UserRouter() {
           <Route path="/app/flows">
             <Redirect to="/app/settings/flows" />
           </Route>
-          <Route path="/app/outbound" component={() => <div className="text-center py-16 text-muted-foreground">Outbound page coming soon</div>} />
+          <Route path="/app/outbound" component={OutboundCanvas} />
           <Route path="/app/settings/*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
           <Route path="/app/rock-center" component={RockCenter} />

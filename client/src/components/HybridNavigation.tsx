@@ -126,6 +126,7 @@ export function HybridNavigation({
     { title: 'Deprock', url: "/app/deprock", icon: Mountain },
     { title: 'Call Simulator', url: "/app/call-simulator", icon: PhoneIncoming },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: PhoneOutgoing },
+    { title: t('nav.outbound', 'Outbound'), url: "/app/outbound", icon: PhoneOutgoing },
     { title: t('nav.integrations', 'Integrations'), url: "/app/integrations", icon: Plug },
     { title: 'RockCenter', url: "/app/rock-center", icon: Zap },
   ];

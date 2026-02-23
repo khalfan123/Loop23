@@ -20,7 +20,7 @@ import {
   CreditCard, TrendingUp, UserCheck, Workflow, Webhook, 
   ClipboardList, Calendar, Layout, FileText, Wrench, Globe, 
   Bot, ContactRound, Building2, ShieldCheck, Brain, Menu, X, 
-  ChevronDown, Zap, Grid3X3, Search, HelpCircle, Plug
+  ChevronDown, Zap, Grid3X3, Search, HelpCircle, Plug, PhoneOutgoing
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -105,6 +105,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
     { title: t('nav.agents'), url: "/app/agents", icon: Bot, hasPlus: true, iconColor: "text-blue-500", description: "AI voice agents" },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen, iconColor: "text-violet-500", description: "Train your AI" },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: Target, hasPlus: true, iconColor: "text-orange-500", description: "Batch calling campaigns" },
+    { title: t('nav.outbound', 'Outbound'), url: "/app/outbound", icon: PhoneOutgoing, iconColor: "text-cyan-500", description: "Outbound calling wizard" },
     { title: t('nav.integrations', 'Integrations'), url: "/app/integrations", icon: Plug, iconColor: "text-indigo-500", description: "Connect business tools" },
   ];
 

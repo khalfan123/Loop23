@@ -842,8 +842,11 @@ export default function CreateCampaign() {
 
   const canAdvanceFromStep = (step: number): boolean => {
     if (step === 1) return !!formData.flowId;
-    if (step === 2) return !!formData.agentId;
-    if (step === 3) return isSipAgent ? !!formData.sipPhoneNumberId : !!formData.phoneNumberId;
+    if (step === 2) {
+      const hasAgent = !!formData.agentId;
+      const hasPhone = isSipAgent ? !!formData.sipPhoneNumberId : !!formData.phoneNumberId;
+      return hasAgent && hasPhone;
+    }
     return true;
   };
 
@@ -851,8 +854,7 @@ export default function CreateCampaign() {
     if (!canAdvanceFromStep(wizardStep)) {
       const messages: Record<number, string> = {
         1: "Please select a campaign flow before proceeding.",
-        2: "Please select an agent before proceeding.",
-        3: "Please select a phone number before proceeding.",
+        2: "Please select an agent and phone number before proceeding.",
       };
       toast({ title: messages[wizardStep] || "Please complete this step.", variant: "destructive" });
       return;
@@ -862,11 +864,9 @@ export default function CreateCampaign() {
 
   const stepLabels: Record<number, string> = {
     1: "Step 1: Campaign Flow",
-    2: "Step 2: AI Agent",
-    3: "Step 3: Phone Number",
-    4: "Step 4: Script & Settings",
-    5: "Step 5: Contacts",
-    6: "Step 6: Schedule",
+    2: "Step 2: Agent, Number & Recipients",
+    3: "Step 3: Script & Settings",
+    4: "Step 4: Schedule",
   };
 
   return (
@@ -967,8 +967,8 @@ export default function CreateCampaign() {
                 <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <Badge variant="outline" className="text-[10px] mr-1">{requiredStepsCompleted}/3 required</Badge>
-                {[1, 2, 3, 4, 5, 6].map((step) => (
+                <Badge variant="outline" className="text-[10px] mr-1">{requiredStepsCompleted}/3 filled</Badge>
+                {[1, 2, 3, 4].map((step) => (
                   <div key={step} className="flex items-center gap-1">
                     <button
                       onClick={() => setWizardStep(step)}
@@ -983,7 +983,7 @@ export default function CreateCampaign() {
                     >
                       {step}
                     </button>
-                    {step < 6 && (
+                    {step < 4 && (
                       <div className={`w-3 h-0.5 ${wizardStep > step ? 'bg-primary/40' : 'bg-muted'}`} />
                     )}
                   </div>
@@ -1066,9 +1066,10 @@ export default function CreateCampaign() {
                 </div>
               )}
 
-              {/* === STEP 2: AI Agent === */}
+              {/* === STEP 2: Agent, From Number & Recipients === */}
               {wizardStep === 2 && (
-                <div className="space-y-4">
+                <div className="space-y-5">
+                  {/* Agent Selection */}
                   <div className="space-y-1.5">
                     <Label className="text-sm font-medium">{t('campaigns.selectAgent', 'Agent')}</Label>
                     {filteredAgents.length === 0 ? (
@@ -1101,69 +1102,282 @@ export default function CreateCampaign() {
                         </SelectContent>
                       </Select>
                     )}
+                    {selectedAgent && (
+                      <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5" data-testid="agent-preview-card">
+                        <p className="text-sm font-semibold">{selectedAgent.name}</p>
+                        {selectedAgent.personality && (
+                          <p className="text-xs text-muted-foreground">{selectedAgent.personality}</p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="secondary" className="text-[10px]">Type: {selectedAgent.type}</Badge>
+                          {selectedAgent.telephonyProvider && (
+                            <Badge variant="secondary" className="text-[10px]">Engine: {selectedAgent.telephonyProvider}</Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {selectedAgent && (
-                    <div className="rounded-lg border bg-muted/30 p-4 space-y-2" data-testid="agent-preview-card">
-                      <p className="text-sm font-semibold">{selectedAgent.name}</p>
-                      {selectedAgent.personality && (
-                        <p className="text-xs text-muted-foreground">{selectedAgent.personality}</p>
-                      )}
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary" className="text-[10px]">Type: {selectedAgent.type}</Badge>
-                        {selectedAgent.telephonyProvider && (
-                          <Badge variant="secondary" className="text-[10px]">Engine: {selectedAgent.telephonyProvider}</Badge>
+                  {/* From Number */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">{t('campaigns.fromNumber', 'From Number')}</Label>
+                    {!formData.agentId ? (
+                      <p className="text-xs text-muted-foreground">Select an agent above to see available phone numbers</p>
+                    ) : isSipAgent && !isSipPluginEnabled ? (
+                      <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20">
+                        <p className="text-xs text-destructive font-medium">SIP Plugin is disabled</p>
+                      </div>
+                    ) : (
+                      <Select
+                        value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId}
+                        onValueChange={(value) => {
+                          if (isSipAgent) {
+                            setFormData(prev => ({ ...prev, sipPhoneNumberId: value }));
+                          } else {
+                            setFormData(prev => ({ ...prev, phoneNumberId: value }));
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9" data-testid="select-from-number">
+                          <SelectValue placeholder={availablePhoneNumbers.length === 0
+                            ? (isSipAgent ? "No SIP numbers" : isPlivoAgent ? "No Plivo numbers" : t("campaigns.create.noPhoneNumbers"))
+                            : t('campaigns.selectNumber', 'Select a phone number')}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availablePhoneNumbers.map((phone: any) => (
+                            <SelectItem key={phone.id} value={phone.id}>
+                              {phone.friendlyName || phone.label || phone.phoneNumber}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  {/* Recipients */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Recipients</Label>
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant={recipientMode === 'contacts' ? "default" : "outline"}
+                        size="sm"
+                        className="rounded-full h-7 px-3 text-xs"
+                        onClick={() => setRecipientMode('contacts')}
+                        data-testid="button-mode-contacts"
+                      >
+                        <Users className="h-3 w-3 mr-1" /> Select Contacts
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={recipientMode === 'csv' ? "default" : "outline"}
+                        size="sm"
+                        className="rounded-full h-7 px-3 text-xs"
+                        onClick={() => setRecipientMode('csv')}
+                        data-testid="button-mode-csv"
+                      >
+                        <Upload className="h-3 w-3 mr-1" /> Upload CSV
+                      </Button>
+                    </div>
+
+                    {recipientMode === 'csv' ? (
+                      <div className="space-y-1.5">
+                        <a 
+                          href="/campaign_template.csv"
+                          download="campaign_template.csv"
+                          className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
+                          data-testid="link-download-template"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          {t('campaigns.downloadTemplate', 'Download the template')}
+                        </a>
+                        <div 
+                          className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                            isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/40'
+                          }`}
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                          onClick={() => document.getElementById('csv-upload')?.click()}
+                          data-testid="dropzone-csv"
+                        >
+                          <input
+                            id="csv-upload"
+                            type="file"
+                            accept=".csv"
+                            onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                            className="hidden"
+                            data-testid="input-csv-upload"
+                          />
+                          <Upload className="h-5 w-5 mx-auto mb-1.5 text-muted-foreground" />
+                          {csvFile ? (
+                            <p className="text-sm font-medium">{csvFile.name} ({parsedContacts.length} contacts)</p>
+                          ) : (
+                            <>
+                              <p className="text-xs text-muted-foreground">{t('campaigns.dragDropCsv', 'Choose a csv or drag & drop it here.')}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{t('campaigns.upTo50MB', 'Up to 50 MB')}</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex gap-1 border-b pb-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'groups' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                            onClick={() => setContactPickerTab('groups')}
+                            data-testid="tab-groups"
+                          >
+                            <Users className="h-3 w-3 mr-1" /> Groups
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'countries' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                            onClick={() => setContactPickerTab('countries')}
+                            data-testid="tab-countries"
+                          >
+                            <Globe className="h-3 w-3 mr-1" /> Countries
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'individual' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                            onClick={() => setContactPickerTab('individual')}
+                            data-testid="tab-individual"
+                          >
+                            <User className="h-3 w-3 mr-1" /> Individual
+                          </Button>
+                        </div>
+
+                        {contactPickerTab === 'groups' && (
+                          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                            {contactGroups.length === 0 ? (
+                              <p className="text-xs text-muted-foreground text-center py-3">No groups created yet. Create groups from the Contacts page.</p>
+                            ) : (
+                              contactGroups.map(group => {
+                                const count = groupMemberships.filter(m => m.group_id === group.id).length;
+                                return (
+                                  <label
+                                    key={group.id}
+                                    className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                                    data-testid={`group-option-${group.id}`}
+                                  >
+                                    <Checkbox
+                                      checked={selectedGroupIds.has(group.id)}
+                                      onCheckedChange={() => toggleGroup(group.id)}
+                                    />
+                                    <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
+                                    <span className="text-sm flex-1 truncate">{group.name}</span>
+                                    <Badge variant="secondary" className="text-[10px]">{count}</Badge>
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+
+                        {contactPickerTab === 'countries' && (
+                          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                            {countryGroups.length === 0 ? (
+                              <p className="text-xs text-muted-foreground text-center py-3">No contacts available.</p>
+                            ) : (
+                              countryGroups.map(([country, contacts]) => (
+                                <label
+                                  key={country}
+                                  className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                                  data-testid={`country-option-${country}`}
+                                >
+                                  <Checkbox
+                                    checked={selectedCountries.has(country)}
+                                    onCheckedChange={() => toggleCountry(country)}
+                                  />
+                                  <span className="text-sm">{getCountryFlag(country)}</span>
+                                  <span className="text-sm flex-1 truncate">{country}</span>
+                                  <Badge variant="secondary" className="text-[10px]">{contacts.length}</Badge>
+                                </label>
+                              ))
+                            )}
+                          </div>
+                        )}
+
+                        {contactPickerTab === 'individual' && (
+                          <div className="space-y-1.5">
+                            <div className="relative">
+                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                              <Input
+                                placeholder="Search contacts..."
+                                value={contactSearchQuery}
+                                onChange={(e) => setContactSearchQuery(e.target.value)}
+                                className="h-8 pl-7 text-xs"
+                                data-testid="input-search-individual"
+                              />
+                            </div>
+                            <div className="space-y-0.5 max-h-[180px] overflow-y-auto">
+                              {filteredIndividualContacts.length === 0 ? (
+                                <p className="text-xs text-muted-foreground text-center py-3">No contacts found.</p>
+                              ) : (
+                                filteredIndividualContacts.map(contact => {
+                                  const name = contact.names[0];
+                                  const fullName = name ? `${name.firstName} ${name.lastName || ""}`.trim() : "";
+                                  return (
+                                    <label
+                                      key={contact.id}
+                                      className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/50 cursor-pointer"
+                                      data-testid={`individual-option-${contact.id}`}
+                                    >
+                                      <Checkbox
+                                        checked={selectedIndividualPhones.has(contact.phone)}
+                                        onCheckedChange={() => toggleIndividual(contact.phone)}
+                                      />
+                                      <span className="text-xs">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm truncate">{fullName || contact.phone}</div>
+                                        {fullName && <div className="text-[11px] text-muted-foreground truncate">{contact.phone}</div>}
+                                      </div>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {resolvedContactPhones.size > 0 && (
+                          <div className="flex items-center justify-between pt-1 border-t">
+                            <span className="text-xs text-muted-foreground">
+                              {resolvedContactPhones.size} contact{resolvedContactPhones.size !== 1 ? 's' : ''} selected
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs text-muted-foreground"
+                              onClick={() => {
+                                setSelectedGroupIds(new Set());
+                                setSelectedCountries(new Set());
+                                setSelectedIndividualPhones(new Set());
+                              }}
+                              data-testid="button-clear-selection"
+                            >
+                              Clear all
+                            </Button>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* === STEP 3: Phone Number === */}
+              {/* === STEP 3: Script & Settings === */}
               {wizardStep === 3 && (
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">{t('campaigns.fromNumber', 'From Number')}</Label>
-                  {!formData.agentId ? (
-                    <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
-                      <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-700 dark:text-amber-300">Please select an agent first in Step 2</p>
-                    </div>
-                  ) : isSipAgent && !isSipPluginEnabled ? (
-                    <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20">
-                      <p className="text-xs text-destructive font-medium">SIP Plugin is disabled</p>
-                    </div>
-                  ) : (
-                    <Select
-                      value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId}
-                      onValueChange={(value) => {
-                        if (isSipAgent) {
-                          setFormData(prev => ({ ...prev, sipPhoneNumberId: value }));
-                        } else {
-                          setFormData(prev => ({ ...prev, phoneNumberId: value }));
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="h-9" data-testid="select-from-number">
-                        <SelectValue placeholder={availablePhoneNumbers.length === 0
-                          ? (isSipAgent ? "No SIP numbers" : isPlivoAgent ? "No Plivo numbers" : t("campaigns.create.noPhoneNumbers"))
-                          : t('campaigns.selectNumber', 'Select a phone number')}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availablePhoneNumbers.map((phone: any) => (
-                          <SelectItem key={phone.id} value={phone.id}>
-                            {phone.friendlyName || phone.label || phone.phoneNumber}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-              )}
-
-              {/* === STEP 4: Script & Settings === */}
-              {wizardStep === 4 && (
                 <>
                   {/* Campaign Script */}
                   <div className="space-y-1.5">
@@ -1468,229 +1682,8 @@ export default function CreateCampaign() {
                 </>
               )}
 
-              {/* === STEP 5: Contacts === */}
-              {wizardStep === 5 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Recipients</Label>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      variant={recipientMode === 'contacts' ? "default" : "outline"}
-                      size="sm"
-                      className="rounded-full h-7 px-3 text-xs"
-                      onClick={() => setRecipientMode('contacts')}
-                      data-testid="button-mode-contacts"
-                    >
-                      <Users className="h-3 w-3 mr-1" /> Select Contacts
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={recipientMode === 'csv' ? "default" : "outline"}
-                      size="sm"
-                      className="rounded-full h-7 px-3 text-xs"
-                      onClick={() => setRecipientMode('csv')}
-                      data-testid="button-mode-csv"
-                    >
-                      <Upload className="h-3 w-3 mr-1" /> Upload CSV
-                    </Button>
-                  </div>
-
-                  {recipientMode === 'csv' ? (
-                    <div className="space-y-1.5">
-                      <a 
-                        href="/campaign_template.csv"
-                        download="campaign_template.csv"
-                        className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
-                        data-testid="link-download-template"
-                      >
-                        <Download className="h-3 w-3 mr-1" />
-                        {t('campaigns.downloadTemplate', 'Download the template')}
-                      </a>
-                      <div 
-                        className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-                          isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/40'
-                        }`}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                        onClick={() => document.getElementById('csv-upload')?.click()}
-                        data-testid="dropzone-csv"
-                      >
-                        <input
-                          id="csv-upload"
-                          type="file"
-                          accept=".csv"
-                          onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                          className="hidden"
-                          data-testid="input-csv-upload"
-                        />
-                        <Upload className="h-5 w-5 mx-auto mb-1.5 text-muted-foreground" />
-                        {csvFile ? (
-                          <p className="text-sm font-medium">{csvFile.name} ({parsedContacts.length} contacts)</p>
-                        ) : (
-                          <>
-                            <p className="text-xs text-muted-foreground">{t('campaigns.dragDropCsv', 'Choose a csv or drag & drop it here.')}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{t('campaigns.upTo50MB', 'Up to 50 MB')}</p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex gap-1 border-b pb-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'groups' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
-                          onClick={() => setContactPickerTab('groups')}
-                          data-testid="tab-groups"
-                        >
-                          <Users className="h-3 w-3 mr-1" /> Groups
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'countries' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
-                          onClick={() => setContactPickerTab('countries')}
-                          data-testid="tab-countries"
-                        >
-                          <Globe className="h-3 w-3 mr-1" /> Countries
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'individual' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
-                          onClick={() => setContactPickerTab('individual')}
-                          data-testid="tab-individual"
-                        >
-                          <User className="h-3 w-3 mr-1" /> Individual
-                        </Button>
-                      </div>
-
-                      {contactPickerTab === 'groups' && (
-                        <div className="space-y-1 max-h-[280px] overflow-y-auto">
-                          {contactGroups.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-3">No groups created yet. Create groups from the Contacts page.</p>
-                          ) : (
-                            contactGroups.map(group => {
-                              const count = groupMemberships.filter(m => m.group_id === group.id).length;
-                              return (
-                                <label
-                                  key={group.id}
-                                  className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                                  data-testid={`group-option-${group.id}`}
-                                >
-                                  <Checkbox
-                                    checked={selectedGroupIds.has(group.id)}
-                                    onCheckedChange={() => toggleGroup(group.id)}
-                                  />
-                                  <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
-                                  <span className="text-sm flex-1 truncate">{group.name}</span>
-                                  <Badge variant="secondary" className="text-[10px]">{count}</Badge>
-                                </label>
-                              );
-                            })
-                          )}
-                        </div>
-                      )}
-
-                      {contactPickerTab === 'countries' && (
-                        <div className="space-y-1 max-h-[280px] overflow-y-auto">
-                          {countryGroups.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-3">No contacts available.</p>
-                          ) : (
-                            countryGroups.map(([country, contacts]) => (
-                              <label
-                                key={country}
-                                className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                                data-testid={`country-option-${country}`}
-                              >
-                                <Checkbox
-                                  checked={selectedCountries.has(country)}
-                                  onCheckedChange={() => toggleCountry(country)}
-                                />
-                                <span className="text-sm">{getCountryFlag(country)}</span>
-                                <span className="text-sm flex-1 truncate">{country}</span>
-                                <Badge variant="secondary" className="text-[10px]">{contacts.length}</Badge>
-                              </label>
-                            ))
-                          )}
-                        </div>
-                      )}
-
-                      {contactPickerTab === 'individual' && (
-                        <div className="space-y-1.5">
-                          <div className="relative">
-                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input
-                              placeholder="Search contacts..."
-                              value={contactSearchQuery}
-                              onChange={(e) => setContactSearchQuery(e.target.value)}
-                              className="h-8 pl-7 text-xs"
-                              data-testid="input-search-individual"
-                            />
-                          </div>
-                          <div className="space-y-0.5 max-h-[240px] overflow-y-auto">
-                            {filteredIndividualContacts.length === 0 ? (
-                              <p className="text-xs text-muted-foreground text-center py-3">No contacts found.</p>
-                            ) : (
-                              filteredIndividualContacts.map(contact => {
-                                const name = contact.names[0];
-                                const fullName = name ? `${name.firstName} ${name.lastName || ""}`.trim() : "";
-                                return (
-                                  <label
-                                    key={contact.id}
-                                    className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/50 cursor-pointer"
-                                    data-testid={`individual-option-${contact.id}`}
-                                  >
-                                    <Checkbox
-                                      checked={selectedIndividualPhones.has(contact.phone)}
-                                      onCheckedChange={() => toggleIndividual(contact.phone)}
-                                    />
-                                    <span className="text-xs">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm truncate">{fullName || contact.phone}</div>
-                                      {fullName && <div className="text-[11px] text-muted-foreground truncate">{contact.phone}</div>}
-                                    </div>
-                                  </label>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {resolvedContactPhones.size > 0 && (
-                        <div className="flex items-center justify-between pt-1 border-t">
-                          <span className="text-xs text-muted-foreground">
-                            {resolvedContactPhones.size} contact{resolvedContactPhones.size !== 1 ? 's' : ''} selected
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 text-xs text-muted-foreground"
-                            onClick={() => {
-                              setSelectedGroupIds(new Set());
-                              setSelectedCountries(new Set());
-                              setSelectedIndividualPhones(new Set());
-                            }}
-                            data-testid="button-clear-selection"
-                          >
-                            Clear all
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* === STEP 6: Schedule === */}
-              {wizardStep === 6 && (
+              {/* === STEP 4: Schedule === */}
+              {wizardStep === 4 && (
                 <>
                   {/* When to send the calls */}
                   <div className="space-y-2">
@@ -1930,7 +1923,7 @@ export default function CreateCampaign() {
               <Button variant="outline" size="sm" onClick={() => setLocation("/app/campaigns")} data-testid="button-save-draft">
                 {t('campaigns.saveAsDraft', 'Save as draft')}
               </Button>
-              {wizardStep < 6 ? (
+              {wizardStep < 4 ? (
                 <Button 
                   size="sm"
                   onClick={handleNextStep}

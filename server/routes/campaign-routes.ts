@@ -18,9 +18,9 @@
 
 import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { 
-  campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows 
+  campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows, forms 
 } from "@shared/schema";
 import { flowTemplates } from "../services/flow-templates";
 import { nanoid } from "nanoid";
@@ -116,7 +116,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
   // Create campaign
   router.post("/api/campaigns", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      const { name, type, goal, script, flowId, agentId, voiceId, phoneNumberId, sipPhoneNumberId, scheduledFor, batchMode, greetingMessage, languageOptions, dynamicFormFields, knowledgeBaseIds } = req.body;
+      const { name, type, goal, script, flowId, agentId, voiceId, phoneNumberId, sipPhoneNumberId, scheduledFor, batchMode, greetingMessage, languageOptions, selectedFormId, knowledgeBaseIds } = req.body;
 
       if (!name || !type) {
         return res.status(400).json({ error: "Name and type are required" });
@@ -269,15 +269,15 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       if (languageOptions && Array.isArray(languageOptions)) {
         campaignConfig.languageOptions = languageOptions.filter((l: unknown) => typeof l === 'string');
       }
-      if (dynamicFormFields && Array.isArray(dynamicFormFields)) {
-        campaignConfig.dynamicFormFields = dynamicFormFields.map((f: any) => ({
-          id: String(f.id || ''),
-          label: String(f.label || ''),
-          type: ['text', 'number', 'select', 'boolean'].includes(f.type) ? f.type : 'text',
-          required: Boolean(f.required),
-          placeholder: f.placeholder ? String(f.placeholder) : undefined,
-          options: Array.isArray(f.options) ? f.options.filter((o: unknown) => typeof o === 'string') : undefined,
-        }));
+      if (selectedFormId && typeof selectedFormId === 'string') {
+        const [formRecord] = await db
+          .select({ id: forms.id })
+          .from(forms)
+          .where(and(eq(forms.id, selectedFormId), eq(forms.userId, req.userId!), eq(forms.isActive, true)));
+        if (!formRecord) {
+          return res.status(400).json({ error: "Selected form not found or is inactive." });
+        }
+        campaignConfig.selectedFormId = selectedFormId;
       }
       if (knowledgeBaseIds && Array.isArray(knowledgeBaseIds)) {
         campaignConfig.knowledgeBaseIds = knowledgeBaseIds.filter((id: unknown) => typeof id === 'string');

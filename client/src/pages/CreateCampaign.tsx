@@ -17,7 +17,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X, GitBranch, FileText, Brain, Mic, Phone, ArrowRight, Trash2, GripVertical, MessageSquare, Languages, Bot, Volume2 } from "lucide-react";
+import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X, GitBranch, FileText, Brain, Mic, Phone, ArrowRight, MessageSquare, Languages, Bot, Volume2, ClipboardList, ExternalLink } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "@/components/PhoneConflictDialog";
@@ -125,13 +125,23 @@ interface KnowledgeBaseItem {
   storageSize: number;
 }
 
-interface DynamicFormField {
+interface FormFieldItem {
   id: string;
-  label: string;
-  type: 'text' | 'number' | 'select' | 'boolean';
-  required: boolean;
-  options?: string[];
-  placeholder?: string;
+  formId: string;
+  question: string;
+  fieldType: string;
+  options: string[] | null;
+  isRequired: boolean;
+  order: number;
+}
+
+interface FormItem {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  fields: FormFieldItem[];
+  submissionCount?: number;
 }
 
 interface DeduplicatedContact {
@@ -239,9 +249,17 @@ export default function CreateCampaign() {
   const [recipientSearchQuery, setRecipientSearchQuery] = useState("");
   const [removedPhones, setRemovedPhones] = useState<Set<string>>(new Set());
   const [wizardStep, setWizardStep] = useState(1);
-  const [batchMode, setBatchMode] = useState<'flow_template' | 'dynamic_form' | null>(null);
-  const [dynamicFormFields, setDynamicFormFields] = useState<DynamicFormField[]>([]);
+  const [batchMode, setBatchModeRaw] = useState<'flow_template' | 'dynamic_form' | null>(null);
+  const [selectedFormId, setSelectedFormId] = useState<string>("");
   const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<string[]>([]);
+
+  const setBatchMode = useCallback((mode: 'flow_template' | 'dynamic_form' | null) => {
+    setBatchModeRaw(mode);
+    if (mode !== 'dynamic_form') {
+      setSelectedFormId("");
+      setSelectedKnowledgeBaseIds([]);
+    }
+  }, []);
   const [greetingMessage, setGreetingMessage] = useState("Hello! Thank you for taking my call. How are you doing today?");
   const [languageOptions, setLanguageOptions] = useState<string[]>(["English"]);
   const [newLanguage, setNewLanguage] = useState("");
@@ -298,6 +316,13 @@ export default function CreateCampaign() {
     enabled: !!formData.flowId && batchMode === 'flow_template' && isTemplateId,
   });
 
+  const { data: existingForms = [] } = useQuery<FormItem[]>({
+    queryKey: ["/api/flow-automation/forms"],
+    enabled: batchMode === 'dynamic_form',
+  });
+
+  const selectedForm = existingForms.find(f => f.id === selectedFormId);
+
   const { data: knowledgeBases = [] } = useQuery<KnowledgeBaseItem[]>({
     queryKey: ["/api/knowledge-base"],
   });
@@ -348,7 +373,7 @@ export default function CreateCampaign() {
       payload.greetingMessage = greetingMessage;
       payload.languageOptions = languageOptions;
       if (batchMode === 'dynamic_form') {
-        payload.dynamicFormFields = dynamicFormFields;
+        payload.selectedFormId = selectedFormId || undefined;
         payload.knowledgeBaseIds = selectedKnowledgeBaseIds;
       }
       const res = await apiRequest("POST", "/api/campaigns", payload);
@@ -679,23 +704,6 @@ export default function CreateCampaign() {
     });
   }, []);
 
-  const addDynamicField = useCallback(() => {
-    setDynamicFormFields(prev => [...prev, {
-      id: `field-${Date.now()}`,
-      label: "",
-      type: "text",
-      required: false,
-      placeholder: "",
-    }]);
-  }, []);
-
-  const updateDynamicField = useCallback((id: string, updates: Partial<DynamicFormField>) => {
-    setDynamicFormFields(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
-  }, []);
-
-  const removeDynamicField = useCallback((id: string) => {
-    setDynamicFormFields(prev => prev.filter(f => f.id !== id));
-  }, []);
 
   const addLanguageOption = useCallback(() => {
     if (newLanguage && !languageOptions.includes(newLanguage)) {
@@ -1077,77 +1085,72 @@ export default function CreateCampaign() {
                         </div>
                       </div>
 
-                      {/* Dynamic Form Fields Builder */}
+                      {/* Data Collection Form Selector */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium flex items-center gap-1.5">
-                            <FileText className="h-3.5 w-3.5" />
-                            Data Collection Fields
+                            <ClipboardList className="h-3.5 w-3.5" />
+                            Data Collection Form
                           </Label>
-                          <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addDynamicField} data-testid="button-add-field">
-                            <Plus className="h-3 w-3" /> Add Field
-                          </Button>
+                          <Link href="/app/forms">
+                            <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" data-testid="button-manage-forms">
+                              <ExternalLink className="h-3 w-3" /> Manage Forms
+                            </Button>
+                          </Link>
                         </div>
                         <p className="text-[11px] text-muted-foreground">
-                          Define what information the AI should collect from each call. The AI will ask these questions naturally during the conversation.
+                          Select a form from your Forms library. The AI will ask these questions naturally during the conversation to collect data.
                         </p>
-                        {dynamicFormFields.length === 0 ? (
-                          <div className="rounded-lg border border-dashed p-4 text-center">
-                            <FileText className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
-                            <p className="text-xs text-muted-foreground">No fields added yet. Click "Add Field" to define data to collect.</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {dynamicFormFields.map((field, idx) => (
-                              <div key={field.id} className="flex gap-2 items-start p-2.5 rounded-lg border bg-white dark:bg-card group" data-testid={`dynamic-field-${idx}`}>
-                                <GripVertical className="h-4 w-4 text-muted-foreground/30 mt-1 shrink-0" />
-                                <div className="flex-1 grid grid-cols-[1fr_100px] gap-2">
-                                  <Input
-                                    placeholder="Field name (e.g., Appointment Date)"
-                                    value={field.label}
-                                    onChange={(e) => updateDynamicField(field.id, { label: e.target.value })}
-                                    className="h-8 text-xs"
-                                    data-testid={`input-field-label-${idx}`}
-                                  />
-                                  <Select value={field.type} onValueChange={(v) => updateDynamicField(field.id, { type: v as DynamicFormField['type'] })}>
-                                    <SelectTrigger className="h-8 text-xs" data-testid={`select-field-type-${idx}`}>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="text">Text</SelectItem>
-                                      <SelectItem value="number">Number</SelectItem>
-                                      <SelectItem value="select">Choice</SelectItem>
-                                      <SelectItem value="boolean">Yes/No</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Input
-                                    placeholder="AI question prompt (optional)"
-                                    value={field.placeholder || ""}
-                                    onChange={(e) => updateDynamicField(field.id, { placeholder: e.target.value })}
-                                    className="h-8 text-xs col-span-2"
-                                    data-testid={`input-field-placeholder-${idx}`}
-                                  />
+                        <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+                          <SelectTrigger className="h-9" data-testid="select-form">
+                            <SelectValue placeholder={existingForms.length === 0 ? "No forms available" : "Select a form"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {existingForms.filter(f => f.isActive).map(form => (
+                              <SelectItem key={form.id} value={form.id}>
+                                <div className="flex items-center gap-2">
+                                  <span>{form.name}</span>
+                                  <span className="text-[10px] text-muted-foreground">({form.fields?.length || 0} fields)</span>
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <Checkbox
-                                    checked={field.required}
-                                    onCheckedChange={(checked) => updateDynamicField(field.id, { required: !!checked })}
-                                    data-testid={`checkbox-field-required-${idx}`}
-                                  />
-                                  <span className="text-[10px] text-muted-foreground">Req</span>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                                    onClick={() => removeDynamicField(field.id)}
-                                    data-testid={`button-remove-field-${idx}`}
-                                  >
-                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                  </Button>
-                                </div>
-                              </div>
+                              </SelectItem>
                             ))}
+                          </SelectContent>
+                        </Select>
+                        {existingForms.length === 0 && (
+                          <div className="rounded-lg border border-dashed p-3 text-center">
+                            <ClipboardList className="h-5 w-5 mx-auto text-muted-foreground/40 mb-1.5" />
+                            <p className="text-xs text-muted-foreground mb-2">No forms created yet.</p>
+                            <Link href="/app/forms">
+                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" data-testid="button-create-form">
+                                <Plus className="h-3 w-3" /> Create a Form
+                              </Button>
+                            </Link>
+                          </div>
+                        )}
+                        {selectedForm && selectedForm.fields.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Form Fields Preview</p>
+                            <div className="rounded-lg border bg-muted/20 divide-y">
+                              {selectedForm.fields
+                                .sort((a, b) => a.order - b.order)
+                                .map((field, idx) => (
+                                <div key={field.id} className="flex items-center gap-2 px-3 py-2" data-testid={`form-field-preview-${idx}`}>
+                                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary/10 text-[10px] font-medium text-primary shrink-0">
+                                    {idx + 1}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium truncate">{field.question}</p>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{field.fieldType}</Badge>
+                                      {field.isRequired && <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-amber-300 text-amber-600">Required</Badge>}
+                                      {field.options && field.options.length > 0 && (
+                                        <span className="text-[9px] text-muted-foreground">{field.options.length} options</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

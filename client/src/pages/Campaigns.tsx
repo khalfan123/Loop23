@@ -100,6 +100,7 @@ export default function Campaigns() {
   const [activeView, setActiveView] = useState<ViewMode>('batch');
   const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [deletingContact, setDeletingContact] = useState<DeduplicatedContact | null>(null);
+  const [contactSortBy, setContactSortBy] = useState<'name' | 'phone' | 'status'>('name');
   const csvFileRef = useRef<HTMLInputElement>(null);
   const vcardFileRef = useRef<HTMLInputElement>(null);
 
@@ -310,15 +311,26 @@ export default function Campaigns() {
   const completedCampaigns = campaigns.filter(c => c.status === 'completed').length;
   const pendingCampaigns = campaigns.filter(c => c.status === 'pending' || c.status === 'scheduled').length;
 
-  const filteredContacts = contacts.filter((contact) => {
-    const searchLower = contactSearchQuery.toLowerCase();
-    const allNames = contact.names.map(n => `${n.firstName} ${n.lastName || ""}`).join(" ").toLowerCase();
-    return (
-      allNames.includes(searchLower) ||
-      contact.phone.toLowerCase().includes(searchLower) ||
-      contact.email?.toLowerCase().includes(searchLower)
-    );
-  });
+  const filteredContacts = contacts
+    .filter((contact) => {
+      const searchLower = contactSearchQuery.toLowerCase();
+      const allNames = contact.names.map(n => `${n.firstName} ${n.lastName || ""}`).join(" ").toLowerCase();
+      return (
+        allNames.includes(searchLower) ||
+        contact.phone.toLowerCase().includes(searchLower) ||
+        contact.email?.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      if (contactSortBy === 'name') {
+        const nameA = a.names[0] ? `${a.names[0].firstName} ${a.names[0].lastName || ""}`.trim().toLowerCase() : "";
+        const nameB = b.names[0] ? `${b.names[0].firstName} ${b.names[0].lastName || ""}`.trim().toLowerCase() : "";
+        return nameA.localeCompare(nameB);
+      }
+      if (contactSortBy === 'phone') return a.phone.localeCompare(b.phone);
+      if (contactSortBy === 'status') return a.status.localeCompare(b.status);
+      return 0;
+    });
 
   const {
     currentPage,
@@ -328,7 +340,7 @@ export default function Campaigns() {
     paginatedItems,
     handlePageChange,
     handleItemsPerPageChange,
-  } = usePagination(filteredContacts, 10);
+  } = usePagination(filteredContacts, 25);
 
   const subPanelContent = (
     <div className="space-y-1">
@@ -543,8 +555,8 @@ export default function Campaigns() {
         </div>
       </div>
 
-      <div className="mb-3 px-1">
-        <div className="relative max-w-md">
+      <div className="mb-3 px-1 flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t('contacts.searchPlaceholder', 'Search contacts...')}
@@ -554,6 +566,19 @@ export default function Campaigns() {
             data-testid="input-search-contacts"
           />
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" data-testid="button-sort-contacts">
+              Sort: {contactSortBy === 'name' ? 'Name' : contactSortBy === 'phone' ? 'Phone' : 'Status'}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setContactSortBy('name')}>Name</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setContactSortBy('phone')}>Phone</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setContactSortBy('status')}>Status</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <span className="text-xs text-muted-foreground">{filteredContacts.length} contacts</span>
       </div>
 
       <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-hidden">
@@ -573,99 +598,80 @@ export default function Campaigns() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="font-medium">{t('contacts.fields.source', 'Source')}</TableHead>
-                  <TableHead className="font-medium">{t('contacts.fields.names', 'Names')}</TableHead>
+                  <TableHead className="font-medium w-[200px]">{t('contacts.fields.names', 'Name')}</TableHead>
                   <TableHead className="font-medium">{t('contacts.fields.phone', 'Phone')}</TableHead>
                   <TableHead className="font-medium hidden md:table-cell">{t('contacts.fields.email', 'Email')}</TableHead>
-                  <TableHead className="font-medium hidden lg:table-cell">{t('contacts.fields.campaigns', 'Campaigns')}</TableHead>
                   <TableHead className="font-medium">{t('contacts.fields.status', 'Status')}</TableHead>
-                  <TableHead className="w-[80px]">{t('contacts.fields.actions', 'Actions')}</TableHead>
+                  <TableHead className="w-[60px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedItems.map((contact) => (
-                  <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
-                    <TableCell>
-                      {contact.source === 'campaign' ? (
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-700">
-                          <Upload className="h-3 w-3 mr-1" />
-                          {t('contacts.source.campaign', 'Campaign')}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-700">
-                          {contact.status === 'incoming_call' ? (
-                            <PhoneIncoming className="h-3 w-3 mr-1" />
-                          ) : (
-                            <PhoneOutgoing className="h-3 w-3 mr-1" />
-                          )}
-                          {t('contacts.source.call', 'Call')}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium" data-testid={`cell-names-${contact.id}`}>
-                      {contact.names.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {contact.names.map((name, idx) => (
-                            <div key={idx} className="text-sm">
-                              {name.firstName} {name.lastName || ""}
+                {paginatedItems.map((contact) => {
+                  const primaryName = contact.names[0];
+                  const displayName = primaryName
+                    ? `${primaryName.firstName} ${primaryName.lastName || ""}`.trim()
+                    : "";
+                  return (
+                    <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
+                      <TableCell data-testid={`cell-names-${contact.id}`}>
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
+                            {displayName ? displayName.charAt(0).toUpperCase() : "?"}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm truncate">
+                              {displayName || <span className="text-muted-foreground italic">Unknown</span>}
                             </div>
-                          ))}
+                            {contact.names.length > 1 && (
+                              <div className="text-[11px] text-muted-foreground">+{contact.names.length - 1} more</div>
+                            )}
+                          </div>
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground italic">{t('contacts.unknown', 'Unknown')}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
-                    <TableCell className="text-muted-foreground hidden md:table-cell">
-                      {contact.email || "-"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden lg:table-cell">
-                      {contact.campaigns.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {contact.campaigns.map((campaign) => (
-                            <Badge key={campaign.id} variant="secondary" className="text-xs">
-                              {campaign.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                          contact.status === "completed"
-                            ? "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400"
-                            : contact.status === "pending"
-                            ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400"
-                            : contact.status === "incoming_call"
-                            ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400"
-                            : contact.status === "outgoing_call"
-                            ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
-                            : "bg-gray-50 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400"
-                        }`}
-                      >
-                        {contact.status === 'incoming_call' ? t('calls.filters.incoming', 'Incoming') : 
-                         contact.status === 'outgoing_call' ? t('calls.filters.outgoing', 'Outgoing') : contact.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {contact.source === 'campaign' ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeletingContact(contact)}
-                          data-testid={`button-delete-contact-${contact.id}`}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm hidden md:table-cell">
+                        {contact.email || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            contact.status === "completed"
+                              ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-700"
+                              : contact.status === "pending"
+                              ? "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-700"
+                              : contact.status === "incoming_call"
+                              ? "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-700"
+                              : contact.status === "outgoing_call"
+                              ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-700"
+                              : "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-700"
+                          }
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          {contact.status === 'incoming_call' ? (
+                            <><PhoneIncoming className="h-3 w-3 mr-1" />{t('calls.filters.incoming', 'Incoming')}</>
+                          ) : contact.status === 'outgoing_call' ? (
+                            <><PhoneOutgoing className="h-3 w-3 mr-1" />{t('calls.filters.outgoing', 'Outgoing')}</>
+                          ) : (
+                            contact.status
+                          )}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {contact.source === 'campaign' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setDeletingContact(contact)}
+                            data-testid={`button-delete-contact-${contact.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </ScrollArea>

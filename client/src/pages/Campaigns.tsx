@@ -174,6 +174,7 @@ export default function Campaigns() {
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("#6366f1");
+  const [deletingGroup, setDeletingGroup] = useState<{ id: string; name: string } | null>(null);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [colWidths, setColWidths] = useState({ name: 160, phone: 140, email: 200, actions: 50 });
   const resizingCol = useRef<{ col: string; startX: number; startW: number } | null>(null);
@@ -914,7 +915,7 @@ export default function Campaigns() {
                 variant="ghost"
                 size="icon"
                 className="h-5 w-5 ml-0.5 -mr-1"
-                onClick={(e) => { e.stopPropagation(); deleteGroupMutation.mutate(group.id); }}
+                onClick={(e) => { e.stopPropagation(); setDeletingGroup({ id: group.id, name: group.name }); }}
               >
                 <X className="h-3 w-3" />
               </Button>
@@ -1346,6 +1347,28 @@ export default function Campaigns() {
           />
         </div>
       )}
+
+      <AlertDialog open={!!deletingGroup} onOpenChange={() => setDeletingGroup(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the group "{deletingGroup?.name}"? This will remove all contacts from the group. The contacts themselves will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-group">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingGroup && deleteGroupMutation.mutate(deletingGroup.id)}
+              disabled={deleteGroupMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-group"
+            >
+              {deleteGroupMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)}>
         <AlertDialogContent>

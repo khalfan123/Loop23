@@ -9,6 +9,7 @@ I prefer to be asked before you make any major changes to the codebase.
 I prefer detailed explanations of the code changes and architectural decisions.
 Do not make changes to the `shared/schema.ts` file without explicit instruction.
 Do not make changes to the `packages/diploy-core/` directory.
+Always test every feature or change you implement before marking it complete.
 
 ## System Architecture
 The application follows a client-server architecture.

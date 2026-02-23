@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
@@ -25,8 +25,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus } from "lucide-react";
+import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "@/components/PhoneConflictDialog";
@@ -90,6 +91,73 @@ interface FlowTemplate {
   preview: string[];
 }
 
+interface DeduplicatedContact {
+  id: string;
+  phone: string;
+  email: string | null;
+  names: Array<{ firstName: string; lastName: string | null }>;
+  campaigns: Array<{ id: string; name: string }>;
+  status: string;
+  source: 'campaign' | 'call';
+  callCount: number;
+}
+
+interface ContactGroup {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+}
+
+interface GroupMembership {
+  contact_phone: string;
+  group_id: string;
+  group_name: string;
+  group_color: string;
+}
+
+function getCountryFromPhone(phone: string): string {
+  const cleaned = phone.replace(/\s/g, '');
+  const codes: [string, string][] = [
+    ['+358', 'Finland'], ['+353', 'Ireland'], ['+351', 'Portugal'],
+    ['+971', 'UAE'], ['+966', 'Saudi Arabia'], ['+965', 'Kuwait'],
+    ['+249', 'Sudan'], ['+212', 'Morocco'],
+    ['+91', 'India'], ['+86', 'China'], ['+81', 'Japan'], ['+82', 'South Korea'],
+    ['+92', 'Pakistan'], ['+90', 'Turkey'], ['+84', 'Vietnam'],
+    ['+66', 'Thailand'], ['+65', 'Singapore'], ['+63', 'Philippines'],
+    ['+62', 'Indonesia'], ['+61', 'Australia'], ['+60', 'Malaysia'],
+    ['+55', 'Brazil'], ['+52', 'Mexico'],
+    ['+49', 'Germany'], ['+48', 'Poland'], ['+47', 'Norway'],
+    ['+46', 'Sweden'], ['+45', 'Denmark'], ['+44', 'UK'],
+    ['+43', 'Austria'], ['+41', 'Switzerland'],
+    ['+39', 'Italy'], ['+34', 'Spain'], ['+33', 'France'],
+    ['+32', 'Belgium'], ['+31', 'Netherlands'], ['+30', 'Greece'],
+    ['+27', 'South Africa'], ['+20', 'Egypt'],
+    ['+7', 'Russia'], ['+1', 'US/Canada'],
+  ];
+  for (const [code, country] of codes) {
+    if (cleaned.startsWith(code)) return country;
+  }
+  return 'Other';
+}
+
+function getCountryFlag(country: string): string {
+  const isoCodes: Record<string, string> = {
+    'US/Canada': 'US', 'UK': 'GB', 'UAE': 'AE', 'Saudi Arabia': 'SA', 'Kuwait': 'KW',
+    'Sudan': 'SD', 'Morocco': 'MA', 'India': 'IN', 'China': 'CN', 'Japan': 'JP',
+    'South Korea': 'KR', 'France': 'FR', 'Germany': 'DE', 'Italy': 'IT', 'Spain': 'ES',
+    'Australia': 'AU', 'Brazil': 'BR', 'Mexico': 'MX', 'Russia': 'RU', 'Turkey': 'TR',
+    'Pakistan': 'PK', 'Egypt': 'EG', 'South Africa': 'ZA', 'Philippines': 'PH',
+    'Vietnam': 'VN', 'Indonesia': 'ID', 'Malaysia': 'MY', 'Singapore': 'SG',
+    'Thailand': 'TH', 'Netherlands': 'NL', 'Sweden': 'SE', 'Norway': 'NO',
+    'Denmark': 'DK', 'Finland': 'FI', 'Poland': 'PL', 'Portugal': 'PT',
+    'Greece': 'GR', 'Ireland': 'IE', 'Belgium': 'BE', 'Switzerland': 'CH', 'Austria': 'AT',
+  };
+  const iso = isoCodes[country];
+  if (!iso) return String.fromCodePoint(0x1F310);
+  return Array.from(iso).map(c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)).join('');
+}
+
 export default function CreateCampaign() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -119,6 +187,12 @@ export default function CreateCampaign() {
   const [showTimezoneModal, setShowTimezoneModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showScheduleSettings, setShowScheduleSettings] = useState(false);
+  const [recipientMode, setRecipientMode] = useState<'csv' | 'contacts'>('contacts');
+  const [contactPickerTab, setContactPickerTab] = useState<'groups' | 'countries' | 'individual'>('groups');
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [selectedCountries, setSelectedCountries] = useState<Set<string>>(new Set());
+  const [selectedIndividualPhones, setSelectedIndividualPhones] = useState<Set<string>>(new Set());
+  const [contactSearchQuery, setContactSearchQuery] = useState("");
 
   const { data: userData } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
@@ -166,6 +240,18 @@ export default function CreateCampaign() {
     queryKey: ["/api/flow-automation/flow-templates"],
   });
 
+  const { data: allContacts = [] } = useQuery<DeduplicatedContact[]>({
+    queryKey: ["/api/contacts/deduplicated"],
+  });
+
+  const { data: contactGroups = [] } = useQuery<ContactGroup[]>({
+    queryKey: ["/api/contact-groups"],
+  });
+
+  const { data: groupMemberships = [] } = useQuery<GroupMembership[]>({
+    queryKey: ["/api/contact-group-memberships"],
+  });
+
   const activeFlows = flows.filter(flow => flow.isActive);
 
   const selectedAgent = agents.find(a => a.id === formData.agentId);
@@ -200,7 +286,7 @@ export default function CreateCampaign() {
       return res.json();
     },
     onSuccess: async (campaign) => {
-      if (csvFile) {
+      if (recipientMode === 'csv' && csvFile) {
         const formDataUpload = new FormData();
         formDataUpload.append("file", csvFile);
 
@@ -224,6 +310,41 @@ export default function CreateCampaign() {
           toast({
             title: t("campaigns.toast.csvUploadFailed"),
             description: t("campaigns.toast.csvUploadFailedDesc"),
+            variant: "destructive",
+          });
+        }
+      } else if (recipientMode === 'contacts' && resolvedContacts.length > 0) {
+        try {
+          const csvHeader = "phone_number,first_name,last_name,email";
+          const csvRows = resolvedContacts.map(c => 
+            `"${c.phone_number}","${c.first_name || ""}","${c.last_name || ""}","${c.email || ""}"`
+          );
+          const csvContent = [csvHeader, ...csvRows].join("\n");
+          const blob = new Blob([csvContent], { type: "text/csv" });
+          const file = new File([blob], "selected_contacts.csv", { type: "text/csv" });
+          
+          const formDataUpload = new FormData();
+          formDataUpload.append("file", file);
+
+          const uploadHeaders: Record<string, string> = {};
+          const authHeader = AuthStorage.getAuthHeader();
+          if (authHeader) {
+            uploadHeaders["Authorization"] = authHeader;
+          }
+
+          const res = await fetch(`/api/campaigns/${campaign.id}/contacts/upload`, {
+            method: "POST",
+            headers: uploadHeaders,
+            body: formDataUpload,
+          });
+
+          if (!res.ok) {
+            throw new Error("Failed to upload selected contacts");
+          }
+        } catch (error) {
+          toast({
+            title: "Contact Upload Failed",
+            description: "Campaign created but contacts could not be added.",
             variant: "destructive",
           });
         }
@@ -379,6 +500,78 @@ export default function CreateCampaign() {
 
   const allocatedConcurrency = 20 - formData.reservedConcurrency;
 
+  const countryGroups = useMemo(() => {
+    const groups: Record<string, DeduplicatedContact[]> = {};
+    allContacts.forEach(contact => {
+      const country = getCountryFromPhone(contact.phone);
+      if (!groups[country]) groups[country] = [];
+      groups[country].push(contact);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [allContacts]);
+
+  const filteredIndividualContacts = useMemo(() => {
+    if (!contactSearchQuery) return allContacts;
+    const q = contactSearchQuery.toLowerCase();
+    return allContacts.filter(c => {
+      const names = c.names.map(n => `${n.firstName} ${n.lastName || ""}`).join(" ").toLowerCase();
+      return names.includes(q) || c.phone.includes(q) || c.email?.toLowerCase().includes(q);
+    });
+  }, [allContacts, contactSearchQuery]);
+
+  const resolvedContactPhones = useMemo(() => {
+    const phones = new Set<string>();
+    selectedGroupIds.forEach(gId => {
+      groupMemberships.filter(m => m.group_id === gId).forEach(m => phones.add(m.contact_phone));
+    });
+    selectedCountries.forEach(country => {
+      allContacts.filter(c => getCountryFromPhone(c.phone) === country).forEach(c => phones.add(c.phone));
+    });
+    selectedIndividualPhones.forEach(p => phones.add(p));
+    return phones;
+  }, [selectedGroupIds, selectedCountries, selectedIndividualPhones, groupMemberships, allContacts]);
+
+  const resolvedContacts = useMemo((): ParsedContact[] => {
+    if (recipientMode === 'csv') return parsedContacts;
+    return Array.from(resolvedContactPhones).map(phone => {
+      const contact = allContacts.find(c => c.phone === phone);
+      const name = contact?.names[0];
+      return {
+        phone_number: phone,
+        first_name: name?.firstName || "",
+        last_name: name?.lastName || "",
+        email: contact?.email || "",
+      };
+    });
+  }, [recipientMode, parsedContacts, resolvedContactPhones, allContacts]);
+
+  const toggleGroup = useCallback((groupId: string) => {
+    setSelectedGroupIds(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }, []);
+
+  const toggleCountry = useCallback((country: string) => {
+    setSelectedCountries(prev => {
+      const next = new Set(prev);
+      if (next.has(country)) next.delete(country);
+      else next.add(country);
+      return next;
+    });
+  }, []);
+
+  const toggleIndividual = useCallback((phone: string) => {
+    setSelectedIndividualPhones(prev => {
+      const next = new Set(prev);
+      if (next.has(phone)) next.delete(phone);
+      else next.add(phone);
+      return next;
+    });
+  }, []);
+
   return (
     <>
       <TimezoneEnforcementModal
@@ -518,48 +711,223 @@ export default function CreateCampaign() {
                 )}
               </div>
 
-              {/* Upload Recipients */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">{t('campaigns.uploadRecipients', 'Upload Recipients')}</Label>
+              {/* Recipients Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Recipients</Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant={recipientMode === 'contacts' ? "default" : "outline"}
+                    size="sm"
+                    className="rounded-full h-7 px-3 text-xs"
+                    onClick={() => setRecipientMode('contacts')}
+                    data-testid="button-mode-contacts"
+                  >
+                    <Users className="h-3 w-3 mr-1" /> Select Contacts
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={recipientMode === 'csv' ? "default" : "outline"}
+                    size="sm"
+                    className="rounded-full h-7 px-3 text-xs"
+                    onClick={() => setRecipientMode('csv')}
+                    data-testid="button-mode-csv"
+                  >
+                    <Upload className="h-3 w-3 mr-1" /> Upload CSV
+                  </Button>
                 </div>
-                <a 
-                  href="/campaign_template.csv"
-                  download="campaign_template.csv"
-                  className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
-                  data-testid="link-download-template"
-                >
-                  <Download className="h-3 w-3 mr-1" />
-                  {t('campaigns.downloadTemplate', 'Download the template')}
-                </a>
-                <div 
-                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                    isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/40'
-                  }`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() => document.getElementById('csv-upload')?.click()}
-                  data-testid="dropzone-csv"
-                >
-                  <input
-                    id="csv-upload"
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                    className="hidden"
-                    data-testid="input-csv-upload"
-                  />
-                  <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                  {csvFile ? (
-                    <p className="text-sm font-medium">{csvFile.name} ({parsedContacts.length} contacts)</p>
-                  ) : (
-                    <>
-                      <p className="text-sm text-muted-foreground">{t('campaigns.dragDropCsv', 'Choose a csv or drag & drop it here.')}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{t('campaigns.upTo50MB', 'Up to 50 MB')}</p>
-                    </>
-                  )}
-                </div>
+
+                {recipientMode === 'csv' ? (
+                  <div className="space-y-1.5">
+                    <a 
+                      href="/campaign_template.csv"
+                      download="campaign_template.csv"
+                      className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground"
+                      data-testid="link-download-template"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      {t('campaigns.downloadTemplate', 'Download the template')}
+                    </a>
+                    <div 
+                      className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                        isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-muted-foreground/40'
+                      }`}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => document.getElementById('csv-upload')?.click()}
+                      data-testid="dropzone-csv"
+                    >
+                      <input
+                        id="csv-upload"
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                        className="hidden"
+                        data-testid="input-csv-upload"
+                      />
+                      <Upload className="h-5 w-5 mx-auto mb-1.5 text-muted-foreground" />
+                      {csvFile ? (
+                        <p className="text-sm font-medium">{csvFile.name} ({parsedContacts.length} contacts)</p>
+                      ) : (
+                        <>
+                          <p className="text-xs text-muted-foreground">{t('campaigns.dragDropCsv', 'Choose a csv or drag & drop it here.')}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{t('campaigns.upTo50MB', 'Up to 50 MB')}</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-1 border-b pb-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'groups' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                        onClick={() => setContactPickerTab('groups')}
+                        data-testid="tab-groups"
+                      >
+                        <Users className="h-3 w-3 mr-1" /> Groups
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'countries' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                        onClick={() => setContactPickerTab('countries')}
+                        data-testid="tab-countries"
+                      >
+                        <Globe className="h-3 w-3 mr-1" /> Countries
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 px-2 text-xs rounded-none border-b-2 ${contactPickerTab === 'individual' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                        onClick={() => setContactPickerTab('individual')}
+                        data-testid="tab-individual"
+                      >
+                        <User className="h-3 w-3 mr-1" /> Individual
+                      </Button>
+                    </div>
+
+                    {contactPickerTab === 'groups' && (
+                      <div className="space-y-1 max-h-[180px] overflow-y-auto">
+                        {contactGroups.length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center py-3">No groups created yet. Create groups from the Contacts page.</p>
+                        ) : (
+                          contactGroups.map(group => {
+                            const count = groupMemberships.filter(m => m.group_id === group.id).length;
+                            return (
+                              <label
+                                key={group.id}
+                                className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                                data-testid={`group-option-${group.id}`}
+                              >
+                                <Checkbox
+                                  checked={selectedGroupIds.has(group.id)}
+                                  onCheckedChange={() => toggleGroup(group.id)}
+                                />
+                                <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
+                                <span className="text-sm flex-1 truncate">{group.name}</span>
+                                <Badge variant="secondary" className="text-[10px]">{count}</Badge>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+
+                    {contactPickerTab === 'countries' && (
+                      <div className="space-y-1 max-h-[180px] overflow-y-auto">
+                        {countryGroups.length === 0 ? (
+                          <p className="text-xs text-muted-foreground text-center py-3">No contacts available.</p>
+                        ) : (
+                          countryGroups.map(([country, contacts]) => (
+                            <label
+                              key={country}
+                              className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                              data-testid={`country-option-${country}`}
+                            >
+                              <Checkbox
+                                checked={selectedCountries.has(country)}
+                                onCheckedChange={() => toggleCountry(country)}
+                              />
+                              <span className="text-sm">{getCountryFlag(country)}</span>
+                              <span className="text-sm flex-1 truncate">{country}</span>
+                              <Badge variant="secondary" className="text-[10px]">{contacts.length}</Badge>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {contactPickerTab === 'individual' && (
+                      <div className="space-y-1.5">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            placeholder="Search contacts..."
+                            value={contactSearchQuery}
+                            onChange={(e) => setContactSearchQuery(e.target.value)}
+                            className="h-8 pl-7 text-xs"
+                            data-testid="input-search-individual"
+                          />
+                        </div>
+                        <div className="space-y-0.5 max-h-[160px] overflow-y-auto">
+                          {filteredIndividualContacts.length === 0 ? (
+                            <p className="text-xs text-muted-foreground text-center py-3">No contacts found.</p>
+                          ) : (
+                            filteredIndividualContacts.map(contact => {
+                              const name = contact.names[0];
+                              const fullName = name ? `${name.firstName} ${name.lastName || ""}`.trim() : "";
+                              return (
+                                <label
+                                  key={contact.id}
+                                  className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/50 cursor-pointer"
+                                  data-testid={`individual-option-${contact.id}`}
+                                >
+                                  <Checkbox
+                                    checked={selectedIndividualPhones.has(contact.phone)}
+                                    onCheckedChange={() => toggleIndividual(contact.phone)}
+                                  />
+                                  <span className="text-xs">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm truncate">{fullName || contact.phone}</div>
+                                    {fullName && <div className="text-[11px] text-muted-foreground truncate">{contact.phone}</div>}
+                                  </div>
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {resolvedContactPhones.size > 0 && (
+                      <div className="flex items-center justify-between pt-1 border-t">
+                        <span className="text-xs text-muted-foreground">
+                          {resolvedContactPhones.size} contact{resolvedContactPhones.size !== 1 ? 's' : ''} selected
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs text-muted-foreground"
+                          onClick={() => {
+                            setSelectedGroupIds(new Set());
+                            setSelectedCountries(new Set());
+                            setSelectedIndividualPhones(new Set());
+                          }}
+                          data-testid="button-clear-selection"
+                        >
+                          Clear all
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* When to send the calls */}
@@ -769,25 +1137,37 @@ export default function CreateCampaign() {
 
         {/* Right Recipients Column */}
         <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden min-h-[200px] md:min-h-0">
-          <div className="p-4 border-b flex-shrink-0">
+          <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
             <h3 className="font-semibold text-sm">{t('campaigns.recipients', 'Recipients')}</h3>
+            {resolvedContacts.length > 0 && (
+              <Badge variant="secondary" className="text-xs">{resolvedContacts.length}</Badge>
+            )}
           </div>
           <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
-            {parsedContacts.length === 0 ? (
+            {resolvedContacts.length === 0 ? (
               <div className="text-center text-muted-foreground">
-                <p className="text-sm">{t('campaigns.pleaseUploadRecipients', 'Please upload recipients first')}</p>
+                <p className="text-sm">{recipientMode === 'csv' ? t('campaigns.pleaseUploadRecipients', 'Please upload recipients first') : 'Select contacts from groups, countries, or individually'}</p>
               </div>
             ) : (
               <ScrollArea className="h-full w-full">
                 <div className="space-y-2 p-2">
-                  {parsedContacts.map((contact, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-3 bg-white dark:bg-card rounded-lg border" data-testid={`recipient-row-${idx}`}>
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                        <span className="text-xs font-medium">{idx + 1}</span>
+                  {resolvedContacts.map((contact, idx) => {
+                    const displayName = contact.first_name ? `${contact.first_name} ${contact.last_name || ""}`.trim() : "";
+                    return (
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-white dark:bg-card rounded-lg border" data-testid={`recipient-row-${idx}`}>
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-medium">{idx + 1}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm">{getCountryFlag(getCountryFromPhone(contact.phone_number))}</span>
+                            <span className="text-sm font-medium truncate">{contact.phone_number}</span>
+                          </div>
+                          {displayName && <p className="text-xs text-muted-foreground truncate">{displayName}</p>}
+                        </div>
                       </div>
-                      <span className="text-sm">{contact.phone_number}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             )}

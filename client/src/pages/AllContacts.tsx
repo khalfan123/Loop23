@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -73,8 +73,55 @@ import {
   Contact2,
   Mail,
   Loader2,
+  LayoutGrid,
+  List,
+  Globe,
+  Star,
 } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+function getCountryFromPhone(phone: string): string {
+  const cleaned = phone.replace(/\s/g, '');
+  const codes: [string, string][] = [
+    ['+358', 'Finland'], ['+353', 'Ireland'], ['+351', 'Portugal'],
+    ['+971', 'UAE'], ['+966', 'Saudi Arabia'], ['+965', 'Kuwait'],
+    ['+249', 'Sudan'], ['+212', 'Morocco'],
+    ['+91', 'India'], ['+86', 'China'], ['+81', 'Japan'], ['+82', 'South Korea'],
+    ['+92', 'Pakistan'], ['+90', 'Turkey'], ['+84', 'Vietnam'],
+    ['+66', 'Thailand'], ['+65', 'Singapore'], ['+63', 'Philippines'],
+    ['+62', 'Indonesia'], ['+61', 'Australia'], ['+60', 'Malaysia'],
+    ['+55', 'Brazil'], ['+52', 'Mexico'],
+    ['+49', 'Germany'], ['+48', 'Poland'], ['+47', 'Norway'],
+    ['+46', 'Sweden'], ['+45', 'Denmark'], ['+44', 'UK'],
+    ['+43', 'Austria'], ['+41', 'Switzerland'],
+    ['+39', 'Italy'], ['+34', 'Spain'], ['+33', 'France'],
+    ['+32', 'Belgium'], ['+31', 'Netherlands'], ['+30', 'Greece'],
+    ['+27', 'South Africa'], ['+20', 'Egypt'],
+    ['+7', 'Russia'], ['+1', 'US/Canada'],
+  ];
+  for (const [code, country] of codes) {
+    if (cleaned.startsWith(code)) return country;
+  }
+  return 'Other';
+}
+
+function getCountryFlag(country: string): string {
+  const isoCodes: Record<string, string> = {
+    'US/Canada': 'US', 'UK': 'GB', 'UAE': 'AE', 'Saudi Arabia': 'SA', 'Kuwait': 'KW',
+    'Sudan': 'SD', 'Morocco': 'MA', 'India': 'IN', 'China': 'CN', 'Japan': 'JP',
+    'South Korea': 'KR', 'France': 'FR', 'Germany': 'DE', 'Italy': 'IT', 'Spain': 'ES',
+    'Australia': 'AU', 'Brazil': 'BR', 'Mexico': 'MX', 'Russia': 'RU', 'Turkey': 'TR',
+    'Pakistan': 'PK', 'Egypt': 'EG', 'South Africa': 'ZA', 'Philippines': 'PH',
+    'Vietnam': 'VN', 'Indonesia': 'ID', 'Malaysia': 'MY', 'Singapore': 'SG',
+    'Thailand': 'TH', 'Netherlands': 'NL', 'Sweden': 'SE', 'Norway': 'NO',
+    'Denmark': 'DK', 'Finland': 'FI', 'Poland': 'PL', 'Portugal': 'PT',
+    'Greece': 'GR', 'Ireland': 'IE', 'Belgium': 'BE', 'Switzerland': 'CH', 'Austria': 'AT',
+  };
+  const iso = isoCodes[country];
+  if (!iso) return String.fromCodePoint(0x1F310);
+  return Array.from(iso).map(c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)).join('');
+}
 
 interface DeduplicatedContact {
   id: string;
@@ -96,9 +143,20 @@ export default function AllContacts() {
   const [editingContact, setEditingContact] = useState<DeduplicatedContact | null>(null);
   const [addForm, setAddForm] = useState({ firstName: "", lastName: "", phone: "", email: "" });
   const [editForm, setEditForm] = useState({ firstName: "", lastName: "", phone: "", email: "" });
+  const [contactViewMode, setContactViewMode] = useState<'list' | 'country' | 'vip'>('list');
+  const [vipContacts, setVipContacts] = useState<Set<string>>(new Set());
   const csvFileRef = useRef<HTMLInputElement>(null);
   const vcardFileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const toggleVip = useCallback((id: string) => {
+    setVipContacts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const { data: contacts = [], isLoading } = useQuery<DeduplicatedContact[]>({
     queryKey: ["/api/contacts/deduplicated"],
@@ -361,6 +419,16 @@ export default function AllContacts() {
     );
   });
 
+  const countryGroups = useMemo(() => {
+    const groups: Record<string, typeof filteredContacts> = {};
+    filteredContacts.forEach(contact => {
+      const country = getCountryFromPhone(contact.phone);
+      if (!groups[country]) groups[country] = [];
+      groups[country].push(contact);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [filteredContacts]);
+
   const {
     currentPage,
     totalPages,
@@ -369,7 +437,7 @@ export default function AllContacts() {
     paginatedItems,
     handlePageChange,
     handleItemsPerPageChange,
-  } = usePagination(filteredContacts, 10);
+  } = usePagination(contactViewMode === 'vip' ? filteredContacts.filter(c => vipContacts.has(c.id)) : filteredContacts, 10);
 
   const campaignContactsCount = contacts.filter(c => c.source === 'campaign').length;
   const callOnlyContactsCount = contacts.filter(c => c.source === 'call').length;
@@ -539,156 +607,291 @@ export default function AllContacts() {
         </div>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={t('contacts.searchPlaceholder')}
-          className="pl-9"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          data-testid="input-search-contacts"
-        />
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t('contacts.searchPlaceholder')}
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            data-testid="input-search-contacts"
+          />
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" data-testid="button-view-mode">
+              <LayoutGrid className="h-4 w-4 mr-1" />
+              {contactViewMode === 'list' ? 'List' : contactViewMode === 'country' ? 'By Country' : 'VIP'}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setContactViewMode('list')}>
+              <List className="h-4 w-4 mr-2" /> List View
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setContactViewMode('country')}>
+              <Globe className="h-4 w-4 mr-2" /> Group by Country
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setContactViewMode('vip')}>
+              <Star className="h-4 w-4 mr-2" /> VIP Only
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <span className="text-xs text-muted-foreground">{filteredContacts.length} contacts</span>
       </div>
 
-      <Card>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('contacts.fields.source')}</TableHead>
-                <TableHead>{t('contacts.fields.names')}</TableHead>
-                <TableHead>{t('contacts.fields.phone')}</TableHead>
-                <TableHead className="hidden md:table-cell">{t('contacts.fields.email')}</TableHead>
-                <TableHead className="hidden lg:table-cell">{t('contacts.fields.campaigns')}</TableHead>
-                <TableHead>{t('contacts.fields.status')}</TableHead>
-                <TableHead className="w-[100px]">{t('contacts.fields.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    {t('contacts.loading')}
-                  </TableCell>
-                </TableRow>
-              ) : paginatedItems.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    {searchQuery ? t('contacts.noMatchingSearch') : t('contacts.noContacts')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedItems.map((contact) => (
-                  <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
-                    <TableCell>
-                      {contact.source === 'campaign' ? (
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-700">
-                          <Upload className="h-3 w-3 mr-1" />
-                          {t('contacts.source.campaign')}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-700">
-                          {contact.status === 'incoming_call' ? (
-                            <PhoneIncoming className="h-3 w-3 mr-1" />
-                          ) : (
-                            <PhoneOutgoing className="h-3 w-3 mr-1" />
-                          )}
-                          {t('contacts.source.call')}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium" data-testid={`cell-names-${contact.id}`}>
-                      {contact.names.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {contact.names.map((name, idx) => (
-                            <div key={idx} className="text-sm">
-                              {name.firstName} {name.lastName || ""}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground italic">{t('contacts.unknown')}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
-                    <TableCell className="text-muted-foreground hidden md:table-cell">
-                      {contact.email || "-"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden lg:table-cell">
-                      {contact.campaigns.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {contact.campaigns.map((campaign) => (
-                            <Badge key={campaign.id} variant="secondary" className="text-xs">
-                              {campaign.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                          contact.status === "completed"
-                            ? "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400"
-                            : contact.status === "imported"
-                            ? "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400"
-                            : contact.status === "pending"
-                            ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400"
-                            : contact.status === "incoming_call"
-                            ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400"
-                            : contact.status === "outgoing_call"
-                            ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
-                            : "bg-gray-50 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400"
-                        }`}
-                      >
-                        {contact.status === 'incoming_call' ? t('calls.filters.incoming') : 
-                         contact.status === 'outgoing_call' ? t('calls.filters.outgoing') : 
-                         contact.status === 'imported' ? 'Imported' : contact.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {contact.source === 'campaign' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(contact)}
-                            data-testid={`button-edit-contact-${contact.id}`}
-                          >
-                            <Pencil className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        )}
-                        {contact.source === 'campaign' ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletingContact(contact)}
-                            data-testid={`button-delete-contact-${contact.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
+      {contactViewMode === 'country' ? (
+        <Card>
+          <ScrollArea className="h-[600px]" type="always">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : countryGroups.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                {searchQuery ? t('contacts.noMatchingSearch') : t('contacts.noContacts')}
+              </div>
+            ) : (
+              <div>
+                {countryGroups.map(([country, groupContacts]) => (
+                  <div key={country}>
+                    <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm px-4 py-2 flex items-center gap-2 border-b">
+                      <span className="text-base">{getCountryFlag(country)}</span>
+                      <span className="font-medium text-sm">{country}</span>
+                      <Badge variant="secondary">{groupContacts.length}</Badge>
+                    </div>
+                    <Table>
+                      <TableBody>
+                        {groupContacts.map((contact) => (
+                          <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
+                            <TableCell>
+                              {contact.source === 'campaign' ? (
+                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-700">
+                                  <Upload className="h-3 w-3 mr-1" />
+                                  {t('contacts.source.campaign')}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-700">
+                                  {contact.status === 'incoming_call' ? (
+                                    <PhoneIncoming className="h-3 w-3 mr-1" />
+                                  ) : (
+                                    <PhoneOutgoing className="h-3 w-3 mr-1" />
+                                  )}
+                                  {t('contacts.source.call')}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium" data-testid={`cell-names-${contact.id}`}>
+                              {contact.names.length > 0 ? (
+                                <div className="flex flex-col gap-1">
+                                  {contact.names.map((name, idx) => (
+                                    <div key={idx} className="text-sm">
+                                      {name.firstName} {name.lastName || ""}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground italic">{t('contacts.unknown')}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
+                            <TableCell className="text-muted-foreground hidden md:table-cell">
+                              {contact.email || "-"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground hidden lg:table-cell">
+                              {contact.campaigns.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {contact.campaigns.map((campaign) => (
+                                    <Badge key={campaign.id} variant="secondary" className="text-xs">
+                                      {campaign.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => toggleVip(contact.id)}
+                                  data-testid={`button-vip-${contact.id}`}
+                                >
+                                  {vipContacts.has(contact.id) ? (
+                                    <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                                  ) : (
+                                    <Star className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </Button>
+                                {contact.source === 'campaign' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openEditDialog(contact)}
+                                    data-testid={`button-edit-contact-${contact.id}`}
+                                  >
+                                    <Pencil className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                )}
+                                {contact.source === 'campaign' ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setDeletingContact(contact)}
+                                    data-testid={`button-delete-contact-${contact.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('contacts.fields.source')}</TableHead>
+                    <TableHead>{t('contacts.fields.names')}</TableHead>
+                    <TableHead>{t('contacts.fields.phone')}</TableHead>
+                    <TableHead className="hidden md:table-cell">{t('contacts.fields.email')}</TableHead>
+                    <TableHead className="hidden lg:table-cell">{t('contacts.fields.campaigns')}</TableHead>
+                    <TableHead className="w-[100px]">{t('contacts.fields.actions')}</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        {t('contacts.loading')}
+                      </TableCell>
+                    </TableRow>
+                  ) : paginatedItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        {searchQuery ? t('contacts.noMatchingSearch') : t('contacts.noContacts')}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedItems.map((contact) => (
+                      <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
+                        <TableCell>
+                          {contact.source === 'campaign' ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-700">
+                              <Upload className="h-3 w-3 mr-1" />
+                              {t('contacts.source.campaign')}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-700">
+                              {contact.status === 'incoming_call' ? (
+                                <PhoneIncoming className="h-3 w-3 mr-1" />
+                              ) : (
+                                <PhoneOutgoing className="h-3 w-3 mr-1" />
+                              )}
+                              {t('contacts.source.call')}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium" data-testid={`cell-names-${contact.id}`}>
+                          {contact.names.length > 0 ? (
+                            <div className="flex flex-col gap-1">
+                              {contact.names.map((name, idx) => (
+                                <div key={idx} className="text-sm">
+                                  {name.firstName} {name.lastName || ""}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground italic">{t('contacts.unknown')}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
+                        <TableCell className="text-muted-foreground hidden md:table-cell">
+                          {contact.email || "-"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground hidden lg:table-cell">
+                          {contact.campaigns.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {contact.campaigns.map((campaign) => (
+                                <Badge key={campaign.id} variant="secondary" className="text-xs">
+                                  {campaign.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleVip(contact.id)}
+                              data-testid={`button-vip-${contact.id}`}
+                            >
+                              {vipContacts.has(contact.id) ? (
+                                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                              ) : (
+                                <Star className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
+                            {contact.source === 'campaign' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(contact)}
+                                data-testid={`button-edit-contact-${contact.id}`}
+                              >
+                                <Pencil className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            )}
+                            {contact.source === 'campaign' ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDeletingContact(contact)}
+                                data-testid={`button-delete-contact-${contact.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
 
-      <DataPagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        totalItems={totalItems}
-        itemsPerPage={itemsPerPage}
-        onPageChange={handlePageChange}
-        onItemsPerPageChange={handleItemsPerPageChange}
-        showItemsPerPage={true}
-      />
+          {paginatedItems.length > 0 && (
+            <DataPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              showItemsPerPage={true}
+            />
+          )}
+        </>
+      )}
 
       <AlertDialog open={!!deletingContact} onOpenChange={() => setDeletingContact(null)}>
         <AlertDialogContent>

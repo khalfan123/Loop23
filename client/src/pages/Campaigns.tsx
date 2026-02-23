@@ -168,7 +168,7 @@ export default function Campaigns() {
   const [editingContact, setEditingContact] = useState<DeduplicatedContact | null>(null);
   const [editForm, setEditForm] = useState({ firstName: "", lastName: "", phone: "", email: "" });
   const [contactSortBy, setContactSortBy] = useState<'name' | 'phone'>('name');
-  const [contactViewMode, setContactViewMode] = useState<'list' | 'country' | 'groups'>('list');
+  const [contactViewMode, setContactViewMode] = useState<'list' | 'country' | 'groups' | 'grid'>('list');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string | null>(null);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
@@ -509,7 +509,7 @@ export default function Campaigns() {
       const allNames = contact.names.map(n => `${n.firstName} ${n.lastName || ""}`).join(" ").toLowerCase();
       const matchesSearch = allNames.includes(searchLower) || contact.phone.toLowerCase().includes(searchLower) || contact.email?.toLowerCase().includes(searchLower);
       if (!matchesSearch) return false;
-      if (contactViewMode === 'groups' && selectedGroupFilter) {
+      if (selectedGroupFilter) {
         return groupMemberships.some(m => m.contact_phone === contact.phone && m.group_id === selectedGroupFilter);
       }
       return true;
@@ -783,12 +783,15 @@ export default function Campaigns() {
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" data-testid="button-view-mode">
               <LayoutGrid className="h-4 w-4 mr-1" />
-              {contactViewMode === 'list' ? 'List' : contactViewMode === 'country' ? 'By Country' : 'Groups'}
+              {contactViewMode === 'list' ? 'List' : contactViewMode === 'grid' ? 'Grid' : contactViewMode === 'country' ? 'By Country' : 'Groups'}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setContactViewMode('list')}>
               <List className="h-4 w-4 mr-2" /> List View
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setContactViewMode('grid')}>
+              <LayoutGrid className="h-4 w-4 mr-2" /> Grid View
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setContactViewMode('country')}>
               <Globe className="h-4 w-4 mr-2" /> Group by Country
@@ -801,44 +804,42 @@ export default function Campaigns() {
         <span className="text-xs text-muted-foreground">{filteredContacts.length} contacts</span>
       </div>
 
-      {contactViewMode === 'groups' && (
-        <div className="mb-3 px-1 flex items-center gap-2 flex-wrap">
-          <Button
-            variant={selectedGroupFilter === null ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedGroupFilter(null)}
-          >
-            All
-          </Button>
-          {contactGroups.map(group => {
-            const count = groupMemberships.filter(m => m.group_id === group.id).length;
-            return (
+      <div className="mb-3 px-1 flex items-center gap-2 flex-wrap">
+        <Button
+          variant={selectedGroupFilter === null ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSelectedGroupFilter(null)}
+        >
+          All
+        </Button>
+        {contactGroups.map(group => {
+          const count = groupMemberships.filter(m => m.group_id === group.id).length;
+          return (
+            <Button
+              key={group.id}
+              variant={selectedGroupFilter === group.id ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedGroupFilter(group.id === selectedGroupFilter ? null : group.id)}
+              className="gap-1.5"
+            >
+              <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: group.color }} />
+              {group.name}
+              <Badge variant="secondary" className="text-[10px] ml-1">{count}</Badge>
               <Button
-                key={group.id}
-                variant={selectedGroupFilter === group.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedGroupFilter(group.id === selectedGroupFilter ? null : group.id)}
-                className="gap-1.5"
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 ml-0.5 -mr-1"
+                onClick={(e) => { e.stopPropagation(); deleteGroupMutation.mutate(group.id); }}
               >
-                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: group.color }} />
-                {group.name}
-                <Badge variant="secondary" className="text-[10px] ml-1">{count}</Badge>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 ml-0.5 -mr-1"
-                  onClick={(e) => { e.stopPropagation(); deleteGroupMutation.mutate(group.id); }}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <X className="h-3 w-3" />
               </Button>
-            );
-          })}
-          <Button variant="ghost" size="sm" onClick={() => setCreateGroupOpen(true)} data-testid="button-new-group">
-            <Plus className="h-4 w-4 mr-1" /> New Group
-          </Button>
-        </div>
-      )}
+            </Button>
+          );
+        })}
+        <Button variant="ghost" size="sm" onClick={() => setCreateGroupOpen(true)} data-testid="button-new-group">
+          <Plus className="h-4 w-4 mr-1" /> New Group
+        </Button>
+      </div>
 
       <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-hidden">
         {contactsLoading ? (
@@ -967,6 +968,87 @@ export default function Campaigns() {
                   </div>
                 ))}
               </div>
+            ) : contactViewMode === 'grid' ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-4">
+                {paginatedItems.map((contact) => {
+                  const primaryName = contact.names[0];
+                  const fullName = primaryName
+                    ? `${primaryName.firstName} ${primaryName.lastName || ""}`.trim()
+                    : "";
+                  const initials = fullName ? fullName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) : "?";
+                  return (
+                    <div
+                      key={contact.id}
+                      data-testid={`card-contact-${contact.id}`}
+                      className="bg-background border rounded-xl p-4 flex flex-col items-center text-center gap-2 hover:shadow-md transition-shadow cursor-pointer group relative"
+                      onClick={() => openEditDialog(contact)}
+                    >
+                      <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                              <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuLabel>Assign to Group</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {contactGroups.length === 0 ? (
+                              <DropdownMenuItem disabled>No groups yet</DropdownMenuItem>
+                            ) : (
+                              contactGroups.map(group => {
+                                const isMember = groupMemberships.some(m => m.contact_phone === contact.phone && m.group_id === group.id);
+                                return (
+                                  <DropdownMenuItem
+                                    key={group.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (isMember) removeFromGroupMutation.mutate({ groupId: group.id, contactPhone: contact.phone });
+                                      else addToGroupMutation.mutate({ groupId: group.id, contactPhone: contact.phone });
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2 w-full">
+                                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: group.color }} />
+                                      <span>{group.name}</span>
+                                      {isMember && <Check className="h-3 w-3 ml-auto" />}
+                                    </div>
+                                  </DropdownMenuItem>
+                                );
+                              })
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setCreateGroupOpen(true); }}>
+                              <Plus className="h-4 w-4 mr-2" /> New Group
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        {contact.source === 'campaign' && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeletingContact(contact); }}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border flex items-center justify-center text-sm font-semibold text-primary">
+                        {initials}
+                      </div>
+                      <div className="font-medium text-sm truncate max-w-full">
+                        {fullName || <span className="text-muted-foreground italic">Unknown</span>}
+                      </div>
+                      <div className="font-mono text-xs text-muted-foreground truncate max-w-full">{contact.phone}</div>
+                      {contact.email && <div className="text-xs text-muted-foreground truncate max-w-full">{contact.email}</div>}
+                      {getContactGroups(contact.phone).length > 0 && (
+                        <div className="flex flex-wrap gap-1 justify-center mt-1">
+                          {getContactGroups(contact.phone).map(g => (
+                            <span key={g.group_id} className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ backgroundColor: g.group_color }}>
+                              {g.group_name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
               <Table style={{ tableLayout: 'fixed', width: '100%' }}>
                 <colgroup>
@@ -1091,7 +1173,7 @@ export default function Campaigns() {
         )}
       </div>
 
-      {(contactViewMode === 'list' || contactViewMode === 'groups') && filteredContacts.length > 0 && (
+      {(contactViewMode === 'list' || contactViewMode === 'groups' || contactViewMode === 'grid') && filteredContacts.length > 0 && (
         <div className="pt-3 px-1">
           <DataPagination
             currentPage={currentPage}

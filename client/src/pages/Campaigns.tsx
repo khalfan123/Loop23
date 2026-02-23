@@ -671,14 +671,11 @@ export default function Campaigns() {
             <span className="text-muted-foreground">{t('campaigns.status.pending', 'Pending')}</span>
             <span className="font-medium">{pendingCampaigns}</span>
           </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{t('nav.contacts', 'Contacts')}</span>
+            <span className="font-medium text-violet-600">{contacts.length}</span>
+          </div>
         </div>
-        <SubPanelItem
-          icon={<Users className="w-4 h-4" />}
-          label={t('nav.contacts', 'Contacts')}
-          isActive={activeView === 'contacts'}
-          badge={activeView === 'contacts' ? contacts.length : undefined}
-          onClick={() => setActiveView('contacts')}
-        />
       </SubPanelSection>
     </div>
   );

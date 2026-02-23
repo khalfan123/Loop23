@@ -1533,6 +1533,32 @@ router.get("/flow-templates", async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.get("/flow-templates/:templateId/detail", async (req: AuthRequest, res: Response) => {
+  try {
+    const { templateId } = req.params;
+
+    const template = flowTemplates.find((t) => t.id === templateId);
+    if (!template) {
+      return res.status(404).json({ error: "Template not found" });
+    }
+
+    res.json({
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      isTemplate: template.isTemplate,
+      nodes: template.nodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        data: n.data,
+      })),
+    });
+  } catch (error: any) {
+    console.error("Error fetching template detail:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/flow-templates/:templateId/clone", async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) {

@@ -116,7 +116,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
   // Create campaign
   router.post("/api/campaigns", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      const { name, type, goal, script, flowId, agentId, voiceId, phoneNumberId, sipPhoneNumberId, scheduledFor } = req.body;
+      const { name, type, goal, script, flowId, agentId, voiceId, phoneNumberId, sipPhoneNumberId, scheduledFor, batchMode, greetingMessage, languageOptions, dynamicFormFields, knowledgeBaseIds } = req.body;
 
       if (!name || !type) {
         return res.status(400).json({ error: "Name and type are required" });
@@ -256,6 +256,33 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         console.log(`[Campaign] Cloned preset template "${presetTemplate.name}" to flow ${resolvedFlowId} for campaign "${name}"`);
       }
 
+      const campaignConfig: Record<string, unknown> = {};
+      if (batchMode) {
+        if (!['flow_template', 'dynamic_form'].includes(batchMode)) {
+          return res.status(400).json({ error: "Invalid batch mode. Must be 'flow_template' or 'dynamic_form'." });
+        }
+        campaignConfig.batchMode = batchMode;
+      }
+      if (greetingMessage && typeof greetingMessage === 'string') {
+        campaignConfig.greetingMessage = greetingMessage;
+      }
+      if (languageOptions && Array.isArray(languageOptions)) {
+        campaignConfig.languageOptions = languageOptions.filter((l: unknown) => typeof l === 'string');
+      }
+      if (dynamicFormFields && Array.isArray(dynamicFormFields)) {
+        campaignConfig.dynamicFormFields = dynamicFormFields.map((f: any) => ({
+          id: String(f.id || ''),
+          label: String(f.label || ''),
+          type: ['text', 'number', 'select', 'boolean'].includes(f.type) ? f.type : 'text',
+          required: Boolean(f.required),
+          placeholder: f.placeholder ? String(f.placeholder) : undefined,
+          options: Array.isArray(f.options) ? f.options.filter((o: unknown) => typeof o === 'string') : undefined,
+        }));
+      }
+      if (knowledgeBaseIds && Array.isArray(knowledgeBaseIds)) {
+        campaignConfig.knowledgeBaseIds = knowledgeBaseIds.filter((id: unknown) => typeof id === 'string');
+      }
+
       const campaign = await storage.createCampaign({
         userId: req.userId!,
         agentId,
@@ -272,6 +299,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         scheduledFor: scheduledFor || null,
         startedAt: null,
         completedAt: null,
+        config: Object.keys(campaignConfig).length > 0 ? campaignConfig : null,
       });
 
       res.json(campaign);

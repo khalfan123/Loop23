@@ -27,12 +27,13 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X } from "lucide-react";
+import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X, GitBranch, FileText, Brain, Mic, Phone, ArrowRight, Trash2, GripVertical, MessageSquare, Languages, Bot, Volume2 } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "@/components/PhoneConflictDialog";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Agent {
   id: string;
@@ -89,6 +90,48 @@ interface FlowTemplate {
   isTemplate: boolean;
   nodeCount: number;
   preview: string[];
+}
+
+interface FlowTemplateDetail {
+  id: string;
+  name: string;
+  description?: string;
+  isTemplate: boolean;
+  nodes: Array<{
+    id: string;
+    type: string;
+    data: {
+      type: string;
+      label: string;
+      config: {
+        type: string;
+        message?: string;
+        question?: string;
+        variableName?: string;
+        waitForResponse?: boolean;
+        options?: string[];
+        [key: string]: unknown;
+      };
+    };
+  }>;
+}
+
+interface KnowledgeBaseItem {
+  id: string;
+  title: string;
+  type: string;
+  content?: string;
+  url?: string;
+  storageSize: number;
+}
+
+interface DynamicFormField {
+  id: string;
+  label: string;
+  type: 'text' | 'number' | 'select' | 'boolean';
+  required: boolean;
+  options?: string[];
+  placeholder?: string;
 }
 
 interface DeduplicatedContact {
@@ -196,6 +239,12 @@ export default function CreateCampaign() {
   const [recipientSearchQuery, setRecipientSearchQuery] = useState("");
   const [removedPhones, setRemovedPhones] = useState<Set<string>>(new Set());
   const [wizardStep, setWizardStep] = useState(1);
+  const [batchMode, setBatchMode] = useState<'flow_template' | 'dynamic_form' | null>(null);
+  const [dynamicFormFields, setDynamicFormFields] = useState<DynamicFormField[]>([]);
+  const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<string[]>([]);
+  const [greetingMessage, setGreetingMessage] = useState("Hello! Thank you for taking my call. How are you doing today?");
+  const [languageOptions, setLanguageOptions] = useState<string[]>(["English"]);
+  const [newLanguage, setNewLanguage] = useState("");
 
   const { data: userData } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
@@ -243,6 +292,16 @@ export default function CreateCampaign() {
     queryKey: ["/api/flow-automation/flow-templates"],
   });
 
+  const isTemplateId = formData.flowId?.startsWith('template-');
+  const { data: flowTemplateDetail } = useQuery<FlowTemplateDetail>({
+    queryKey: ["/api/flow-automation/flow-templates", formData.flowId, "detail"],
+    enabled: !!formData.flowId && batchMode === 'flow_template' && isTemplateId,
+  });
+
+  const { data: knowledgeBases = [] } = useQuery<KnowledgeBaseItem[]>({
+    queryKey: ["/api/knowledge-base"],
+  });
+
   const { data: allContacts = [] } = useQuery<DeduplicatedContact[]>({
     queryKey: ["/api/contacts/deduplicated"],
   });
@@ -281,9 +340,16 @@ export default function CreateCampaign() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const payload = { ...formData };
+      const payload: Record<string, unknown> = { ...formData };
       if (payload.flowId) {
         payload.script = "";
+      }
+      payload.batchMode = batchMode;
+      payload.greetingMessage = greetingMessage;
+      payload.languageOptions = languageOptions;
+      if (batchMode === 'dynamic_form') {
+        payload.dynamicFormFields = dynamicFormFields;
+        payload.knowledgeBaseIds = selectedKnowledgeBaseIds;
       }
       const res = await apiRequest("POST", "/api/campaigns", payload);
       return res.json();
@@ -613,6 +679,41 @@ export default function CreateCampaign() {
     });
   }, []);
 
+  const addDynamicField = useCallback(() => {
+    setDynamicFormFields(prev => [...prev, {
+      id: `field-${Date.now()}`,
+      label: "",
+      type: "text",
+      required: false,
+      placeholder: "",
+    }]);
+  }, []);
+
+  const updateDynamicField = useCallback((id: string, updates: Partial<DynamicFormField>) => {
+    setDynamicFormFields(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
+  }, []);
+
+  const removeDynamicField = useCallback((id: string) => {
+    setDynamicFormFields(prev => prev.filter(f => f.id !== id));
+  }, []);
+
+  const addLanguageOption = useCallback(() => {
+    if (newLanguage && !languageOptions.includes(newLanguage)) {
+      setLanguageOptions(prev => [...prev, newLanguage]);
+      setNewLanguage("");
+    }
+  }, [newLanguage, languageOptions]);
+
+  const removeLanguageOption = useCallback((lang: string) => {
+    setLanguageOptions(prev => prev.filter(l => l !== lang));
+  }, []);
+
+  const toggleKnowledgeBase = useCallback((kbId: string) => {
+    setSelectedKnowledgeBaseIds(prev =>
+      prev.includes(kbId) ? prev.filter(id => id !== kbId) : [...prev, kbId]
+    );
+  }, []);
+
   return (
     <>
       <TimezoneEnforcementModal
@@ -728,7 +829,7 @@ export default function CreateCampaign() {
             </div>
             <div className="mt-2">
               <p className="text-xs font-medium text-primary">
-                {wizardStep === 1 && 'Step 1: Campaign Setup'}
+                {wizardStep === 1 && 'Step 1: Campaign Setup & Configuration'}
                 {wizardStep === 2 && 'Step 2: Add Recipients'}
                 {wizardStep === 3 && 'Step 3: Schedule & Send'}
               </p>
@@ -754,7 +855,389 @@ export default function CreateCampaign() {
                     />
                   </div>
 
-                  {/* Agent Selection */}
+                  {/* Batch Mode Selector */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Batch Call Type</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => { setBatchMode('flow_template'); setFormData(prev => ({ ...prev, flowId: '' })); }}
+                        className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all text-left ${
+                          batchMode === 'flow_template'
+                            ? 'border-primary bg-primary/5 shadow-sm'
+                            : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/30'
+                        }`}
+                        data-testid="card-mode-flow-template"
+                      >
+                        {batchMode === 'flow_template' && (
+                          <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                            <div className="h-2 w-2 rounded-full bg-white" />
+                          </div>
+                        )}
+                        <div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                          <GitBranch className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">Flow Template</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                            Use a pre-built conversation flow with scripted steps and branching logic
+                          </p>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => { setBatchMode('dynamic_form'); setFormData(prev => ({ ...prev, flowId: '' })); }}
+                        className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 transition-all text-left ${
+                          batchMode === 'dynamic_form'
+                            ? 'border-primary bg-primary/5 shadow-sm'
+                            : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/30'
+                        }`}
+                        data-testid="card-mode-dynamic-form"
+                      >
+                        {batchMode === 'dynamic_form' && (
+                          <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                            <div className="h-2 w-2 rounded-full bg-white" />
+                          </div>
+                        )}
+                        <div className="h-9 w-9 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                          <FileText className="h-4.5 w-4.5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">Dynamic Form</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                            Collect custom data from calls using AI powered by your knowledge base
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* === FLOW TEMPLATE MODE === */}
+                  {batchMode === 'flow_template' && (
+                    <>
+                      {/* Flow Template Selection */}
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Select Flow Template</Label>
+                        <Select 
+                          value={formData.flowId || "none"} 
+                          onValueChange={(value) => setFormData({ ...formData, flowId: value === "none" ? "" : value })}
+                        >
+                          <SelectTrigger className="h-9" data-testid="select-flow-template">
+                            <SelectValue placeholder={(activeFlows.length === 0 && flowTemplates.length === 0) ? "No flows available" : "Select a flow template"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None (use agent script)</SelectItem>
+                            {flowTemplates.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                                  Preset Templates
+                                </div>
+                                {flowTemplates.map((template) => (
+                                  <SelectItem key={template.id} value={template.id}>
+                                    {template.name}
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                            {activeFlows.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                                  Your Flows
+                                </div>
+                                {activeFlows.map((flow) => (
+                                  <SelectItem key={flow.id} value={flow.id}>
+                                    {flow.name}
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Flow Template Prompt Preview */}
+                      {formData.flowId && !isTemplateId && (
+                        <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                          <div className="text-xs text-blue-700 dark:text-blue-300">
+                            <p className="font-medium">Custom Flow Selected</p>
+                            <p className="mt-0.5 text-blue-600 dark:text-blue-400">This is your custom flow. You can edit it from the Flow Builder page.</p>
+                          </div>
+                        </div>
+                      )}
+                      {formData.flowId && isTemplateId && flowTemplateDetail && (
+                        <div className="space-y-3">
+                          <Label className="text-sm font-medium">Flow Steps Preview</Label>
+                          <div className="rounded-lg border bg-muted/20 overflow-hidden">
+                            <div className="px-3 py-2.5 bg-muted/40 border-b flex items-center gap-2">
+                              <GitBranch className="h-3.5 w-3.5 text-primary" />
+                              <span className="text-xs font-semibold">{flowTemplateDetail.name}</span>
+                              <Badge variant="secondary" className="text-[10px] ml-auto">{flowTemplateDetail.nodes.length} steps</Badge>
+                            </div>
+                            <div className="p-3 space-y-2 max-h-[240px] overflow-y-auto">
+                              {flowTemplateDetail.nodes.map((node, idx) => (
+                                <div key={node.id} className="flex gap-2" data-testid={`flow-node-${idx}`}>
+                                  <div className="flex flex-col items-center">
+                                    <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                      node.data.type === 'message' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                                      : node.data.type === 'question' ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
+                                      : node.data.type === 'condition' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
+                                      : 'bg-muted text-muted-foreground'
+                                    }`}>
+                                      {idx + 1}
+                                    </div>
+                                    {idx < flowTemplateDetail.nodes.length - 1 && (
+                                      <div className="w-px h-full bg-border min-h-[8px]" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 pb-2">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-medium">{node.data.label}</span>
+                                      <Badge variant="outline" className="text-[9px] h-4 px-1">{node.data.type}</Badge>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                                      {node.data.config.message || node.data.config.question || 'No prompt configured'}
+                                    </p>
+                                    {node.data.config.variableName && (
+                                      <Badge variant="secondary" className="text-[9px] mt-1">
+                                        Captures: {node.data.config.variableName}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!formData.flowId && (
+                        <div className="rounded-lg border border-dashed p-4 text-center">
+                          <GitBranch className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
+                          <p className="text-xs text-muted-foreground">Select a flow template above to preview its conversation steps</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* === DYNAMIC FORM MODE === */}
+                  {batchMode === 'dynamic_form' && (
+                    <>
+                      {/* Greeting Message */}
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium flex items-center gap-1.5">
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Greeting Message
+                        </Label>
+                        <Textarea
+                          value={greetingMessage}
+                          onChange={(e) => setGreetingMessage(e.target.value)}
+                          placeholder="Enter the greeting the AI will use when calling..."
+                          className="text-sm min-h-[60px] resize-none"
+                          data-testid="input-greeting-message"
+                        />
+                      </div>
+
+                      {/* Language Selection */}
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium flex items-center gap-1.5">
+                          <Languages className="h-3.5 w-3.5" />
+                          Language Options
+                        </Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {languageOptions.map(lang => (
+                            <Badge key={lang} variant="secondary" className="text-xs gap-1 pr-1">
+                              {lang}
+                              {languageOptions.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeLanguageOption(lang)}
+                                  className="hover:text-destructive"
+                                  data-testid={`button-remove-lang-${lang}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex gap-1.5">
+                          <Input
+                            placeholder="Add language (e.g., Spanish)"
+                            value={newLanguage}
+                            onChange={(e) => setNewLanguage(e.target.value)}
+                            className="h-8 text-xs"
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLanguageOption())}
+                            data-testid="input-add-language"
+                          />
+                          <Button type="button" variant="outline" size="sm" className="h-8 px-2" onClick={addLanguageOption} data-testid="button-add-language">
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Dynamic Form Fields Builder */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium flex items-center gap-1.5">
+                            <FileText className="h-3.5 w-3.5" />
+                            Data Collection Fields
+                          </Label>
+                          <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addDynamicField} data-testid="button-add-field">
+                            <Plus className="h-3 w-3" /> Add Field
+                          </Button>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Define what information the AI should collect from each call. The AI will ask these questions naturally during the conversation.
+                        </p>
+                        {dynamicFormFields.length === 0 ? (
+                          <div className="rounded-lg border border-dashed p-4 text-center">
+                            <FileText className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
+                            <p className="text-xs text-muted-foreground">No fields added yet. Click "Add Field" to define data to collect.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {dynamicFormFields.map((field, idx) => (
+                              <div key={field.id} className="flex gap-2 items-start p-2.5 rounded-lg border bg-white dark:bg-card group" data-testid={`dynamic-field-${idx}`}>
+                                <GripVertical className="h-4 w-4 text-muted-foreground/30 mt-1 shrink-0" />
+                                <div className="flex-1 grid grid-cols-[1fr_100px] gap-2">
+                                  <Input
+                                    placeholder="Field name (e.g., Appointment Date)"
+                                    value={field.label}
+                                    onChange={(e) => updateDynamicField(field.id, { label: e.target.value })}
+                                    className="h-8 text-xs"
+                                    data-testid={`input-field-label-${idx}`}
+                                  />
+                                  <Select value={field.type} onValueChange={(v) => updateDynamicField(field.id, { type: v as DynamicFormField['type'] })}>
+                                    <SelectTrigger className="h-8 text-xs" data-testid={`select-field-type-${idx}`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="text">Text</SelectItem>
+                                      <SelectItem value="number">Number</SelectItem>
+                                      <SelectItem value="select">Choice</SelectItem>
+                                      <SelectItem value="boolean">Yes/No</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Input
+                                    placeholder="AI question prompt (optional)"
+                                    value={field.placeholder || ""}
+                                    onChange={(e) => updateDynamicField(field.id, { placeholder: e.target.value })}
+                                    className="h-8 text-xs col-span-2"
+                                    data-testid={`input-field-placeholder-${idx}`}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Checkbox
+                                    checked={field.required}
+                                    onCheckedChange={(checked) => updateDynamicField(field.id, { required: !!checked })}
+                                    data-testid={`checkbox-field-required-${idx}`}
+                                  />
+                                  <span className="text-[10px] text-muted-foreground">Req</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                                    onClick={() => removeDynamicField(field.id)}
+                                    data-testid={`button-remove-field-${idx}`}
+                                  >
+                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Knowledge Base (Brain) Selector */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium flex items-center gap-1.5">
+                          <Brain className="h-3.5 w-3.5" />
+                          Knowledge Base (Brain)
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground">
+                          Attach knowledge bases so the AI can answer personalized questions using your data via AWS Bedrock.
+                        </p>
+                        {knowledgeBases.length === 0 ? (
+                          <div className="rounded-lg border border-dashed p-3 text-center">
+                            <Brain className="h-5 w-5 mx-auto text-muted-foreground/40 mb-1.5" />
+                            <p className="text-xs text-muted-foreground">No knowledge bases available. Create one from the Knowledge Base page.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1 max-h-[160px] overflow-y-auto">
+                            {knowledgeBases.map(kb => (
+                              <label
+                                key={kb.id}
+                                className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer border"
+                                data-testid={`kb-option-${kb.id}`}
+                              >
+                                <Checkbox
+                                  checked={selectedKnowledgeBaseIds.includes(kb.id)}
+                                  onCheckedChange={() => toggleKnowledgeBase(kb.id)}
+                                />
+                                <Brain className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm truncate block">{kb.title}</span>
+                                  <span className="text-[10px] text-muted-foreground">{kb.type}</span>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Conversation Pipeline Visualization - shown for both modes when a mode is selected */}
+                  {batchMode && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Voice Conversation Pipeline</Label>
+                      <div className="rounded-lg border bg-gradient-to-r from-muted/20 to-muted/40 p-3">
+                        <div className="flex items-center gap-1 flex-wrap justify-center">
+                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800">
+                            <MessageSquare className="h-3 w-3 text-green-600 dark:text-green-400" />
+                            <span className="text-[10px] font-medium text-green-700 dark:text-green-300">Greeting</span>
+                          </div>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
+                            <Languages className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                            <span className="text-[10px] font-medium text-blue-700 dark:text-blue-300">Language</span>
+                          </div>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800">
+                            <Bot className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                            <span className="text-[10px] font-medium text-purple-700 dark:text-purple-300">Bedrock AI</span>
+                          </div>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800">
+                            <Volume2 className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300">Voice</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-muted">
+                          <div className="grid grid-cols-4 gap-1.5 text-center">
+                            <div>
+                              <p className="text-[9px] text-muted-foreground">Caller hears greeting & selects language</p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] text-muted-foreground">Twilio captures audio</p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] text-muted-foreground">Whisper transcribes → Bedrock Claude responds</p>
+                            </div>
+                            <div>
+                              <p className="text-[9px] text-muted-foreground">Polly / ElevenLabs speaks back</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Agent Selection - always visible */}
                   <div className="space-y-1.5">
                     <Label className="text-sm font-medium">{t('campaigns.selectAgent', 'Agent')}</Label>
                     <Select 
@@ -770,46 +1253,6 @@ export default function CreateCampaign() {
                             {agent.name}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Flow Template */}
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Flow Template</Label>
-                    <Select 
-                      value={formData.flowId || "none"} 
-                      onValueChange={(value) => setFormData({ ...formData, flowId: value === "none" ? "" : value })}
-                    >
-                      <SelectTrigger className="h-9" data-testid="select-flow-template">
-                        <SelectValue placeholder={(activeFlows.length === 0 && flowTemplates.length === 0) ? "No flows available" : "Select a flow template"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None (use agent script)</SelectItem>
-                        {flowTemplates.length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
-                              Preset Templates
-                            </div>
-                            {flowTemplates.map((template) => (
-                              <SelectItem key={template.id} value={template.id}>
-                                {template.name}
-                              </SelectItem>
-                            ))}
-                          </>
-                        )}
-                        {activeFlows.length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
-                              Your Flows
-                            </div>
-                            {activeFlows.map((flow) => (
-                              <SelectItem key={flow.id} value={flow.id}>
-                                {flow.name}
-                              </SelectItem>
-                            ))}
-                          </>
-                        )}
                       </SelectContent>
                     </Select>
                   </div>

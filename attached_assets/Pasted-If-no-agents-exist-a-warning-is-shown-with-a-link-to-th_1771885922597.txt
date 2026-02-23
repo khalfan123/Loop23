@@ -1,0 +1,41 @@
+If no agents exist, a warning is shown with a link to the Agents page to create one.
+Once selected, a preview card shows the agent's details.
+Step 3: Phone Number (Required)
+The phone number dropdown dynamically adapts based on the selected agent's telephony provider:
+SIP agents — shows SIP phone numbers
+Plivo agents — shows Plivo phone numbers + GCC outbound caller ID
+Twilio/Twilio+OpenAI agents — shows Twilio phone numbers + TCXC numbers + GCC outbound caller ID
+In Canvas mode, there is also a "Need a New Number?" section with quick links to purchase numbers from Twilio (global) or TelecomsXChange (GCC region).
+Step 4: Script & Settings (Optional)
+Campaign Script — A multi-line text area for the call script.
+AI Script Suggestions — An "AI Suggest" button that calls the backend to generate multiple script suggestions based on campaign type, name, and goal. Suggestions can be expanded, previewed, and applied with one click.
+Script Templates — Opens a template picker component to choose from pre-built script templates.
+Tone Changer — After entering a script, you can change the tone to Professional, Friendly, Casual, or Formal via AI.
+Humanize Script — AI-powered humanization at Light, Moderate, or Heavy levels.
+First Message — Optional custom greeting when the call connects.
+Campaign Goal — Optional field describing what the campaign should achieve.
+Product Page URL (Canvas mode) — A URL the AI will analyze for additional context.
+Transfer Number (Canvas mode) — A phone number for live call transfers.
+Flow Automation — Can link to a flow automation workflow.
+Step 5: Contacts (Optional)
+Uses an AudienceSelector component that supports multiple contact sources:
+CSV file upload
+Contact groups (by group ID)
+Individual contacts (by contact ID, including email-imported contacts)
+Country-based filtering (by country code)
+Contacts from groups, individual selections, and country codes are resolved to phone numbers at campaign creation time and uploaded as CSV.
+Step 6: Schedule (Optional)
+Enable/Disable Scheduling toggle.
+When enabled:
+Start Time & End Time — Set the calling window (defaults: 9:00 AM - 5:00 PM).
+Days of Week — Select which days calls should be made (Mon-Sun).
+Timezone — Choose from major timezones (ET, CT, MT, PT, IST, GMT/BST, GST, plus UTC, Paris, Singapore, Tokyo in Canvas mode).
+Test Call — Enter a phone number and trigger a test call using the configured script, agent, and caller ID. This lets you preview the campaign before launching.
+Additional Features
+Timezone Enforcement — If the user hasn't set a timezone in their profile, a modal blocks progress until they set one.
+Phone Number Conflict Detection — If the selected phone number is already in use by another campaign or agent, a conflict dialog appears explaining the issue.
+Validation — Steps 1-3 are required. The wizard prevents skipping ahead past incomplete required steps. The "Create Campaign" button is disabled until all required fields are filled.
+Progress Tracking — A badge shows "X/3" required nodes configured. In Canvas mode, a sidebar also shows total configured vs. total nodes.
+Success Animation — After successful creation, a full-screen success overlay with animation is shown before redirecting to the campaigns list.
+Responsive Design — The entire wizard adapts to mobile screens (Canvas mode is automatically disabled on mobile, layout adjusts with smaller spacing/fonts).
+Internationalization (i18n) — All labels use translation keys via react-i18next.

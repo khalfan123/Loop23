@@ -597,8 +597,8 @@ export default function CreateCampaign() {
       />
 
       <div className="flex flex-col md:flex-row md:h-[calc(100vh-120px)] bg-white dark:bg-card rounded-xl border md:overflow-hidden">
-        {/* Left Recipients Column - 30% */}
-        <div className="w-full md:w-[30%] flex flex-col bg-muted/30 overflow-hidden min-h-[200px] md:min-h-0 border-b md:border-b-0 md:border-r">
+        {/* Left Recipients Column - 15% */}
+        <div className="w-full md:w-[15%] flex flex-col bg-muted/30 overflow-hidden min-h-[200px] md:min-h-0 border-b md:border-b-0 md:border-r">
           <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
@@ -643,8 +643,8 @@ export default function CreateCampaign() {
           </div>
         </div>
 
-        {/* Right Form Column - Create a batch call - 70% */}
-        <div className="w-full md:w-[70%] flex flex-col md:min-h-0 md:overflow-hidden">
+        {/* Right Form Column - Create a batch call - 85% */}
+        <div className="w-full md:w-[85%] flex flex-col md:min-h-0 md:overflow-hidden">
           {/* Header */}
           <div className="p-4 border-b">
             <div>

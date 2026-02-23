@@ -27,7 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User } from "lucide-react";
+import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "@/components/PhoneConflictDialog";
@@ -193,6 +193,8 @@ export default function CreateCampaign() {
   const [selectedCountries, setSelectedCountries] = useState<Set<string>>(new Set());
   const [selectedIndividualPhones, setSelectedIndividualPhones] = useState<Set<string>>(new Set());
   const [contactSearchQuery, setContactSearchQuery] = useState("");
+  const [recipientSearchQuery, setRecipientSearchQuery] = useState("");
+  const [removedPhones, setRemovedPhones] = useState<Set<string>>(new Set());
 
   const { data: userData } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
@@ -543,18 +545,45 @@ export default function CreateCampaign() {
   }, [selectedGroupIds, selectedCountries, selectedIndividualPhones, groupMemberships, allContacts]);
 
   const resolvedContacts = useMemo((): ParsedContact[] => {
-    if (recipientMode === 'csv') return parsedContacts;
-    return Array.from(resolvedContactPhones).map(phone => {
-      const contact = allContacts.find(c => c.phone === phone);
-      const name = contact?.names[0];
-      return {
-        phone_number: phone,
-        first_name: name?.firstName || "",
-        last_name: name?.lastName || "",
-        email: contact?.email || "",
-      };
+    let contacts: ParsedContact[];
+    if (recipientMode === 'csv') {
+      contacts = parsedContacts;
+    } else {
+      contacts = Array.from(resolvedContactPhones).map(phone => {
+        const contact = allContacts.find(c => c.phone === phone);
+        const name = contact?.names[0];
+        return {
+          phone_number: phone,
+          first_name: name?.firstName || "",
+          last_name: name?.lastName || "",
+          email: contact?.email || "",
+        };
+      });
+    }
+    return contacts.filter(c => !removedPhones.has(c.phone_number));
+  }, [recipientMode, parsedContacts, resolvedContactPhones, allContacts, removedPhones]);
+
+  const filteredRecipients = useMemo(() => {
+    if (!recipientSearchQuery) return resolvedContacts;
+    const q = recipientSearchQuery.toLowerCase();
+    return resolvedContacts.filter(c => {
+      const name = `${c.first_name || ""} ${c.last_name || ""}`.toLowerCase();
+      return c.phone_number.includes(q) || name.includes(q);
     });
-  }, [recipientMode, parsedContacts, resolvedContactPhones, allContacts]);
+  }, [resolvedContacts, recipientSearchQuery]);
+
+  const removeRecipient = useCallback((phone: string) => {
+    setRemovedPhones(prev => {
+      const next = new Set(prev);
+      next.add(phone);
+      return next;
+    });
+    setSelectedIndividualPhones(prev => {
+      const next = new Set(prev);
+      next.delete(phone);
+      return next;
+    });
+  }, []);
 
   const toggleGroup = useCallback((groupId: string) => {
     setSelectedGroupIds(prev => {
@@ -597,8 +626,8 @@ export default function CreateCampaign() {
       />
 
       <div className="flex flex-col md:flex-row md:h-[calc(100vh-120px)] bg-white dark:bg-card rounded-xl border md:overflow-hidden">
-        {/* Left Recipients Column - 15% */}
-        <div className="w-full md:w-[15%] flex flex-col bg-muted/30 overflow-hidden min-h-[200px] md:min-h-0 border-b md:border-b-0 md:border-r">
+        {/* Left Recipients Column - 20% */}
+        <div className="w-full md:w-[20%] flex flex-col bg-muted/30 overflow-hidden min-h-[200px] md:min-h-0 border-b md:border-b-0 md:border-r">
           <div className="p-4 border-b flex-shrink-0 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
@@ -610,30 +639,51 @@ export default function CreateCampaign() {
               <Badge variant="secondary" className="text-xs">{resolvedContacts.length}</Badge>
             )}
           </div>
-          <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
+          {resolvedContacts.length > 0 && (
+            <div className="px-3 py-2 border-b flex-shrink-0">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={recipientSearchQuery}
+                  onChange={(e) => setRecipientSearchQuery(e.target.value)}
+                  className="h-8 pl-7 text-xs"
+                  data-testid="input-search-recipients"
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex-1 flex items-center justify-center p-2 overflow-y-auto">
             {resolvedContacts.length === 0 ? (
-              <div className="text-center text-muted-foreground">
-                <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
-                <p className="text-sm font-medium mb-1">{t('campaigns.noRecipientsYet', 'No recipients yet')}</p>
-                <p className="text-xs">{recipientMode === 'csv' ? t('campaigns.pleaseUploadRecipients', 'Please upload recipients first') : 'Select contacts from groups, countries, or individually'}</p>
+              <div className="text-center text-muted-foreground px-2">
+                <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                <p className="text-xs font-medium mb-1">{t('campaigns.noRecipientsYet', 'No recipients yet')}</p>
+                <p className="text-[10px]">{recipientMode === 'csv' ? t('campaigns.pleaseUploadRecipients', 'Please upload recipients first') : 'Select contacts from the form'}</p>
               </div>
             ) : (
               <ScrollArea className="h-full w-full">
-                <div className="space-y-2 p-2">
-                  {resolvedContacts.map((contact, idx) => {
+                <div className="space-y-1 p-1">
+                  {filteredRecipients.map((contact, idx) => {
                     const displayName = contact.first_name ? `${contact.first_name} ${contact.last_name || ""}`.trim() : "";
                     return (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-white dark:bg-card rounded-lg border" data-testid={`recipient-row-${idx}`}>
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-medium">{idx + 1}</span>
-                        </div>
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-white dark:bg-card rounded-lg border group" data-testid={`recipient-row-${idx}`}>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm">{getCountryFlag(getCountryFromPhone(contact.phone_number))}</span>
-                            <span className="text-sm font-medium truncate">{contact.phone_number}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs">{getCountryFlag(getCountryFromPhone(contact.phone_number))}</span>
+                            <span className="text-xs font-medium truncate">{contact.phone_number}</span>
                           </div>
-                          {displayName && <p className="text-xs text-muted-foreground truncate">{displayName}</p>}
+                          {displayName && <p className="text-[10px] text-muted-foreground truncate">{displayName}</p>}
                         </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                          onClick={() => removeRecipient(contact.phone_number)}
+                          data-testid={`button-remove-recipient-${idx}`}
+                        >
+                          <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                        </Button>
                       </div>
                     );
                   })}
@@ -643,8 +693,8 @@ export default function CreateCampaign() {
           </div>
         </div>
 
-        {/* Right Form Column - Create a batch call - 85% */}
-        <div className="w-full md:w-[85%] flex flex-col md:min-h-0 md:overflow-hidden">
+        {/* Right Form Column - Create a batch call - 80% */}
+        <div className="w-full md:w-[80%] flex flex-col md:min-h-0 md:overflow-hidden">
           {/* Header */}
           <div className="p-4 border-b">
             <div>

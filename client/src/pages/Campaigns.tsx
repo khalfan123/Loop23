@@ -655,6 +655,13 @@ export default function Campaigns() {
           badge={campaigns.length}
           onClick={() => setActiveView('batch')}
         />
+        <SubPanelItem
+          icon={<Users className="w-4 h-4" />}
+          label={t('nav.contacts', 'All Contacts')}
+          isActive={activeView === 'contacts'}
+          badge={contacts.length}
+          onClick={() => setActiveView('contacts')}
+        />
       </SubPanelSection>
 
       <SubPanelSection title={t('campaigns.status.title', 'STATUS')}>

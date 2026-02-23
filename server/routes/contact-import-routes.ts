@@ -131,8 +131,15 @@ function cleanContactName(raw: string | undefined | null): string {
 function deduplicateNameParts(firstName: string, lastName: string): { firstName: string; lastName: string } {
   const fn = firstName.trim();
   const ln = lastName.trim();
-  if (fn && ln && fn.toLowerCase() === ln.toLowerCase()) {
+  if (!fn || !ln) return { firstName: fn, lastName: ln };
+  if (fn.toLowerCase() === ln.toLowerCase()) {
     return { firstName: fn, lastName: '' };
+  }
+  if (fn.toLowerCase().endsWith(ln.toLowerCase()) && fn.length > ln.length) {
+    const prefix = fn.substring(0, fn.length - ln.length).trim();
+    if (prefix.length > 0) {
+      return { firstName: prefix, lastName: ln };
+    }
   }
   if (ln) {
     const lastParts = ln.split(' ');

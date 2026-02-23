@@ -118,14 +118,40 @@ function parseCSVContacts(fileContent: string): ParsedImportContact[] {
   });
 }
 
+function cleanContactName(raw: string | undefined | null): string {
+  if (!raw) return '';
+  let cleaned = raw.trim();
+  cleaned = cleaned.replace(/\s*com>\s*$/i, '');
+  cleaned = cleaned.replace(/[<>]/g, '');
+  cleaned = cleaned.replace(/\s{2,}/g, ' ');
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) return '';
+  return cleaned.trim();
+}
+
+function deduplicateNameParts(firstName: string, lastName: string): { firstName: string; lastName: string } {
+  const fn = firstName.trim();
+  const ln = lastName.trim();
+  if (fn && ln && fn.toLowerCase() === ln.toLowerCase()) {
+    return { firstName: fn, lastName: '' };
+  }
+  if (ln) {
+    const lastParts = ln.split(' ');
+    if (lastParts.length > 1 && lastParts[lastParts.length - 1].toLowerCase() === lastParts[lastParts.length - 2].toLowerCase()) {
+      return { firstName: fn, lastName: lastParts.slice(0, -1).join(' ') };
+    }
+  }
+  return { firstName: fn, lastName: ln };
+}
+
 async function fetchGoogleContacts(accessToken: string): Promise<ParsedImportContact[]> {
   const allContacts: ParsedImportContact[] = [];
   let nextPageToken: string | undefined;
 
   do {
     const url = new URL('https://people.googleapis.com/v1/people/me/connections');
-    url.searchParams.set('personFields', 'names,phoneNumbers,emailAddresses');
+    url.searchParams.set('personFields', 'names,phoneNumbers,emailAddresses,organizations');
     url.searchParams.set('pageSize', '1000');
+    url.searchParams.set('sortOrder', 'FIRST_NAME_ASCENDING');
     if (nextPageToken) {
       url.searchParams.set('pageToken', nextPageToken);
     }
@@ -144,18 +170,54 @@ async function fetchGoogleContacts(accessToken: string): Promise<ParsedImportCon
 
     for (const person of connections) {
       const name = person.names?.[0] || {};
-      const phone = person.phoneNumbers?.[0]?.value || '';
-      const email = person.emailAddresses?.[0]?.value || null;
+      const phones = person.phoneNumbers || [];
+      const emails = person.emailAddresses || [];
+      const org = person.organizations?.[0]?.name || null;
 
-      if (phone || name.displayName || email) {
-        allContacts.push({
-          firstName: name.givenName || name.displayName?.split(' ')[0] || 'Unknown',
-          lastName: name.familyName || name.displayName?.split(' ').slice(1).join(' ') || '',
-          phone: phone.replace(/[\s-()]/g, ''),
-          email,
-          customFields: null,
+      const primaryPhone = phones[0]?.value || '';
+      const primaryEmail = emails[0]?.value || null;
+
+      let rawFirst = name.givenName || '';
+      let rawLast = name.familyName || '';
+
+      if (!rawFirst && !rawLast && name.displayName) {
+        const display = cleanContactName(name.displayName);
+        if (display) {
+          const parts = display.split(' ');
+          rawFirst = parts[0] || '';
+          rawLast = parts.slice(1).join(' ') || '';
+        }
+      }
+
+      rawFirst = cleanContactName(rawFirst);
+      rawLast = cleanContactName(rawLast);
+
+      const { firstName, lastName } = deduplicateNameParts(rawFirst, rawLast);
+
+      if (!primaryPhone && !primaryEmail) continue;
+
+      const cleanedPhone = primaryPhone.replace(/[\s\-()\.]/g, '');
+
+      const customFields: Record<string, string> = {};
+      if (org) customFields.organization = org;
+      if (phones.length > 1) {
+        phones.slice(1, 4).forEach((p: any, i: number) => {
+          if (p.value) customFields[`phone${i + 2}`] = p.value.replace(/[\s\-()\.]/g, '');
         });
       }
+      if (emails.length > 1) {
+        emails.slice(1, 3).forEach((e: any, i: number) => {
+          if (e.value) customFields[`email${i + 2}`] = e.value;
+        });
+      }
+
+      allContacts.push({
+        firstName: firstName || 'Unknown',
+        lastName,
+        phone: cleanedPhone,
+        email: primaryEmail,
+        customFields: Object.keys(customFields).length > 0 ? customFields : null,
+      });
     }
 
     nextPageToken = data.nextPageToken;

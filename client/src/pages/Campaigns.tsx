@@ -594,42 +594,38 @@ export default function Campaigns() {
             <p className="text-sm text-muted-foreground" data-testid="text-empty-contacts">{t('contacts.noContacts', 'No contacts yet')}</p>
           </div>
         ) : (
-          <ScrollArea className="h-full">
-            <Table>
+          <ScrollArea className="h-full" type="always">
+            <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="font-medium w-[200px]">{t('contacts.fields.names', 'Name')}</TableHead>
-                  <TableHead className="font-medium">{t('contacts.fields.phone', 'Phone')}</TableHead>
+                  <TableHead className="font-medium w-[160px]">{t('contacts.fields.names', 'Name')}</TableHead>
+                  <TableHead className="font-medium w-[140px]">{t('contacts.fields.phone', 'Phone')}</TableHead>
                   <TableHead className="font-medium hidden md:table-cell">{t('contacts.fields.email', 'Email')}</TableHead>
-                  <TableHead className="font-medium">{t('contacts.fields.status', 'Status')}</TableHead>
-                  <TableHead className="w-[60px]"></TableHead>
+                  <TableHead className="font-medium w-[100px]">{t('contacts.fields.status', 'Status')}</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedItems.map((contact) => {
                   const primaryName = contact.names[0];
-                  const displayName = primaryName
+                  const fullName = primaryName
                     ? `${primaryName.firstName} ${primaryName.lastName || ""}`.trim()
                     : "";
+                  const displayName = fullName.length > 14 ? fullName.slice(0, 14) + "..." : fullName;
                   return (
                     <TableRow key={contact.id} data-testid={`row-contact-${contact.id}`}>
-                      <TableCell data-testid={`cell-names-${contact.id}`}>
+                      <TableCell data-testid={`cell-names-${contact.id}`} className="overflow-hidden">
                         <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
-                            {displayName ? displayName.charAt(0).toUpperCase() : "?"}
+                          <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
+                            {fullName ? fullName.charAt(0).toUpperCase() : "?"}
                           </div>
-                          <div className="min-w-0">
-                            <div className="font-medium text-sm truncate">
-                              {displayName || <span className="text-muted-foreground italic">Unknown</span>}
-                            </div>
-                            {contact.names.length > 1 && (
-                              <div className="text-[11px] text-muted-foreground">+{contact.names.length - 1} more</div>
-                            )}
-                          </div>
+                          <span className="font-medium text-sm" title={fullName}>
+                            {displayName || <span className="text-muted-foreground italic">Unknown</span>}
+                          </span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm hidden md:table-cell">
+                      <TableCell className="font-mono text-xs overflow-hidden text-ellipsis">{contact.phone}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm hidden md:table-cell overflow-hidden text-ellipsis">
                         {contact.email || "-"}
                       </TableCell>
                       <TableCell>

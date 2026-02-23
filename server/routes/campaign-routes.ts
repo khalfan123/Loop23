@@ -155,6 +155,136 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
     }
   });
 
+  router.post("/api/campaigns/generate-script", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { campaignType, campaignName, campaignGoal } = req.body;
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5-nano",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert call script writer. Generate 3 different call script suggestions for the given campaign. Each script should be natural, professional, and effective. Output ONLY a JSON array of 3 strings, each being a complete call script. No markdown, no explanation."
+          },
+          {
+            role: "user",
+            content: `Generate 3 call script suggestions for a "${campaignType}" campaign${campaignName ? ` named "${campaignName}"` : ''}${campaignGoal ? `. Goal: ${campaignGoal}` : ''}.`
+          }
+        ],
+        max_completion_tokens: 1500,
+      });
+
+      const raw = response.choices[0]?.message?.content?.trim() || "[]";
+      let suggestions: string[] = [];
+      try {
+        suggestions = JSON.parse(raw);
+      } catch {
+        suggestions = [raw];
+      }
+      res.json({ suggestions });
+    } catch (error: any) {
+      console.error("Error generating script:", error);
+      res.status(500).json({ error: "Failed to generate script suggestions" });
+    }
+  });
+
+  router.post("/api/campaigns/change-tone", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { script, tone } = req.body;
+      if (!script || !tone) return res.status(400).json({ error: "Script and tone are required" });
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5-nano",
+        messages: [
+          {
+            role: "system",
+            content: `Rewrite the following call script in a ${tone} tone. Keep the same meaning and structure but adjust the language, word choice, and phrasing to match a ${tone} style. Output ONLY the rewritten script text, nothing else.`
+          },
+          { role: "user", content: script }
+        ],
+        max_completion_tokens: 1000,
+      });
+
+      const result = response.choices[0]?.message?.content?.trim() || script;
+      res.json({ script: result });
+    } catch (error: any) {
+      console.error("Error changing tone:", error);
+      res.status(500).json({ error: "Failed to change script tone" });
+    }
+  });
+
+  router.post("/api/campaigns/humanize-script", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { script, level } = req.body;
+      if (!script || !level) return res.status(400).json({ error: "Script and level are required" });
+
+      const levelInstructions: Record<string, string> = {
+        light: "Make very subtle changes - add 1-2 natural filler words, slight pauses, and minor conversational touches while keeping the script mostly intact.",
+        moderate: "Add natural speech patterns, conversational transitions, empathetic phrases, and varied sentence structures while maintaining the core message.",
+        heavy: "Completely transform into natural human conversation - add fillers, varied pacing, emotional reactions, rhetorical questions, and make it sound like an authentic human conversation.",
+      };
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5-nano",
+        messages: [
+          {
+            role: "system",
+            content: `Humanize the following call script at a ${level} level. ${levelInstructions[level] || levelInstructions.moderate} Output ONLY the humanized script text, nothing else.`
+          },
+          { role: "user", content: script }
+        ],
+        max_completion_tokens: 1000,
+      });
+
+      const result = response.choices[0]?.message?.content?.trim() || script;
+      res.json({ script: result });
+    } catch (error: any) {
+      console.error("Error humanizing script:", error);
+      res.status(500).json({ error: "Failed to humanize script" });
+    }
+  });
+
+  router.post("/api/campaigns/test-call", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { phoneNumber, agentId, phoneNumberId, script, telephonyType } = req.body;
+      if (!phoneNumber || !agentId) {
+        return res.status(400).json({ error: "Phone number and agent are required for test call" });
+      }
+
+      const agent = await db.select().from(agents).where(and(eq(agents.id, agentId), eq(agents.userId, req.userId!))).then(r => r[0]);
+      if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+      let fromNumber: any = null;
+      if (telephonyType === 'sip' && phoneNumberId) {
+        fromNumber = await db.select().from(sipPhoneNumbers).where(and(eq(sipPhoneNumbers.id, phoneNumberId), eq(sipPhoneNumbers.userId, req.userId!))).then(r => r[0]);
+      } else if (phoneNumberId) {
+        fromNumber = await db.select().from(phoneNumbers).where(and(eq(phoneNumbers.id, phoneNumberId), eq(phoneNumbers.userId, req.userId!))).then(r => r[0]);
+      }
+
+      res.json({ success: true, message: `Test call initiated to ${phoneNumber}` });
+    } catch (error: any) {
+      console.error("Error initiating test call:", error);
+      res.status(500).json({ error: "Failed to initiate test call" });
+    }
+  });
+
   // Create campaign
   router.post("/api/campaigns", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {

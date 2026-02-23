@@ -27,7 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X, GitBranch, FileText, Mic, Phone, ArrowRight, MessageSquare, Languages, ClipboardList, ExternalLink, Sparkles } from "lucide-react";
+import { Loader2, Clock, ChevronLeft, ChevronRight, Download, Upload, Info, Minus, Plus, Users, Search, Globe, User, X, GitBranch, FileText, Mic, Phone, ArrowRight, MessageSquare, Languages, ClipboardList, ExternalLink, Sparkles, Calendar, Building2, UserPlus, Headphones, Target, MessageCircle, Megaphone, CreditCard, PartyPopper, BarChart3, Settings, AlertTriangle, Wand2, Send } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "@/components/PhoneConflictDialog";
@@ -219,7 +219,7 @@ export default function CreateCampaign() {
   const { isSipPluginEnabled } = usePluginStatus();
   const [formData, setFormData] = useState({
     name: "",
-    type: "Lead Qualification",
+    type: "",
     goal: "",
     script: "",
     flowId: "",
@@ -252,6 +252,8 @@ export default function CreateCampaign() {
   const [wizardStep, setWizardStep] = useState(1);
   const [batchMode, setBatchModeRaw] = useState<'flow_template' | 'dynamic_form' | null>(null);
   const [selectedFormId, setSelectedFormId] = useState<string>("");
+  const [testCallNumber, setTestCallNumber] = useState("");
+  const [scriptSuggestions, setScriptSuggestions] = useState<string[]>([]);
 
   const setBatchMode = useCallback((mode: 'flow_template' | 'dynamic_form' | null) => {
     setBatchModeRaw(mode);
@@ -377,6 +379,80 @@ export default function CreateCampaign() {
     },
     onError: () => {
       toast({ title: "Could not generate greeting", description: "Please try again or write one manually.", variant: "destructive" });
+    },
+  });
+
+  const generateScriptMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/campaigns/generate-script", {
+        campaignType: formData.type,
+        campaignName: formData.name,
+        campaignGoal: formData.goal,
+      });
+      return res.json();
+    },
+    onSuccess: (data: { suggestions?: string[] }) => {
+      if (data.suggestions) {
+        setScriptSuggestions(data.suggestions);
+      }
+    },
+    onError: () => {
+      toast({ title: "Could not generate script suggestions", description: "Please try again later.", variant: "destructive" });
+    },
+  });
+
+  const changeToneMutation = useMutation({
+    mutationFn: async (tone: string) => {
+      const res = await apiRequest("POST", "/api/campaigns/change-tone", {
+        script: formData.script,
+        tone,
+      });
+      return res.json();
+    },
+    onSuccess: (data: { script?: string }) => {
+      if (data.script) {
+        setFormData(prev => ({ ...prev, script: data.script! }));
+      }
+    },
+    onError: () => {
+      toast({ title: "Could not change tone", description: "Please try again later.", variant: "destructive" });
+    },
+  });
+
+  const humanizeScriptMutation = useMutation({
+    mutationFn: async (level: string) => {
+      const res = await apiRequest("POST", "/api/campaigns/humanize-script", {
+        script: formData.script,
+        level,
+      });
+      return res.json();
+    },
+    onSuccess: (data: { script?: string }) => {
+      if (data.script) {
+        setFormData(prev => ({ ...prev, script: data.script! }));
+      }
+    },
+    onError: () => {
+      toast({ title: "Could not humanize script", description: "Please try again later.", variant: "destructive" });
+    },
+  });
+
+  const testCallMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/campaigns/test-call", {
+        phoneNumber: testCallNumber,
+        agentId: formData.agentId,
+        phoneNumberId: isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId,
+        script: formData.script,
+        telephonyType: isSipAgent ? 'sip' : isPlivoAgent ? 'plivo' : 'twilio',
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Test call initiated", description: "The test call has been sent." });
+    },
+    onError: () => {
+      toast({ title: "Test call failed", description: "Please try again later.", variant: "destructive" });
     },
   });
 
@@ -734,6 +810,70 @@ export default function CreateCampaign() {
   }, []);
 
 
+  const campaignTypes = [
+    { name: "Appointment Setting", icon: Calendar, description: "Schedule meetings and appointments" },
+    { name: "Real Estate", icon: Building2, description: "Property listings and viewings" },
+    { name: "Staffing & Recruitment", icon: UserPlus, description: "Recruit candidates and fill positions" },
+    { name: "Telemarketing", icon: Headphones, description: "Product and service promotions" },
+    { name: "Lead Qualification", icon: Target, description: "Qualify and score potential leads" },
+    { name: "Feedback Collection", icon: MessageCircle, description: "Gather customer feedback" },
+    { name: "Promotional", icon: Megaphone, description: "Promote offers and deals" },
+    { name: "Payment Reminder", icon: CreditCard, description: "Remind about pending payments" },
+    { name: "Event Promotion", icon: PartyPopper, description: "Promote upcoming events" },
+    { name: "Survey", icon: BarChart3, description: "Conduct surveys and polls" },
+    { name: "Custom", icon: Settings, description: "Create a custom campaign" },
+  ];
+
+  const autoGeneratedNamePattern = /^.+ - [A-Z][a-z]{2} \d{1,2}$/;
+
+  const handleSelectCampaignType = (typeName: string) => {
+    const now = new Date();
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const autoName = `${typeName} - ${monthNames[now.getMonth()]} ${now.getDate()}`;
+    setFormData(prev => ({
+      ...prev,
+      type: typeName,
+      name: (!prev.name || autoGeneratedNamePattern.test(prev.name)) ? autoName : prev.name,
+    }));
+  };
+
+  const requiredStepsCompleted = (() => {
+    let count = 0;
+    if (formData.type) count++;
+    if (formData.agentId) count++;
+    if (isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId) count++;
+    return count;
+  })();
+
+  const canAdvanceFromStep = (step: number): boolean => {
+    if (step === 1) return !!formData.type;
+    if (step === 2) return !!formData.agentId;
+    if (step === 3) return isSipAgent ? !!formData.sipPhoneNumberId : !!formData.phoneNumberId;
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (!canAdvanceFromStep(wizardStep)) {
+      const messages: Record<number, string> = {
+        1: "Please select a campaign type before proceeding.",
+        2: "Please select an agent before proceeding.",
+        3: "Please select a phone number before proceeding.",
+      };
+      toast({ title: messages[wizardStep] || "Please complete this step.", variant: "destructive" });
+      return;
+    }
+    setWizardStep(wizardStep + 1);
+  };
+
+  const stepLabels: Record<number, string> = {
+    1: "Step 1: Campaign Type",
+    2: "Step 2: AI Agent",
+    3: "Step 3: Phone Number",
+    4: "Step 4: Script & Settings",
+    5: "Step 5: Contacts",
+    6: "Step 6: Schedule",
+  };
+
   return (
     <>
       <TimezoneEnforcementModal
@@ -815,12 +955,12 @@ export default function CreateCampaign() {
           </div>
         </div>
 
-        {/* Right Form Column - Create a batch call - 80% */}
+        {/* Right Form Column - 80% */}
         <div className="w-full md:w-[80%] flex flex-col md:min-h-0 md:overflow-hidden">
           {/* Header */}
           <div className="p-4 border-b">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0 flex-1">
                 <input
                   type="text"
                   value={formData.name}
@@ -831,12 +971,13 @@ export default function CreateCampaign() {
                 />
                 <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
               </div>
-              <div className="flex items-center gap-1.5">
-                {[1, 2, 3].map((step) => (
-                  <div key={step} className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Badge variant="outline" className="text-[10px] mr-1">{requiredStepsCompleted}/3 required</Badge>
+                {[1, 2, 3, 4, 5, 6].map((step) => (
+                  <div key={step} className="flex items-center gap-1">
                     <button
                       onClick={() => setWizardStep(step)}
-                      className={`h-7 w-7 rounded-full text-xs font-medium flex items-center justify-center transition-colors ${
+                      className={`h-6 w-6 rounded-full text-[10px] font-medium flex items-center justify-center transition-colors ${
                         wizardStep === step
                           ? 'bg-primary text-primary-foreground'
                           : wizardStep > step
@@ -847,8 +988,8 @@ export default function CreateCampaign() {
                     >
                       {step}
                     </button>
-                    {step < 3 && (
-                      <div className={`w-6 h-0.5 ${wizardStep > step ? 'bg-primary/40' : 'bg-muted'}`} />
+                    {step < 6 && (
+                      <div className={`w-3 h-0.5 ${wizardStep > step ? 'bg-primary/40' : 'bg-muted'}`} />
                     )}
                   </div>
                 ))}
@@ -856,9 +997,7 @@ export default function CreateCampaign() {
             </div>
             <div className="mt-2">
               <p className="text-xs font-medium text-primary">
-                {wizardStep === 1 && 'Step 1: Campaign Setup & Configuration'}
-                {wizardStep === 2 && 'Step 2: Add Recipients'}
-                {wizardStep === 3 && 'Step 3: Schedule & Send'}
+                {stepLabels[wizardStep]}
               </p>
             </div>
           </div>
@@ -867,46 +1006,72 @@ export default function CreateCampaign() {
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 space-y-5">
 
-              {/* === STEP 1: Campaign Setup === */}
+              {/* === STEP 1: Campaign Type === */}
               {wizardStep === 1 && (
-                <>
-                  {/* From Number - First */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Select Campaign Type</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {campaignTypes.map((ct) => {
+                      const Icon = ct.icon;
+                      const isSelected = formData.type === ct.name;
+                      return (
+                        <button
+                          key={ct.name}
+                          type="button"
+                          onClick={() => handleSelectCampaignType(ct.name)}
+                          className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                              : 'border-border hover:border-muted-foreground/40 dark:hover:border-muted-foreground/40'
+                          }`}
+                          data-testid={`campaign-type-${ct.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                        >
+                          <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            isSelected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className={`text-sm font-medium ${isSelected ? 'text-primary' : ''}`}>{ct.name}</p>
+                            <p className="text-xs text-muted-foreground">{ct.description}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* === STEP 2: AI Agent === */}
+              {wizardStep === 2 && (
+                <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">{t('campaigns.fromNumber', 'From Number')}</Label>
-                    {!formData.agentId ? (
-                      <p className="text-xs text-muted-foreground italic">Select an agent below to see available numbers</p>
-                    ) : isSipAgent && !isSipPluginEnabled ? (
-                      <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20">
-                        <p className="text-xs text-destructive font-medium">SIP Plugin is disabled</p>
+                    <Label className="text-sm font-medium">{t('campaigns.selectAgent', 'Agent')}</Label>
+                    {filteredAgents.length === 0 ? (
+                      <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+                        <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-300">No agents available</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">You need to create an AI agent before creating a campaign.</p>
+                          <Link href="/app/agents">
+                            <Button type="button" variant="outline" size="sm" className="mt-2 h-7 text-xs gap-1" data-testid="link-create-agent">
+                              <ExternalLink className="h-3 w-3" /> Go to Agents
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
                     ) : (
                       <Select
-                        value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId}
-                        onValueChange={(value) => {
-                          if (isSipAgent) {
-                            setFormData(prev => ({ ...prev, sipPhoneNumberId: value }));
-                          } else {
-                            setFormData(prev => ({ ...prev, phoneNumberId: value }));
-                          }
-                          const phone = availablePhoneNumbers.find((p: any) => p.id === value);
-                          if (phone && !formData.name) {
-                            const phoneLabel = (phone as any).friendlyName || (phone as any).label || (phone as any).phoneNumber || '';
-                            const now = new Date();
-                            const dateStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
-                            setFormData(prev => ({ ...prev, name: `Batch Call - ${phoneLabel} - ${dateStr}`, ...(isSipAgent ? { sipPhoneNumberId: value } : { phoneNumberId: value }) }));
-                          }
-                        }}
+                        value={formData.agentId}
+                        onValueChange={(value) => setFormData({ ...formData, agentId: value, phoneNumberId: '', sipPhoneNumberId: '' })}
                       >
-                        <SelectTrigger className="h-9" data-testid="select-from-number">
-                          <SelectValue placeholder={availablePhoneNumbers.length === 0
-                            ? (isSipAgent ? "No SIP numbers" : isPlivoAgent ? "No Plivo numbers" : t("campaigns.create.noPhoneNumbers"))
-                            : t('campaigns.selectNumber', 'Select a phone number')}
-                          />
+                        <SelectTrigger className="h-9" data-testid="select-agent">
+                          <SelectValue placeholder={t('campaigns.selectAgentPlaceholder', 'Select an agent')} />
                         </SelectTrigger>
                         <SelectContent>
-                          {availablePhoneNumbers.map((phone: any) => (
-                            <SelectItem key={phone.id} value={phone.id}>
-                              {phone.friendlyName || phone.label || phone.phoneNumber}
+                          {filteredAgents.map((agent) => (
+                            <SelectItem key={agent.id} value={agent.id}>
+                              {agent.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -914,28 +1079,215 @@ export default function CreateCampaign() {
                     )}
                   </div>
 
-                  {/* Agent Selection */}
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">{t('campaigns.selectAgent', 'Agent')}</Label>
+                  {selectedAgent && (
+                    <div className="rounded-lg border bg-muted/30 p-4 space-y-2" data-testid="agent-preview-card">
+                      <p className="text-sm font-semibold">{selectedAgent.name}</p>
+                      {selectedAgent.personality && (
+                        <p className="text-xs text-muted-foreground">{selectedAgent.personality}</p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary" className="text-[10px]">Type: {selectedAgent.type}</Badge>
+                        {selectedAgent.telephonyProvider && (
+                          <Badge variant="secondary" className="text-[10px]">Engine: {selectedAgent.telephonyProvider}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* === STEP 3: Phone Number === */}
+              {wizardStep === 3 && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">{t('campaigns.fromNumber', 'From Number')}</Label>
+                  {!formData.agentId ? (
+                    <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-700 dark:text-amber-300">Please select an agent first in Step 2</p>
+                    </div>
+                  ) : isSipAgent && !isSipPluginEnabled ? (
+                    <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20">
+                      <p className="text-xs text-destructive font-medium">SIP Plugin is disabled</p>
+                    </div>
+                  ) : (
                     <Select
-                      value={formData.agentId}
-                      onValueChange={(value) => setFormData({ ...formData, agentId: value, phoneNumberId: '', sipPhoneNumberId: '' })}
+                      value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId}
+                      onValueChange={(value) => {
+                        if (isSipAgent) {
+                          setFormData(prev => ({ ...prev, sipPhoneNumberId: value }));
+                        } else {
+                          setFormData(prev => ({ ...prev, phoneNumberId: value }));
+                        }
+                      }}
                     >
-                      <SelectTrigger className="h-9" data-testid="select-agent">
-                        <SelectValue placeholder={filteredAgents.length === 0 ? t("campaigns.create.noAgentsAvailable") : t('campaigns.selectAgentPlaceholder', 'Select an agent')} />
+                      <SelectTrigger className="h-9" data-testid="select-from-number">
+                        <SelectValue placeholder={availablePhoneNumbers.length === 0
+                          ? (isSipAgent ? "No SIP numbers" : isPlivoAgent ? "No Plivo numbers" : t("campaigns.create.noPhoneNumbers"))
+                          : t('campaigns.selectNumber', 'Select a phone number')}
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        {filteredAgents.map((agent) => (
-                          <SelectItem key={agent.id} value={agent.id}>
-                            {agent.name}
+                        {availablePhoneNumbers.map((phone: any) => (
+                          <SelectItem key={phone.id} value={phone.id}>
+                            {phone.friendlyName || phone.label || phone.phoneNumber}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  )}
+                </div>
+              )}
+
+              {/* === STEP 4: Script & Settings === */}
+              {wizardStep === 4 && (
+                <>
+                  {/* Campaign Script */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">Campaign Script</Label>
+                    <Textarea
+                      value={formData.script}
+                      onChange={(e) => setFormData({ ...formData, script: e.target.value })}
+                      placeholder="Enter your call script..."
+                      className="text-sm min-h-[100px] resize-none"
+                      data-testid="input-campaign-script"
+                    />
                   </div>
 
+                  {/* AI Script Suggestions */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium flex items-center gap-1.5">
+                        <Wand2 className="h-3.5 w-3.5" />
+                        AI Script Suggestions
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => generateScriptMutation.mutate()}
+                        disabled={generateScriptMutation.isPending}
+                        data-testid="button-ai-suggest-script"
+                      >
+                        {generateScriptMutation.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        {generateScriptMutation.isPending ? "Generating..." : "AI Suggest"}
+                      </Button>
+                    </div>
+                    {scriptSuggestions.length > 0 && (
+                      <div className="space-y-2">
+                        {scriptSuggestions.map((suggestion, idx) => (
+                          <div key={idx} className="rounded-lg border p-3 space-y-2" data-testid={`script-suggestion-${idx}`}>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{suggestion}</p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-[10px]"
+                              onClick={() => setFormData(prev => ({ ...prev, script: suggestion }))}
+                              data-testid={`button-apply-suggestion-${idx}`}
+                            >
+                              Apply
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                  {/* Batch Mode Selector */}
+                  {/* Tone Changer */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">Tone</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["Professional", "Friendly", "Casual", "Formal"].map((tone) => (
+                        <Button
+                          key={tone}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => changeToneMutation.mutate(tone)}
+                          disabled={changeToneMutation.isPending || !formData.script}
+                          data-testid={`button-tone-${tone.toLowerCase()}`}
+                        >
+                          {changeToneMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                          {tone}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Humanize Script */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">Humanize Script</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {["Light", "Moderate", "Heavy"].map((level) => (
+                        <Button
+                          key={level}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => humanizeScriptMutation.mutate(level)}
+                          disabled={humanizeScriptMutation.isPending || !formData.script}
+                          data-testid={`button-humanize-${level.toLowerCase()}`}
+                        >
+                          {humanizeScriptMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                          {level}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Greeting Message */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium flex items-center gap-1.5">
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        Greeting Message
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => generateGreetingMutation.mutate()}
+                        disabled={generateGreetingMutation.isPending}
+                        data-testid="button-ai-generate-greeting"
+                      >
+                        {generateGreetingMutation.isPending ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        {generateGreetingMutation.isPending ? "Generating..." : "AI Generate"}
+                      </Button>
+                    </div>
+                    <Textarea
+                      value={greetingMessage}
+                      onChange={(e) => setGreetingMessage(e.target.value)}
+                      placeholder="Enter the greeting the AI will use when calling..."
+                      className="text-sm min-h-[60px] resize-none"
+                      data-testid="input-greeting-message"
+                    />
+                  </div>
+
+                  {/* Campaign Goal */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">Campaign Goal</Label>
+                    <Input
+                      value={formData.goal}
+                      onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
+                      placeholder="e.g., Book appointments, qualify leads..."
+                      className="h-9"
+                      data-testid="input-campaign-goal"
+                    />
+                  </div>
+
+                  {/* Batch Call Type */}
                   <div className="space-y-1.5">
                     <Label className="text-sm font-medium">Batch Call Type</Label>
                     <Select
@@ -957,7 +1309,7 @@ export default function CreateCampaign() {
                     </Select>
                   </div>
 
-                  {/* Data Collection Form - shown right after batch type when dynamic_form */}
+                  {/* Data Collection Form - shown when dynamic_form */}
                   {batchMode === 'dynamic_form' && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -1040,10 +1392,9 @@ export default function CreateCampaign() {
                     </div>
                   )}
 
-                  {/* === FLOW TEMPLATE MODE === */}
+                  {/* Flow Template Mode */}
                   {batchMode === 'flow_template' && (
                     <>
-                      {/* Flow Template Selection */}
                       <div className="space-y-1.5">
                         <Label className="text-sm font-medium">Select Flow Template</Label>
                         <Select 
@@ -1083,7 +1434,6 @@ export default function CreateCampaign() {
                         </Select>
                       </div>
 
-                      {/* Flow Template Prompt Preview */}
                       {formData.flowId && !isTemplateId && (
                         <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
                           <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
@@ -1148,92 +1498,50 @@ export default function CreateCampaign() {
                     </>
                   )}
 
-                  {/* Greeting Message - shown for both modes */}
-                  {batchMode && (
+                  {/* Language Options - shown when dynamic_form */}
+                  {batchMode === 'dynamic_form' && (
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium flex items-center gap-1.5">
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          Greeting Message
-                        </Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1"
-                          onClick={() => generateGreetingMutation.mutate()}
-                          disabled={generateGreetingMutation.isPending}
-                          data-testid="button-ai-generate-greeting"
-                        >
-                          {generateGreetingMutation.isPending ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-3 w-3" />
-                          )}
-                          {generateGreetingMutation.isPending ? "Generating..." : `AI Generate (${batchMode === 'flow_template' ? 'Flow' : 'Data Collection'})`}
+                      <Label className="text-sm font-medium flex items-center gap-1.5">
+                        <Languages className="h-3.5 w-3.5" />
+                        Language Options
+                      </Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {languageOptions.map(lang => (
+                          <Badge key={lang} variant="secondary" className="text-xs gap-1 pr-1">
+                            {lang}
+                            {languageOptions.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeLanguageOption(lang)}
+                                className="hover:text-destructive"
+                                data-testid={`button-remove-lang-${lang}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Input
+                          placeholder="Add language (e.g., Spanish)"
+                          value={newLanguage}
+                          onChange={(e) => setNewLanguage(e.target.value)}
+                          className="h-8 text-xs"
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLanguageOption())}
+                          data-testid="input-add-language"
+                        />
+                        <Button type="button" variant="outline" size="sm" className="h-8 px-2" onClick={addLanguageOption} data-testid="button-add-language">
+                          <Plus className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                      <Textarea
-                        value={greetingMessage}
-                        onChange={(e) => setGreetingMessage(e.target.value)}
-                        placeholder="Enter the greeting the AI will use when calling..."
-                        className="text-sm min-h-[60px] resize-none"
-                        data-testid="input-greeting-message"
-                      />
                     </div>
                   )}
-
-                  {/* === DYNAMIC FORM MODE === */}
-                  {batchMode === 'dynamic_form' && (
-                    <>
-                      {/* Language Selection */}
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium flex items-center gap-1.5">
-                          <Languages className="h-3.5 w-3.5" />
-                          Language Options
-                        </Label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {languageOptions.map(lang => (
-                            <Badge key={lang} variant="secondary" className="text-xs gap-1 pr-1">
-                              {lang}
-                              {languageOptions.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeLanguageOption(lang)}
-                                  className="hover:text-destructive"
-                                  data-testid={`button-remove-lang-${lang}`}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              )}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex gap-1.5">
-                          <Input
-                            placeholder="Add language (e.g., Spanish)"
-                            value={newLanguage}
-                            onChange={(e) => setNewLanguage(e.target.value)}
-                            className="h-8 text-xs"
-                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLanguageOption())}
-                            data-testid="input-add-language"
-                          />
-                          <Button type="button" variant="outline" size="sm" className="h-8 px-2" onClick={addLanguageOption} data-testid="button-add-language">
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-
-
-                    </>
-                  )}
-
-
                 </>
               )}
 
-              {/* === STEP 2: Recipients === */}
-              {wizardStep === 2 && (
+              {/* === STEP 5: Contacts === */}
+              {wizardStep === 5 && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Recipients</Label>
                   <div className="flex gap-1">
@@ -1453,8 +1761,8 @@ export default function CreateCampaign() {
                 </div>
               )}
 
-              {/* === STEP 3: Schedule & Send === */}
-              {wizardStep === 3 && (
+              {/* === STEP 6: Schedule === */}
+              {wizardStep === 6 && (
                 <>
                   {/* When to send the calls */}
                   <div className="space-y-2">
@@ -1641,6 +1949,39 @@ export default function CreateCampaign() {
                   <p className="text-xs text-muted-foreground">
                     {t('campaigns.termsAgreement', "You've read and agree with the")} <a href="/terms" className="text-primary hover:underline" data-testid="link-terms">{t('campaigns.termsOfService', 'Terms of service')}</a>.
                   </p>
+
+                  {/* Test Call */}
+                  <div className="space-y-2 pt-2 border-t">
+                    <Label className="text-sm font-medium flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5" />
+                      Test Call
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={testCallNumber}
+                        onChange={(e) => setTestCallNumber(e.target.value)}
+                        placeholder="Enter phone number for test call..."
+                        className="h-9 flex-1"
+                        data-testid="input-test-call-number"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1"
+                        onClick={() => testCallMutation.mutate()}
+                        disabled={testCallMutation.isPending || !testCallNumber || !formData.agentId}
+                        data-testid="button-send-test-call"
+                      >
+                        {testCallMutation.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5" />
+                        )}
+                        {testCallMutation.isPending ? "Calling..." : "Send Test Call"}
+                      </Button>
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -1661,10 +2002,10 @@ export default function CreateCampaign() {
               <Button variant="outline" size="sm" onClick={() => setLocation("/app/campaigns")} data-testid="button-save-draft">
                 {t('campaigns.saveAsDraft', 'Save as draft')}
               </Button>
-              {wizardStep < 3 ? (
+              {wizardStep < 6 ? (
                 <Button 
                   size="sm"
-                  onClick={() => setWizardStep(wizardStep + 1)}
+                  onClick={handleNextStep}
                   data-testid="button-wizard-next"
                 >
                   Next

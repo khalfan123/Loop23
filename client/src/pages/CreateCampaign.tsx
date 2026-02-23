@@ -820,7 +820,14 @@ export default function CreateCampaign() {
           <div className="p-4 border-b">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold text-base">{formData.name || t('campaigns.createBatchCall', 'Create a batch call')}</h2>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder={t('campaigns.createBatchCall', 'Create a batch call')}
+                  className="font-semibold text-base bg-transparent border-none outline-none w-full placeholder:text-foreground focus:border-b focus:border-primary/30 transition-colors"
+                  data-testid="input-batch-call-name"
+                />
                 <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
               </div>
               <div className="flex items-center gap-1.5">
@@ -926,17 +933,6 @@ export default function CreateCampaign() {
                     </Select>
                   </div>
 
-                  {/* Batch Call Name - auto-generated */}
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">{t('campaigns.batchCallName', 'Batch Call Name')}</Label>
-                    <Input
-                      placeholder={t('campaigns.enterName', 'Enter')}
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="h-9"
-                      data-testid="input-batch-call-name"
-                    />
-                  </div>
 
                   {/* Batch Mode Selector */}
                   <div className="space-y-1.5">

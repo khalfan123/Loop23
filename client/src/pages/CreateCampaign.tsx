@@ -820,7 +820,7 @@ export default function CreateCampaign() {
           <div className="p-4 border-b">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-semibold text-base">{t('campaigns.createBatchCall', 'Create a batch call')}</h2>
+                <h2 className="font-semibold text-base">{formData.name || t('campaigns.createBatchCall', 'Create a batch call')}</h2>
                 <p className="text-xs text-muted-foreground">{t('campaigns.batchCallCost', 'Batch call cost $0.005 per dial')}</p>
               </div>
               <div className="flex items-center gap-1.5">
@@ -865,6 +865,50 @@ export default function CreateCampaign() {
                   {/* From Number - First */}
                   <div className="space-y-1.5">
                     <Label className="text-sm font-medium">{t('campaigns.fromNumber', 'From Number')}</Label>
+                    {!formData.agentId ? (
+                      <p className="text-xs text-muted-foreground italic">Select an agent below to see available numbers</p>
+                    ) : isSipAgent && !isSipPluginEnabled ? (
+                      <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20">
+                        <p className="text-xs text-destructive font-medium">SIP Plugin is disabled</p>
+                      </div>
+                    ) : (
+                      <Select
+                        value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId}
+                        onValueChange={(value) => {
+                          if (isSipAgent) {
+                            setFormData(prev => ({ ...prev, sipPhoneNumberId: value }));
+                          } else {
+                            setFormData(prev => ({ ...prev, phoneNumberId: value }));
+                          }
+                          const phone = availablePhoneNumbers.find((p: any) => p.id === value);
+                          if (phone && !formData.name) {
+                            const phoneLabel = (phone as any).friendlyName || (phone as any).label || (phone as any).phoneNumber || '';
+                            const now = new Date();
+                            const dateStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
+                            setFormData(prev => ({ ...prev, name: `Batch Call - ${phoneLabel} - ${dateStr}`, ...(isSipAgent ? { sipPhoneNumberId: value } : { phoneNumberId: value }) }));
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9" data-testid="select-from-number">
+                          <SelectValue placeholder={availablePhoneNumbers.length === 0
+                            ? (isSipAgent ? "No SIP numbers" : isPlivoAgent ? "No Plivo numbers" : t("campaigns.create.noPhoneNumbers"))
+                            : t('campaigns.selectNumber', 'Select a phone number')}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availablePhoneNumbers.map((phone: any) => (
+                            <SelectItem key={phone.id} value={phone.id}>
+                              {phone.friendlyName || phone.label || phone.phoneNumber}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  {/* Agent Selection */}
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">{t('campaigns.selectAgent', 'Agent')}</Label>
                     <Select
                       value={formData.agentId}
                       onValueChange={(value) => setFormData({ ...formData, agentId: value, phoneNumberId: '', sipPhoneNumberId: '' })}
@@ -880,47 +924,6 @@ export default function CreateCampaign() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {formData.agentId && (
-                      <>
-                        {isSipAgent && !isSipPluginEnabled ? (
-                          <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20">
-                            <p className="text-xs text-destructive font-medium">SIP Plugin is disabled</p>
-                          </div>
-                        ) : (
-                          <Select
-                            value={isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId}
-                            onValueChange={(value) => {
-                              if (isSipAgent) {
-                                setFormData(prev => ({ ...prev, sipPhoneNumberId: value }));
-                              } else {
-                                setFormData(prev => ({ ...prev, phoneNumberId: value }));
-                              }
-                              const phone = availablePhoneNumbers.find((p: any) => p.id === value);
-                              if (phone && !formData.name) {
-                                const phoneLabel = (phone as any).friendlyName || (phone as any).label || (phone as any).phoneNumber || '';
-                                const now = new Date();
-                                const dateStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
-                                setFormData(prev => ({ ...prev, name: `Batch Call - ${phoneLabel} - ${dateStr}`, ...(isSipAgent ? { sipPhoneNumberId: value } : { phoneNumberId: value }) }));
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-9" data-testid="select-from-number">
-                              <SelectValue placeholder={availablePhoneNumbers.length === 0
-                                ? (isSipAgent ? "No SIP numbers" : isPlivoAgent ? "No Plivo numbers" : t("campaigns.create.noPhoneNumbers"))
-                                : t('campaigns.selectNumber', 'Select a phone number')}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availablePhoneNumbers.map((phone: any) => (
-                                <SelectItem key={phone.id} value={phone.id}>
-                                  {phone.friendlyName || phone.label || phone.phoneNumber}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </>
-                    )}
                   </div>
 
                   {/* Batch Call Name - auto-generated */}

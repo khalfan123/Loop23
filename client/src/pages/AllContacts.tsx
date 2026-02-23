@@ -964,7 +964,7 @@ export default function AllContacts() {
                                 ))}
                               </div>
                             </TableCell>
-                            <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
+                            <TableCell className="font-mono text-sm"><span className="text-sm mr-1">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>{contact.phone}</TableCell>
                             <TableCell className="text-muted-foreground hidden md:table-cell">
                               {contact.email || "-"}
                             </TableCell>
@@ -1140,7 +1140,7 @@ export default function AllContacts() {
                       <div className="font-medium text-sm truncate max-w-full">
                         {fullName || <span className="text-muted-foreground italic">Unknown</span>}
                       </div>
-                      <div className="font-mono text-xs text-muted-foreground truncate max-w-full">{contact.phone}</div>
+                      <div className="font-mono text-xs text-muted-foreground truncate max-w-full"><span className="text-sm mr-1">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>{contact.phone}</div>
                       {contact.email && <div className="text-xs text-muted-foreground truncate max-w-full">{contact.email}</div>}
                       <Badge variant="outline" className="text-[10px]">
                         {contact.source === 'campaign' ? t('contacts.source.campaign') : t('contacts.source.call')}
@@ -1243,7 +1243,7 @@ export default function AllContacts() {
                             ))}
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{contact.phone}</TableCell>
+                        <TableCell className="font-mono text-sm"><span className="text-sm mr-1">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>{contact.phone}</TableCell>
                         <TableCell className="text-muted-foreground hidden md:table-cell">
                           {contact.email || "-"}
                         </TableCell>

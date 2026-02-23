@@ -1051,7 +1051,7 @@ export default function Campaigns() {
                                   ))}
                                 </div>
                               </TableCell>
-                              <TableCell className="font-mono text-xs overflow-hidden text-ellipsis whitespace-nowrap">{contact.phone}</TableCell>
+                              <TableCell className="font-mono text-xs overflow-hidden text-ellipsis whitespace-nowrap"><span className="text-sm mr-1">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>{contact.phone}</TableCell>
                               <TableCell className="text-muted-foreground text-sm hidden md:table-cell overflow-hidden text-ellipsis whitespace-nowrap">
                                 {contact.email || "-"}
                               </TableCell>
@@ -1188,7 +1188,7 @@ export default function Campaigns() {
                       <div className="font-medium text-sm truncate max-w-full">
                         {fullName || <span className="text-muted-foreground italic">Unknown</span>}
                       </div>
-                      <div className="font-mono text-xs text-muted-foreground truncate max-w-full">{contact.phone}</div>
+                      <div className="font-mono text-xs text-muted-foreground truncate max-w-full"><span className="text-sm mr-1">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>{contact.phone}</div>
                       {contact.email && <div className="text-xs text-muted-foreground truncate max-w-full">{contact.email}</div>}
                       {getContactGroups(contact.phone).length > 0 && (
                         <div className="flex flex-wrap gap-1 justify-center mt-1">
@@ -1264,7 +1264,7 @@ export default function Campaigns() {
                             ))}
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs overflow-hidden text-ellipsis whitespace-nowrap">{contact.phone}</TableCell>
+                        <TableCell className="font-mono text-xs overflow-hidden text-ellipsis whitespace-nowrap"><span className="text-sm mr-1">{getCountryFlag(getCountryFromPhone(contact.phone))}</span>{contact.phone}</TableCell>
                         <TableCell className="text-muted-foreground text-sm hidden md:table-cell overflow-hidden text-ellipsis whitespace-nowrap">
                           {contact.email || "-"}
                         </TableCell>

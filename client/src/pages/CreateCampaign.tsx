@@ -350,6 +350,17 @@ export default function CreateCampaign() {
         }
       }
 
+      try {
+        await apiRequest("POST", `/api/campaigns/${campaign.id}/execute`);
+      } catch (execError: any) {
+        console.error("Campaign auto-start failed:", execError);
+        toast({
+          title: "Campaign created but failed to start",
+          description: execError?.message || "Please start it manually from the campaigns page.",
+          variant: "destructive",
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
       toast({ title: t("campaigns.toast.createdSuccess") });
       setLocation("/app/campaigns");

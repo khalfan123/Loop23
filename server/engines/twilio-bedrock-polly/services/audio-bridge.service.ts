@@ -21,7 +21,7 @@ import { awsPollyService } from '../../../services/aws-polly';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/config';
 import { db } from '../../../db';
-import { agents } from '@shared/schema';
+import { agents, openaiCredentials } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import type {
   AgentConfig,
@@ -435,10 +435,40 @@ export class BedrockPollyAudioBridge {
    * Wraps the raw mulaw data in a WAV container (format code 7) before
    * uploading to the /v1/audio/transcriptions endpoint.
    */
+  private static cachedOpenAIKey: string | null = null;
+  private static cachedKeyTimestamp: number = 0;
+  private static readonly KEY_CACHE_TTL_MS = 300_000;
+
+  private static async resolveOpenAIKey(): Promise<string | null> {
+    if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
+    if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+
+    const now = Date.now();
+    if (this.cachedOpenAIKey && (now - this.cachedKeyTimestamp) < this.KEY_CACHE_TTL_MS) {
+      return this.cachedOpenAIKey;
+    }
+
+    try {
+      const [cred] = await db
+        .select({ apiKey: openaiCredentials.apiKey })
+        .from(openaiCredentials)
+        .limit(1);
+      if (cred?.apiKey) {
+        this.cachedOpenAIKey = cred.apiKey;
+        this.cachedKeyTimestamp = now;
+        console.log('[BedrockPolly Bridge] Resolved OpenAI API key from database credential pool');
+        return cred.apiKey;
+      }
+    } catch (err: any) {
+      console.error('[BedrockPolly Bridge] Failed to resolve OpenAI key from DB:', err.message);
+    }
+    return null;
+  }
+
   private static async transcribeAudio(audioBuffer: Buffer): Promise<string> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = await this.resolveOpenAIKey();
     if (!apiKey) {
-      console.error('[BedrockPolly Bridge] OPENAI_API_KEY not set — cannot transcribe');
+      console.error('[BedrockPolly Bridge] No OpenAI API key available (env or DB) — cannot transcribe');
       return '';
     }
 

@@ -781,7 +781,7 @@ export class CampaignExecutor {
         const syncElevenLabsService = new ElevenLabsService(syncCredential.apiKey!);
         const agentResponse = await syncElevenLabsService.createAgent({
           name: agent.name,
-          voice_id: agent.elevenLabsVoiceId || undefined,
+          voice_id: agent.elevenLabsVoiceId || '',
           prompt: agent.systemPrompt || 'You are a helpful assistant.',
           first_message: agent.firstMessage || 'Hello! How can I help you today?',
           language: agent.language || 'en',

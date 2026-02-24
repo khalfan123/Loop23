@@ -68,6 +68,9 @@ interface Agent {
   openaiVoice: string | null;
   systemPrompt: string | null;
   voiceTone: string | null;
+  voiceProvider: string | null;
+  telephonyProvider: string | null;
+  awsPollyVoiceId: string | null;
 }
 
 interface DeduplicatedContact {
@@ -628,6 +631,23 @@ function OutboundWizard() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm">{agent.name}</div>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {agent.voiceProvider === 'aws_polly' ? (
+                        <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
+                          AWS Polly
+                        </Badge>
+                      ) : agent.telephonyProvider === 'twilio_openai' ? (
+                        <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                          OpenAI Realtime
+                        </Badge>
+                      ) : agent.telephonyProvider === 'plivo' ? (
+                        <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
+                          Plivo
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+                          ElevenLabs
+                        </Badge>
+                      )}
                       {agent.language && (
                         <Badge variant="outline" className="text-[10px]">
                           {getLanguageLabel(agent.language)}
@@ -635,6 +655,9 @@ function OutboundWizard() {
                       )}
                       {agent.voiceName && (
                         <span className="text-xs text-muted-foreground">{agent.voiceName}</span>
+                      )}
+                      {agent.awsPollyVoiceId && (
+                        <span className="text-xs text-muted-foreground">{agent.awsPollyVoiceId}</span>
                       )}
                     </div>
                     {agent.systemPrompt && (
@@ -889,11 +912,23 @@ function OutboundWizard() {
                   <div>
                     <div className="font-medium text-sm">{selectedAgent.name}</div>
                     <div className="flex items-center gap-2 flex-wrap">
+                      {selectedAgent.voiceProvider === 'aws_polly' ? (
+                        <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
+                          AWS Polly
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+                          ElevenLabs
+                        </Badge>
+                      )}
                       {selectedAgent.language && (
                         <Badge variant="outline" className="text-[10px]">{getLanguageLabel(selectedAgent.language)}</Badge>
                       )}
                       {selectedAgent.voiceName && (
                         <span className="text-xs text-muted-foreground">{selectedAgent.voiceName}</span>
+                      )}
+                      {selectedAgent.awsPollyVoiceId && (
+                        <span className="text-xs text-muted-foreground">{selectedAgent.awsPollyVoiceId}</span>
                       )}
                     </div>
                   </div>

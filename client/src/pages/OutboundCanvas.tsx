@@ -335,14 +335,18 @@ function OutboundWizard() {
         });
       }
 
+      if (campaign?.id) {
+        await apiRequest("POST", `/api/campaigns/${campaign.id}/execute`);
+      }
+
       return campaign;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["/api/contacts/deduplicated"] });
       toast({
-        title: "Outbound Campaign Created",
-        description: `"${campaignName}" has been created with ${selectedContactIds.length} contact(s). Ready to launch.`,
+        title: "Campaign Launched",
+        description: `"${campaignName}" is now calling ${selectedContactIds.length} contact(s).`,
       });
       if (data?.id) {
         setLocation(`/app/campaigns/${data.id}`);

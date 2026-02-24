@@ -636,9 +636,49 @@ export class CampaignExecutor {
         };
       }
 
-      // ElevenLabs flow - requires elevenLabsAgentId
+      // ElevenLabs flow - auto-sync agent if not yet synced
       if (!agent.elevenLabsAgentId) {
-        throw new Error('Agent not synced with ElevenLabs. Please sync the agent first.');
+        console.log(`🔄 [Campaign Executor] Agent "${agent.name}" not synced with ElevenLabs, auto-syncing...`);
+        const syncCredential = await ElevenLabsPoolService.getUserCredential(campaign.userId);
+        if (!syncCredential) {
+          throw new Error('No available ElevenLabs API keys for auto-sync');
+        }
+
+        const syncElevenLabsService = new ElevenLabsService(syncCredential.apiKey!);
+        const agentResponse = await syncElevenLabsService.createAgent({
+          name: agent.name,
+          voice_id: agent.elevenLabsVoiceId || undefined,
+          prompt: agent.systemPrompt || 'You are a helpful assistant.',
+          first_message: agent.firstMessage || 'Hello! How can I help you today?',
+          language: agent.language || 'en',
+          model: agent.llmModel || 'gpt-4o-mini',
+          temperature: agent.temperature ?? 0.5,
+          personality: agent.personality || 'helpful',
+          voice_tone: agent.voiceTone || 'professional',
+          transferEnabled: agent.transferEnabled || false,
+          transferPhoneNumber: agent.transferPhoneNumber || undefined,
+          detectLanguageEnabled: agent.detectLanguageEnabled || false,
+          endConversationEnabled: agent.endConversationEnabled || false,
+          knowledgeBaseOnly: agent.knowledgeBaseOnly || false,
+          voiceStability: agent.voiceStability ?? 0.55,
+          voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
+          voiceSpeed: agent.voiceSpeed ?? 1.0,
+          skipWorkflow: true,
+        });
+
+        const newElevenLabsAgentId = agentResponse.agent_id;
+        console.log(`✅ [Campaign Executor] Auto-synced agent "${agent.name}" → ElevenLabs ID: ${newElevenLabsAgentId}`);
+
+        await db
+          .update(agents)
+          .set({
+            elevenLabsAgentId: newElevenLabsAgentId,
+            elevenLabsCredentialId: syncCredential.id,
+          })
+          .where(eq(agents.id, agent.id));
+
+        agent.elevenLabsAgentId = newElevenLabsAgentId;
+        (agent as any).elevenLabsCredentialId = syncCredential.id;
       }
 
       // Get phone number details

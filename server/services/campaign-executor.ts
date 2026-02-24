@@ -34,6 +34,7 @@ import {
 } from '../engines/elevenlabs-migration';
 import { PlivoBatchCallingService } from '../engines/plivo/services/plivo-batch-calling.service';
 import { TwilioOpenAIBatchCallingService } from '../engines/twilio-openai/services/twilio-openai-batch-calling.service';
+import { BedrockPollyBatchCallingService } from '../engines/twilio-bedrock-polly/services/bedrock-polly-batch-calling.service';
 import { batchInsertCalls, batchInsertFlowExecutions, FlowExecutionInsert } from '../utils/batch-utils';
 
 import * as path from 'path';
@@ -631,6 +632,139 @@ export class CampaignExecutor {
             total_calls_scheduled: result.totalCalls,
             total_calls_dispatched: result.completedCalls + result.failedCalls,
             status: result.status === 'completed' ? 'completed' as const : 
+                   result.status === 'cancelled' ? 'cancelled' as const : 'failed' as const,
+          }
+        };
+      }
+
+      // Route to Bedrock+Polly engine if agent uses AWS Polly as voice provider
+      if (agent.voiceProvider === 'aws_polly') {
+        console.log(`📞 [Campaign Executor] Routing to Bedrock+Polly engine for campaign ${campaignId}`);
+        
+        const campaignContacts = await db
+          .select()
+          .from(contacts)
+          .where(eq(contacts.campaignId, campaignId));
+
+        if (campaignContacts.length === 0) {
+          throw new Error('Campaign has no contacts');
+        }
+
+        const [campaignPhoneNumberBP] = await db
+          .select()
+          .from(phoneNumbers)
+          .where(eq(phoneNumbers.id, campaign.phoneNumberId!))
+          .limit(1);
+
+        if (!campaignPhoneNumberBP) {
+          throw new Error('Campaign phone number not found');
+        }
+
+        const bedrockPollyBatchJobId = `bedrock-polly-${campaignId}`;
+
+        await db
+          .update(campaigns)
+          .set({
+            status: 'running',
+            startedAt: new Date(),
+            batchJobId: bedrockPollyBatchJobId,
+            batchJobStatus: 'running',
+            totalContacts: campaignContacts.length,
+          })
+          .where(eq(campaigns.id, campaignId));
+
+        const callInsertsBP = campaignContacts.map(contact => ({
+          userId: campaign.userId,
+          campaignId: campaign.id,
+          contactId: contact.id,
+          phoneNumber: contact.phone,
+          fromNumber: campaignPhoneNumberBP.phoneNumber,
+          toNumber: contact.phone,
+          status: 'pending' as const,
+          callDirection: 'outgoing' as const,
+          metadata: {
+            batchCall: true,
+            batchJobId: bedrockPollyBatchJobId,
+            agentId: agent.id,
+            telephonyProvider: 'bedrock-polly',
+            contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
+          },
+        }));
+
+        const callResultBP = await batchInsertCalls(callInsertsBP, '📞 [Bedrock+Polly Campaign]');
+        const preCreatedCallsBP = callResultBP.results;
+
+        const effectiveFlowIdBP = campaign.flowId || agent.flowId;
+        if (effectiveFlowIdBP && preCreatedCallsBP.length > 0) {
+          const flowExecInsertsBP: FlowExecutionInsert[] = preCreatedCallsBP.map(callRecord => ({
+            callId: callRecord.id,
+            flowId: effectiveFlowIdBP,
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            contactPhone: callRecord.phoneNumber || '',
+            telephonyProvider: 'bedrock-polly',
+          }));
+
+          await batchInsertFlowExecutions(flowExecInsertsBP, '🔀 [Bedrock+Polly Campaign]');
+        }
+
+        const bedrockPollyBatchService = BedrockPollyBatchCallingService.getInstance(campaignId);
+        const result = await bedrockPollyBatchService.executeCampaign(campaignId);
+
+        if (campaign.userId && result.status === 'completed') {
+          const finalContacts = await db
+            .select()
+            .from(contacts)
+            .where(eq(contacts.campaignId, campaignId));
+
+          webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.completed', {
+            campaign: {
+              id: campaign.id,
+              name: campaign.name,
+              type: campaign.type,
+              status: 'completed',
+              totalContacts: result.totalCalls,
+              startedAt: campaign.startedAt,
+              completedAt: new Date().toISOString(),
+              createdAt: campaign.createdAt,
+            },
+            stats: {
+              successfulCalls: result.completedCalls,
+              failedCalls: result.failedCalls,
+              totalCalls: result.totalCalls,
+              completedCalls: result.completedCalls + result.failedCalls,
+            },
+            contacts: finalContacts.map(c => ({
+              id: c.id,
+              firstName: c.firstName,
+              lastName: c.lastName,
+              phone: c.phone,
+              email: c.email,
+              status: c.status,
+            })),
+          }, campaignId).catch(err => {
+            console.error('❌ [Webhook] Error triggering campaign.completed event:', err);
+          });
+
+          try {
+            await emailService.sendCampaignCompleted(campaignId);
+          } catch (emailError: any) {
+            console.error(`❌ [Campaign] Failed to send campaign completed email:`, emailError);
+          }
+        }
+
+        return {
+          batchJob: {
+            id: bedrockPollyBatchJobId,
+            name: campaign.name,
+            agent_id: agent.id,
+            agent_name: agent.name,
+            created_at_unix: Math.floor(Date.now() / 1000),
+            scheduled_time_unix: 0,
+            last_updated_at_unix: Math.floor(Date.now() / 1000),
+            total_calls_scheduled: result.totalCalls,
+            total_calls_dispatched: result.completedCalls + result.failedCalls,
+            status: result.status === 'completed' ? 'completed' as const :
                    result.status === 'cancelled' ? 'cancelled' as const : 'failed' as const,
           }
         };

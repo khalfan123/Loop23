@@ -51,7 +51,6 @@ import {
   UserPlus,
 } from "lucide-react";
 import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
-import { AuthStorage } from "@/lib/auth-storage";
 
 interface PhoneNumber {
   id: string;
@@ -306,32 +305,9 @@ function OutboundWizard() {
       const res = await apiRequest("POST", "/api/campaigns", payload);
       const campaign = await res.json();
 
-      if (campaign?.id && selectedContacts.length > 0) {
-        const csvHeader = "phone_number,first_name,last_name,email";
-        const csvRows = selectedContacts.map((c) => {
-          const name = c.names?.[0] || { firstName: "", lastName: "" };
-          const firstName = (name.firstName || "").replace(/,/g, " ");
-          const lastName = (name.lastName || "").replace(/,/g, " ");
-          const email = (c.email || "").replace(/,/g, " ");
-          return `${c.phone},${firstName},${lastName},${email}`;
-        });
-        const csvContent = [csvHeader, ...csvRows].join("\n");
-
-        const blob = new Blob([csvContent], { type: "text/csv" });
-        const formData = new FormData();
-        formData.append("file", blob, "contacts.csv");
-
-        const uploadHeaders: Record<string, string> = {};
-        const authHeader = AuthStorage.getAuthHeader();
-        if (authHeader) {
-          uploadHeaders["Authorization"] = authHeader;
-        }
-
-        await fetch(`/api/campaigns/${campaign.id}/contacts/upload`, {
-          method: "POST",
-          headers: uploadHeaders,
-          body: formData,
-          credentials: "include",
+      if (campaign?.id && selectedContactIds.length > 0) {
+        await apiRequest("POST", `/api/campaigns/${campaign.id}/contacts/assign`, {
+          contactIds: selectedContactIds,
         });
       }
 

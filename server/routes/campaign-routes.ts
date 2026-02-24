@@ -18,7 +18,7 @@
 
 import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { 
   campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows, forms 
 } from "@shared/schema";
@@ -629,6 +629,59 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
     } catch (error: any) {
       console.error("Get contacts error:", error);
       res.status(500).json({ error: "Failed to get contacts" });
+    }
+  });
+
+  router.post("/api/campaigns/:campaignId/contacts/assign", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const campaignId = req.params.campaignId as string;
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign || campaign.userId !== req.userId) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+
+      const { contactIds } = req.body;
+      if (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0) {
+        return res.status(400).json({ error: "contactIds array is required" });
+      }
+
+      const existingContacts = await db
+        .select()
+        .from(contacts)
+        .where(inArray(contacts.id, contactIds));
+
+      const userCampaigns = await storage.getUserCampaigns(req.userId!);
+      const userCampaignIds = new Set(userCampaigns.map((c) => c.id));
+      const validContacts = existingContacts.filter(
+        (c) => c.campaignId && userCampaignIds.has(c.campaignId)
+      );
+
+      if (validContacts.length === 0) {
+        return res.status(400).json({ error: "No valid contacts found" });
+      }
+
+      const newContacts = validContacts.map((c) => ({
+        id: nanoid(),
+        campaignId,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        phone: c.phone,
+        email: c.email,
+        customFields: c.customFields,
+        status: "pending" as const,
+      }));
+
+      const created = await storage.createContacts(newContacts);
+
+      await db
+        .update(campaigns)
+        .set({ totalContacts: campaign.totalContacts + created.length })
+        .where(eq(campaigns.id, campaignId));
+
+      res.json({ count: created.length, contacts: created });
+    } catch (error: any) {
+      console.error("Assign contacts error:", error);
+      res.status(500).json({ error: "Failed to assign contacts to campaign" });
     }
   });
 

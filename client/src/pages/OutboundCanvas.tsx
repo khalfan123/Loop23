@@ -49,8 +49,74 @@ import {
   Send,
   LayoutTemplate,
   UserPlus,
+  Filter,
+  MapPin,
+  FolderOpen,
 } from "lucide-react";
 import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
+
+const PHONE_COUNTRY_PREFIXES: [string, string, string][] = [
+  ["+1", "US/CA", "🇺🇸"],
+  ["+44", "UK", "🇬🇧"],
+  ["+91", "India", "🇮🇳"],
+  ["+61", "Australia", "🇦🇺"],
+  ["+33", "France", "🇫🇷"],
+  ["+49", "Germany", "🇩🇪"],
+  ["+39", "Italy", "🇮🇹"],
+  ["+34", "Spain", "🇪🇸"],
+  ["+81", "Japan", "🇯🇵"],
+  ["+86", "China", "🇨🇳"],
+  ["+82", "S. Korea", "🇰🇷"],
+  ["+55", "Brazil", "🇧🇷"],
+  ["+52", "Mexico", "🇲🇽"],
+  ["+7", "Russia", "🇷🇺"],
+  ["+90", "Turkey", "🇹🇷"],
+  ["+966", "Saudi Arabia", "🇸🇦"],
+  ["+971", "UAE", "🇦🇪"],
+  ["+27", "South Africa", "🇿🇦"],
+  ["+234", "Nigeria", "🇳🇬"],
+  ["+62", "Indonesia", "🇮🇩"],
+  ["+60", "Malaysia", "🇲🇾"],
+  ["+65", "Singapore", "🇸🇬"],
+  ["+63", "Philippines", "🇵🇭"],
+  ["+31", "Netherlands", "🇳🇱"],
+  ["+46", "Sweden", "🇸🇪"],
+  ["+47", "Norway", "🇳🇴"],
+  ["+45", "Denmark", "🇩🇰"],
+  ["+358", "Finland", "🇫🇮"],
+  ["+48", "Poland", "🇵🇱"],
+  ["+92", "Pakistan", "🇵🇰"],
+  ["+20", "Egypt", "🇪🇬"],
+  ["+212", "Morocco", "🇲🇦"],
+  ["+254", "Kenya", "🇰🇪"],
+  ["+251", "Ethiopia", "🇪🇹"],
+  ["+54", "Argentina", "🇦🇷"],
+  ["+56", "Chile", "🇨🇱"],
+  ["+57", "Colombia", "🇨🇴"],
+  ["+51", "Peru", "🇵🇪"],
+  ["+66", "Thailand", "🇹🇭"],
+  ["+84", "Vietnam", "🇻🇳"],
+  ["+880", "Bangladesh", "🇧🇩"],
+  ["+94", "Sri Lanka", "🇱🇰"],
+  ["+353", "Ireland", "🇮🇪"],
+  ["+41", "Switzerland", "🇨🇭"],
+  ["+43", "Austria", "🇦🇹"],
+  ["+32", "Belgium", "🇧🇪"],
+  ["+351", "Portugal", "🇵🇹"],
+  ["+30", "Greece", "🇬🇷"],
+  ["+972", "Israel", "🇮🇱"],
+  ["+964", "Iraq", "🇮🇶"],
+];
+
+const SORTED_PREFIXES = [...PHONE_COUNTRY_PREFIXES].sort((a, b) => b[0].length - a[0].length);
+
+function getCountryFromPhone(phone: string): { name: string; flag: string } | null {
+  const cleaned = phone.replace(/[\s\-()]/g, "");
+  for (const [prefix, name, flag] of SORTED_PREFIXES) {
+    if (cleaned.startsWith(prefix)) return { name, flag };
+  }
+  return null;
+}
 
 interface PhoneNumber {
   id: string;
@@ -135,6 +201,8 @@ function OutboundWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
   const [selectedPhoneId, setSelectedPhoneId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [agentSearch, setAgentSearch] = useState("");
@@ -164,20 +232,64 @@ function OutboundWizard() {
 
   const contacts = contactsData || [];
 
-  const filteredContacts = useMemo(() => {
-    if (!contactSearch.trim()) return contacts;
-    const q = contactSearch.trim().toLowerCase();
-    return contacts.filter((c) => {
-      const name = c.names?.[0]
-        ? `${c.names[0].firstName} ${c.names[0].lastName || ""}`.trim()
-        : "";
-      return (
-        c.phone.toLowerCase().includes(q) ||
-        name.toLowerCase().includes(q) ||
-        (c.email && c.email.toLowerCase().includes(q))
-      );
+  const availableGroups = useMemo(() => {
+    const groupMap = new Map<string, string>();
+    contacts.forEach((c) => {
+      c.campaigns?.forEach((camp: { id: string; name: string }) => {
+        if (!groupMap.has(camp.id)) groupMap.set(camp.id, camp.name);
+      });
     });
-  }, [contacts, contactSearch]);
+    return Array.from(groupMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [contacts]);
+
+  const contactCountryMap = useMemo(() => {
+    const map = new Map<string, { name: string; flag: string } | null>();
+    contacts.forEach((c) => {
+      if (!map.has(c.id)) map.set(c.id, getCountryFromPhone(c.phone));
+    });
+    return map;
+  }, [contacts]);
+
+  const availableCountries = useMemo(() => {
+    const countrySet = new Map<string, string>();
+    contactCountryMap.forEach((val) => {
+      if (val) countrySet.set(val.name, val.flag);
+    });
+    return Array.from(countrySet.entries())
+      .map(([name, flag]) => ({ name, flag }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [contactCountryMap]);
+
+  const filteredContacts = useMemo(() => {
+    let result = contacts;
+    if (groupFilter !== "all") {
+      result = result.filter((c) =>
+        c.campaigns?.some((camp: { id: string; name: string }) => camp.id === groupFilter)
+      );
+    }
+    if (countryFilter !== "all") {
+      result = result.filter((c) => {
+        const country = contactCountryMap.get(c.id);
+        return country?.name === countryFilter;
+      });
+    }
+    if (contactSearch.trim()) {
+      const q = contactSearch.trim().toLowerCase();
+      result = result.filter((c) => {
+        const name = c.names?.[0]
+          ? `${c.names[0].firstName} ${c.names[0].lastName || ""}`.trim()
+          : "";
+        return (
+          c.phone.toLowerCase().includes(q) ||
+          name.toLowerCase().includes(q) ||
+          (c.email && c.email.toLowerCase().includes(q))
+        );
+      });
+    }
+    return result;
+  }, [contacts, contactSearch, groupFilter, countryFilter, contactCountryMap]);
 
   const availableLanguages = useMemo(() => {
     const langs = new Set<string>();
@@ -402,6 +514,51 @@ function OutboundWizard() {
           />
         </div>
 
+        {(availableGroups.length > 0 || availableCountries.length > 0) && (
+          <div className="flex items-center gap-3 flex-wrap">
+            <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            {availableGroups.length > 0 && (
+              <Select value={groupFilter} onValueChange={setGroupFilter}>
+                <SelectTrigger className="w-[180px] h-8 text-xs" data-testid="select-group-filter">
+                  <FolderOpen className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                  <SelectValue placeholder="All Groups" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Groups</SelectItem>
+                  {availableGroups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {availableCountries.length > 0 && (
+              <Select value={countryFilter} onValueChange={setCountryFilter}>
+                <SelectTrigger className="w-[180px] h-8 text-xs" data-testid="select-country-filter">
+                  <MapPin className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                  <SelectValue placeholder="All Countries" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Countries</SelectItem>
+                  {availableCountries.map((c) => (
+                    <SelectItem key={c.name} value={c.name}>{c.flag} {c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {(groupFilter !== "all" || countryFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => { setGroupFilter("all"); setCountryFilter("all"); }}
+                data-testid="button-clear-filters"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        )}
+
         {contactsLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-16 w-full" />
@@ -422,6 +579,11 @@ function OutboundWizard() {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <span className="text-sm font-medium">
                 {selectedContactIds.length} of {filteredContacts.length} selected
+                {(groupFilter !== "all" || countryFilter !== "all") && (
+                  <span className="text-muted-foreground font-normal ml-1">
+                    (filtered from {contacts.length})
+                  </span>
+                )}
               </span>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={selectAllContacts} data-testid="button-select-all-contacts">
@@ -463,7 +625,15 @@ function OutboundWizard() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{displayName}</div>
+                          <div className="font-medium text-sm truncate flex items-center gap-1.5">
+                            {displayName}
+                            {(() => {
+                              const country = contactCountryMap.get(contact.id);
+                              return country ? (
+                                <span className="text-xs" title={country.name}>{country.flag}</span>
+                              ) : null;
+                            })()}
+                          </div>
                           <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                             <span className="flex items-center gap-1">
                               <Phone className="h-3 w-3" />
@@ -473,12 +643,34 @@ function OutboundWizard() {
                               <span className="truncate">{contact.email}</span>
                             )}
                           </div>
+                          {contact.campaigns && contact.campaigns.length > 0 && (
+                            <div className="flex items-center gap-1 mt-1 flex-wrap">
+                              {contact.campaigns.slice(0, 3).map((camp: { id: string; name: string }) => (
+                                <Badge key={camp.id} variant="secondary" className="text-[10px] py-0 px-1.5 h-4">
+                                  {camp.name}
+                                </Badge>
+                              ))}
+                              {contact.campaigns.length > 3 && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  +{contact.campaigns.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {contact.callCount > 0 && (
-                          <Badge variant="outline" className="text-[10px] flex-shrink-0">
-                            {contact.callCount} call{contact.callCount > 1 ? "s" : ""}
-                          </Badge>
-                        )}
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          {contact.callCount > 0 && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {contact.callCount} call{contact.callCount > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                          {(() => {
+                            const country = contactCountryMap.get(contact.id);
+                            return country ? (
+                              <span className="text-[10px] text-muted-foreground">{country.name}</span>
+                            ) : null;
+                          })()}
+                        </div>
                       </CardContent>
                     </Card>
                   );

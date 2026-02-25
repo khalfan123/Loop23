@@ -288,7 +288,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
   // Create campaign
   router.post("/api/campaigns", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      const { name, type, goal, script, flowId, agentId, voiceId, phoneNumberId, sipPhoneNumberId, scheduledFor, batchMode, greetingMessage, languageOptions, selectedFormId, knowledgeBaseIds } = req.body;
+      const { name, type, goal, script, flowId, agentId, voiceId, phoneNumberId, sipPhoneNumberId, scheduledFor, batchMode, greetingMessage, languageOptions, selectedFormId, knowledgeBaseIds, knowledgeBaseOnly } = req.body;
 
       if (!name || !type) {
         return res.status(400).json({ error: "Name and type are required" });
@@ -453,6 +453,9 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       }
       if (knowledgeBaseIds && Array.isArray(knowledgeBaseIds)) {
         campaignConfig.knowledgeBaseIds = knowledgeBaseIds.filter((id: unknown) => typeof id === 'string');
+      }
+      if (typeof knowledgeBaseOnly === 'boolean') {
+        campaignConfig.knowledgeBaseOnly = knowledgeBaseOnly;
       }
 
       const campaign = await storage.createCampaign({
@@ -967,6 +970,20 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         });
       }
       
+      const campaignConfig = (campaign.config as Record<string, any>) || {};
+      if (campaignConfig.knowledgeBaseIds && Array.isArray(campaignConfig.knowledgeBaseIds) && campaignConfig.knowledgeBaseIds.length > 0) {
+        const kbIds = campaignConfig.knowledgeBaseIds as string[];
+        const kbOnly = campaignConfig.knowledgeBaseOnly === true;
+        await db
+          .update(agents)
+          .set({
+            knowledgeBaseIds: kbIds,
+            knowledgeBaseOnly: kbOnly,
+          })
+          .where(eq(agents.id, campaign.agentId!));
+        console.log(`[Campaign] Updated agent ${campaign.agentId} with ${kbIds.length} knowledge base(s), knowledgeBaseOnly=${kbOnly}`);
+      }
+
       const result = await campaignExecutor.executeCampaign(id);
       
       webhookDeliveryService.triggerEvent(req.userId!, 'campaign.started', {

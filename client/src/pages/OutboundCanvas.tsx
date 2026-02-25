@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft,
   ArrowRight,
@@ -34,7 +35,6 @@ import {
   Bot,
   FileText,
   Users,
-  Save,
   Loader2,
   Globe,
   Sparkles,
@@ -51,6 +51,27 @@ import {
   Filter,
   MapPin,
   FolderOpen,
+  TrendingUp,
+  Headphones,
+  DollarSign,
+  Heart,
+  Building,
+  Plane,
+  Briefcase,
+  Calendar,
+  ShoppingCart,
+  MessageSquare,
+  Zap,
+  BookOpen,
+  Link,
+  Brain,
+  AudioWaveform,
+  Timer,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  FileUp,
+  Info,
 } from "lucide-react";
 import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
 
@@ -136,6 +157,8 @@ interface Agent {
   voiceProvider: string | null;
   telephonyProvider: string | null;
   awsPollyVoiceId: string | null;
+  awsPollyEngine: string | null;
+  knowledgeBaseIds: string[] | null;
 }
 
 interface DeduplicatedContact {
@@ -178,16 +201,24 @@ interface FormItem {
   }>;
 }
 
-interface ExistingOutbound {
+interface FlowTemplate {
   id: string;
   name: string;
-  agentId: string;
-  phoneNumberId: string;
-  contactCount: number;
-  status: string;
-  createdAt: string;
-  agent?: { id: string; name: string; language?: string } | null;
-  phoneNumber?: { id: string; phoneNumber: string } | null;
+  description: string;
+  isTemplate: boolean;
+  nodeCount: number;
+  preview: string[];
+}
+
+interface KnowledgeBaseItem {
+  id: string;
+  title: string;
+  type: string;
+  content: string | null;
+  url: string | null;
+  chunkCount: number;
+  ragStatus: string;
+  isRAGEnabled: boolean;
 }
 
 const getLanguageLabel = (code: string) => {
@@ -200,12 +231,41 @@ const getLanguageLabel = (code: string) => {
   return labels[code] || code.toUpperCase();
 };
 
+const USE_CASE_CATEGORIES = [
+  { id: "all", label: "All", icon: Sparkles },
+  { id: "sales", label: "Sales", icon: TrendingUp },
+  { id: "support", label: "Support", icon: Headphones },
+  { id: "collections", label: "Collections", icon: DollarSign },
+  { id: "appointments", label: "Appointments", icon: Calendar },
+  { id: "surveys", label: "Surveys", icon: MessageSquare },
+  { id: "healthcare", label: "Healthcare", icon: Heart },
+  { id: "realestate", label: "Real Estate", icon: Building },
+  { id: "hospitality", label: "Travel", icon: Plane },
+  { id: "finance", label: "Finance", icon: Briefcase },
+  { id: "ecommerce", label: "E-Commerce", icon: ShoppingCart },
+];
+
+function categorizeTemplate(id: string): string {
+  if (id.match(/lead|cold.call|demo|upsell|win.back|referral|pricing|trial|quote|renewal|competitor|flash|product.launch|seasonal|vip|contract|negotiation/)) return "sales";
+  if (id.match(/general.inquiry|complaint|tech|billing|account.verif|password|service.activ|service.cancel|escalation|warranty|refund|shipping|product.return|faq|feature.request/)) return "support";
+  if (id.match(/past.due|collections|payment.plan|auto.pay|payment.method|dispute|credit.card|invoice/)) return "collections";
+  if (id.match(/appointment|no.show|waitlist|recurring|multi.provider|group.booking|same.day|virtual/)) return "appointments";
+  if (id.match(/nps|survey|satisfaction|market.research|exit.interview|feedback|beta.tester/)) return "surveys";
+  if (id.match(/prescription|lab.result|insurance.verif|pre.visit|post.discharge|medication|preventive|specialist|telehealth|patient/)) return "healthcare";
+  if (id.match(/property|viewing|buyer|mortgage|open.house|seller|offer|closing/)) return "realestate";
+  if (id.match(/hotel|concierge|loyalty|flight|travel/)) return "hospitality";
+  if (id.match(/fraud|kyc|investment|credit.limit|policy|claims|retirement|loan/)) return "finance";
+  if (id.match(/order|payment.reminder|payment.confirm|data.collection/)) return "ecommerce";
+  return "sales";
+}
+
 const STEPS = [
-  { id: 1, label: "Contacts", icon: Users },
-  { id: 2, label: "Phone Number", icon: Phone },
-  { id: 3, label: "AI Agent", icon: Bot },
-  { id: 4, label: "Script & Form", icon: FileText },
-  { id: 5, label: "Review & Launch", icon: Send },
+  { id: 1, label: "Use Case", icon: Sparkles },
+  { id: 2, label: "Contacts", icon: Users },
+  { id: 3, label: "Phone", icon: Phone },
+  { id: 4, label: "AI Agent", icon: Bot },
+  { id: 5, label: "Knowledge", icon: Brain },
+  { id: 6, label: "Launch", icon: Send },
 ];
 
 function OutboundWizard() {
@@ -213,6 +273,9 @@ function OutboundWizard() {
   const { toast } = useToast();
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [useCaseCategory, setUseCaseCategory] = useState("all");
+  const [useCaseSearch, setUseCaseSearch] = useState("");
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
@@ -227,6 +290,14 @@ function OutboundWizard() {
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState("All");
   const [templateSearch, setTemplateSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
+  const [selectedKnowledgeBaseIds, setSelectedKnowledgeBaseIds] = useState<string[]>([]);
+  const [knowledgeBaseOnly, setKnowledgeBaseOnly] = useState(false);
+  const [referenceUrl, setReferenceUrl] = useState("");
+  const [expandedScript, setExpandedScript] = useState(false);
+
+  const { data: flowTemplates = [], isLoading: templatesLoading } = useQuery<FlowTemplate[]>({
+    queryKey: ["/api/flow-automation/flow-templates"],
+  });
 
   const { data: contactsData, isLoading: contactsLoading } = useQuery<DeduplicatedContact[]>({
     queryKey: ["/api/contacts/deduplicated"],
@@ -250,6 +321,25 @@ function OutboundWizard() {
 
   const { data: groupMemberships = [] } = useQuery<GroupMembership[]>({
     queryKey: ["/api/contact-group-memberships"],
+  });
+
+  const { data: knowledgeBases = [], isLoading: kbLoading } = useQuery<KnowledgeBaseItem[]>({
+    queryKey: ["/api/rag-knowledge"],
+  });
+
+  const importUrlMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const res = await apiRequest("POST", "/api/rag-knowledge/url", { url, name: url });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rag-knowledge"] });
+      setReferenceUrl("");
+      toast({ title: "URL Imported", description: "Content scraped and added to your knowledge base." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Import Failed", description: error.message || "Could not import URL", variant: "destructive" });
+    },
   });
 
   const contacts = contactsData || [];
@@ -348,6 +438,24 @@ function OutboundWizard() {
     return result;
   }, [selectedTemplateCategory, templateSearch]);
 
+  const filteredFlowTemplates = useMemo(() => {
+    let result = flowTemplates;
+    if (useCaseCategory !== "all") {
+      result = result.filter((t) => categorizeTemplate(t.id) === useCaseCategory);
+    }
+    if (useCaseSearch.trim()) {
+      const q = useCaseSearch.trim().toLowerCase();
+      result = result.filter(
+        (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [flowTemplates, useCaseCategory, useCaseSearch]);
+
+  const selectedFlowTemplate = useMemo(() => {
+    return flowTemplates.find((t) => t.id === selectedTemplateId) || null;
+  }, [flowTemplates, selectedTemplateId]);
+
   const selectedAgent = useMemo(() => {
     return agents.find((a) => a.id === selectedAgentId) || null;
   }, [agents, selectedAgentId]);
@@ -378,19 +486,26 @@ function OutboundWizard() {
     setSelectedContactIds([]);
   };
 
+  const toggleKnowledgeBase = (kbId: string) => {
+    setSelectedKnowledgeBaseIds((prev) =>
+      prev.includes(kbId) ? prev.filter((id) => id !== kbId) : [...prev, kbId]
+    );
+  };
+
   const canProceed = (step: number) => {
     switch (step) {
-      case 1: return selectedContactIds.length > 0;
-      case 2: return selectedPhoneId !== null;
-      case 3: return selectedAgentId !== null;
-      case 4: return true;
-      case 5: return campaignName.trim().length > 0;
+      case 1: return true;
+      case 2: return selectedContactIds.length > 0;
+      case 3: return selectedPhoneId !== null;
+      case 4: return selectedAgentId !== null;
+      case 5: return true;
+      case 6: return campaignName.trim().length > 0;
       default: return false;
     }
   };
 
   const goNext = () => {
-    if (canProceed(currentStep) && currentStep < 5) {
+    if (canProceed(currentStep) && currentStep < 6) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -422,6 +537,32 @@ function OutboundWizard() {
     });
   };
 
+  const handleSelectUseCase = (templateId: string | null) => {
+    setSelectedTemplateId(templateId);
+    if (templateId) {
+      const template = flowTemplates.find((t) => t.id === templateId);
+      if (template) {
+        setCampaignName(template.name + " Campaign");
+        setCallScript(
+          `You are an AI phone agent conducting a "${template.name}" call.\n\n${template.description}\n\nBe professional, friendly, and natural. Keep responses concise (1-3 sentences). Use natural conversation patterns — vary your sentence openings, use appropriate fillers, and mirror the caller's energy.`
+        );
+      }
+    }
+  };
+
+  const getContextLine = () => {
+    const parts: string[] = [];
+    if (selectedTemplateId) {
+      const t = flowTemplates.find((f) => f.id === selectedTemplateId);
+      if (t) parts.push(t.name);
+    }
+    if (selectedContactIds.length > 0) parts.push(`${selectedContactIds.length} contacts`);
+    if (selectedPhone) parts.push(selectedPhone.phoneNumber);
+    if (selectedAgent) parts.push(selectedAgent.name);
+    if (selectedKnowledgeBaseIds.length > 0) parts.push(`${selectedKnowledgeBaseIds.length} KB`);
+    return parts.length > 0 ? parts.join(" → ") : "";
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedAgentId) throw new Error("No agent selected");
@@ -436,6 +577,8 @@ function OutboundWizard() {
         phoneNumberId: selectedPhoneId,
         script: callScript || null,
         selectedFormId: selectedFormId || undefined,
+        knowledgeBaseIds: selectedKnowledgeBaseIds.length > 0 ? selectedKnowledgeBaseIds : undefined,
+        knowledgeBaseOnly: knowledgeBaseOnly || undefined,
       };
 
       const res = await apiRequest("POST", "/api/campaigns", payload);
@@ -468,7 +611,7 @@ function OutboundWizard() {
     },
     onError: (error: any) => {
       toast({
-        title: "Save Failed",
+        title: "Launch Failed",
         description: error.message || "Failed to create outbound campaign",
         variant: "destructive",
       });
@@ -519,6 +662,139 @@ function OutboundWizard() {
 
   const renderStep1 = () => (
     <div className="space-y-4" data-testid="outbound-step-1">
+      <div className="text-center mb-3">
+        <h2 className="text-lg font-semibold">Choose Your Use Case</h2>
+        <p className="text-sm text-muted-foreground">Select a pre-built template or start from scratch</p>
+      </div>
+
+      <div className="w-full max-w-3xl mx-auto space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={useCaseSearch}
+            onChange={(e) => setUseCaseSearch(e.target.value)}
+            placeholder="Search use cases..."
+            className="pl-9 h-9 text-sm"
+            data-testid="input-usecase-search"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
+          {USE_CASE_CATEGORIES.map((cat) => {
+            const CatIcon = cat.icon;
+            const isActive = useCaseCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setUseCaseCategory(cat.id)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                }`}
+                data-testid={`button-category-${cat.id}`}
+              >
+                <CatIcon className="h-3 w-3" />
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <Card
+          className={`cursor-pointer transition-all border-2 border-dashed ${
+            selectedTemplateId === null
+              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+              : "border-muted-foreground/20 hover:border-primary/40 hover:bg-accent/30"
+          }`}
+          onClick={() => handleSelectUseCase(null)}
+          data-testid="card-usecase-scratch"
+        >
+          <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+            <div className={`flex items-center justify-center h-10 w-10 rounded-lg flex-shrink-0 ${
+              selectedTemplateId === null ? "bg-primary text-primary-foreground" : "bg-muted"
+            }`}>
+              <Zap className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm">Start from Scratch</div>
+              <p className="text-xs text-muted-foreground mt-0.5">Build a custom campaign with your own script and settings</p>
+            </div>
+            {selectedTemplateId === null && (
+              <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+            )}
+          </CardContent>
+        </Card>
+
+        {templatesLoading ? (
+          <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-y-auto max-h-[45vh] sm:max-h-[400px] -mx-1 px-1">
+            <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+              {filteredFlowTemplates.map((template) => {
+                const isSelected = selectedTemplateId === template.id;
+                const category = categorizeTemplate(template.id);
+                const catDef = USE_CASE_CATEGORIES.find((c) => c.id === category);
+                const CatIcon = catDef?.icon || Sparkles;
+                const popular = template.id.match(/lead.qual|appointment|cold.call|nps|demo.sched|complaint|payment.remind/);
+
+                return (
+                  <Card
+                    key={template.id}
+                    className={`cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "hover:bg-accent/30 hover:shadow-sm"
+                    }`}
+                    onClick={() => handleSelectUseCase(template.id)}
+                    data-testid={`card-usecase-${template.id}`}
+                  >
+                    <CardContent className="p-3 flex items-start gap-2.5">
+                      <div className={`flex items-center justify-center h-9 w-9 rounded-lg flex-shrink-0 ${
+                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
+                      }`}>
+                        {isSelected ? <Check className="h-4 w-4" /> : <CatIcon className="h-4 w-4" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-sm truncate">{template.name}</span>
+                          {popular && (
+                            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" variant="outline">
+                              Popular
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{template.description}</p>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                            {catDef?.label || "General"}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">{template.nodeCount} steps</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {!templatesLoading && filteredFlowTemplates.length === 0 && useCaseSearch.trim() && (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No use cases match "{useCaseSearch}"
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="space-y-4" data-testid="outbound-step-2">
       <div className="text-center mb-2">
         <h2 className="text-lg font-semibold">Select Contacts</h2>
         <p className="text-sm text-muted-foreground">Choose people from your contact list to call</p>
@@ -714,8 +990,8 @@ function OutboundWizard() {
     </div>
   );
 
-  const renderStep2 = () => (
-    <div className="space-y-4" data-testid="outbound-step-2">
+  const renderStep3 = () => (
+    <div className="space-y-4" data-testid="outbound-step-3">
       <div className="text-center mb-2">
         <h2 className="text-lg font-semibold">Select Caller ID</h2>
         <p className="text-sm text-muted-foreground">Choose the phone number for outbound calls</p>
@@ -774,14 +1050,24 @@ function OutboundWizard() {
     </div>
   );
 
-  const renderStep3 = () => (
-    <div className="space-y-4" data-testid="outbound-step-3">
+  const renderStep4 = () => (
+    <div className="space-y-4" data-testid="outbound-step-4">
       <div className="text-center mb-2">
-        <h2 className="text-lg font-semibold">Select AI Agent</h2>
-        <p className="text-sm text-muted-foreground">Choose the AI agent that will make outbound calls to your contacts</p>
+        <h2 className="text-lg font-semibold">Select AI Agent & Voice</h2>
+        <p className="text-sm text-muted-foreground">Choose the AI agent with AWS Polly neural voice for humanlike calls</p>
       </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-3">
+        <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <AudioWaveform className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div className="text-xs">
+              <span className="font-medium text-orange-700 dark:text-orange-400">AWS Polly Neural Voice</span>
+              <span className="text-muted-foreground ml-1">— Humanized speech with SSML prosody variation, natural pauses, and breathing breaks for lifelike conversations.</span>
+            </div>
+          </div>
+        </div>
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -813,8 +1099,8 @@ function OutboundWizard() {
 
       {agentsLoading ? (
         <div className="space-y-3 w-full max-w-2xl mx-auto">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
         </div>
       ) : filteredAgents.length === 0 ? (
         <div className="text-center py-8">
@@ -831,18 +1117,27 @@ function OutboundWizard() {
         <div className="w-full max-w-2xl mx-auto grid gap-2 grid-cols-1 sm:grid-cols-2">
           {filteredAgents.map((agent) => {
             const isSelected = selectedAgentId === agent.id;
+            const isPolly = agent.voiceProvider === 'aws_polly';
+            const hasKB = agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0;
+
             return (
               <Card
                 key={agent.id}
-                className={`cursor-pointer transition-colors ${
-                  isSelected ? "border-primary bg-primary/5" : "hover:bg-accent/50"
+                className={`cursor-pointer transition-all ${
+                  isSelected
+                    ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                    : "hover:bg-accent/30 hover:shadow-sm"
                 }`}
                 onClick={() => setSelectedAgentId(agent.id)}
                 data-testid={`card-agent-${agent.id}`}
               >
-                <CardContent className="p-4 flex items-start gap-3">
-                  <div className={`flex items-center justify-center h-10 w-10 rounded-md flex-shrink-0 ${
-                    isSelected ? "bg-primary text-primary-foreground" : "bg-blue-100 dark:bg-blue-900/30"
+                <CardContent className="p-3 sm:p-4 flex items-start gap-3">
+                  <div className={`flex items-center justify-center h-10 w-10 rounded-lg flex-shrink-0 ${
+                    isSelected
+                      ? "bg-primary text-primary-foreground"
+                      : isPolly
+                      ? "bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30"
+                      : "bg-blue-100 dark:bg-blue-900/30"
                   }`}>
                     {isSelected ? (
                       <Check className="h-5 w-5" />
@@ -852,38 +1147,53 @@ function OutboundWizard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm">{agent.name}</div>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {agent.voiceProvider === 'aws_polly' ? (
-                        <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
-                          AWS Polly
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      {isPolly ? (
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
+                          <AudioWaveform className="h-2.5 w-2.5 mr-0.5" />
+                          Neural Voice
                         </Badge>
                       ) : agent.telephonyProvider === 'twilio_openai' ? (
-                        <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
-                          OpenAI Realtime
-                        </Badge>
-                      ) : agent.telephonyProvider === 'plivo' ? (
-                        <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20">
-                          Plivo
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                          OpenAI
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
                           ElevenLabs
                         </Badge>
                       )}
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                        <Timer className="h-2.5 w-2.5 mr-0.5" />
+                        ~400ms
+                      </Badge>
                       {agent.language && (
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
                           {getLanguageLabel(agent.language)}
                         </Badge>
                       )}
-                      {agent.voiceName && (
-                        <span className="text-xs text-muted-foreground">{agent.voiceName}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {isPolly && (
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20">
+                          <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+                          Humanized
+                        </Badge>
+                      )}
+                      {hasKB && (
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20">
+                          <Brain className="h-2.5 w-2.5 mr-0.5" />
+                          KB Connected
+                        </Badge>
                       )}
                       {agent.awsPollyVoiceId && (
-                        <span className="text-xs text-muted-foreground">{agent.awsPollyVoiceId}</span>
+                        <span className="text-[10px] text-muted-foreground">{agent.awsPollyVoiceId}</span>
+                      )}
+                      {agent.voiceName && !agent.awsPollyVoiceId && (
+                        <span className="text-[10px] text-muted-foreground">{agent.voiceName}</span>
                       )}
                     </div>
                     {agent.systemPrompt && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{agent.systemPrompt}</p>
+                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{agent.systemPrompt}</p>
                     )}
                   </div>
                 </CardContent>
@@ -895,25 +1205,142 @@ function OutboundWizard() {
     </div>
   );
 
-  const renderStep4 = () => (
-    <div className="space-y-5" data-testid="outbound-step-4">
+  const renderStep5 = () => (
+    <div className="space-y-5" data-testid="outbound-step-5">
       <div className="text-center mb-2">
-        <h2 className="text-lg font-semibold">Call Script & Form</h2>
-        <p className="text-sm text-muted-foreground">Configure what the AI agent says and collects during outbound calls</p>
+        <h2 className="text-lg font-semibold">Knowledge & Script</h2>
+        <p className="text-sm text-muted-foreground">Connect your knowledge base and configure the call script</p>
       </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-5">
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Brain className="h-4 w-4 text-cyan-600" />
+            <Label className="font-medium text-sm">Knowledge Base</Label>
+            <Badge variant="outline" className="text-[10px] ml-auto">
+              {selectedKnowledgeBaseIds.length} selected
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Connect knowledge bases to give the AI agent access to your business data during calls.
+          </p>
+
+          {kbLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
+          ) : knowledgeBases.length === 0 ? (
+            <div className="text-center py-4 border-2 border-dashed rounded-lg">
+              <BookOpen className="h-6 w-6 text-muted-foreground mx-auto mb-2 opacity-50" />
+              <p className="text-sm text-muted-foreground">No knowledge bases yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">Import a URL below or create one in Knowledge Base.</p>
+            </div>
+          ) : (
+            <div className="overflow-y-auto max-h-[200px]">
+              <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2">
+                {knowledgeBases.map((kb) => {
+                  const isSelected = selectedKnowledgeBaseIds.includes(kb.id);
+                  return (
+                    <Card
+                      key={kb.id}
+                      className={`cursor-pointer transition-all ${
+                        isSelected ? "border-cyan-500 bg-cyan-500/5 ring-1 ring-cyan-500/20" : "hover:bg-accent/30"
+                      }`}
+                      onClick={() => toggleKnowledgeBase(kb.id)}
+                      data-testid={`card-kb-${kb.id}`}
+                    >
+                      <CardContent className="p-2.5 flex items-center gap-2.5">
+                        <div className={`flex items-center justify-center h-8 w-8 rounded-md flex-shrink-0 ${
+                          isSelected ? "bg-cyan-500 text-white" : "bg-cyan-100 dark:bg-cyan-900/30"
+                        }`}>
+                          {isSelected ? <Check className="h-4 w-4" /> : kb.type === 'url' ? <Link className="h-4 w-4 text-cyan-600" /> : <FileUp className="h-4 w-4 text-cyan-600" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{kb.title}</div>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                            <span>{kb.type === 'url' ? 'URL' : 'File'}</span>
+                            {kb.chunkCount > 0 && <span>{kb.chunkCount} chunks</span>}
+                            {kb.isRAGEnabled && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 bg-green-500/10 text-green-600 border-green-500/20">
+                                RAG
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {selectedKnowledgeBaseIds.length > 0 && (
+            <div className="flex items-center justify-between bg-muted/50 rounded-md p-2.5">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={knowledgeBaseOnly}
+                  onCheckedChange={setKnowledgeBaseOnly}
+                  data-testid="switch-kb-only"
+                />
+                <Label className="text-xs font-medium cursor-pointer" onClick={() => setKnowledgeBaseOnly(!knowledgeBaseOnly)}>
+                  Knowledge Base Only Mode
+                </Label>
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {knowledgeBaseOnly ? "AI answers ONLY from KB" : "AI can use general knowledge"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Link className="h-4 w-4 text-indigo-600" />
+            <Label className="font-medium text-sm">Import Reference URL</Label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Paste a website URL to scrape its content and add it to your knowledge base.
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              value={referenceUrl}
+              onChange={(e) => setReferenceUrl(e.target.value)}
+              placeholder="https://example.com/product-info"
+              className="h-9 text-sm flex-1"
+              data-testid="input-reference-url"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 px-3"
+              onClick={() => referenceUrl.trim() && importUrlMutation.mutate(referenceUrl.trim())}
+              disabled={!referenceUrl.trim() || importUrlMutation.isPending}
+              data-testid="button-import-url"
+            >
+              {importUrlMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ExternalLink className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="border-t pt-4 space-y-2">
           <Label className="font-medium text-sm">Call Script / System Prompt</Label>
           <Textarea
             value={callScript}
             onChange={(e) => setCallScript(e.target.value)}
             placeholder="Write the call script or system prompt for the AI agent. Describe how the agent should greet the contact, what information to share, and what to collect..."
-            className="min-h-[140px] text-sm"
+            className="min-h-[120px] text-sm"
             data-testid="textarea-call-script"
           />
           <p className="text-xs text-muted-foreground">
-            This prompt guides the AI agent's behavior during each outbound call.
+            {selectedFlowTemplate
+              ? `Pre-filled from "${selectedFlowTemplate.name}" template. Edit as needed.`
+              : "This prompt guides the AI agent's behavior during each outbound call."}
           </p>
         </div>
 
@@ -921,7 +1348,7 @@ function OutboundWizard() {
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4 text-indigo-600" />
-              <Label className="font-medium">Quick Add Templates (Forms)</Label>
+              <Label className="font-medium">Quick Add Templates</Label>
             </div>
             <Button
               variant="outline"
@@ -930,7 +1357,7 @@ function OutboundWizard() {
               data-testid="button-toggle-templates"
             >
               <LayoutTemplate className="h-3.5 w-3.5 mr-1" />
-              {showTemplates ? "Hide Templates" : "Browse Templates"}
+              {showTemplates ? "Hide" : "Browse"}
             </Button>
           </div>
 
@@ -1002,27 +1429,20 @@ function OutboundWizard() {
         <div className="border-t pt-4 space-y-3">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-emerald-600" />
-            <Label className="font-medium">Attach Existing Form (Optional)</Label>
+            <Label className="font-medium">Attach Form (Optional)</Label>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Select an existing form to collect structured data during outbound calls.
-          </p>
 
           {formsLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
             </div>
           ) : forms.length === 0 ? (
-            <div className="text-center py-4 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
-              <FileText className="h-6 w-6 mx-auto mb-2 opacity-50" />
-              <p>No forms available.</p>
-              <Button variant="ghost" size="sm" className="mt-1" onClick={() => setLocation("/app/forms")} data-testid="button-go-forms">
-                Create a Form
-              </Button>
+            <div className="text-center py-3 text-sm text-muted-foreground border-2 border-dashed rounded-lg">
+              <FileText className="h-5 w-5 mx-auto mb-1.5 opacity-50" />
+              <p className="text-xs">No forms available.</p>
             </div>
           ) : (
-            <div className="overflow-y-auto max-h-[200px]">
+            <div className="overflow-y-auto max-h-[160px]">
               <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                 {forms.map((form) => {
                   const isSelected = selectedFormId === form.id;
@@ -1035,7 +1455,7 @@ function OutboundWizard() {
                       onClick={() => setSelectedFormId(isSelected ? null : form.id)}
                       data-testid={`card-form-${form.id}`}
                     >
-                      <CardContent className="p-3 flex items-center gap-3">
+                      <CardContent className="p-2.5 flex items-center gap-2.5">
                         <div className={`flex items-center justify-center h-8 w-8 rounded-md flex-shrink-0 ${
                           isSelected ? "bg-emerald-500 text-white" : "bg-emerald-100 dark:bg-emerald-900/30"
                         }`}>
@@ -1059,11 +1479,11 @@ function OutboundWizard() {
     </div>
   );
 
-  const renderStep5 = () => (
-    <div className="space-y-6" data-testid="outbound-step-5">
+  const renderStep6 = () => (
+    <div className="space-y-5" data-testid="outbound-step-6">
       <div className="text-center mb-2">
         <h2 className="text-lg font-semibold">Review & Launch</h2>
-        <p className="text-sm text-muted-foreground">Review your outbound campaign configuration before launching</p>
+        <p className="text-sm text-muted-foreground">Review your outbound campaign before launching</p>
       </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-4">
@@ -1078,9 +1498,21 @@ function OutboundWizard() {
         </div>
 
         <Card>
-          <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
+          <CardContent className="p-3 sm:p-4 space-y-3">
+            {selectedFlowTemplate && (
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <span className="font-medium text-sm">Use Case</span>
+                </div>
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                  {selectedFlowTemplate.name}
+                </Badge>
+              </div>
+            )}
+
+            <div className={selectedFlowTemplate ? "border-t pt-3" : ""}>
+              <div className="flex items-center gap-2 mb-1.5">
                 <Users className="h-4 w-4 text-violet-600" />
                 <span className="font-medium text-sm">Contacts ({selectedContacts.length})</span>
               </div>
@@ -1090,7 +1522,7 @@ function OutboundWizard() {
                     ? `${contact.names[0].firstName} ${contact.names[0].lastName || ""}`.trim()
                     : contact.phone;
                   return (
-                    <Badge key={contact.id} variant="outline" className="border-violet-300 text-violet-700 dark:text-violet-400">
+                    <Badge key={contact.id} variant="outline" className="border-violet-300 text-violet-700 dark:text-violet-400 text-[10px]">
                       {name}
                     </Badge>
                   );
@@ -1103,81 +1535,106 @@ function OutboundWizard() {
               </div>
             </div>
 
-            <div className="border-t pt-4">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="border-t pt-3">
+              <div className="flex items-center gap-2 mb-1.5">
                 <Phone className="h-4 w-4 text-green-600" />
                 <span className="font-medium text-sm">Caller ID</span>
               </div>
               {selectedPhone && (
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-md">
-                    <Phone className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-sm">{selectedPhone.phoneNumber}</div>
-                    <div className="text-xs text-muted-foreground">{selectedPhone.provider}</div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-3.5 w-3.5 text-green-600" />
+                  <span className="text-sm">{selectedPhone.phoneNumber}</span>
+                  <span className="text-xs text-muted-foreground">({selectedPhone.provider})</span>
                 </div>
               )}
             </div>
 
-            <div className="border-t pt-4">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="border-t pt-3">
+              <div className="flex items-center gap-2 mb-1.5">
                 <Bot className="h-4 w-4 text-blue-600" />
                 <span className="font-medium text-sm">AI Agent</span>
               </div>
               {selectedAgent && (
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-md">
-                    <Bot className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-sm">{selectedAgent.name}</div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {selectedAgent.voiceProvider === 'aws_polly' ? (
-                        <Badge variant="outline" className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
-                          AWS Polly
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
-                          ElevenLabs
-                        </Badge>
-                      )}
-                      {selectedAgent.language && (
-                        <Badge variant="outline" className="text-[10px]">{getLanguageLabel(selectedAgent.language)}</Badge>
-                      )}
-                      {selectedAgent.voiceName && (
-                        <span className="text-xs text-muted-foreground">{selectedAgent.voiceName}</span>
-                      )}
-                      {selectedAgent.awsPollyVoiceId && (
-                        <span className="text-xs text-muted-foreground">{selectedAgent.awsPollyVoiceId}</span>
-                      )}
-                    </div>
+                <div>
+                  <span className="text-sm font-medium">{selectedAgent.name}</span>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    {selectedAgent.voiceProvider === 'aws_polly' ? (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
+                        <AudioWaveform className="h-2.5 w-2.5 mr-0.5" />
+                        Neural Voice
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+                        {selectedAgent.voiceProvider || 'Standard'}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                      <Timer className="h-2.5 w-2.5 mr-0.5" />
+                      ~400ms
+                    </Badge>
+                    {selectedAgent.language && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">{getLanguageLabel(selectedAgent.language)}</Badge>
+                    )}
                   </div>
                 </div>
               )}
             </div>
 
-            {callScript && (
-              <div className="border-t pt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="h-4 w-4 text-purple-600" />
-                  <span className="font-medium text-sm">Call Script</span>
+            {selectedKnowledgeBaseIds.length > 0 && (
+              <div className="border-t pt-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Brain className="h-4 w-4 text-cyan-600" />
+                  <span className="font-medium text-sm">Knowledge Base ({selectedKnowledgeBaseIds.length})</span>
+                  {knowledgeBaseOnly && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      KB Only
+                    </Badge>
+                  )}
                 </div>
-                <div className="bg-muted rounded-md p-3 text-sm max-h-[120px] overflow-y-auto">
-                  {callScript.slice(0, 400)}{callScript.length > 400 ? "..." : ""}
+                <div className="flex flex-wrap gap-1">
+                  {knowledgeBases
+                    .filter((kb) => selectedKnowledgeBaseIds.includes(kb.id))
+                    .map((kb) => (
+                      <Badge key={kb.id} variant="outline" className="border-cyan-300 text-cyan-700 dark:text-cyan-400 text-[10px]">
+                        <BookOpen className="h-2.5 w-2.5 mr-0.5" />
+                        {kb.title}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {callScript && (
+              <div className="border-t pt-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-purple-600" />
+                    <span className="font-medium text-sm">Call Script</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px]"
+                    onClick={() => setExpandedScript(!expandedScript)}
+                    data-testid="button-expand-script"
+                  >
+                    {expandedScript ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </Button>
+                </div>
+                <div className={`bg-muted rounded-md p-2.5 text-xs ${expandedScript ? "max-h-[300px]" : "max-h-[80px]"} overflow-y-auto`}>
+                  {expandedScript ? callScript : (callScript.slice(0, 200) + (callScript.length > 200 ? "..." : ""))}
                 </div>
               </div>
             )}
 
             {selectedForm && (
-              <div className="border-t pt-4">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="border-t pt-3">
+                <div className="flex items-center gap-2 mb-1.5">
                   <ClipboardList className="h-4 w-4 text-emerald-600" />
-                  <span className="font-medium text-sm">Attached Form</span>
+                  <span className="font-medium text-sm">Form</span>
                 </div>
-                <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:text-emerald-400">
-                  <FileText className="h-3 w-3 mr-1" />
+                <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:text-emerald-400 text-[10px]">
+                  <FileText className="h-2.5 w-2.5 mr-0.5" />
                   {selectedForm.name}
                 </Badge>
               </div>
@@ -1185,12 +1642,31 @@ function OutboundWizard() {
           </CardContent>
         </Card>
 
+        {selectedAgent?.voiceProvider === 'aws_polly' && (
+          <div className="bg-gradient-to-r from-orange-500/5 to-amber-500/5 border border-orange-500/15 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <Info className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs space-y-1">
+                <span className="font-medium text-orange-700 dark:text-orange-400">Performance Tips</span>
+                <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
+                  <li>SSML Humanizer adds natural prosody and pauses automatically</li>
+                  <li>Neural engine delivers ~400ms latency with high voice quality</li>
+                  <li>Streaming audio reduces perceived wait time</li>
+                  {selectedKnowledgeBaseIds.length > 0 && (
+                    <li>RAG retrieval adds ~100ms — preload for faster responses</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-muted/50 rounded-md p-3 text-sm text-muted-foreground">
-          This will create an outbound campaign named <span className="font-medium text-foreground">"{campaignName || "..."}"</span> that
-          calls {selectedContactIds.length} contact(s) using <span className="font-medium text-foreground">{selectedAgent?.name}</span> from{" "}
-          <span className="font-medium text-foreground">{selectedPhone?.phoneNumber}</span>.
-          {callScript ? " A custom call script will be used." : ""}
-          {selectedForm ? ` Form "${selectedForm.name}" will collect data.` : ""}
+          Launching <span className="font-medium text-foreground">"{campaignName || "..."}"</span> —{" "}
+          {selectedContactIds.length} contact(s) via <span className="font-medium text-foreground">{selectedAgent?.name}</span>{" "}
+          from <span className="font-medium text-foreground">{selectedPhone?.phoneNumber}</span>.
+          {selectedKnowledgeBaseIds.length > 0 && ` ${selectedKnowledgeBaseIds.length} knowledge base(s) connected.`}
+          {callScript ? " Custom script applied." : ""}
         </div>
       </div>
     </div>
@@ -1210,7 +1686,7 @@ function OutboundWizard() {
           </h1>
         </div>
         <span className="text-xs text-muted-foreground flex-shrink-0 sm:hidden">
-          {currentStep}/5
+          {currentStep}/6
         </span>
       </div>
 
@@ -1225,6 +1701,7 @@ function OutboundWizard() {
           {currentStep === 3 && renderStep3()}
           {currentStep === 4 && renderStep4()}
           {currentStep === 5 && renderStep5()}
+          {currentStep === 6 && renderStep6()}
         </div>
       </div>
 
@@ -1246,8 +1723,12 @@ function OutboundWizard() {
           {currentStep === 1 ? "Cancel" : "Back"}
         </Button>
 
+        <div className="hidden sm:block flex-1 min-w-0 text-center">
+          <span className="text-xs text-muted-foreground truncate">{getContextLine()}</span>
+        </div>
+
         <div className="flex items-center gap-2">
-          {currentStep < 5 ? (
+          {currentStep < 6 ? (
             <Button
               size="sm"
               className="h-9 px-4 text-xs sm:text-sm"

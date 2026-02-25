@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -477,43 +476,44 @@ function OutboundWizard() {
   });
 
   const renderStepIndicator = () => (
-    <div className="flex items-center justify-center gap-0.5 sm:gap-1 py-3 sm:py-4 px-2 sm:px-4 overflow-x-auto" data-testid="outbound-step-indicator">
-      {STEPS.map((step, index) => {
-        const isCompleted = currentStep > step.id;
-        const isActive = currentStep === step.id;
-        const StepIcon = step.icon;
-        return (
-          <div key={step.id} className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-            <button
-              onClick={() => {
-                if (isCompleted) setCurrentStep(step.id);
-              }}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm transition-colors ${
-                isActive
-                  ? "bg-primary text-primary-foreground font-medium"
-                  : isCompleted
-                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-pointer"
-                  : "bg-muted text-muted-foreground"
-              }`}
-              disabled={!isCompleted && !isActive}
-              data-testid={`button-outbound-step-${step.id}`}
-            >
-              {isCompleted ? (
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              ) : isActive ? (
-                <StepIcon className="h-3.5 w-3.5" />
-              ) : (
-                <Circle className="h-3.5 w-3.5" />
+    <div className="border-b bg-muted/30" data-testid="outbound-step-indicator">
+      <div className="flex items-center justify-between px-1 py-2 sm:justify-center sm:gap-1 sm:py-3 sm:px-4">
+        {STEPS.map((step, index) => {
+          const isCompleted = currentStep > step.id;
+          const isActive = currentStep === step.id;
+          const StepIcon = step.icon;
+          return (
+            <div key={step.id} className="flex items-center flex-1 sm:flex-initial last:flex-initial">
+              <button
+                onClick={() => {
+                  if (isCompleted) setCurrentStep(step.id);
+                }}
+                className={`flex items-center justify-center gap-1 sm:gap-1.5 w-full sm:w-auto px-1 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-sm transition-colors ${
+                  isActive
+                    ? "bg-primary text-primary-foreground font-medium"
+                    : isCompleted
+                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-pointer"
+                    : "bg-muted/60 text-muted-foreground"
+                }`}
+                disabled={!isCompleted && !isActive}
+                data-testid={`button-outbound-step-${step.id}`}
+              >
+                {isCompleted ? (
+                  <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                ) : isActive ? (
+                  <StepIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                ) : (
+                  <Circle className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                )}
+                <span className="hidden sm:inline">{step.label}</span>
+              </button>
+              {index < STEPS.length - 1 && (
+                <div className={`w-2 sm:w-6 h-px mx-0.5 ${isCompleted ? "bg-green-400" : "bg-border"}`} />
               )}
-              <span className="hidden md:inline">{step.label}</span>
-              <span className="md:hidden">{step.id}</span>
-            </button>
-            {index < STEPS.length - 1 && (
-              <div className={`w-3 sm:w-6 h-px ${isCompleted ? "bg-green-400" : "bg-border"}`} />
-            )}
-          </div>
-        );
-      })}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -524,14 +524,14 @@ function OutboundWizard() {
         <p className="text-sm text-muted-foreground">Choose people from your contact list to call</p>
       </div>
 
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="w-full max-w-2xl mx-auto space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={contactSearch}
             onChange={(e) => setContactSearch(e.target.value)}
-            placeholder="Search by name, phone, or email..."
-            className="pl-9"
+            placeholder="Search name, phone, email..."
+            className="pl-9 h-9 text-sm"
             data-testid="input-contact-search"
           />
         </div>
@@ -624,8 +624,8 @@ function OutboundWizard() {
               </div>
             </div>
 
-            <ScrollArea className="max-h-[300px] sm:max-h-[400px]">
-              <div className="grid gap-1.5 sm:gap-2 pr-2 sm:pr-3">
+            <div className="overflow-y-auto max-h-[50vh] sm:max-h-[400px] -mx-1 px-1">
+              <div className="grid gap-1.5 sm:gap-2">
                 {filteredContacts.map((contact) => {
                   const isSelected = selectedContactIds.includes(contact.id);
                   const displayName = contact.names?.[0]
@@ -707,7 +707,7 @@ function OutboundWizard() {
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </>
         )}
       </div>
@@ -718,11 +718,11 @@ function OutboundWizard() {
     <div className="space-y-4" data-testid="outbound-step-2">
       <div className="text-center mb-2">
         <h2 className="text-lg font-semibold">Select Caller ID</h2>
-        <p className="text-sm text-muted-foreground">Choose the phone number that will appear as the caller ID for outbound calls</p>
+        <p className="text-sm text-muted-foreground">Choose the phone number for outbound calls</p>
       </div>
 
       {phonesLoading ? (
-        <div className="space-y-3 max-w-2xl mx-auto">
+        <div className="space-y-3 w-full max-w-2xl mx-auto">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
         </div>
@@ -736,7 +736,7 @@ function OutboundWizard() {
           </Button>
         </div>
       ) : (
-        <div className="max-w-2xl mx-auto grid gap-2 sm:grid-cols-2">
+        <div className="w-full max-w-2xl mx-auto grid gap-2 grid-cols-1 sm:grid-cols-2">
           {phoneNumbers.map((phone) => {
             const isSelected = selectedPhoneId === phone.id;
             return (
@@ -781,14 +781,14 @@ function OutboundWizard() {
         <p className="text-sm text-muted-foreground">Choose the AI agent that will make outbound calls to your contacts</p>
       </div>
 
-      <div className="max-w-2xl mx-auto space-y-3">
+      <div className="w-full max-w-2xl mx-auto space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={agentSearch}
             onChange={(e) => setAgentSearch(e.target.value)}
-            placeholder="Search agents by name..."
-            className="pl-9"
+            placeholder="Search agents..."
+            className="pl-9 h-9 text-sm"
             data-testid="input-agent-search"
           />
         </div>
@@ -796,9 +796,8 @@ function OutboundWizard() {
         {availableLanguages.length > 1 && (
           <div className="flex items-center gap-2 flex-wrap">
             <Globe className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm">Filter by language:</Label>
             <Select value={languageFilter} onValueChange={setLanguageFilter}>
-              <SelectTrigger className="w-[160px]" data-testid="select-language-filter">
+              <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs" data-testid="select-language-filter">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -813,7 +812,7 @@ function OutboundWizard() {
       </div>
 
       {agentsLoading ? (
-        <div className="space-y-3 max-w-2xl mx-auto">
+        <div className="space-y-3 w-full max-w-2xl mx-auto">
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-20 w-full" />
         </div>
@@ -829,7 +828,7 @@ function OutboundWizard() {
           </p>
         </div>
       ) : (
-        <div className="max-w-2xl mx-auto grid gap-2 sm:grid-cols-2">
+        <div className="w-full max-w-2xl mx-auto grid gap-2 grid-cols-1 sm:grid-cols-2">
           {filteredAgents.map((agent) => {
             const isSelected = selectedAgentId === agent.id;
             return (
@@ -903,9 +902,9 @@ function OutboundWizard() {
         <p className="text-sm text-muted-foreground">Configure what the AI agent says and collects during outbound calls</p>
       </div>
 
-      <div className="max-w-2xl mx-auto space-y-5">
+      <div className="w-full max-w-2xl mx-auto space-y-5">
         <div className="space-y-2">
-          <Label className="font-medium">Call Script / System Prompt</Label>
+          <Label className="font-medium text-sm">Call Script / System Prompt</Label>
           <Textarea
             value={callScript}
             onChange={(e) => setCallScript(e.target.value)}
@@ -960,8 +959,8 @@ function OutboundWizard() {
                 </Select>
               </div>
 
-              <ScrollArea className="max-h-[240px]">
-                <div className="grid gap-2 sm:grid-cols-2 pr-3">
+              <div className="overflow-y-auto max-h-[240px]">
+                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                   {filteredTemplates.map((template) => (
                     <Card
                       key={template.id}
@@ -989,7 +988,7 @@ function OutboundWizard() {
                     </Card>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
 
               {filteredTemplates.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
@@ -1023,8 +1022,8 @@ function OutboundWizard() {
               </Button>
             </div>
           ) : (
-            <ScrollArea className="max-h-[200px]">
-              <div className="grid gap-2 sm:grid-cols-2 pr-3">
+            <div className="overflow-y-auto max-h-[200px]">
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                 {forms.map((form) => {
                   const isSelected = selectedFormId === form.id;
                   return (
@@ -1053,7 +1052,7 @@ function OutboundWizard() {
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
       </div>
@@ -1067,9 +1066,9 @@ function OutboundWizard() {
         <p className="text-sm text-muted-foreground">Review your outbound campaign configuration before launching</p>
       </div>
 
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="w-full max-w-2xl mx-auto space-y-4">
         <div className="space-y-2">
-          <Label className="font-medium">Campaign Name *</Label>
+          <Label className="font-medium text-sm">Campaign Name *</Label>
           <Input
             value={campaignName}
             onChange={(e) => setCampaignName(e.target.value)}
@@ -1079,14 +1078,14 @@ function OutboundWizard() {
         </div>
 
         <Card>
-          <CardContent className="p-4 space-y-4">
+          <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-4 w-4 text-violet-600" />
                 <span className="font-medium text-sm">Contacts ({selectedContacts.length})</span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedContacts.slice(0, 8).map((contact) => {
+              <div className="flex flex-wrap gap-1">
+                {selectedContacts.slice(0, 5).map((contact) => {
                   const name = contact.names?.[0]
                     ? `${contact.names[0].firstName} ${contact.names[0].lastName || ""}`.trim()
                     : contact.phone;
@@ -1096,9 +1095,9 @@ function OutboundWizard() {
                     </Badge>
                   );
                 })}
-                {selectedContacts.length > 8 && (
-                  <Badge variant="outline" className="border-violet-300 text-violet-700 dark:text-violet-400">
-                    +{selectedContacts.length - 8} more
+                {selectedContacts.length > 5 && (
+                  <Badge variant="outline" className="border-violet-300 text-violet-700 dark:text-violet-400 text-[10px]">
+                    +{selectedContacts.length - 5} more
                   </Badge>
                 )}
               </div>
@@ -1198,40 +1197,42 @@ function OutboundWizard() {
   );
 
   return (
-    <div className="h-screen flex flex-col">
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b bg-background gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <Button variant="ghost" size="sm" className="px-2 sm:px-3 flex-shrink-0" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
-            <ArrowLeft className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">Back</span>
-          </Button>
-          <div className="min-w-0">
-            <h1 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
-              <PhoneOutgoing className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
-              <span className="truncate">New Outbound Campaign</span>
-            </h1>
-            <p className="text-xs text-muted-foreground hidden sm:block">Set up outbound calls step by step</p>
-          </div>
+    <div className="flex flex-col" style={{ height: '100dvh' }}>
+      <div className="flex items-center px-3 sm:px-4 py-2 sm:py-3 border-b bg-background gap-2 flex-shrink-0">
+        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 flex-shrink-0" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline ml-1">Back</span>
+        </Button>
+        <div className="min-w-0 flex-1">
+          <h1 className="font-semibold flex items-center gap-1.5 text-sm sm:text-base truncate">
+            <PhoneOutgoing className="h-4 w-4 text-primary flex-shrink-0" />
+            New Outbound Campaign
+          </h1>
         </div>
+        <span className="text-xs text-muted-foreground flex-shrink-0 sm:hidden">
+          {currentStep}/5
+        </span>
       </div>
 
-      {renderStepIndicator()}
+      <div className="flex-shrink-0">
+        {renderStepIndicator()}
+      </div>
 
-      <ScrollArea className="flex-1">
-        <div className="px-3 sm:px-4 pb-6">
+      <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="px-3 sm:px-4 py-4 pb-6">
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
           {currentStep === 4 && renderStep4()}
           {currentStep === 5 && renderStep5()}
         </div>
-      </ScrollArea>
+      </div>
 
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-t bg-background gap-2">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 border-t bg-background gap-3 flex-shrink-0 safe-area-bottom">
         <Button
           variant="outline"
           size="sm"
-          className="text-xs sm:text-sm"
+          className="h-9 px-3 text-xs sm:text-sm"
           onClick={() => {
             if (currentStep === 1) {
               setLocation("/app/campaigns");
@@ -1241,15 +1242,15 @@ function OutboundWizard() {
           }}
           data-testid="button-wizard-back"
         >
-          <ArrowLeft className="h-4 w-4 sm:mr-1" />
-          <span className="hidden sm:inline">{currentStep === 1 ? "Cancel" : "Back"}</span>
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          {currentStep === 1 ? "Cancel" : "Back"}
         </Button>
 
         <div className="flex items-center gap-2">
           {currentStep < 5 ? (
             <Button
               size="sm"
-              className="text-xs sm:text-sm"
+              className="h-9 px-4 text-xs sm:text-sm"
               onClick={goNext}
               disabled={!canProceed(currentStep)}
               data-testid="button-wizard-next"
@@ -1260,18 +1261,17 @@ function OutboundWizard() {
           ) : (
             <Button
               size="sm"
-              className="text-xs sm:text-sm"
+              className="h-9 px-4 text-xs sm:text-sm"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending || !campaignName.trim() || !selectedAgentId || !selectedPhoneId || selectedContactIds.length === 0}
               data-testid="button-wizard-save"
             >
               {saveMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-1 sm:mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               ) : (
-                <Send className="h-4 w-4 mr-1 sm:mr-2" />
+                <Send className="h-4 w-4 mr-1" />
               )}
-              <span className="hidden sm:inline">Create & Launch</span>
-              <span className="sm:hidden">Launch</span>
+              Launch
             </Button>
           )}
         </div>

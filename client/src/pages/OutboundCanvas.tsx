@@ -150,6 +150,21 @@ interface DeduplicatedContact {
   callCount: number;
 }
 
+interface ContactGroup {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+interface GroupMembership {
+  contact_phone: string;
+  group_id: string;
+  group_name: string;
+  group_color: string;
+}
+
 interface FormItem {
   id: string;
   name: string;
@@ -230,19 +245,25 @@ function OutboundWizard() {
     queryKey: ["/api/flow-automation/forms"],
   });
 
+  const { data: contactGroups = [] } = useQuery<ContactGroup[]>({
+    queryKey: ["/api/contact-groups"],
+  });
+
+  const { data: groupMemberships = [] } = useQuery<GroupMembership[]>({
+    queryKey: ["/api/contact-group-memberships"],
+  });
+
   const contacts = contactsData || [];
 
-  const availableGroups = useMemo(() => {
-    const groupMap = new Map<string, string>();
-    contacts.forEach((c) => {
-      c.campaigns?.forEach((camp: { id: string; name: string }) => {
-        if (!groupMap.has(camp.id)) groupMap.set(camp.id, camp.name);
-      });
+  const contactGroupsByPhone = useMemo(() => {
+    const map = new Map<string, GroupMembership[]>();
+    groupMemberships.forEach((m) => {
+      const existing = map.get(m.contact_phone) || [];
+      existing.push(m);
+      map.set(m.contact_phone, existing);
     });
-    return Array.from(groupMap.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [contacts]);
+    return map;
+  }, [groupMemberships]);
 
   const contactCountryMap = useMemo(() => {
     const map = new Map<string, { name: string; flag: string } | null>();
@@ -265,9 +286,10 @@ function OutboundWizard() {
   const filteredContacts = useMemo(() => {
     let result = contacts;
     if (groupFilter !== "all") {
-      result = result.filter((c) =>
-        c.campaigns?.some((camp: { id: string; name: string }) => camp.id === groupFilter)
-      );
+      result = result.filter((c) => {
+        const groups = contactGroupsByPhone.get(c.phone);
+        return groups?.some((g) => g.group_id === groupFilter);
+      });
     }
     if (countryFilter !== "all") {
       result = result.filter((c) => {
@@ -289,7 +311,7 @@ function OutboundWizard() {
       });
     }
     return result;
-  }, [contacts, contactSearch, groupFilter, countryFilter, contactCountryMap]);
+  }, [contacts, contactSearch, groupFilter, countryFilter, contactCountryMap, contactGroupsByPhone]);
 
   const availableLanguages = useMemo(() => {
     const langs = new Set<string>();
@@ -455,18 +477,18 @@ function OutboundWizard() {
   });
 
   const renderStepIndicator = () => (
-    <div className="flex items-center justify-center gap-1 py-4 px-4" data-testid="outbound-step-indicator">
+    <div className="flex items-center justify-center gap-0.5 sm:gap-1 py-3 sm:py-4 px-2 sm:px-4 overflow-x-auto" data-testid="outbound-step-indicator">
       {STEPS.map((step, index) => {
         const isCompleted = currentStep > step.id;
         const isActive = currentStep === step.id;
         const StepIcon = step.icon;
         return (
-          <div key={step.id} className="flex items-center gap-1">
+          <div key={step.id} className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
             <button
               onClick={() => {
                 if (isCompleted) setCurrentStep(step.id);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm transition-colors ${
                 isActive
                   ? "bg-primary text-primary-foreground font-medium"
                   : isCompleted
@@ -483,11 +505,11 @@ function OutboundWizard() {
               ) : (
                 <Circle className="h-3.5 w-3.5" />
               )}
-              <span className="hidden sm:inline">{step.label}</span>
-              <span className="sm:hidden">{step.id}</span>
+              <span className="hidden md:inline">{step.label}</span>
+              <span className="md:hidden">{step.id}</span>
             </button>
             {index < STEPS.length - 1 && (
-              <div className={`w-6 h-px ${isCompleted ? "bg-green-400" : "bg-border"}`} />
+              <div className={`w-3 sm:w-6 h-px ${isCompleted ? "bg-green-400" : "bg-border"}`} />
             )}
           </div>
         );
@@ -514,26 +536,31 @@ function OutboundWizard() {
           />
         </div>
 
-        {(availableGroups.length > 0 || availableCountries.length > 0) && (
-          <div className="flex items-center gap-3 flex-wrap">
-            <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            {availableGroups.length > 0 && (
+        {(contactGroups.length > 0 || availableCountries.length > 0) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0 hidden sm:block" />
+            {contactGroups.length > 0 && (
               <Select value={groupFilter} onValueChange={setGroupFilter}>
-                <SelectTrigger className="w-[180px] h-8 text-xs" data-testid="select-group-filter">
+                <SelectTrigger className="w-full sm:w-[170px] h-8 text-xs" data-testid="select-group-filter">
                   <FolderOpen className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                  <SelectValue placeholder="All Groups" />
+                  <SelectValue placeholder="All Tags" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Groups</SelectItem>
-                  {availableGroups.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  <SelectItem value="all">All Tags</SelectItem>
+                  {contactGroups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: g.color }} />
+                        {g.name}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
             {availableCountries.length > 0 && (
               <Select value={countryFilter} onValueChange={setCountryFilter}>
-                <SelectTrigger className="w-[180px] h-8 text-xs" data-testid="select-country-filter">
+                <SelectTrigger className="w-full sm:w-[170px] h-8 text-xs" data-testid="select-country-filter">
                   <MapPin className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
                   <SelectValue placeholder="All Countries" />
                 </SelectTrigger>
@@ -549,11 +576,11 @@ function OutboundWizard() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 text-xs"
+                className="h-8 text-xs px-2"
                 onClick={() => { setGroupFilter("all"); setCountryFilter("all"); }}
                 data-testid="button-clear-filters"
               >
-                Clear Filters
+                Clear
               </Button>
             )}
           </div>
@@ -597,8 +624,8 @@ function OutboundWizard() {
               </div>
             </div>
 
-            <ScrollArea className="max-h-[400px]">
-              <div className="grid gap-2 pr-3">
+            <ScrollArea className="max-h-[300px] sm:max-h-[400px]">
+              <div className="grid gap-1.5 sm:gap-2 pr-2 sm:pr-3">
                 {filteredContacts.map((contact) => {
                   const isSelected = selectedContactIds.includes(contact.id);
                   const displayName = contact.names?.[0]
@@ -614,8 +641,8 @@ function OutboundWizard() {
                       onClick={() => toggleContact(contact.id)}
                       data-testid={`card-contact-${contact.id}`}
                     >
-                      <CardContent className="p-3 flex items-center gap-3">
-                        <div className={`flex items-center justify-center h-8 w-8 rounded-full flex-shrink-0 ${
+                      <CardContent className="p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3">
+                        <div className={`flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-full flex-shrink-0 ${
                           isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
                         }`}>
                           {isSelected ? (
@@ -643,20 +670,24 @@ function OutboundWizard() {
                               <span className="truncate">{contact.email}</span>
                             )}
                           </div>
-                          {contact.campaigns && contact.campaigns.length > 0 && (
-                            <div className="flex items-center gap-1 mt-1 flex-wrap">
-                              {contact.campaigns.slice(0, 3).map((camp: { id: string; name: string }) => (
-                                <Badge key={camp.id} variant="secondary" className="text-[10px] py-0 px-1.5 h-4">
-                                  {camp.name}
-                                </Badge>
-                              ))}
-                              {contact.campaigns.length > 3 && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  +{contact.campaigns.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          {(() => {
+                            const groups = contactGroupsByPhone.get(contact.phone);
+                            return groups && groups.length > 0 ? (
+                              <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                {groups.slice(0, 3).map((g) => (
+                                  <Badge key={g.group_id} variant="secondary" className="text-[10px] py-0 px-1.5 h-4 gap-1">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: g.group_color }} />
+                                    {g.group_name}
+                                  </Badge>
+                                ))}
+                                {groups.length > 3 && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    +{groups.length - 3} more
+                                  </span>
+                                )}
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
                           {contact.callCount > 0 && (
@@ -1168,18 +1199,18 @@ function OutboundWizard() {
 
   return (
     <div className="h-screen flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-background gap-2 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b bg-background gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Button variant="ghost" size="sm" className="px-2 sm:px-3 flex-shrink-0" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
+            <ArrowLeft className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Back</span>
           </Button>
-          <div>
-            <h1 className="font-semibold flex items-center gap-2">
-              <PhoneOutgoing className="h-5 w-5 text-primary" />
-              New Outbound Campaign
+          <div className="min-w-0">
+            <h1 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
+              <PhoneOutgoing className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+              <span className="truncate">New Outbound Campaign</span>
             </h1>
-            <p className="text-xs text-muted-foreground">Set up outbound calls step by step</p>
+            <p className="text-xs text-muted-foreground hidden sm:block">Set up outbound calls step by step</p>
           </div>
         </div>
       </div>
@@ -1187,7 +1218,7 @@ function OutboundWizard() {
       {renderStepIndicator()}
 
       <ScrollArea className="flex-1">
-        <div className="px-4 pb-6">
+        <div className="px-3 sm:px-4 pb-6">
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
@@ -1196,9 +1227,11 @@ function OutboundWizard() {
         </div>
       </ScrollArea>
 
-      <div className="flex items-center justify-between px-4 py-3 border-t bg-background gap-2">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-t bg-background gap-2">
         <Button
           variant="outline"
+          size="sm"
+          className="text-xs sm:text-sm"
           onClick={() => {
             if (currentStep === 1) {
               setLocation("/app/campaigns");
@@ -1208,13 +1241,15 @@ function OutboundWizard() {
           }}
           data-testid="button-wizard-back"
         >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          {currentStep === 1 ? "Cancel" : "Back"}
+          <ArrowLeft className="h-4 w-4 sm:mr-1" />
+          <span className="hidden sm:inline">{currentStep === 1 ? "Cancel" : "Back"}</span>
         </Button>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           {currentStep < 5 ? (
             <Button
+              size="sm"
+              className="text-xs sm:text-sm"
               onClick={goNext}
               disabled={!canProceed(currentStep)}
               data-testid="button-wizard-next"
@@ -1224,16 +1259,19 @@ function OutboundWizard() {
             </Button>
           ) : (
             <Button
+              size="sm"
+              className="text-xs sm:text-sm"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending || !campaignName.trim() || !selectedAgentId || !selectedPhoneId || selectedContactIds.length === 0}
               data-testid="button-wizard-save"
             >
               {saveMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-1 sm:mr-2 animate-spin" />
               ) : (
-                <Send className="h-4 w-4 mr-2" />
+                <Send className="h-4 w-4 mr-1 sm:mr-2" />
               )}
-              Create & Launch
+              <span className="hidden sm:inline">Create & Launch</span>
+              <span className="sm:hidden">Launch</span>
             </Button>
           )}
         </div>

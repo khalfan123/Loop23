@@ -331,6 +331,7 @@ export interface BedrockPollyBridgeSession {
   isProcessing: boolean;
   pollyEngine: 'neural' | 'generative';
   ttsProvider: TtsProvider;
+  _mediaLogThrottle?: number;
 }
 
 /**

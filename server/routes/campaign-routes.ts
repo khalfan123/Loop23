@@ -971,17 +971,25 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       }
       
       const campaignConfig = (campaign.config as Record<string, any>) || {};
+      const agentUpdates: Record<string, any> = {};
+      
       if (campaignConfig.knowledgeBaseIds && Array.isArray(campaignConfig.knowledgeBaseIds) && campaignConfig.knowledgeBaseIds.length > 0) {
-        const kbIds = campaignConfig.knowledgeBaseIds as string[];
-        const kbOnly = campaignConfig.knowledgeBaseOnly === true;
+        agentUpdates.knowledgeBaseIds = campaignConfig.knowledgeBaseIds;
+        agentUpdates.knowledgeBaseOnly = campaignConfig.knowledgeBaseOnly === true;
+        console.log(`[Campaign] Will update agent ${campaign.agentId} with ${campaignConfig.knowledgeBaseIds.length} knowledge base(s), knowledgeBaseOnly=${agentUpdates.knowledgeBaseOnly}`);
+      }
+      
+      if (campaignConfig.greetingMessage && typeof campaignConfig.greetingMessage === 'string') {
+        agentUpdates.firstMessage = campaignConfig.greetingMessage;
+        console.log(`[Campaign] Will update agent ${campaign.agentId} greeting: "${campaignConfig.greetingMessage.substring(0, 50)}..."`);
+      }
+      
+      if (Object.keys(agentUpdates).length > 0) {
         await db
           .update(agents)
-          .set({
-            knowledgeBaseIds: kbIds,
-            knowledgeBaseOnly: kbOnly,
-          })
+          .set(agentUpdates)
           .where(eq(agents.id, campaign.agentId!));
-        console.log(`[Campaign] Updated agent ${campaign.agentId} with ${kbIds.length} knowledge base(s), knowledgeBaseOnly=${kbOnly}`);
+        console.log(`[Campaign] Agent ${campaign.agentId} updated with campaign config`);
       }
 
       const result = await campaignExecutor.executeCampaign(id);

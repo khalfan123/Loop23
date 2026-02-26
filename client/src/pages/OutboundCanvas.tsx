@@ -294,6 +294,7 @@ function OutboundWizard() {
   const [knowledgeBaseOnly, setKnowledgeBaseOnly] = useState(false);
   const [referenceUrl, setReferenceUrl] = useState("");
   const [expandedScript, setExpandedScript] = useState(false);
+  const [greetingMessage, setGreetingMessage] = useState("");
 
   const { data: flowTemplates = [], isLoading: templatesLoading } = useQuery<FlowTemplate[]>({
     queryKey: ["/api/flow-automation/flow-templates"],
@@ -579,6 +580,7 @@ function OutboundWizard() {
         selectedFormId: selectedFormId || undefined,
         knowledgeBaseIds: selectedKnowledgeBaseIds.length > 0 ? selectedKnowledgeBaseIds : undefined,
         knowledgeBaseOnly: knowledgeBaseOnly || undefined,
+        greetingMessage: greetingMessage.trim() || undefined,
       };
 
       const res = await apiRequest("POST", "/api/campaigns", payload);
@@ -1128,7 +1130,12 @@ function OutboundWizard() {
                     ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                     : "hover:bg-accent/30 hover:shadow-sm"
                 }`}
-                onClick={() => setSelectedAgentId(agent.id)}
+                onClick={() => {
+                  setSelectedAgentId(agent.id);
+                  if ((agent as any).firstMessage && !greetingMessage) {
+                    setGreetingMessage((agent as any).firstMessage);
+                  }
+                }}
                 data-testid={`card-agent-${agent.id}`}
               >
                 <CardContent className="p-3 sm:p-4 flex items-start gap-3">
@@ -1329,11 +1336,28 @@ function OutboundWizard() {
         </div>
 
         <div className="border-t pt-4 space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <MessageSquare className="h-4 w-4 text-green-600" />
+            <Label className="font-medium text-sm">Greeting Message</Label>
+          </div>
+          <Input
+            value={greetingMessage}
+            onChange={(e) => setGreetingMessage(e.target.value)}
+            placeholder="e.g. Hello! This is Sarah from Acme Corp. How are you today?"
+            className="text-sm"
+            data-testid="input-greeting-message"
+          />
+          <p className="text-xs text-muted-foreground">
+            The first thing the AI agent says when the call connects. Leave empty to use the agent's default greeting.
+          </p>
+        </div>
+
+        <div className="border-t pt-4 space-y-2">
           <Label className="font-medium text-sm">Call Script / System Prompt</Label>
           <Textarea
             value={callScript}
             onChange={(e) => setCallScript(e.target.value)}
-            placeholder="Write the call script or system prompt for the AI agent. Describe how the agent should greet the contact, what information to share, and what to collect..."
+            placeholder="Write the call script or system prompt for the AI agent..."
             className="min-h-[120px] text-sm"
             data-testid="textarea-call-script"
           />
@@ -1600,6 +1624,18 @@ function OutboundWizard() {
                         {kb.title}
                       </Badge>
                     ))}
+                </div>
+              </div>
+            )}
+
+            {greetingMessage && (
+              <div className="border-t pt-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <MessageSquare className="h-4 w-4 text-green-600" />
+                  <span className="font-medium text-sm">Greeting Message</span>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md p-2.5 text-xs italic" data-testid="text-review-greeting">
+                  "{greetingMessage}"
                 </div>
               </div>
             )}

@@ -259,6 +259,14 @@ export class BedrockPollyAudioBridge {
         if (event.media?.payload) {
           const audioChunk = Buffer.from(event.media.payload, 'base64');
 
+          if (!session._mediaLogThrottle) {
+            session._mediaLogThrottle = 0;
+          }
+          session._mediaLogThrottle++;
+          if (session._mediaLogThrottle === 1 || session._mediaLogThrottle % 500 === 0) {
+            console.log(`[BedrockPolly Bridge] Media event #${session._mediaLogThrottle} for ${callSid}, chunk=${audioChunk.length}b, processing=${session.isProcessing}, status=${session.status}`);
+          }
+
           if (session.isProcessing) {
             bargeInFlags.set(callSid, true);
             if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
@@ -748,14 +756,25 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         textType: 'ssml',
       });
     } catch (neuralError: any) {
-      console.warn(`[BedrockPolly Bridge] Neural SSML failed for voice ${voiceId}, trying plain text: ${neuralError.message}`);
-      result = await awsPollyService.synthesizeSpeech({
-        text,
-        voiceId,
-        engine: 'neural',
-        outputFormat: 'pcm',
-        sampleRate: '8000',
-      });
+      console.warn(`[BedrockPolly Bridge] Neural SSML failed for voice ${voiceId}, trying plain text neural: ${neuralError.message}`);
+      try {
+        result = await awsPollyService.synthesizeSpeech({
+          text,
+          voiceId,
+          engine: 'neural',
+          outputFormat: 'pcm',
+          sampleRate: '8000',
+        });
+      } catch (neuralPlainError: any) {
+        console.warn(`[BedrockPolly Bridge] Neural plain text also failed for voice ${voiceId}, falling back to standard engine: ${neuralPlainError.message}`);
+        result = await awsPollyService.synthesizeSpeech({
+          text,
+          voiceId,
+          engine: 'standard',
+          outputFormat: 'pcm',
+          sampleRate: '8000',
+        });
+      }
     }
 
     return result.audioStream;

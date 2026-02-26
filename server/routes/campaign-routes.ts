@@ -116,7 +116,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
   // AI Generate Greeting Message
   router.post("/api/campaigns/generate-greeting", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      const { callType, campaignName, useCase, useCaseDescription, language } = req.body;
+      const { callType, campaignName, useCase, useCaseDescription, language, agentName, companyName } = req.body;
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -134,6 +134,15 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         contextPrompt = "This is a general calling campaign.";
       }
 
+      let identityPrompt = "";
+      if (agentName && companyName) {
+        identityPrompt = `The AI agent's name is "${agentName}" and they are calling on behalf of "${companyName}". The greeting MUST introduce the agent by name and mention the company naturally, as if the agent is a real person making the call.`;
+      } else if (agentName) {
+        identityPrompt = `The AI agent's name is "${agentName}". The greeting MUST introduce the agent by name, as if they are a real person making the call.`;
+      } else if (companyName) {
+        identityPrompt = `The agent is calling on behalf of "${companyName}". The greeting MUST mention the company name naturally.`;
+      }
+
       const langInstruction = language && language !== 'en'
         ? ` Generate the greeting in the language matching the code "${language}" (e.g. es=Spanish, fr=French, de=German, etc.).`
         : '';
@@ -143,11 +152,11 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         messages: [
           {
             role: "system",
-            content: `You are a professional greeting message writer for AI calling campaigns. Generate a natural, warm, and professional greeting message that the AI agent will say when calling contacts. Keep it concise (1-2 sentences). Do not use quotes around the message. Only output the greeting text, nothing else.${langInstruction}`
+            content: `You are writing the opening line for an AI phone agent who sounds like a real person. The greeting should feel human, warm, and conversational — like a friendly colleague calling, not a robot or call center script. The agent should naturally introduce themselves by name and their company if provided. Keep it to 1-2 short sentences. Use natural speech patterns — contractions, casual tone, slight warmth. Do not use quotes around the message. Only output the greeting text, nothing else.${langInstruction}`
           },
           {
             role: "user",
-            content: `Generate a greeting message for a calling campaign${campaignName ? ` called "${campaignName}"` : ''}. ${contextPrompt}`
+            content: `Generate a personalized greeting message for a calling campaign${campaignName ? ` called "${campaignName}"` : ''}. ${identityPrompt} ${contextPrompt}`
           }
         ],
         max_completion_tokens: 150,

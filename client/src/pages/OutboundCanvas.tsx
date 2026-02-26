@@ -408,6 +408,10 @@ function OutboundWizard() {
     queryKey: ["/api/agents"],
   });
 
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
+  });
+
   const { data: forms = [], isLoading: formsLoading } = useQuery<FormItem[]>({
     queryKey: ["/api/flow-automation/forms"],
   });
@@ -479,6 +483,8 @@ function OutboundWizard() {
         useCase: template?.name || undefined,
         useCaseDescription: template?.description || undefined,
         language: agentLang,
+        agentName: selectedAgent?.name || undefined,
+        companyName: currentUser?.company || undefined,
       });
       return res.json();
     },

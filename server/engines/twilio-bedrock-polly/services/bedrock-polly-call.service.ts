@@ -221,10 +221,37 @@ export class BedrockPollyCallService {
           agentLanguage
         );
 
+        let effectiveSystemPrompt = agent.systemPrompt || 'You are a helpful AI assistant.';
+
+        const callScript = metadata?.callScript as string | undefined;
+        if (callScript && callScript.trim()) {
+          const scriptSection = `CALL SCRIPT & CONVERSATION GUIDE:\n${callScript.trim()}`;
+          const existingScriptMatch = effectiveSystemPrompt.match(/CALL SCRIPT & CONVERSATION GUIDE:\n[\s\S]*?(?=\n\n[A-Z]|$)/);
+          if (existingScriptMatch) {
+            effectiveSystemPrompt = effectiveSystemPrompt.replace(existingScriptMatch[0], scriptSection);
+            logger.info(`[Outbound] Replaced existing call script with campaign script (${callScript.length} chars)`, undefined, 'BedrockPollyCall');
+          } else {
+            effectiveSystemPrompt += `\n\n${scriptSection}`;
+            logger.info(`[Outbound] Injected campaign call script (${callScript.length} chars) into agent system prompt`, undefined, 'BedrockPollyCall');
+          }
+          const hasOutboundContext = effectiveSystemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS');
+          if (!hasOutboundContext) {
+            effectiveSystemPrompt += `\n\nOUTBOUND CALLING INSTRUCTIONS:
+- You INITIATED this call. You called the person, they did not call you.
+- After your greeting, WAIT for the person to respond. Then continue the conversation naturally.
+- State the purpose of your call clearly and early in the conversation.
+- Guide the conversation toward the goal described in your script.
+- Handle objections with empathy and provide clear value.
+- If the person is not interested, be respectful and end the call politely.
+- Keep responses SHORT — 1 to 3 sentences. This is a phone call, not an email.
+- Be warm, natural, and conversational. You are a real person, not a robot.`;
+          }
+        }
+
         let naturalConfig = BedrockAgentFactory.createAgentConfig({
           voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,
           model: defaultModel,
-          systemPrompt: agent.systemPrompt || 'You are a helpful AI assistant.',
+          systemPrompt: effectiveSystemPrompt,
           firstMessage: localizedFirstMessage,
           temperature: agent.temperature ?? 0.7,
           ttsProvider,
@@ -268,6 +295,11 @@ export class BedrockPollyCallService {
         
         agentConfig = naturalConfig;
       }
+
+      logger.info(`[Outbound Config] Agent "${agent.name}" | Voice: ${agent.voiceProvider}/${agent.awsPollyVoiceId || 'default'} | TTS: ${ttsProvider} | Flow: ${isFlowAgent} | KB: ${agent.knowledgeBaseIds?.length || 0} | EndCall: ${agent.endConversationEnabled}`, undefined, 'BedrockPollyCall');
+      logger.info(`[Outbound Config] System prompt: ${(agentConfig as any)?.systemPrompt?.substring(0, 200)}...`, undefined, 'BedrockPollyCall');
+      logger.info(`[Outbound Config] First message: ${(agentConfig as any)?.firstMessage || '(none)'}`, undefined, 'BedrockPollyCall');
+      logger.info(`[Outbound Config] Tools: ${(agentConfig as any)?.tools?.map((t: any) => t.name || t.function?.name).join(', ') || '(none)'}`, undefined, 'BedrockPollyCall');
 
       const normalizedFromNumber = phoneNumber.phoneNumber.replace(/[\s\-\(\)]/g, '').replace(/^\+?/, '+');
       const normalizedToNumber = toNumber.replace(/[\s\-\(\)]/g, '').replace(/^\+?/, '+');

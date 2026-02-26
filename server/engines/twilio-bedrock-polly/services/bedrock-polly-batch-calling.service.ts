@@ -60,6 +60,7 @@ export class BedrockPollyBatchCallingService {
   private config: BatchCallConfig | null = null;
   private agent: Agent | null = null;
   private phoneNumber: PhoneNumber | null = null;
+  private campaign: Campaign | null = null;
   private startTime: Date | null = null;
   private completedCount: number = 0;
   private failedCount: number = 0;
@@ -146,6 +147,7 @@ export class BedrockPollyBatchCallingService {
 
       this.agent = agent;
       this.phoneNumber = phoneNumber;
+      this.campaign = campaign;
       this.callQueue = firstBatch;
       this.totalContacts = totalCount;
       this.startTime = new Date();
@@ -363,6 +365,8 @@ export class BedrockPollyBatchCallingService {
         .set({ status: 'in_progress' })
         .where(eq(contacts.id, contact.id));
 
+      const campaignConfig = this.campaign?.config as Record<string, any> || {};
+
       const result = await BedrockPollyCallService.initiateCall({
         userId: this.config.userId,
         agentId: this.config.agentId,
@@ -374,6 +378,7 @@ export class BedrockPollyBatchCallingService {
           batchCall: true,
           contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
           contactEmail: contact.email || null,
+          callScript: campaignConfig.callScript || null,
         },
       });
 

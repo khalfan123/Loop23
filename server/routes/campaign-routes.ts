@@ -453,6 +453,9 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       if (greetingMessage && typeof greetingMessage === 'string') {
         campaignConfig.greetingMessage = greetingMessage;
       }
+      if (script && typeof script === 'string') {
+        campaignConfig.callScript = script;
+      }
       if (languageOptions && Array.isArray(languageOptions)) {
         campaignConfig.languageOptions = languageOptions.filter((l: unknown) => typeof l === 'string');
       }
@@ -997,6 +1000,10 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       if (campaignConfig.greetingMessage && typeof campaignConfig.greetingMessage === 'string') {
         agentUpdates.firstMessage = campaignConfig.greetingMessage;
         console.log(`[Campaign] Will update agent ${campaign.agentId} greeting: "${campaignConfig.greetingMessage.substring(0, 50)}..."`);
+      }
+
+      if (campaignConfig.callScript && typeof campaignConfig.callScript === 'string') {
+        console.log(`[Campaign] Call script stored in campaign config (${campaignConfig.callScript.length} chars) — will be injected at call time per-campaign`);
       }
       
       if (Object.keys(agentUpdates).length > 0) {

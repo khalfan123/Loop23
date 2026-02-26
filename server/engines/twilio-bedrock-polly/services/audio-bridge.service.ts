@@ -55,6 +55,9 @@ const bufferStartTimes: Map<string, number> = new Map();
  */
 const bargeInFlags: Map<string, boolean> = new Map();
 
+const noResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+const callerHasSpoken: Map<string, boolean> = new Map();
+
 /**
  * Twilio stream ready flags, tracked separately from session to avoid
  * race conditions during first-message sending.
@@ -106,6 +109,7 @@ export class BedrockPollyAudioBridge {
   private static readonly MIN_AUDIO_LENGTH = 1600;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
   private static readonly AUDIO_CHUNK_SIZE = 320;
+  private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
 
   /**
    * Create a new Bedrock+Polly bridge session for a Twilio call.
@@ -337,6 +341,16 @@ export class BedrockPollyAudioBridge {
     if (totalLength < this.MIN_AUDIO_LENGTH) {
       audioBuffers.set(callSid, []);
       return;
+    }
+
+    if (!callerHasSpoken.get(callSid)) {
+      callerHasSpoken.set(callSid, true);
+      const nrTimer = noResponseTimers.get(callSid);
+      if (nrTimer) {
+        clearTimeout(nrTimer);
+        noResponseTimers.delete(callSid);
+        console.log(`[BedrockPolly Bridge] Callee responded — cancelled no-response timer for ${callSid}`);
+      }
     }
 
     session.isProcessing = true;
@@ -1016,6 +1030,37 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
 
     await this.synthesizeAndSend(session, agentConfig.firstMessage);
+
+    callerHasSpoken.set(callSid, false);
+    const followUpTimer = setTimeout(async () => {
+      noResponseTimers.delete(callSid);
+      if (callerHasSpoken.get(callSid)) return;
+
+      const currentSession = this.activeSessions.get(callSid);
+      if (!currentSession || currentSession.status === 'disconnected') return;
+
+      console.log(`[BedrockPolly Bridge] No response after greeting for ${callSid} — sending follow-up`);
+
+      const followUp = 'Hello? Are you there?';
+
+      currentSession.transcriptParts.push({
+        role: 'assistant',
+        text: followUp,
+        timestamp: new Date(),
+      });
+      currentSession.messages.push({
+        role: 'assistant',
+        content: followUp,
+        timestamp: new Date(),
+      });
+
+      if (currentSession.onTranscriptCallback) {
+        currentSession.onTranscriptCallback(followUp, true);
+      }
+
+      await this.synthesizeAndSend(currentSession, followUp);
+    }, this.NO_RESPONSE_TIMEOUT_MS);
+    noResponseTimers.set(callSid, followUpTimer);
   }
 
   /**
@@ -1041,6 +1086,13 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     bufferStartTimes.delete(callSid);
     bargeInFlags.delete(callSid);
     twilioStreamReady.delete(callSid);
+
+    const nrTimer = noResponseTimers.get(callSid);
+    if (nrTimer) {
+      clearTimeout(nrTimer);
+      noResponseTimers.delete(callSid);
+    }
+    callerHasSpoken.delete(callSid);
 
     const durationMs = session.endedAt.getTime() - session.startedAt.getTime();
     const duration = Math.floor(durationMs / 1000);

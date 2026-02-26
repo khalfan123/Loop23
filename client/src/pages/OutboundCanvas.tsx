@@ -447,16 +447,45 @@ function OutboundWizard() {
     mutationFn: async () => {
       const selectedVoice = POLLY_VOICES.find(v => v.id === newAgentVoiceId);
       const shortLang = POLLY_LANG_TO_SHORT[newAgentLanguage] || 'en';
+      const template = flowTemplates.find(t => t.id === selectedTemplateId);
+
+      const useCaseContext = template
+        ? `USE CASE: ${template.name}\n${template.description}\nCATEGORY: ${template.category}`
+        : 'GENERAL OUTBOUND CALL';
+
+      const scriptSection = callScript
+        ? `\nCALL SCRIPT & CONVERSATION GUIDE:\n${callScript}`
+        : '';
+
+      const outboundSystemPrompt = `You are ${newAgentName.trim()}, a professional outbound calling agent${currentUser?.company ? ` from ${currentUser.company}` : ''}.
+
+${useCaseContext}
+${scriptSection}
+
+OUTBOUND CALLING INSTRUCTIONS:
+- You INITIATED this call. You called the person, they did not call you.
+- After your greeting, WAIT for the person to respond. Then continue the conversation naturally.
+- State the purpose of your call clearly and early in the conversation.
+- Guide the conversation toward the goal of this use case.
+- Handle objections with empathy and provide clear value.
+- If the person is not interested, be respectful and end the call politely.
+- If the person asks questions, answer them knowledgeably based on your script and knowledge base.
+- Keep responses SHORT — 1 to 3 sentences. This is a phone call, not an email.
+- Be warm, natural, and conversational. You are a real person, not a robot.
+- Ask qualifying questions to understand the person's needs.
+- When the conversation goal is achieved or the person wants to end the call, wrap up naturally.`;
+
       const agentPayload = {
         type: 'incoming',
         name: newAgentName.trim(),
-        systemPrompt: callScript || `You are a professional AI phone agent. Be helpful, friendly, and concise.`,
+        systemPrompt: outboundSystemPrompt,
         firstMessage: greetingMessage || undefined,
         language: shortLang,
         voiceProvider: 'aws_polly',
         awsPollyVoiceId: newAgentVoiceId,
         voiceName: selectedVoice?.name || newAgentVoiceId,
         telephonyProvider: 'twilio',
+        endConversationEnabled: true,
       };
       const res = await apiRequest("POST", "/api/agents", agentPayload);
       return res.json();

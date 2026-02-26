@@ -116,7 +116,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
   // AI Generate Greeting Message
   router.post("/api/campaigns/generate-greeting", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      const { callType, campaignName } = req.body;
+      const { callType, campaignName, useCase, useCaseDescription, language } = req.body;
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -124,7 +124,9 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       });
 
       let contextPrompt = "";
-      if (callType === "flow_template") {
+      if (useCase && useCaseDescription) {
+        contextPrompt = `The use case is "${useCase}": ${useCaseDescription}`;
+      } else if (callType === "flow_template") {
         contextPrompt = "This is a flow-based calling campaign that follows scripted conversation steps with branching logic.";
       } else if (callType === "dynamic_form") {
         contextPrompt = "This is a data collection campaign where the AI agent collects information from contacts using a dynamic form.";
@@ -132,12 +134,16 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         contextPrompt = "This is a general calling campaign.";
       }
 
+      const langInstruction = language && language !== 'en'
+        ? ` Generate the greeting in the language matching the code "${language}" (e.g. es=Spanish, fr=French, de=German, etc.).`
+        : '';
+
       const response = await openai.chat.completions.create({
-        model: "gpt-5-nano",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "You are a professional greeting message writer for AI calling campaigns. Generate a natural, warm, and professional greeting message that the AI agent will say when calling contacts. Keep it concise (1-3 sentences). Do not use quotes around the message. Only output the greeting text, nothing else."
+            content: `You are a professional greeting message writer for AI calling campaigns. Generate a natural, warm, and professional greeting message that the AI agent will say when calling contacts. Keep it concise (1-2 sentences). Do not use quotes around the message. Only output the greeting text, nothing else.${langInstruction}`
           },
           {
             role: "user",

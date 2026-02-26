@@ -159,6 +159,7 @@ interface Agent {
   awsPollyVoiceId: string | null;
   awsPollyEngine: string | null;
   knowledgeBaseIds: string[] | null;
+  firstMessage: string | null;
 }
 
 interface DeduplicatedContact {
@@ -221,12 +222,98 @@ interface KnowledgeBaseItem {
   isRAGEnabled: boolean;
 }
 
+interface PollyVoice {
+  id: string;
+  name: string;
+  description: string;
+  gender: 'Female' | 'Male';
+  language: string;
+  engine: 'neural' | 'generative';
+}
+
+const POLLY_VOICES: PollyVoice[] = [
+  { id: 'Joanna', name: 'Joanna', description: 'Clear, professional US English female voice', gender: 'Female', language: 'en-US', engine: 'neural' },
+  { id: 'Matthew', name: 'Matthew', description: 'Warm, conversational US English male voice', gender: 'Male', language: 'en-US', engine: 'neural' },
+  { id: 'Ruth', name: 'Ruth', description: 'Mature, authoritative US English female voice', gender: 'Female', language: 'en-US', engine: 'neural' },
+  { id: 'Stephen', name: 'Stephen', description: 'Deep, resonant US English male voice', gender: 'Male', language: 'en-US', engine: 'neural' },
+  { id: 'Danielle', name: 'Danielle', description: 'Modern, energetic US English female voice', gender: 'Female', language: 'en-US', engine: 'neural' },
+  { id: 'Gregory', name: 'Gregory', description: 'Calm, reassuring US English male voice', gender: 'Male', language: 'en-US', engine: 'neural' },
+  { id: 'Salli', name: 'Salli', description: 'Soft, pleasant US English female voice', gender: 'Female', language: 'en-US', engine: 'neural' },
+  { id: 'Joey', name: 'Joey', description: 'Casual, friendly US English male voice', gender: 'Male', language: 'en-US', engine: 'neural' },
+  { id: 'Amy', name: 'Amy', description: 'Professional British English female voice', gender: 'Female', language: 'en-GB', engine: 'neural' },
+  { id: 'Arthur', name: 'Arthur', description: 'Warm British English male voice', gender: 'Male', language: 'en-GB', engine: 'neural' },
+  { id: 'Emma', name: 'Emma', description: 'Natural British English female voice', gender: 'Female', language: 'en-GB', engine: 'neural' },
+  { id: 'Brian', name: 'Brian', description: 'Natural British English male voice', gender: 'Male', language: 'en-GB', engine: 'neural' },
+  { id: 'Olivia', name: 'Olivia', description: 'Warm Australian English female voice', gender: 'Female', language: 'en-AU', engine: 'neural' },
+  { id: 'Aria', name: 'Aria', description: 'Expressive New Zealand English female voice', gender: 'Female', language: 'en-NZ', engine: 'neural' },
+  { id: 'Niamh', name: 'Niamh', description: 'Natural Irish English female voice', gender: 'Female', language: 'en-IE', engine: 'neural' },
+  { id: 'Ayanda', name: 'Ayanda', description: 'Vibrant South African English female voice', gender: 'Female', language: 'en-ZA', engine: 'neural' },
+  { id: 'Lea', name: 'Lea', description: 'Elegant French female voice', gender: 'Female', language: 'fr-FR', engine: 'neural' },
+  { id: 'Remi', name: 'Remi', description: 'Smooth French male voice', gender: 'Male', language: 'fr-FR', engine: 'neural' },
+  { id: 'Gabrielle', name: 'Gabrielle', description: 'Natural Canadian French female voice', gender: 'Female', language: 'fr-CA', engine: 'neural' },
+  { id: 'Liam', name: 'Liam', description: 'Clear Canadian French male voice', gender: 'Male', language: 'fr-CA', engine: 'neural' },
+  { id: 'Lupe', name: 'Lupe', description: 'Natural US Spanish female voice', gender: 'Female', language: 'es-US', engine: 'neural' },
+  { id: 'Pedro', name: 'Pedro', description: 'Natural US Spanish male voice', gender: 'Male', language: 'es-US', engine: 'neural' },
+  { id: 'Lucia', name: 'Lucia', description: 'Professional Castilian Spanish female voice', gender: 'Female', language: 'es-ES', engine: 'neural' },
+  { id: 'Sergio', name: 'Sergio', description: 'Confident Castilian Spanish male voice', gender: 'Male', language: 'es-ES', engine: 'neural' },
+  { id: 'Mia', name: 'Mia', description: 'Warm Mexican Spanish female voice', gender: 'Female', language: 'es-MX', engine: 'neural' },
+  { id: 'Andres', name: 'Andres', description: 'Natural Mexican Spanish male voice', gender: 'Male', language: 'es-MX', engine: 'neural' },
+  { id: 'Vicki', name: 'Vicki', description: 'Friendly German female voice', gender: 'Female', language: 'de-DE', engine: 'neural' },
+  { id: 'Daniel', name: 'Daniel', description: 'Confident German male voice', gender: 'Male', language: 'de-DE', engine: 'neural' },
+  { id: 'Hannah', name: 'Hannah', description: 'Natural Austrian German female voice', gender: 'Female', language: 'de-AT', engine: 'neural' },
+  { id: 'Bianca', name: 'Bianca', description: 'Elegant Italian female voice', gender: 'Female', language: 'it-IT', engine: 'neural' },
+  { id: 'Adriano', name: 'Adriano', description: 'Smooth Italian male voice', gender: 'Male', language: 'it-IT', engine: 'neural' },
+  { id: 'Kajal', name: 'Kajal', description: 'Natural Hindi female voice', gender: 'Female', language: 'hi-IN', engine: 'neural' },
+  { id: 'Zhiyu', name: 'Zhiyu', description: 'Professional Mandarin Chinese female voice', gender: 'Female', language: 'cmn-CN', engine: 'neural' },
+  { id: 'Hiujin', name: 'Hiujin', description: 'Natural Cantonese Chinese female voice', gender: 'Female', language: 'yue-CN', engine: 'neural' },
+  { id: 'Hala', name: 'Hala', description: 'Clear Gulf Arabic female voice', gender: 'Female', language: 'ar-AE', engine: 'neural' },
+  { id: 'Zayd', name: 'Zayd', description: 'Natural Gulf Arabic male voice', gender: 'Male', language: 'ar-AE', engine: 'neural' },
+  { id: 'Takumi', name: 'Takumi', description: 'Natural Japanese male voice', gender: 'Male', language: 'ja-JP', engine: 'neural' },
+  { id: 'Kazuha', name: 'Kazuha', description: 'Warm Japanese female voice', gender: 'Female', language: 'ja-JP', engine: 'neural' },
+  { id: 'Seoyeon', name: 'Seoyeon', description: 'Clear Korean female voice', gender: 'Female', language: 'ko-KR', engine: 'neural' },
+  { id: 'Camila', name: 'Camila', description: 'Warm Brazilian Portuguese female voice', gender: 'Female', language: 'pt-BR', engine: 'neural' },
+  { id: 'Thiago', name: 'Thiago', description: 'Natural Brazilian Portuguese male voice', gender: 'Male', language: 'pt-BR', engine: 'neural' },
+  { id: 'Ines', name: 'Ines', description: 'Clear Portuguese female voice', gender: 'Female', language: 'pt-PT', engine: 'neural' },
+  { id: 'Laura', name: 'Laura', description: 'Natural Dutch female voice', gender: 'Female', language: 'nl-NL', engine: 'neural' },
+  { id: 'Ola', name: 'Ola', description: 'Friendly Polish female voice', gender: 'Female', language: 'pl-PL', engine: 'neural' },
+  { id: 'Suvi', name: 'Suvi', description: 'Clear Finnish female voice', gender: 'Female', language: 'fi-FI', engine: 'neural' },
+  { id: 'Ida', name: 'Ida', description: 'Natural Norwegian female voice', gender: 'Female', language: 'nb-NO', engine: 'neural' },
+  { id: 'Elin', name: 'Elin', description: 'Bright Swedish female voice', gender: 'Female', language: 'sv-SE', engine: 'neural' },
+  { id: 'Sofie', name: 'Sofie', description: 'Natural Danish female voice', gender: 'Female', language: 'da-DK', engine: 'neural' },
+  { id: 'Burcu', name: 'Burcu', description: 'Natural Turkish female voice', gender: 'Female', language: 'tr-TR', engine: 'neural' },
+];
+
+const POLLY_LANGUAGE_MAP: Record<string, string> = {
+  'en-US': 'English (US)', 'en-GB': 'English (UK)', 'en-AU': 'English (AU)',
+  'en-NZ': 'English (NZ)', 'en-IE': 'English (IE)', 'en-ZA': 'English (ZA)',
+  'fr-FR': 'French', 'fr-CA': 'French (CA)',
+  'es-US': 'Spanish (US)', 'es-ES': 'Spanish (ES)', 'es-MX': 'Spanish (MX)',
+  'de-DE': 'German', 'de-AT': 'German (AT)',
+  'it-IT': 'Italian', 'hi-IN': 'Hindi',
+  'cmn-CN': 'Chinese (Mandarin)', 'yue-CN': 'Chinese (Cantonese)',
+  'ar-AE': 'Arabic (Gulf)', 'ja-JP': 'Japanese', 'ko-KR': 'Korean',
+  'pt-BR': 'Portuguese (BR)', 'pt-PT': 'Portuguese (PT)',
+  'nl-NL': 'Dutch', 'pl-PL': 'Polish', 'fi-FI': 'Finnish',
+  'nb-NO': 'Norwegian', 'sv-SE': 'Swedish', 'da-DK': 'Danish', 'tr-TR': 'Turkish',
+};
+
+const POLLY_LANG_TO_SHORT: Record<string, string> = {
+  'en-US': 'en', 'en-GB': 'en', 'en-AU': 'en', 'en-NZ': 'en', 'en-IE': 'en', 'en-ZA': 'en',
+  'fr-FR': 'fr', 'fr-CA': 'fr', 'es-US': 'es', 'es-ES': 'es', 'es-MX': 'es',
+  'de-DE': 'de', 'de-AT': 'de', 'it-IT': 'it', 'hi-IN': 'hi',
+  'cmn-CN': 'zh', 'yue-CN': 'zh', 'ar-AE': 'ar',
+  'ja-JP': 'ja', 'ko-KR': 'ko', 'pt-BR': 'pt', 'pt-PT': 'pt',
+  'nl-NL': 'nl', 'pl-PL': 'pl', 'fi-FI': 'fi',
+  'nb-NO': 'no', 'sv-SE': 'sv', 'da-DK': 'da', 'tr-TR': 'tr',
+};
+
 const getLanguageLabel = (code: string) => {
   const labels: Record<string, string> = {
     en: "English", ar: "Arabic", fr: "French", hi: "Hindi",
     it: "Italian", zh: "Chinese", es: "Spanish", de: "German",
     pt: "Portuguese", ja: "Japanese", ko: "Korean", ru: "Russian",
     nl: "Dutch", tr: "Turkish", pl: "Polish", sv: "Swedish",
+    no: "Norwegian", fi: "Finnish", da: "Danish",
   };
   return labels[code] || code.toUpperCase();
 };
@@ -295,6 +382,11 @@ function OutboundWizard() {
   const [referenceUrl, setReferenceUrl] = useState("");
   const [expandedScript, setExpandedScript] = useState(false);
   const [greetingMessage, setGreetingMessage] = useState("");
+  const [showCreateAgent, setShowCreateAgent] = useState(false);
+  const [newAgentName, setNewAgentName] = useState("");
+  const [newAgentVoiceId, setNewAgentVoiceId] = useState("Joanna");
+  const [newAgentLanguage, setNewAgentLanguage] = useState("en-US");
+  const [newAgentGenderFilter, setNewAgentGenderFilter] = useState<'all' | 'Female' | 'Male'>('all');
 
   const { data: flowTemplates = [], isLoading: templatesLoading } = useQuery<FlowTemplate[]>({
     queryKey: ["/api/flow-automation/flow-templates"],
@@ -340,6 +432,60 @@ function OutboundWizard() {
     },
     onError: (error: any) => {
       toast({ title: "Import Failed", description: error.message || "Could not import URL", variant: "destructive" });
+    },
+  });
+
+  const createAgentMutation = useMutation({
+    mutationFn: async () => {
+      const selectedVoice = POLLY_VOICES.find(v => v.id === newAgentVoiceId);
+      const shortLang = POLLY_LANG_TO_SHORT[newAgentLanguage] || 'en';
+      const agentPayload = {
+        type: 'incoming',
+        name: newAgentName.trim(),
+        systemPrompt: callScript || `You are a professional AI phone agent. Be helpful, friendly, and concise.`,
+        firstMessage: greetingMessage || undefined,
+        language: shortLang,
+        voiceProvider: 'aws_polly',
+        awsPollyVoiceId: newAgentVoiceId,
+        voiceName: selectedVoice?.name || newAgentVoiceId,
+        telephonyProvider: 'twilio',
+        elevenLabsVoiceId: 'placeholder',
+      };
+      const res = await apiRequest("POST", "/api/agents", agentPayload);
+      return res.json();
+    },
+    onSuccess: (agent: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      setSelectedAgentId(agent.id);
+      setShowCreateAgent(false);
+      setNewAgentName("");
+      toast({ title: "Agent Created", description: `"${agent.name}" is ready with AWS Polly voice.` });
+    },
+    onError: (error: any) => {
+      toast({ title: "Agent Creation Failed", description: error.message || "Could not create agent", variant: "destructive" });
+    },
+  });
+
+  const generateGreetingMutation = useMutation({
+    mutationFn: async () => {
+      const template = flowTemplates.find(t => t.id === selectedTemplateId);
+      const agentLang = selectedAgent?.language || 'en';
+      const res = await apiRequest("POST", "/api/campaigns/generate-greeting", {
+        campaignName,
+        useCase: template?.name || undefined,
+        useCaseDescription: template?.description || undefined,
+        language: agentLang,
+      });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.greeting) {
+        setGreetingMessage(data.greeting);
+        toast({ title: "Greeting Generated", description: "AI-generated greeting message applied." });
+      }
+    },
+    onError: () => {
+      toast({ title: "Generation Failed", description: "Could not generate greeting", variant: "destructive" });
     },
   });
 
@@ -438,6 +584,22 @@ function OutboundWizard() {
     }
     return result;
   }, [selectedTemplateCategory, templateSearch]);
+
+  const pollyLanguageOptions = useMemo(() => {
+    const langs = new Map<string, string>();
+    POLLY_VOICES.forEach(v => {
+      if (!langs.has(v.language)) langs.set(v.language, POLLY_LANGUAGE_MAP[v.language] || v.language);
+    });
+    return Array.from(langs.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, []);
+
+  const filteredPollyVoices = useMemo(() => {
+    let voices = POLLY_VOICES.filter(v => v.language === newAgentLanguage);
+    if (newAgentGenderFilter !== 'all') {
+      voices = voices.filter(v => v.gender === newAgentGenderFilter);
+    }
+    return voices;
+  }, [newAgentLanguage, newAgentGenderFilter]);
 
   const filteredFlowTemplates = useMemo(() => {
     let result = flowTemplates;
@@ -1132,8 +1294,8 @@ function OutboundWizard() {
                 }`}
                 onClick={() => {
                   setSelectedAgentId(agent.id);
-                  if ((agent as any).firstMessage && !greetingMessage) {
-                    setGreetingMessage((agent as any).firstMessage);
+                  if (agent.firstMessage && !greetingMessage) {
+                    setGreetingMessage(agent.firstMessage);
                   }
                 }}
                 data-testid={`card-agent-${agent.id}`}
@@ -1209,6 +1371,134 @@ function OutboundWizard() {
           })}
         </div>
       )}
+
+      <div className="w-full max-w-2xl mx-auto">
+        {!showCreateAgent ? (
+          <Button
+            variant="outline"
+            className="w-full h-10 border-dashed border-2 text-sm"
+            onClick={() => {
+              setShowCreateAgent(true);
+              if (selectedFlowTemplate) {
+                setNewAgentName(selectedFlowTemplate.name + " Agent");
+              }
+            }}
+            data-testid="button-create-new-agent"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Create New Agent with Voice & Language
+          </Button>
+        ) : (
+          <Card className="border-2 border-primary/30 bg-primary/5">
+            <CardContent className="p-3 sm:p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm flex items-center gap-1.5">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  Quick Create Agent
+                </h3>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setShowCreateAgent(false)} data-testid="button-cancel-create-agent">
+                  Cancel
+                </Button>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Agent Name *</Label>
+                <Input
+                  value={newAgentName}
+                  onChange={(e) => setNewAgentName(e.target.value)}
+                  placeholder="e.g., Sales Agent, Support Bot..."
+                  className="h-9 text-sm"
+                  data-testid="input-new-agent-name"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Language</Label>
+                <Select value={newAgentLanguage} onValueChange={(val) => {
+                  setNewAgentLanguage(val);
+                  const firstVoice = POLLY_VOICES.find(v => v.language === val);
+                  if (firstVoice) setNewAgentVoiceId(firstVoice.id);
+                }}>
+                  <SelectTrigger className="h-9 text-sm" data-testid="select-new-agent-language">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pollyLanguageOptions.map(([code, label]) => (
+                      <SelectItem key={code} value={code}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Voice</Label>
+                  <div className="flex items-center gap-1">
+                    {(['all', 'Female', 'Male'] as const).map(g => (
+                      <Button
+                        key={g}
+                        variant={newAgentGenderFilter === g ? "default" : "outline"}
+                        size="sm"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => setNewAgentGenderFilter(g)}
+                        data-testid={`button-gender-${g}`}
+                      >
+                        {g === 'all' ? 'All' : g}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2 max-h-[180px] overflow-y-auto">
+                  {filteredPollyVoices.map(voice => (
+                    <div
+                      key={voice.id}
+                      className={`flex items-center gap-2.5 p-2 rounded-md border cursor-pointer transition-all ${
+                        newAgentVoiceId === voice.id
+                          ? "border-primary bg-primary/10 ring-1 ring-primary/20"
+                          : "hover:bg-accent/30"
+                      }`}
+                      onClick={() => setNewAgentVoiceId(voice.id)}
+                      data-testid={`voice-option-${voice.id}`}
+                    >
+                      <div className={`flex items-center justify-center h-8 w-8 rounded-full flex-shrink-0 text-xs font-bold ${
+                        newAgentVoiceId === voice.id
+                          ? "bg-primary text-primary-foreground"
+                          : voice.gender === 'Female'
+                          ? "bg-pink-100 dark:bg-pink-900/30 text-pink-600"
+                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-600"
+                      }`}>
+                        {newAgentVoiceId === voice.id ? <Check className="h-3.5 w-3.5" /> : voice.name[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs">{voice.name}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{voice.description}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredPollyVoices.length === 0 && (
+                    <div className="col-span-2 text-center py-4 text-xs text-muted-foreground">
+                      No voices match the selected filters
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                className="w-full h-9 text-sm"
+                disabled={!newAgentName.trim() || createAgentMutation.isPending}
+                onClick={() => createAgentMutation.mutate()}
+                data-testid="button-submit-create-agent"
+              >
+                {createAgentMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Creating...</>
+                ) : (
+                  <><Plus className="h-4 w-4 mr-1.5" /> Create & Select Agent</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 
@@ -1336,9 +1626,26 @@ function OutboundWizard() {
         </div>
 
         <div className="border-t pt-4 space-y-2">
-          <div className="flex items-center gap-2 mb-1">
-            <MessageSquare className="h-4 w-4 text-green-600" />
-            <Label className="font-medium text-sm">Greeting Message</Label>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-green-600" />
+              <Label className="font-medium text-sm">Greeting Message</Label>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs gap-1"
+              onClick={() => generateGreetingMutation.mutate()}
+              disabled={generateGreetingMutation.isPending}
+              data-testid="button-generate-greeting"
+            >
+              {generateGreetingMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
+              AI Generate
+            </Button>
           </div>
           <Input
             value={greetingMessage}
@@ -1348,7 +1655,9 @@ function OutboundWizard() {
             data-testid="input-greeting-message"
           />
           <p className="text-xs text-muted-foreground">
-            The first thing the AI agent says when the call connects. Leave empty to use the agent's default greeting.
+            {selectedFlowTemplate
+              ? `Click "AI Generate" to create a greeting based on your "${selectedFlowTemplate.name}" use case.`
+              : "The first thing the AI agent says when the call connects. Leave empty to use the agent's default greeting."}
           </p>
         </div>
 

@@ -457,7 +457,6 @@ function OutboundWizard() {
         awsPollyVoiceId: newAgentVoiceId,
         voiceName: selectedVoice?.name || newAgentVoiceId,
         telephonyProvider: 'twilio',
-        elevenLabsVoiceId: 'placeholder',
       };
       const res = await apiRequest("POST", "/api/agents", agentPayload);
       return res.json();

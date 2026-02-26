@@ -80,6 +80,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         voiceSpeed,
         telephonyProvider,
         openaiVoice,
+        voiceProvider,
         sourceTemplateId,
         isFromTemplate,
         tags,
@@ -112,6 +113,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           // OpenAI-based agents use OpenAI voices - openaiVoice has a default in schema ('alloy')
           // No validation needed as schema provides default
           console.log(`📞 Creating ${telephonyProvider} agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
+        } else if (voiceProvider === 'aws_polly') {
+          // AWS Polly agents use awsPollyVoiceId, not ElevenLabs
+          if (!req.body.awsPollyVoiceId) {
+            return res.status(400).json({ error: "AWS Polly Voice ID is required for Polly agents" });
+          }
+          console.log(`📞 Creating AWS Polly agent with voice: ${req.body.awsPollyVoiceId}`);
         } else {
           // Twilio/ElevenLabs agents require elevenLabsVoiceId
           if (!elevenLabsVoiceId) {
@@ -222,8 +229,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       let usedCredentialId: string | null = null;
 
-      // Only create ElevenLabs agent for Twilio-based incoming agents (not OpenAI providers)
-      if (type === 'incoming' && !isOpenAIProvider) {
+      const isAwsPollyProvider = voiceProvider === 'aws_polly';
+
+      // Only create ElevenLabs agent for Twilio-based incoming agents (not OpenAI or AWS Polly providers)
+      if (type === 'incoming' && !isOpenAIProvider && !isAwsPollyProvider) {
         const credential = await ElevenLabsPoolService.getUserCredential(req.userId!);
         if (!credential) {
           return res.status(500).json({ error: "No available ElevenLabs API keys" });
@@ -396,6 +405,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         voiceStability: (type === 'incoming' || type === 'flow') ? (voiceStability ?? 0.55) : null,
         voiceSimilarityBoost: (type === 'incoming' || type === 'flow') ? (voiceSimilarityBoost ?? 0.85) : null,
         voiceSpeed: (type === 'incoming' || type === 'flow') ? (voiceSpeed ?? 1.0) : null,
+        // Voice provider configuration
+        voiceProvider: voiceProvider || 'elevenlabs',
+        awsPollyVoiceId: voiceProvider === 'aws_polly' ? req.body.awsPollyVoiceId : null,
         // OpenAI Realtime configuration (for plivo and twilio_openai providers)
         telephonyProvider: isOpenAIProvider ? telephonyProvider : 'twilio',
         openaiVoice: isOpenAIProvider ? (openaiVoice || 'alloy') : null,

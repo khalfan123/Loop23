@@ -1259,6 +1259,134 @@ function OutboundWizard() {
             </Select>
           </div>
         )}
+
+        <div>
+          {!showCreateAgent ? (
+            <Button
+              variant="outline"
+              className="w-full h-10 border-dashed border-2 text-sm"
+              onClick={() => {
+                setShowCreateAgent(true);
+                if (selectedFlowTemplate) {
+                  setNewAgentName(selectedFlowTemplate.name + " Agent");
+                }
+              }}
+              data-testid="button-create-new-agent"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Train your Own Agent
+            </Button>
+          ) : (
+            <Card className="border-2 border-primary/30 bg-primary/5">
+              <CardContent className="p-3 sm:p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm flex items-center gap-1.5">
+                    <UserPlus className="h-4 w-4 text-primary" />
+                    Train your Own Agent
+                  </h3>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setShowCreateAgent(false)} data-testid="button-cancel-create-agent">
+                    Cancel
+                  </Button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Agent Name *</Label>
+                  <Input
+                    value={newAgentName}
+                    onChange={(e) => setNewAgentName(e.target.value)}
+                    placeholder="e.g., Sales Agent, Support Bot..."
+                    className="h-9 text-sm"
+                    data-testid="input-new-agent-name"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Language</Label>
+                  <Select value={newAgentLanguage} onValueChange={(val) => {
+                    setNewAgentLanguage(val);
+                    const firstVoice = POLLY_VOICES.find(v => v.language === val);
+                    if (firstVoice) setNewAgentVoiceId(firstVoice.id);
+                  }}>
+                    <SelectTrigger className="h-9 text-sm" data-testid="select-new-agent-language">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pollyLanguageOptions.map(([code, label]) => (
+                        <SelectItem key={code} value={code}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium">Voice</Label>
+                    <div className="flex items-center gap-1">
+                      {(['all', 'Female', 'Male'] as const).map(g => (
+                        <Button
+                          key={g}
+                          variant={newAgentGenderFilter === g ? "default" : "outline"}
+                          size="sm"
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => setNewAgentGenderFilter(g)}
+                          data-testid={`button-gender-${g}`}
+                        >
+                          {g === 'all' ? 'All' : g}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2 max-h-[180px] overflow-y-auto">
+                    {filteredPollyVoices.map(voice => (
+                      <div
+                        key={voice.id}
+                        className={`flex items-center gap-2.5 p-2 rounded-md border cursor-pointer transition-all ${
+                          newAgentVoiceId === voice.id
+                            ? "border-primary bg-primary/10 ring-1 ring-primary/20"
+                            : "hover:bg-accent/30"
+                        }`}
+                        onClick={() => setNewAgentVoiceId(voice.id)}
+                        data-testid={`voice-option-${voice.id}`}
+                      >
+                        <div className={`flex items-center justify-center h-8 w-8 rounded-full flex-shrink-0 text-xs font-bold ${
+                          newAgentVoiceId === voice.id
+                            ? "bg-primary text-primary-foreground"
+                            : voice.gender === 'Female'
+                            ? "bg-pink-100 dark:bg-pink-900/30 text-pink-600"
+                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-600"
+                        }`}>
+                          {newAgentVoiceId === voice.id ? <Check className="h-3.5 w-3.5" /> : voice.name[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-xs">{voice.name}</div>
+                          <div className="text-[10px] text-muted-foreground truncate">{voice.description}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredPollyVoices.length === 0 && (
+                      <div className="col-span-2 text-center py-4 text-xs text-muted-foreground">
+                        No voices match the selected filters
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full h-9 text-sm"
+                  disabled={!newAgentName.trim() || createAgentMutation.isPending}
+                  onClick={() => createAgentMutation.mutate()}
+                  data-testid="button-submit-create-agent"
+                >
+                  {createAgentMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Creating...</>
+                  ) : (
+                    <><Plus className="h-4 w-4 mr-1.5" /> Create & Select Agent</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       {agentsLoading ? (
@@ -1371,134 +1499,6 @@ function OutboundWizard() {
           })}
         </div>
       )}
-
-      <div className="w-full max-w-2xl mx-auto">
-        {!showCreateAgent ? (
-          <Button
-            variant="outline"
-            className="w-full h-10 border-dashed border-2 text-sm"
-            onClick={() => {
-              setShowCreateAgent(true);
-              if (selectedFlowTemplate) {
-                setNewAgentName(selectedFlowTemplate.name + " Agent");
-              }
-            }}
-            data-testid="button-create-new-agent"
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Create New Agent with Voice & Language
-          </Button>
-        ) : (
-          <Card className="border-2 border-primary/30 bg-primary/5">
-            <CardContent className="p-3 sm:p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm flex items-center gap-1.5">
-                  <UserPlus className="h-4 w-4 text-primary" />
-                  Quick Create Agent
-                </h3>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setShowCreateAgent(false)} data-testid="button-cancel-create-agent">
-                  Cancel
-                </Button>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Agent Name *</Label>
-                <Input
-                  value={newAgentName}
-                  onChange={(e) => setNewAgentName(e.target.value)}
-                  placeholder="e.g., Sales Agent, Support Bot..."
-                  className="h-9 text-sm"
-                  data-testid="input-new-agent-name"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Language</Label>
-                <Select value={newAgentLanguage} onValueChange={(val) => {
-                  setNewAgentLanguage(val);
-                  const firstVoice = POLLY_VOICES.find(v => v.language === val);
-                  if (firstVoice) setNewAgentVoiceId(firstVoice.id);
-                }}>
-                  <SelectTrigger className="h-9 text-sm" data-testid="select-new-agent-language">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pollyLanguageOptions.map(([code, label]) => (
-                      <SelectItem key={code} value={code}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium">Voice</Label>
-                  <div className="flex items-center gap-1">
-                    {(['all', 'Female', 'Male'] as const).map(g => (
-                      <Button
-                        key={g}
-                        variant={newAgentGenderFilter === g ? "default" : "outline"}
-                        size="sm"
-                        className="h-6 px-2 text-[10px]"
-                        onClick={() => setNewAgentGenderFilter(g)}
-                        data-testid={`button-gender-${g}`}
-                      >
-                        {g === 'all' ? 'All' : g}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2 max-h-[180px] overflow-y-auto">
-                  {filteredPollyVoices.map(voice => (
-                    <div
-                      key={voice.id}
-                      className={`flex items-center gap-2.5 p-2 rounded-md border cursor-pointer transition-all ${
-                        newAgentVoiceId === voice.id
-                          ? "border-primary bg-primary/10 ring-1 ring-primary/20"
-                          : "hover:bg-accent/30"
-                      }`}
-                      onClick={() => setNewAgentVoiceId(voice.id)}
-                      data-testid={`voice-option-${voice.id}`}
-                    >
-                      <div className={`flex items-center justify-center h-8 w-8 rounded-full flex-shrink-0 text-xs font-bold ${
-                        newAgentVoiceId === voice.id
-                          ? "bg-primary text-primary-foreground"
-                          : voice.gender === 'Female'
-                          ? "bg-pink-100 dark:bg-pink-900/30 text-pink-600"
-                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-600"
-                      }`}>
-                        {newAgentVoiceId === voice.id ? <Check className="h-3.5 w-3.5" /> : voice.name[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-xs">{voice.name}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">{voice.description}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {filteredPollyVoices.length === 0 && (
-                    <div className="col-span-2 text-center py-4 text-xs text-muted-foreground">
-                      No voices match the selected filters
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <Button
-                className="w-full h-9 text-sm"
-                disabled={!newAgentName.trim() || createAgentMutation.isPending}
-                onClick={() => createAgentMutation.mutate()}
-                data-testid="button-submit-create-agent"
-              >
-                {createAgentMutation.isPending ? (
-                  <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Creating...</>
-                ) : (
-                  <><Plus className="h-4 w-4 mr-1.5" /> Create & Select Agent</>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
     </div>
   );
 

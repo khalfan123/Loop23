@@ -749,6 +749,82 @@ router.get('/voices', (_req: Request, res: Response) => {
   res.json(POLLY_VOICES);
 });
 
+router.get('/voice-preview/:voiceId', async (req: Request, res: Response) => {
+  try {
+    const { voiceId } = req.params;
+    const voice = POLLY_VOICES.find(v => v.id === voiceId);
+    if (!voice) {
+      return res.status(404).json({ error: 'Voice not found' });
+    }
+
+    const PREVIEW_TEXTS: Record<string, string> = {
+      'en-US': "Hi there! I'm your AI assistant. How can I help you today?",
+      'en-GB': "Hello! I'm your AI assistant. How may I help you today?",
+      'en-AU': "G'day! I'm your AI assistant. How can I help you today?",
+      'en-NZ': "Hello there! I'm your AI assistant. How can I help?",
+      'en-IE': "Hello! I'm your AI assistant. How can I help you today?",
+      'en-ZA': "Hello! I'm your AI assistant. How can I help you today?",
+      'fr-FR': "Bonjour ! Je suis votre assistant. Comment puis-je vous aider ?",
+      'fr-CA': "Bonjour ! Je suis votre assistant. Comment puis-je vous aider ?",
+      'es-US': "¡Hola! Soy tu asistente. ¿En qué puedo ayudarte hoy?",
+      'es-ES': "¡Hola! Soy tu asistente. ¿En qué puedo ayudarte hoy?",
+      'es-MX': "¡Hola! Soy tu asistente. ¿En qué puedo ayudarte hoy?",
+      'de-DE': "Hallo! Ich bin Ihr Assistent. Wie kann ich Ihnen helfen?",
+      'de-AT': "Hallo! Ich bin Ihr Assistent. Wie kann ich Ihnen helfen?",
+      'it-IT': "Ciao! Sono il tuo assistente. Come posso aiutarti oggi?",
+      'hi-IN': "नमस्ते! मैं आपका सहायक हूँ। आज मैं आपकी कैसे मदद कर सकता हूँ?",
+      'cmn-CN': "你好！我是你的助手。今天我能帮你什么？",
+      'yue-CN': "你好！我係你嘅助手。今日有咩可以幫到你？",
+      'ar-AE': "مرحباً! أنا مساعدك. كيف يمكنني مساعدتك اليوم؟",
+      'ja-JP': "こんにちは！AIアシスタントです。本日はどのようなご用件でしょうか？",
+      'ko-KR': "안녕하세요! AI 어시스턴트입니다. 무엇을 도와드릴까요?",
+      'pt-BR': "Olá! Sou seu assistente. Como posso ajudá-lo hoje?",
+      'pt-PT': "Olá! Sou o seu assistente. Como posso ajudá-lo hoje?",
+      'nl-NL': "Hallo! Ik ben uw assistent. Hoe kan ik u helpen?",
+      'nl-BE': "Hallo! Ik ben uw assistent. Hoe kan ik u helpen?",
+      'pl-PL': "Cześć! Jestem twoim asystentem. Jak mogę ci pomóc?",
+      'fi-FI': "Hei! Olen avustajasi. Kuinka voin auttaa sinua tänään?",
+      'nb-NO': "Hei! Jeg er din assistent. Hvordan kan jeg hjelpe deg?",
+      'sv-SE': "Hej! Jag är din assistent. Hur kan jag hjälpa dig?",
+      'da-DK': "Hej! Jeg er din assistent. Hvordan kan jeg hjælpe dig?",
+      'tr-TR': "Merhaba! Ben sizin asistanınızım. Size nasıl yardımcı olabilirim?",
+    };
+
+    const previewText = PREVIEW_TEXTS[voice.language] || PREVIEW_TEXTS['en-US'];
+
+    const result = await awsPollyService.synthesizeSpeech({
+      text: previewText,
+      voiceId: voice.id,
+      engine: 'neural',
+      outputFormat: 'mp3',
+      sampleRate: '22050',
+    });
+
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': result.audioStream.length.toString(),
+      'Cache-Control': 'public, max-age=86400',
+    });
+    res.send(result.audioStream);
+  } catch (error: any) {
+    console.error(`[VoicePreview] Failed for ${req.params.voiceId}:`, error.message);
+    try {
+      const voice = POLLY_VOICES.find(v => v.id === req.params.voiceId);
+      const result = await awsPollyService.synthesizeSpeech({
+        text: "Hi there! I'm your AI assistant.",
+        voiceId: req.params.voiceId,
+        engine: 'standard',
+        outputFormat: 'mp3',
+        sampleRate: '22050',
+      });
+      res.set({ 'Content-Type': 'audio/mpeg', 'Content-Length': result.audioStream.length.toString() });
+      res.send(result.audioStream);
+    } catch (fallbackErr: any) {
+      res.status(500).json({ error: 'Failed to generate voice preview' });
+    }
+  }
+});
+
 router.get('/models', (_req: Request, res: Response) => {
   res.json(awsBedrockService.listModels());
 });

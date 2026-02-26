@@ -72,6 +72,8 @@ import {
   ExternalLink,
   FileUp,
   Info,
+  Volume2,
+  Square,
 } from "lucide-react";
 import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
 
@@ -387,6 +389,8 @@ function OutboundWizard() {
   const [newAgentVoiceId, setNewAgentVoiceId] = useState("Joanna");
   const [newAgentLanguage, setNewAgentLanguage] = useState("en-US");
   const [newAgentGenderFilter, setNewAgentGenderFilter] = useState<'all' | 'Female' | 'Male'>('all');
+  const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
+  const [previewAudio, setPreviewAudio] = useState<HTMLAudioElement | null>(null);
 
   const { data: flowTemplates = [], isLoading: templatesLoading } = useQuery<FlowTemplate[]>({
     queryKey: ["/api/flow-automation/flow-templates"],
@@ -647,6 +651,34 @@ function OutboundWizard() {
 
   const clearContacts = () => {
     setSelectedContactIds([]);
+  };
+
+  const playVoicePreview = (voiceId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (previewingVoiceId === voiceId && previewAudio) {
+      previewAudio.pause();
+      previewAudio.currentTime = 0;
+      setPreviewingVoiceId(null);
+      setPreviewAudio(null);
+      return;
+    }
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio.currentTime = 0;
+    }
+    setPreviewingVoiceId(voiceId);
+    const audio = new Audio(`/api/bedrock-polly/voice-preview/${voiceId}`);
+    audio.onended = () => {
+      setPreviewingVoiceId(null);
+      setPreviewAudio(null);
+    };
+    audio.onerror = () => {
+      setPreviewingVoiceId(null);
+      setPreviewAudio(null);
+      toast({ title: "Preview Failed", description: "Could not play voice preview", variant: "destructive" });
+    };
+    audio.play();
+    setPreviewAudio(audio);
   };
 
   const toggleKnowledgeBase = (kbId: string) => {
@@ -1222,15 +1254,6 @@ function OutboundWizard() {
       </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-3">
-        <div className="bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-lg p-3">
-          <div className="flex items-start gap-2">
-            <AudioWaveform className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
-            <div className="text-xs">
-              <span className="font-medium text-orange-700 dark:text-orange-400">AWS Polly Neural Voice</span>
-              <span className="text-muted-foreground ml-1">— Humanized speech with SSML prosody variation, natural pauses, and breathing breaks for lifelike conversations.</span>
-            </div>
-          </div>
-        </div>
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1361,6 +1384,23 @@ function OutboundWizard() {
                           <div className="font-medium text-xs">{voice.name}</div>
                           <div className="text-[10px] text-muted-foreground truncate">{voice.description}</div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`h-7 w-7 p-0 flex-shrink-0 rounded-full ${
+                            previewingVoiceId === voice.id
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "hover:bg-accent"
+                          }`}
+                          onClick={(e) => playVoicePreview(voice.id, e)}
+                          data-testid={`button-preview-voice-${voice.id}`}
+                        >
+                          {previewingVoiceId === voice.id ? (
+                            <Square className="h-3 w-3" />
+                          ) : (
+                            <Volume2 className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
                       </div>
                     ))}
                     {filteredPollyVoices.length === 0 && (

@@ -58,6 +58,10 @@ const bargeInFlags: Map<string, boolean> = new Map();
 const noResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 const callerHasSpoken: Map<string, boolean> = new Map();
 
+const bargeInAccum: Map<string, number> = new Map();
+
+const playingGreeting: Map<string, boolean> = new Map();
+
 /**
  * Twilio stream ready flags, tracked separately from session to avoid
  * race conditions during first-message sending.
@@ -271,14 +275,24 @@ export class BedrockPollyAudioBridge {
             console.log(`[BedrockPolly Bridge] Media event #${session._mediaLogThrottle} for ${callSid}, chunk=${audioChunk.length}b, processing=${session.isProcessing}, status=${session.status}`);
           }
 
+          if (playingGreeting.get(callSid)) {
+            break;
+          }
+
           if (session.isProcessing) {
-            bargeInFlags.set(callSid, true);
-            if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
-              session.twilioWs.send(JSON.stringify({
-                event: 'clear',
-                streamSid: session.streamSid,
-              }));
+            const accum = (bargeInAccum.get(callSid) || 0) + audioChunk.length;
+            bargeInAccum.set(callSid, accum);
+            if (accum >= this.MIN_AUDIO_LENGTH && !bargeInFlags.get(callSid)) {
+              bargeInFlags.set(callSid, true);
+              console.log(`[BedrockPolly Bridge] Barge-in activated for ${callSid} (accum=${accum}b)`);
+              if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
+                session.twilioWs.send(JSON.stringify({
+                  event: 'clear',
+                  streamSid: session.streamSid,
+                }));
+              }
             }
+            break;
           }
 
           let buf = audioBuffers.get(callSid);
@@ -334,10 +348,15 @@ export class BedrockPollyAudioBridge {
     silenceTimers.delete(callSid);
     bufferStartTimes.delete(callSid);
 
-    if (session.isProcessing) return;
+    if (session.isProcessing) {
+      console.log(`[BedrockPolly Bridge] onSilenceDetected skipped — isProcessing=true for ${callSid}`);
+      return;
+    }
 
     const buf = audioBuffers.get(callSid) || [];
     const totalLength = buf.reduce((sum, b) => sum + b.length, 0);
+    console.log(`[BedrockPolly Bridge] onSilenceDetected for ${callSid}: bufferSize=${totalLength}b, minRequired=${this.MIN_AUDIO_LENGTH}b, callerHasSpoken=${callerHasSpoken.get(callSid)}`);
+
     if (totalLength < this.MIN_AUDIO_LENGTH) {
       audioBuffers.set(callSid, []);
       return;
@@ -355,6 +374,7 @@ export class BedrockPollyAudioBridge {
 
     session.isProcessing = true;
     bargeInFlags.set(callSid, false);
+    bargeInAccum.set(callSid, 0);
 
     this.processUserTurn(session).catch((err) => {
       console.error(`[BedrockPolly Bridge] Error processing user turn for ${callSid}:`, err);
@@ -378,7 +398,7 @@ export class BedrockPollyAudioBridge {
       audioBuffers.set(callSid, []);
 
       const audioBuffer = Buffer.concat(buf);
-      console.log(`[BedrockPolly Bridge] Processing ${audioBuffer.length} bytes of audio for ${callSid}`);
+      console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b`);
 
       const transcription = await this.transcribeAudio(audioBuffer);
 
@@ -388,7 +408,7 @@ export class BedrockPollyAudioBridge {
         return;
       }
 
-      console.log(`[BedrockPolly Bridge] User: "${transcription.substring(0, 100)}"`);
+      console.log(`[BedrockPolly Bridge] User: "${transcription.substring(0, 200)}"`);
 
       session.transcriptParts.push({
         role: 'user',
@@ -406,11 +426,7 @@ export class BedrockPollyAudioBridge {
         timestamp: new Date(),
       });
 
-      if (bargeInFlags.get(callSid)) {
-        console.log(`[BedrockPolly Bridge] Barge-in detected during transcription, skipping response`);
-        session.isProcessing = false;
-        return;
-      }
+      console.log(`[BedrockPolly Bridge] Calling Bedrock for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
       const responseText = await this.getBedrockResponse(session);
 
@@ -420,7 +436,7 @@ export class BedrockPollyAudioBridge {
         return;
       }
 
-      console.log(`[BedrockPolly Bridge] Agent: "${responseText.substring(0, 100)}"`);
+      console.log(`[BedrockPolly Bridge] Agent: "${responseText.substring(0, 200)}"`);
 
       session.transcriptParts.push({
         role: 'assistant',
@@ -438,17 +454,12 @@ export class BedrockPollyAudioBridge {
         session.onTranscriptCallback(responseText, true);
       }
 
-      if (bargeInFlags.get(callSid)) {
-        console.log(`[BedrockPolly Bridge] Barge-in detected before synthesis, skipping`);
-        session.isProcessing = false;
-        return;
-      }
-
       await this.synthesizeAndSend(session, responseText);
     } catch (error: any) {
       console.error(`[BedrockPolly Bridge] Turn processing error for ${callSid}:`, error.message);
     } finally {
       session.isProcessing = false;
+      bargeInAccum.set(callSid, 0);
     }
   }
 
@@ -497,6 +508,7 @@ export class BedrockPollyAudioBridge {
     try {
       const wavHeader = createMulawWavHeader(audioBuffer.length);
       const wavBuffer = Buffer.concat([wavHeader, audioBuffer]);
+      console.log(`[BedrockPolly Bridge] Whisper: sending ${wavBuffer.length}b WAV (raw=${audioBuffer.length}b)`);
 
       const formData = new FormData();
       formData.append(
@@ -521,6 +533,7 @@ export class BedrockPollyAudioBridge {
       }
 
       const result = (await response.json()) as { text?: string };
+      console.log(`[BedrockPolly Bridge] Whisper result: "${(result.text || '').substring(0, 200)}" (len=${(result.text || '').length})`);
       return result.text || '';
     } catch (error: any) {
       console.error(`[BedrockPolly Bridge] Transcription error:`, error.message);
@@ -558,6 +571,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
 
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions;
+    console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}`);
 
     try {
       const response = await awsBedrockService.invoke({
@@ -569,6 +583,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       });
 
       const content = response.content || '';
+      console.log(`[BedrockPolly Bridge] Bedrock response: ${content.length} chars, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);
 
       const toolCallIdx = content.indexOf('[TOOL_CALL]');
       if (toolCallIdx !== -1) {
@@ -1013,6 +1028,17 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     console.log(`[BedrockPolly Bridge] Sending first message for ${callSid}: "${agentConfig.firstMessage.substring(0, 50)}..."`);
 
+    callerHasSpoken.set(callSid, false);
+    playingGreeting.set(callSid, true);
+
+    audioBuffers.set(callSid, []);
+    bufferStartTimes.delete(callSid);
+    const existingSilenceTimer = silenceTimers.get(callSid);
+    if (existingSilenceTimer) {
+      clearTimeout(existingSilenceTimer);
+      silenceTimers.delete(callSid);
+    }
+
     session.transcriptParts.push({
       role: 'assistant',
       text: agentConfig.firstMessage,
@@ -1031,7 +1057,12 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     await this.synthesizeAndSend(session, agentConfig.firstMessage);
 
-    callerHasSpoken.set(callSid, false);
+    playingGreeting.set(callSid, false);
+    audioBuffers.set(callSid, []);
+    bufferStartTimes.delete(callSid);
+
+    console.log(`[BedrockPolly Bridge] Greeting finished for ${callSid} — now listening`);
+
     const followUpTimer = setTimeout(async () => {
       noResponseTimers.delete(callSid);
       if (callerHasSpoken.get(callSid)) return;
@@ -1040,6 +1071,10 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       if (!currentSession || currentSession.status === 'disconnected') return;
 
       console.log(`[BedrockPolly Bridge] No response after greeting for ${callSid} — sending follow-up`);
+
+      playingGreeting.set(callSid, true);
+      audioBuffers.set(callSid, []);
+      bufferStartTimes.delete(callSid);
 
       const followUp = 'Hello? Are you there?';
 
@@ -1059,6 +1094,11 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       }
 
       await this.synthesizeAndSend(currentSession, followUp);
+
+      playingGreeting.set(callSid, false);
+      audioBuffers.set(callSid, []);
+      bufferStartTimes.delete(callSid);
+      console.log(`[BedrockPolly Bridge] Follow-up finished for ${callSid} — now listening`);
     }, this.NO_RESPONSE_TIMEOUT_MS);
     noResponseTimers.set(callSid, followUpTimer);
   }
@@ -1085,6 +1125,8 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     audioBuffers.delete(callSid);
     bufferStartTimes.delete(callSid);
     bargeInFlags.delete(callSid);
+    bargeInAccum.delete(callSid);
+    playingGreeting.delete(callSid);
     twilioStreamReady.delete(callSid);
 
     const nrTimer = noResponseTimers.get(callSid);

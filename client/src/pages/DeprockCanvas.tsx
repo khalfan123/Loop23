@@ -2745,10 +2745,6 @@ export default function DeprockCanvas() {
     queryKey: ["/api/deprock/ivr-configs-all"],
   });
 
-  const { data: allCampaigns = [] } = useQuery<{ id: string; phoneNumberId: string | null; name: string }[]>({
-    queryKey: ["/api/campaigns"],
-  });
-
   const { data: incomingConnsData } = useQuery<{ allConnections: { id: number; phoneNumberId: string | null; name: string }[] }>({
     queryKey: ["/api/incoming-connections"],
   });
@@ -2762,18 +2758,13 @@ export default function DeprockCanvas() {
         map.set(ivr.phoneNumberId, label);
       }
     });
-    allCampaigns.forEach((c) => {
-      if (c.phoneNumberId && !map.has(c.phoneNumberId)) {
-        map.set(c.phoneNumberId, `Campaign: ${c.name}`);
-      }
-    });
     allIncomingConns.forEach((conn) => {
       if (conn.phoneNumberId && !map.has(conn.phoneNumberId)) {
         map.set(conn.phoneNumberId, `Connection: ${conn.name || 'Incoming'}`);
       }
     });
     return map;
-  }, [allIvrConfigs, allCampaigns, allIncomingConns]);
+  }, [allIvrConfigs, allIncomingConns]);
 
   const allDeptLanguages = useMemo(() => {
     const langSet = new Set<string>();

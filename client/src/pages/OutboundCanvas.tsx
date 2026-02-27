@@ -449,15 +449,33 @@ function OutboundWizard() {
       const shortLang = POLLY_LANG_TO_SHORT[newAgentLanguage] || 'en';
       const template = flowTemplates.find(t => t.id === selectedTemplateId);
 
+      const categoryGoals: Record<string, string> = {
+        'Sales': 'YOUR GOAL: Qualify the lead, pitch the value, and either close the sale or schedule a follow-up demo/meeting. Ask about their current situation, identify pain points, and present how your solution solves them.',
+        'Support': 'YOUR GOAL: Resolve the customer\'s issue or concern. Ask clarifying questions, provide clear solutions, and confirm the issue is resolved before ending the call.',
+        'Collections': 'YOUR GOAL: Negotiate a payment arrangement. Be firm but empathetic. Discuss the outstanding amount, offer payment options, and secure a commitment or payment date.',
+        'Appointments': 'YOUR GOAL: Confirm or schedule an appointment. Verify availability, propose times, confirm the details, and remind them what to bring or prepare.',
+        'Healthcare': 'YOUR GOAL: Confirm the patient\'s appointment, collect any needed info, and remind them of preparation steps. Be compassionate and HIPAA-mindful.',
+        'Real Estate': 'YOUR GOAL: Qualify the lead\'s property interest, schedule a viewing or consultation, and collect their requirements (budget, location, size preferences).',
+        'Insurance': 'YOUR GOAL: Qualify the prospect, understand their coverage needs, present relevant options, and schedule a detailed consultation or close the policy.',
+        'Education': 'YOUR GOAL: Engage the prospective student, explain program benefits, answer questions about curriculum/costs, and guide them toward enrollment or a campus visit.',
+        'Financial Services': 'YOUR GOAL: Understand the client\'s financial situation, present relevant products/services, and schedule a consultation or secure an application.',
+        'Surveys': 'YOUR GOAL: Complete the survey by asking each question clearly, recording responses, and thanking them for their time. Keep it concise and respectful.',
+        'Reminders': 'YOUR GOAL: Deliver the reminder clearly, confirm acknowledgment, and ask if they have any questions. Keep it brief and friendly.',
+        'Follow-up': 'YOUR GOAL: Check in on their experience, gather feedback, address any concerns, and identify opportunities for additional value.',
+      };
+
+      const category = template?.category || '';
+      const goalSection = categoryGoals[category] || 'YOUR GOAL: Achieve the purpose of this call as described in your use case and script. Drive the conversation toward a clear outcome.';
+
       const useCaseContext = template
-        ? `USE CASE: ${template.name}\n${template.description}\nCATEGORY: ${template.category}`
-        : 'GENERAL OUTBOUND CALL';
+        ? `USE CASE: ${template.name}\nDESCRIPTION: ${template.description}\nCATEGORY: ${template.category}\n\n${goalSection}`
+        : `GENERAL OUTBOUND CALL\n\n${goalSection}`;
 
       const scriptSection = callScript
-        ? `\nCALL SCRIPT & CONVERSATION GUIDE:\n${callScript}`
+        ? `\nCALL SCRIPT & CONVERSATION GUIDE (follow these points step-by-step as your playbook):\n${callScript}\n\nIMPORTANT: Follow the script above as a GUIDE — cover each point in order but use your own natural words. Do NOT read it verbatim. Adapt based on the person's responses while staying on track.`
         : '';
 
-      const outboundSystemPrompt = `You are ${newAgentName.trim()}, a professional outbound calling agent${currentUser?.company ? ` from ${currentUser.company}` : ''}.
+      const outboundSystemPrompt = `You are ${newAgentName.trim()}, an experienced outbound calling agent${currentUser?.company ? ` from ${currentUser.company}` : ''}. You are confident, friendly, and goal-oriented. You know exactly why you're calling and what outcome you want.
 
 ${useCaseContext}
 ${scriptSection}
@@ -465,15 +483,20 @@ ${scriptSection}
 OUTBOUND CALLING INSTRUCTIONS:
 - You INITIATED this call. You called the person, they did not call you.
 - After your greeting, WAIT for the person to respond. Then continue the conversation naturally.
-- State the purpose of your call clearly and early in the conversation.
-- Guide the conversation toward the goal of this use case.
-- Handle objections with empathy and provide clear value.
-- If the person is not interested, be respectful and end the call politely.
-- If the person asks questions, answer them knowledgeably based on your script and knowledge base.
+- State the purpose of your call clearly within your first 1-2 responses.
+- Follow your CALL SCRIPT step-by-step as a conversation playbook. Cover each point in order.
+- When the person responds, address their question/objection THEN steer back to the next point in your script.
+- Ask qualifying questions to understand their needs and move toward your goal.
+- Handle objections with empathy: acknowledge their concern, then pivot back to value.
+- If they say "not interested" — ask ONE follow-up question before accepting ("Just curious, what would need to change for this to make sense?").
+- If they say "I'm busy" — offer to call back at a better time.
+- If the person asks questions, answer them knowledgeably using your script and knowledge base.
 - Keep responses SHORT — 1 to 3 sentences. This is a phone call, not an email.
 - Be warm, natural, and conversational. You are a real person, not a robot.
-- Ask qualifying questions to understand the person's needs.
-- When the conversation goal is achieved or the person wants to end the call, wrap up naturally.`;
+- When the conversation goal is achieved or the person firmly declines, wrap up naturally and end the call.
+
+SUCCESS CRITERIA: The call is successful when you achieve your stated goal above, or when you've secured a concrete next step (callback time, meeting, follow-up).
+FAILURE HANDLING: If the person firmly declines, thank them for their time and end the call politely. Never be pushy or aggressive.`;
 
       const agentPayload = {
         type: 'incoming',

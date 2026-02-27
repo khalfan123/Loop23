@@ -82,6 +82,7 @@ export class BedrockAgentFactory {
     ttsProvider?: 'aws_polly' | 'elevenlabs';
     elevenLabsVoiceId?: string;
     elevenLabsApiKey?: string;
+    agentName?: string;
   }): AgentConfigWithContext {
     const tier = params.userTier || 'free';
     const voice = params.ttsProvider === 'elevenlabs' ? params.voice : this.validateVoice(params.voice);
@@ -217,6 +218,7 @@ CRITICAL BEHAVIORAL RULES:
       ttsProvider: params.ttsProvider,
       elevenLabsVoiceId: params.elevenLabsVoiceId,
       elevenLabsApiKey: params.elevenLabsApiKey,
+      agentName: params.agentName,
     };
   }
 

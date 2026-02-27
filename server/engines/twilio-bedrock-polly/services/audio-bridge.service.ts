@@ -62,6 +62,8 @@ const bargeInAccum: Map<string, number> = new Map();
 
 const playingGreeting: Map<string, boolean> = new Map();
 
+const openingPhaseEnd: Map<string, number> = new Map();
+
 /**
  * Twilio stream ready flags, tracked separately from session to avoid
  * race conditions during first-message sending.
@@ -110,10 +112,14 @@ export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
   private static readonly SILENCE_THRESHOLD_MS = 1500;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 2000;
+  private static readonly OPENING_PHASE_DURATION_MS = 10000;
   private static readonly MIN_AUDIO_LENGTH = 1600;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
   private static readonly AUDIO_CHUNK_SIZE = 320;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
+  private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
+  private static readonly FINAL_HANGUP_TIMEOUT_MS = 8000;
 
   /**
    * Create a new Bedrock+Polly bridge session for a Twilio call.
@@ -250,6 +256,12 @@ export class BedrockPollyAudioBridge {
       playingGreeting.set(newKey, greeting);
     }
 
+    const opEnd = openingPhaseEnd.get(oldKey);
+    if (opEnd !== undefined) {
+      openingPhaseEnd.delete(oldKey);
+      openingPhaseEnd.set(newKey, opEnd);
+    }
+
     console.log(`[BedrockPolly Bridge] Remapped session ${oldKey} → ${newKey}`);
   }
 
@@ -339,9 +351,12 @@ export class BedrockPollyAudioBridge {
           if (elapsed >= this.MAX_BUFFER_DURATION_MS) {
             this.onSilenceDetected(session);
           } else {
+            const phaseEnd = openingPhaseEnd.get(callSid);
+            const isOpeningPhase = phaseEnd && Date.now() < phaseEnd;
+            const silenceMs = isOpeningPhase ? this.OPENING_SILENCE_THRESHOLD_MS : this.SILENCE_THRESHOLD_MS;
             const timer = setTimeout(() => {
               this.onSilenceDetected(session);
-            }, this.SILENCE_THRESHOLD_MS);
+            }, silenceMs);
             silenceTimers.set(callSid, timer);
           }
         }
@@ -1050,7 +1065,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     if (!agentConfig.firstMessage) return;
 
-    console.log(`[BedrockPolly Bridge] Sending first message for ${callSid}: "${agentConfig.firstMessage.substring(0, 50)}..."`);
+    console.log(`[BedrockPolly Bridge] Sending first message for ${callSid}: "${agentConfig.firstMessage.substring(0, 80)}..."`);
 
     callerHasSpoken.set(callSid, false);
     playingGreeting.set(callSid, true);
@@ -1085,7 +1100,9 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     audioBuffers.set(callSid, []);
     bufferStartTimes.delete(callSid);
 
-    console.log(`[BedrockPolly Bridge] Greeting finished for ${callSid} — now listening`);
+    openingPhaseEnd.set(callSid, Date.now() + this.OPENING_PHASE_DURATION_MS);
+
+    console.log(`[BedrockPolly Bridge] Greeting finished for ${callSid} — opening phase active (${this.OPENING_PHASE_DURATION_MS}ms), now listening`);
 
     const followUpTimer = setTimeout(async () => {
       noResponseTimers.delete(callSid);
@@ -1094,24 +1111,32 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       const currentSession = this.activeSessions.get(callSid);
       if (!currentSession || currentSession.status === 'disconnected') return;
 
-      console.log(`[BedrockPolly Bridge] No response after greeting for ${callSid} — sending follow-up`);
+      console.log(`[BedrockPolly Bridge] No response after greeting for ${callSid} — sending confident follow-up`);
 
-      playingGreeting.set(callSid, true);
       audioBuffers.set(callSid, []);
       bufferStartTimes.delete(callSid);
 
-      const followUp = 'Hello? Are you there?';
+      const agentName = agentConfig.agentName;
+      const followUp = agentName
+        ? `Hey, it's ${agentName} — can you hear me okay?`
+        : `Hey, can you hear me okay?`;
 
       currentSession.transcriptParts.push({
         role: 'assistant',
         text: followUp,
         timestamp: new Date(),
       });
-      currentSession.messages.push({
-        role: 'assistant',
-        content: followUp,
-        timestamp: new Date(),
-      });
+
+      const lastMsg = currentSession.messages[currentSession.messages.length - 1];
+      if (lastMsg && lastMsg.role === 'assistant') {
+        lastMsg.content += ` ... ${followUp}`;
+      } else {
+        currentSession.messages.push({
+          role: 'assistant',
+          content: followUp,
+          timestamp: new Date(),
+        });
+      }
 
       if (currentSession.onTranscriptCallback) {
         currentSession.onTranscriptCallback(followUp, true);
@@ -1119,10 +1144,54 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
       await this.synthesizeAndSend(currentSession, followUp);
 
-      playingGreeting.set(callSid, false);
       audioBuffers.set(callSid, []);
       bufferStartTimes.delete(callSid);
-      console.log(`[BedrockPolly Bridge] Follow-up finished for ${callSid} — now listening`);
+      console.log(`[BedrockPolly Bridge] Follow-up finished for ${callSid} — now listening for response`);
+
+      const finalCheckTimer = setTimeout(async () => {
+        noResponseTimers.delete(callSid);
+        if (callerHasSpoken.get(callSid)) return;
+
+        const sess = this.activeSessions.get(callSid);
+        if (!sess || sess.status === 'disconnected') return;
+
+        console.log(`[BedrockPolly Bridge] Still no response for ${callSid} — sending final check`);
+
+        const finalMsg = `I think we might have a bad connection. I'll try you another time!`;
+
+        sess.transcriptParts.push({
+          role: 'assistant',
+          text: finalMsg,
+          timestamp: new Date(),
+        });
+
+        if (sess.onTranscriptCallback) {
+          sess.onTranscriptCallback(finalMsg, true);
+        }
+
+        await this.synthesizeAndSend(sess, finalMsg);
+
+        console.log(`[BedrockPolly Bridge] Final check delivered for ${callSid} — scheduling graceful hangup`);
+
+        const hangupTimer = setTimeout(async () => {
+          if (callerHasSpoken.get(callSid)) return;
+
+          const hangupSess = this.activeSessions.get(callSid);
+          if (!hangupSess || hangupSess.status === 'disconnected') return;
+
+          console.log(`[BedrockPolly Bridge] No response after final check — hanging up ${callSid}`);
+
+          try {
+            const twilioClient = await getTwilioClient();
+            await twilioClient.calls(callSid).update({ status: 'completed' });
+            console.log(`[BedrockPolly Bridge] Graceful hangup completed for ${callSid}`);
+          } catch (hangupErr: any) {
+            console.error(`[BedrockPolly Bridge] Error during graceful hangup for ${callSid}: ${hangupErr.message}`);
+          }
+        }, this.FINAL_HANGUP_TIMEOUT_MS);
+        noResponseTimers.set(callSid, hangupTimer);
+      }, this.FOLLOW_UP_TIMEOUT_MS);
+      noResponseTimers.set(callSid, finalCheckTimer);
     }, this.NO_RESPONSE_TIMEOUT_MS);
     noResponseTimers.set(callSid, followUpTimer);
   }
@@ -1151,6 +1220,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     bargeInFlags.delete(callSid);
     bargeInAccum.delete(callSid);
     playingGreeting.delete(callSid);
+    openingPhaseEnd.delete(callSid);
     twilioStreamReady.delete(callSid);
 
     const nrTimer = noResponseTimers.get(callSid);

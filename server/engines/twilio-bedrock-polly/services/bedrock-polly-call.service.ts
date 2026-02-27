@@ -315,6 +315,7 @@ export class BedrockPollyCallService {
           elevenLabsVoiceId,
           elevenLabsApiKey,
           language: agentLanguage,
+          agentName: agent.name || undefined,
           toolContext: {
             userId,
             agentId,

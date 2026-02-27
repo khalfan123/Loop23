@@ -186,6 +186,7 @@ export interface AgentConfig {
   ttsProvider?: TtsProvider;
   elevenLabsVoiceId?: string;
   elevenLabsApiKey?: string;
+  agentName?: string;
 }
 
 /**

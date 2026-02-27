@@ -226,6 +226,30 @@ export class BedrockPollyAudioBridge {
       twilioStreamReady.set(newKey, ready);
     }
 
+    const nrTimer = noResponseTimers.get(oldKey);
+    if (nrTimer) {
+      noResponseTimers.delete(oldKey);
+      noResponseTimers.set(newKey, nrTimer);
+    }
+
+    const spoken = callerHasSpoken.get(oldKey);
+    if (spoken !== undefined) {
+      callerHasSpoken.delete(oldKey);
+      callerHasSpoken.set(newKey, spoken);
+    }
+
+    const accum = bargeInAccum.get(oldKey);
+    if (accum !== undefined) {
+      bargeInAccum.delete(oldKey);
+      bargeInAccum.set(newKey, accum);
+    }
+
+    const greeting = playingGreeting.get(oldKey);
+    if (greeting !== undefined) {
+      playingGreeting.delete(oldKey);
+      playingGreeting.set(newKey, greeting);
+    }
+
     console.log(`[BedrockPolly Bridge] Remapped session ${oldKey} → ${newKey}`);
   }
 

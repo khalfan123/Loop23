@@ -116,7 +116,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
   // AI Generate Greeting Message
   router.post("/api/campaigns/generate-greeting", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      const { callType, campaignName, useCase, useCaseDescription, language, agentName, companyName } = req.body;
+      const { callType, campaignName, useCase, useCaseDescription, language, agentName, companyName, contactName, productOrService } = req.body;
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -143,6 +143,16 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         identityPrompt = `The agent is calling on behalf of "${companyName}". The greeting MUST mention the company name naturally.`;
       }
 
+      let personalizationNote = '';
+      if (contactName) {
+        personalizationNote = ` Use the template variable {{firstName}} where you'd address the contact by name (it will be substituted with their real name at call time).`;
+      }
+
+      let productNote = '';
+      if (productOrService) {
+        productNote = ` The agent is calling about: ${productOrService}.`;
+      }
+
       const langInstruction = language && language !== 'en'
         ? ` Generate the greeting in the language matching the code "${language}" (e.g. es=Spanish, fr=French, de=German, etc.).`
         : '';
@@ -152,7 +162,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         messages: [
           {
             role: "system",
-            content: `You are writing the opening line for an AI phone agent who sounds like a real person. The greeting should feel human, warm, and conversational — like a friendly colleague calling, not a robot or call center script. The agent should naturally introduce themselves by name and their company if provided. Keep it to 1-2 short sentences. Use natural speech patterns — contractions, casual tone, slight warmth. Do not use quotes around the message. Only output the greeting text, nothing else.${langInstruction}`
+            content: `You are writing the opening line for an AI phone agent who sounds like a real person. The greeting should feel human, warm, and conversational — like a friendly colleague calling, not a robot or call center script. The agent should naturally introduce themselves by name and their company if provided. Keep it to 1-2 short sentences. Use natural speech patterns — contractions, casual tone, slight warmth. Do not use quotes around the message. Only output the greeting text, nothing else.${personalizationNote}${productNote}${langInstruction}`
           },
           {
             role: "user",
@@ -205,6 +215,127 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
     } catch (error: any) {
       console.error("Error generating script:", error);
       res.status(500).json({ error: "Failed to generate script suggestions" });
+    }
+  });
+
+  router.post("/api/campaigns/generate-outbound-content", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const {
+        useCase,
+        useCaseDescription,
+        category,
+        agentName,
+        companyName,
+        language,
+        contactSample,
+        productOrService,
+      } = req.body;
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const rawCustomFields = contactSample?.customFields || {};
+      const sampleCustomFields: Record<string, string> = {};
+      let fieldCount = 0;
+      for (const [key, val] of Object.entries(rawCustomFields)) {
+        if (fieldCount >= 20) break;
+        const strVal = String(val || '').substring(0, 200);
+        if (strVal.trim()) {
+          sampleCustomFields[key.substring(0, 50)] = strVal;
+          fieldCount++;
+        }
+      }
+      const availableVariables: string[] = ['firstName', 'lastName', 'email', 'phone'];
+      const knownContactKeys = ['company', 'organization', 'industry', 'city', 'title', 'role', 'department', 'notes', 'language'];
+      for (const key of knownContactKeys) {
+        if (sampleCustomFields[key]) {
+          availableVariables.push(key);
+        }
+      }
+      for (const key of Object.keys(sampleCustomFields)) {
+        if (!knownContactKeys.includes(key) && !availableVariables.includes(key)) {
+          availableVariables.push(key);
+        }
+      }
+
+      const variableList = availableVariables.map(v => `{{${v}}}`).join(', ');
+
+      const sampleContext = contactSample ? `
+Sample contact data for reference (use to understand available personalization):
+- Name: ${contactSample.firstName || 'John'} ${contactSample.lastName || 'Smith'}
+- Email: ${contactSample.email || 'N/A'}
+${Object.entries(sampleCustomFields).map(([k, v]) => `- ${k}: ${v}`).join('\n')}` : '';
+
+      const langInstruction = language && language !== 'en'
+        ? `Generate ALL content in the language matching code "${language}" (e.g., es=Spanish, fr=French, de=German).`
+        : '';
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert outbound sales strategist and call script writer. You create highly personalized, persuasive outbound call content optimized for AI voice agents powered by Claude (via Amazon Bedrock).
+
+Your output must include template variables using double curly braces (e.g., {{firstName}}, {{company}}) that will be dynamically substituted with real contact data at call time.
+
+Available template variables: ${variableList}
+
+RULES:
+- Greeting: 1-2 sentences max. Warm, human, conversational. Must include {{firstName}} and the agent's name. If company context is available, weave it in naturally.
+- Call Script: A step-by-step conversational playbook (5-8 steps). Each step should be a clear action with example phrasing. Include personalization variables where they add value. Include objection handling. Optimized for the specific use case and industry.
+- System Prompt: An identity and behavioral prompt for Claude. Structure it with clear sections. Include the agent's persona, communication style, goal, and rules of engagement. Optimize for natural phone conversation — short responses (1-3 sentences), active listening cues, empathy markers.
+
+Output ONLY valid JSON with this exact structure:
+{
+  "greeting": "the greeting template",
+  "callScript": "the full call script",
+  "systemPrompt": "the system prompt"
+}
+
+No markdown. No explanation. Only the JSON object. ${langInstruction}`
+          },
+          {
+            role: "user",
+            content: `Generate personalized outbound call content for:
+
+USE CASE: ${useCase || 'General Outbound'}${useCaseDescription ? ` — ${useCaseDescription}` : ''}
+CATEGORY: ${category || 'General'}
+AGENT NAME: ${agentName || 'AI Agent'}
+COMPANY: ${companyName || 'Our Company'}
+${productOrService ? `PRODUCT/SERVICE: ${productOrService}` : ''}
+${sampleContext}
+
+Create a greeting template, call script playbook, and system prompt that maximize personalization, contextual relevance, and engagement. The content should feel like a well-prepared sales professional who has researched the prospect before calling.`
+          }
+        ],
+        max_completion_tokens: 2500,
+        temperature: 0.8,
+      });
+
+      const raw = response.choices[0]?.message?.content?.trim() || '';
+      let parsed: { greeting?: string; callScript?: string; systemPrompt?: string } = {};
+      try {
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        }
+      } catch {
+        parsed = { greeting: raw, callScript: '', systemPrompt: '' };
+      }
+
+      res.json({
+        greeting: parsed.greeting || '',
+        callScript: parsed.callScript || '',
+        systemPrompt: parsed.systemPrompt || '',
+        availableVariables,
+      });
+    } catch (error: any) {
+      console.error("Error generating outbound content:", error);
+      res.status(500).json({ error: "Failed to generate outbound content" });
     }
   });
 

@@ -367,6 +367,8 @@ export class BedrockPollyBatchCallingService {
 
       const campaignConfig = this.campaign?.config as Record<string, any> || {};
 
+      const customFields = (contact.customFields as Record<string, any>) || {};
+
       const result = await BedrockPollyCallService.initiateCall({
         userId: this.config.userId,
         agentId: this.config.agentId,
@@ -377,7 +379,11 @@ export class BedrockPollyBatchCallingService {
         metadata: {
           batchCall: true,
           contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
+          contactFirstName: contact.firstName || '',
+          contactLastName: contact.lastName || '',
           contactEmail: contact.email || null,
+          contactPhone: contact.phone || '',
+          contactCustomFields: customFields,
           callScript: campaignConfig.callScript || null,
         },
       });

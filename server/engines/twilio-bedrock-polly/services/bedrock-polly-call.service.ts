@@ -224,21 +224,70 @@ export class BedrockPollyCallService {
         let effectiveSystemPrompt = agent.systemPrompt || 'You are a helpful AI assistant.';
 
         const contactName = metadata?.contactName as string | undefined;
+        const contactFirstName = metadata?.contactFirstName as string | undefined;
+        const contactLastName = metadata?.contactLastName as string | undefined;
+        const contactEmail = metadata?.contactEmail as string | undefined;
+        const contactPhone = metadata?.contactPhone as string | undefined;
+        const contactCustomFields = (metadata?.contactCustomFields || {}) as Record<string, any>;
+
+        const resolveTemplateVariables = (text: string): string => {
+          if (!text) return text;
+          let resolved = text;
+          const replacements: Record<string, string> = {
+            firstName: contactFirstName || contactName?.split(' ')[0] || '',
+            lastName: contactLastName || '',
+            email: contactEmail || '',
+            phone: contactPhone || '',
+            name: contactName || '',
+            company: contactCustomFields.company || contactCustomFields.organization || '',
+            organization: contactCustomFields.organization || contactCustomFields.company || '',
+            industry: contactCustomFields.industry || '',
+            city: contactCustomFields.city || '',
+            title: contactCustomFields.title || '',
+            role: contactCustomFields.role || contactCustomFields.title || '',
+            department: contactCustomFields.department || '',
+            notes: contactCustomFields.notes || '',
+          };
+          for (const [key, val] of Object.entries(contactCustomFields)) {
+            if (!replacements[key]) {
+              replacements[key] = String(val || '');
+            }
+          }
+          for (const [key, val] of Object.entries(replacements)) {
+            const pattern = new RegExp(`\\{\\{${key}\\}\\}`, 'gi');
+            resolved = resolved.replace(pattern, val || '');
+          }
+          resolved = resolved.replace(/\{\{[a-zA-Z0-9_.]+\}\}/g, '');
+          return resolved;
+        };
+
         if (contactName && contactName.trim()) {
-          effectiveSystemPrompt += `\n\nCALL CONTEXT: You are calling ${contactName.trim()}. Use their name naturally 1-2 times during the conversation — not every sentence, just when it feels right.`;
+          const contextParts = [`You are calling ${contactName.trim()}.`];
+          if (contactCustomFields.company || contactCustomFields.organization) {
+            contextParts.push(`They work at ${contactCustomFields.company || contactCustomFields.organization}.`);
+          }
+          if (contactCustomFields.industry) {
+            contextParts.push(`Their industry is ${contactCustomFields.industry}.`);
+          }
+          if (contactCustomFields.title || contactCustomFields.role) {
+            contextParts.push(`Their role is ${contactCustomFields.title || contactCustomFields.role}.`);
+          }
+          contextParts.push(`Use their name naturally 1-2 times during the conversation — not every sentence, just when it feels right.`);
+          effectiveSystemPrompt += `\n\nCALL CONTEXT: ${contextParts.join(' ')}`;
           logger.info(`[Outbound] Personalized call for contact: ${contactName}`, undefined, 'BedrockPollyCall');
         }
 
         const callScript = metadata?.callScript as string | undefined;
         if (callScript && callScript.trim()) {
-          const scriptSection = `CALL SCRIPT & CONVERSATION GUIDE (follow these points step-by-step as your playbook):\n${callScript.trim()}\n\nIMPORTANT: Follow the script above as a GUIDE — cover each point in order but use your own natural words. Do NOT read it verbatim.`;
+          const resolvedScript = resolveTemplateVariables(callScript.trim());
+          const scriptSection = `CALL SCRIPT & CONVERSATION GUIDE (follow these points step-by-step as your playbook):\n${resolvedScript}\n\nIMPORTANT: Follow the script above as a GUIDE — cover each point in order but use your own natural words. Do NOT read it verbatim.`;
           const existingScriptMatch = effectiveSystemPrompt.match(/CALL SCRIPT & CONVERSATION GUIDE[^:]*:\n[\s\S]*?(?=\n\n[A-Z]|$)/);
           if (existingScriptMatch) {
             effectiveSystemPrompt = effectiveSystemPrompt.replace(existingScriptMatch[0], scriptSection);
-            logger.info(`[Outbound] Replaced existing call script with campaign script (${callScript.length} chars)`, undefined, 'BedrockPollyCall');
+            logger.info(`[Outbound] Replaced existing call script with campaign script (${resolvedScript.length} chars)`, undefined, 'BedrockPollyCall');
           } else {
             effectiveSystemPrompt += `\n\n${scriptSection}`;
-            logger.info(`[Outbound] Injected campaign call script (${callScript.length} chars) into agent system prompt`, undefined, 'BedrockPollyCall');
+            logger.info(`[Outbound] Injected campaign call script (${resolvedScript.length} chars) into agent system prompt`, undefined, 'BedrockPollyCall');
           }
           const hasOutboundContext = effectiveSystemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS');
           if (!hasOutboundContext) {
@@ -254,11 +303,13 @@ export class BedrockPollyCallService {
           }
         }
 
+        effectiveSystemPrompt = resolveTemplateVariables(effectiveSystemPrompt);
+
         let naturalConfig = BedrockAgentFactory.createAgentConfig({
           voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,
           model: defaultModel,
           systemPrompt: effectiveSystemPrompt,
-          firstMessage: localizedFirstMessage,
+          firstMessage: resolveTemplateVariables(localizedFirstMessage),
           temperature: agent.temperature ?? 0.7,
           ttsProvider,
           elevenLabsVoiceId,

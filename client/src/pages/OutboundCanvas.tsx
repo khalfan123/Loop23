@@ -74,6 +74,9 @@ import {
   Info,
   Volume2,
   Square,
+  Wand2,
+  Tag,
+  Package,
 } from "lucide-react";
 import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
 
@@ -391,6 +394,8 @@ function OutboundWizard() {
   const [newAgentGenderFilter, setNewAgentGenderFilter] = useState<'all' | 'Female' | 'Male'>('all');
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
   const [previewAudio, setPreviewAudio] = useState<HTMLAudioElement | null>(null);
+  const [productOrService, setProductOrService] = useState("");
+  const [personalizationVars, setPersonalizationVars] = useState<string[]>([]);
 
   const { data: flowTemplates = [], isLoading: templatesLoading } = useQuery<FlowTemplate[]>({
     queryKey: ["/api/flow-automation/flow-templates"],
@@ -529,6 +534,10 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     mutationFn: async () => {
       const template = flowTemplates.find(t => t.id === selectedTemplateId);
       const agentLang = selectedAgent?.language || 'en';
+      const sampleContact = selectedContacts[0] || null;
+      const contactName = sampleContact?.names?.[0]
+        ? `${sampleContact.names[0].firstName} ${sampleContact.names[0].lastName || ''}`.trim()
+        : undefined;
       const res = await apiRequest("POST", "/api/campaigns/generate-greeting", {
         campaignName,
         useCase: template?.name || undefined,
@@ -536,6 +545,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
         language: agentLang,
         agentName: selectedAgent?.name || undefined,
         companyName: currentUser?.company || undefined,
+        contactName,
+        productOrService: productOrService.trim() || undefined,
       });
       return res.json();
     },
@@ -547,6 +558,41 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     },
     onError: () => {
       toast({ title: "Generation Failed", description: "Could not generate greeting", variant: "destructive" });
+    },
+  });
+
+  const generateAllContentMutation = useMutation({
+    mutationFn: async () => {
+      const template = flowTemplates.find(t => t.id === selectedTemplateId);
+      const agentLang = selectedAgent?.language || 'en';
+      const sampleContact = selectedContacts[0] || null;
+      const contactSample = sampleContact ? {
+        firstName: sampleContact.names?.[0]?.firstName || sampleContact.phone,
+        lastName: sampleContact.names?.[0]?.lastName || '',
+        email: sampleContact.email || '',
+        customFields: (sampleContact as any).customFields || {},
+      } : null;
+      const res = await apiRequest("POST", "/api/campaigns/generate-outbound-content", {
+        useCase: template?.name || undefined,
+        useCaseDescription: template?.description || undefined,
+        category: template?.category || undefined,
+        agentName: selectedAgent?.name || undefined,
+        companyName: currentUser?.company || undefined,
+        language: agentLang,
+        contactSample,
+        productOrService: productOrService.trim() || undefined,
+      });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.greeting) setGreetingMessage(data.greeting);
+      const combinedScript = [data.callScript, data.systemPrompt].filter(Boolean).join('\n\n');
+      if (combinedScript) setCallScript(combinedScript);
+      if (data.availableVariables) setPersonalizationVars(data.availableVariables);
+      toast({ title: "Content Generated", description: "Personalized greeting, script, and prompt generated with contact variables." });
+    },
+    onError: () => {
+      toast({ title: "Generation Failed", description: "Could not generate outbound content", variant: "destructive" });
     },
   });
 
@@ -1722,6 +1768,61 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
           </div>
         </div>
 
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-amber-600" />
+            <Label className="font-medium text-sm">Product / Service (Optional)</Label>
+          </div>
+          <Input
+            value={productOrService}
+            onChange={(e) => setProductOrService(e.target.value)}
+            placeholder="e.g. Cloud-based CRM solution for small businesses"
+            className="text-sm"
+            data-testid="input-product-service"
+          />
+          <p className="text-xs text-muted-foreground">
+            Describe what you're offering. This helps generate more targeted scripts.
+          </p>
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wand2 className="h-4 w-4 text-violet-600" />
+              <Label className="font-medium text-sm">AI-Powered Personalization</Label>
+            </div>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-8 px-3 text-xs gap-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+              onClick={() => generateAllContentMutation.mutate()}
+              disabled={generateAllContentMutation.isPending}
+              data-testid="button-generate-all-content"
+            >
+              {generateAllContentMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              Generate All
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Generates a personalized greeting, call script, and system prompt using your use case, contact data, and product info. Template variables like <code className="bg-muted px-1 rounded text-[10px]">{"{{firstName}}"}</code> are replaced with real contact data per call.
+          </p>
+          {personalizationVars.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground font-medium">Variables:</span>
+              {personalizationVars.map((v) => (
+                <Badge key={v} variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-mono bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800">
+                  {`{{${v}}}`}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="border-t pt-4 space-y-2">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
@@ -1747,14 +1848,12 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
           <Input
             value={greetingMessage}
             onChange={(e) => setGreetingMessage(e.target.value)}
-            placeholder="e.g. Hello! This is Sarah from Acme Corp. How are you today?"
+            placeholder="e.g. Hi {{firstName}}, this is Sarah from Acme Corp!"
             className="text-sm"
             data-testid="input-greeting-message"
           />
           <p className="text-xs text-muted-foreground">
-            {selectedFlowTemplate
-              ? `Click "AI Generate" to create a greeting based on your "${selectedFlowTemplate.name}" use case.`
-              : "The first thing the AI agent says when the call connects. Leave empty to use the agent's default greeting."}
+            Use <code className="bg-muted px-1 rounded text-[10px]">{"{{firstName}}"}</code>, <code className="bg-muted px-1 rounded text-[10px]">{"{{company}}"}</code> etc. for per-contact personalization.
           </p>
         </div>
 
@@ -1763,14 +1862,14 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
           <Textarea
             value={callScript}
             onChange={(e) => setCallScript(e.target.value)}
-            placeholder="Write the call script or system prompt for the AI agent..."
+            placeholder="Step 1: Greet {{firstName}} warmly and introduce yourself...&#10;Step 2: Ask about their current {{industry}} challenges..."
             className="min-h-[120px] text-sm"
             data-testid="textarea-call-script"
           />
           <p className="text-xs text-muted-foreground">
             {selectedFlowTemplate
-              ? `Pre-filled from "${selectedFlowTemplate.name}" template. Edit as needed.`
-              : "This prompt guides the AI agent's behavior during each outbound call."}
+              ? `Pre-filled from "${selectedFlowTemplate.name}" template. Edit as needed. Use {{variable}} placeholders for contact-specific data.`
+              : "This prompt guides the AI agent's behavior. Use {{variable}} placeholders for per-contact personalization."}
           </p>
         </div>
 

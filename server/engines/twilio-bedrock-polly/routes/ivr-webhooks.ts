@@ -11,8 +11,6 @@ import { applyArabicPronunciationFixes } from '../services/ssml-humanizer';
 
 const router = Router();
 
-const GENERATIVE_VOICES: string[] = [];
-
 const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invalidMsg: string; noInputMsg: string; holdMsg: string; noAgentMsg: string; goodbyeMsg: string; repeatMsg: string; stillThereMsg: string }> = {
   en: { pressKey: 'press', invalidMsg: 'Invalid selection. Please try again.', noInputMsg: 'We did not receive a response.', holdMsg: 'Please hold while we connect you.', noAgentMsg: 'Sorry, no agent is available at this time.', goodbyeMsg: 'Thank you for calling. Goodbye.', greeting: 'Welcome. Please listen to the following options.', repeatMsg: 'To repeat these options, press 0.', stillThereMsg: 'Are you still there?' },
   ar: { pressKey: 'اضغط', invalidMsg: 'اختيار غير صالح. يرجى المحاولة مرة أخرى.', noInputMsg: 'لم نتلق أي استجابة.', holdMsg: 'يرجى الانتظار بينما نقوم بتوصيلك.', noAgentMsg: 'عذراً، لا يوجد وكيل متاح حالياً.', goodbyeMsg: 'شكراً لاتصالك. مع السلامة.', greeting: 'مرحباً. يرجى الاستماع إلى الخيارات التالية.', repeatMsg: 'لتكرار هذه الخيارات، اضغط 0.', stillThereMsg: 'هل أنت لا تزال هنا؟' },
@@ -104,17 +102,15 @@ function safePollyVoiceId(voiceId: string): string {
   return voiceId;
 }
 
-function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false, speed: number = 0.92): string {
+function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false): string {
   const safeVoice = safePollyVoiceId(voiceId);
-  const engine = GENERATIVE_VOICES.includes(safeVoice) ? 'generative' : 'neural';
-  const breakSsml = addBreakAfter ? '<break time="350ms"/>' : '';
   const corrected = applyArabicPronunciationFixes(text);
-  const prosodyRate = `${Math.round(speed * 100)}%`;
-  return `<Say voice="Polly.${escapeXml(safeVoice)}" engine="${engine}"><prosody rate="${prosodyRate}">${escapeXml(corrected)}</prosody>${breakSsml}</Say>`;
+  const pause = addBreakAfter ? '<Pause length="1"/>' : '';
+  return `<Say voice="Polly.${escapeXml(safeVoice)}">${escapeXml(corrected)}</Say>${pause}`;
 }
 
-function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, speed: number = 0.92): string {
-  return sayWithPolly(safePollyVoiceId(voiceId), text, addBreakAfter, speed);
+function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, _speed: number = 0.92): string {
+  return sayWithPolly(safePollyVoiceId(voiceId), text, addBreakAfter);
 }
 
 function buildBaseUrl(): string {

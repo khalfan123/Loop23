@@ -157,6 +157,7 @@ export class BedrockPollyAudioBridge {
       isProcessing: false,
       pollyEngine: 'neural',
       ttsProvider: agentConfig.ttsProvider || 'aws_polly',
+      isOutbound: callDirection === 'outbound',
     };
 
     if (agentConfig.tools) {
@@ -292,9 +293,13 @@ export class BedrockPollyAudioBridge {
         twilioStreamReady.set(callSid, true);
         console.log(`[BedrockPolly Bridge] Twilio stream started for ${callSid}, streamSid=${session.streamSid}`);
 
-        if (session.agentConfig.firstMessage) {
+        if (session.isOutbound && session.agentConfig.firstMessage) {
           this.sendFirstMessage(session).catch((err) => {
             console.error(`[BedrockPolly Bridge] Error sending first message:`, err);
+          });
+        } else if (!session.isOutbound && session.agentConfig.firstMessage) {
+          this.sendInboundGreeting(session).catch((err) => {
+            console.error(`[BedrockPolly Bridge] Error sending inbound greeting:`, err);
           });
         }
         break;
@@ -311,7 +316,7 @@ export class BedrockPollyAudioBridge {
             console.log(`[BedrockPolly Bridge] Media event #${session._mediaLogThrottle} for ${callSid}, chunk=${audioChunk.length}b, processing=${session.isProcessing}, status=${session.status}`);
           }
 
-          if (playingGreeting.get(callSid)) {
+          if (session.isOutbound && playingGreeting.get(callSid)) {
             break;
           }
 
@@ -351,8 +356,8 @@ export class BedrockPollyAudioBridge {
           if (elapsed >= this.MAX_BUFFER_DURATION_MS) {
             this.onSilenceDetected(session);
           } else {
-            const phaseEnd = openingPhaseEnd.get(callSid);
-            const isOpeningPhase = phaseEnd && Date.now() < phaseEnd;
+            const phaseEnd = session.isOutbound ? openingPhaseEnd.get(callSid) : undefined;
+            const isOpeningPhase = session.isOutbound && phaseEnd && Date.now() < phaseEnd;
             const silenceMs = isOpeningPhase ? this.OPENING_SILENCE_THRESHOLD_MS : this.SILENCE_THRESHOLD_MS;
             const timer = setTimeout(() => {
               this.onSilenceDetected(session);
@@ -401,7 +406,7 @@ export class BedrockPollyAudioBridge {
       return;
     }
 
-    if (!callerHasSpoken.get(callSid)) {
+    if (session.isOutbound && !callerHasSpoken.get(callSid)) {
       callerHasSpoken.set(callSid, true);
       const nrTimer = noResponseTimers.get(callSid);
       if (nrTimer) {
@@ -1192,6 +1197,33 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       noResponseTimers.set(callSid, finalCheckTimer);
     }, this.NO_RESPONSE_TIMEOUT_MS);
     noResponseTimers.set(callSid, followUpTimer);
+  }
+
+  private static async sendInboundGreeting(session: BedrockPollyBridgeSession): Promise<void> {
+    const { callSid, agentConfig } = session;
+    if (!agentConfig.firstMessage) return;
+
+    console.log(`[BedrockPolly Bridge] Sending inbound greeting for ${callSid}: "${agentConfig.firstMessage.substring(0, 80)}..."`);
+
+    session.transcriptParts.push({
+      role: 'assistant',
+      text: agentConfig.firstMessage,
+      timestamp: new Date(),
+    });
+
+    session.messages.push({
+      role: 'assistant',
+      content: agentConfig.firstMessage,
+      timestamp: new Date(),
+    });
+
+    if (session.onTranscriptCallback) {
+      session.onTranscriptCallback(agentConfig.firstMessage, true);
+    }
+
+    await this.synthesizeAndSend(session, agentConfig.firstMessage);
+
+    console.log(`[BedrockPolly Bridge] Inbound greeting finished for ${callSid} — now listening`);
   }
 
   /**

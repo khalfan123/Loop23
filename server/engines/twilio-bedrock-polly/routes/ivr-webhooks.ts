@@ -88,8 +88,19 @@ function isElevenLabsVoice(voiceId: string): boolean {
   return voiceId.startsWith('el_');
 }
 
+const EL_TO_POLLY_MAP: Record<string, string> = {
+  el_rachel: 'Joanna', el_domi: 'Joanna', el_bella: 'Joanna', el_nicole: 'Joanna',
+  el_antoni: 'Matthew', el_josh: 'Matthew', el_arnold: 'Matthew', el_adam: 'Matthew', el_sam: 'Matthew',
+  el_marie: 'Lea', el_pierre: 'Remi',
+  el_giulia: 'Bianca', el_marco: 'Adriano',
+  el_xiaoli: 'Zhiyu', el_wei: 'Zhiyu',
+  el_priya: 'Kajal', el_raj: 'Kajal',
+  el_fatima: 'Hala', el_omar: 'Zayd',
+};
+
 function safePollyVoiceId(voiceId: string): string {
-  if (isElevenLabsVoice(voiceId) || ['alloy','echo','fable','onyx','nova','shimmer'].includes(voiceId)) return 'Joanna';
+  if (isElevenLabsVoice(voiceId)) return EL_TO_POLLY_MAP[voiceId] || 'Joanna';
+  if (['alloy','echo','fable','onyx','nova','shimmer'].includes(voiceId)) return 'Joanna';
   return voiceId;
 }
 
@@ -102,22 +113,8 @@ function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = fa
   return `<Say voice="Polly.${escapeXml(safeVoice)}" engine="${engine}"><prosody rate="${prosodyRate}">${escapeXml(corrected)}</prosody>${breakSsml}</Say>`;
 }
 
-function sayOrPlay(voiceId: string, text: string, ivrId: string, addBreakAfter: boolean = false, speed: number = 0.92): string {
-  if (isElevenLabsVoice(voiceId)) {
-    const corrected = applyArabicPronunciationFixes(text);
-    const baseUrl = buildBaseUrl();
-    const encodedText = encodeURIComponent(corrected);
-    const speedParam = speed !== 1.0 ? `&speed=${speed}` : '';
-    const maxUrlLen = 2000;
-    const baseUrlPart = `${baseUrl}/api/deprock/ivr-greeting-audio/${encodeURIComponent(ivrId)}?voiceId=${encodeURIComponent(voiceId)}&_t=${Date.now()}${speedParam}&text=`;
-    if (baseUrlPart.length + encodedText.length > maxUrlLen) {
-      return sayWithPolly(safePollyVoiceId(voiceId), text, addBreakAfter, speed);
-    }
-    const audioUrl = `${baseUrlPart}${encodedText}`;
-    const pause = addBreakAfter ? '<Pause length="1"/>' : '';
-    return `<Play>${escapeXml(audioUrl)}</Play>${pause}`;
-  }
-  return sayWithPolly(voiceId, text, addBreakAfter, speed);
+function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, speed: number = 0.92): string {
+  return sayWithPolly(safePollyVoiceId(voiceId), text, addBreakAfter, speed);
 }
 
 function buildBaseUrl(): string {
@@ -388,6 +385,8 @@ router.post('/handle-language', async (req: Request, res: Response) => {
     twiml += sayOrPlay(langVoice, template.stillThereMsg, ivrId, false, langSpeed);
     twiml += `<Redirect method="POST">${escapeXml(retryUrl2)}</Redirect>`;
     twiml += `</Response>`;
+
+    logger.info(`[Deprock IVR] /handle-language TwiML for ${ivrId} (voice=${langVoice}→${safePollyVoiceId(langVoice)}, lang=${lang}, depts=${menuOpts?.length || 0}): ${twiml.substring(0, 500)}`, undefined, 'DeprockIVR');
 
     res.type('text/xml');
     return res.send(twiml);

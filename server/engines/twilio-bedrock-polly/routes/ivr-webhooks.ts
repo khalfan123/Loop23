@@ -1,10 +1,11 @@
 'use strict';
 import { Router, Request, Response } from 'express';
 import { db } from '../../../db';
-import { agents, twilioOpenaiCalls, phoneNumbers, departments, departmentAgents, ivrConfigurations } from '@shared/schema';
+import { agents, twilioOpenaiCalls, phoneNumbers, departments, departmentAgents, ivrConfigurations, flows } from '@shared/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { generateTwiML, BEDROCK_POLLY_CONFIG } from '../config/config';
+import { BedrockAgentFactory } from '../services/bedrock-agent-factory';
 import { logger } from '../../../utils/logger';
 import { getDomain } from '../../../utils/domain';
 import { applyArabicPronunciationFixes } from '../services/ssml-humanizer';
@@ -530,6 +531,68 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
 
     const callId = nanoid();
 
+    const callMetadata: Record<string, unknown> = {
+      ivrId: config.id,
+      departmentId,
+      departmentAgentId: bestAgent.departmentAgent.id,
+      language: lang,
+      selectedOption: selectedOption.label,
+      engine: 'bedrock-polly',
+      ivrRouted: true,
+      agentId: agent.id,
+      userId: config.userId,
+      systemPrompt: agent.systemPrompt,
+      firstMessage: agent.firstMessage,
+      temperature: agent.temperature,
+      knowledgeBaseIds: agent.knowledgeBaseIds || [],
+      transferEnabled: agent.transferEnabled,
+      transferPhoneNumber: agent.transferPhoneNumber,
+      endConversationEnabled: agent.endConversationEnabled,
+      detectLanguageEnabled: agent.detectLanguageEnabled,
+      appointmentBookingEnabled: agent.appointmentBookingEnabled,
+    };
+
+    const agentLanguage = lang || agent.language || 'en';
+    const localizedFirst = await BedrockAgentFactory.localizeFirstMessage(
+      agent.firstMessage,
+      agentLanguage
+    );
+    if (localizedFirst) {
+      callMetadata.firstMessage = localizedFirst;
+    }
+
+    if (agent.type === 'flow' && agent.flowId) {
+      logger.info(`[Deprock IVR] Loading flow data for flow agent ${agent.id}`, undefined, 'DeprockIVR');
+      const [flow] = await db
+        .select()
+        .from(flows)
+        .where(eq(flows.id, agent.flowId))
+        .limit(1);
+
+      if (flow && flow.compiledSystemPrompt && flow.compiledTools) {
+        callMetadata.isFlowAgent = true;
+        callMetadata.flowId = flow.id;
+        callMetadata.systemPrompt = flow.compiledSystemPrompt;
+        const localizedFlowFirst = await BedrockAgentFactory.localizeFirstMessage(
+          flow.compiledFirstMessage || agent.firstMessage,
+          agentLanguage
+        );
+        callMetadata.firstMessage = localizedFlowFirst || flow.compiledFirstMessage || agent.firstMessage;
+        callMetadata.compiledTools = flow.compiledTools;
+        logger.info(`[Deprock IVR] Stored ${(flow.compiledTools as any[]).length} compiled flow tools for IVR call`, undefined, 'DeprockIVR');
+      } else {
+        logger.warn(`[Deprock IVR] Flow ${agent.flowId} not found or not compiled for agent ${agent.id}`, undefined, 'DeprockIVR');
+      }
+    }
+
+    const agentVoice = (agent as any).awsPollyVoiceId || langVoice || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
+
+    if ((agent as any).voiceProvider === 'elevenlabs' || (agent as any).ttsProvider === 'elevenlabs') {
+      callMetadata.ttsProvider = 'elevenlabs';
+      callMetadata.elevenLabsVoiceId = (agent as any).elevenLabsVoiceId;
+      callMetadata.elevenLabsApiKey = (agent as any).elevenLabsApiKey;
+    }
+
     await db.insert(twilioOpenaiCalls).values({
       id: callId,
       userId: config.userId,
@@ -539,24 +602,16 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
       twilioCallSid: callSid,
       fromNumber: caller,
       toNumber: To || phoneRecord?.phoneNumber || '',
-      openaiVoice: (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice,
+      openaiVoice: agentVoice,
       openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
       status: 'in-progress',
       callDirection: 'inbound',
       startedAt: new Date(),
       answeredAt: new Date(),
-      metadata: {
-        ivrId: config.id,
-        departmentId,
-        departmentAgentId: bestAgent.departmentAgent.id,
-        language: lang,
-        selectedOption: selectedOption.label,
-        engine: 'bedrock-polly',
-        ivrRouted: true,
-      },
+      metadata: callMetadata,
     });
 
-    logger.info(`[Deprock IVR] Call record created: ${callId}, agent: ${agent.id}`, undefined, 'DeprockIVR');
+    logger.info(`[Deprock IVR] Call record created: ${callId}, agent: ${agent.id}, flow: ${callMetadata.isFlowAgent ? 'yes' : 'no'}, lang: ${agentLanguage}`, undefined, 'DeprockIVR');
 
     const baseUrl = buildBaseUrl();
     const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');

@@ -48,3 +48,4 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - Widget config loading now properly handles server error responses and sets unavailable state
   - OpenAI model from server is now used in WebRTC connection URL instead of hardcoded model
   - Improved ElevenLabs WebSocket error/close handlers with descriptive error messages
+  - **IVR handle-selection fix**: Deprock IVR now stores full agent metadata (systemPrompt, firstMessage, language, knowledgeBaseIds, flow agent data, TTS provider, voice config, transfer/booking settings) in call records, matching the pattern used by direct inbound calls. Fixes Arabic language errors and English flow agent connection failures via IVR.

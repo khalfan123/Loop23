@@ -1144,9 +1144,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
       await this.synthesizeAndSend(currentSession, followUp);
 
-      audioBuffers.set(callSid, []);
-      bufferStartTimes.delete(callSid);
-      console.log(`[BedrockPolly Bridge] Follow-up finished for ${callSid} — now listening for response`);
+      console.log(`[BedrockPolly Bridge] Follow-up finished for ${callSid} — now listening for response (preserving buffered audio)`);
 
       const finalCheckTimer = setTimeout(async () => {
         noResponseTimers.delete(callSid);

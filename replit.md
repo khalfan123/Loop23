@@ -39,3 +39,12 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.
 - **Database**: Neon (PostgreSQL).
 - **Email**: SMTP.
+
+## Recent Fixes
+- **Widget Language + Flow Agent Fixes (Feb 2026)**: Fixed multiple widget issues:
+  - Fixed null crash in ephemeral-token endpoint when agent is null (OpenAI path `agent?.openaiModel`)
+  - Widget now passes selected language to ElevenLabs via `conversation_initiation_client_data` with language override
+  - Server returns language and detectLanguageEnabled in ElevenLabs ephemeral-token response
+  - Widget config loading now properly handles server error responses and sets unavailable state
+  - OpenAI model from server is now used in WebRTC connection URL instead of hardcoded model
+  - Improved ElevenLabs WebSocket error/close handlers with descriptive error messages

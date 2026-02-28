@@ -734,7 +734,7 @@ router.post('/widget/session/:sessionId/heartbeat', async (req: Request, res: Re
 
 router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, res: Response) => {
   try {
-    const { sessionToken } = req.body;
+    const { sessionToken, language } = req.body;
     const session = await widgetStorage.getSessionById(req.params.sessionId);
     
     if (!session || session.sessionToken !== sessionToken) {
@@ -755,7 +755,8 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     
     // ========== ELEVENLABS PATH ==========
     if (engine === 'elevenlabs' && agent?.elevenLabsAgentId) {
-      console.log(`[Widget] Using ElevenLabs engine for agent ${agent.name} (${agent.elevenLabsAgentId})`);
+      const selectedLanguage = language || agent.language || 'en';
+      console.log(`[Widget] Using ElevenLabs engine for agent ${agent.name} (${agent.elevenLabsAgentId}), language: ${selectedLanguage}`);
       
       // Get ElevenLabs credential
       let credential = null;
@@ -788,11 +789,13 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
           startedAt: new Date(),
         });
         
-        // Return ElevenLabs response format
+        // Return ElevenLabs response format with language info
         res.json({
           engine: 'elevenlabs',
           signed_url: wsAuth.signed_url,
           agent_id: agent.elevenLabsAgentId,
+          language: selectedLanguage,
+          detectLanguageEnabled: agent.detectLanguageEnabled || false,
           maxDuration: widget.maxCallDuration,
           appointmentBookingEnabled: (agent as any).appointmentBookingEnabled || (widget as any).appointmentBookingEnabled || false,
         });
@@ -894,7 +897,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
       'gpt-4o-realtime-preview': 'gpt-4o-realtime-preview-2024-12-17',
       'gpt-4o-mini-realtime-preview': 'gpt-4o-mini-realtime-preview-2024-12-17',
     };
-    const rawModel = agent.openaiModel || 'gpt-realtime-mini';
+    const rawModel = agent?.openaiModel || 'gpt-realtime-mini';
     const openaiModel = modelMapping[rawModel] || rawModel;
     
     const sessionConfig: any = {
@@ -963,6 +966,7 @@ router.post('/widget/session/:sessionId/ephemeral-token', async (req: Request, r
     res.json({
       engine: 'openai',
       client_secret: tokenData.client_secret,
+      model: openaiModel,
       maxDuration: widget.maxCallDuration,
       appointmentBookingEnabled: appointmentEnabled,
     });

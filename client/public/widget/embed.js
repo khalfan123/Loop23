@@ -68,7 +68,8 @@
   var elevenLabsWs = null;
   var currentEngine = 'openai';
   var conversationId = null;
-  var openaiTranscript = []; // Accumulated transcript for OpenAI calls
+  var openaiTranscript = [];
+  var currentOpenAIModel = null;
   
   function t(key) {
     return (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key;
@@ -158,22 +159,30 @@
   
   function loadConfig() {
     fetch(getBaseUrl() + '/api/public/widget/config/' + embedToken)
-      .then(function(res) { return res.json(); })
+      .then(function(res) {
+        if (!res.ok) {
+          throw new Error('Config request failed with status ' + res.status);
+        }
+        return res.json();
+      })
       .then(function(data) {
-        config = data;
-        // Revalidate language selection now that we have engine-specific languages
+        if (data.error) {
+          console.error('VoiceWidget: Config error:', data.error);
+          config = { isAvailable: false, supportedLanguages: [], unavailableReason: data.error };
+        } else {
+          config = data;
+        }
         validateSelectedLanguage();
         
-        // If widget already exists, rebuild dropdown immediately
         if (document.getElementById('vw-lang-dropdown')) {
           rebuildLanguageDropdown();
         }
-        // Note: loadBranding() -> createWidget() always runs after config loads,
-        // so getSortedLanguages() in getWidgetHTML() will already have supportedLanguages
         loadBranding();
       })
       .catch(function(err) {
         console.error('VoiceWidget: Failed to load config', err);
+        config = { isAvailable: false, supportedLanguages: [], unavailableReason: 'connection_error' };
+        loadBranding();
       });
   }
   
@@ -579,9 +588,10 @@
       
       if (currentEngine === 'elevenlabs' && tokenData.signed_url) {
         console.log('VoiceWidget: Using ElevenLabs engine with signed URL');
-        await initElevenLabsWebSocket(tokenData.signed_url);
+        await initElevenLabsWebSocket(tokenData.signed_url, languageToUse, tokenData.detectLanguageEnabled);
       } else {
         console.log('VoiceWidget: Using OpenAI engine, tokenData:', JSON.stringify(tokenData));
+        currentOpenAIModel = tokenData.model || null;
         var ephemeralKey = tokenData.client_secret?.value || tokenData.client_secret;
         
         if (!ephemeralKey || typeof ephemeralKey !== 'string') {
@@ -604,7 +614,7 @@
     }
   }
   
-  async function initElevenLabsWebSocket(signedUrl) {
+  async function initElevenLabsWebSocket(signedUrl, selectedLanguage, detectLanguageEnabled) {
     return new Promise(function(resolve, reject) {
       elevenLabsWs = new WebSocket(signedUrl);
       
@@ -821,9 +831,27 @@
       elevenLabsWs.onopen = function() {
         console.log('VoiceWidget: ElevenLabs WebSocket connected');
         
-        elevenLabsWs.send(JSON.stringify({
+        var initData = {
           type: 'conversation_initiation_client_data'
-        }));
+        };
+        
+        if (selectedLanguage && selectedLanguage !== 'en') {
+          initData.conversation_config_override = {
+            agent: {
+              language: selectedLanguage
+            }
+          };
+          console.log('VoiceWidget: Overriding ElevenLabs language to:', selectedLanguage);
+        }
+        
+        if (detectLanguageEnabled) {
+          initData.conversation_config_override = initData.conversation_config_override || {};
+          initData.conversation_config_override.agent = initData.conversation_config_override.agent || {};
+          initData.conversation_config_override.agent.language_detection = true;
+          console.log('VoiceWidget: Enabling ElevenLabs language detection');
+        }
+        
+        elevenLabsWs.send(JSON.stringify(initData));
         console.log('VoiceWidget: Sent conversation_initiation_client_data');
         
         resolve();
@@ -903,12 +931,20 @@
       
       elevenLabsWs.onerror = function(error) {
         console.error('VoiceWidget: ElevenLabs WebSocket error', error);
-        reject(new Error('ElevenLabs connection failed'));
+        reject(new Error('Voice connection failed. Please check your agent configuration and try again.'));
       };
       
-      elevenLabsWs.onclose = function() {
-        console.log('VoiceWidget: ElevenLabs WebSocket closed');
-        if (state === 'active') {
+      elevenLabsWs.onclose = function(event) {
+        console.log('VoiceWidget: ElevenLabs WebSocket closed, code:', event.code, 'reason:', event.reason);
+        if (state === 'connecting') {
+          var errorMsg = 'Connection closed unexpectedly.';
+          if (event.reason) {
+            errorMsg = event.reason;
+          } else if (event.code === 1008 || event.code === 1003) {
+            errorMsg = 'Agent configuration error. Please verify the agent supports the selected language.';
+          }
+          reject(new Error(errorMsg));
+        } else if (state === 'active') {
           endCall();
         }
       };
@@ -961,7 +997,8 @@
       }
     });
     
-    var sdpResponse = await fetch('https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
+    var rtcModel = currentOpenAIModel || 'gpt-4o-realtime-preview-2024-12-17';
+    var sdpResponse = await fetch('https://api.openai.com/v1/realtime?model=' + rtcModel, {
       method: 'POST',
       headers: {
         'Authorization': 'Bearer ' + ephemeralKey,
@@ -1283,6 +1320,7 @@
     currentEngine = 'openai';
     conversationId = null;
     openaiTranscript = [];
+    currentOpenAIModel = null;
     firstMessageSent = false;
     sessionCreated = false;
     dataChannelOpen = false;

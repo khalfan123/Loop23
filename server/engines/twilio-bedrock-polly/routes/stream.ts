@@ -4,7 +4,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { BedrockPollyAudioBridge } from '../services/audio-bridge.service';
 import { BedrockAgentFactory } from '../services/bedrock-agent-factory';
 import { db } from '../../../db';
-import { twilioOpenaiCalls, flowExecutions } from '@shared/schema';
+import { twilioOpenaiCalls, flowExecutions, users } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
 import { BEDROCK_POLLY_CONFIG } from '../config/config';
@@ -190,6 +190,16 @@ async function initializeSession(
 
     const metadata = callRecord.metadata as Record<string, unknown> | null;
 
+    let userTier: 'free' | 'pro' = 'free';
+    if (callRecord.userId) {
+      try {
+        const [user] = await db.select({ planType: users.planType }).from(users).where(eq(users.id, callRecord.userId)).limit(1);
+        if (user?.planType === 'pro') userTier = 'pro';
+      } catch (err: any) {
+        console.warn(`[BedrockPolly Stream] Failed to lookup user tier: ${err.message}`);
+      }
+    }
+
     const isFlowAgent = metadata?.isFlowAgent === true;
     const compiledTools = metadata?.compiledTools as any[] | undefined;
 
@@ -240,6 +250,7 @@ async function initializeSession(
         firstMessage: localizedNaturalFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,
         language: streamLanguage,
+        userTier,
         toolContext: {
           userId: callRecord.userId || '',
           agentId: callRecord.agentId || '',

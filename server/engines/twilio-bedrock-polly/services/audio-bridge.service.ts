@@ -516,9 +516,16 @@ export class BedrockPollyAudioBridge {
   private static cachedKeyTimestamp: number = 0;
   private static readonly KEY_CACHE_TTL_MS = 300_000;
 
+  private static isValidApiKey(key: string | undefined): key is string {
+    if (!key || key.trim().length === 0) return false;
+    const dummyPatterns = ['_DUMMY_', 'YOUR_KEY', 'placeholder', 'xxx', 'REPLACE', 'changeme', 'test_key'];
+    const upper = key.toUpperCase();
+    return !dummyPatterns.some(p => upper.includes(p.toUpperCase()));
+  }
+
   private static async resolveOpenAIKey(): Promise<string | null> {
-    if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
-    if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    if (this.isValidApiKey(process.env.OPENAI_API_KEY)) return process.env.OPENAI_API_KEY;
+    if (this.isValidApiKey(process.env.AI_INTEGRATIONS_OPENAI_API_KEY)) return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
 
     const now = Date.now();
     if (this.cachedOpenAIKey && (now - this.cachedKeyTimestamp) < this.KEY_CACHE_TTL_MS) {
@@ -530,7 +537,7 @@ export class BedrockPollyAudioBridge {
         .select({ apiKey: openaiCredentials.apiKey })
         .from(openaiCredentials)
         .limit(1);
-      if (cred?.apiKey) {
+      if (cred?.apiKey && this.isValidApiKey(cred.apiKey)) {
         this.cachedOpenAIKey = cred.apiKey;
         this.cachedKeyTimestamp = now;
         console.log('[BedrockPolly Bridge] Resolved OpenAI API key from database credential pool');

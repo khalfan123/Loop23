@@ -53,3 +53,5 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - Fixed corrupted Arabic firstMessage for agent "Nasser Al Rashid" in database (garbled "مeee" text replaced with proper Arabic greeting matching Tejwal eSIM billing context)
   - Added script-based language detection to `localizeFirstMessage` — skips unnecessary translation when the message is already in the target language's script (Arabic, Chinese, Japanese, Korean, Hindi, Hebrew, Thai, Russian)
   - Changed `localizeFirstMessage` model from `claude-3-5-sonnet` (unavailable for on-demand Bedrock invocation) to `claude-3-haiku` (available on-demand, sufficient for greeting translation)
+  - Fixed OpenAI Whisper API key resolution: `resolveOpenAIKey()` now validates keys against dummy/placeholder patterns before using them, allowing fallthrough to the valid database credential when env vars contain integration placeholder keys
+  - Fixed model tier detection: `stream.ts` now looks up user's `planType` from the `users` table and passes `userTier` to `BedrockAgentFactory.createAgentConfig()`, so pro users get claude-3-5-sonnet instead of defaulting to claude-3-haiku

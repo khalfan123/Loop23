@@ -122,21 +122,41 @@ const POLLY_VOICE_LANGUAGE: Record<string, string> = {
   Tatyana: 'ru-RU', Maxim: 'ru-RU',
 };
 
+const NEURAL_ONLY_VOICES = new Set([
+  'Hala', 'Zayd',
+  'Adriano', 'Thiago',
+  'Burcu',
+  'Suvi',
+  'Ola',
+  'Kazuha', 'Tomoko',
+  'Laura',
+  'Sergio', 'Andres',
+  'Ruth', 'Stephen', 'Gregory', 'Danielle',
+  'Liam',
+]);
+
+function getPollyVoiceName(voiceId: string): string {
+  if (NEURAL_ONLY_VOICES.has(voiceId)) {
+    return `${voiceId}-Neural`;
+  }
+  return voiceId;
+}
+
 function getPollyLanguage(voiceId: string): string | undefined {
   return POLLY_VOICE_LANGUAGE[voiceId];
 }
 
-function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false): string {
+function sayWithPolly(voiceId: string, text: string): string {
   const safeVoice = safePollyVoiceId(voiceId);
   const corrected = applyArabicPronunciationFixes(text);
-  const pause = addBreakAfter ? '<Pause length="1"/>' : '';
   const lang = getPollyLanguage(safeVoice);
   const langAttr = lang ? ` language="${lang}"` : '';
-  return `<Say voice="Polly.${escapeXml(safeVoice)}"${langAttr}>${escapeXml(corrected)}</Say>${pause}`;
+  const pollyName = getPollyVoiceName(safeVoice);
+  return `<Say voice="Polly.${escapeXml(pollyName)}"${langAttr}>${escapeXml(corrected)}</Say>`;
 }
 
 function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, _speed: number = 0.92): string {
-  return sayWithPolly(safePollyVoiceId(voiceId), text, addBreakAfter);
+  return sayWithPolly(safePollyVoiceId(voiceId), text);
 }
 
 function buildBaseUrl(): string {

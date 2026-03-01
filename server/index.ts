@@ -50,16 +50,17 @@ Unauthorized distribution prohibited
 
 const app = express();
 
-// Enable gzip compression for all responses (improves load times by 60-80%)
 app.use(compression({
-  level: 6, // Balanced compression level (1-9, 6 is default)
-  threshold: 1024, // Only compress responses > 1KB
+  level: 6,
+  threshold: 1024,
   filter: (req, res) => {
-    // Don't compress if client doesn't accept it
     if (req.headers['x-no-compression']) {
       return false;
     }
-    // Use default filter (compresses text, json, etc.)
+    const contentType = res.getHeader('content-type');
+    if (typeof contentType === 'string' && contentType.includes('text/xml')) {
+      return false;
+    }
     return compression.filter(req, res);
   }
 }));

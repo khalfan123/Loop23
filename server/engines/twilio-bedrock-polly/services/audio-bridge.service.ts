@@ -343,7 +343,7 @@ export class BedrockPollyAudioBridge {
             console.log(`[BedrockPolly Bridge] Media event #${session._mediaLogThrottle} for ${callSid}, chunk=${audioChunk.length}b, processing=${session.isProcessing}, status=${session.status}`);
           }
 
-          if (session.isOutbound && playingGreeting.get(callSid)) {
+          if (playingGreeting.get(callSid)) {
             break;
           }
 
@@ -571,8 +571,14 @@ export class BedrockPollyAudioBridge {
   }
 
   private static async resolveOpenAIKey(): Promise<string | null> {
-    if (this.isValidApiKey(process.env.OPENAI_API_KEY)) return process.env.OPENAI_API_KEY;
-    if (this.isValidApiKey(process.env.AI_INTEGRATIONS_OPENAI_API_KEY)) return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    if (this.isValidApiKey(process.env.OPENAI_API_KEY)) {
+      console.log('[BedrockPolly Bridge] Using OpenAI key from OPENAI_API_KEY env var');
+      return process.env.OPENAI_API_KEY;
+    }
+    if (this.isValidApiKey(process.env.AI_INTEGRATIONS_OPENAI_API_KEY)) {
+      console.log('[BedrockPolly Bridge] Using OpenAI key from AI_INTEGRATIONS env var');
+      return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    }
 
     const now = Date.now();
     if (this.cachedOpenAIKey && (now - this.cachedKeyTimestamp) < this.KEY_CACHE_TTL_MS) {
@@ -587,12 +593,13 @@ export class BedrockPollyAudioBridge {
       if (cred?.apiKey && this.isValidApiKey(cred.apiKey)) {
         this.cachedOpenAIKey = cred.apiKey;
         this.cachedKeyTimestamp = now;
-        console.log('[BedrockPolly Bridge] Resolved OpenAI API key from database credential pool');
+        console.log(`[BedrockPolly Bridge] Resolved OpenAI key from DB (${cred.apiKey.substring(0, 12)}...)`);
         return cred.apiKey;
       }
     } catch (err: any) {
       console.error('[BedrockPolly Bridge] Failed to resolve OpenAI key from DB:', err.message);
     }
+    console.error('[BedrockPolly Bridge] No valid OpenAI key found in env vars or DB');
     return null;
   }
 
@@ -742,8 +749,22 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
       return content;
     } catch (error: any) {
-      console.error(`[BedrockPolly Bridge] Bedrock invocation error:`, error.message);
-      return 'I apologize, but I am having trouble processing your request right now. Could you please try again?';
+      console.error(`[BedrockPolly Bridge] Bedrock invocation error for ${session.callSid}:`, error.message);
+      const lang = agentConfig.language || 'en';
+      const fallbacks: Record<string, string> = {
+        ar: 'عذرًا، أواجه مشكلة تقنية حاليًا. هل يمكنك المحاولة مرة أخرى؟',
+        es: 'Lo siento, estoy teniendo problemas técnicos. ¿Podría intentarlo de nuevo?',
+        fr: 'Désolé, je rencontre un problème technique. Pourriez-vous réessayer ?',
+        de: 'Entschuldigung, ich habe gerade technische Probleme. Könnten Sie es noch einmal versuchen?',
+        zh: '抱歉，我目前遇到技术问题。您能再试一次吗？',
+        ja: '申し訳ありませんが、技術的な問題が発生しています。もう一度お試しいただけますか？',
+        ko: '죄송합니다. 기술적인 문제가 발생했습니다. 다시 시도해 주시겠어요?',
+        pt: 'Desculpe, estou enfrentando um problema técnico. Poderia tentar novamente?',
+        it: 'Mi scuso, sto riscontrando un problema tecnico. Potrebbe riprovare?',
+        hi: 'क्षमा करें, मुझे एक तकनीकी समस्या आ रही है। क्या आप फिर से कोशिश कर सकते हैं?',
+        tr: 'Özür dilerim, teknik bir sorun yaşıyorum. Tekrar deneyebilir misiniz?',
+      };
+      return fallbacks[lang] || 'I apologize, but I am having trouble processing your request right now. Could you please try again?';
     }
   }
 
@@ -1262,6 +1283,11 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     console.log(`[BedrockPolly Bridge] Sending inbound greeting for ${callSid}: "${agentConfig.firstMessage.substring(0, 80)}..."`);
 
+    playingGreeting.set(callSid, true);
+    audioBuffers.set(callSid, []);
+    bufferStartTimes.delete(callSid);
+    speechActive.delete(callSid);
+
     session.transcriptParts.push({
       role: 'assistant',
       text: agentConfig.firstMessage,
@@ -1279,6 +1305,11 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
 
     await this.synthesizeAndSend(session, agentConfig.firstMessage);
+
+    playingGreeting.set(callSid, false);
+    audioBuffers.set(callSid, []);
+    bufferStartTimes.delete(callSid);
+    speechActive.delete(callSid);
 
     console.log(`[BedrockPolly Bridge] Inbound greeting finished for ${callSid} — now listening`);
   }

@@ -102,11 +102,37 @@ function safePollyVoiceId(voiceId: string): string {
   return voiceId;
 }
 
+const POLLY_VOICE_LANGUAGE: Record<string, string> = {
+  Hala: 'arb', Zayd: 'arb', Zeina: 'arb',
+  Lucia: 'es-ES', Lupe: 'es-US', Penelope: 'es-US', Pedro: 'es-US', Miguel: 'es-US', Mia: 'es-MX',
+  Lea: 'fr-FR', Remi: 'fr-FR', Mathieu: 'fr-FR', Celine: 'fr-FR',
+  Bianca: 'it-IT', Adriano: 'it-IT', Giorgio: 'it-IT', Carla: 'it-IT',
+  Vicki: 'de-DE', Hans: 'de-DE', Marlene: 'de-DE', Daniel: 'de-DE',
+  Zhiyu: 'cmn-CN',
+  Kajal: 'hi-IN',
+  Takumi: 'ja-JP', Mizuki: 'ja-JP', Kazuha: 'ja-JP', Tomoko: 'ja-JP',
+  Seoyeon: 'ko-KR',
+  Camila: 'pt-BR', Vitoria: 'pt-BR', Thiago: 'pt-BR', Ines: 'pt-PT',
+  Ruben: 'nl-NL', Laura: 'nl-NL', Lotte: 'nl-NL',
+  Ola: 'pl-PL', Jacek: 'pl-PL', Ewa: 'pl-PL', Maja: 'pl-PL',
+  Elin: 'sv-SE', Astrid: 'sv-SE',
+  Ida: 'nb-NO', Liv: 'nb-NO',
+  Suvi: 'fi-FI',
+  Filiz: 'tr-TR', Burcu: 'tr-TR',
+  Tatyana: 'ru-RU', Maxim: 'ru-RU',
+};
+
+function getPollyLanguage(voiceId: string): string | undefined {
+  return POLLY_VOICE_LANGUAGE[voiceId];
+}
+
 function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false): string {
   const safeVoice = safePollyVoiceId(voiceId);
   const corrected = applyArabicPronunciationFixes(text);
   const pause = addBreakAfter ? '<Pause length="1"/>' : '';
-  return `<Say voice="Polly.${escapeXml(safeVoice)}">${escapeXml(corrected)}</Say>${pause}`;
+  const lang = getPollyLanguage(safeVoice);
+  const langAttr = lang ? ` language="${lang}"` : '';
+  return `<Say voice="Polly.${escapeXml(safeVoice)}"${langAttr}>${escapeXml(corrected)}</Say>${pause}`;
 }
 
 function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, _speed: number = 0.92): string {

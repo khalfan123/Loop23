@@ -1461,6 +1461,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       'da': 'Danish',
       'fi': 'Finnish',
       'no': 'Norwegian',
+      'ca': 'Catalan',
     };
     return languageNames[code] || code.toUpperCase();
   }

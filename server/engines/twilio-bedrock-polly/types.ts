@@ -47,6 +47,7 @@ export type PollyVoiceId =
   | 'Kazuha'
   | 'Tomoko'
   | 'Seoyeon'
+  | 'Jihye'
   | 'Camila'
   | 'Thiago'
   | 'Vitoria'
@@ -73,7 +74,11 @@ export type PollyVoiceId =
   | 'Sofie'
   | 'Ida'
   | 'Elin'
-  | 'Burcu';
+  | 'Burcu'
+  | 'Arlet'
+  | 'Jitka'
+  | 'Sabrina'
+  | 'Jasmine';
 
 /**
  * Supported AWS Bedrock model aliases (Claude family)
@@ -408,6 +413,7 @@ export const POLLY_VOICES: {
   { id: 'Kazuha', name: 'Kazuha', description: 'Warm Japanese female voice', gender: 'Female', language: 'ja-JP', engine: 'neural' },
   { id: 'Tomoko', name: 'Tomoko', description: 'Clear Japanese female voice', gender: 'Female', language: 'ja-JP', engine: 'neural' },
   { id: 'Seoyeon', name: 'Seoyeon', description: 'Clear Korean female voice', gender: 'Female', language: 'ko-KR', engine: 'neural' },
+  { id: 'Jihye', name: 'Jihye', description: 'Natural Korean female voice', gender: 'Female', language: 'ko-KR', engine: 'neural' },
   { id: 'Camila', name: 'Camila', description: 'Warm Brazilian Portuguese female voice', gender: 'Female', language: 'pt-BR', engine: 'neural' },
   { id: 'Thiago', name: 'Thiago', description: 'Natural Brazilian Portuguese male voice', gender: 'Male', language: 'pt-BR', engine: 'neural' },
   { id: 'Vitoria', name: 'Vitoria', description: 'Professional Brazilian Portuguese female voice', gender: 'Female', language: 'pt-BR', engine: 'neural' },
@@ -420,6 +426,10 @@ export const POLLY_VOICES: {
   { id: 'Elin', name: 'Elin', description: 'Bright Swedish female voice', gender: 'Female', language: 'sv-SE', engine: 'neural' },
   { id: 'Sofie', name: 'Sofie', description: 'Natural Danish female voice', gender: 'Female', language: 'da-DK', engine: 'neural' },
   { id: 'Burcu', name: 'Burcu', description: 'Natural Turkish female voice', gender: 'Female', language: 'tr-TR', engine: 'neural' },
+  { id: 'Arlet', name: 'Arlet', description: 'Natural Catalan female voice', gender: 'Female', language: 'ca-ES', engine: 'neural' },
+  { id: 'Jitka', name: 'Jitka', description: 'Clear Czech female voice', gender: 'Female', language: 'cs-CZ', engine: 'neural' },
+  { id: 'Sabrina', name: 'Sabrina', description: 'Natural Swiss German female voice', gender: 'Female', language: 'de-CH', engine: 'neural' },
+  { id: 'Jasmine', name: 'Jasmine', description: 'Clear Singapore English female voice', gender: 'Female', language: 'en-SG', engine: 'neural' },
 ];
 
 /**

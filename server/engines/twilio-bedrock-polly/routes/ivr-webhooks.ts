@@ -32,6 +32,8 @@ const IVR_TEMPLATES: Record<string, { greeting: string; pressKey: string; invali
   tr: { pressKey: 'basın', invalidMsg: 'Geçersiz seçim. Lütfen tekrar deneyin.', noInputMsg: 'Yanıt alamadık.', holdMsg: 'Sizi bağlarken lütfen bekleyin.', noAgentMsg: 'Üzgünüz, şu anda müsait bir temsilci yok.', goodbyeMsg: 'Aramanız için teşekkür ederiz. Hoşça kalın.', greeting: 'Hoş geldiniz. Lütfen aşağıdaki seçenekleri dinleyin.', repeatMsg: 'Bu seçenekleri tekrarlamak için 0 tuşuna basın.', stillThereMsg: 'Hâlâ orada mısınız?' },
   ru: { pressKey: 'нажмите', invalidMsg: 'Неверный выбор. Пожалуйста, попробуйте ещё раз.', noInputMsg: 'Мы не получили ответа.', holdMsg: 'Пожалуйста, подождите, мы вас соединяем.', noAgentMsg: 'К сожалению, в данный момент нет свободных операторов.', goodbyeMsg: 'Спасибо за звонок. До свидания.', greeting: 'Добро пожаловать. Пожалуйста, прослушайте следующие варианты.', repeatMsg: 'Чтобы повторить эти варианты, нажмите 0.', stillThereMsg: 'Вы ещё на линии?' },
   ur: { pressKey: 'دبائیں', invalidMsg: 'غلط انتخاب۔ براہ کرم دوبارہ کوشش کریں۔', noInputMsg: 'ہمیں کوئی جواب نہیں ملا۔', holdMsg: 'براہ کرم انتظار کریں، ہم آپ کو جوڑ رہے ہیں۔', noAgentMsg: 'معذرت، اس وقت کوئی ایجنٹ دستیاب نہیں ہے۔', goodbyeMsg: 'کال کرنے کا شکریہ۔ خدا حافظ۔', greeting: 'خوش آمدید۔ براہ کرم درج ذیل اختیارات سنیں۔', repeatMsg: 'ان اختیارات کو دہرانے کے لیے 0 دبائیں۔', stillThereMsg: 'کیا آپ ابھی بھی یہاں ہیں؟' },
+  cs: { pressKey: 'stiskněte', invalidMsg: 'Neplatná volba. Zkuste to prosím znovu.', noInputMsg: 'Neobdrželi jsme žádnou odpověď.', holdMsg: 'Prosím vyčkejte, připojujeme vás.', noAgentMsg: 'Omlouváme se, v tuto chvíli není k dispozici žádný agent.', goodbyeMsg: 'Děkujeme za váš hovor. Na shledanou.', greeting: 'Vítejte. Prosím, vyslechněte si následující možnosti.', repeatMsg: 'Pro zopakování těchto možností stiskněte 0.', stillThereMsg: 'Jste ještě na lince?' },
+  ca: { pressKey: 'premeu', invalidMsg: 'Selecció no vàlida. Si us plau, torneu-ho a provar.', noInputMsg: 'No hem rebut cap resposta.', holdMsg: 'Si us plau, espereu mentre us connectem.', noAgentMsg: 'Ho sentim, no hi ha cap agent disponible en aquest moment.', goodbyeMsg: 'Gràcies per trucar. Adéu.', greeting: 'Benvingut. Si us plau, escolteu les opcions següents.', repeatMsg: 'Per repetir aquestes opcions, premeu 0.', stillThereMsg: 'Encara sou aquí?' },
 };
 
 const NUMBER_WORDS: Record<string, string[]> = {
@@ -55,6 +57,8 @@ const NUMBER_WORDS: Record<string, string[]> = {
   tr: ['sıfır', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'],
   ru: ['ноль', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'],
   ur: ['صفر', 'ایک', 'دو', 'تین', 'چار', 'پانچ', 'چھ', 'سات', 'آٹھ', 'نو'],
+  cs: ['nula', 'jedna', 'dva', 'tři', 'čtyři', 'pět', 'šest', 'sedm', 'osm', 'devět'],
+  ca: ['zero', 'u', 'dos', 'tres', 'quatre', 'cinc', 'sis', 'set', 'vuit', 'nou'],
 };
 
 function getTemplate(lang: string) {
@@ -70,7 +74,8 @@ const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', ar: 'العربية', es: 'Español', fr: 'Français', de: 'Deutsch',
   it: 'Italiano', pt: 'Português', zh: '中文', hi: 'हिन्दी', ja: '日本語',
   ko: '한국어', nl: 'Nederlands', pl: 'Polski', sv: 'Svenska', no: 'Norsk',
-  fi: 'Suomi', tr: 'Türkçe', ru: 'Русский', ur: 'اردو',
+  fi: 'Suomi', da: 'Dansk', tr: 'Türkçe', ru: 'Русский', ur: 'اردو',
+  cs: 'Čeština', ca: 'Català',
 };
 
 function escapeXml(str: string): string {
@@ -111,7 +116,7 @@ const POLLY_VOICE_LANGUAGE: Record<string, string> = {
   Zhiyu: 'cmn-CN',
   Kajal: 'hi-IN',
   Takumi: 'ja-JP', Mizuki: 'ja-JP', Kazuha: 'ja-JP', Tomoko: 'ja-JP',
-  Seoyeon: 'ko-KR',
+  Seoyeon: 'ko-KR', Jihye: 'ko-KR',
   Camila: 'pt-BR', Vitoria: 'pt-BR', Thiago: 'pt-BR', Ines: 'pt-PT',
   Ruben: 'nl-NL', Laura: 'nl-NL', Lotte: 'nl-NL',
   Ola: 'pl-PL', Jacek: 'pl-PL', Ewa: 'pl-PL', Maja: 'pl-PL',
@@ -120,6 +125,17 @@ const POLLY_VOICE_LANGUAGE: Record<string, string> = {
   Suvi: 'fi-FI',
   Filiz: 'tr-TR', Burcu: 'tr-TR',
   Tatyana: 'ru-RU', Maxim: 'ru-RU',
+  Arlet: 'ca-ES',
+  Jitka: 'cs-CZ',
+  Sabrina: 'de-CH',
+  Jasmine: 'en-SG',
+  Hiujin: 'yue-CN',
+  Sofie: 'da-DK',
+  Hannah: 'de-AT',
+  Isabelle: 'fr-BE',
+  Lisa: 'nl-BE',
+  Gabrielle: 'fr-CA', Liam: 'fr-CA',
+  Sergio: 'es-ES', Andres: 'es-MX',
 };
 
 const NEURAL_ONLY_VOICES = new Set([
@@ -133,6 +149,8 @@ const NEURAL_ONLY_VOICES = new Set([
   'Sergio', 'Andres',
   'Ruth', 'Stephen', 'Gregory', 'Danielle',
   'Liam',
+  'Jihye',
+  'Arlet', 'Jitka', 'Sabrina', 'Jasmine',
 ]);
 
 function getPollyVoiceName(voiceId: string): string {

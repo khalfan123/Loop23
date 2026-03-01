@@ -102,16 +102,15 @@ function safePollyVoiceId(voiceId: string): string {
   return voiceId;
 }
 
-function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false, speed: number = 0.92): string {
+function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = false): string {
   const safeVoice = safePollyVoiceId(voiceId);
   const corrected = applyArabicPronunciationFixes(text);
-  const breakSsml = addBreakAfter ? '<break time="350ms"/>' : '';
-  const prosodyRate = `${Math.round(speed * 100)}%`;
-  return `<Say voice="Polly.${escapeXml(safeVoice)}" engine="neural"><prosody rate="${prosodyRate}">${escapeXml(corrected)}</prosody>${breakSsml}</Say>`;
+  const pause = addBreakAfter ? '<Pause length="1"/>' : '';
+  return `<Say voice="Polly.${escapeXml(safeVoice)}">${escapeXml(corrected)}</Say>${pause}`;
 }
 
-function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, speed: number = 0.92): string {
-  return sayWithPolly(safePollyVoiceId(voiceId), text, addBreakAfter, speed);
+function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, _speed: number = 0.92): string {
+  return sayWithPolly(safePollyVoiceId(voiceId), text, addBreakAfter);
 }
 
 function buildBaseUrl(): string {

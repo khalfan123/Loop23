@@ -64,6 +64,22 @@ const playingGreeting: Map<string, boolean> = new Map();
 
 const openingPhaseEnd: Map<string, number> = new Map();
 
+const speechActive: Map<string, boolean> = new Map();
+
+const MULAW_DECODE_TABLE: Int16Array = (() => {
+  const table = new Int16Array(256);
+  for (let i = 0; i < 256; i++) {
+    let val = ~i;
+    const sign = val & 0x80;
+    const exponent = (val >> 4) & 0x07;
+    const mantissa = val & 0x0F;
+    let magnitude = ((mantissa << 1) | 0x21) << (exponent + 2);
+    magnitude -= 0x21 << 2;
+    table[i] = sign ? -magnitude : magnitude;
+  }
+  return table;
+})();
+
 /**
  * Twilio stream ready flags, tracked separately from session to avoid
  * race conditions during first-message sending.
@@ -119,6 +135,17 @@ export class BedrockPollyAudioBridge {
   private static readonly AUDIO_CHUNK_SIZE = 320;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
+  private static readonly SPEECH_ENERGY_THRESHOLD = 300;
+
+  private static calculateMulawEnergy(chunk: Buffer): number {
+    if (chunk.length === 0) return 0;
+    let sumSquares = 0;
+    for (let i = 0; i < chunk.length; i++) {
+      const linear = MULAW_DECODE_TABLE[chunk[i]];
+      sumSquares += linear * linear;
+    }
+    return Math.sqrt(sumSquares / chunk.length);
+  }
   private static readonly FINAL_HANGUP_TIMEOUT_MS = 8000;
 
   /**
@@ -341,28 +368,48 @@ export class BedrockPollyAudioBridge {
             buf = [];
             audioBuffers.set(callSid, buf);
           }
-          buf.push(audioChunk);
 
-          if (!bufferStartTimes.has(callSid)) {
-            bufferStartTimes.set(callSid, Date.now());
+          const energy = this.calculateMulawEnergy(audioChunk);
+          const isSpeech = energy > this.SPEECH_ENERGY_THRESHOLD;
+
+          if (isSpeech) {
+            buf.push(audioChunk);
+
+            if (!bufferStartTimes.has(callSid)) {
+              bufferStartTimes.set(callSid, Date.now());
+            }
+
+            if (!speechActive.get(callSid)) {
+              speechActive.set(callSid, true);
+              console.log(`[BedrockPolly Bridge] Speech detected for ${callSid} (energy=${Math.round(energy)})`);
+            }
+
+            const existingTimer = silenceTimers.get(callSid);
+            if (existingTimer) {
+              clearTimeout(existingTimer);
+              silenceTimers.delete(callSid);
+            }
+          } else if (speechActive.get(callSid)) {
+            buf.push(audioChunk);
+
+            if (!silenceTimers.has(callSid)) {
+              const phaseEnd = session.isOutbound ? openingPhaseEnd.get(callSid) : undefined;
+              const isOpeningPhase = session.isOutbound && phaseEnd && Date.now() < phaseEnd;
+              const silenceMs = isOpeningPhase ? this.OPENING_SILENCE_THRESHOLD_MS : this.SILENCE_THRESHOLD_MS;
+              const timer = setTimeout(() => {
+                speechActive.delete(callSid);
+                this.onSilenceDetected(session);
+              }, silenceMs);
+              silenceTimers.set(callSid, timer);
+            }
           }
 
-          const existingTimer = silenceTimers.get(callSid);
-          if (existingTimer) {
-            clearTimeout(existingTimer);
-          }
-
-          const elapsed = Date.now() - (bufferStartTimes.get(callSid) || Date.now());
-          if (elapsed >= this.MAX_BUFFER_DURATION_MS) {
-            this.onSilenceDetected(session);
-          } else {
-            const phaseEnd = session.isOutbound ? openingPhaseEnd.get(callSid) : undefined;
-            const isOpeningPhase = session.isOutbound && phaseEnd && Date.now() < phaseEnd;
-            const silenceMs = isOpeningPhase ? this.OPENING_SILENCE_THRESHOLD_MS : this.SILENCE_THRESHOLD_MS;
-            const timer = setTimeout(() => {
+          if (bufferStartTimes.has(callSid)) {
+            const elapsed = Date.now() - (bufferStartTimes.get(callSid) || Date.now());
+            if (elapsed >= this.MAX_BUFFER_DURATION_MS) {
+              speechActive.delete(callSid);
               this.onSilenceDetected(session);
-            }, silenceMs);
-            silenceTimers.set(callSid, timer);
+            }
           }
         }
         break;
@@ -1259,6 +1306,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     playingGreeting.delete(callSid);
     openingPhaseEnd.delete(callSid);
     twilioStreamReady.delete(callSid);
+    speechActive.delete(callSid);
 
     const nrTimer = noResponseTimers.get(callSid);
     if (nrTimer) {

@@ -106,7 +106,7 @@ function sayWithPolly(voiceId: string, text: string, addBreakAfter: boolean = fa
   const safeVoice = safePollyVoiceId(voiceId);
   const corrected = applyArabicPronunciationFixes(text);
   const pause = addBreakAfter ? '<Pause length="1"/>' : '';
-  return `<Say voice="Polly.${escapeXml(safeVoice)}">${escapeXml(corrected)}</Say>${pause}`;
+  return `<Say voice="Polly.${escapeXml(safeVoice)}" engine="neural">${escapeXml(corrected)}</Say>${pause}`;
 }
 
 function sayOrPlay(voiceId: string, text: string, _ivrId: string, addBreakAfter: boolean = false, _speed: number = 0.92): string {
@@ -530,16 +530,15 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
 
     const callId = nanoid();
 
+    const agentLanguage = lang || agent.language || 'en';
     const callMetadata: Record<string, unknown> = {
       ivrId: config.id,
       departmentId,
       departmentAgentId: bestAgent.departmentAgent.id,
-      language: lang,
+      language: agentLanguage,
       selectedOption: selectedOption.label,
       engine: 'bedrock-polly',
       ivrRouted: true,
-      agentId: agent.id,
-      userId: config.userId,
       systemPrompt: agent.systemPrompt,
       firstMessage: agent.firstMessage,
       temperature: agent.temperature,
@@ -551,36 +550,33 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
       appointmentBookingEnabled: agent.appointmentBookingEnabled,
     };
 
-    const agentLanguage = lang || agent.language || 'en';
-    callMetadata.language = agentLanguage;
-
     if (agent.type === 'flow' && agent.flowId) {
-      logger.info(`[Deprock IVR] Loading flow data for flow agent ${agent.id}`, undefined, 'DeprockIVR');
-      const [flow] = await db
-        .select()
-        .from(flows)
-        .where(eq(flows.id, agent.flowId))
-        .limit(1);
+      try {
+        const [flow] = await db
+          .select()
+          .from(flows)
+          .where(eq(flows.id, agent.flowId))
+          .limit(1);
 
-      if (flow && flow.compiledSystemPrompt && flow.compiledTools) {
-        callMetadata.isFlowAgent = true;
-        callMetadata.flowId = flow.id;
-        callMetadata.systemPrompt = flow.compiledSystemPrompt;
-        callMetadata.firstMessage = flow.compiledFirstMessage || agent.firstMessage;
-        callMetadata.compiledTools = flow.compiledTools;
-        logger.info(`[Deprock IVR] Stored ${(flow.compiledTools as any[]).length} compiled flow tools for IVR call`, undefined, 'DeprockIVR');
-      } else {
-        logger.warn(`[Deprock IVR] Flow ${agent.flowId} not found or not compiled for agent ${agent.id}`, undefined, 'DeprockIVR');
+        if (flow && flow.compiledSystemPrompt && flow.compiledTools) {
+          callMetadata.isFlowAgent = true;
+          callMetadata.flowId = flow.id;
+          callMetadata.systemPrompt = flow.compiledSystemPrompt;
+          callMetadata.firstMessage = flow.compiledFirstMessage || agent.firstMessage;
+          callMetadata.compiledTools = flow.compiledTools;
+        }
+      } catch (flowErr: any) {
+        logger.warn(`[Deprock IVR] Failed to load flow data: ${flowErr.message}`, undefined, 'DeprockIVR');
       }
     }
 
-    const agentVoice = (agent as any).awsPollyVoiceId || langVoice || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
-
-    if ((agent as any).voiceProvider === 'elevenlabs' || (agent as any).ttsProvider === 'elevenlabs') {
+    if (agent.voiceProvider === 'elevenlabs' || (agent as any).ttsProvider === 'elevenlabs') {
       callMetadata.ttsProvider = 'elevenlabs';
-      callMetadata.elevenLabsVoiceId = (agent as any).elevenLabsVoiceId;
+      callMetadata.elevenLabsVoiceId = agent.elevenLabsVoiceId;
       callMetadata.elevenLabsApiKey = (agent as any).elevenLabsApiKey;
     }
+
+    const agentVoice = agent.awsPollyVoiceId || langVoice || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
 
     await db.insert(twilioOpenaiCalls).values({
       id: callId,

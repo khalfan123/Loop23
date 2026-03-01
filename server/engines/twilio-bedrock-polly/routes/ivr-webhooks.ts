@@ -5,7 +5,6 @@ import { agents, twilioOpenaiCalls, phoneNumbers, departments, departmentAgents,
 import { eq, and, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { generateTwiML, BEDROCK_POLLY_CONFIG } from '../config/config';
-import { BedrockAgentFactory } from '../services/bedrock-agent-factory';
 import { logger } from '../../../utils/logger';
 import { getDomain } from '../../../utils/domain';
 import { applyArabicPronunciationFixes } from '../services/ssml-humanizer';
@@ -553,13 +552,7 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
     };
 
     const agentLanguage = lang || agent.language || 'en';
-    const localizedFirst = await BedrockAgentFactory.localizeFirstMessage(
-      agent.firstMessage,
-      agentLanguage
-    );
-    if (localizedFirst) {
-      callMetadata.firstMessage = localizedFirst;
-    }
+    callMetadata.language = agentLanguage;
 
     if (agent.type === 'flow' && agent.flowId) {
       logger.info(`[Deprock IVR] Loading flow data for flow agent ${agent.id}`, undefined, 'DeprockIVR');
@@ -573,11 +566,7 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
         callMetadata.isFlowAgent = true;
         callMetadata.flowId = flow.id;
         callMetadata.systemPrompt = flow.compiledSystemPrompt;
-        const localizedFlowFirst = await BedrockAgentFactory.localizeFirstMessage(
-          flow.compiledFirstMessage || agent.firstMessage,
-          agentLanguage
-        );
-        callMetadata.firstMessage = localizedFlowFirst || flow.compiledFirstMessage || agent.firstMessage;
+        callMetadata.firstMessage = flow.compiledFirstMessage || agent.firstMessage;
         callMetadata.compiledTools = flow.compiledTools;
         logger.info(`[Deprock IVR] Stored ${(flow.compiledTools as any[]).length} compiled flow tools for IVR call`, undefined, 'DeprockIVR');
       } else {

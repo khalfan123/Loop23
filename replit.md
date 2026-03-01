@@ -49,3 +49,7 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - OpenAI model from server is now used in WebRTC connection URL instead of hardcoded model
   - Improved ElevenLabs WebSocket error/close handlers with descriptive error messages
   - **IVR handle-selection fix**: Deprock IVR now stores full agent metadata (systemPrompt, firstMessage, language, knowledgeBaseIds, flow agent data, TTS provider, voice config, transfer/booking settings) in call records, matching the pattern used by direct inbound calls. Fixes Arabic language errors and English flow agent connection failures via IVR.
+- **Bedrock Agent Conversation Quality Fix (Mar 2026)**:
+  - Fixed corrupted Arabic firstMessage for agent "Nasser Al Rashid" in database (garbled "مeee" text replaced with proper Arabic greeting matching Tejwal eSIM billing context)
+  - Added script-based language detection to `localizeFirstMessage` — skips unnecessary translation when the message is already in the target language's script (Arabic, Chinese, Japanese, Korean, Hindi, Hebrew, Thai, Russian)
+  - Changed `localizeFirstMessage` model from `claude-3-5-sonnet` (unavailable for on-demand Bedrock invocation) to `claude-3-haiku` (available on-demand, sufficient for greeting translation)

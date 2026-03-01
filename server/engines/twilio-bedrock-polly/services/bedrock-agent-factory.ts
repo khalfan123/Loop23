@@ -845,12 +845,38 @@ You are in BRAIN-ONLY mode. This means:
     };
   }
 
+  private static readonly LANGUAGE_SCRIPT_PATTERNS: Record<string, RegExp> = {
+    ar: /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/,
+    zh: /[\u4E00-\u9FFF\u3400-\u4DBF]/,
+    ja: /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/,
+    ko: /[\uAC00-\uD7AF\u1100-\u11FF]/,
+    hi: /[\u0900-\u097F]/,
+    he: /[\u0590-\u05FF]/,
+    th: /[\u0E00-\u0E7F]/,
+    ru: /[\u0400-\u04FF]/,
+  };
+
+  private static isAlreadyInTargetLanguage(text: string, language: string): boolean {
+    const pattern = this.LANGUAGE_SCRIPT_PATTERNS[language];
+    if (!pattern) return false;
+    const cleanText = text.replace(/[0-9\s\p{P}]/gu, '');
+    if (cleanText.length === 0) return false;
+    const matches = cleanText.match(new RegExp(pattern.source, 'g'));
+    const ratio = (matches?.join('').length || 0) / cleanText.length;
+    return ratio > 0.5;
+  }
+
   static async localizeFirstMessage(
     firstMessage: string | undefined | null,
     language: string
   ): Promise<string | undefined> {
     if (!firstMessage || !language || language === 'en') {
       return firstMessage || undefined;
+    }
+
+    if (this.isAlreadyInTargetLanguage(firstMessage, language)) {
+      console.log(`[Bedrock Agent Factory] First message already in ${language}, skipping translation`);
+      return firstMessage;
     }
 
     const languageName = this.getLanguageName(language);
@@ -870,7 +896,7 @@ Message to translate:
 ${firstMessage}`;
 
       const response = await awsBedrockService.invoke({
-        model: 'claude-3-5-sonnet',
+        model: 'claude-3-haiku',
         messages: [{ role: 'user', content: translationPrompt }],
         systemPrompt: `You are a professional translator. Translate exactly as instructed. Output only the translation.`,
         temperature: 0.3,

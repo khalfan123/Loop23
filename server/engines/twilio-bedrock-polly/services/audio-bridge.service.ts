@@ -491,7 +491,7 @@ export class BedrockPollyAudioBridge {
       const audioBuffer = Buffer.concat(buf);
       console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b`);
 
-      const transcription = await this.transcribeAudio(audioBuffer);
+      const transcription = await this.transcribeAudio(audioBuffer, session.agentConfig.language);
 
       if (!transcription || transcription.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty transcription, skipping turn for ${callSid}`);
@@ -596,7 +596,7 @@ export class BedrockPollyAudioBridge {
     return null;
   }
 
-  private static async transcribeAudio(audioBuffer: Buffer): Promise<string> {
+  private static async transcribeAudio(audioBuffer: Buffer, language?: string): Promise<string> {
     const apiKey = await this.resolveOpenAIKey();
     if (!apiKey) {
       console.error('[BedrockPolly Bridge] No OpenAI API key available (env or DB) — cannot transcribe');
@@ -606,7 +606,7 @@ export class BedrockPollyAudioBridge {
     try {
       const wavHeader = createMulawWavHeader(audioBuffer.length);
       const wavBuffer = Buffer.concat([wavHeader, audioBuffer]);
-      console.log(`[BedrockPolly Bridge] Whisper: sending ${wavBuffer.length}b WAV (raw=${audioBuffer.length}b)`);
+      console.log(`[BedrockPolly Bridge] Whisper: sending ${wavBuffer.length}b WAV (raw=${audioBuffer.length}b), lang=${language || 'auto'}`);
 
       const formData = new FormData();
       formData.append(
@@ -615,6 +615,9 @@ export class BedrockPollyAudioBridge {
         'audio.wav'
       );
       formData.append('model', 'whisper-1');
+      if (language && language !== 'en') {
+        formData.append('language', language);
+      }
 
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',

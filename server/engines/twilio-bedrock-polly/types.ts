@@ -187,6 +187,7 @@ export interface AgentConfig {
   elevenLabsVoiceId?: string;
   elevenLabsApiKey?: string;
   agentName?: string;
+  language?: string;
 }
 
 /**

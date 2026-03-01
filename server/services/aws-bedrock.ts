@@ -27,9 +27,10 @@ export interface BedrockResponse {
 }
 
 export const BEDROCK_MODELS = {
-  "claude-3-5-sonnet": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+  "claude-3-5-sonnet": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+  "claude-3-5-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
   "claude-3-haiku": "anthropic.claude-3-haiku-20240307-v1:0",
-  "claude-3-opus": "anthropic.claude-3-opus-20240229-v1:0",
+  "claude-3-opus": "us.anthropic.claude-3-opus-20240229-v1:0",
   "titan-text-express": "amazon.titan-text-express-v1",
   "titan-text-lite": "amazon.titan-text-lite-v1",
   "llama-3-8b": "meta.llama3-8b-instruct-v1:0",
@@ -125,13 +126,13 @@ export class AWSBedrockService {
     const client = this.getClient();
     const modelId = this.resolveModelId(options.model || "claude-3-5-sonnet");
 
-    if (modelId.startsWith("anthropic.")) {
+    if (modelId.includes("anthropic.")) {
       return this.invokeAnthropicModel(client, modelId, options);
-    } else if (modelId.startsWith("amazon.titan")) {
+    } else if (modelId.includes("amazon.titan")) {
       return this.invokeTitanModel(client, modelId, options);
-    } else if (modelId.startsWith("meta.llama")) {
+    } else if (modelId.includes("meta.llama")) {
       return this.invokeLlamaModel(client, modelId, options);
-    } else if (modelId.startsWith("mistral.")) {
+    } else if (modelId.includes("mistral.")) {
       return this.invokeMistralModel(client, modelId, options);
     } else {
       return this.invokeAnthropicModel(client, modelId, options);

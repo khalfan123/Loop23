@@ -223,16 +223,21 @@ async function initializeSession(
         streamLanguage
       );
 
-      agentConfig = {
+      const factoryConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
         model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: localizedFlowFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,
-        tools: hydratedTools,
+        language: streamLanguage,
+        userTier,
         ttsProvider: (metadata?.ttsProvider as TtsProvider) || 'aws_polly',
         elevenLabsVoiceId: (metadata?.elevenLabsVoiceId as string) || undefined,
         elevenLabsApiKey: (metadata?.elevenLabsApiKey as string) || undefined,
+      });
+      agentConfig = {
+        ...factoryConfig,
+        tools: hydratedTools,
       };
 
       logger.info(`Flow agent initialized with ${hydratedTools.length} tools`, undefined, 'BedrockPolly Stream');

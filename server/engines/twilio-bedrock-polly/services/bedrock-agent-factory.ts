@@ -219,6 +219,7 @@ CRITICAL BEHAVIORAL RULES:
       elevenLabsVoiceId: params.elevenLabsVoiceId,
       elevenLabsApiKey: params.elevenLabsApiKey,
       agentName: params.agentName,
+      language,
     };
   }
 

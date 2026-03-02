@@ -1019,7 +1019,7 @@ export class BedrockPollyAudioBridge {
         model: agentConfig.model,
         messages: bedrockMessages,
         systemPrompt,
-        temperature: agentConfig.temperature ?? 0.3,
+        temperature: 0.3,
         maxTokens: 300,
       });
 
@@ -1398,9 +1398,6 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       }));
 
       chunksSent++;
-      if (chunksSent % 100 === 0 && typeof setImmediate !== 'undefined') {
-        setImmediate(() => {});
-      }
     }
   }
 

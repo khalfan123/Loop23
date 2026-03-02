@@ -73,6 +73,12 @@ const noiseFloorSamples: Map<string, number[]> = new Map();
 const calibratedNoiseFloor: Map<string, number> = new Map();
 const calibrationStartTime: Map<string, number> = new Map();
 
+const peakEnergy: Map<string, number> = new Map();
+
+const cachedFillerAudio: Map<string, Buffer> = new Map();
+
+const whisperAbortControllers: Map<string, AbortController> = new Map();
+
 const MULAW_DECODE_TABLE: Int16Array = (() => {
   const table = new Int16Array(256);
   for (let i = 0; i < 256; i++) {
@@ -134,12 +140,16 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_THRESHOLD_MS = 1200;
-  private static readonly OPENING_SILENCE_THRESHOLD_MS = 2000;
+  private static readonly SILENCE_SHORT_MS = 600;
+  private static readonly SILENCE_MEDIUM_MS = 500;
+  private static readonly SILENCE_LONG_UTTERANCE_MS = 400;
+  private static readonly LONG_UTTERANCE_BYTES = 16000;
+  private static readonly SHORT_UTTERANCE_BYTES = 8000;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 1800;
   private static readonly OPENING_PHASE_DURATION_MS = 8000;
   private static readonly MIN_AUDIO_LENGTH = 4800;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
-  private static readonly AUDIO_CHUNK_SIZE = 320;
+  private static readonly AUDIO_CHUNK_SIZE = 640;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
   private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 500;
@@ -150,6 +160,7 @@ export class BedrockPollyAudioBridge {
   private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 5.0;
   private static readonly MIN_SPEECH_THRESHOLD = 500;
   private static readonly MIN_BARGE_IN_THRESHOLD = 600;
+  private static readonly ENERGY_FALLOFF_RATIO = 0.3;
 
   private static calculateMulawEnergy(chunk: Buffer): number {
     if (chunk.length === 0) return 0;
@@ -257,6 +268,10 @@ export class BedrockPollyAudioBridge {
     twilioStreamReady.set(callSid, false);
 
     this.activeSessions.set(callSid, session);
+
+    awsBedrockService.warmConnection().catch(() => {});
+
+    this.preWarmFillerAudio(agentConfig.voice || 'Joanna', agentConfig.language || 'en').catch(() => {});
 
     console.log(`[BedrockPolly Bridge] Session created for ${callSid} — ready for Twilio stream`);
     return session;
@@ -373,6 +388,12 @@ export class BedrockPollyAudioBridge {
       calibrationStartTime.set(newKey, calStart);
     }
 
+    const pk = peakEnergy.get(oldKey);
+    if (pk !== undefined) {
+      peakEnergy.delete(oldKey);
+      peakEnergy.set(newKey, pk);
+    }
+
     console.log(`[BedrockPolly Bridge] Remapped session ${oldKey} → ${newKey}`);
   }
 
@@ -472,7 +493,13 @@ export class BedrockPollyAudioBridge {
 
             if (!speechActive.get(callSid)) {
               speechActive.set(callSid, true);
+              peakEnergy.set(callSid, energy);
               console.log(`[BedrockPolly Bridge] Speech detected for ${callSid} (energy=${Math.round(energy)})`);
+            }
+
+            const currentPeak = peakEnergy.get(callSid) || energy;
+            if (energy > currentPeak) {
+              peakEnergy.set(callSid, energy);
             }
 
             const existingTimer = silenceTimers.get(callSid);
@@ -486,9 +513,27 @@ export class BedrockPollyAudioBridge {
             if (!silenceTimers.has(callSid)) {
               const phaseEnd = session.isOutbound ? openingPhaseEnd.get(callSid) : undefined;
               const isOpeningPhase = session.isOutbound && phaseEnd && Date.now() < phaseEnd;
-              const silenceMs = isOpeningPhase ? this.OPENING_SILENCE_THRESHOLD_MS : this.SILENCE_THRESHOLD_MS;
+
+              let silenceMs: number;
+              if (isOpeningPhase) {
+                silenceMs = this.OPENING_SILENCE_THRESHOLD_MS;
+              } else {
+                const totalLen = buf.reduce((s, b) => s + b.length, 0);
+                const pk = peakEnergy.get(callSid) || 0;
+                const energyDropped = pk > 0 && totalLen >= this.SHORT_UTTERANCE_BYTES && energy < pk * this.ENERGY_FALLOFF_RATIO;
+
+                if (totalLen >= this.LONG_UTTERANCE_BYTES || energyDropped) {
+                  silenceMs = this.SILENCE_LONG_UTTERANCE_MS;
+                } else if (totalLen >= this.SHORT_UTTERANCE_BYTES) {
+                  silenceMs = this.SILENCE_MEDIUM_MS;
+                } else {
+                  silenceMs = this.SILENCE_SHORT_MS;
+                }
+              }
+
               const timer = setTimeout(() => {
                 speechActive.delete(callSid);
+                peakEnergy.delete(callSid);
                 this.onSilenceDetected(session);
               }, silenceMs);
               silenceTimers.set(callSid, timer);
@@ -607,8 +652,11 @@ export class BedrockPollyAudioBridge {
         return;
       }
 
+      const turnStart = Date.now();
       const recentUserMessages = session.messages.filter(m => m.role === 'user').slice(-2).map(m => m.content).filter(Boolean);
-      const transcription = await this.transcribeAudio(audioBuffer, session.agentConfig.language, recentUserMessages);
+      const sttStart = Date.now();
+      const transcription = await this.transcribeAudio(audioBuffer, session.agentConfig.language, recentUserMessages, callSid);
+      const sttMs = Date.now() - sttStart;
 
       if (!transcription || transcription.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty transcription, skipping turn for ${callSid}`);
@@ -647,7 +695,8 @@ export class BedrockPollyAudioBridge {
 
       console.log(`[BedrockPolly Bridge] Calling Bedrock for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
-      const responseText = await this.streamBedrockAndSpeak(session);
+      const bedrockStart = Date.now();
+      const responseText = await this.streamBedrockAndSpeak(session, sttMs);
 
       if (!responseText || responseText.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty Bedrock response for ${callSid}`);
@@ -655,7 +704,9 @@ export class BedrockPollyAudioBridge {
         return;
       }
 
+      const totalMs = Date.now() - turnStart;
       console.log(`[BedrockPolly Bridge] Agent (full): "${responseText.substring(0, 200)}"`);
+      console.log(`[LATENCY] call=${callSid} stt=${sttMs}ms total=${totalMs}ms`);
 
       session.transcriptParts.push({
         role: 'assistant',
@@ -761,17 +812,29 @@ export class BedrockPollyAudioBridge {
     return null;
   }
 
-  private static async transcribeAudio(audioBuffer: Buffer, language?: string, conversationContext?: string[]): Promise<string> {
+  private static async transcribeAudio(audioBuffer: Buffer, language?: string, conversationContext?: string[], callSid?: string): Promise<string> {
     const apiKey = await this.resolveOpenAIKey();
     if (!apiKey) {
       console.error('[BedrockPolly Bridge] No OpenAI API key available (env or DB) — cannot transcribe');
       return '';
     }
 
+    if (callSid) {
+      const existing = whisperAbortControllers.get(callSid);
+      if (existing) {
+        existing.abort();
+        console.log(`[BedrockPolly Bridge] Cancelled previous Whisper request for ${callSid}`);
+      }
+    }
+
+    const abortController = new AbortController();
+    if (callSid) {
+      whisperAbortControllers.set(callSid, abortController);
+    }
+
     try {
       const wavHeader = createMulawWavHeader(audioBuffer.length);
       const wavBuffer = Buffer.concat([wavHeader, audioBuffer]);
-      console.log(`[BedrockPolly Bridge] Whisper: sending ${wavBuffer.length}b WAV (raw=${audioBuffer.length}b), lang=${language || 'auto'}`);
 
       const formData = new FormData();
       formData.append(
@@ -780,6 +843,8 @@ export class BedrockPollyAudioBridge {
         'audio.wav'
       );
       formData.append('model', 'whisper-1');
+      formData.append('response_format', 'text');
+      formData.append('temperature', '0');
       if (language && language !== 'en') {
         formData.append('language', language);
       }
@@ -796,12 +861,14 @@ export class BedrockPollyAudioBridge {
         formData.append('prompt', whisperPrompt);
       }
 
+      const sttStart = Date.now();
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
         },
         body: formData,
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -810,12 +877,21 @@ export class BedrockPollyAudioBridge {
         return '';
       }
 
-      const result = (await response.json()) as { text?: string };
-      console.log(`[BedrockPolly Bridge] Whisper result: "${(result.text || '').substring(0, 200)}" (len=${(result.text || '').length})`);
-      return result.text || '';
+      const text = (await response.text()).trim();
+      const sttMs = Date.now() - sttStart;
+      console.log(`[BedrockPolly Bridge] Whisper: ${sttMs}ms, "${text.substring(0, 200)}" (${text.length} chars, ${wavBuffer.length}b WAV)`);
+      return text;
     } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log(`[BedrockPolly Bridge] Whisper request aborted for ${callSid}`);
+        return '';
+      }
       console.error(`[BedrockPolly Bridge] Transcription error:`, error.message);
       return '';
+    } finally {
+      if (callSid) {
+        whisperAbortControllers.delete(callSid);
+      }
     }
   }
 
@@ -859,7 +935,26 @@ export class BedrockPollyAudioBridge {
     return options[Math.floor(Math.random() * options.length)];
   }
 
-  private static async streamBedrockAndSpeak(session: BedrockPollyBridgeSession): Promise<string> {
+  private static async preWarmFillerAudio(voiceId: string, language: string): Promise<void> {
+    const fillers: Record<string, string[]> = {
+      ar: ['حسناً', 'نعم', 'تمام'],
+      en: ['Mm-hmm', 'Sure', 'Right'],
+    };
+    const phrases = fillers[language] || fillers['en'];
+    for (const phrase of phrases) {
+      const cacheKey = `${voiceId}_${phrase}`;
+      if (cachedFillerAudio.has(cacheKey)) continue;
+      try {
+        const pcm = await this.synthesizeWithPolly(phrase, voiceId);
+        const mulaw = this.pcmToMulaw(pcm);
+        cachedFillerAudio.set(cacheKey, mulaw);
+      } catch (_) {
+      }
+    }
+    console.log(`[BedrockPolly Bridge] Pre-cached ${phrases.length} filler audio buffers for voice=${voiceId}`);
+  }
+
+  private static async streamBedrockAndSpeak(session: BedrockPollyBridgeSession, sttMs?: number): Promise<string> {
     const { callSid, agentConfig, messages } = session;
 
     const bedrockMessages = messages.map((m) => ({
@@ -874,25 +969,12 @@ export class BedrockPollyAudioBridge {
         return `- ${t.name}: ${t.description}. Parameters: ${paramsDesc}`;
       }).join('\n');
 
-      toolCallInstructions = `\n\nYou have access to the following tools. To call a tool, respond with a JSON block in this exact format on its own line:
-[TOOL_CALL] {"name": "<tool_name>", "params": {<parameters>}}
-
-Available tools:
-${toolDescriptions}
-
-IMPORTANT: After collecting all required information, you MUST call the relevant tool. Do NOT just describe what you would do — actually call the tool. After completing the main task, say a friendly closing message and ask if there's anything else. Only call end_call after the user confirms they are done.`;
+      toolCallInstructions = `\n\nTools (respond with [TOOL_CALL] {"name":"<name>","params":{...}}):\n${toolDescriptions}\nCall tools after collecting info. Say closing message after task. Only end_call when user confirms done.`;
     }
 
-    const voiceInstructions = `\n\nIMPORTANT VOICE CALL GUIDELINES:
-- This is a LIVE PHONE CALL with speech-to-text transcription. The user's speech may be transcribed imperfectly.
-- NEVER say the conversation is unclear or that you cannot understand. Ask a brief follow-up question about the specific topic instead.
-- If the transcription seems incomplete, infer the user's intent from context. Ask ONE specific clarifying question if needed.
-- Keep responses SHORT and conversational — 1-2 sentences per turn. This is a phone call, not an essay.
-- Do NOT repeat the same question. Move forward with what you know.
-- Respond naturally and directly, like a real person on a phone call.`;
+    const voiceInstructions = `\n\nVOICE CALL RULES: Live phone call. Never say you can't understand. Infer intent, ask ONE clarifying question if needed. 1-2 sentences max. Don't repeat questions. Be natural.`;
 
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + voiceInstructions;
-    console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: model=${agentConfig.model}, messages=${bedrockMessages.length}`);
 
     if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
       session.twilioWs.send(JSON.stringify({
@@ -910,27 +992,41 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       let fillerInProgress = false;
       let pendingSynthesis: Promise<void> | null = null;
       const startTime = Date.now();
+      let firstTokenTime = 0;
+      let firstTtsStartTime = 0;
+      let firstTtsAudioTime = 0;
 
       const fillerTimer = setTimeout(async () => {
         if (sentencesSent === 0 && !fillerSent && !fillerInProgress && session.status !== 'disconnected' && !bargeInFlags.get(callSid)) {
           fillerInProgress = true;
           fillerSent = true;
-          const fillerText = this.getFillerPhrase(agentConfig.language || 'en');
-          console.log(`[BedrockPolly Bridge] Sending filler for ${callSid}: "${fillerText}"`);
-          await this.synthesizeAndSend(session, fillerText);
+          const lang = agentConfig.language || 'en';
+          const fillerText = this.getFillerPhrase(lang);
+          const cacheKey = `${agentConfig.voice || 'default'}_${fillerText}`;
+          const cachedBuf = cachedFillerAudio.get(cacheKey);
+          if (cachedBuf) {
+            console.log(`[BedrockPolly Bridge] Playing cached filler for ${callSid}: "${fillerText}"`);
+            this.sendMulawToTwilio(session, cachedBuf);
+          } else {
+            console.log(`[BedrockPolly Bridge] Sending filler for ${callSid}: "${fillerText}"`);
+            await this.synthesizeAndSend(session, fillerText);
+          }
           fillerInProgress = false;
         }
-      }, 500);
+      }, 400);
 
       const stream = awsBedrockService.invokeStream({
         model: agentConfig.model,
         messages: bedrockMessages,
         systemPrompt,
-        temperature: agentConfig.temperature ?? 0.7,
+        temperature: agentConfig.temperature ?? 0.3,
         maxTokens: 300,
       });
 
       for await (const token of stream) {
+        if (!firstTokenTime) {
+          firstTokenTime = Date.now();
+        }
         fullText += token;
 
         if (toolCallDetected) {
@@ -953,8 +1049,12 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         if (session.status === 'disconnected') break;
 
         const useEager = sentencesSent === 0;
-        const sentences = this.splitSentences(sentenceBuffer, useEager);
-        if (sentences.length > 1) {
+        const shouldSynth = useEager
+          ? (sentenceBuffer.length >= 20 && this.splitSentences(sentenceBuffer, true).length > 1)
+          : this.splitSentences(sentenceBuffer, false).length > 1;
+
+        if (shouldSynth) {
+          const sentences = this.splitSentences(sentenceBuffer, useEager);
           for (let i = 0; i < sentences.length - 1; i++) {
             const sentence = sentences[i];
             if (sentence.length < 2) continue;
@@ -971,18 +1071,22 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
             sentencesSent++;
             if (sentencesSent === 1) {
               clearTimeout(fillerTimer);
-              const elapsed = Date.now() - startTime;
-              console.log(`[BedrockPolly Bridge] First fragment ready in ${elapsed}ms for ${callSid}: "${sentence.substring(0, 80)}"`);
+              firstTtsStartTime = Date.now();
+              const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
+              console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
             }
 
+            pendingSynthesis = this.synthesizeAndSend(session, sentence).then(() => {
+              if (!firstTtsAudioTime) {
+                firstTtsAudioTime = Date.now();
+              }
+            });
+
             if (i < sentences.length - 2) {
-              const nextSentence = sentences[i + 1];
-              pendingSynthesis = this.synthesizeAndSend(session, sentence);
               await pendingSynthesis;
               pendingSynthesis = null;
-            } else {
-              await this.synthesizeAndSend(session, sentence);
             }
+
             if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
           }
           sentenceBuffer = sentences[sentences.length - 1];
@@ -1003,11 +1107,21 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         while (fillerInProgress) {
           await new Promise(r => setTimeout(r, 50));
         }
+        sentencesSent++;
+        if (sentencesSent === 1) {
+          clearTimeout(fillerTimer);
+          firstTtsStartTime = Date.now();
+        }
         await this.synthesizeAndSend(session, sentenceBuffer.trim());
+        if (!firstTtsAudioTime) firstTtsAudioTime = Date.now();
       }
 
       const elapsed = Date.now() - startTime;
-      console.log(`[BedrockPolly Bridge] Streaming complete for ${callSid}: ${fullText.length} chars, ${sentencesSent + 1} segments, ${elapsed}ms`);
+      const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
+      const ttsFirstMs = firstTtsStartTime ? firstTtsStartTime - startTime : 0;
+      const ttsAudioMs = firstTtsAudioTime ? firstTtsAudioTime - startTime : 0;
+      console.log(`[BedrockPolly Bridge] Streaming complete for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments, ${elapsed}ms`);
+      console.log(`[LATENCY] call=${callSid} stt=${sttMs || 0}ms llm_first=${llmFirstMs}ms tts_start=${ttsFirstMs}ms tts_audio=${ttsAudioMs}ms stream_total=${elapsed}ms`);
 
       return fullText;
     } catch (error: any) {
@@ -1259,6 +1373,37 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
    * the resulting audio back to the Twilio WebSocket as mulaw chunks.
    * Routes to ElevenLabs or AWS Polly based on session ttsProvider.
    */
+  private static sendMulawToTwilio(
+    session: BedrockPollyBridgeSession,
+    mulawBuffer: Buffer
+  ): void {
+    const { callSid, twilioWs, streamSid } = session;
+    if (!twilioWs || twilioWs.readyState !== WebSocket.OPEN || !streamSid) return;
+
+    let chunksSent = 0;
+    for (let offset = 0; offset < mulawBuffer.length; offset += this.AUDIO_CHUNK_SIZE) {
+      if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+
+      const chunk = mulawBuffer.slice(
+        offset,
+        Math.min(offset + this.AUDIO_CHUNK_SIZE, mulawBuffer.length)
+      );
+
+      twilioWs.send(JSON.stringify({
+        event: 'media',
+        streamSid,
+        media: {
+          payload: chunk.toString('base64'),
+        },
+      }));
+
+      chunksSent++;
+      if (chunksSent % 100 === 0 && typeof setImmediate !== 'undefined') {
+        setImmediate(() => {});
+      }
+    }
+  }
+
   private static async synthesizeAndSend(
     session: BedrockPollyBridgeSession,
     text: string
@@ -1302,38 +1447,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       }
 
       const mulawBuffer = this.pcmToMulaw(pcmBuffer);
-      let chunksSent = 0;
-
-      for (let offset = 0; offset < mulawBuffer.length; offset += this.AUDIO_CHUNK_SIZE) {
-        if (bargeInFlags.get(callSid)) {
-          console.log(`[BedrockPolly Bridge] Barge-in during synthesis, stopping playback for ${callSid}`);
-          break;
-        }
-
-        if (session.status === 'disconnected' || !twilioWs || twilioWs.readyState !== WebSocket.OPEN) {
-          console.log(`[BedrockPolly Bridge] Stream closed during synthesis for ${callSid}`);
-          break;
-        }
-
-        const chunk = mulawBuffer.slice(
-          offset,
-          Math.min(offset + this.AUDIO_CHUNK_SIZE, mulawBuffer.length)
-        );
-
-        twilioWs.send(JSON.stringify({
-          event: 'media',
-          streamSid,
-          media: {
-            payload: chunk.toString('base64'),
-          },
-        }));
-
-        chunksSent++;
-
-        if (chunksSent % 50 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
-      }
+      this.sendMulawToTwilio(session, mulawBuffer);
 
       const markName = `tts_segment_${++markCounter}_${Date.now()}`;
       let marks = pendingMarks.get(callSid);
@@ -1833,6 +1947,9 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     calibratedNoiseFloor.delete(callSid);
     calibrationStartTime.delete(callSid);
     pendingMarks.delete(callSid);
+    peakEnergy.delete(callSid);
+    whisperAbortControllers.get(callSid)?.abort();
+    whisperAbortControllers.delete(callSid);
 
     const nrTimer = noResponseTimers.get(callSid);
     if (nrTimer) {

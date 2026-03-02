@@ -339,6 +339,27 @@ export class AWSBedrockService {
   /**
    * Test AWS Bedrock credentials
    */
+  async warmConnection(): Promise<void> {
+    try {
+      const client = this.getClient();
+      const modelId = this.resolveModelId("claude-3-5-sonnet");
+      const payload = {
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 1,
+        temperature: 0,
+        messages: [{ role: "user", content: "." }],
+      };
+      const command = new InvokeModelCommand({
+        modelId,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify(payload),
+      });
+      await client.send(command);
+    } catch (_) {
+    }
+  }
+
   async testCredentials(): Promise<{ success: boolean; message: string }> {
     try {
       const client = this.getClient();

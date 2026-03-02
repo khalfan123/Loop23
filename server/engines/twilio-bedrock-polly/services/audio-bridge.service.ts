@@ -66,6 +66,13 @@ const openingPhaseEnd: Map<string, number> = new Map();
 
 const speechActive: Map<string, boolean> = new Map();
 
+const pendingMarks: Map<string, Set<string>> = new Map();
+let markCounter = 0;
+
+const noiseFloorSamples: Map<string, number[]> = new Map();
+const calibratedNoiseFloor: Map<string, number> = new Map();
+const calibrationStartTime: Map<string, number> = new Map();
+
 const MULAW_DECODE_TABLE: Int16Array = (() => {
   const table = new Int16Array(256);
   for (let i = 0; i < 256; i++) {
@@ -135,9 +142,14 @@ export class BedrockPollyAudioBridge {
   private static readonly AUDIO_CHUNK_SIZE = 320;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
-  private static readonly SPEECH_ENERGY_THRESHOLD = 400;
-  private static readonly BARGE_IN_ENERGY_THRESHOLD = 500;
+  private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 400;
+  private static readonly DEFAULT_BARGE_IN_ENERGY_THRESHOLD = 500;
   private static readonly BARGE_IN_MIN_BYTES = 3200;
+  private static readonly NOISE_CALIBRATION_DURATION_MS = 1500;
+  private static readonly NOISE_FLOOR_SPEECH_MULTIPLIER = 2.5;
+  private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 3.0;
+  private static readonly MIN_SPEECH_THRESHOLD = 200;
+  private static readonly MIN_BARGE_IN_THRESHOLD = 250;
 
   private static calculateMulawEnergy(chunk: Buffer): number {
     if (chunk.length === 0) return 0;
@@ -148,6 +160,51 @@ export class BedrockPollyAudioBridge {
     }
     return Math.sqrt(sumSquares / chunk.length);
   }
+
+  private static collectNoiseFloorSample(callSid: string, energy: number): void {
+    if (calibratedNoiseFloor.has(callSid)) return;
+
+    if (!calibrationStartTime.has(callSid)) {
+      calibrationStartTime.set(callSid, Date.now());
+      noiseFloorSamples.set(callSid, []);
+    }
+
+    const samples = noiseFloorSamples.get(callSid)!;
+    samples.push(energy);
+
+    const elapsed = Date.now() - calibrationStartTime.get(callSid)!;
+    if (elapsed >= this.NOISE_CALIBRATION_DURATION_MS && samples.length >= 10) {
+      const sorted = [...samples].sort((a, b) => a - b);
+      const trimCount = Math.floor(sorted.length * 0.1);
+      const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
+      const avgNoise = trimmed.reduce((sum, v) => sum + v, 0) / trimmed.length;
+
+      calibratedNoiseFloor.set(callSid, avgNoise);
+
+      const speechThresh = this.getSpeechThreshold(callSid);
+      const bargeInThresh = this.getBargeInThreshold(callSid);
+      console.log(`[BedrockPolly Bridge] Noise floor calibrated for ${callSid}: floor=${Math.round(avgNoise)}, speechThreshold=${Math.round(speechThresh)}, bargeInThreshold=${Math.round(bargeInThresh)} (from ${samples.length} samples)`);
+    }
+  }
+
+  private static getSpeechThreshold(callSid: string): number {
+    const floor = calibratedNoiseFloor.get(callSid);
+    if (floor === undefined) return this.DEFAULT_SPEECH_ENERGY_THRESHOLD;
+    return Math.max(
+      this.MIN_SPEECH_THRESHOLD,
+      floor * this.NOISE_FLOOR_SPEECH_MULTIPLIER
+    );
+  }
+
+  private static getBargeInThreshold(callSid: string): number {
+    const floor = calibratedNoiseFloor.get(callSid);
+    if (floor === undefined) return this.DEFAULT_BARGE_IN_ENERGY_THRESHOLD;
+    return Math.max(
+      this.MIN_BARGE_IN_THRESHOLD,
+      floor * this.NOISE_FLOOR_BARGE_IN_MULTIPLIER
+    );
+  }
+
   private static readonly FINAL_HANGUP_TIMEOUT_MS = 8000;
 
   /**
@@ -292,6 +349,30 @@ export class BedrockPollyAudioBridge {
       openingPhaseEnd.set(newKey, opEnd);
     }
 
+    const marks = pendingMarks.get(oldKey);
+    if (marks) {
+      pendingMarks.delete(oldKey);
+      pendingMarks.set(newKey, marks);
+    }
+
+    const nfSamples = noiseFloorSamples.get(oldKey);
+    if (nfSamples) {
+      noiseFloorSamples.delete(oldKey);
+      noiseFloorSamples.set(newKey, nfSamples);
+    }
+
+    const nfCalibrated = calibratedNoiseFloor.get(oldKey);
+    if (nfCalibrated !== undefined) {
+      calibratedNoiseFloor.delete(oldKey);
+      calibratedNoiseFloor.set(newKey, nfCalibrated);
+    }
+
+    const calStart = calibrationStartTime.get(oldKey);
+    if (calStart !== undefined) {
+      calibrationStartTime.delete(oldKey);
+      calibrationStartTime.set(newKey, calStart);
+    }
+
     console.log(`[BedrockPolly Bridge] Remapped session ${oldKey} → ${newKey}`);
   }
 
@@ -348,12 +429,14 @@ export class BedrockPollyAudioBridge {
           }
 
           if (playingGreeting.get(callSid)) {
+            const greetingEnergy = this.calculateMulawEnergy(audioChunk);
+            this.collectNoiseFloorSample(callSid, greetingEnergy);
             break;
           }
 
           if (session.isProcessing) {
             const energy = this.calculateMulawEnergy(audioChunk);
-            if (energy > this.BARGE_IN_ENERGY_THRESHOLD) {
+            if (energy > this.getBargeInThreshold(callSid)) {
               const accum = (bargeInAccum.get(callSid) || 0) + audioChunk.length;
               bargeInAccum.set(callSid, accum);
               if (accum >= this.BARGE_IN_MIN_BYTES && !bargeInFlags.get(callSid)) {
@@ -377,7 +460,8 @@ export class BedrockPollyAudioBridge {
           }
 
           const energy = this.calculateMulawEnergy(audioChunk);
-          const isSpeech = energy > this.SPEECH_ENERGY_THRESHOLD;
+          this.collectNoiseFloorSample(callSid, energy);
+          const isSpeech = energy > this.getSpeechThreshold(callSid);
 
           if (isSpeech) {
             buf.push(audioChunk);
@@ -429,6 +513,13 @@ export class BedrockPollyAudioBridge {
         break;
 
       case 'mark':
+        if (event.mark) {
+          const marks = pendingMarks.get(callSid);
+          if (marks) {
+            marks.delete(event.mark.name);
+          }
+          console.log(`[BedrockPolly Bridge] Mark acknowledged: ${event.mark.name} for ${callSid}`);
+        }
         break;
 
       default:
@@ -547,7 +638,7 @@ export class BedrockPollyAudioBridge {
 
       console.log(`[BedrockPolly Bridge] Calling Bedrock for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
-      const responseText = await this.getBedrockResponse(session);
+      const responseText = await this.streamBedrockAndSpeak(session);
 
       if (!responseText || responseText.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty Bedrock response for ${callSid}`);
@@ -555,7 +646,7 @@ export class BedrockPollyAudioBridge {
         return;
       }
 
-      console.log(`[BedrockPolly Bridge] Agent: "${responseText.substring(0, 200)}"`);
+      console.log(`[BedrockPolly Bridge] Agent (full): "${responseText.substring(0, 200)}"`);
 
       session.transcriptParts.push({
         role: 'assistant',
@@ -572,8 +663,6 @@ export class BedrockPollyAudioBridge {
       if (session.onTranscriptCallback) {
         session.onTranscriptCallback(responseText, true);
       }
-
-      await this.synthesizeAndSend(session, responseText);
     } catch (error: any) {
       console.error(`[BedrockPolly Bridge] Turn processing error for ${callSid}:`, error.message);
     } finally {
@@ -704,10 +793,245 @@ export class BedrockPollyAudioBridge {
     }
   }
 
+  private static readonly SENTENCE_BOUNDARIES = /([.!?؟،\n])\s/;
+
+  private static splitSentences(text: string): string[] {
+    const sentences: string[] = [];
+    let remaining = text;
+    while (remaining.length > 0) {
+      const match = this.SENTENCE_BOUNDARIES.exec(remaining);
+      if (match && match.index !== undefined) {
+        const end = match.index + match[0].length;
+        sentences.push(remaining.substring(0, end).trim());
+        remaining = remaining.substring(end);
+      } else {
+        if (remaining.trim()) sentences.push(remaining.trim());
+        break;
+      }
+    }
+    return sentences.filter(s => s.length > 0);
+  }
+
+  private static getFillerPhrase(language: string): string {
+    const fillers: Record<string, string[]> = {
+      ar: ['لحظة من فضلك', 'حسناً', 'دعني أتحقق'],
+      en: ['One moment please', 'Let me check', 'Just a moment'],
+      es: ['Un momento por favor', 'Déjeme verificar'],
+      fr: ['Un instant s\'il vous plaît', 'Laissez-moi vérifier'],
+      de: ['Einen Moment bitte', 'Lassen Sie mich nachsehen'],
+      zh: ['请稍等', '让我查一下'],
+      ja: ['少々お待ちください', '確認いたします'],
+      ko: ['잠시만 기다려 주세요', '확인해 보겠습니다'],
+      pt: ['Um momento por favor', 'Deixe-me verificar'],
+      it: ['Un momento per favore', 'Lasci che verifichi'],
+      hi: ['एक पल कृपया', 'मुझे जाँचने दीजिए'],
+      tr: ['Bir saniye lütfen', 'Kontrol edeyim'],
+    };
+    const options = fillers[language] || fillers['en'];
+    return options[Math.floor(Math.random() * options.length)];
+  }
+
+  private static async streamBedrockAndSpeak(session: BedrockPollyBridgeSession): Promise<string> {
+    const { callSid, agentConfig, messages } = session;
+
+    const bedrockMessages = messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    let toolCallInstructions = '';
+    if (agentConfig.tools && agentConfig.tools.length > 0) {
+      const toolDescriptions = agentConfig.tools.map((t) => {
+        const paramsDesc = JSON.stringify(t.parameters || {});
+        return `- ${t.name}: ${t.description}. Parameters: ${paramsDesc}`;
+      }).join('\n');
+
+      toolCallInstructions = `\n\nYou have access to the following tools. To call a tool, respond with a JSON block in this exact format on its own line:
+[TOOL_CALL] {"name": "<tool_name>", "params": {<parameters>}}
+
+Available tools:
+${toolDescriptions}
+
+IMPORTANT: After collecting all required information, you MUST call the relevant tool. Do NOT just describe what you would do — actually call the tool. After completing the main task, say a friendly closing message and ask if there's anything else. Only call end_call after the user confirms they are done.`;
+    }
+
+    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions;
+    console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: model=${agentConfig.model}, messages=${bedrockMessages.length}`);
+
+    try {
+      let fullText = '';
+      let sentenceBuffer = '';
+      let sentencesSent = 0;
+      let toolCallDetected = false;
+      let fillerSent = false;
+      let fillerInProgress = false;
+      const startTime = Date.now();
+
+      const fillerTimer = setTimeout(async () => {
+        if (sentencesSent === 0 && !fillerSent && !fillerInProgress && session.status !== 'disconnected' && !bargeInFlags.get(callSid)) {
+          fillerInProgress = true;
+          fillerSent = true;
+          const fillerText = this.getFillerPhrase(agentConfig.language || 'en');
+          console.log(`[BedrockPolly Bridge] Sending filler for ${callSid}: "${fillerText}"`);
+          await this.synthesizeAndSend(session, fillerText);
+          fillerInProgress = false;
+        }
+      }, 800);
+
+      const stream = awsBedrockService.invokeStream({
+        model: agentConfig.model,
+        messages: bedrockMessages,
+        systemPrompt,
+        temperature: agentConfig.temperature ?? 0.7,
+        maxTokens: 1024,
+      });
+
+      for await (const token of stream) {
+        fullText += token;
+
+        if (toolCallDetected) {
+          continue;
+        }
+
+        sentenceBuffer += token;
+
+        if (sentenceBuffer.includes('[TOOL_CALL]')) {
+          toolCallDetected = true;
+          clearTimeout(fillerTimer);
+          continue;
+        }
+
+        if (bargeInFlags.get(callSid)) {
+          console.log(`[BedrockPolly Bridge] Barge-in during streaming for ${callSid}`);
+          break;
+        }
+
+        if (session.status === 'disconnected') break;
+
+        const sentences = this.splitSentences(sentenceBuffer);
+        if (sentences.length > 1) {
+          for (let i = 0; i < sentences.length - 1; i++) {
+            const sentence = sentences[i];
+            if (sentence.length < 2) continue;
+
+            while (fillerInProgress) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+
+            sentencesSent++;
+            if (sentencesSent === 1) {
+              clearTimeout(fillerTimer);
+              const elapsed = Date.now() - startTime;
+              console.log(`[BedrockPolly Bridge] First sentence ready in ${elapsed}ms for ${callSid}: "${sentence.substring(0, 80)}"`);
+            }
+            await this.synthesizeAndSend(session, sentence);
+            if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+          }
+          sentenceBuffer = sentences[sentences.length - 1];
+        }
+      }
+
+      clearTimeout(fillerTimer);
+
+      if (toolCallDetected) {
+        return this.handleStreamToolCall(session, fullText, systemPrompt);
+      }
+
+      if (sentenceBuffer.trim().length > 0 && !bargeInFlags.get(callSid) && session.status !== 'disconnected') {
+        while (fillerInProgress) {
+          await new Promise(r => setTimeout(r, 50));
+        }
+        await this.synthesizeAndSend(session, sentenceBuffer.trim());
+      }
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[BedrockPolly Bridge] Streaming complete for ${callSid}: ${fullText.length} chars, ${sentencesSent + 1} segments, ${elapsed}ms`);
+
+      return fullText;
+    } catch (error: any) {
+      console.error(`[BedrockPolly Bridge] Streaming Bedrock error for ${callSid}:`, error.message);
+      const lang = agentConfig.language || 'en';
+      const fallbacks: Record<string, string> = {
+        ar: 'عذرًا، أواجه مشكلة تقنية حاليًا. هل يمكنك المحاولة مرة أخرى؟',
+        es: 'Lo siento, estoy teniendo problemas técnicos. ¿Podría intentarlo de nuevo?',
+        fr: 'Désolé, je rencontre un problème technique. Pourriez-vous réessayer ?',
+        de: 'Entschuldigung, ich habe gerade technische Probleme. Könnten Sie es noch einmal versuchen?',
+        zh: '抱歉，我目前遇到技术问题。您能再试一次吗？',
+        ja: '申し訳ありませんが、技術的な問題が発生しています。もう一度お試しいただけますか？',
+        ko: '죄송합니다. 기술적인 문제가 발생했습니다. 다시 시도해 주시겠어요?',
+        pt: 'Desculpe, estou enfrentando um problema técnico. Poderia tentar novamente?',
+        it: 'Mi scuso, sto riscontrando un problema tecnico. Potrebbe riprovare?',
+        hi: 'क्षमा करें, मुझे एक तकनीकी समस्या आ रही है। क्या आप फिर से कोशिश कर सकते हैं?',
+        tr: 'Özür dilerim, teknik bir sorun yaşıyorum. Tekrar deneyebilir misiniz?',
+      };
+      const fallback = fallbacks[lang] || 'I apologize, but I am having trouble processing your request right now. Could you please try again?';
+      await this.synthesizeAndSend(session, fallback);
+      return fallback;
+    }
+  }
+
+  private static async handleStreamToolCall(
+    session: BedrockPollyBridgeSession,
+    fullText: string,
+    systemPrompt: string
+  ): Promise<string> {
+    const toolCallIdx = fullText.indexOf('[TOOL_CALL]');
+    const afterTag = fullText.substring(toolCallIdx + '[TOOL_CALL]'.length).trim();
+    const jsonStart = afterTag.indexOf('{');
+    let jsonStr = '';
+    if (jsonStart !== -1) {
+      let depth = 0;
+      let jsonEnd = -1;
+      for (let i = jsonStart; i < afterTag.length; i++) {
+        if (afterTag[i] === '{') depth++;
+        else if (afterTag[i] === '}') {
+          depth--;
+          if (depth === 0) { jsonEnd = i; break; }
+        }
+      }
+      if (jsonEnd !== -1) {
+        jsonStr = afterTag.substring(jsonStart, jsonEnd + 1);
+      }
+    }
+
+    const textBeforeToolCall = fullText.substring(0, toolCallIdx).trim();
+    if (textBeforeToolCall.length > 2) {
+      await this.synthesizeAndSend(session, textBeforeToolCall);
+    }
+
+    try {
+      const toolCall = JSON.parse(jsonStr) as {
+        name: string;
+        params: Record<string, unknown>;
+      };
+
+      const toolResult = await this.handleToolCalls(session, [toolCall]);
+
+      session.messages.push({
+        role: 'assistant',
+        content: fullText,
+        timestamp: new Date(),
+      });
+
+      session.messages.push({
+        role: 'user',
+        content: `Tool "${toolCall.name}" returned: ${toolResult}`,
+        timestamp: new Date(),
+      });
+
+      return await this.streamBedrockAndSpeak(session);
+    } catch (parseError: any) {
+      console.error(`[BedrockPolly Bridge] Failed to parse tool call in stream:`, parseError.message);
+      return textBeforeToolCall || fullText;
+    }
+  }
+
   /**
    * Send the conversation history to AWS Bedrock and return the
    * text response. Handles tool-use blocks by executing registered
    * tool handlers and recursing until a final text answer is produced.
+   * NOTE: This is the non-streaming fallback. The streaming version
+   * (streamBedrockAndSpeak) is used for real-time conversation.
    */
   private static async getBedrockResponse(session: BedrockPollyBridgeSession): Promise<string> {
     const { agentConfig, messages } = session;
@@ -916,6 +1240,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       }
 
       const mulawBuffer = this.pcmToMulaw(pcmBuffer);
+      let chunksSent = 0;
 
       for (let offset = 0; offset < mulawBuffer.length; offset += this.AUDIO_CHUNK_SIZE) {
         if (bargeInFlags.get(callSid)) {
@@ -940,7 +1265,29 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
             payload: chunk.toString('base64'),
           },
         }));
+
+        chunksSent++;
+
+        if (chunksSent % 50 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
       }
+
+      const markName = `tts_segment_${++markCounter}_${Date.now()}`;
+      let marks = pendingMarks.get(callSid);
+      if (!marks) {
+        marks = new Set();
+        pendingMarks.set(callSid, marks);
+      }
+      marks.add(markName);
+
+      twilioWs.send(JSON.stringify({
+        event: 'mark',
+        streamSid,
+        mark: {
+          name: markName,
+        },
+      }));
 
       if (session.onAudioCallback) {
         session.onAudioCallback(mulawBuffer.toString('base64'));
@@ -1405,6 +1752,10 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     openingPhaseEnd.delete(callSid);
     twilioStreamReady.delete(callSid);
     speechActive.delete(callSid);
+    noiseFloorSamples.delete(callSid);
+    calibratedNoiseFloor.delete(callSid);
+    calibrationStartTime.delete(callSid);
+    pendingMarks.delete(callSid);
 
     const nrTimer = noResponseTimers.get(callSid);
     if (nrTimer) {

@@ -4,9 +4,10 @@ import { db } from '../../../db';
 import { agents, twilioOpenaiCalls, phoneNumbers, departments, departmentAgents, ivrConfigurations, flows } from '@shared/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import { generateTwiML, BEDROCK_POLLY_CONFIG } from '../config/config';
+import { generateTwiML, BEDROCK_POLLY_CONFIG, getRecordingWebhookUrl } from '../config/config';
 import { logger } from '../../../utils/logger';
 import { getDomain } from '../../../utils/domain';
+import { getTwilioClient } from '../../../services/twilio-connector';
 import { applyArabicPronunciationFixes } from '../services/ssml-humanizer';
 
 const router = Router();
@@ -657,6 +658,19 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
 
     logger.info(`[Deprock IVR] Call record created: ${callId}, agent: ${agent.id}, flow: ${callMetadata.isFlowAgent ? 'yes' : 'no'}, lang: ${agentLanguage}`, undefined, 'DeprockIVR');
 
+    try {
+      const twilioClient = await getTwilioClient();
+      const recordingCallback = getRecordingWebhookUrl();
+      await twilioClient.calls(callSid).recordings.create({
+        recordingStatusCallback: recordingCallback,
+        recordingStatusCallbackEvent: ['completed'],
+        recordingChannels: 'dual',
+      });
+      logger.info(`[Deprock IVR] Recording started for IVR call ${callId}`, undefined, 'DeprockIVR');
+    } catch (recordError: any) {
+      logger.error(`[Deprock IVR] Failed to start recording for IVR call ${callId}`, recordError, 'DeprockIVR');
+    }
+
     const baseUrl = buildBaseUrl();
     const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     const streamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
@@ -784,6 +798,19 @@ router.post('/fallback', async (req: Request, res: Response) => {
     });
 
     logger.info(`[Deprock IVR] Fallback call record created: ${callId}, agent: ${agent.id}`, undefined, 'DeprockIVR');
+
+    try {
+      const twilioClient = await getTwilioClient();
+      const recordingCallback = getRecordingWebhookUrl();
+      await twilioClient.calls(callSid).recordings.create({
+        recordingStatusCallback: recordingCallback,
+        recordingStatusCallbackEvent: ['completed'],
+        recordingChannels: 'dual',
+      });
+      logger.info(`[Deprock IVR] Recording started for fallback call ${callId}`, undefined, 'DeprockIVR');
+    } catch (recordError: any) {
+      logger.error(`[Deprock IVR] Failed to start recording for fallback call ${callId}`, recordError, 'DeprockIVR');
+    }
 
     const baseUrl = buildBaseUrl();
     const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');

@@ -134,10 +134,10 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_THRESHOLD_MS = 1800;
-  private static readonly OPENING_SILENCE_THRESHOLD_MS = 2500;
-  private static readonly OPENING_PHASE_DURATION_MS = 10000;
-  private static readonly MIN_AUDIO_LENGTH = 6400;
+  private static readonly SILENCE_THRESHOLD_MS = 1200;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 2000;
+  private static readonly OPENING_PHASE_DURATION_MS = 8000;
+  private static readonly MIN_AUDIO_LENGTH = 4800;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
   private static readonly AUDIO_CHUNK_SIZE = 320;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
@@ -599,7 +599,8 @@ export class BedrockPollyAudioBridge {
       const audioBuffer = Buffer.concat(buf);
       console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b`);
 
-      const transcription = await this.transcribeAudio(audioBuffer, session.agentConfig.language);
+      const recentUserMessages = session.messages.filter(m => m.role === 'user').slice(-2).map(m => m.content).filter(Boolean);
+      const transcription = await this.transcribeAudio(audioBuffer, session.agentConfig.language, recentUserMessages);
 
       if (!transcription || transcription.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty transcription, skipping turn for ${callSid}`);
@@ -673,13 +674,16 @@ export class BedrockPollyAudioBridge {
 
   private static isWhisperHallucination(text: string): boolean {
     const trimmed = text.trim();
-    if (trimmed.length < 2) return true;
+    if (trimmed.length < 3) return true;
 
     const hallucinations = [
       'اشتركوا في القناة',
       'شكراً على المشاهدة',
       'وشكراً على المشاهدة',
       'لا تنسوا الاشتراك',
+      'شكرا للمشاهدة',
+      'اشترك في القناة',
+      'ترجمة',
       'subscribe',
       'thank you for watching',
       'thanks for watching',
@@ -691,6 +695,8 @@ export class BedrockPollyAudioBridge {
       'www.mooji.org',
       '♪',
       '...',
+      'أعوذ بالله من الشيطان الرجيم',
+      'بسم الله الرحمن الرحيم',
     ];
     const lower = trimmed.toLowerCase();
     for (const h of hallucinations) {
@@ -747,7 +753,7 @@ export class BedrockPollyAudioBridge {
     return null;
   }
 
-  private static async transcribeAudio(audioBuffer: Buffer, language?: string): Promise<string> {
+  private static async transcribeAudio(audioBuffer: Buffer, language?: string, conversationContext?: string[]): Promise<string> {
     const apiKey = await this.resolveOpenAIKey();
     if (!apiKey) {
       console.error('[BedrockPolly Bridge] No OpenAI API key available (env or DB) — cannot transcribe');
@@ -768,6 +774,18 @@ export class BedrockPollyAudioBridge {
       formData.append('model', 'whisper-1');
       if (language && language !== 'en') {
         formData.append('language', language);
+      }
+
+      let whisperPrompt = '';
+      if (language === 'ar') {
+        whisperPrompt = 'تجوال، eSIM، موعد، حجز، إلغاء، تغيير، حساب، اشتراك، فاتورة، رصيد، دفع';
+      }
+      if (conversationContext && conversationContext.length > 0) {
+        const recentContext = conversationContext.slice(-2).join(' ').substring(0, 200);
+        whisperPrompt = whisperPrompt ? `${whisperPrompt}. ${recentContext}` : recentContext;
+      }
+      if (whisperPrompt) {
+        formData.append('prompt', whisperPrompt);
       }
 
       const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -793,16 +811,21 @@ export class BedrockPollyAudioBridge {
     }
   }
 
-  private static splitSentences(text: string): string[] {
+  private static splitSentences(text: string, eager: boolean = false): string[] {
     const sentences: string[] = [];
-    const pattern = /[.!?؟]\s|[.!?؟]$/gm;
+    const pattern = eager
+      ? /[.!?؟]\s|[.!?؟]$|[,،:؛]\s/gm
+      : /[.!?؟]\s|[.!?؟]$/gm;
+    const minLen = eager ? 3 : 8;
     let lastIndex = 0;
     let match;
     while ((match = pattern.exec(text)) !== null) {
       const end = match.index + match[0].length;
       const sentence = text.substring(lastIndex, end).trim();
-      if (sentence.length > 0) sentences.push(sentence);
-      lastIndex = end;
+      if (sentence.length >= minLen) {
+        sentences.push(sentence);
+        lastIndex = end;
+      }
     }
     const remaining = text.substring(lastIndex).trim();
     if (remaining.length > 0) sentences.push(remaining);
@@ -811,18 +834,18 @@ export class BedrockPollyAudioBridge {
 
   private static getFillerPhrase(language: string): string {
     const fillers: Record<string, string[]> = {
-      ar: ['لحظة من فضلك', 'حسناً', 'دعني أتحقق'],
-      en: ['One moment please', 'Let me check', 'Just a moment'],
-      es: ['Un momento por favor', 'Déjeme verificar'],
-      fr: ['Un instant s\'il vous plaît', 'Laissez-moi vérifier'],
-      de: ['Einen Moment bitte', 'Lassen Sie mich nachsehen'],
-      zh: ['请稍等', '让我查一下'],
-      ja: ['少々お待ちください', '確認いたします'],
-      ko: ['잠시만 기다려 주세요', '확인해 보겠습니다'],
-      pt: ['Um momento por favor', 'Deixe-me verificar'],
-      it: ['Un momento per favore', 'Lasci che verifichi'],
-      hi: ['एक पल कृपया', 'मुझे जाँचने दीजिए'],
-      tr: ['Bir saniye lütfen', 'Kontrol edeyim'],
+      ar: ['حسناً', 'نعم', 'تمام'],
+      en: ['Mm-hmm', 'Sure', 'Right'],
+      es: ['Sí', 'Claro', 'Bien'],
+      fr: ['Oui', 'Bien sûr', 'D\'accord'],
+      de: ['Ja', 'Natürlich', 'Gut'],
+      zh: ['好的', '嗯'],
+      ja: ['はい', 'ええ'],
+      ko: ['네', '알겠습니다'],
+      pt: ['Sim', 'Certo'],
+      it: ['Sì', 'Certo'],
+      hi: ['हाँ', 'जी'],
+      tr: ['Evet', 'Tamam'],
     };
     const options = fillers[language] || fillers['en'];
     return options[Math.floor(Math.random() * options.length)];
@@ -853,14 +876,22 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
 
     const voiceInstructions = `\n\nIMPORTANT VOICE CALL GUIDELINES:
-- This is a LIVE PHONE CALL with speech-to-text transcription. The user's speech may be transcribed imperfectly (missing words, partial phrases, dialect variations).
-- NEVER say the conversation is unclear, not clear, or that you cannot understand. Instead, naturally ask a brief follow-up question about the specific topic.
-- If the transcription seems incomplete, infer the user's intent from context and respond helpfully. Ask ONE specific clarifying question if needed, not a generic "can you repeat that."
-- Keep responses concise and conversational — this is a phone call, not a chat. Aim for 1-3 sentences per turn.
-- Do NOT repeat the same question more than once. If you already asked something, move forward with what you know.`;
+- This is a LIVE PHONE CALL with speech-to-text transcription. The user's speech may be transcribed imperfectly.
+- NEVER say the conversation is unclear or that you cannot understand. Ask a brief follow-up question about the specific topic instead.
+- If the transcription seems incomplete, infer the user's intent from context. Ask ONE specific clarifying question if needed.
+- Keep responses SHORT and conversational — 1-2 sentences per turn. This is a phone call, not an essay.
+- Do NOT repeat the same question. Move forward with what you know.
+- Respond naturally and directly, like a real person on a phone call.`;
 
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + voiceInstructions;
     console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: model=${agentConfig.model}, messages=${bedrockMessages.length}`);
+
+    if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
+      session.twilioWs.send(JSON.stringify({
+        event: 'clear',
+        streamSid: session.streamSid,
+      }));
+    }
 
     try {
       let fullText = '';
@@ -869,6 +900,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       let toolCallDetected = false;
       let fillerSent = false;
       let fillerInProgress = false;
+      let pendingSynthesis: Promise<void> | null = null;
       const startTime = Date.now();
 
       const fillerTimer = setTimeout(async () => {
@@ -880,14 +912,14 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
           await this.synthesizeAndSend(session, fillerText);
           fillerInProgress = false;
         }
-      }, 800);
+      }, 500);
 
       const stream = awsBedrockService.invokeStream({
         model: agentConfig.model,
         messages: bedrockMessages,
         systemPrompt,
         temperature: agentConfig.temperature ?? 0.7,
-        maxTokens: 1024,
+        maxTokens: 300,
       });
 
       for await (const token of stream) {
@@ -912,7 +944,8 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
         if (session.status === 'disconnected') break;
 
-        const sentences = this.splitSentences(sentenceBuffer);
+        const useEager = sentencesSent === 0;
+        const sentences = this.splitSentences(sentenceBuffer, useEager);
         if (sentences.length > 1) {
           for (let i = 0; i < sentences.length - 1; i++) {
             const sentence = sentences[i];
@@ -922,13 +955,26 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
               await new Promise(r => setTimeout(r, 50));
             }
 
+            if (pendingSynthesis) {
+              await pendingSynthesis;
+              pendingSynthesis = null;
+            }
+
             sentencesSent++;
             if (sentencesSent === 1) {
               clearTimeout(fillerTimer);
               const elapsed = Date.now() - startTime;
-              console.log(`[BedrockPolly Bridge] First sentence ready in ${elapsed}ms for ${callSid}: "${sentence.substring(0, 80)}"`);
+              console.log(`[BedrockPolly Bridge] First fragment ready in ${elapsed}ms for ${callSid}: "${sentence.substring(0, 80)}"`);
             }
-            await this.synthesizeAndSend(session, sentence);
+
+            if (i < sentences.length - 2) {
+              const nextSentence = sentences[i + 1];
+              pendingSynthesis = this.synthesizeAndSend(session, sentence);
+              await pendingSynthesis;
+              pendingSynthesis = null;
+            } else {
+              await this.synthesizeAndSend(session, sentence);
+            }
             if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
           }
           sentenceBuffer = sentences[sentences.length - 1];
@@ -936,6 +982,10 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       }
 
       clearTimeout(fillerTimer);
+
+      if (pendingSynthesis) {
+        await pendingSynthesis;
+      }
 
       if (toolCallDetected) {
         return this.handleStreamToolCall(session, fullText, systemPrompt);

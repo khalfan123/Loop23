@@ -24,13 +24,14 @@ function escapeXml(text: string): string {
 }
 
 function splitIntoSentences(text: string): string[] {
-  const raw = text.match(/[^.!?]+[.!?]+[\s]?|[^.!?]+$/g);
+  const raw = text.match(/[^.!?؟]+[.!?؟]+[\s]?|[^.!?؟]+$/g);
   if (!raw) return [text];
   return raw.map(s => s.trim()).filter(s => s.length > 0);
 }
 
 function isQuestion(sentence: string): boolean {
-  return sentence.trim().endsWith('?');
+  const trimmed = sentence.trim();
+  return trimmed.endsWith('?') || trimmed.endsWith('؟');
 }
 
 function isExclamation(sentence: string): boolean {
@@ -43,17 +44,17 @@ function isShortResponse(sentence: string): boolean {
 }
 
 function isGreeting(sentence: string): boolean {
-  const greetingPatterns = /^(hi|hello|hey|good morning|good afternoon|good evening|welcome|thank you for calling|thanks for calling)/i;
+  const greetingPatterns = /^(hi|hello|hey|good morning|good afternoon|good evening|welcome|thank you for calling|thanks for calling|مرحبا|أهلا|السلام عليكم|مساء الخير|صباح الخير|أهلاً وسهلاً|شكراً لاتصالك)/i;
   return greetingPatterns.test(sentence.trim());
 }
 
 function isEmpathetic(sentence: string): boolean {
-  const empathyPatterns = /\b(understand|sorry|appreciate|concern|difficult|frustrating|worry|help you|here for you|absolutely|of course)\b/i;
+  const empathyPatterns = /\b(understand|sorry|appreciate|concern|difficult|frustrating|worry|help you|here for you|absolutely|of course)\b|أفهم|أقدر|آسف|لا تقلق|بكل سرور|طبعاً|بالتأكيد|أساعدك/i;
   return empathyPatterns.test(sentence);
 }
 
 function isImportantInfo(sentence: string): boolean {
-  const infoPatterns = /\b(important|please note|keep in mind|remember|make sure|don't forget|be aware|critical|essential)\b/i;
+  const infoPatterns = /\b(important|please note|keep in mind|remember|make sure|don't forget|be aware|critical|essential)\b|مهم|يرجى ملاحظة|تذكر|تأكد|لا تنسَ|ضروري/i;
   return infoPatterns.test(sentence);
 }
 
@@ -73,7 +74,9 @@ function getEndBreathBreak(sentenceCount: number): string {
 }
 
 function processCommas(escapedText: string): string {
-  return escapedText.replace(/,(\s)/g, `,${getCommaBreak()}$1`);
+  return escapedText
+    .replace(/,(\s)/g, `,${getCommaBreak()}$1`)
+    .replace(/،(\s)/g, `،${getCommaBreak()}$1`);
 }
 
 function processDashes(escapedText: string): string {

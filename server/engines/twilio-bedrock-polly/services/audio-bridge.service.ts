@@ -142,14 +142,14 @@ export class BedrockPollyAudioBridge {
   private static readonly AUDIO_CHUNK_SIZE = 320;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
-  private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 400;
-  private static readonly DEFAULT_BARGE_IN_ENERGY_THRESHOLD = 500;
+  private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 500;
+  private static readonly DEFAULT_BARGE_IN_ENERGY_THRESHOLD = 600;
   private static readonly BARGE_IN_MIN_BYTES = 3200;
   private static readonly NOISE_CALIBRATION_DURATION_MS = 1500;
-  private static readonly NOISE_FLOOR_SPEECH_MULTIPLIER = 2.5;
-  private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 3.0;
-  private static readonly MIN_SPEECH_THRESHOLD = 200;
-  private static readonly MIN_BARGE_IN_THRESHOLD = 250;
+  private static readonly NOISE_FLOOR_SPEECH_MULTIPLIER = 4.0;
+  private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 5.0;
+  private static readonly MIN_SPEECH_THRESHOLD = 500;
+  private static readonly MIN_BARGE_IN_THRESHOLD = 600;
 
   private static calculateMulawEnergy(chunk: Buffer): number {
     if (chunk.length === 0) return 0;
@@ -597,7 +597,15 @@ export class BedrockPollyAudioBridge {
       audioBuffers.set(callSid, []);
 
       const audioBuffer = Buffer.concat(buf);
-      console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b`);
+      const bufferEnergy = this.calculateMulawEnergy(audioBuffer);
+      const speechThresh = this.getSpeechThreshold(callSid);
+      console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b, avgEnergy=${Math.round(bufferEnergy)}, threshold=${Math.round(speechThresh)}`);
+
+      if (bufferEnergy < speechThresh * 0.8) {
+        console.log(`[BedrockPolly Bridge] Buffer energy too low (${Math.round(bufferEnergy)} < ${Math.round(speechThresh * 0.8)}), skipping Whisper for ${callSid}`);
+        session.isProcessing = false;
+        return;
+      }
 
       const recentUserMessages = session.messages.filter(m => m.role === 'user').slice(-2).map(m => m.content).filter(Boolean);
       const transcription = await this.transcribeAudio(audioBuffer, session.agentConfig.language, recentUserMessages);
@@ -1351,24 +1359,37 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
   }
 
+  private static ssmlBlockedVoices: Set<string> = new Set();
+  private static neuralBlockedVoices: Set<string> = new Set();
+
   /**
    * Synthesize text using AWS Polly returning 8kHz PCM buffer.
    */
   private static async synthesizeWithPolly(text: string, voiceId: string): Promise<Buffer> {
-    const ssmlText = humanizeToSSML(text);
+    const useSSML = !this.ssmlBlockedVoices.has(voiceId);
+    const useNeural = !this.neuralBlockedVoices.has(voiceId);
 
     let result;
-    try {
-      result = await awsPollyService.synthesizeSpeech({
-        text: ssmlText,
-        voiceId,
-        engine: 'neural',
-        outputFormat: 'pcm',
-        sampleRate: '8000',
-        textType: 'ssml',
-      });
-    } catch (neuralError: any) {
-      console.warn(`[BedrockPolly Bridge] Neural SSML failed for voice ${voiceId}, trying plain text neural: ${neuralError.message}`);
+
+    if (useSSML && useNeural) {
+      try {
+        const ssmlText = humanizeToSSML(text);
+        result = await awsPollyService.synthesizeSpeech({
+          text: ssmlText,
+          voiceId,
+          engine: 'neural',
+          outputFormat: 'pcm',
+          sampleRate: '8000',
+          textType: 'ssml',
+        });
+        return result.audioStream;
+      } catch (e: any) {
+        console.warn(`[BedrockPolly Bridge] SSML+Neural failed for ${voiceId}, caching: ${e.message}`);
+        this.ssmlBlockedVoices.add(voiceId);
+      }
+    }
+
+    if (useNeural) {
       try {
         result = await awsPollyService.synthesizeSpeech({
           text,
@@ -1377,18 +1398,20 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
           outputFormat: 'pcm',
           sampleRate: '8000',
         });
-      } catch (neuralPlainError: any) {
-        console.warn(`[BedrockPolly Bridge] Neural plain text also failed for voice ${voiceId}, falling back to standard engine: ${neuralPlainError.message}`);
-        result = await awsPollyService.synthesizeSpeech({
-          text,
-          voiceId,
-          engine: 'standard',
-          outputFormat: 'pcm',
-          sampleRate: '8000',
-        });
+        return result.audioStream;
+      } catch (e: any) {
+        console.warn(`[BedrockPolly Bridge] Neural failed for ${voiceId}, caching: ${e.message}`);
+        this.neuralBlockedVoices.add(voiceId);
       }
     }
 
+    result = await awsPollyService.synthesizeSpeech({
+      text,
+      voiceId,
+      engine: 'standard',
+      outputFormat: 'pcm',
+      sampleRate: '8000',
+    });
     return result.audioStream;
   }
 

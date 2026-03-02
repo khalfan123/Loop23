@@ -1538,11 +1538,13 @@ The prompt should:
 
   router.post('/tts-preview', async (req: AuthRequest, res: Response) => {
     try {
-      const { voiceId, text, engine, speed } = req.body;
+      const { voiceId: rawVoiceId, text, engine, speed } = req.body;
       
-      if (!voiceId || !text) {
+      if (!rawVoiceId || !text) {
         return res.status(400).json({ error: 'voiceId and text are required' });
       }
+
+      const voiceId = rawVoiceId.replace(/^Polly\./, '').replace(/-Neural$/, '');
 
       if (!awsPollyService.isConfigured()) {
         return res.status(503).json({ error: 'AWS Polly is not configured' });

@@ -134,10 +134,10 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_THRESHOLD_MS = 1500;
+  private static readonly SILENCE_THRESHOLD_MS = 1800;
   private static readonly OPENING_SILENCE_THRESHOLD_MS = 2500;
   private static readonly OPENING_PHASE_DURATION_MS = 10000;
-  private static readonly MIN_AUDIO_LENGTH = 4800;
+  private static readonly MIN_AUDIO_LENGTH = 6400;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
   private static readonly AUDIO_CHUNK_SIZE = 320;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
@@ -793,23 +793,20 @@ export class BedrockPollyAudioBridge {
     }
   }
 
-  private static readonly SENTENCE_BOUNDARIES = /([.!?؟،\n])\s/;
-
   private static splitSentences(text: string): string[] {
     const sentences: string[] = [];
-    let remaining = text;
-    while (remaining.length > 0) {
-      const match = this.SENTENCE_BOUNDARIES.exec(remaining);
-      if (match && match.index !== undefined) {
-        const end = match.index + match[0].length;
-        sentences.push(remaining.substring(0, end).trim());
-        remaining = remaining.substring(end);
-      } else {
-        if (remaining.trim()) sentences.push(remaining.trim());
-        break;
-      }
+    const pattern = /[.!?؟]\s|[.!?؟]$/gm;
+    let lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const end = match.index + match[0].length;
+      const sentence = text.substring(lastIndex, end).trim();
+      if (sentence.length > 0) sentences.push(sentence);
+      lastIndex = end;
     }
-    return sentences.filter(s => s.length > 0);
+    const remaining = text.substring(lastIndex).trim();
+    if (remaining.length > 0) sentences.push(remaining);
+    return sentences;
   }
 
   private static getFillerPhrase(language: string): string {
@@ -855,7 +852,14 @@ ${toolDescriptions}
 IMPORTANT: After collecting all required information, you MUST call the relevant tool. Do NOT just describe what you would do — actually call the tool. After completing the main task, say a friendly closing message and ask if there's anything else. Only call end_call after the user confirms they are done.`;
     }
 
-    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions;
+    const voiceInstructions = `\n\nIMPORTANT VOICE CALL GUIDELINES:
+- This is a LIVE PHONE CALL with speech-to-text transcription. The user's speech may be transcribed imperfectly (missing words, partial phrases, dialect variations).
+- NEVER say the conversation is unclear, not clear, or that you cannot understand. Instead, naturally ask a brief follow-up question about the specific topic.
+- If the transcription seems incomplete, infer the user's intent from context and respond helpfully. Ask ONE specific clarifying question if needed, not a generic "can you repeat that."
+- Keep responses concise and conversational — this is a phone call, not a chat. Aim for 1-3 sentences per turn.
+- Do NOT repeat the same question more than once. If you already asked something, move forward with what you know.`;
+
+    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + voiceInstructions;
     console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: model=${agentConfig.model}, messages=${bedrockMessages.length}`);
 
     try {

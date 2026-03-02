@@ -41,7 +41,7 @@ function parseTwiml(xml: string): ParsedTwiml {
       const prosody = el.querySelector("prosody");
       const text = prosody ? prosody.textContent || "" : el.textContent || "";
       if (text.trim()) {
-        saySteps.push({ type: "say", voice: voice.replace("Polly.", ""), engine, text: text.trim() });
+        saySteps.push({ type: "say", voice: voice.replace("Polly.", "").replace(/-Neural$/, ""), engine, text: text.trim() });
       }
     } else if (el.tagName === "Play") {
       const playUrl = el.textContent?.trim() || "";

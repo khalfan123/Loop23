@@ -128,14 +128,16 @@ export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
   private static readonly SILENCE_THRESHOLD_MS = 1500;
-  private static readonly OPENING_SILENCE_THRESHOLD_MS = 2000;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 2500;
   private static readonly OPENING_PHASE_DURATION_MS = 10000;
-  private static readonly MIN_AUDIO_LENGTH = 1600;
+  private static readonly MIN_AUDIO_LENGTH = 4800;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
   private static readonly AUDIO_CHUNK_SIZE = 320;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
-  private static readonly SPEECH_ENERGY_THRESHOLD = 300;
+  private static readonly SPEECH_ENERGY_THRESHOLD = 400;
+  private static readonly BARGE_IN_ENERGY_THRESHOLD = 500;
+  private static readonly BARGE_IN_MIN_BYTES = 3200;
 
   private static calculateMulawEnergy(chunk: Buffer): number {
     if (chunk.length === 0) return 0;
@@ -306,7 +308,9 @@ export class BedrockPollyAudioBridge {
   static handleTwilioMedia(callSid: string, event: TwilioMediaStreamEvent): void {
     const session = this.activeSessions.get(callSid);
     if (!session) {
-      console.warn(`[BedrockPolly Bridge] No session for ${callSid}`);
+      return;
+    }
+    if (session.status === 'disconnected' && event.event === 'media') {
       return;
     }
 
@@ -348,16 +352,19 @@ export class BedrockPollyAudioBridge {
           }
 
           if (session.isProcessing) {
-            const accum = (bargeInAccum.get(callSid) || 0) + audioChunk.length;
-            bargeInAccum.set(callSid, accum);
-            if (accum >= this.MIN_AUDIO_LENGTH && !bargeInFlags.get(callSid)) {
-              bargeInFlags.set(callSid, true);
-              console.log(`[BedrockPolly Bridge] Barge-in activated for ${callSid} (accum=${accum}b)`);
-              if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
-                session.twilioWs.send(JSON.stringify({
-                  event: 'clear',
-                  streamSid: session.streamSid,
-                }));
+            const energy = this.calculateMulawEnergy(audioChunk);
+            if (energy > this.BARGE_IN_ENERGY_THRESHOLD) {
+              const accum = (bargeInAccum.get(callSid) || 0) + audioChunk.length;
+              bargeInAccum.set(callSid, accum);
+              if (accum >= this.BARGE_IN_MIN_BYTES && !bargeInFlags.get(callSid)) {
+                bargeInFlags.set(callSid, true);
+                console.log(`[BedrockPolly Bridge] Barge-in activated for ${callSid} (accum=${accum}b, energy=${Math.round(energy)})`);
+                if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
+                  session.twilioWs.send(JSON.stringify({
+                    event: 'clear',
+                    streamSid: session.streamSid,
+                  }));
+                }
               }
             }
             break;
@@ -439,6 +446,10 @@ export class BedrockPollyAudioBridge {
     silenceTimers.delete(callSid);
     bufferStartTimes.delete(callSid);
 
+    if (session.status === 'disconnected') {
+      return;
+    }
+
     if (session.isProcessing) {
       console.log(`[BedrockPolly Bridge] onSilenceDetected skipped — isProcessing=true for ${callSid}`);
       return;
@@ -484,6 +495,12 @@ export class BedrockPollyAudioBridge {
   private static async processUserTurn(session: BedrockPollyBridgeSession): Promise<void> {
     const { callSid } = session;
 
+    if (session.status === 'disconnected') {
+      console.log(`[BedrockPolly Bridge] processUserTurn skipped — session disconnected for ${callSid}`);
+      session.isProcessing = false;
+      return;
+    }
+
     try {
       const buf = audioBuffers.get(callSid) || [];
       audioBuffers.set(callSid, []);
@@ -495,6 +512,12 @@ export class BedrockPollyAudioBridge {
 
       if (!transcription || transcription.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty transcription, skipping turn for ${callSid}`);
+        session.isProcessing = false;
+        return;
+      }
+
+      if (this.isWhisperHallucination(transcription)) {
+        console.log(`[BedrockPolly Bridge] Filtered Whisper hallucination for ${callSid}: "${transcription.substring(0, 100)}"`);
         session.isProcessing = false;
         return;
       }
@@ -516,6 +539,11 @@ export class BedrockPollyAudioBridge {
         content: transcription,
         timestamp: new Date(),
       });
+
+      if (session.status === 'disconnected') {
+        console.log(`[BedrockPolly Bridge] Session disconnected before Bedrock call for ${callSid}`);
+        return;
+      }
 
       console.log(`[BedrockPolly Bridge] Calling Bedrock for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
@@ -554,11 +582,38 @@ export class BedrockPollyAudioBridge {
     }
   }
 
-  /**
-   * Transcribe a mulaw 8 kHz audio buffer using the OpenAI Whisper API.
-   * Wraps the raw mulaw data in a WAV container (format code 7) before
-   * uploading to the /v1/audio/transcriptions endpoint.
-   */
+  private static isWhisperHallucination(text: string): boolean {
+    const trimmed = text.trim();
+    if (trimmed.length < 2) return true;
+
+    const hallucinations = [
+      'اشتركوا في القناة',
+      'شكراً على المشاهدة',
+      'وشكراً على المشاهدة',
+      'لا تنسوا الاشتراك',
+      'subscribe',
+      'thank you for watching',
+      'thanks for watching',
+      'like and subscribe',
+      'please subscribe',
+      'Shabbat shalom',
+      'subtitles by',
+      'amara.org',
+      'www.mooji.org',
+      '♪',
+      '...',
+    ];
+    const lower = trimmed.toLowerCase();
+    for (const h of hallucinations) {
+      if (lower === h.toLowerCase()) return true;
+    }
+
+    const repeatedPattern = /^(.{2,15})\1{2,}$/;
+    if (repeatedPattern.test(trimmed)) return true;
+
+    return false;
+  }
+
   private static cachedOpenAIKey: string | null = null;
   private static cachedKeyTimestamp: number = 0;
   private static readonly KEY_CACHE_TTL_MS = 300_000;
@@ -865,6 +920,11 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       for (let offset = 0; offset < mulawBuffer.length; offset += this.AUDIO_CHUNK_SIZE) {
         if (bargeInFlags.get(callSid)) {
           console.log(`[BedrockPolly Bridge] Barge-in during synthesis, stopping playback for ${callSid}`);
+          break;
+        }
+
+        if (session.status === 'disconnected' || !twilioWs || twilioWs.readyState !== WebSocket.OPEN) {
+          console.log(`[BedrockPolly Bridge] Stream closed during synthesis for ${callSid}`);
           break;
         }
 
@@ -1306,10 +1366,14 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     await this.synthesizeAndSend(session, agentConfig.firstMessage);
 
+    await new Promise(resolve => setTimeout(resolve, 400));
+
     playingGreeting.set(callSid, false);
     audioBuffers.set(callSid, []);
     bufferStartTimes.delete(callSid);
     speechActive.delete(callSid);
+    bargeInAccum.set(callSid, 0);
+    bargeInFlags.set(callSid, false);
 
     console.log(`[BedrockPolly Bridge] Inbound greeting finished for ${callSid} — now listening`);
   }

@@ -140,21 +140,21 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_SHORT_MS = 600;
-  private static readonly SILENCE_MEDIUM_MS = 500;
-  private static readonly SILENCE_LONG_UTTERANCE_MS = 400;
+  private static readonly SILENCE_SHORT_MS = 800;
+  private static readonly SILENCE_MEDIUM_MS = 600;
+  private static readonly SILENCE_LONG_UTTERANCE_MS = 500;
   private static readonly LONG_UTTERANCE_BYTES = 16000;
   private static readonly SHORT_UTTERANCE_BYTES = 8000;
   private static readonly OPENING_SILENCE_THRESHOLD_MS = 1800;
   private static readonly OPENING_PHASE_DURATION_MS = 8000;
-  private static readonly MIN_AUDIO_LENGTH = 4800;
+  private static readonly MIN_AUDIO_LENGTH = 6400;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
   private static readonly AUDIO_CHUNK_SIZE = 640;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
   private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 500;
   private static readonly DEFAULT_BARGE_IN_ENERGY_THRESHOLD = 600;
-  private static readonly BARGE_IN_MIN_BYTES = 3200;
+  private static readonly BARGE_IN_MIN_BYTES = 8000;
   private static readonly NOISE_CALIBRATION_DURATION_MS = 1500;
   private static readonly NOISE_FLOOR_SPEECH_MULTIPLIER = 4.0;
   private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 5.0;
@@ -646,8 +646,8 @@ export class BedrockPollyAudioBridge {
       const speechThresh = this.getSpeechThreshold(callSid);
       console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b, avgEnergy=${Math.round(bufferEnergy)}, threshold=${Math.round(speechThresh)}`);
 
-      if (bufferEnergy < speechThresh * 0.8) {
-        console.log(`[BedrockPolly Bridge] Buffer energy too low (${Math.round(bufferEnergy)} < ${Math.round(speechThresh * 0.8)}), skipping Whisper for ${callSid}`);
+      if (bufferEnergy < speechThresh * 0.6) {
+        console.log(`[BedrockPolly Bridge] Buffer energy too low (${Math.round(bufferEnergy)} < ${Math.round(speechThresh * 0.6)}), skipping Whisper for ${callSid}`);
         session.isProcessing = false;
         return;
       }
@@ -1015,6 +1015,9 @@ export class BedrockPollyAudioBridge {
         }
       }, 400);
 
+      bargeInFlags.set(callSid, false);
+      bargeInAccum.set(callSid, 0);
+
       const stream = awsBedrockService.invokeStream({
         model: agentConfig.model,
         messages: bedrockMessages,
@@ -1041,8 +1044,8 @@ export class BedrockPollyAudioBridge {
           continue;
         }
 
-        if (bargeInFlags.get(callSid)) {
-          console.log(`[BedrockPolly Bridge] Barge-in during streaming for ${callSid}`);
+        if (bargeInFlags.get(callSid) && sentencesSent > 0) {
+          console.log(`[BedrockPolly Bridge] Barge-in during streaming for ${callSid} (after ${sentencesSent} segments)`);
           break;
         }
 

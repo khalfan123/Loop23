@@ -26,18 +26,18 @@ const SUB_PAGE_PATTERNS = [
 ];
 
 const FOLDER_CATEGORIZATION: Record<string, string[]> = {
-  'Account Management': ['account', 'login', 'register', 'signup', 'sign up', 'profile', 'settings', 'password', 'reset', 'manage account', 'my account', 'dashboard'],
-  'Billing & Payments': ['billing', 'payment', 'invoice', 'charge', 'refund', 'pricing', 'price', 'cost', 'plan', 'subscription', 'credit card', 'checkout', 'discount', 'coupon', 'promo'],
-  'Contact Info': ['contact', 'email', 'phone', 'address', 'hours', 'location', 'office', 'reach us', 'get in touch', 'customer service', 'support@', 'info@', 'help@'],
-  'Delivery': ['delivery', 'shipping', 'ship', 'dispatch', 'tracking', 'estimated delivery', 'express', 'standard delivery', 'instant', 'activation time', 'receive'],
-  'Escalation': ['escalat', 'complaint', 'dispute', 'issue', 'problem', 'unresolved', 'manager', 'supervisor', 'feedback', 'dissatisf'],
-  'FAQs': ['faq', 'frequently asked', 'common question', 'how do i', 'how to', 'can i', 'what is', 'what are', 'do you', 'is it possible'],
-  'Glossary': ['glossary', 'definition', 'terminology', 'what does', 'meaning of', 'term', 'acronym', 'abbreviation', 'esim', 'apn', 'sim', 'lte', '5g', '4g', '3g'],
-  'Orders': ['order', 'purchase', 'buy', 'cart', 'checkout', 'confirm order', 'order status', 'order history', 'cancel order', 'modify order'],
-  'Policies': ['policy', 'policies', 'terms', 'conditions', 'terms of service', 'terms of use', 'acceptable use', 'disclaimer', 'legal', 'copyright', 'license'],
-  'Products': ['product', 'service', 'plan', 'package', 'bundle', 'offer', 'feature', 'esim', 'data plan', 'coverage', 'country', 'destination', 'network', 'roaming', 'gb', 'unlimited'],
-  'Security & Privacy': ['security', 'privacy', 'data protection', 'gdpr', 'encrypt', 'secure', 'cookie', 'consent', 'personal data', 'two-factor', '2fa', 'authentication'],
-  'Technical Support': ['technical', 'support', 'troubleshoot', 'not working', 'error', 'fix', 'install', 'setup', 'configure', 'compatible', 'device', 'android', 'ios', 'iphone', 'samsung', 'qr code', 'activate', 'apn'],
+  'Account Management': ['account', 'login', 'register', 'signup', 'sign up', 'profile', 'settings', 'password', 'reset', 'manage account', 'my account', 'dashboard', 'my esims', 'sign in', 'sign out', 'logged in'],
+  'Billing & Payments': ['billing', 'payment', 'invoice', 'charge', 'refund', 'pricing', 'price', 'cost', 'subscription', 'credit card', 'checkout', 'discount', 'coupon', 'promo', 'pay', 'receipt', 'wallet', 'top-up', 'top up', 'recharge'],
+  'Contact Info': ['contact us', 'contact information', 'email us', 'phone number', 'business hours', 'office location', 'reach us', 'get in touch', 'customer service', 'support@', 'info@', 'help@', 'headquarters', 'office address'],
+  'Delivery': ['delivery', 'shipping', 'ship', 'dispatch', 'tracking', 'estimated delivery', 'express', 'standard delivery', 'activation time', 'instant delivery', 'qr code delivery'],
+  'Escalation': ['escalat', 'complaint', 'formal complaint', 'dispute', 'unresolved', 'manager', 'supervisor', 'dissatisf', 'not resolved'],
+  'FAQs': ['faq', 'frequently asked', 'common question', 'how do i', 'what is an esim', 'how does it work', 'is it possible', 'questions and answers', 'q&a', 'help center'],
+  'Glossary': ['glossary', 'definition', 'terminology', 'what does', 'meaning of', 'acronym', 'abbreviation', 'dictionary', 'jargon'],
+  'Orders': ['order', 'purchase', 'buy now', 'add to cart', 'checkout', 'confirm order', 'order status', 'order history', 'cancel order', 'modify order', 'receipt', 'transaction'],
+  'Policies': ['policy', 'policies', 'terms and conditions', 'terms of service', 'terms of use', 'acceptable use', 'disclaimer', 'legal', 'copyright', 'license', 'refund policy', 'cancellation policy'],
+  'Products': ['product', 'service', 'package', 'bundle', 'offer', 'feature', 'data plan', 'coverage', 'country', 'destination', 'network', 'roaming', 'unlimited', 'marketplace', 'plan details', 'how it works'],
+  'Security & Privacy': ['security', 'privacy policy', 'data protection', 'gdpr', 'encrypt', 'secure', 'cookie policy', 'consent', 'personal data', 'two-factor', '2fa', 'data breach'],
+  'Technical Support': ['technical support', 'troubleshoot', 'not working', 'error', 'fix', 'installation', 'setup guide', 'configure', 'compatible', 'device compatibility', 'android', 'ios', 'iphone', 'samsung', 'qr code', 'activate', 'apn settings', 'help', 'support'],
 };
 
 let openaiClient: OpenAI | null = null;

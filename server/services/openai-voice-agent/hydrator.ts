@@ -150,9 +150,10 @@ function substituteVariables(
 /**
  * Create end_call tool handler
  */
-function createEndCallHandler(): (params: Record<string, unknown>) => Promise<unknown> {
+function createEndCallHandler(callId?: string): (params: Record<string, unknown>) => Promise<unknown> {
   return async (params: Record<string, unknown>) => {
     console.log(`[End Call Tool] Ending call, reason: ${params.reason || 'conversation complete'}`);
+    if (callId) cleanupCallContext(callId);
     return { 
       action: 'end_call',
       reason: params.reason as string || 'conversation complete'
@@ -175,38 +176,98 @@ function createTransferHandler(transferPhoneNumber?: string): (params: Record<st
   };
 }
 
+interface CallConversationContext {
+  topics: string[];
+  questionsAsked: string[];
+  answersGiven: string[];
+  history: Array<{ role: 'user' | 'assistant'; content: string }>;
+}
+
+const activeCallContexts = new Map<string, CallConversationContext>();
+
+function getOrCreateCallContext(callId: string): CallConversationContext {
+  if (!activeCallContexts.has(callId)) {
+    activeCallContexts.set(callId, {
+      topics: [],
+      questionsAsked: [],
+      answersGiven: [],
+      history: [],
+    });
+  }
+  return activeCallContexts.get(callId)!;
+}
+
+function cleanupCallContext(callId: string): void {
+  activeCallContexts.delete(callId);
+}
+
 function createKnowledgeBaseHandler(
   knowledgeBaseIds: string[],
   userId: string,
-  reasoningMode: ReasoningMode = 'deep'
+  reasoningMode: ReasoningMode = 'deep',
+  callId?: string
 ): (params: Record<string, unknown>) => Promise<unknown> {
+  const contextId = callId || `call_${Date.now()}`;
+
   return async (params: Record<string, unknown>) => {
     const query = params.query as string;
+    const ctx = getOrCreateCallContext(contextId);
+
     try {
       console.log(`[KB Tool] Searching (${reasoningMode}): "${query?.substring(0, 50)}..."`);
       
       if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
         return { found: false, message: 'No knowledge base configured.' };
       }
-      
+
+      ctx.questionsAsked.push(query);
+      ctx.history.push({ role: 'user', content: query });
+
+      const topicSummary = ctx.topics.length > 0 
+        ? `Topics already discussed in this call: ${ctx.topics.join(', ')}. ` 
+        : '';
+      const contextualQuery = ctx.questionsAsked.length > 1
+        ? `${topicSummary}Current question: ${query}`
+        : query;
+
       const reasoningEngine = new ReasoningEngine();
       const result = await reasoningEngine.process({
-        query,
+        query: contextualQuery,
         knowledgeBaseIds,
         userId,
         mode: reasoningMode,
+        conversationHistory: ctx.history.slice(-10),
+        callTopics: ctx.topics,
       });
       
       if (!result.answer || result.answer.includes('No relevant information') || result.answer.includes("don't have")) {
         const basicResults = await RAGKnowledgeService.searchKnowledge(query, knowledgeBaseIds, userId, 5);
         if (basicResults.length > 0) {
           const formattedResponse = RAGKnowledgeService.formatResultsForAgent(basicResults, 800);
+          ctx.history.push({ role: 'assistant', content: formattedResponse.substring(0, 200) });
           return { found: true, information: formattedResponse };
         }
-        return { found: false, message: result.answer || 'No relevant information found.' };
+        return { found: false, message: result.answer || "I don't have that specific information right now, but let me see what else I can help you with." };
       }
-      
-      console.log(`[KB Tool] Answer ready (confidence: ${(result.confidence * 100).toFixed(0)}%, mode: ${reasoningMode})`);
+
+      const topicWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 4).slice(0, 3);
+      for (const tw of topicWords) {
+        if (!ctx.topics.includes(tw)) ctx.topics.push(tw);
+      }
+      if (ctx.topics.length > 15) ctx.topics = ctx.topics.slice(-10);
+
+      ctx.answersGiven.push(result.answer.substring(0, 200));
+      ctx.history.push({ role: 'assistant', content: result.answer.substring(0, 300) });
+      if (ctx.history.length > 20) ctx.history = ctx.history.slice(-10);
+
+      const qualityResult = RAGKnowledgeService.scoreResponseQuality(
+        query, result.answer, [], result.confidence
+      );
+      console.log(`[KB Tool] Answer ready (confidence: ${(result.confidence * 100).toFixed(0)}%, quality: ${qualityResult.score}, mode: ${reasoningMode}, topics: ${ctx.topics.length})`);
+
+      if (qualityResult.score >= 60) {
+        RAGKnowledgeService.learnFromQuery(query, result.answer, knowledgeBaseIds, userId, qualityResult.score).catch(() => {});
+      }
       
       return { found: true, information: result.answer };
     } catch (error: any) {
@@ -217,10 +278,12 @@ function createKnowledgeBaseHandler(
           return { found: true, information: RAGKnowledgeService.formatResultsForAgent(results, 800) };
         }
       } catch {}
-      return { found: false, message: 'Unable to search knowledge base.' };
+      return { found: false, message: 'Unable to search knowledge base right now. Let me try a different approach.' };
     }
   };
 }
+
+export { cleanupCallContext };
 
 /**
  * Create appointment booking tool handler
@@ -623,7 +686,7 @@ export function hydrateCompiledTools(
     
     switch (toolName) {
       case 'end_call':
-        handler = createEndCallHandler();
+        handler = createEndCallHandler(context.callId);
         break;
         
       case 'transfer_call':
@@ -635,7 +698,8 @@ export function hydrateCompiledTools(
         handler = createKnowledgeBaseHandler(
           context.knowledgeBaseIds || [],
           context.userId,
-          context.reasoningMode || 'deep'
+          context.reasoningMode || 'deep',
+          context.callId
         );
         break;
         

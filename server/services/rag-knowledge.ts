@@ -914,7 +914,7 @@ export class RAGKnowledgeService {
     results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>
   ): Promise<string> {
     if (results.length === 0) {
-      return "No relevant information found in the knowledge base.";
+      return "I don't have specific information about that right now, but I'd be happy to help you find what you need. Could you tell me a bit more about what you're looking for?";
     }
     
     if (!awsBedrockService.isConfigured()) {
@@ -927,15 +927,26 @@ export class RAGKnowledgeService {
       const response = await awsBedrockService.invoke({
         model: awsBedrockService.selectModelForTask('quick'),
         messages: [{ role: "user", content: `Question: ${query}\n\nKnowledge base context:\n${context}` }],
-        systemPrompt: `You are a precise answer extractor. Given a question and knowledge base context, extract the most relevant and accurate answer. Rules:
-- Use ONLY facts from the provided context
-- Be direct and specific
-- Include relevant details like prices, features, names
-- If the context doesn't contain the answer, say so
-- Keep the answer concise (2-4 sentences unless more detail is needed)
-- Do NOT add information not in the context`,
-        maxTokens: 500,
-        temperature: 0.2,
+        systemPrompt: `You are a friendly call center agent answering a caller's question on the phone. Extract the answer from the knowledge base context and deliver it naturally.
+
+VOICE OUTPUT RULES (your response will be SPOKEN aloud):
+- NEVER include URLs — say "you can find that on our website" or "I can send you a link after the call"
+- NEVER use bullet points or numbered lists — convert to flowing sentences: "You'll need three things: first..., second..., and finally..."
+- Use contractions naturally: I'm, you'll, we're, that's, it's, don't, can't
+- Replace jargon with plain language: "APN configuration" → "your phone's internet settings", "QR code provisioning" → "the code we send you"
+- NEVER say "according to our records" or "as per our policy" — say "from what I can see" or "our guidelines say"
+- Keep it to 2-4 sentences maximum
+- Include specific details (prices, numbers, steps) when available
+- Use ONLY facts from the provided context — don't make things up
+
+PROACTIVE FOLLOW-UP:
+After answering, add ONE natural follow-up suggestion based on related topics in the context:
+- "By the way, you might also want to know about..."
+- "One more thing that could be helpful..."
+- "Would you also like to know about...?"
+Only suggest if genuinely relevant. Don't force it.`,
+        maxTokens: 600,
+        temperature: 0.3,
       });
       
       return response.content.trim();
@@ -1068,7 +1079,18 @@ export class RAGKnowledgeService {
       resultIndex++;
     }
     
-    output += "---\nIMPORTANT: Use ONLY the above information to answer the user's question naturally and conversationally. If a result appears to be about internal company matters (careers, hiring, HR policies, employee benefits, work culture) but the user is asking about products or services, IGNORE that result and focus only on product/service-related information. If none of the results are relevant to the user's actual question, say you don't have that information available.";
+    output += `---
+IMPORTANT RULES FOR YOUR RESPONSE:
+- Use ONLY the above information to answer the user's question
+- Your response will be SPOKEN on a phone call — write as if you're talking, not writing
+- NEVER read URLs aloud — say "you can find that on our website" or "I can send you a link"
+- NEVER list bullet points — use flowing sentences instead
+- Use contractions naturally (I'm, you'll, we're, that's)
+- Keep your response to 4 sentences maximum
+- If a result is about careers/HR but the user asked about products, IGNORE it
+- After answering, suggest one related topic the caller might find helpful
+- If none of the results are relevant, say "I don't have that specific information right now, but let me see what else I can help you with."
+- Sound like a real person on the phone, not a bot reading a database`;
     
     return output.trim();
   }
@@ -1121,14 +1143,65 @@ ${formattedResults}`
     }
   }
 
+  static scoreResponseQuality(
+    query: string,
+    answer: string,
+    searchResults: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
+    confidence: number
+  ): { score: number; flags: string[] } {
+    const flags: string[] = [];
+    let score = 0;
+
+    if (confidence >= 0.7) score += 30;
+    else if (confidence >= 0.4) score += 15;
+    else { score += 5; flags.push('low_confidence'); }
+
+    if (searchResults.length >= 3) score += 15;
+    else if (searchResults.length >= 1) score += 10;
+    else { score += 0; flags.push('no_results'); }
+
+    const avgSearchScore = searchResults.length > 0
+      ? searchResults.reduce((sum, r) => sum + r.score, 0) / searchResults.length
+      : 0;
+    score += Math.round(avgSearchScore * 20);
+
+    if (answer.length >= 50 && answer.length <= 500) score += 15;
+    else if (answer.length < 50) { score += 5; flags.push('too_short'); }
+    else if (answer.length > 500) { score += 8; flags.push('too_long_for_voice'); }
+
+    const voiceReadySignals = ["i'm", "you'll", "we're", "that's", "don't", "can't", "won't"];
+    const hasContractions = voiceReadySignals.some(s => answer.toLowerCase().includes(s));
+    if (hasContractions) score += 5;
+
+    const badSignals = ['http://', 'https://', '•', '- ', '1.', '2.', '3.', '```', '**'];
+    const hasBadFormatting = badSignals.some(s => answer.includes(s));
+    if (hasBadFormatting) { score -= 10; flags.push('not_voice_ready'); }
+
+    const hedgingPhrases = ['i\'m not sure', 'i don\'t have', 'no information', 'cannot find'];
+    const hasHedging = hedgingPhrases.some(p => answer.toLowerCase().includes(p));
+    if (hasHedging) { score -= 5; flags.push('hedging'); }
+
+    const hasFollowUp = answer.includes('?') && answer.indexOf('?') > answer.length / 2;
+    if (hasFollowUp) score += 5;
+
+    return { score: Math.max(0, Math.min(100, score)), flags };
+  }
+
   static async learnFromQuery(
     query: string,
     aiAnswer: string,
     knowledgeBaseIds: string[],
-    userId: string
+    userId: string,
+    qualityScore?: number
   ): Promise<void> {
     try {
       if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) return;
+
+      const minScoreToLearn = 60;
+      if (qualityScore !== undefined && qualityScore < minScoreToLearn) {
+        console.log(`[RAG] Skipping auto-learn — quality score ${qualityScore} below threshold ${minScoreToLearn}`);
+        return;
+      }
 
       const kbId = knowledgeBaseIds[0];
       const qaText = `Q: ${query}\nA: ${aiAnswer}`;
@@ -1151,12 +1224,38 @@ ${formattedResults}`
         chunkText: qaText,
         embedding: embedding as any,
         tokenCount: estimateTokens(qaText),
-        metadata: { autoLearned: true, originalQuery: query, learnedAt: new Date().toISOString() },
+        metadata: { 
+          autoLearned: true, 
+          provenScript: qualityScore !== undefined && qualityScore >= 80,
+          qualityScore: qualityScore || 0,
+          originalQuery: query, 
+          learnedAt: new Date().toISOString() 
+        },
       });
 
-      console.log(`[RAG] Auto-learned Q&A for: "${query.substring(0, 50)}..."`);
+      console.log(`[RAG] Auto-learned Q&A (quality: ${qualityScore || 'unscored'}): "${query.substring(0, 50)}..."`);
     } catch (error: any) {
       console.error(`[RAG] learnFromQuery error:`, error.message);
+    }
+  }
+
+  static async getKnowledgeGaps(userId: string): Promise<Array<{ query: string; timestamp: string }>> {
+    try {
+      const gaps = await db
+        .select()
+        .from(knowledgeChunks)
+        .where(and(
+          eq(knowledgeChunks.userId, userId),
+          sql`(metadata->>'autoLearned')::boolean = false OR metadata->>'qualityScore' IS NOT NULL AND (metadata->>'qualityScore')::int < 40`
+        ))
+        .limit(50);
+
+      return gaps.map(g => ({
+        query: (g.metadata as any)?.originalQuery || g.chunkText.substring(0, 100),
+        timestamp: (g.metadata as any)?.learnedAt || '',
+      }));
+    } catch {
+      return [];
     }
   }
 

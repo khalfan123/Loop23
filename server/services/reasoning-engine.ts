@@ -3,6 +3,7 @@ import { RAGKnowledgeService } from './rag-knowledge';
 import type { KnowledgeChunk } from '@shared/schema';
 
 export type ReasoningMode = 'quick' | 'deep' | 'expert';
+export type CallerSentiment = 'frustrated' | 'confused' | 'neutral' | 'happy' | 'urgent';
 
 export interface ReasoningInput {
   query: string;
@@ -11,6 +12,8 @@ export interface ReasoningInput {
   mode: ReasoningMode;
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
   maxResults?: number;
+  callerSentiment?: CallerSentiment;
+  callTopics?: string[];
 }
 
 export interface ReasoningTrace {
@@ -48,6 +51,10 @@ export class ReasoningEngine {
   async process(input: ReasoningInput): Promise<ReasoningResult> {
     const overallStart = Date.now();
 
+    if (!input.callerSentiment) {
+      input.callerSentiment = this.detectSentiment(input.conversationHistory);
+    }
+
     switch (input.mode) {
       case 'quick':
         return this.processQuick(input, overallStart);
@@ -75,8 +82,8 @@ export class ReasoningEngine {
     const context = this.buildContext(results);
 
     const answerStart = Date.now();
-    const response = await this.singleShotAnswer(input.query, context, input.conversationHistory);
-    trackStep(traces, 'answer_generation', answerStart, `Generated answer (${estimateTokenCount(response.content)} tokens)`);
+    const response = await this.singleShotAnswer(input.query, context, input.conversationHistory, input.callerSentiment);
+    trackStep(traces, 'answer_generation', answerStart, `Generated answer (${estimateTokenCount(response.content)} tokens, sentiment: ${input.callerSentiment || 'neutral'})`);
 
     const confidence = this.computeConfidence(results, response.content);
 
@@ -118,14 +125,15 @@ export class ReasoningEngine {
     const context = this.buildContext(reranked);
 
     const cotStart = Date.now();
-    const cotResult = await this.chainOfThoughtAnswer(input.query, context, subQuestions, input.conversationHistory);
-    trackStep(traces, 'chain_of_thought', cotStart, `CoT reasoning completed`);
+    const cotResult = await this.chainOfThoughtAnswer(input.query, context, subQuestions, input.conversationHistory, input.callerSentiment);
+    trackStep(traces, 'chain_of_thought', cotStart, `CoT reasoning completed (sentiment: ${input.callerSentiment || 'neutral'})`);
 
     const confidence = this.computeConfidence(reranked, cotResult.answer);
 
-    const finalAnswer = confidence < 0.4
+    let finalAnswer = confidence < 0.4
       ? this.addUncertaintyAcknowledgment(cotResult.answer)
       : cotResult.answer;
+    finalAnswer = this.adaptAnswerForSentiment(finalAnswer, input.callerSentiment || 'neutral');
 
     return {
       answer: finalAnswer,
@@ -165,8 +173,8 @@ export class ReasoningEngine {
     const context = this.buildContext(reranked);
 
     const cotStart = Date.now();
-    const cotResult = await this.chainOfThoughtAnswer(input.query, context, subQuestions, input.conversationHistory);
-    trackStep(traces, 'chain_of_thought', cotStart, `CoT reasoning completed`);
+    const cotResult = await this.chainOfThoughtAnswer(input.query, context, subQuestions, input.conversationHistory, input.callerSentiment);
+    trackStep(traces, 'chain_of_thought', cotStart, `CoT reasoning completed (sentiment: ${input.callerSentiment || 'neutral'})`);
 
     const verifyStart = Date.now();
     const verified = await this.selfVerify(input.query, cotResult.answer, context);
@@ -175,9 +183,10 @@ export class ReasoningEngine {
     const finalAnswer = verified.isConsistent ? cotResult.answer : verified.revisedAnswer;
     const confidence = this.computeConfidence(reranked, finalAnswer);
 
-    const adjustedAnswer = confidence < 0.4
+    let adjustedAnswer = confidence < 0.4
       ? this.addUncertaintyAcknowledgment(finalAnswer)
       : finalAnswer;
+    adjustedAnswer = this.adaptAnswerForSentiment(adjustedAnswer, input.callerSentiment || 'neutral');
 
     return {
       answer: adjustedAnswer,
@@ -273,9 +282,13 @@ Return ONLY a JSON array of indices. Example: [3,0,7,1,5]`,
   private async singleShotAnswer(
     query: string,
     context: string,
-    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    sentiment?: CallerSentiment
   ): Promise<BedrockResponse> {
     const model = awsBedrockService.selectModelForTask('quick');
+    const detectedSentiment = sentiment || this.detectSentiment(conversationHistory);
+    const toneGuidance = this.getSentimentToneGuidance(detectedSentiment);
+    const voiceRules = this.getVoiceFormattingRules();
 
     const historySection = conversationHistory && conversationHistory.length > 0
       ? `\n\nConversation history:\n${conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n')}\n`
@@ -287,9 +300,15 @@ Return ONLY a JSON array of indices. Example: [3,0,7,1,5]`,
         role: 'user',
         content: `${historySection}\nKnowledge context:\n${context}\n\nQuestion: ${query}`,
       }],
-      systemPrompt: `You are a knowledgeable assistant. Answer the user's question using ONLY the provided knowledge context. Be accurate, concise, and natural. If the context doesn't contain enough information, say so honestly rather than guessing.`,
+      systemPrompt: `You are a friendly, professional call center agent speaking to a customer on the phone. Answer using ONLY the provided knowledge context. Be warm, natural, and genuinely helpful.
+
+${toneGuidance}
+
+${voiceRules}
+
+If the context doesn't contain enough information, acknowledge it naturally: "I don't have the specific details on that right now, but let me see what I can find..." — never just say "information not available."`,
       maxTokens: 1024,
-      temperature: 0.3,
+      temperature: 0.4,
     });
   }
 
@@ -297,10 +316,14 @@ Return ONLY a JSON array of indices. Example: [3,0,7,1,5]`,
     query: string,
     context: string,
     subQuestions: SubQuestion[],
-    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    sentiment?: CallerSentiment
   ): Promise<{ answer: string; traces: ReasoningTrace[] }> {
     const traces: ReasoningTrace[] = [];
     const model = awsBedrockService.selectModelForTask('reasoning');
+    const detectedSentiment = sentiment || this.detectSentiment(conversationHistory);
+    const toneGuidance = this.getSentimentToneGuidance(detectedSentiment);
+    const voiceRules = this.getVoiceFormattingRules();
 
     const historySection = conversationHistory && conversationHistory.length > 0
       ? `\nConversation history:\n${conversationHistory.slice(-10).map(m => `${m.role}: ${m.content}`).join('\n')}\n`
@@ -317,27 +340,32 @@ Return ONLY a JSON array of indices. Example: [3,0,7,1,5]`,
         role: 'user',
         content: `${historySection}${subQSection}\nKnowledge context:\n${context}\n\nUser's question: ${query}`,
       }],
-      systemPrompt: `You are an expert reasoning assistant. Follow this process:
+      systemPrompt: `You are a professional call center agent having a real phone conversation. Follow this internal process:
 
-1. ANALYZE: Identify what the user is really asking (consider conversation history if provided).
-2. EVIDENCE: For each sub-question, find relevant evidence in the knowledge context.
-3. REASON: Connect the evidence logically, noting any gaps or contradictions.
-4. SYNTHESIZE: Combine findings into a coherent, natural-sounding answer.
+1. ANALYZE: What is the caller really asking? What's their emotional state? Consider conversation history.
+2. EVIDENCE: Find specific facts in the knowledge context for each part of their question.
+3. REASON: Connect the evidence, note gaps. Consider what they might need to know next.
+4. SYNTHESIZE: Craft a natural spoken response — as if you're talking to them on the phone.
+
+${toneGuidance}
+
+${voiceRules}
 
 Structure your response as:
 <thinking>
-[Your step-by-step reasoning — this will be hidden from the user]
+[Your internal reasoning — hidden from the caller]
 </thinking>
 
 <answer>
-[Your final natural response to the user — conversational, accurate, helpful]
+[Your spoken response — warm, natural, as if you're actually on the phone with them]
 </answer>
 
 Rules:
 - Use ONLY information from the provided context
-- If information is incomplete, acknowledge it naturally
-- Reference specific details (numbers, names, features) when available
-- Be conversational and human-like, not robotic`,
+- If information is incomplete, say it naturally: "I don't have that specific detail right now, but here's what I do know..."
+- Reference specific details (prices, names, steps) when available
+- Sound like a real person, not a bot reading a script
+- After answering, suggest one related thing they might want to know`,
       maxTokens: 2048,
       temperature: 0.4,
     });
@@ -462,6 +490,148 @@ Return ONLY a JSON object:
     ];
     const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
     return prefix + answer;
+  }
+
+  detectSentiment(conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>): CallerSentiment {
+    if (!conversationHistory || conversationHistory.length === 0) return 'neutral';
+
+    const recentUserMessages = conversationHistory
+      .filter(m => m.role === 'user')
+      .slice(-3)
+      .map(m => m.content.toLowerCase())
+      .join(' ');
+
+    const frustratedSignals = [
+      'frustrated', 'angry', 'ridiculous', 'unacceptable', 'terrible', 'worst',
+      'waste of time', 'not working', 'still broken', 'again', 'already told you',
+      'this is insane', 'what the hell', 'damn', 'fix this', 'get me a manager',
+      'supervisor', 'complaint', 'refund', 'cancel', 'sue', 'lawyer', 'horrible',
+      'disgusting', 'fed up', 'sick of', 'tired of', 'enough', 'unbelievable',
+      '!', 'seriously?', 'are you kidding',
+    ];
+
+    const confusedSignals = [
+      'confused', 'don\'t understand', 'what do you mean', 'how does', 'what is',
+      'i\'m not sure', 'can you explain', 'lost', 'no idea', 'help me understand',
+      'what\'s the difference', 'which one', 'so basically', 'wait',
+      'i don\'t get', 'huh', 'sorry what', 'come again',
+    ];
+
+    const urgentSignals = [
+      'urgent', 'emergency', 'asap', 'right now', 'immediately', 'today',
+      'can\'t wait', 'need this now', 'hurry', 'time sensitive', 'deadline',
+      'flight', 'boarding', 'airport', 'leaving', 'departing', 'traveling tomorrow',
+      'stuck', 'stranded', 'no connection', 'no service',
+    ];
+
+    const happySignals = [
+      'thanks', 'thank you', 'great', 'awesome', 'perfect', 'wonderful',
+      'excellent', 'amazing', 'love it', 'happy', 'pleased', 'appreciate',
+      'that helps', 'exactly', 'brilliant', 'fantastic',
+    ];
+
+    const frustratedScore = frustratedSignals.filter(s => recentUserMessages.includes(s)).length;
+    const confusedScore = confusedSignals.filter(s => recentUserMessages.includes(s)).length;
+    const urgentScore = urgentSignals.filter(s => recentUserMessages.includes(s)).length;
+    const happyScore = happySignals.filter(s => recentUserMessages.includes(s)).length;
+
+    const scores: [CallerSentiment, number][] = [
+      ['frustrated', frustratedScore * 2],
+      ['urgent', urgentScore * 1.5],
+      ['confused', confusedScore],
+      ['happy', happyScore],
+      ['neutral', 0.5],
+    ];
+
+    scores.sort((a, b) => b[1] - a[1]);
+    return scores[0][1] > 0.5 ? scores[0][0] : 'neutral';
+  }
+
+  getSentimentToneGuidance(sentiment: CallerSentiment): string {
+    const toneMap: Record<CallerSentiment, string> = {
+      frustrated: `CALLER SENTIMENT: FRUSTRATED
+TONE ADAPTATION:
+- Lead with empathy FIRST, before any solution: "I completely understand how frustrating this must be, and I'm sorry you're dealing with this."
+- Validate their feelings: "You're absolutely right to be upset about this."
+- Move quickly to resolution — no fluff, no upselling, no filler
+- Use shorter sentences, get to the point fast
+- Offer concrete next steps: "Here's exactly what I'm going to do for you right now..."
+- If you can't resolve it, acknowledge that clearly and offer escalation
+- NEVER be dismissive, defensive, or say "I understand" without following up with action
+- Maximum response: 3 sentences before asking if they'd like you to proceed`,
+
+      confused: `CALLER SENTIMENT: CONFUSED
+TONE ADAPTATION:
+- Be patient and reassuring: "No worries at all — this can definitely be a bit confusing at first."
+- Break things down into simple, numbered steps: "First... then... and finally..."
+- Use analogies to explain technical concepts: "Think of it like..."
+- Check understanding after each step: "Does that make sense so far?"
+- Avoid jargon — say "your phone's internet settings" not "APN configuration"
+- Repeat key information if they seem lost
+- Offer to walk them through it: "Would you like me to go through this step by step?"
+- Maximum response: 4 sentences, then pause for confirmation`,
+
+      neutral: `CALLER SENTIMENT: NEUTRAL
+TONE ADAPTATION:
+- Professional, friendly, and efficient
+- Answer directly and clearly
+- Offer one related suggestion after answering
+- Keep responses 2-4 sentences
+- End with a natural follow-up: "Is there anything else I can help you with?"`,
+
+      happy: `CALLER SENTIMENT: POSITIVE/HAPPY
+TONE ADAPTATION:
+- Match their energy with enthusiasm: "That's great to hear!"
+- This is a good moment for proactive suggestions: "Since you enjoyed X, you might also love..."
+- Keep the conversation flowing naturally
+- If appropriate, mention referral programs or upcoming features
+- Be genuinely warm, not corporate-fake
+- Maximum response: 3-4 sentences, keep the positive momentum`,
+
+      urgent: `CALLER SENTIMENT: URGENT
+TONE ADAPTATION:
+- Acknowledge urgency immediately: "I can tell this is time-sensitive — let me help you right away."
+- Skip pleasantries, go straight to the solution
+- Use action-oriented language: "Here's what you need to do right now..."
+- Be decisive — don't hedge or say "maybe" or "it depends"
+- Give the single best option first, alternatives later only if asked
+- Maximum response: 2-3 sentences, pure action
+- If it's a travel emergency, prioritize getting them connected ASAP`,
+    };
+
+    return toneMap[sentiment] || toneMap.neutral;
+  }
+
+  getVoiceFormattingRules(): string {
+    return `VOICE OUTPUT RULES (CRITICAL — this response will be SPOKEN aloud):
+- NEVER read URLs aloud. Instead say "you can find that on our website" or "I can send you a link"
+- NEVER list bullet points. Convert to flowing sentences: "You'll need three things: first..., second..., and finally..."
+- Use contractions naturally: I'm, you'll, we're, that's, it's, don't, can't, won't
+- Replace jargon: "APN configuration" → "your phone's internet settings", "QR code provisioning" → "scanning the code we sent you"
+- Add natural transitions: "now", "also", "by the way", "one more thing"
+- Keep responses to 4 sentences maximum. If more detail is needed, say "Would you like me to explain more about that?"
+- End with a natural handoff: a follow-up question or offer to help further
+- NEVER say "according to our records" or "as per our policy" — too corporate. Say "from what I can see" or "our guidelines say"`;
+  }
+
+  adaptAnswerForSentiment(answer: string, sentiment: CallerSentiment): string {
+    if (sentiment === 'neutral') return answer;
+
+    const sentenceLimits: Record<CallerSentiment, number> = {
+      frustrated: 3,
+      confused: 4,
+      neutral: 4,
+      happy: 4,
+      urgent: 3,
+    };
+
+    const sentences = answer.match(/[^.!?]+[.!?]+/g) || [answer];
+    const limit = sentenceLimits[sentiment];
+    if (sentences.length > limit) {
+      return sentences.slice(0, limit).join(' ').trim();
+    }
+
+    return answer;
   }
 }
 

@@ -1560,6 +1560,123 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
     }
   });
 
+  router.post("/operational-scripts/seed", async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { seedOperationalScripts } = await import("../../seed-operational-scripts");
+      const result = await seedOperationalScripts(userId);
+
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      res.json({
+        success: true,
+        entriesCreated: result.entriesCreated,
+        folderId: result.folderId,
+        message: `Created ${result.entriesCreated} operational script entries`,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.post("/conversation-scenarios/seed", async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { seedAndProcessScenarios } = await import("../seed-scenario-scripts");
+      const result = await seedAndProcessScenarios(userId);
+
+      res.json({
+        success: true,
+        created: result.created,
+        skipped: result.skipped,
+        folderId: result.folderId,
+        chunksProcessed: result.chunksProcessed,
+        message: `Created ${result.created} conversation scenario scripts (${result.skipped} already existed), processed ${result.chunksProcessed} chunks`,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.get("/analytics", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const { db } = await import("../db");
+      const { knowledgeBase, knowledgeFolders, knowledgeChunks } = await import("@shared/schema");
+      const { eq, and, sql, desc } = await import("drizzle-orm");
+
+      const folderStats = await db.select({
+        name: knowledgeFolders.name,
+        count: sql<number>`count(${knowledgeBase.id})::int`,
+      })
+        .from(knowledgeBase)
+        .innerJoin(knowledgeFolders, eq(knowledgeBase.folderId, knowledgeFolders.id))
+        .where(eq(knowledgeBase.userId, userId))
+        .groupBy(knowledgeFolders.name);
+
+      const totalEntries = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(knowledgeBase)
+        .where(eq(knowledgeBase.userId, userId));
+
+      const totalChunks = await db
+        .select({ 
+          count: sql<number>`count(*)::int`,
+          withEmbeddings: sql<number>`count(case when embedding is not null then 1 end)::int`,
+        })
+        .from(knowledgeChunks)
+        .where(eq(knowledgeChunks.userId, userId));
+
+      const voiceOptimized = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(knowledgeBase)
+        .where(and(
+          eq(knowledgeBase.userId, userId),
+          sql`metadata->>'voiceOptimized' = 'true'`
+        ));
+
+      const autoLearned = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(knowledgeChunks)
+        .where(and(
+          eq(knowledgeChunks.userId, userId),
+          sql`(metadata->>'autoLearned')::boolean = true`
+        ));
+
+      const provenScripts = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(knowledgeChunks)
+        .where(and(
+          eq(knowledgeChunks.userId, userId),
+          sql`(metadata->>'provenScript')::boolean = true`
+        ));
+
+      res.json({
+        totalEntries: totalEntries[0]?.count || 0,
+        totalChunks: totalChunks[0]?.count || 0,
+        chunksWithEmbeddings: totalChunks[0]?.withEmbeddings || 0,
+        voiceOptimizedEntries: voiceOptimized[0]?.count || 0,
+        autoLearnedChunks: autoLearned[0]?.count || 0,
+        provenScripts: provenScripts[0]?.count || 0,
+        folderDistribution: folderStats,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return router;
 }
 

@@ -1422,8 +1422,8 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
             await RAGKnowledgeService.processKnowledgeItem(
               knowledgeBaseId,
               userId,
-              result.accumulatedContent,
-              { title: `Deep scrape: ${url}`, type: 'url', deepScraped: true, pagesScraped: result.pages.length }
+              result.allContent,
+              { title: `Deep scrape: ${url}`, type: 'url', deepScraped: true, pagesScraped: result.totalPages }
             );
           } catch (e: any) {
             console.error(`[Deep Scrape] Failed to process KB content:`, e.message);

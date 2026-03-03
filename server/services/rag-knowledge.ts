@@ -998,6 +998,17 @@ export class RAGKnowledgeService {
 
     allResults.sort((a, b) => b.score - a.score);
 
+    const deduped: typeof allResults = [];
+    const dedupKeys = new Set<string>();
+    for (const r of allResults) {
+      const key = r.chunk.id || r.chunk.chunkText.normalize('NFC').trim();
+      if (!dedupKeys.has(key)) {
+        dedupKeys.add(key);
+        deduped.push(r);
+      }
+    }
+    allResults = deduped;
+
     if (useReranking && allResults.length > maxResults && reasoningMode !== 'quick') {
       allResults = await this.semanticRerank(query, allResults, maxResults);
     } else {

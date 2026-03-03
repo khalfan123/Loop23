@@ -267,9 +267,69 @@ export function extractContactInfo(html: string, text: string): Record<string, a
   return contact;
 }
 
+const URL_PATH_FOLDER_MAP: Record<string, string> = {
+  '/help': 'Technical Support',
+  '/support': 'Technical Support',
+  '/troubleshoot': 'Technical Support',
+  '/faq': 'FAQs',
+  '/faqs': 'FAQs',
+  '/frequently-asked': 'FAQs',
+  '/contact': 'Contact Info',
+  '/contact-us': 'Contact Info',
+  '/about': 'Products',
+  '/pricing': 'Billing & Payments',
+  '/plans': 'Billing & Payments',
+  '/checkout': 'Orders',
+  '/cart': 'Orders',
+  '/order': 'Orders',
+  '/terms': 'Policies',
+  '/terms-and-conditions': 'Policies',
+  '/privacy': 'Security & Privacy',
+  '/privacy-policy': 'Security & Privacy',
+  '/legal': 'Policies',
+  '/refund': 'Billing & Payments',
+  '/return': 'Delivery',
+  '/shipping': 'Delivery',
+  '/delivery': 'Delivery',
+  '/track': 'Delivery',
+  '/account': 'Account Management',
+  '/login': 'Account Management',
+  '/signin': 'Account Management',
+  '/sign-in': 'Account Management',
+  '/signup': 'Account Management',
+  '/register': 'Account Management',
+  '/profile': 'Account Management',
+  '/settings': 'Account Management',
+  '/dashboard': 'Account Management',
+  '/how-it-works': 'Products',
+  '/features': 'Products',
+  '/products': 'Products',
+  '/marketplace': 'Products',
+  '/blog': 'Glossary',
+  '/glossary': 'Glossary',
+  '/what-is': 'Glossary',
+  '/careers': 'Products',
+  '/complaint': 'Escalation',
+  '/feedback': 'Escalation',
+};
+
 export function categorizeContent(text: string, url: string): string[] {
   const combined = (text + ' ' + url).toLowerCase();
   const matches: { folder: string; score: number }[] = [];
+
+  try {
+    const urlPath = new URL(url).pathname.toLowerCase().replace(/\/$/, '');
+    for (const [pathPrefix, folder] of Object.entries(URL_PATH_FOLDER_MAP)) {
+      if (urlPath === pathPrefix || urlPath.startsWith(pathPrefix + '/') || urlPath.startsWith(pathPrefix + '?')) {
+        const existing = matches.find(m => m.folder === folder);
+        if (existing) {
+          existing.score += 5;
+        } else {
+          matches.push({ folder, score: 5 });
+        }
+      }
+    }
+  } catch {}
 
   for (const [folder, keywords] of Object.entries(FOLDER_CATEGORIZATION)) {
     let score = 0;
@@ -280,13 +340,20 @@ export function categorizeContent(text: string, url: string): string[] {
         score += matchCount;
       }
     }
-    if (score >= 2) {
-      matches.push({ folder, score });
+    if (score > 0) {
+      const existing = matches.find(m => m.folder === folder);
+      if (existing) {
+        existing.score += score;
+      } else {
+        matches.push({ folder, score });
+      }
     }
   }
 
-  matches.sort((a, b) => b.score - a.score);
-  const result = matches.slice(0, 3).map(m => m.folder);
+  const threshold = combined.length < 500 ? 1 : 2;
+  const qualified = matches.filter(m => m.score >= threshold);
+  qualified.sort((a, b) => b.score - a.score);
+  const result = qualified.slice(0, 3).map(m => m.folder);
 
   if (result.length === 0) {
     result.push('Products');

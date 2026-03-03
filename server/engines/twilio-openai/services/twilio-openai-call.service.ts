@@ -165,7 +165,7 @@ export class TwilioOpenAICallService {
             );
             
             // Hydrate the compiled flow using shared hydrator
-            agentConfig = hydrateCompiledFlow({
+            agentConfig = await hydrateCompiledFlow({
               compiledSystemPrompt: compiledResult.systemPrompt,
               compiledFirstMessage: compiledResult.firstMessage ?? null,
               compiledTools: compiledResult.tools as CompiledFunctionTool[],

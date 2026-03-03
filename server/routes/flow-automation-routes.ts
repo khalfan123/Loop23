@@ -1102,7 +1102,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
           console.log(`   Using pre-compiled flow data (${(flow.compiledTools as any[]).length} tools, ${(flow.compiledStates as any[]).length} states)`);
           
           const { hydrateCompiledFlow } = await import('../services/openai-voice-agent/hydrator');
-          compiledConfig = hydrateCompiledFlow({
+          compiledConfig = await hydrateCompiledFlow({
             compiledSystemPrompt: flow.compiledSystemPrompt,
             compiledFirstMessage: flow.compiledFirstMessage || null,
             compiledTools: flow.compiledTools as any[],

@@ -184,7 +184,7 @@ export class BedrockPollyCallService {
               language
             );
 
-            const hydratedFlowConfig = hydrateCompiledFlow({
+            const hydratedFlowConfig = await hydrateCompiledFlow({
               compiledSystemPrompt: compiledResult.systemPrompt,
               compiledFirstMessage: localizedCompiledFirst ?? null,
               compiledTools: compiledResult.tools as CompiledFunctionTool[],

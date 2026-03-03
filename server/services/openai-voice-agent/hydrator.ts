@@ -13,6 +13,8 @@
 
 import type { CompiledFunctionTool, CompiledConversationState } from '@shared/schema';
 import { RAGKnowledgeService } from '../rag-knowledge';
+import { ReasoningEngine, type ReasoningMode } from '../reasoning-engine';
+import { ConversationMemoryService } from '../conversation-memory';
 import { db } from '../../db';
 import { appointments, appointmentSettings, agents, formSubmissions, forms, formFields as formFieldsTable } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
@@ -67,6 +69,8 @@ export interface HydrateFlowParams {
   knowledgeBaseIds?: string[];
   transferPhoneNumber?: string;
   transferEnabled?: boolean;
+  reasoningMode?: ReasoningMode;
+  callerPhoneNumber?: string;
 }
 
 /**
@@ -171,39 +175,48 @@ function createTransferHandler(transferPhoneNumber?: string): (params: Record<st
   };
 }
 
-/**
- * Create knowledge base lookup tool handler
- */
 function createKnowledgeBaseHandler(
   knowledgeBaseIds: string[],
-  userId: string
+  userId: string,
+  reasoningMode: ReasoningMode = 'deep'
 ): (params: Record<string, unknown>) => Promise<unknown> {
   return async (params: Record<string, unknown>) => {
+    const query = params.query as string;
     try {
-      const query = params.query as string;
-      console.log(`[KB Tool] Searching: "${query?.substring(0, 50)}..."`);
+      console.log(`[KB Tool] Searching (${reasoningMode}): "${query?.substring(0, 50)}..."`);
       
       if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
         return { found: false, message: 'No knowledge base configured.' };
       }
       
-      const results = await RAGKnowledgeService.searchKnowledge(
+      const reasoningEngine = new ReasoningEngine();
+      const result = await reasoningEngine.process({
         query,
         knowledgeBaseIds,
         userId,
-        5
-      );
+        mode: reasoningMode,
+      });
       
-      if (results.length === 0) {
-        return { found: false, message: 'No relevant information found.' };
+      if (!result.answer || result.answer.includes('No relevant information') || result.answer.includes("don't have")) {
+        const basicResults = await RAGKnowledgeService.searchKnowledge(query, knowledgeBaseIds, userId, 5);
+        if (basicResults.length > 0) {
+          const formattedResponse = RAGKnowledgeService.formatResultsForAgent(basicResults, 800);
+          return { found: true, information: formattedResponse };
+        }
+        return { found: false, message: result.answer || 'No relevant information found.' };
       }
       
-      const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
-      console.log(`[KB Tool] Found ${results.length} results`);
+      console.log(`[KB Tool] Answer ready (confidence: ${(result.confidence * 100).toFixed(0)}%, mode: ${reasoningMode})`);
       
-      return { found: true, information: formattedResponse };
+      return { found: true, information: result.answer };
     } catch (error: any) {
-      console.error(`[KB Tool] Error:`, error.message);
+      console.error(`[KB Tool] Reasoning error, falling back to basic search:`, error.message);
+      try {
+        const results = await RAGKnowledgeService.searchKnowledge(query, knowledgeBaseIds, userId, 5);
+        if (results.length > 0) {
+          return { found: true, information: RAGKnowledgeService.formatResultsForAgent(results, 800) };
+        }
+      } catch {}
       return { found: false, message: 'Unable to search knowledge base.' };
     }
   };
@@ -596,6 +609,7 @@ export function hydrateCompiledTools(
     callId?: string;
     knowledgeBaseIds?: string[];
     transferPhoneNumber?: string;
+    reasoningMode?: ReasoningMode;
   }
 ): AgentTool[] {
   const tools: AgentTool[] = [];
@@ -620,7 +634,8 @@ export function hydrateCompiledTools(
       case 'lookup_knowledge_base':
         handler = createKnowledgeBaseHandler(
           context.knowledgeBaseIds || [],
-          context.userId
+          context.userId,
+          context.reasoningMode || 'deep'
         );
         break;
         
@@ -780,7 +795,7 @@ export function hydrateCompiledTools(
  * It converts stored flow data into a ready-to-use agent configuration with
  * all tool handlers properly wired up.
  */
-export function hydrateCompiledFlow(params: HydrateFlowParams): AgentConfigWithContext {
+export async function hydrateCompiledFlow(params: HydrateFlowParams): Promise<AgentConfigWithContext> {
   const {
     compiledSystemPrompt,
     compiledFirstMessage,
@@ -792,22 +807,39 @@ export function hydrateCompiledFlow(params: HydrateFlowParams): AgentConfigWithC
     language,
     knowledgeBaseIds,
     transferPhoneNumber,
+    reasoningMode,
+    callerPhoneNumber,
   } = params;
   
-  // Build system prompt with language instructions if needed
   let systemPrompt = compiledSystemPrompt;
   if (language && language !== 'en' && !systemPrompt.includes('CRITICAL LANGUAGE REQUIREMENT')) {
     const languageName = getLanguageName(language);
     systemPrompt = `CRITICAL LANGUAGE REQUIREMENT: You MUST speak ONLY in ${languageName}. From the very first word you say, speak in ${languageName}. Do NOT speak English. This is mandatory.\n\n${systemPrompt}`;
   }
   
-  // Hydrate the compiled tools with proper handlers
+  if (callerPhoneNumber && toolContext.userId) {
+    try {
+      const callerContext = await ConversationMemoryService.getCallerContext(
+        toolContext.userId,
+        callerPhoneNumber
+      );
+      if (callerContext) {
+        const contextPrompt = ConversationMemoryService.buildCallerContextPrompt(callerContext);
+        systemPrompt = systemPrompt + '\n' + contextPrompt;
+        console.log(`[Hydrator] Injected caller memory for ${callerPhoneNumber} (${callerContext.facts.length} facts)`);
+      }
+    } catch (error: any) {
+      console.error(`[Hydrator] Failed to load caller memory:`, error.message);
+    }
+  }
+  
   const tools = hydrateCompiledTools(compiledTools, {
     userId: toolContext.userId,
     agentId: toolContext.agentId,
     callId: toolContext.callId,
     knowledgeBaseIds,
     transferPhoneNumber,
+    reasoningMode: reasoningMode || 'deep',
   });
   
   console.log(`[Hydrator] Created agent config: voice=${voice}, model=${model}, language=${language || 'en'}, tools=${tools.length}`);

@@ -558,7 +558,7 @@ export class PlivoBatchCallingService {
               : undefined;
             
             // Use the shared hydrator to create agent config with proper tool handlers
-            const hydratedConfig = hydrateCompiledFlow({
+            const hydratedConfig = await hydrateCompiledFlow({
               compiledSystemPrompt: systemPrompt,
               compiledFirstMessage: firstMessage || null,
               compiledTools: flow.compiledTools as any[],

@@ -28,6 +28,8 @@ import multer from "multer";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
 import { KBEnhancedProcessor } from "../services/kb-enhanced-processor";
 import { advancedScrapeUrl, generateAutoFAQs, categorizeContent } from "../services/advanced-scraper";
+import { DeepScrapeService, type DeepScrapeProgress } from "../services/deep-scraper";
+import { KnowledgeSynthesisService, type SynthesizedKnowledge } from "../services/knowledge-synthesis";
 import { storage } from "../storage";
 import { db } from "../db";
 import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowledgeEntities, knowledgeTopics } from "@shared/schema";
@@ -1371,6 +1373,187 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         faqs: Number(faqStats?.count || 0),
         entities: Number(entityStats?.count || 0),
         topics: Number(topicStats?.count || 0),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  const deepScrapeJobs = new Map<string, { progress: DeepScrapeProgress; result?: any; error?: string }>();
+
+  router.post("/deep-scrape", async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { url, knowledgeBaseId, maxPages, maxDepth, maxTokens } = req.body;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+
+      const jobId = `ds_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+      deepScrapeJobs.set(jobId, {
+        progress: { status: 'discovering', totalUrlsDiscovered: 0, pagesFetched: 0, pagesProcessed: 0, totalTokens: 0, errors: [], currentUrl: url }
+      });
+
+      res.json({ jobId, status: 'started', message: 'Deep scrape job started' });
+
+      const scraper = new DeepScrapeService();
+      scraper.onProgress(jobId, (progress) => {
+        const job = deepScrapeJobs.get(jobId);
+        if (job) job.progress = progress;
+      });
+      scraper.deepScrape(jobId, {
+        url,
+        maxPages: maxPages || 50,
+        maxDepth: maxDepth || 3,
+        maxTokens: maxTokens || 500000,
+      }).then(async (result) => {
+        const job = deepScrapeJobs.get(jobId);
+        if (job) {
+          job.progress = result.progress;
+          job.result = {
+            totalPages: result.totalPages,
+            totalTokens: result.totalTokens,
+          };
+        }
+
+        if (knowledgeBaseId && result.allContent) {
+          try {
+            await RAGKnowledgeService.processKnowledgeItem(
+              knowledgeBaseId,
+              userId,
+              result.accumulatedContent,
+              { title: `Deep scrape: ${url}`, type: 'url', deepScraped: true, pagesScraped: result.pages.length }
+            );
+          } catch (e: any) {
+            console.error(`[Deep Scrape] Failed to process KB content:`, e.message);
+          }
+        }
+      }).catch((error) => {
+        const job = deepScrapeJobs.get(jobId);
+        if (job) {
+          job.error = error.message;
+          job.progress = { ...job.progress, status: 'failed', errors: [...job.progress.errors, error.message] };
+        }
+        scraper.removeProgressCallback(jobId);
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.get("/deep-scrape/:jobId/status", async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { jobId } = req.params;
+      const job = deepScrapeJobs.get(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      res.json({
+        jobId,
+        progress: job.progress,
+        result: job.result || null,
+        error: job.error || null,
+        completed: job.progress.status === 'completed' || job.progress.status === 'failed' || !!job.result || !!job.error,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.post("/synthesize/:knowledgeBaseId", async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { knowledgeBaseId } = req.params;
+
+      const [entry] = await db
+        .select()
+        .from(knowledgeBase)
+        .where(and(eq(knowledgeBase.id, knowledgeBaseId), eq(knowledgeBase.userId, userId)))
+        .limit(1);
+
+      if (!entry) {
+        return res.status(404).json({ error: "Knowledge base entry not found" });
+      }
+
+      if (!entry.content || entry.content.trim().length === 0) {
+        return res.status(400).json({ error: "Knowledge base has no content to synthesize" });
+      }
+
+      const synthesized = await KnowledgeSynthesisService.synthesize(
+        entry.content,
+        entry.sourceUrl || entry.title || 'unknown',
+        (progress) => {
+          console.log(`[Synthesis] Stage ${progress.currentStage}/${progress.totalStages}: ${progress.message}`);
+        }
+      );
+
+      const ragContent = KnowledgeSynthesisService.formatAsRAGContent(synthesized);
+
+      if (ragContent) {
+        await RAGKnowledgeService.processKnowledgeItem(
+          knowledgeBaseId,
+          userId,
+          ragContent,
+          { title: `Synthesized: ${entry.title}`, type: 'synthesized', synthesized: true }
+        );
+      }
+
+      res.json({
+        success: true,
+        synthesis: {
+          businessProfile: synthesized.businessProfile,
+          faqCount: synthesized.faqs?.length || 0,
+          decisionTreeCount: synthesized.decisionTrees?.length || 0,
+          objectionHandlerCount: synthesized.objectionHandlers?.length || 0,
+          escalationTriggerCount: synthesized.escalationTriggers?.length || 0,
+          hasCompetitiveIntelligence: !!synthesized.competitiveIntelligence,
+        }
+      });
+    } catch (error: any) {
+      console.error(`[Synthesis Route] Error:`, error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.post("/enhanced-search", async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { query, knowledgeBaseIds, reasoningMode } = req.body;
+      if (!query || !knowledgeBaseIds || knowledgeBaseIds.length === 0) {
+        return res.status(400).json({ error: "query and knowledgeBaseIds are required" });
+      }
+
+      const { results, extractedAnswer } = await RAGKnowledgeService.enhancedSearch(
+        query,
+        knowledgeBaseIds,
+        userId,
+        {
+          maxResults: 5,
+          useReranking: true,
+          useQueryExpansion: true,
+          useAnswerExtraction: true,
+          reasoningMode: reasoningMode || 'deep',
+        }
+      );
+
+      res.json({
+        results: results.map(r => ({
+          text: r.chunk.chunkText.substring(0, 500),
+          score: r.score,
+          source: r.source,
+        })),
+        extractedAnswer: extractedAnswer || null,
+        resultCount: results.length,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

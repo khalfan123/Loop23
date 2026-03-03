@@ -4,9 +4,9 @@ import { globalSettings, knowledgeBase, knowledgeFolders, knowledgeFaqs } from "
 import { eq, and } from "drizzle-orm";
 import { RAGKnowledgeService } from "./rag-knowledge";
 
-const MAX_SUB_PAGES = 10;
+const MAX_SUB_PAGES = 50;
 const FETCH_TIMEOUT_MS = 20000;
-const MAX_SCRAPE_TOTAL_BYTES = 2 * 1024 * 1024;
+const MAX_SCRAPE_TOTAL_BYTES = 10 * 1024 * 1024;
 
 const SUB_PAGE_PATTERNS = [
   /\/(pricing|plans?|packages?|tariff)/i,
@@ -595,3 +595,360 @@ function formatProductsAsText(products: any[], siteName: string): string {
 
   return parts.join('\n');
 }
+
+export interface PricingTable {
+  planName: string;
+  price: string;
+  features: string[];
+  period?: string;
+}
+
+export interface FeatureComparison {
+  feature: string;
+  plans: Record<string, string>;
+}
+
+export interface TeamMember {
+  name: string;
+  role?: string;
+  bio?: string;
+}
+
+export interface Testimonial {
+  quote: string;
+  author?: string;
+  company?: string;
+  role?: string;
+}
+
+export interface CaseStudy {
+  title: string;
+  summary: string;
+  results?: string[];
+}
+
+export interface StructuredContentExtraction {
+  pricingTables: PricingTable[];
+  featureComparisons: FeatureComparison[];
+  teamMembers: TeamMember[];
+  testimonials: Testimonial[];
+  caseStudies: CaseStudy[];
+}
+
+export function extractStructuredContent(html: string, text: string): StructuredContentExtraction {
+  return {
+    pricingTables: extractPricingTables(html, text),
+    featureComparisons: extractFeatureComparisons(html, text),
+    teamMembers: extractTeamMembers(html, text),
+    testimonials: extractTestimonials(html, text),
+    caseStudies: extractCaseStudies(html, text),
+  };
+}
+
+function extractPricingTables(html: string, text: string): PricingTable[] {
+  const tables: PricingTable[] = [];
+
+  const pricingBlockPattern = /(?:class=["'][^"']*(?:pricing|plan|tier|package)[^"']*["'])[^>]*>([\s\S]*?)(?=<\/(?:div|section|article)>)/gi;
+  let m;
+  while ((m = pricingBlockPattern.exec(html)) !== null) {
+    const block = m[1];
+    const nameMatch = /<(?:h[1-4]|span|strong)[^>]*>([\s\S]*?)<\/(?:h[1-4]|span|strong)>/i.exec(block);
+    const priceMatch = /(?:\$|€|£|¥)[\d,.]+(?:\s*\/\s*(?:mo|month|year|yr|annually))?/i.exec(block);
+
+    if (nameMatch && priceMatch) {
+      const features: string[] = [];
+      const featurePattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+      let fm;
+      while ((fm = featurePattern.exec(block)) !== null) {
+        const feat = fm[1].replace(/<[^>]+>/g, '').trim();
+        if (feat.length > 2 && feat.length < 200) features.push(feat);
+      }
+
+      tables.push({
+        planName: nameMatch[1].replace(/<[^>]+>/g, '').trim(),
+        price: priceMatch[0].trim(),
+        features: features.slice(0, 20),
+        period: /\/(mo|month|year|yr|annually)/i.exec(priceMatch[0])?.[1],
+      });
+    }
+  }
+
+  if (tables.length === 0) {
+    const textPricePattern = /(\w[\w\s]{2,30})\s*[-–:]\s*(\$|€|£|¥)([\d,.]+)\s*(?:\/\s*(mo|month|year|yr))?/gi;
+    let tp;
+    while ((tp = textPricePattern.exec(text)) !== null) {
+      tables.push({
+        planName: tp[1].trim(),
+        price: `${tp[2]}${tp[3]}`,
+        features: [],
+        period: tp[4],
+      });
+    }
+  }
+
+  return tables;
+}
+
+function extractFeatureComparisons(_html: string, text: string): FeatureComparison[] {
+  const comparisons: FeatureComparison[] = [];
+
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (/\|/.test(line) && line.split('|').length >= 3) {
+      const cells = line.split('|').map(c => c.trim()).filter(c => c.length > 0);
+      if (cells.length >= 2 && cells[0].length > 2 && cells[0].length < 80) {
+        const feature = cells[0];
+        const plans: Record<string, string> = {};
+        for (let j = 1; j < cells.length; j++) {
+          plans[`Column ${j}`] = cells[j];
+        }
+        comparisons.push({ feature, plans });
+      }
+    }
+  }
+
+  return comparisons.slice(0, 50);
+}
+
+function extractTeamMembers(html: string, _text: string): TeamMember[] {
+  const members: TeamMember[] = [];
+
+  const teamBlockPattern = /(?:class=["'][^"']*(?:team|staff|people|member|leadership|founder|executive)[^"']*["'])[^>]*>([\s\S]*?)(?=<\/(?:div|section|article)>)/gi;
+  let m;
+  while ((m = teamBlockPattern.exec(html)) !== null) {
+    const block = m[1];
+    const nameMatch = /<(?:h[2-5]|strong|b)[^>]*>([\s\S]*?)<\/(?:h[2-5]|strong|b)>/i.exec(block);
+    if (nameMatch) {
+      const name = nameMatch[1].replace(/<[^>]+>/g, '').trim();
+      if (name.length < 60 && name.split(' ').length <= 5) {
+        const roleMatch = /<(?:span|p|small)[^>]*(?:class=["'][^"']*(?:title|role|position)[^"']*["'])?[^>]*>([\s\S]*?)<\/(?:span|p|small)>/i.exec(block);
+        const bioMatch = /<p[^>]*>([\s\S]*?)<\/p>/i.exec(block);
+        members.push({
+          name,
+          role: roleMatch ? roleMatch[1].replace(/<[^>]+>/g, '').trim().substring(0, 100) : undefined,
+          bio: bioMatch ? bioMatch[1].replace(/<[^>]+>/g, '').trim().substring(0, 300) : undefined,
+        });
+      }
+    }
+  }
+
+  return members.slice(0, 30);
+}
+
+function extractTestimonials(html: string, text: string): Testimonial[] {
+  const testimonials: Testimonial[] = [];
+
+  const testimonialPattern = /(?:class=["'][^"']*(?:testimonial|review|quote|feedback|client-say)[^"']*["'])[^>]*>([\s\S]*?)(?=<\/(?:div|section|article|blockquote)>)/gi;
+  let m;
+  while ((m = testimonialPattern.exec(html)) !== null) {
+    const block = m[1];
+    const quoteMatch = /<(?:p|blockquote|q|span)[^>]*>([\s\S]*?)<\/(?:p|blockquote|q|span)>/i.exec(block);
+    if (quoteMatch) {
+      const quote = quoteMatch[1].replace(/<[^>]+>/g, '').trim();
+      if (quote.length > 20 && quote.length < 1000) {
+        const authorMatch = /<(?:cite|strong|b|span)[^>]*(?:class=["'][^"']*(?:author|name|client)[^"']*["'])?[^>]*>([\s\S]*?)<\/(?:cite|strong|b|span)>/i.exec(block);
+        testimonials.push({
+          quote,
+          author: authorMatch ? authorMatch[1].replace(/<[^>]+>/g, '').trim() : undefined,
+        });
+      }
+    }
+  }
+
+  if (testimonials.length === 0) {
+    const quotePattern = /[""]([\s\S]{30,500}?)[""][\s\S]{0,50}?[-–—]\s*([A-Z][\w\s.]{2,40})/g;
+    let qm;
+    while ((qm = quotePattern.exec(text)) !== null) {
+      testimonials.push({
+        quote: qm[1].trim(),
+        author: qm[2].trim(),
+      });
+    }
+  }
+
+  return testimonials.slice(0, 20);
+}
+
+function extractCaseStudies(html: string, text: string): CaseStudy[] {
+  const studies: CaseStudy[] = [];
+
+  const casePattern = /(?:class=["'][^"']*(?:case-study|case_study|success-story|success_story|portfolio|client-result)[^"']*["'])[^>]*>([\s\S]*?)(?=<\/(?:div|section|article)>)/gi;
+  let m;
+  while ((m = casePattern.exec(html)) !== null) {
+    const block = m[1];
+    const titleMatch = /<(?:h[1-4]|strong)[^>]*>([\s\S]*?)<\/(?:h[1-4]|strong)>/i.exec(block);
+    const summaryMatch = /<p[^>]*>([\s\S]*?)<\/p>/i.exec(block);
+    if (titleMatch || summaryMatch) {
+      const results: string[] = [];
+      const resultPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+      let rm;
+      while ((rm = resultPattern.exec(block)) !== null) {
+        const r = rm[1].replace(/<[^>]+>/g, '').trim();
+        if (r.length > 5) results.push(r);
+      }
+      studies.push({
+        title: titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : 'Case Study',
+        summary: summaryMatch ? summaryMatch[1].replace(/<[^>]+>/g, '').trim().substring(0, 500) : '',
+        results: results.length > 0 ? results.slice(0, 10) : undefined,
+      });
+    }
+  }
+
+  return studies.slice(0, 15);
+}
+
+export function formatStructuredContentAsText(extraction: StructuredContentExtraction): string {
+  const parts: string[] = [];
+
+  if (extraction.pricingTables.length > 0) {
+    parts.push('[Pricing Information]');
+    for (const plan of extraction.pricingTables) {
+      parts.push(`Plan: ${plan.planName} - ${plan.price}${plan.period ? '/' + plan.period : ''}`);
+      if (plan.features.length > 0) {
+        parts.push(`  Features: ${plan.features.join(', ')}`);
+      }
+    }
+    parts.push('');
+  }
+
+  if (extraction.featureComparisons.length > 0) {
+    parts.push('[Feature Comparison]');
+    for (const comp of extraction.featureComparisons) {
+      const planDetails = Object.entries(comp.plans).map(([k, v]) => `${k}: ${v}`).join(' | ');
+      parts.push(`${comp.feature}: ${planDetails}`);
+    }
+    parts.push('');
+  }
+
+  if (extraction.teamMembers.length > 0) {
+    parts.push('[Team Members]');
+    for (const member of extraction.teamMembers) {
+      let line = member.name;
+      if (member.role) line += ` - ${member.role}`;
+      if (member.bio) line += `: ${member.bio}`;
+      parts.push(line);
+    }
+    parts.push('');
+  }
+
+  if (extraction.testimonials.length > 0) {
+    parts.push('[Testimonials]');
+    for (const t of extraction.testimonials) {
+      let line = `"${t.quote}"`;
+      if (t.author) line += ` - ${t.author}`;
+      if (t.company) line += `, ${t.company}`;
+      parts.push(line);
+    }
+    parts.push('');
+  }
+
+  if (extraction.caseStudies.length > 0) {
+    parts.push('[Case Studies]');
+    for (const cs of extraction.caseStudies) {
+      parts.push(`${cs.title}: ${cs.summary}`);
+      if (cs.results && cs.results.length > 0) {
+        parts.push(`  Results: ${cs.results.join('; ')}`);
+      }
+    }
+    parts.push('');
+  }
+
+  return parts.join('\n');
+}
+
+export function discoverAllInternalLinks(html: string, baseUrl: string, maxLinks: number = 200): string[] {
+  const base = new URL(baseUrl);
+  const domain = base.hostname;
+  const discovered = new Set<string>();
+
+  const linkPattern = /<a[^>]+href=["']([^"'#]+)["'][^>]*>/gi;
+  let match;
+  while ((match = linkPattern.exec(html)) !== null) {
+    try {
+      const href = match[1].trim();
+      if (href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) continue;
+
+      let fullUrl: URL;
+      if (href.startsWith('http')) {
+        fullUrl = new URL(href);
+      } else {
+        fullUrl = new URL(href, baseUrl);
+      }
+
+      if (fullUrl.hostname !== domain) continue;
+
+      const path = fullUrl.pathname.toLowerCase();
+      if (path === '/' || path === base.pathname.toLowerCase()) continue;
+      if (/\.(jpg|jpeg|png|gif|svg|css|js|ico|pdf|zip|mp4|webp|woff|woff2|ttf|eot|map)$/i.test(path)) continue;
+
+      fullUrl.hash = '';
+      fullUrl.search = '';
+      discovered.add(fullUrl.toString());
+
+      if (discovered.size >= maxLinks) break;
+    } catch {}
+  }
+
+  return Array.from(discovered);
+}
+
+export function parseSitemapXml(xml: string, baseUrl: string): string[] {
+  const urls: string[] = [];
+  const base = new URL(baseUrl);
+  const domain = base.hostname;
+
+  const locPattern = /<loc>([\s\S]*?)<\/loc>/gi;
+  let m;
+  while ((m = locPattern.exec(xml)) !== null) {
+    try {
+      const url = m[1].trim();
+      const parsed = new URL(url);
+      if (parsed.hostname === domain) {
+        urls.push(url);
+      }
+    } catch {}
+  }
+
+  return urls;
+}
+
+export async function fetchSitemap(baseUrl: string): Promise<string[]> {
+  const base = new URL(baseUrl);
+  const sitemapUrls = [
+    `${base.origin}/sitemap.xml`,
+    `${base.origin}/sitemap_index.xml`,
+    `${base.origin}/sitemap/sitemap.xml`,
+  ];
+
+  for (const sitemapUrl of sitemapUrls) {
+    try {
+      const xml = await fetchPage(sitemapUrl);
+      if (xml && xml.includes('<urlset') || xml?.includes('<sitemapindex')) {
+        if (xml.includes('<sitemapindex')) {
+          const subSitemaps = parseSitemapXml(xml, baseUrl);
+          const allUrls: string[] = [];
+          for (const sub of subSitemaps.slice(0, 5)) {
+            const subXml = await fetchPage(sub);
+            if (subXml) {
+              allUrls.push(...parseSitemapXml(subXml, baseUrl));
+            }
+          }
+          if (allUrls.length > 0) {
+            console.log(`[Sitemap] Found ${allUrls.length} URLs from sitemap index`);
+            return allUrls;
+          }
+        }
+        const urls = parseSitemapXml(xml, baseUrl);
+        if (urls.length > 0) {
+          console.log(`[Sitemap] Found ${urls.length} URLs from ${sitemapUrl}`);
+          return urls;
+        }
+      }
+    } catch {}
+  }
+
+  return [];
+}
+
+export { fetchPage, isUrlSafe };

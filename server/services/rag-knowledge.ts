@@ -44,6 +44,7 @@ import {
   type KnowledgeBase
 } from "@shared/schema";
 import { eq, and, inArray, sql, or, ilike } from "drizzle-orm";
+import { awsBedrockService } from "./aws-bedrock";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025
 // Using text-embedding-3-small for cost-effective embeddings
@@ -837,6 +838,182 @@ export class RAGKnowledgeService {
   /**
    * Format search results for agent consumption
    */
+  static async expandQuery(query: string): Promise<string[]> {
+    const queries = [query];
+    
+    if (!awsBedrockService.isConfigured()) {
+      return queries;
+    }
+    
+    try {
+      const response = await awsBedrockService.invoke({
+        model: awsBedrockService.selectModelForTask('quick'),
+        messages: [{ role: "user", content: query }],
+        systemPrompt: `Generate 3 alternative phrasings of this question/query for a knowledge base search. Return ONLY a JSON array of strings. Keep each variant concise. Example: ["variant 1", "variant 2", "variant 3"]`,
+        maxTokens: 300,
+        temperature: 0.5,
+      });
+      
+      const parsed = JSON.parse(response.content.trim());
+      if (Array.isArray(parsed)) {
+        queries.push(...parsed.slice(0, 3).filter((v: any) => typeof v === 'string'));
+      }
+    } catch (e: any) {
+      console.log(`[RAG] Query expansion failed (non-critical): ${e.message}`);
+    }
+    
+    return queries;
+  }
+
+  static async semanticRerank(
+    query: string,
+    results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
+    topK: number = 5
+  ): Promise<Array<{ chunk: KnowledgeChunk; score: number; source: string }>> {
+    if (results.length <= topK || !awsBedrockService.isConfigured()) {
+      return results.slice(0, topK);
+    }
+    
+    try {
+      const candidateTexts = results.map((r, i) => `[${i}] ${r.chunk.chunkText.substring(0, 500)}`).join('\n\n');
+      
+      const response = await awsBedrockService.invoke({
+        model: awsBedrockService.selectModelForTask('rerank'),
+        messages: [{ role: "user", content: `Query: "${query}"\n\nCandidate passages:\n${candidateTexts}` }],
+        systemPrompt: `You are a search relevance ranker. Given a query and numbered candidate passages, return a JSON array of the indices of the ${topK} most relevant passages, ordered by relevance (most relevant first). Return ONLY a JSON array of numbers. Example: [3, 0, 7, 1, 5]`,
+        maxTokens: 100,
+        temperature: 0,
+      });
+      
+      const ranked = JSON.parse(response.content.trim());
+      if (Array.isArray(ranked)) {
+        const reranked: typeof results = [];
+        for (const idx of ranked) {
+          if (typeof idx === 'number' && idx >= 0 && idx < results.length) {
+            const result = results[idx];
+            reranked.push({
+              ...result,
+              score: Math.min(result.score + 0.1, 0.99),
+            });
+          }
+        }
+        if (reranked.length > 0) {
+          console.log(`[RAG] Semantic re-ranking: ${results.length} → ${reranked.length} results`);
+          return reranked.slice(0, topK);
+        }
+      }
+    } catch (e: any) {
+      console.log(`[RAG] Semantic re-ranking failed (non-critical): ${e.message}`);
+    }
+    
+    return results.slice(0, topK);
+  }
+
+  static async extractAnswer(
+    query: string,
+    results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>
+  ): Promise<string> {
+    if (results.length === 0) {
+      return "No relevant information found in the knowledge base.";
+    }
+    
+    if (!awsBedrockService.isConfigured()) {
+      return this.formatResultsForAgent(results, 1500);
+    }
+    
+    try {
+      const context = results.map(r => r.chunk.chunkText).join('\n\n---\n\n');
+      
+      const response = await awsBedrockService.invoke({
+        model: awsBedrockService.selectModelForTask('quick'),
+        messages: [{ role: "user", content: `Question: ${query}\n\nKnowledge base context:\n${context}` }],
+        systemPrompt: `You are a precise answer extractor. Given a question and knowledge base context, extract the most relevant and accurate answer. Rules:
+- Use ONLY facts from the provided context
+- Be direct and specific
+- Include relevant details like prices, features, names
+- If the context doesn't contain the answer, say so
+- Keep the answer concise (2-4 sentences unless more detail is needed)
+- Do NOT add information not in the context`,
+        maxTokens: 500,
+        temperature: 0.2,
+      });
+      
+      return response.content.trim();
+    } catch (e: any) {
+      console.log(`[RAG] Answer extraction failed, falling back to formatted results: ${e.message}`);
+      return this.formatResultsForAgent(results, 1500);
+    }
+  }
+
+  static async enhancedSearch(
+    query: string,
+    knowledgeBaseIds: string[],
+    userId: string,
+    options: {
+      maxResults?: number;
+      useReranking?: boolean;
+      useQueryExpansion?: boolean;
+      useAnswerExtraction?: boolean;
+      reasoningMode?: 'quick' | 'deep' | 'expert';
+    } = {}
+  ): Promise<{ results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>; extractedAnswer?: string }> {
+    const {
+      maxResults = 5,
+      useReranking = true,
+      useQueryExpansion = true,
+      useAnswerExtraction = true,
+      reasoningMode = 'deep',
+    } = options;
+
+    const retrieveCount = useReranking ? Math.min(maxResults * 3, 15) : maxResults;
+    
+    let allResults: Array<{ chunk: KnowledgeChunk; score: number; source: string }> = [];
+
+    if (useQueryExpansion && reasoningMode !== 'quick') {
+      const expandedQueries = await this.expandQuery(query);
+      console.log(`[RAG Enhanced] Expanded query into ${expandedQueries.length} variants`);
+      
+      const resultSets = await Promise.all(
+        expandedQueries.map(q => this.searchKnowledge(q, knowledgeBaseIds, userId, retrieveCount))
+      );
+      
+      const seen = new Set<string>();
+      for (const resultSet of resultSets) {
+        for (const result of resultSet) {
+          const key = result.chunk.chunkText.substring(0, 100);
+          if (!seen.has(key)) {
+            seen.add(key);
+            allResults.push(result);
+          }
+        }
+      }
+    } else {
+      allResults = await this.searchKnowledge(query, knowledgeBaseIds, userId, retrieveCount);
+    }
+
+    const faqResults = await this.searchFAQs(query, knowledgeBaseIds, userId);
+    if (faqResults.length > 0) {
+      allResults = [...faqResults, ...allResults];
+    }
+
+    allResults.sort((a, b) => b.score - a.score);
+
+    if (useReranking && allResults.length > maxResults && reasoningMode !== 'quick') {
+      allResults = await this.semanticRerank(query, allResults, maxResults);
+    } else {
+      allResults = allResults.slice(0, maxResults);
+    }
+
+    let extractedAnswer: string | undefined;
+    if (useAnswerExtraction && allResults.length > 0 && reasoningMode !== 'quick') {
+      extractedAnswer = await this.extractAnswer(query, allResults);
+    }
+
+    console.log(`[RAG Enhanced] Final: ${allResults.length} results, answer extracted: ${!!extractedAnswer}`);
+
+    return { results: allResults, extractedAnswer };
+  }
+
   static formatResultsForAgent(
     results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
     maxTokens: number = 1500

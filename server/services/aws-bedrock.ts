@@ -26,8 +26,28 @@ export interface BedrockResponse {
   stopReason: string;
 }
 
+export interface LargeContextOptions {
+  model?: string;
+  content: string;
+  systemPrompt: string;
+  maxOutputTokens?: number;
+  temperature?: number;
+  chunkSize?: number;
+  synthesisPrompt?: string;
+}
+
+export interface LargeContextResponse {
+  content: string;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  chunksProcessed: number;
+  processingMode: 'single' | 'chunked';
+}
+
 export const BEDROCK_MODELS = {
   "claude-3-5-sonnet": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+  "claude-3-5-sonnet-v2": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+  "claude-3-7-sonnet": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
   "claude-3-5-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
   "claude-3-haiku": "anthropic.claude-3-haiku-20240307-v1:0",
   "claude-3-opus": "us.anthropic.claude-3-opus-20240229-v1:0",
@@ -41,12 +61,29 @@ export const BEDROCK_MODELS = {
 
 export type BedrockModelAlias = keyof typeof BEDROCK_MODELS;
 
+const MODEL_CONTEXT_LIMITS: Record<string, number> = {
+  "claude-3-5-sonnet-v2": 200000,
+  "claude-3-7-sonnet": 200000,
+  "claude-3-5-sonnet": 200000,
+  "claude-3-5-haiku": 200000,
+  "claude-3-haiku": 200000,
+  "claude-3-opus": 200000,
+};
+
+const CHARS_PER_TOKEN = 4;
+const DEFAULT_CHUNK_TOKEN_SIZE = 150000;
+
+export function estimateTokenCount(text: string): number {
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
+}
+
+function getModelContextLimit(model: string): number {
+  return MODEL_CONTEXT_LIMITS[model] || 200000;
+}
+
 export class AWSBedrockService {
   private client: BedrockRuntimeClient | null = null;
 
-  /**
-   * Check if AWS credentials are configured via environment variables
-   */
   isConfigured(): boolean {
     return !!(
       process.env.AWS_ACCESS_KEY_ID &&
@@ -78,9 +115,6 @@ export class AWSBedrockService {
     return this.client;
   }
 
-  /**
-   * Get a client for a specific region (uses same credentials)
-   */
   getClientForRegion(region: string): BedrockRuntimeClient {
     const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
     const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
@@ -98,20 +132,19 @@ export class AWSBedrockService {
     });
   }
 
-  /**
-   * List available Bedrock models
-   */
-  listModels(): { id: string; alias: string; provider: string; tier: string }[] {
+  listModels(): { id: string; alias: string; provider: string; tier: string; contextWindow: number }[] {
     return [
-      { id: BEDROCK_MODELS["claude-3-5-sonnet"], alias: "claude-3-5-sonnet", provider: "Anthropic", tier: "premium" },
-      { id: BEDROCK_MODELS["claude-3-haiku"], alias: "claude-3-haiku", provider: "Anthropic", tier: "standard" },
-      { id: BEDROCK_MODELS["claude-3-opus"], alias: "claude-3-opus", provider: "Anthropic", tier: "premium" },
-      { id: BEDROCK_MODELS["titan-text-express"], alias: "titan-text-express", provider: "Amazon", tier: "budget" },
-      { id: BEDROCK_MODELS["titan-text-lite"], alias: "titan-text-lite", provider: "Amazon", tier: "budget" },
-      { id: BEDROCK_MODELS["llama-3-8b"], alias: "llama-3-8b", provider: "Meta", tier: "budget" },
-      { id: BEDROCK_MODELS["llama-3-70b"], alias: "llama-3-70b", provider: "Meta", tier: "standard" },
-      { id: BEDROCK_MODELS["mistral-7b"], alias: "mistral-7b", provider: "Mistral AI", tier: "budget" },
-      { id: BEDROCK_MODELS["mixtral-8x7b"], alias: "mixtral-8x7b", provider: "Mistral AI", tier: "standard" },
+      { id: BEDROCK_MODELS["claude-3-7-sonnet"], alias: "claude-3-7-sonnet", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
+      { id: BEDROCK_MODELS["claude-3-5-sonnet-v2"], alias: "claude-3-5-sonnet-v2", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
+      { id: BEDROCK_MODELS["claude-3-5-sonnet"], alias: "claude-3-5-sonnet", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
+      { id: BEDROCK_MODELS["claude-3-haiku"], alias: "claude-3-haiku", provider: "Anthropic", tier: "standard", contextWindow: 200000 },
+      { id: BEDROCK_MODELS["claude-3-opus"], alias: "claude-3-opus", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
+      { id: BEDROCK_MODELS["titan-text-express"], alias: "titan-text-express", provider: "Amazon", tier: "budget", contextWindow: 8000 },
+      { id: BEDROCK_MODELS["titan-text-lite"], alias: "titan-text-lite", provider: "Amazon", tier: "budget", contextWindow: 4000 },
+      { id: BEDROCK_MODELS["llama-3-8b"], alias: "llama-3-8b", provider: "Meta", tier: "budget", contextWindow: 8000 },
+      { id: BEDROCK_MODELS["llama-3-70b"], alias: "llama-3-70b", provider: "Meta", tier: "standard", contextWindow: 8000 },
+      { id: BEDROCK_MODELS["mistral-7b"], alias: "mistral-7b", provider: "Mistral AI", tier: "budget", contextWindow: 8000 },
+      { id: BEDROCK_MODELS["mixtral-8x7b"], alias: "mixtral-8x7b", provider: "Mistral AI", tier: "standard", contextWindow: 32000 },
     ];
   }
 
@@ -120,6 +153,20 @@ export class AWSBedrockService {
       return BEDROCK_MODELS[modelInput as BedrockModelAlias];
     }
     return modelInput;
+  }
+
+  selectModelForTask(task: 'synthesis' | 'reasoning' | 'quick' | 'rerank'): string {
+    switch (task) {
+      case 'synthesis':
+        return 'claude-3-7-sonnet';
+      case 'reasoning':
+        return 'claude-3-5-sonnet-v2';
+      case 'rerank':
+        return 'claude-3-5-haiku';
+      case 'quick':
+      default:
+        return 'claude-3-5-haiku';
+    }
   }
 
   async invoke(options: BedrockInvokeOptions): Promise<BedrockResponse> {
@@ -137,6 +184,162 @@ export class AWSBedrockService {
     } else {
       return this.invokeAnthropicModel(client, modelId, options);
     }
+  }
+
+  async invokeWithLargeContext(options: LargeContextOptions): Promise<LargeContextResponse> {
+    const model = options.model || 'claude-3-7-sonnet';
+    const contextLimit = getModelContextLimit(model);
+    const contentTokens = estimateTokenCount(options.content);
+    const systemTokens = estimateTokenCount(options.systemPrompt);
+    const totalInputTokens = contentTokens + systemTokens;
+
+    const safeContextLimit = Math.floor(contextLimit * 0.85);
+
+    console.log(`[Bedrock LargeContext] Content: ~${contentTokens} tokens, System: ~${systemTokens} tokens, Model limit: ${contextLimit}`);
+
+    if (totalInputTokens <= safeContextLimit) {
+      console.log(`[Bedrock LargeContext] Single-pass mode (within context limit)`);
+      const response = await this.invoke({
+        model,
+        messages: [{ role: "user", content: options.content }],
+        systemPrompt: options.systemPrompt,
+        maxTokens: options.maxOutputTokens || 8192,
+        temperature: options.temperature ?? 0.3,
+      });
+
+      return {
+        content: response.content,
+        totalInputTokens: response.inputTokens,
+        totalOutputTokens: response.outputTokens,
+        chunksProcessed: 1,
+        processingMode: 'single',
+      };
+    }
+
+    console.log(`[Bedrock LargeContext] Chunked mode — content exceeds single-pass limit`);
+    const chunkTokenSize = options.chunkSize || DEFAULT_CHUNK_TOKEN_SIZE;
+    const chunkCharSize = chunkTokenSize * CHARS_PER_TOKEN;
+    const chunks = this.splitContentIntoChunks(options.content, chunkCharSize);
+
+    console.log(`[Bedrock LargeContext] Split into ${chunks.length} chunks (~${chunkTokenSize} tokens each)`);
+
+    const chunkResults: string[] = [];
+    let totalIn = 0;
+    let totalOut = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkPrompt = `You are processing chunk ${i + 1} of ${chunks.length} from a larger document.
+
+${options.systemPrompt}
+
+IMPORTANT: Extract and analyze ALL relevant information from this chunk. Be thorough and comprehensive. Do not summarize — preserve specific details, numbers, names, and facts.
+
+--- CHUNK ${i + 1} of ${chunks.length} ---
+${chunks[i]}
+--- END CHUNK ---`;
+
+      const response = await this.invoke({
+        model,
+        messages: [{ role: "user", content: chunkPrompt }],
+        maxTokens: options.maxOutputTokens || 8192,
+        temperature: options.temperature ?? 0.3,
+      });
+
+      chunkResults.push(response.content);
+      totalIn += response.inputTokens;
+      totalOut += response.outputTokens;
+
+      console.log(`[Bedrock LargeContext] Chunk ${i + 1}/${chunks.length} processed (${response.inputTokens} in, ${response.outputTokens} out)`);
+    }
+
+    const synthesisPrompt = options.synthesisPrompt || `You are synthesizing analysis from ${chunks.length} chunks of a larger document.
+
+Combine ALL the extracted information below into a single, comprehensive, well-organized result. Do NOT lose any details — merge, deduplicate, and structure the information coherently.
+
+${options.systemPrompt}`;
+
+    const combinedResults = chunkResults.map((r, i) => `=== Analysis from Chunk ${i + 1} ===\n${r}`).join('\n\n');
+
+    const combinedTokens = estimateTokenCount(combinedResults + synthesisPrompt);
+
+    if (combinedTokens > safeContextLimit) {
+      const summaryChunks = this.splitContentIntoChunks(combinedResults, chunkCharSize);
+      const summaries: string[] = [];
+
+      for (let i = 0; i < summaryChunks.length; i++) {
+        const response = await this.invoke({
+          model,
+          messages: [{ role: "user", content: summaryChunks[i] }],
+          systemPrompt: `Condense and summarize this analysis while preserving ALL key facts, data points, and insights. Be comprehensive but concise.`,
+          maxTokens: options.maxOutputTokens || 8192,
+          temperature: 0.2,
+        });
+        summaries.push(response.content);
+        totalIn += response.inputTokens;
+        totalOut += response.outputTokens;
+      }
+
+      const condensedResults = summaries.join('\n\n');
+      const synthesisResponse = await this.invoke({
+        model,
+        messages: [{ role: "user", content: condensedResults }],
+        systemPrompt: synthesisPrompt,
+        maxTokens: options.maxOutputTokens || 8192,
+        temperature: options.temperature ?? 0.3,
+      });
+
+      totalIn += synthesisResponse.inputTokens;
+      totalOut += synthesisResponse.outputTokens;
+
+      return {
+        content: synthesisResponse.content,
+        totalInputTokens: totalIn,
+        totalOutputTokens: totalOut,
+        chunksProcessed: chunks.length,
+        processingMode: 'chunked',
+      };
+    }
+
+    const synthesisResponse = await this.invoke({
+      model,
+      messages: [{ role: "user", content: combinedResults }],
+      systemPrompt: synthesisPrompt,
+      maxTokens: options.maxOutputTokens || 8192,
+      temperature: options.temperature ?? 0.3,
+    });
+
+    totalIn += synthesisResponse.inputTokens;
+    totalOut += synthesisResponse.outputTokens;
+
+    return {
+      content: synthesisResponse.content,
+      totalInputTokens: totalIn,
+      totalOutputTokens: totalOut,
+      chunksProcessed: chunks.length,
+      processingMode: 'chunked',
+    };
+  }
+
+  private splitContentIntoChunks(content: string, maxCharsPerChunk: number): string[] {
+    const chunks: string[] = [];
+    const lines = content.split('\n');
+    let currentChunk = '';
+
+    for (const line of lines) {
+      if ((currentChunk.length + line.length + 1) > maxCharsPerChunk && currentChunk.length > 0) {
+        chunks.push(currentChunk);
+        const overlapSize = Math.min(currentChunk.length, Math.floor(maxCharsPerChunk * 0.05));
+        currentChunk = currentChunk.slice(-overlapSize) + '\n' + line;
+      } else {
+        currentChunk += (currentChunk.length > 0 ? '\n' : '') + line;
+      }
+    }
+
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk);
+    }
+
+    return chunks;
   }
 
   private async invokeAnthropicModel(
@@ -336,9 +539,6 @@ export class AWSBedrockService {
     }
   }
 
-  /**
-   * Test AWS Bedrock credentials
-   */
   async warmConnection(): Promise<void> {
     try {
       const client = this.getClient();

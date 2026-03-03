@@ -203,6 +203,8 @@ export const agents = pgTable("agents", {
   specialist: text("specialist"), // Agent specialty e.g. "Debt Collection Agent", "Insurance Quote Agent"
   avatarUrl: text("avatar_url"), // URL/path to agent avatar image
   
+  reasoningMode: text("reasoning_mode").default("deep"), // 'quick' | 'deep' | 'expert' — controls AI reasoning depth for knowledge queries
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -3848,3 +3850,25 @@ export const insertIntegrationSyncLogSchema = createInsertSchema(integrationSync
 });
 export type InsertIntegrationSyncLog = z.infer<typeof insertIntegrationSyncLogSchema>;
 export type IntegrationSyncLog = typeof integrationSyncLogs.$inferSelect;
+
+export const callerMemory = pgTable("caller_memory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  phoneNumber: text("phone_number").notNull(),
+  factKey: text("fact_key").notNull(),
+  factValue: text("fact_value").notNull(),
+  category: text("category").notNull().default("general"),
+  confidence: doublePrecision("confidence").notNull().default(0.8),
+  source: text("source").notNull().default("call_transcript"),
+  callId: varchar("call_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCallerMemorySchema = createInsertSchema(callerMemory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCallerMemory = z.infer<typeof insertCallerMemorySchema>;
+export type CallerMemory = typeof callerMemory.$inferSelect;

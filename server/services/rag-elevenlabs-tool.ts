@@ -150,11 +150,17 @@ export async function handleAskKnowledgeToolCall(
   }
 
   try {
-    const results = await RAGKnowledgeService.searchKnowledge(
+    const { results, extractedAnswer } = await RAGKnowledgeService.enhancedSearch(
       query,
       knowledgeBaseIds,
       userId,
-      5
+      {
+        maxResults: 5,
+        useReranking: true,
+        useQueryExpansion: true,
+        useAnswerExtraction: true,
+        reasoningMode: 'deep',
+      }
     );
 
     if (results.length === 0) {
@@ -164,17 +170,26 @@ export async function handleAskKnowledgeToolCall(
       };
     }
 
-    const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 1500);
+    const response = extractedAnswer || RAGKnowledgeService.formatResultsForAgent(results, 1500);
 
     return {
-      response: formattedResponse,
+      response,
       sources: results.map(r => ({
         id: r.chunk.knowledgeBaseId,
         relevance: r.score
       }))
     };
   } catch (error: any) {
-    console.error("[RAG Tool] Error:", error.message);
+    console.error("[RAG Tool] Enhanced search error, falling back to basic:", error.message);
+    try {
+      const results = await RAGKnowledgeService.searchKnowledge(query, knowledgeBaseIds, userId, 5);
+      if (results.length > 0) {
+        return {
+          response: RAGKnowledgeService.formatResultsForAgent(results, 1500),
+          sources: results.map(r => ({ id: r.chunk.knowledgeBaseId, relevance: r.score }))
+        };
+      }
+    } catch {}
     return {
       response: "I encountered an error searching the knowledge base. Please try again.",
       sources: []

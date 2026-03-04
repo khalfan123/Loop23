@@ -323,10 +323,9 @@ export class AudioBridgeService {
     const functionCallingRequirements = `
 
 CONVERSATION STYLE:
-- Answer directly in 2-3 sentences without repeating the caller's question back to them.
+- Give complete, thorough answers. Do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs.
 - If something is unclear, ask ONE specific clarifying question.
 - Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.
-- Keep it conversational and concise. You are on a phone call, not giving a lecture.
 
 IMPORTANT FUNCTION CALLING REQUIREMENTS:
 1. After collecting all form information from the user, you MUST call the submit_form function with the collected data. Do NOT just say "I have recorded your information" - you MUST actually call the submit_form function to save the data.

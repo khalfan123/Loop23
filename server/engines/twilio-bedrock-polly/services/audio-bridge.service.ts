@@ -1001,7 +1001,7 @@ export class BedrockPollyAudioBridge {
       toolCallInstructions = `\n\nTools (respond with [TOOL_CALL] {"name":"<name>","params":{...}}):\n${toolDescriptions}\nCall tools after collecting info. Say closing message after task. Only end_call when user confirms done.`;
     }
 
-    const voiceInstructions = `\n\nVOICE CALL RULES: This is a live phone call. Answer directly in 2-3 sentences without repeating the caller's question back to them. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally. Keep it conversational and concise.`;
+    const voiceInstructions = `\n\nVOICE CALL RULES: This is a live phone call. Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.`;
 
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + voiceInstructions;
 
@@ -1042,7 +1042,7 @@ export class BedrockPollyAudioBridge {
         messages: bedrockMessages,
         systemPrompt,
         temperature: 0.3,
-        maxTokens: 300,
+        maxTokens: 1024,
       });
 
       for await (const token of stream) {
@@ -1316,7 +1316,7 @@ ${toolDescriptions}
 IMPORTANT: After collecting all required information, you MUST call the relevant tool. Do NOT just describe what you would do — actually call the tool. After completing the main task, say a friendly closing message and ask if there's anything else. Only call end_call after the user confirms they are done.`;
     }
 
-    const conversationBehavior = `\n\nCONVERSATION STYLE: Listen carefully to what the caller says. Answer directly in 2-3 sentences without repeating their question back to them. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure" — just answer naturally.`;
+    const conversationBehavior = `\n\nCONVERSATION STYLE: Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure" — just answer naturally.`;
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + conversationBehavior;
     console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}`);
 

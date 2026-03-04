@@ -248,6 +248,10 @@ async function initializeSession(
         streamLanguage
       );
 
+      const metaBehaviorConfig = metadata?.behaviorConfig as Record<string, any> | undefined;
+      const metaWaitingMessages = metadata?.waitingMessages as string[] | undefined;
+      const metaDataSchema = metadata?.dataSchema as Array<{ name: string; type: string; description: string; required?: boolean }> | undefined;
+
       agentConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
         model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
@@ -261,6 +265,9 @@ async function initializeSession(
           agentId: callRecord.agentId || '',
           callId: callRecord.id,
         },
+        behaviorConfig: metaBehaviorConfig || undefined,
+        waitingMessages: metaWaitingMessages || undefined,
+        dataSchema: metaDataSchema || undefined,
       });
 
       const knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
@@ -269,6 +276,14 @@ async function initializeSession(
           agentConfig,
           knowledgeBaseIds,
           callRecord.userId
+        );
+      }
+
+      if (metaDataSchema && metaDataSchema.length > 0) {
+        agentConfig = BedrockAgentFactory.addDataCollectionTool(
+          agentConfig,
+          metaDataSchema,
+          callRecord.id
         );
       }
 
@@ -352,7 +367,20 @@ async function initializeSession(
               );
 
               if (insights) {
-                updates.aiSummary = insights.aiSummary;
+                let aiSummary = insights.aiSummary || '';
+
+                if (metaDataSchema && metaDataSchema.length > 0) {
+                  try {
+                    const dataSummary = await BedrockAgentFactory.generateCollectedDataSummary(callId, metaDataSchema);
+                    if (dataSummary) {
+                      aiSummary += dataSummary;
+                    }
+                  } catch (dsErr: any) {
+                    logger.warn(`Failed to generate data collection summary: ${dsErr.message}`, undefined, 'BedrockPolly Stream');
+                  }
+                }
+
+                updates.aiSummary = aiSummary;
                 updates.sentiment = insights.sentiment;
                 updates.classification = insights.classification;
                 if (insights.keyPoints) updates.keyPoints = insights.keyPoints;

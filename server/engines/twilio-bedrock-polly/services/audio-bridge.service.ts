@@ -31,6 +31,8 @@ import type {
   BedrockConversationMessage,
 } from '../types';
 import { humanizeToSSML } from './ssml-humanizer';
+import { conversationResumptionService } from '../../../services/conversation-resumption';
+import { calls } from '@shared/schema';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -255,6 +257,7 @@ export class BedrockPollyAudioBridge {
       pollyEngine: 'neural',
       ttsProvider: agentConfig.ttsProvider || 'aws_polly',
       isOutbound: callDirection === 'outbound',
+      explicitEndCall: false,
     };
 
     if (agentConfig.tools) {
@@ -514,9 +517,12 @@ export class BedrockPollyAudioBridge {
               const phaseEnd = session.isOutbound ? openingPhaseEnd.get(callSid) : undefined;
               const isOpeningPhase = session.isOutbound && phaseEnd && Date.now() < phaseEnd;
 
+              const vadOverrideMs = session.agentConfig?.behaviorConfig?.vadSilenceTimeoutMs;
               let silenceMs: number;
               if (isOpeningPhase) {
                 silenceMs = this.OPENING_SILENCE_THRESHOLD_MS;
+              } else if (vadOverrideMs) {
+                silenceMs = vadOverrideMs;
               } else {
                 const totalLen = buf.reduce((s, b) => s + b.length, 0);
                 const pk = peakEnergy.get(callSid) || 0;
@@ -996,12 +1002,23 @@ export class BedrockPollyAudioBridge {
       let firstTtsStartTime = 0;
       let firstTtsAudioTime = 0;
 
+      const behaviorCfg = agentConfig.behaviorConfig || {};
+      const hasBehaviorConfig = agentConfig.behaviorConfig && Object.keys(agentConfig.behaviorConfig).length > 0;
+      const softTimeoutMs = (behaviorCfg.softTimeoutSec ?? (hasBehaviorConfig ? 4 : 0.4)) * 1000;
+      const hardTimeoutMs = (behaviorCfg.hardTimeoutSec ?? 15) * 1000;
+      const customWaitingMessages = agentConfig.waitingMessages;
+
       const fillerTimer = setTimeout(async () => {
         if (sentencesSent === 0 && !fillerSent && !fillerInProgress && session.status !== 'disconnected' && !bargeInFlags.get(callSid)) {
           fillerInProgress = true;
           fillerSent = true;
           const lang = agentConfig.language || 'en';
-          const fillerText = this.getFillerPhrase(lang);
+          let fillerText: string;
+          if (customWaitingMessages && customWaitingMessages.length > 0) {
+            fillerText = customWaitingMessages[Math.floor(Math.random() * customWaitingMessages.length)];
+          } else {
+            fillerText = this.getFillerPhrase(lang);
+          }
           const cacheKey = `${agentConfig.voice || 'default'}_${fillerText}`;
           const cachedBuf = cachedFillerAudio.get(cacheKey);
           if (cachedBuf) {
@@ -1013,7 +1030,15 @@ export class BedrockPollyAudioBridge {
           }
           fillerInProgress = false;
         }
-      }, 400);
+      }, softTimeoutMs);
+
+      let hardTimedOut = false;
+      const hardTimer = setTimeout(() => {
+        if (sentencesSent === 0 && !toolCallDetected && session.status !== 'disconnected') {
+          hardTimedOut = true;
+          console.log(`[BedrockPolly Bridge] Hard timeout (${hardTimeoutMs}ms) reached for ${callSid}`);
+        }
+      }, hardTimeoutMs);
 
       bargeInFlags.set(callSid, false);
       bargeInAccum.set(callSid, 0);
@@ -1041,7 +1066,13 @@ export class BedrockPollyAudioBridge {
         if (sentenceBuffer.includes('[TOOL_CALL]')) {
           toolCallDetected = true;
           clearTimeout(fillerTimer);
+          clearTimeout(hardTimer);
           continue;
+        }
+
+        if (hardTimedOut) {
+          console.log(`[BedrockPolly Bridge] Aborting streaming due to hard timeout for ${callSid}`);
+          break;
         }
 
         if (bargeInFlags.get(callSid) && sentencesSent > 0) {
@@ -1074,6 +1105,7 @@ export class BedrockPollyAudioBridge {
             sentencesSent++;
             if (sentencesSent === 1) {
               clearTimeout(fillerTimer);
+              clearTimeout(hardTimer);
               firstTtsStartTime = Date.now();
               const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
               console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
@@ -1097,9 +1129,18 @@ export class BedrockPollyAudioBridge {
       }
 
       clearTimeout(fillerTimer);
+      clearTimeout(hardTimer);
 
       if (pendingSynthesis) {
         await pendingSynthesis;
+      }
+
+      if (hardTimedOut && sentencesSent === 0 && !toolCallDetected) {
+        const apologyMsg = 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';
+        await this.synthesizeAndSend(session, apologyMsg);
+        session.messages.push({ role: 'assistant', content: apologyMsg });
+        session.transcriptParts.push({ role: 'assistant', text: apologyMsg, timestamp: new Date() });
+        return apologyMsg;
       }
 
       if (toolCallDetected) {
@@ -1113,6 +1154,7 @@ export class BedrockPollyAudioBridge {
         sentencesSent++;
         if (sentencesSent === 1) {
           clearTimeout(fillerTimer);
+          clearTimeout(hardTimer);
           firstTtsStartTime = Date.now();
         }
         await this.synthesizeAndSend(session, sentenceBuffer.trim());
@@ -1610,6 +1652,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       try {
         if (name === 'end_call') {
           console.log(`[BedrockPolly Bridge] end_call invoked for ${callSid}`);
+          session.explicitEndCall = true;
           const reason = (params.reason as string) || 'Call ended by agent';
           results.push(`Call ending: ${reason}`);
 
@@ -1958,6 +2001,36 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       noResponseTimers.delete(callSid);
     }
     callerHasSpoken.delete(callSid);
+
+    if (!session.explicitEndCall && session.transcriptParts.length > 0) {
+      try {
+        const [callRecord] = await db
+          .select({ id: calls.id })
+          .from(calls)
+          .where(eq(calls.twilioSid, callSid))
+          .limit(1);
+
+        if (callRecord) {
+          const transcriptText = session.transcriptParts
+            .map(p => `${p.role === 'user' ? 'User' : 'Agent'}: ${p.text}`)
+            .join('\n');
+
+          const context = {
+            collectedData: {} as Record<string, string | null>,
+            summaryOfDiscussion: transcriptText.substring(0, 500),
+            lastTopic: session.transcriptParts.length > 0
+              ? session.transcriptParts[session.transcriptParts.length - 1].text.substring(0, 200)
+              : '',
+            pendingQuestions: [] as string[],
+          };
+
+          await conversationResumptionService.markCallResumable(callRecord.id, context);
+          console.log(`[BedrockPolly Bridge] Marked call ${callRecord.id} as resumable (no explicit end_call)`);
+        }
+      } catch (err: any) {
+        console.log(`[BedrockPolly Bridge] Could not mark call as resumable: ${err.message}`);
+      }
+    }
 
     const durationMs = session.endedAt.getTime() - session.startedAt.getTime();
     const duration = Math.floor(durationMs / 1000);

@@ -1,7 +1,7 @@
 'use strict';
 import { Router, Request, Response } from 'express';
 import { db } from '../../../db';
-import { agents, twilioOpenaiCalls, phoneNumbers, incomingConnections, users, flows, ivrConfigurations } from '@shared/schema';
+import { agents, twilioOpenaiCalls, phoneNumbers, incomingConnections, users, flows, ivrConfigurations, calls } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import {
@@ -23,6 +23,7 @@ import { getDomain } from '../../../utils/domain';
 import { awsBedrockService } from '../../../services/aws-bedrock';
 import { awsPollyService } from '../../../services/aws-polly';
 import { POLLY_VOICES } from '../types';
+import { conversationResumptionService } from '../../../services/conversation-resumption';
 import type { TwilioWebhookParams } from '../types';
 
 const router = Router();
@@ -185,6 +186,29 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
 
     const callId = nanoid();
 
+    let resumptionPrompt = '';
+    let resumedFromCallId: string | null = null;
+    try {
+      const callerPhone = normalizePhoneForStorage(From);
+      const previousCall = await conversationResumptionService.findResumableCall(callerPhone, agent.id);
+      if (previousCall) {
+        resumptionPrompt = conversationResumptionService.generateResumptionPrompt(previousCall);
+        resumedFromCallId = previousCall.id;
+        await db
+          .update(calls)
+          .set({ resumable: false })
+          .where(eq(calls.id, previousCall.id))
+          .catch(() => {});
+        logger.info(`Found resumable call ${previousCall.id} for caller ${callerPhone}, marked as non-resumable`, undefined, 'BedrockPolly');
+      }
+    } catch (resumeErr: any) {
+      logger.error(`Failed to check for resumable call: ${resumeErr.message}`, undefined, 'BedrockPolly');
+    }
+
+    const systemPromptWithResumption = resumptionPrompt
+      ? `${resumptionPrompt}\n\n${agent.systemPrompt}`
+      : agent.systemPrompt;
+
     const callMetadata: Record<string, unknown> = {
       incomingCall: true,
       agentId: agent.id,
@@ -195,11 +219,15 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       endConversationEnabled: agent.endConversationEnabled,
       detectLanguageEnabled: agent.detectLanguageEnabled,
       appointmentBookingEnabled: agent.appointmentBookingEnabled,
-      systemPrompt: agent.systemPrompt,
+      systemPrompt: systemPromptWithResumption,
       firstMessage: agent.firstMessage,
       temperature: agent.temperature,
       language: agent.language || 'en',
       engine: 'bedrock-polly',
+      behaviorConfig: agent.behaviorConfig || null,
+      waitingMessages: agent.waitingMessages || null,
+      dataSchema: agent.dataSchema || null,
+      resumedFromCallId: resumedFromCallId,
     };
 
     const webhookLanguage = agent.language || 'en';

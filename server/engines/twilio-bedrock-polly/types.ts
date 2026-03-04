@@ -193,6 +193,9 @@ export interface AgentConfig {
   elevenLabsApiKey?: string;
   agentName?: string;
   language?: string;
+  behaviorConfig?: Record<string, any>;
+  waitingMessages?: string[];
+  dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
 }
 
 /**
@@ -339,6 +342,7 @@ export interface BedrockPollyBridgeSession {
   pollyEngine: 'neural' | 'generative';
   ttsProvider: TtsProvider;
   isOutbound: boolean;
+  explicitEndCall: boolean;
   _mediaLogThrottle?: number;
 }
 

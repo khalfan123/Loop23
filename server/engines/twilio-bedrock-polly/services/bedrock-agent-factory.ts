@@ -28,8 +28,8 @@ import type {
 import { POLLY_VOICES, MODEL_TIER_CONFIG } from '../types';
 import { RAGKnowledgeService } from '../../../services/rag-knowledge';
 import { db } from '../../../db';
-import { appointments, appointmentSettings, formSubmissions, agents, forms, formFields } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { appointments, appointmentSettings, formSubmissions, agents, forms, formFields, calls, twilioOpenaiCalls } from '@shared/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 
@@ -83,6 +83,9 @@ export class BedrockAgentFactory {
     elevenLabsVoiceId?: string;
     elevenLabsApiKey?: string;
     agentName?: string;
+    behaviorConfig?: Record<string, any>;
+    waitingMessages?: string[];
+    dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
   }): AgentConfigWithContext {
     const tier = params.userTier || 'free';
     const voice = params.ttsProvider === 'elevenlabs' ? params.voice : this.validateVoice(params.voice);
@@ -207,6 +210,17 @@ CRITICAL BEHAVIORAL RULES:
       systemPrompt = `CRITICAL LANGUAGE REQUIREMENT: You MUST speak ONLY in ${languageName}. From the very first word you say, speak in ${languageName}. Do NOT speak English. This is mandatory.\n\n${systemPrompt}`;
     }
 
+    const behaviorCfg = params.behaviorConfig || {};
+    if (behaviorCfg.maxQuestionsPerTurn) {
+      systemPrompt += `\n- Ask a MAXIMUM of ${behaviorCfg.maxQuestionsPerTurn} questions at a time. Never overwhelm the caller.`;
+    }
+    if (behaviorCfg.useDiscourseMarkers !== false) {
+      systemPrompt += `\n- Use natural discourse markers and fillers to sound human-like (e.g., "I see...", "Well, let me think...", "So, what I can do for you is...", "That makes sense...", "Right, let me help you with that...")`;
+    }
+    if (behaviorCfg.silenceTimeoutSec) {
+      systemPrompt += `\n- If the caller is silent for a while, gently prompt them: "Are you still there?" or "Take your time, I'm here when you're ready."`;
+    }
+
     return {
       voice,
       model,
@@ -220,6 +234,9 @@ CRITICAL BEHAVIORAL RULES:
       elevenLabsApiKey: params.elevenLabsApiKey,
       agentName: params.agentName,
       language,
+      behaviorConfig: params.behaviorConfig,
+      waitingMessages: params.waitingMessages,
+      dataSchema: params.dataSchema,
     };
   }
 
@@ -272,7 +289,15 @@ CRITICAL BEHAVIORAL RULES:
             };
           }
           
-          const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
+          let formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
+
+          if (config.dataSchema && config.dataSchema.length > 0) {
+            const dataSchemaContext = RAGKnowledgeService.buildDataSchemaContext(config.dataSchema);
+            if (dataSchemaContext) {
+              formattedResponse += '\n' + dataSchemaContext;
+            }
+          }
+
           console.log(`[KB Tool] Found ${results.length} results`);
           
           return { 
@@ -1639,6 +1664,184 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     }
   }
 
+  static buildDataSchemaPrompt(dataSchema: Array<{ name: string; type: string; description: string; required?: boolean }>): string {
+    if (!dataSchema || dataSchema.length === 0) return '';
+
+    const lines: string[] = [
+      '',
+      '# Required Data to Collect',
+      'You must collect the following information during the conversation. Ask about each field naturally as part of the conversation flow.',
+      ''
+    ];
+
+    for (const field of dataSchema) {
+      const typeLabel = field.type === 'yes_no' ? 'Yes/No' : field.type;
+      let line = `- **${field.name}** (${typeLabel}): ${field.description}`;
+      if (field.required) {
+        line += ' — This field is required. Do not end the conversation without collecting it.';
+      }
+      lines.push(line);
+    }
+
+    lines.push('');
+    lines.push('When you collect a piece of data, immediately call the update_collected_data tool with the field name and value. Do not wait until the end of the conversation — save each field as soon as it is provided.');
+    lines.push('Before ending the call, verify that all required fields have been collected. If any required field is missing, ask for it.');
+
+    return lines.join('\n');
+  }
+
+  static addDataCollectionTool(
+    config: AgentConfigWithContext,
+    dataSchema: Array<{ name: string; type: string; description: string; required?: boolean }>,
+    callId?: string
+  ): AgentConfigWithContext {
+    if (!dataSchema || dataSchema.length === 0) return config;
+
+    if (config.tools?.some(t => t.name === 'update_collected_data')) {
+      return config;
+    }
+
+    console.log(`[Bedrock Agent Factory] Adding data collection tool for ${dataSchema.length} fields`);
+
+    const fieldNames = dataSchema.map(f => f.name);
+
+    const dataCollectionTool: AgentTool = {
+      name: 'update_collected_data',
+      description: 'Save a piece of structured data collected from the caller. Call this tool each time you gather a data field during the conversation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          field_name: {
+            type: 'string',
+            enum: fieldNames,
+            description: 'The name of the data field being collected'
+          },
+          field_value: {
+            type: 'string',
+            description: 'The value collected from the caller for this field'
+          }
+        },
+        required: ['field_name', 'field_value'],
+      },
+      handler: async (params: Record<string, unknown>) => {
+        try {
+          const fieldName = params.field_name as string;
+          const fieldValue = params.field_value as string;
+
+          if (!fieldNames.includes(fieldName)) {
+            return { success: false, message: `Unknown field: ${fieldName}` };
+          }
+
+          console.log(`[Bedrock Data Collection] Saving ${fieldName} = "${fieldValue}" for call ${callId || 'unknown'}`);
+
+          if (callId) {
+            const updateQuery = sql`
+              UPDATE calls
+              SET conversation_context = jsonb_set(
+                COALESCE(conversation_context, '{"collectedData":{}, "summaryOfDiscussion":"", "lastTopic":"", "pendingQuestions":[]}'),
+                '{collectedData,${sql.raw(fieldName)}}',
+                ${JSON.stringify(fieldValue)}::jsonb
+              )
+              WHERE id = ${callId}
+            `;
+            await db.execute(updateQuery);
+
+            const updateTwilioQuery = sql`
+              UPDATE twilio_openai_calls
+              SET metadata = jsonb_set(
+                COALESCE(metadata, '{}'),
+                '{collectedData,${sql.raw(fieldName)}}',
+                ${JSON.stringify(fieldValue)}::jsonb
+              )
+              WHERE twilio_call_sid IN (
+                SELECT twilio_sid FROM calls WHERE id = ${callId}
+              ) OR id = ${callId}
+            `;
+            await db.execute(updateTwilioQuery).catch(() => {});
+          }
+
+          return {
+            success: true,
+            message: `Saved ${fieldName}: ${fieldValue}`,
+            field_name: fieldName,
+            field_value: fieldValue
+          };
+        } catch (error: any) {
+          console.error(`[Bedrock Data Collection] Error:`, error.message);
+          return {
+            success: false,
+            message: 'Unable to save data at this time.'
+          };
+        }
+      },
+    };
+
+    const dataSchemaPrompt = this.buildDataSchemaPrompt(dataSchema);
+
+    return {
+      ...config,
+      systemPrompt: config.systemPrompt + dataSchemaPrompt,
+      tools: [...(config.tools || []), dataCollectionTool],
+    };
+  }
+
+  static async generateCollectedDataSummary(
+    callId: string,
+    dataSchema: Array<{ name: string; type: string; description: string; required?: boolean }>
+  ): Promise<string | null> {
+    if (!dataSchema || dataSchema.length === 0) return null;
+
+    try {
+      let collectedData: Record<string, string | null> = {};
+
+      const callResult = await db
+        .select({ conversationContext: calls.conversationContext })
+        .from(calls)
+        .where(eq(calls.id, callId))
+        .limit(1);
+
+      if (callResult.length > 0 && callResult[0].conversationContext?.collectedData) {
+        collectedData = callResult[0].conversationContext.collectedData;
+      }
+
+      if (Object.keys(collectedData).length === 0) {
+        const twilioResult = await db
+          .select({ metadata: twilioOpenaiCalls.metadata })
+          .from(twilioOpenaiCalls)
+          .where(eq(twilioOpenaiCalls.id, callId))
+          .limit(1);
+
+        if (twilioResult.length > 0) {
+          const meta = twilioResult[0].metadata as Record<string, any> | null;
+          if (meta?.collectedData) {
+            collectedData = meta.collectedData;
+          }
+        }
+      }
+
+      const lines: string[] = ['\n\n--- Structured Data Collection Report ---'];
+      let collectedCount = 0;
+
+      for (const field of dataSchema) {
+        const value = collectedData[field.name];
+        if (value !== undefined && value !== null) {
+          lines.push(`✅ ${field.name}: ${value}`);
+          collectedCount++;
+        } else {
+          const label = field.required ? '❌ (REQUIRED)' : '⬜ (optional)';
+          lines.push(`${label} ${field.name}: Not collected`);
+        }
+      }
+
+      lines.push(`Total collected: ${collectedCount}/${dataSchema.length}`);
+
+      return lines.join('\n');
+    } catch (error: any) {
+      console.error(`[Bedrock Agent Factory] Error generating data summary:`, error.message);
+      return null;
+    }
+  }
+
   static async createFromAgentRecord(
     agent: {
       id: string;
@@ -1659,6 +1862,9 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       detectLanguageEnabled?: boolean | null;
       flowId?: string | null;
       language?: string | null;
+      behaviorConfig?: Record<string, any> | null;
+      waitingMessages?: string[] | null;
+      dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }> | null;
     },
     userTier: 'free' | 'pro',
     callId?: string,
@@ -1698,11 +1904,18 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
           agentId: agent.id,
           callId,
         },
+        behaviorConfig: agent.behaviorConfig || undefined,
+        waitingMessages: agent.waitingMessages || undefined,
+        dataSchema: agent.dataSchema || undefined,
       });
     }
 
     if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
       config = this.addKnowledgeBaseTool(config, agent.knowledgeBaseIds, agent.userId, agent.knowledgeBaseOnly ?? undefined);
+    }
+
+    if (agent.dataSchema && agent.dataSchema.length > 0) {
+      config = this.addDataCollectionTool(config, agent.dataSchema, callId);
     }
 
     if (agent.transferEnabled && agent.transferPhoneNumber) {

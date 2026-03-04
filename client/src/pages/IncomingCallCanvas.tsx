@@ -755,7 +755,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
               {promptSearch.trim() ? "No templates match your search" : "No prompt templates available"}
             </p>
           ) : (
-            <ScrollArea className="max-h-[200px]">
+            <ScrollArea className="h-[300px]">
               <div className="grid gap-2 sm:grid-cols-2 pr-3">
                 {filteredTemplates.map((template) => {
                   const isSelected = selectedTemplateId === template.id;

@@ -422,6 +422,7 @@ export const humanIncomingConnections = pgTable("human_incoming_connections", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   phoneNumberId: varchar("phone_number_id").notNull().references(() => phoneNumbers.id, { onDelete: "cascade" }).unique(),
+  agentId: varchar("agent_id").references(() => agents.id, { onDelete: "set null" }),
   transferNumber: text("transfer_number").notNull(),
   transferTargetType: text("transfer_target_type").notNull().default("phone"),
   ivrEnabled: boolean("ivr_enabled").notNull().default(true),

@@ -38,6 +38,7 @@ import {
   Trash2,
   Link as LinkIcon,
   User,
+  Bot,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -54,6 +55,7 @@ interface PhoneNumber {
 interface HumanConnection {
   id: string;
   phoneNumberId: string;
+  agentId: string | null;
   transferNumber: string;
   transferTargetType: string;
   ivrEnabled: boolean;
@@ -61,6 +63,14 @@ interface HumanConnection {
   label: string | null;
   createdAt: string;
   phoneNumber?: { id: string; phoneNumber: string; friendlyName: string | null; country: string | null; status: string } | null;
+  agent?: { id: string; name: string } | null;
+}
+
+interface IncomingAgent {
+  id: string;
+  name: string;
+  language: string | null;
+  type: string;
 }
 
 const STEPS = [
@@ -82,10 +92,12 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
   const [transferLabel, setTransferLabel] = useState("");
   const [ivrEnabled, setIvrEnabled] = useState(true);
   const [ivrGreeting, setIvrGreeting] = useState("");
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const { data: humanData, isLoading } = useQuery<{
     connections: HumanConnection[];
     availablePhoneNumbers: (PhoneNumber & { isUnavailable?: boolean; unavailableReason?: string | null })[];
+    incomingAgents: IncomingAgent[];
     stats: { totalConnections: number; availableNumbers: number };
   }>({
     queryKey: ["/api/incoming-connections/human"],
@@ -154,6 +166,7 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
         ivrEnabled,
         ivrGreeting: ivrGreeting.trim() || null,
         label: transferLabel.trim() || null,
+        agentId: selectedAgentId || null,
       });
 
       return true;
@@ -171,6 +184,7 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
       setTransferLabel("");
       setIvrEnabled(true);
       setIvrGreeting("");
+      setSelectedAgentId(null);
       setWizardMode("list");
     },
     onError: (error: any) => {
@@ -212,6 +226,7 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
     setTransferLabel("");
     setIvrEnabled(true);
     setIvrGreeting("");
+    setSelectedAgentId(null);
     setWizardMode("create");
   };
 
@@ -534,6 +549,68 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center h-10 w-10 rounded-md bg-purple-100 dark:bg-purple-900/30">
+                <Bot className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-sm">Assign AI Agent (Optional)</h3>
+                <p className="text-xs text-muted-foreground">Route calls to an AI agent first. The AI agent can transfer to the human number when needed.</p>
+              </div>
+            </div>
+
+            {(humanData?.incomingAgents || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No incoming AI agents available. Create an incoming agent first to use this feature.</p>
+            ) : (
+              <div className="space-y-2">
+                <ScrollArea className="h-[200px]">
+                  <div className="grid gap-2 pr-3">
+                    {(humanData?.incomingAgents || []).map((agent) => {
+                      const isSelected = selectedAgentId === agent.id;
+                      return (
+                        <Card
+                          key={agent.id}
+                          className={`cursor-pointer transition-colors ${
+                            isSelected ? "border-purple-500 bg-purple-500/5" : "hover-elevate"
+                          }`}
+                          onClick={() => setSelectedAgentId(isSelected ? null : agent.id)}
+                          data-testid={`card-agent-human-${agent.id}`}
+                        >
+                          <CardContent className="p-3 flex items-center gap-3">
+                            <div className={`flex items-center justify-center h-8 w-8 rounded-md ${
+                              isSelected ? "bg-purple-500 text-white" : "bg-purple-100 dark:bg-purple-900/30"
+                            }`}>
+                              {isSelected ? <Check className="h-4 w-4" /> : <Bot className="h-4 w-4 text-purple-600" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{agent.name}</div>
+                              {agent.language && (
+                                <div className="text-xs text-muted-foreground">{agent.language}</div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+                {selectedAgentId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedAgentId(null)}
+                    data-testid="button-clear-agent"
+                  >
+                    Clear Selection
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -598,6 +675,23 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
                 )}
               </div>
             </div>
+
+            {selectedAgentId && (
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bot className="h-4 w-4 text-purple-600" />
+                  <span className="font-medium text-sm">AI Agent</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-md">
+                    <Bot className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div className="font-medium text-sm" data-testid="text-review-agent-name">
+                    {(humanData?.incomingAgents || []).find(a => a.id === selectedAgentId)?.name || "Unknown Agent"}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

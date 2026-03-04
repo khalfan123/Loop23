@@ -1597,6 +1597,7 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
     const humanConnection = await db
       .select({
         id: humanIncomingConnections.id,
+        agentId: humanIncomingConnections.agentId,
         transferNumber: humanIncomingConnections.transferNumber,
         ivrEnabled: humanIncomingConnections.ivrEnabled,
         ivrGreeting: humanIncomingConnections.ivrGreeting,
@@ -1608,6 +1609,44 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
     if (humanConnection && humanConnection.length > 0) {
       const hc = humanConnection[0];
+
+      // If an AI agent is assigned, route to the AI agent (which can then transfer to the human number)
+      if (hc.agentId) {
+        console.log(`📞 [Human Agent] Found human agent connection for ${To} with AI agent ${hc.agentId} — routing to AI agent first`);
+
+        const assignedAgent = await db
+          .select()
+          .from(agents)
+          .where(and(eq(agents.id, hc.agentId), eq(agents.type, 'incoming')))
+          .limit(1);
+
+        if (assignedAgent && assignedAgent.length > 0) {
+          const agentRecord = assignedAgent[0];
+
+          // If agent has ElevenLabs integration, route natively
+          if (agentRecord.elevenLabsAgentId) {
+            console.log(`📞 [Human Agent] Routing to ElevenLabs agent: ${agentRecord.elevenLabsAgentId}`);
+            const VoiceResponse = twilio.twiml.VoiceResponse;
+            const response = new VoiceResponse();
+
+            if (hc.ivrEnabled && hc.ivrGreeting) {
+              response.say({ voice: 'Polly.Joanna' }, hc.ivrGreeting);
+            }
+
+            const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${agentRecord.elevenLabsAgentId}`;
+            response.redirect({ method: 'POST' }, elevenLabsUrl);
+            res.type('text/xml');
+            return res.send(response.toString());
+          }
+
+          // Fallback: play IVR and transfer to human number
+          console.log(`⚠️  [Human Agent] AI agent ${hc.agentId} has no ElevenLabs ID — falling back to direct transfer`);
+        } else {
+          console.log(`⚠️  [Human Agent] AI agent ${hc.agentId} not found — falling back to direct transfer`);
+        }
+      }
+
+      // Direct transfer (no AI agent or AI agent fallback)
       console.log(`📞 [Human Agent] Found human agent connection for ${To} → transferring to ${hc.transferNumber}`);
 
       const VoiceResponse = twilio.twiml.VoiceResponse;

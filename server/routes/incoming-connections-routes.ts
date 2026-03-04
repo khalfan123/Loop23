@@ -812,6 +812,7 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
       .select({
         id: humanIncomingConnections.id,
         phoneNumberId: humanIncomingConnections.phoneNumberId,
+        agentId: humanIncomingConnections.agentId,
         transferNumber: humanIncomingConnections.transferNumber,
         transferTargetType: humanIncomingConnections.transferTargetType,
         ivrEnabled: humanIncomingConnections.ivrEnabled,
@@ -825,10 +826,26 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
           country: phoneNumbers.country,
           status: phoneNumbers.status,
         },
+        agent: {
+          id: agents.id,
+          name: agents.name,
+        },
       })
       .from(humanIncomingConnections)
       .leftJoin(phoneNumbers, eq(humanIncomingConnections.phoneNumberId, phoneNumbers.id))
+      .leftJoin(agents, eq(humanIncomingConnections.agentId, agents.id))
       .where(eq(humanIncomingConnections.userId, userId));
+
+    // Get incoming agents for optional AI agent assignment
+    const incomingAgentsList = await db
+      .select({
+        id: agents.id,
+        name: agents.name,
+        language: agents.language,
+        type: agents.type,
+      })
+      .from(agents)
+      .where(and(eq(agents.userId, userId), eq(agents.type, "incoming"), eq(agents.isActive, true)));
 
     // Get available phone numbers (not used by AI connections, IVR, campaigns, or human connections)
     const humanConnectedPhoneIds = connections.map(c => c.phoneNumberId);
@@ -911,6 +928,7 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
     res.json({
       connections,
       availablePhoneNumbers,
+      incomingAgents: incomingAgentsList,
       stats: {
         totalConnections: connections.length,
         availableNumbers: availablePhoneNumbers.filter(pn => !pn.isUnavailable).length,
@@ -930,7 +948,7 @@ router.post("/human", authenticateHybrid, async (req: AuthRequest, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { phoneNumberIds, transferNumber, transferTargetType, ivrEnabled, ivrGreeting, label } = req.body;
+    const { phoneNumberIds, transferNumber, transferTargetType, ivrEnabled, ivrGreeting, label, agentId } = req.body;
 
     if (!phoneNumberIds || !Array.isArray(phoneNumberIds) || phoneNumberIds.length === 0) {
       return res.status(400).json({ message: "At least one phone number is required" });
@@ -1036,6 +1054,7 @@ router.post("/human", authenticateHybrid, async (req: AuthRequest, res) => {
         .values({
           userId,
           phoneNumberId,
+          agentId: agentId || null,
           transferNumber: transferNumber.trim(),
           transferTargetType: transferTargetType || "phone",
           ivrEnabled: ivrEnabled !== false,

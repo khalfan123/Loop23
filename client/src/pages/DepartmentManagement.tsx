@@ -1092,7 +1092,7 @@ export default function DepartmentManagement() {
       <SubPanelSection title="VIEWS">
         <SubPanelItem
           icon={<Network className="w-4 h-4" />}
-          label="Org Map"
+          label="Call Center Setup"
           isActive={activeTab === 'org-map'}
           onClick={() => setActiveTab('org-map')}
         />
@@ -1137,7 +1137,7 @@ export default function DepartmentManagement() {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4 text-foreground" />
-                <span className="font-medium">Call Center Organization</span>
+                <span className="font-medium">Call Center Setup</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Button

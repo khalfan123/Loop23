@@ -1229,7 +1229,7 @@ export default function DeprockManagement() {
       <SubPanelSection title="VIEWS">
         <SubPanelItem
           icon={<Network className="w-4 h-4" />}
-          label="Org Map"
+          label="Call Center Setup"
           isActive={activeTab === 'org-map'}
           onClick={() => setActiveTab('org-map')}
         />
@@ -1274,7 +1274,7 @@ export default function DeprockManagement() {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2 min-w-0">
                 <Network className="h-4 w-4 text-foreground shrink-0" />
-                <span className="font-medium text-sm sm:text-base truncate">Call Center Organization</span>
+                <span className="font-medium text-sm sm:text-base truncate">Call Center Setup</span>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <Button

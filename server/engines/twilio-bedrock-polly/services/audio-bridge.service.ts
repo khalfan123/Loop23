@@ -1012,6 +1012,9 @@ export class BedrockPollyAudioBridge {
       }));
     }
 
+    const adaptiveTokens = this.estimateMaxTokens(bedrockMessages);
+    console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: adaptive maxTokens=${adaptiveTokens}, messages=${bedrockMessages.length}`);
+
     try {
       let fullText = '';
       let sentenceBuffer = '';
@@ -1042,7 +1045,7 @@ export class BedrockPollyAudioBridge {
         messages: bedrockMessages,
         systemPrompt,
         temperature: 0.3,
-        maxTokens: 1024,
+        maxTokens: adaptiveTokens,
       });
 
       for await (const token of stream) {
@@ -1172,6 +1175,42 @@ export class BedrockPollyAudioBridge {
       await this.synthesizeAndSend(session, fallback);
       return fallback;
     }
+  }
+
+  private static estimateMaxTokens(messages: Array<{ role: string; content: string }>): number {
+    const MIN_TOKENS = 150;
+    const MAX_TOKENS = 1024;
+    const DEFAULT_TOKENS = 300;
+
+    if (!messages || messages.length === 0) return DEFAULT_TOKENS;
+
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return DEFAULT_TOKENS;
+
+    const userText = lastUserMsg.content.trim();
+    const wordCount = userText.split(/\s+/).length;
+    const hasQuestionMark = userText.includes('?') || userText.includes('؟');
+    const turnCount = messages.filter(m => m.role === 'user').length;
+
+    const shortPhrases = /^(مرحبا|هلا|أهلا|hi|hello|hey|ok|okay|نعم|لا|شكرا|bye|thanks|thank you|يعطيك العافية|تمام|ماشي|good|fine|great|الحمد لله|إن شاء الله)$/i;
+    if (shortPhrases.test(userText)) {
+      return MIN_TOKENS;
+    }
+
+    const complexPatterns = /(explain|اشرح|compare|قارن|difference|الفرق|how does|كيف يعمل|tell me about|حدثني عن|what are all|ما هي كل|list|اذكر|describe|صف)/i;
+    if (complexPatterns.test(userText) || wordCount > 15) {
+      return MAX_TOKENS;
+    }
+
+    if (hasQuestionMark && wordCount > 5) {
+      return 512;
+    }
+
+    if (turnCount <= 1) {
+      return 400;
+    }
+
+    return DEFAULT_TOKENS;
   }
 
   private static extractToolCallJson(text: string): { jsonStr: string; textBefore: string } {
@@ -1318,7 +1357,9 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     const conversationBehavior = `\n\nCONVERSATION STYLE: Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure" — just answer naturally.`;
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + conversationBehavior;
-    console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}`);
+
+    const adaptiveTokens = this.estimateMaxTokens(bedrockMessages);
+    console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}, maxTokens=${adaptiveTokens}`);
 
     try {
       const response = await awsBedrockService.invoke({
@@ -1326,7 +1367,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         messages: bedrockMessages,
         systemPrompt,
         temperature: agentConfig.temperature ?? 0.7,
-        maxTokens: 1024,
+        maxTokens: adaptiveTokens,
       });
 
       const content = response.content || '';

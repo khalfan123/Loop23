@@ -214,8 +214,8 @@ CRITICAL BEHAVIORAL RULES:
     if (behaviorCfg.maxQuestionsPerTurn) {
       systemPrompt += `\n- Ask a MAXIMUM of ${behaviorCfg.maxQuestionsPerTurn} questions at a time. Never overwhelm the caller.`;
     }
-    if (behaviorCfg.useDiscourseMarkers !== false) {
-      systemPrompt += `\n- Use natural discourse markers and fillers to sound human-like (e.g., "I see...", "Well, let me think...", "So, what I can do for you is...", "That makes sense...", "Right, let me help you with that...")`;
+    if (behaviorCfg.useDiscourseMarkers !== false && language !== 'ar') {
+      systemPrompt += `\n- Occasionally use brief transition phrases to sound natural (e.g., "So...", "Well...", "Let me see..."). Do NOT overuse them — most responses should start directly with the answer.`;
     }
     if (behaviorCfg.silenceTimeoutSec) {
       systemPrompt += `\n- If the caller is silent for a while, gently prompt them: "Are you still there?" or "Take your time, I'm here when you're ready."`;

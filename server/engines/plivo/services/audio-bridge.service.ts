@@ -322,12 +322,11 @@ export class AudioBridgeService {
     // Append mandatory function calling requirements to system prompt
     const functionCallingRequirements = `
 
-CRITICAL CONVERSATION BEHAVIOR:
-- NEVER rush to answer. Take a moment to understand what the caller is REALLY asking.
-- ALWAYS acknowledge or restate the caller's question before answering: "So you're asking about..." or "Right, let me help you with..."
-- If the question is unclear or could mean multiple things, ASK for clarification instead of guessing.
-- Break longer answers into 2-3 sentences, then pause and check: "Does that help?" or "Would you like more details?"
-- You are having a CONVERSATION, not giving a lecture. Listen, understand, respond thoughtfully.
+CONVERSATION STYLE:
+- Answer directly in 2-3 sentences without repeating the caller's question back to them.
+- If something is unclear, ask ONE specific clarifying question.
+- Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.
+- Keep it conversational and concise. You are on a phone call, not giving a lecture.
 
 IMPORTANT FUNCTION CALLING REQUIREMENTS:
 1. After collecting all form information from the user, you MUST call the submit_form function with the collected data. Do NOT just say "I have recorded your information" - you MUST actually call the submit_form function to save the data.

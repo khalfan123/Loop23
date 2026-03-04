@@ -924,18 +924,18 @@ export class BedrockPollyAudioBridge {
 
   private static getFillerPhrase(language: string): string {
     const fillers: Record<string, string[]> = {
-      ar: ['حسناً', 'نعم', 'تمام'],
-      en: ['Mm-hmm', 'Sure', 'Right'],
-      es: ['Sí', 'Claro', 'Bien'],
-      fr: ['Oui', 'Bien sûr', 'D\'accord'],
-      de: ['Ja', 'Natürlich', 'Gut'],
-      zh: ['好的', '嗯'],
-      ja: ['はい', 'ええ'],
-      ko: ['네', '알겠습니다'],
-      pt: ['Sim', 'Certo'],
-      it: ['Sì', 'Certo'],
-      hi: ['हाँ', 'जी'],
-      tr: ['Evet', 'Tamam'],
+      ar: ['لحظة من فضلك', 'دقيقة واحدة', 'خلّيني أتحقق لك'],
+      en: ['One moment please', 'Let me check that for you', 'Bear with me one second'],
+      es: ['Un momento por favor', 'Déjame verificar eso'],
+      fr: ['Un instant s\'il vous plaît', 'Laissez-moi vérifier'],
+      de: ['Einen Moment bitte', 'Lassen Sie mich nachsehen'],
+      zh: ['请稍等一下', '让我查一下'],
+      ja: ['少々お待ちください', '確認いたします'],
+      ko: ['잠시만 기다려 주세요', '확인해 보겠습니다'],
+      pt: ['Um momento por favor', 'Deixe-me verificar'],
+      it: ['Un momento per favore', 'Lasci che verifichi'],
+      hi: ['एक पल रुकिए', 'मैं देखता हूँ'],
+      tr: ['Bir saniye lütfen', 'Hemen bakıyorum'],
     };
     const options = fillers[language] || fillers['en'];
     return options[Math.floor(Math.random() * options.length)];
@@ -943,8 +943,8 @@ export class BedrockPollyAudioBridge {
 
   private static async preWarmFillerAudio(voiceId: string, language: string): Promise<void> {
     const fillers: Record<string, string[]> = {
-      ar: ['حسناً', 'نعم', 'تمام'],
-      en: ['Mm-hmm', 'Sure', 'Right'],
+      ar: ['لحظة من فضلك', 'دقيقة واحدة', 'خلّيني أتحقق لك'],
+      en: ['One moment please', 'Let me check that for you', 'Bear with me one second'],
     };
     const phrases = fillers[language] || fillers['en'];
     for (const phrase of phrases) {
@@ -978,7 +978,7 @@ export class BedrockPollyAudioBridge {
       toolCallInstructions = `\n\nTools (respond with [TOOL_CALL] {"name":"<name>","params":{...}}):\n${toolDescriptions}\nCall tools after collecting info. Say closing message after task. Only end_call when user confirms done.`;
     }
 
-    const voiceInstructions = `\n\nVOICE CALL RULES: Live phone call. CRITICAL: Before answering, make sure you understand what the caller is asking. If unclear, ask a clarifying question. Always acknowledge what they said before responding: "So you're asking about..." or "Right, let me help with that." Keep responses to 2-3 sentences, then pause for the caller. Be natural, use contractions, think before speaking. Never rush.`;
+    const voiceInstructions = `\n\nVOICE CALL RULES: This is a live phone call. Answer directly in 2-3 sentences without repeating the caller's question back to them. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally. Keep it conversational and concise.`;
 
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + voiceInstructions;
 
@@ -1278,7 +1278,7 @@ ${toolDescriptions}
 IMPORTANT: After collecting all required information, you MUST call the relevant tool. Do NOT just describe what you would do — actually call the tool. After completing the main task, say a friendly closing message and ask if there's anything else. Only call end_call after the user confirms they are done.`;
     }
 
-    const conversationBehavior = `\n\nCRITICAL CONVERSATION BEHAVIOR: Before answering, understand what the caller is REALLY asking. Acknowledge their question: "So you're asking about..." then answer in 2-3 sentences. If unclear, ask for clarification. Never rush. Be natural and thoughtful.`;
+    const conversationBehavior = `\n\nCONVERSATION STYLE: Listen carefully to what the caller says. Answer directly in 2-3 sentences without repeating their question back to them. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure" — just answer naturally.`;
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + conversationBehavior;
     console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}`);
 

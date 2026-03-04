@@ -80,13 +80,13 @@ export class FunctionToolBuilder {
       type: 'function',
       function: {
         name: 'lookup_knowledge_base',
-        description: 'MANDATORY: Search the knowledge base for ANY factual question about the business, products, services, pricing, policies, or procedures. You MUST call this tool FIRST before answering any question that requires specific information. Pass the caller\'s exact question as the query. This is your ONLY source of truth — never answer from general knowledge. After receiving results, answer naturally and conversationally using the information provided.',
+        description: 'MANDATORY: Search the knowledge base for ANY factual question about the business, products, services, pricing, policies, or procedures. You MUST call this tool FIRST before answering any question that requires specific information. Before calling this tool, take a moment to understand what the caller is REALLY asking — rephrase their question clearly and specifically in the query parameter. This is your ONLY source of truth — never answer from general knowledge. After receiving results, FIRST acknowledge what the caller asked, THEN answer naturally using the information provided.',
         parameters: {
           type: 'object',
           properties: {
             query: {
               type: 'string',
-              description: 'The exact question or key terms from the caller\'s question. Be specific and include all relevant context for the best search results.',
+              description: 'A clear, specific rephrasing of what the caller is asking. Include relevant context from the conversation. For example, if they say "what about the other one?" refer to what "the other one" means based on the conversation. Do NOT pass vague or ambiguous queries.',
             },
           },
           required: ['query'],

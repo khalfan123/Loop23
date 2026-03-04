@@ -140,21 +140,21 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_SHORT_MS = 800;
-  private static readonly SILENCE_MEDIUM_MS = 600;
-  private static readonly SILENCE_LONG_UTTERANCE_MS = 500;
+  private static readonly SILENCE_SHORT_MS = 1200;
+  private static readonly SILENCE_MEDIUM_MS = 1000;
+  private static readonly SILENCE_LONG_UTTERANCE_MS = 800;
   private static readonly LONG_UTTERANCE_BYTES = 16000;
   private static readonly SHORT_UTTERANCE_BYTES = 8000;
-  private static readonly OPENING_SILENCE_THRESHOLD_MS = 1800;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 2200;
   private static readonly OPENING_PHASE_DURATION_MS = 8000;
   private static readonly MIN_AUDIO_LENGTH = 6400;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
   private static readonly AUDIO_CHUNK_SIZE = 640;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
-  private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 500;
-  private static readonly DEFAULT_BARGE_IN_ENERGY_THRESHOLD = 600;
-  private static readonly BARGE_IN_MIN_BYTES = 8000;
+  private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 600;
+  private static readonly DEFAULT_BARGE_IN_ENERGY_THRESHOLD = 800;
+  private static readonly BARGE_IN_MIN_BYTES = 12000;
   private static readonly NOISE_CALIBRATION_DURATION_MS = 1500;
   private static readonly NOISE_FLOOR_SPEECH_MULTIPLIER = 4.0;
   private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 5.0;
@@ -972,7 +972,7 @@ export class BedrockPollyAudioBridge {
       toolCallInstructions = `\n\nTools (respond with [TOOL_CALL] {"name":"<name>","params":{...}}):\n${toolDescriptions}\nCall tools after collecting info. Say closing message after task. Only end_call when user confirms done.`;
     }
 
-    const voiceInstructions = `\n\nVOICE CALL RULES: Live phone call. Never say you can't understand. Infer intent, ask ONE clarifying question if needed. 1-2 sentences max. Don't repeat questions. Be natural.`;
+    const voiceInstructions = `\n\nVOICE CALL RULES: Live phone call. CRITICAL: Before answering, make sure you understand what the caller is asking. If unclear, ask a clarifying question. Always acknowledge what they said before responding: "So you're asking about..." or "Right, let me help with that." Keep responses to 2-3 sentences, then pause for the caller. Be natural, use contractions, think before speaking. Never rush.`;
 
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + voiceInstructions;
 
@@ -1236,7 +1236,8 @@ ${toolDescriptions}
 IMPORTANT: After collecting all required information, you MUST call the relevant tool. Do NOT just describe what you would do — actually call the tool. After completing the main task, say a friendly closing message and ask if there's anything else. Only call end_call after the user confirms they are done.`;
     }
 
-    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions;
+    const conversationBehavior = `\n\nCRITICAL CONVERSATION BEHAVIOR: Before answering, understand what the caller is REALLY asking. Acknowledge their question: "So you're asking about..." then answer in 2-3 sentences. If unclear, ask for clarification. Never rush. Be natural and thoughtful.`;
+    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + conversationBehavior;
     console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}`);
 
     try {

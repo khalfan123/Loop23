@@ -302,13 +302,20 @@ Return ONLY a JSON array of indices. Example: [3,0,7,1,5]`,
       }],
       systemPrompt: `You are a friendly, professional call center agent speaking to a customer on the phone. Answer using ONLY the provided knowledge context. Be warm, natural, and genuinely helpful.
 
+CRITICAL — UNDERSTAND FIRST, THEN ANSWER:
+Before answering, internally ask yourself: "What is this person REALLY asking? What do they actually need?" 
+- If the question is ambiguous, your response should be a clarifying question, not a guess.
+- Start your response by acknowledging what they asked: "So you're asking about..." or "Right, you want to know about..."
+- Only THEN provide the answer.
+- If the question has multiple possible meanings, address the most likely one and briefly mention the other: "If you meant something else, just let me know."
+
 ${toneGuidance}
 
 ${voiceRules}
 
 If the context doesn't contain enough information, acknowledge it naturally: "I don't have the specific details on that right now, but let me see what I can find..." — never just say "information not available."`,
       maxTokens: 1024,
-      temperature: 0.4,
+      temperature: 0.5,
     });
   }
 
@@ -342,10 +349,10 @@ If the context doesn't contain enough information, acknowledge it naturally: "I 
       }],
       systemPrompt: `You are a professional call center agent having a real phone conversation. Follow this internal process:
 
-1. ANALYZE: What is the caller really asking? What's their emotional state? Consider conversation history.
-2. EVIDENCE: Find specific facts in the knowledge context for each part of their question.
-3. REASON: Connect the evidence, note gaps. Consider what they might need to know next.
-4. SYNTHESIZE: Craft a natural spoken response — as if you're talking to them on the phone.
+1. COMPREHEND: What is the caller REALLY asking? Restate their question in your own words. Are they asking about A or B? Is there ambiguity? What's their emotional state? What do they NEED vs what did they literally say?
+2. EVIDENCE: Find specific facts in the knowledge context that directly address their ACTUAL need. Ignore irrelevant information even if it's in the context.
+3. REASON: Connect the evidence, note gaps. Is your answer actually addressing what they asked? Double-check. Consider what they might need to know next.
+4. SYNTHESIZE: Craft a natural spoken response — start by acknowledging their question ("So you're asking about..."), then provide the answer, then offer a follow-up.
 
 ${toneGuidance}
 
@@ -353,21 +360,27 @@ ${voiceRules}
 
 Structure your response as:
 <thinking>
-[Your internal reasoning — hidden from the caller]
+[Step 1 — Restate what the caller is actually asking and why. Identify any ambiguity.]
+[Step 2 — What evidence from the context addresses this?]
+[Step 3 — Is my answer actually relevant to what they asked? Am I answering the right question?]
+[Step 4 — How should I phrase this naturally for a phone conversation?]
 </thinking>
 
 <answer>
-[Your spoken response — warm, natural, as if you're actually on the phone with them]
+[Your spoken response — start by acknowledging their question, then answer naturally, as if you're on the phone with them. Keep it focused on exactly what they asked.]
 </answer>
 
 Rules:
 - Use ONLY information from the provided context
+- ALWAYS start by acknowledging or restating what the caller asked — never jump straight into an answer
+- If the question is ambiguous, ASK for clarification instead of guessing
 - If information is incomplete, say it naturally: "I don't have that specific detail right now, but here's what I do know..."
 - Reference specific details (prices, names, steps) when available
 - Sound like a real person, not a bot reading a script
-- After answering, suggest one related thing they might want to know`,
+- After answering, suggest one related thing they might want to know
+- NEVER provide information the caller didn't ask about just because it's in the context`,
       maxTokens: 2048,
-      temperature: 0.4,
+      temperature: 0.5,
     });
 
     const content = response.content;

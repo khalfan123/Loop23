@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, Sparkles, GitBranch, CheckCircle2, Mic, Brain, Settings2, Wrench, Loader2, FileText, Plus } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +25,7 @@ import VoiceSearchPicker from "@/components/VoiceSearchPicker";
 import VoicePreviewButton from "@/components/VoicePreviewButton";
 import OpenAIVoicePreviewButton from "@/components/OpenAIVoicePreviewButton";
 import PromptTemplatesLibrary from "@/components/PromptTemplatesLibrary";
+import AgentBehaviorSettings from "@/components/AgentBehaviorSettings";
 import { SUPPORTED_LANGUAGES, getLanguageLabel, isProviderSupported } from "@/lib/languages";
 import { LanguageOptionLabel } from "@/components/LanguageProviderBadges";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
@@ -157,6 +159,8 @@ export default function AgentEditor() {
     isFromTemplate: false,
     tags: [] as string[],
     specialist: "",
+    behaviorConfig: {} as Record<string, any>,
+    waitingMessages: [] as string[],
   });
 
   const { data: existingAgent, isLoading: agentLoading } = useQuery<Agent>({
@@ -279,6 +283,8 @@ export default function AgentEditor() {
         isFromTemplate: existingAgent.isFromTemplate || false,
         tags: existingAgent.tags || [],
         specialist: existingAgent.specialist || "",
+        behaviorConfig: (existingAgent as any).behaviorConfig || {},
+        waitingMessages: (existingAgent as any).waitingMessages || [],
       });
     }
   }, [existingAgent, isEditMode]);
@@ -1078,6 +1084,15 @@ export default function AgentEditor() {
               </div>
             </>
           )}
+
+          <Separator className="my-2" />
+
+          <AgentBehaviorSettings
+            behaviorConfig={formData.behaviorConfig}
+            waitingMessages={formData.waitingMessages}
+            onBehaviorConfigChange={(config) => setFormData({ ...formData, behaviorConfig: config })}
+            onWaitingMessagesChange={(messages) => setFormData({ ...formData, waitingMessages: messages })}
+          />
         </div>
 
         <div className="flex justify-end gap-2 pt-6 mt-6 border-t">

@@ -304,6 +304,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.warn('[Plugin Loader] Failed to auto-load plugins:', error);
   }
 
+  // Agent Presets - Get all active presets sorted by sortOrder
+  app.get("/api/agent-presets", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const presets = await storage.getAgentPresets();
+      res.json(presets);
+    } catch (error: any) {
+      console.error("Get agent presets error:", error);
+      res.status(500).json({ error: "Failed to get agent presets" });
+    }
+  });
+
   // LLM Models - Get available models for current user (filtered by plan tier)
   app.get("/api/llm-models/available", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {

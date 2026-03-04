@@ -1036,9 +1036,49 @@ Only suggest if genuinely relevant. Don't force it.`,
     return { results: allResults, extractedAnswer };
   }
 
+  static buildDataSchemaContext(
+    dataSchema: Array<{ name: string; type: string; description: string; required?: boolean }>,
+    collectedData?: Record<string, string | null>
+  ): string {
+    if (!dataSchema || dataSchema.length === 0) return '';
+
+    const lines: string[] = ['', 'DATA COLLECTION STATUS:'];
+    const collected: string[] = [];
+    const pending: string[] = [];
+
+    for (const field of dataSchema) {
+      const value = collectedData?.[field.name];
+      if (value !== undefined && value !== null) {
+        collected.push(`- ${field.name}: "${value}" (collected)`);
+      } else {
+        const requiredLabel = field.required ? ' [REQUIRED]' : '';
+        pending.push(`- ${field.name} (${field.type}): ${field.description}${requiredLabel}`);
+      }
+    }
+
+    if (collected.length > 0) {
+      lines.push('Already collected:');
+      lines.push(...collected);
+    }
+
+    if (pending.length > 0) {
+      lines.push('Still needed:');
+      lines.push(...pending);
+      lines.push('Focus your responses on helping collect the missing information when relevant.');
+    }
+
+    if (pending.length === 0) {
+      lines.push('All required data has been collected.');
+    }
+
+    lines.push('');
+    return lines.join('\n');
+  }
+
   static formatResultsForAgent(
     results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
-    maxTokens: number = 1500
+    maxTokens: number = 1500,
+    dataSchemaContext?: string
   ): string {
     if (results.length === 0) {
       return "No relevant information found in the knowledge base.";
@@ -1079,6 +1119,10 @@ Only suggest if genuinely relevant. Don't force it.`,
       resultIndex++;
     }
     
+    if (dataSchemaContext) {
+      output += dataSchemaContext + '\n';
+    }
+
     output += `---
 IMPORTANT RULES FOR YOUR RESPONSE:
 - Use ONLY the above information to answer the user's question

@@ -63,6 +63,7 @@ import VoiceSearchPicker from "@/components/VoiceSearchPicker";
 import VoicePreviewButton from "@/components/VoicePreviewButton";
 import OpenAIVoicePreviewButton from "@/components/OpenAIVoicePreviewButton";
 import PromptTemplatesLibrary from "@/components/PromptTemplatesLibrary";
+import AgentPresetSelector from "@/components/AgentPresetSelector";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SUPPORTED_LANGUAGES, getLanguageLabel, isProviderSupported } from "@/lib/languages";
@@ -203,9 +204,10 @@ interface AgentCreationWizardProps {
   onSuccess?: () => void;
 }
 
-type WizardStep = "useCase" | "basics" | "personality" | "prompts" | "voice" | "review";
+type WizardStep = "preset" | "useCase" | "basics" | "personality" | "prompts" | "voice" | "review";
 
 const steps: { id: WizardStep; title: string; icon: typeof Bot }[] = [
+  { id: "preset", title: "Preset", icon: Sparkles },
   { id: "useCase", title: "Use Case", icon: Target },
   { id: "basics", title: "Basic Info", icon: Bot },
   { id: "personality", title: "Personality", icon: MessageSquare },
@@ -217,7 +219,7 @@ const steps: { id: WizardStep; title: string; icon: typeof Bot }[] = [
 export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCreationWizardProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const [currentStep, setCurrentStep] = useState<WizardStep>("useCase");
+  const [currentStep, setCurrentStep] = useState<WizardStep>("preset");
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
   // Fetch voice engine setting to check if Plivo+OpenAI or Twilio+OpenAI is enabled
@@ -254,11 +256,14 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
-    // Telephony provider selection
     telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
     openaiVoice: "alloy",
-    // SIP phone number selection (for SIP engines)
     sipPhoneNumberId: "",
+    sourcePresetId: "" as string,
+    behaviorConfig: undefined as any,
+    waitingMessages: undefined as string[] | undefined,
+    dataSchema: undefined as any,
+    temperature: 0.5 as number,
   });
 
   const selectedUseCase = useMemo(() => 
@@ -269,8 +274,31 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
 
+  const handlePresetSelect = (preset: any) => {
+    setFormData(prev => ({
+      ...prev,
+      sourcePresetId: preset.id,
+      systemPrompt: preset.systemPrompt || "",
+      firstMessage: preset.firstMessage || "",
+      personality: preset.task ? preset.task.substring(0, 200) : "helpful",
+      voiceTone: "professional",
+      temperature: preset.suggestedTemperature ?? 0.5,
+      openaiVoice: preset.suggestedVoice || "alloy",
+      behaviorConfig: preset.behaviorRules || undefined,
+      waitingMessages: preset.waitingMessages || undefined,
+      dataSchema: preset.claimSchema || undefined,
+    }));
+    setCurrentStep("basics");
+  };
+
+  const handlePresetSkip = () => {
+    setCurrentStep("useCase");
+  };
+
   const canProceed = useMemo(() => {
     switch (currentStep) {
+      case "preset":
+        return true;
       case "useCase":
         return !!formData.useCase;
       case "basics":
@@ -325,7 +353,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   };
 
   const resetWizard = () => {
-    setCurrentStep("useCase");
+    setCurrentStep("preset");
     setFormData({
       useCase: "",
       name: "",
@@ -341,6 +369,11 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
       telephonyProvider: "twilio",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
+      sourcePresetId: "",
+      behaviorConfig: undefined,
+      waitingMessages: undefined,
+      dataSchema: undefined,
+      temperature: 0.5,
     });
   };
 
@@ -363,12 +396,14 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         voiceStability: formData.voiceStability,
         voiceSimilarityBoost: formData.voiceSimilarityBoost,
         voiceSpeed: formData.voiceSpeed,
-        temperature: 0.5,
-        // Telephony provider configuration
+        temperature: formData.temperature,
         telephonyProvider: formData.telephonyProvider,
         openaiVoice: isOpenAIVoice ? formData.openaiVoice : undefined,
-        // SIP configuration
         sipPhoneNumberId: isSipEngine ? formData.sipPhoneNumberId : undefined,
+        sourcePresetId: formData.sourcePresetId || undefined,
+        behaviorConfig: formData.behaviorConfig || undefined,
+        waitingMessages: formData.waitingMessages || undefined,
+        dataSchema: formData.dataSchema || undefined,
       };
       const res = await apiRequest("POST", "/api/agents", payload);
       return res.json();
@@ -436,6 +471,14 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
 
   const renderStep = () => {
     switch (currentStep) {
+      case "preset":
+        return (
+          <AgentPresetSelector
+            onSelect={handlePresetSelect}
+            onSkip={handlePresetSkip}
+          />
+        );
+
       case "useCase":
         return (
           <div className="space-y-4">

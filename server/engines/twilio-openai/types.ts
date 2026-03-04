@@ -217,6 +217,14 @@ export interface AudioBridgeSession {
   toNumber?: string;
   callDirection?: CallDirection;
   pendingAudioQueue: PendingAudioRequest[];
+  softTimeoutId: ReturnType<typeof setTimeout> | null;
+  hardTimeoutId: ReturnType<typeof setTimeout> | null;
+  behaviorConfig: {
+    softTimeoutSec?: number;
+    hardTimeoutSec?: number;
+  } | null;
+  waitingMessages: string[] | null;
+  explicitEndCall: boolean;
 }
 
 export interface CreateSessionParams {

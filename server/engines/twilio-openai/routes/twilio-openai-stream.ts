@@ -20,8 +20,9 @@ import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
 import { OpenAIAgentFactory } from '../services/openai-agent-factory';
 import { hydrateCompiledTools, type CompiledFunctionTool } from '../../../services/openai-voice-agent';
 import { db } from '../../../db';
-import { twilioOpenaiCalls, users, creditTransactions, flowExecutions } from '@shared/schema';
+import { twilioOpenaiCalls, users, creditTransactions, flowExecutions, agents } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
+import type { DataSchemaField } from '../services/openai-agent-factory';
 import { logger } from '../../../utils/logger';
 import { TWILIO_OPENAI_CONFIG } from '../config/twilio-openai-config';
 import { CallInsightsService } from '../../../services/call-insights.service';
@@ -346,6 +347,12 @@ async function initializeSession(
       if (metadata?.detectLanguageEnabled) {
         agentConfig = OpenAIAgentFactory.enableLanguageDetection(agentConfig);
       }
+
+      // Add data collection tool if agent has dataSchema
+      const dataSchema = metadata?.dataSchema as DataSchemaField[] | undefined;
+      if (dataSchema && dataSchema.length > 0) {
+        agentConfig = OpenAIAgentFactory.addDataCollectionTool(agentConfig, dataSchema, callRecord.id);
+      }
     }
 
     // ALWAYS ensure end_call tool is available for flow agents
@@ -415,6 +422,20 @@ async function initializeSession(
                   sentiment: insights.sentiment, 
                   classification: insights.classification 
                 }, 'TwilioOpenAI Stream');
+
+                // Append collected data summary if agent has dataSchema
+                try {
+                  const agentDataSchema = metadata?.dataSchema as DataSchemaField[] | undefined;
+                  if (agentDataSchema && agentDataSchema.length > 0) {
+                    const collectedDataSummary = await OpenAIAgentFactory.generateCollectedDataSummary(callId, agentDataSchema);
+                    if (collectedDataSummary) {
+                      updates.aiSummary = `${insights.aiSummary}\n\n${collectedDataSummary}`;
+                      logger.info(`Appended collected data summary to call ${callId}`, undefined, 'TwilioOpenAI Stream');
+                    }
+                  }
+                } catch (dataError: any) {
+                  logger.warn(`Failed to generate collected data summary: ${dataError.message}`, undefined, 'TwilioOpenAI Stream');
+                }
               }
             } catch (insightError: any) {
               logger.error('Failed to generate call insights', insightError, 'TwilioOpenAI Stream');

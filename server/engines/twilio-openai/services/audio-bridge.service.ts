@@ -30,10 +30,11 @@ import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/twilio-openai-config';
 import { openaiPoolManager } from '../../../infrastructure';
 import { db } from '../../../db';
-import { twilioOpenaiCalls, agents } from '@shared/schema';
+import { twilioOpenaiCalls, agents, calls, incomingConnections } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { OpenAIAgentFactory } from './openai-agent-factory';
 import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
+import { conversationResumptionService } from '../../../services/conversation-resumption';
 
 const execAsync = promisify(exec);
 const fsWriteFile = promisify(fs.writeFile);
@@ -76,7 +77,65 @@ export class TwilioOpenAIAudioBridge {
       toNumber,
       callDirection,
       pendingAudioQueue: [],
+      softTimeoutId: null,
+      hardTimeoutId: null,
+      behaviorConfig: null,
+      waitingMessages: null,
+      explicitEndCall: false,
     };
+
+    try {
+      const [agentRecord] = await db
+        .select({
+          behaviorConfig: agents.behaviorConfig,
+          waitingMessages: agents.waitingMessages,
+        })
+        .from(twilioOpenaiCalls)
+        .innerJoin(agents, eq(agents.id, twilioOpenaiCalls.agentId))
+        .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
+        .limit(1);
+
+      if (agentRecord) {
+        session.behaviorConfig = agentRecord.behaviorConfig as any || null;
+        session.waitingMessages = agentRecord.waitingMessages || null;
+        console.log(`[TwilioOpenAI Bridge] Loaded behavior config for ${callSid}: softTimeout=${session.behaviorConfig?.softTimeoutSec ?? 4}s, hardTimeout=${session.behaviorConfig?.hardTimeoutSec ?? 15}s`);
+      }
+    } catch (err: any) {
+      console.log(`[TwilioOpenAI Bridge] Could not load behavior config for ${callSid}: ${err.message}`);
+    }
+
+    if (callDirection === 'inbound' && fromNumber) {
+      try {
+        const [callRecord] = await db
+          .select({ agentId: twilioOpenaiCalls.agentId })
+          .from(twilioOpenaiCalls)
+          .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
+          .limit(1);
+
+        if (callRecord?.agentId) {
+          const previousCall = await conversationResumptionService.findResumableCall(fromNumber, callRecord.agentId);
+          if (previousCall) {
+            const resumptionPrompt = conversationResumptionService.generateResumptionPrompt(previousCall);
+            if (resumptionPrompt) {
+              agentConfig.systemPrompt = resumptionPrompt + '\n\n' + agentConfig.systemPrompt;
+              console.log(`[TwilioOpenAI Bridge] Prepended resumption context from call ${previousCall.id} for ${callSid}`);
+
+              const [currentCallRecord] = await db
+                .select({ id: calls.id })
+                .from(calls)
+                .where(eq(calls.twilioSid, callSid))
+                .limit(1);
+
+              if (currentCallRecord) {
+                await conversationResumptionService.markCallResumed(currentCallRecord.id, previousCall.id);
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        console.log(`[TwilioOpenAI Bridge] Could not check for resumable calls: ${err.message}`);
+      }
+    }
 
     if (agentConfig.tools) {
       for (const tool of agentConfig.tools) {
@@ -189,11 +248,13 @@ export class TwilioOpenAIAudioBridge {
 
     // VAD configuration with semantic VAD support
     // Improved defaults for better call quality - less aggressive interruption
+    // Apply behaviorConfig overrides from agent settings (Microsoft Call Center AI-inspired)
+    const behaviorCfg = session.behaviorConfig || {};
     const vadSettings = agentConfig.vadSettings || {};
     const vadType = vadSettings.type ?? 'server_vad';
-    const vadThreshold = vadSettings.threshold ?? 0.7;
+    const vadThreshold = behaviorCfg.vadThreshold ?? vadSettings.threshold ?? 0.7;
     const vadPrefixPaddingMs = vadSettings.prefixPaddingMs ?? 500;
-    const vadSilenceDurationMs = vadSettings.silenceDurationMs ?? 1000;
+    const vadSilenceDurationMs = behaviorCfg.vadSilenceTimeoutMs ?? vadSettings.silenceDurationMs ?? 1000;
     const vadEagerness = vadSettings.eagerness ?? 'low';
 
     console.log(`[TwilioOpenAI Bridge] VAD settings: type=${vadType}, threshold=${vadThreshold}, prefix=${vadPrefixPaddingMs}ms, silence=${vadSilenceDurationMs}ms`);
@@ -212,6 +273,18 @@ export class TwilioOpenAIAudioBridge {
           silence_duration_ms: vadSilenceDurationMs,
         };
 
+    // Apply behavior config rules to system prompt (Microsoft Call Center AI-inspired)
+    let behaviorPromptAdditions = '';
+    if (behaviorCfg.maxQuestionsPerTurn) {
+      behaviorPromptAdditions += `\n- Ask a MAXIMUM of ${behaviorCfg.maxQuestionsPerTurn} questions at a time. Never overwhelm the caller.`;
+    }
+    if (behaviorCfg.useDiscourseMarkers !== false) {
+      behaviorPromptAdditions += `\n- Use natural discourse markers and fillers to sound human-like (e.g., "I see...", "Well, let me think...", "So, what I can do for you is...", "That makes sense...", "Right, let me help you with that...")`;
+    }
+    if (behaviorCfg.silenceTimeoutSec) {
+      behaviorPromptAdditions += `\n- If the caller is silent for a while, gently prompt them: "Are you still there?" or "Take your time, I'm here when you're ready."`;
+    }
+
     // Append mandatory function calling requirements to system prompt
     const functionCallingRequirements = `
 
@@ -229,7 +302,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 4. When the user says goodbye or confirms they are done, THEN call the end_call function to disconnect.
 5. These function calls are MANDATORY. Data will NOT be saved unless you call the functions.`;
 
-    const enhancedInstructions = agentConfig.systemPrompt + functionCallingRequirements;
+    const enhancedInstructions = agentConfig.systemPrompt + behaviorPromptAdditions + functionCallingRequirements;
 
     const sessionConfig = {
       type: 'session.update',
@@ -351,6 +424,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           break;
 
         case 'response.audio.delta':
+          this.clearLLMTimeouts(session);
           if (message.delta) {
             if (session.onAudioCallback) {
               session.onAudioCallback(message.delta);
@@ -372,7 +446,12 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           console.log(`[TwilioOpenAI Bridge] Audio response complete for ${callSid}`);
           break;
 
+        case 'response.text.delta':
+          this.clearLLMTimeouts(session);
+          break;
+
         case 'response.audio_transcript.delta':
+          this.clearLLMTimeouts(session);
           if (message.delta && session.onTranscriptCallback) {
             session.onTranscriptCallback(message.delta, false);
           }
@@ -420,6 +499,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'input_audio_buffer.speech_stopped':
           console.log(`[TwilioOpenAI Bridge] User stopped speaking`);
+          this.startLLMTimeouts(session);
           break;
 
         case 'response.created':
@@ -500,6 +580,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       // Handle end_call as a special built-in tool
       if (toolName === 'end_call') {
         console.log(`[TwilioOpenAI Bridge] Built-in end_call tool invoked for ${callSid}`);
+        session.explicitEndCall = true;
         result = { 
           action: 'end_call', 
           reason: (params.reason as string) || 'Call ended by agent',
@@ -1076,6 +1157,81 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     // openaiWs.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
   }
 
+  private static getDefaultWaitingMessages(): string[] {
+    return [
+      "Let me look into that for you...",
+      "One moment please, I'm checking on that...",
+      "I'm working on that, just a moment...",
+      "Bear with me while I look that up...",
+    ];
+  }
+
+  private static startLLMTimeouts(session: AudioBridgeSession): void {
+    this.clearLLMTimeouts(session);
+
+    const softTimeoutSec = session.behaviorConfig?.softTimeoutSec ?? 4;
+    const hardTimeoutSec = session.behaviorConfig?.hardTimeoutSec ?? 15;
+
+    session.softTimeoutId = setTimeout(() => {
+      session.softTimeoutId = null;
+      if (session.status !== 'connected') return;
+      if (!session.openaiWs || session.openaiWs.readyState !== WebSocket.OPEN) return;
+
+      const messages = (session.waitingMessages && session.waitingMessages.length > 0)
+        ? session.waitingMessages
+        : this.getDefaultWaitingMessages();
+      const waitingMessage = messages[Math.floor(Math.random() * messages.length)];
+
+      console.log(`[TwilioOpenAI Bridge] Soft timeout (${softTimeoutSec}s) reached for ${session.callSid}, sending waiting message: "${waitingMessage}"`);
+
+      session.openaiWs.send(JSON.stringify({
+        type: 'response.create',
+        response: {
+          modalities: ['text', 'audio'],
+          instructions: `Say exactly this to the caller while they wait: "${waitingMessage}"`,
+        },
+      }));
+    }, softTimeoutSec * 1000);
+
+    session.hardTimeoutId = setTimeout(() => {
+      session.hardTimeoutId = null;
+      if (session.status !== 'connected') return;
+
+      const errorMessage = "I apologize, but I'm having trouble processing your request. Could you please repeat that?";
+      console.error(`[TwilioOpenAI Bridge] Hard timeout (${hardTimeoutSec}s) reached for ${session.callSid} — cancelling response`);
+
+      if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
+        session.openaiWs.send(JSON.stringify({ type: 'response.cancel' }));
+
+        session.openaiWs.send(JSON.stringify({
+          type: 'response.create',
+          response: {
+            modalities: ['text', 'audio'],
+            instructions: `Say exactly this to the caller: "${errorMessage}"`,
+          },
+        }));
+      }
+
+      if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
+        session.twilioWs.send(JSON.stringify({
+          event: 'clear',
+          streamSid: session.streamSid,
+        }));
+      }
+    }, hardTimeoutSec * 1000);
+  }
+
+  private static clearLLMTimeouts(session: AudioBridgeSession): void {
+    if (session.softTimeoutId) {
+      clearTimeout(session.softTimeoutId);
+      session.softTimeoutId = null;
+    }
+    if (session.hardTimeoutId) {
+      clearTimeout(session.hardTimeoutId);
+      session.hardTimeoutId = null;
+    }
+  }
+
   static async endSession(callSid: string): Promise<{
     duration: number;
     transcript: string;
@@ -1088,6 +1244,8 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
     console.log(`[TwilioOpenAI Bridge] Ending session for ${callSid}`);
     
+    this.clearLLMTimeouts(session);
+    
     // Remove connection from the pool manager
     openaiPoolManager.removeConnection(callSid);
 
@@ -1096,6 +1254,36 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
     if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
       session.openaiWs.close();
+    }
+
+    if (!session.explicitEndCall && session.transcriptParts.length > 0) {
+      try {
+        const [callRecord] = await db
+          .select({ id: calls.id })
+          .from(calls)
+          .where(eq(calls.twilioSid, callSid))
+          .limit(1);
+
+        if (callRecord) {
+          const transcript = session.transcriptParts
+            .map(p => `${p.role === 'user' ? 'User' : 'Agent'}: ${p.text}`)
+            .join('\n');
+
+          const context = {
+            collectedData: {} as Record<string, string | null>,
+            summaryOfDiscussion: transcript.substring(0, 500),
+            lastTopic: session.transcriptParts.length > 0
+              ? session.transcriptParts[session.transcriptParts.length - 1].text.substring(0, 200)
+              : '',
+            pendingQuestions: [] as string[],
+          };
+
+          await conversationResumptionService.markCallResumable(callRecord.id, context);
+          console.log(`[TwilioOpenAI Bridge] Marked call ${callRecord.id} as resumable (no explicit end_call)`);
+        }
+      } catch (err: any) {
+        console.log(`[TwilioOpenAI Bridge] Could not mark call as resumable: ${err.message}`);
+      }
     }
 
     const duration = session.endedAt

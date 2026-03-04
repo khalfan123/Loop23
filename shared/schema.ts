@@ -205,6 +205,33 @@ export const agents = pgTable("agents", {
   
   reasoningMode: text("reasoning_mode").default("deep"), // 'quick' | 'deep' | 'expert' — controls AI reasoning depth for knowledge queries
 
+  // Behavior Configuration — runtime-configurable flags inspired by Microsoft Call Center AI
+  behaviorConfig: jsonb("behavior_config").$type<{
+    softTimeoutSec?: number;       // Time before sending "please wait" message (default 4)
+    hardTimeoutSec?: number;       // Time before aborting LLM response (default 15)
+    silenceTimeoutSec?: number;    // Warn after silence duration (default 20)
+    maxQuestionsPerTurn?: number;  // Limit questions per turn (default 2)
+    useDiscourseMarkers?: boolean; // Natural filler words (default true)
+    recognitionRetryMax?: number;  // Voice recognition retries (default 3)
+    vadSilenceTimeoutMs?: number;  // Voice activity detection silence (default 500)
+    vadThreshold?: number;         // Voice activity detection threshold 0.1-1.0 (default 0.5)
+    callbackTimeoutHour?: number;  // Timeout for call resumption in hours (default 3)
+  }>(),
+
+  // Waiting messages — sent when LLM is taking too long (soft timeout)
+  waitingMessages: text("waiting_messages").array(),
+
+  // Structured Data Schema — dynamic fields to extract during calls (like Microsoft's claim schema)
+  dataSchema: jsonb("data_schema").$type<{
+    name: string;
+    type: "text" | "email" | "phone" | "datetime" | "number" | "yes_no";
+    description: string;
+    required?: boolean;
+  }[]>(),
+
+  // Preset tracking
+  sourcePresetId: varchar("source_preset_id"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -496,6 +523,18 @@ export const calls = pgTable("calls", {
   endToEndLatencyMs: integer("end_to_end_latency_ms"),
   startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
+
+  // Conversation Resumption — inspired by Microsoft Call Center AI
+  resumable: boolean("resumable").default(false),
+  lastDisconnectedAt: timestamp("last_disconnected_at"),
+  conversationContext: jsonb("conversation_context").$type<{
+    collectedData: Record<string, string | null>;
+    summaryOfDiscussion: string;
+    lastTopic: string;
+    pendingQuestions: string[];
+  }>(),
+  resumedFromCallId: varchar("resumed_from_call_id"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -3872,3 +3911,55 @@ export const insertCallerMemorySchema = createInsertSchema(callerMemory).omit({
 });
 export type InsertCallerMemory = z.infer<typeof insertCallerMemorySchema>;
 export type CallerMemory = typeof callerMemory.$inferSelect;
+
+// ============================================================
+// AGENT PRESETS — Industry-specific agent configuration bundles
+// Inspired by Microsoft Call Center AI's YAML-based agent configs
+// ============================================================
+
+export const agentPresets = pgTable("agent_presets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  industry: text("industry").notNull(), // 'insurance', 'it_support', 'healthcare', 'sales', 'customer_service', 'real_estate'
+  description: text("description").notNull(),
+  iconName: text("icon_name").notNull().default("bot"), // Lucide icon name
+  systemPrompt: text("system_prompt").notNull(),
+  task: text("task").notNull(),
+  firstMessage: text("first_message"),
+  claimSchema: jsonb("claim_schema").$type<{
+    name: string;
+    type: "text" | "email" | "phone" | "datetime" | "number" | "yes_no";
+    description: string;
+    required?: boolean;
+  }[]>(),
+  languageConfig: jsonb("language_config").$type<{
+    defaultLanguage: string;
+    availableLanguages: string[];
+  }>(),
+  behaviorRules: jsonb("behavior_rules").$type<{
+    maxQuestionsPerTurn: number;
+    useDiscourseMarkers: boolean;
+    silenceTimeoutSec: number;
+    softTimeoutSec: number;
+    hardTimeoutSec: number;
+    recognitionRetryMax: number;
+    vadSilenceTimeoutMs: number;
+    vadThreshold: number;
+  }>(),
+  waitingMessages: text("waiting_messages").array(),
+  suggestedVoice: text("suggested_voice"),
+  suggestedModel: text("suggested_model"),
+  suggestedTemperature: doublePrecision("suggested_temperature").default(0.7),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAgentPresetSchema = createInsertSchema(agentPresets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAgentPreset = z.infer<typeof insertAgentPresetSchema>;
+export type AgentPreset = typeof agentPresets.$inferSelect;

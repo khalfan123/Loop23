@@ -26,7 +26,9 @@ import {
   promptTemplates, agentVersions, seoSettings, analyticsScripts,
   paymentTransactions, refunds, invoices, paymentWebhookQueue, emailNotificationSettings,
   bannedWords, contentViolations, twilioOpenaiCalls, plivoCalls, demoSessions, websiteWidgets,
+  agentPresets,
   type User, type InsertUser,
+  type AgentPreset,
   type Agent, type InsertAgent,
   type KnowledgeBase as KnowledgeBaseType, type InsertKnowledgeBase,
   type Campaign, type InsertCampaign,
@@ -373,6 +375,10 @@ export interface IStorage {
 
   // Calls with transcripts (for violation scanning)
   getCallsWithTranscripts(): Promise<Call[]>;
+
+  // Agent Presets
+  getAgentPresets(): Promise<AgentPreset[]>;
+  getAgentPreset(id: string): Promise<AgentPreset | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -2618,6 +2624,20 @@ export class DbStorage implements IStorage {
       averageDuration: completed.length > 0 ? Math.round(totalDuration / completed.length) : 0,
       languageBreakdown,
     };
+  }
+
+  // Agent Presets
+  async getAgentPresets(): Promise<AgentPreset[]> {
+    return db
+      .select()
+      .from(agentPresets)
+      .where(eq(agentPresets.isActive, true))
+      .orderBy(asc(agentPresets.sortOrder));
+  }
+
+  async getAgentPreset(id: string): Promise<AgentPreset | undefined> {
+    const [preset] = await db.select().from(agentPresets).where(eq(agentPresets.id, id));
+    return preset;
   }
 }
 

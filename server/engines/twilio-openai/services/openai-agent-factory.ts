@@ -22,10 +22,17 @@ import type {
 import { OPENAI_VOICES, MODEL_TIER_CONFIG } from '../types';
 import { RAGKnowledgeService } from '../../../services/rag-knowledge';
 import { db } from '../../../db';
-import { appointments, appointmentSettings, formSubmissions, agents, forms, formFields } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { appointments, appointmentSettings, formSubmissions, agents, forms, formFields, calls, twilioOpenaiCalls } from '@shared/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
+
+export interface DataSchemaField {
+  name: string;
+  type: "text" | "email" | "phone" | "datetime" | "number" | "yes_no";
+  description: string;
+  required?: boolean;
+}
 
 /**
  * Context passed to tool handlers during calls
@@ -761,6 +768,191 @@ STRICT KNOWLEDGE BASE RESTRICTION:
       ...config,
       tools: [...(config.tools || []), endCallTool],
     };
+  }
+
+  static buildDataSchemaPrompt(dataSchema: DataSchemaField[]): string {
+    if (!dataSchema || dataSchema.length === 0) return '';
+
+    const lines: string[] = [
+      '',
+      '# Required Data to Collect',
+      'You must collect the following information during the conversation. Ask about each field naturally as part of the conversation flow.',
+      ''
+    ];
+
+    for (const field of dataSchema) {
+      const typeLabel = field.type === 'yes_no' ? 'Yes/No' : field.type;
+      let line = `- **${field.name}** (${typeLabel}): ${field.description}`;
+      if (field.required) {
+        line += ' — This field is required. Do not end the conversation without collecting it.';
+      }
+      lines.push(line);
+    }
+
+    lines.push('');
+    lines.push('When you collect a piece of data, immediately call the update_collected_data tool with the field name and value. Do not wait until the end of the conversation — save each field as soon as it is provided.');
+    lines.push('Before ending the call, verify that all required fields have been collected. If any required field is missing, ask for it.');
+
+    return lines.join('\n');
+  }
+
+  static addDataCollectionTool(
+    config: AgentConfigWithContext,
+    dataSchema: DataSchemaField[],
+    callId?: string
+  ): AgentConfigWithContext {
+    if (!dataSchema || dataSchema.length === 0) return config;
+
+    if (config.tools?.some(t => t.name === 'update_collected_data')) {
+      console.log(`[Agent Factory] Data collection tool already exists, skipping`);
+      return config;
+    }
+
+    console.log(`[Agent Factory] Adding data collection tool for ${dataSchema.length} fields`);
+
+    const fieldNames = dataSchema.map(f => f.name);
+
+    const dataCollectionTool: AgentTool = {
+      name: 'update_collected_data',
+      description: 'Save a piece of structured data collected from the caller. Call this tool each time you gather a data field during the conversation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          field_name: {
+            type: 'string',
+            enum: fieldNames,
+            description: 'The name of the data field being collected'
+          },
+          field_value: {
+            type: 'string',
+            description: 'The value collected from the caller for this field'
+          }
+        },
+        required: ['field_name', 'field_value'],
+      },
+      handler: async (params: Record<string, unknown>) => {
+        try {
+          const fieldName = params.field_name as string;
+          const fieldValue = params.field_value as string;
+
+          if (!fieldNames.includes(fieldName)) {
+            return { success: false, message: `Unknown field: ${fieldName}` };
+          }
+
+          console.log(`[Data Collection Tool] Saving ${fieldName} = "${fieldValue}" for call ${callId || 'unknown'}`);
+
+          if (callId) {
+            const updateQuery = sql`
+              UPDATE calls
+              SET conversation_context = jsonb_set(
+                COALESCE(conversation_context, '{"collectedData":{}, "summaryOfDiscussion":"", "lastTopic":"", "pendingQuestions":[]}'),
+                '{collectedData,${sql.raw(fieldName)}}',
+                ${JSON.stringify(fieldValue)}::jsonb
+              )
+              WHERE id = ${callId}
+            `;
+            await db.execute(updateQuery);
+
+            const updateTwilioQuery = sql`
+              UPDATE twilio_openai_calls
+              SET metadata = jsonb_set(
+                COALESCE(metadata, '{}'),
+                '{collectedData,${sql.raw(fieldName)}}',
+                ${JSON.stringify(fieldValue)}::jsonb
+              )
+              WHERE twilio_call_sid IN (
+                SELECT twilio_sid FROM calls WHERE id = ${callId}
+              ) OR id = ${callId}
+            `;
+            await db.execute(updateTwilioQuery).catch(() => {});
+          }
+
+          return {
+            success: true,
+            message: `Saved ${fieldName}: ${fieldValue}`,
+            field_name: fieldName,
+            field_value: fieldValue
+          };
+        } catch (error: any) {
+          console.error(`[Data Collection Tool] Error:`, error.message);
+          return {
+            success: false,
+            message: 'Unable to save data at this time.'
+          };
+        }
+      },
+    };
+
+    const dataSchemaPrompt = this.buildDataSchemaPrompt(dataSchema);
+
+    return {
+      ...config,
+      systemPrompt: config.systemPrompt + dataSchemaPrompt,
+      tools: [...(config.tools || []), dataCollectionTool],
+    };
+  }
+
+  static async generateCollectedDataSummary(
+    callId: string,
+    dataSchema: DataSchemaField[]
+  ): Promise<string | null> {
+    if (!dataSchema || dataSchema.length === 0) return null;
+
+    try {
+      let collectedData: Record<string, string | null> = {};
+
+      const [callRecord] = await db
+        .select({ conversationContext: calls.conversationContext })
+        .from(calls)
+        .where(eq(calls.id, callId))
+        .limit(1);
+
+      if (callRecord?.conversationContext?.collectedData) {
+        collectedData = callRecord.conversationContext.collectedData;
+      }
+
+      if (Object.keys(collectedData).length === 0) {
+        const [twilioRecord] = await db
+          .select({ metadata: twilioOpenaiCalls.metadata })
+          .from(twilioOpenaiCalls)
+          .where(eq(twilioOpenaiCalls.id, callId))
+          .limit(1);
+
+        const meta = twilioRecord?.metadata as Record<string, unknown> | null;
+        if (meta?.collectedData && typeof meta.collectedData === 'object') {
+          collectedData = meta.collectedData as Record<string, string | null>;
+        }
+      }
+
+      const lines: string[] = ['--- STRUCTURED DATA COLLECTED ---'];
+      let collectedCount = 0;
+      let missingRequired: string[] = [];
+
+      for (const field of dataSchema) {
+        const value = collectedData[field.name];
+        if (value !== undefined && value !== null) {
+          lines.push(`${field.name}: ${value}`);
+          collectedCount++;
+        } else {
+          lines.push(`${field.name}: [NOT COLLECTED]`);
+          if (field.required) {
+            missingRequired.push(field.name);
+          }
+        }
+      }
+
+      lines.push('');
+      lines.push(`Total collected: ${collectedCount}/${dataSchema.length}`);
+      if (missingRequired.length > 0) {
+        lines.push(`Missing required fields: ${missingRequired.join(', ')}`);
+      }
+      lines.push('--- END STRUCTURED DATA ---');
+
+      return lines.join('\n');
+    } catch (error: any) {
+      console.error(`[Data Collection] Error generating summary for call ${callId}:`, error.message);
+      return null;
+    }
   }
 
   /**
@@ -1603,6 +1795,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
       detectLanguageEnabled?: boolean | null;
       flowId?: string | null;
       language?: string | null;
+      dataSchema?: DataSchemaField[] | null;
     },
     userTier: 'free' | 'pro',
     callId?: string,
@@ -1665,6 +1858,11 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     // Enable language detection if enabled
     if (agent.detectLanguageEnabled) {
       config = this.enableLanguageDetection(config);
+    }
+
+    // Add data collection tool if dataSchema is defined
+    if (agent.dataSchema && agent.dataSchema.length > 0) {
+      config = this.addDataCollectionTool(config, agent.dataSchema, callId);
     }
 
     console.log(`[Agent Factory] Created config with ${config.tools?.length || 0} tools`);

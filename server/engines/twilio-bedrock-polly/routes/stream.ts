@@ -116,50 +116,78 @@ function handleBedrockPollyStreamConnection(ws: WebSocket, callSid: string): voi
       console.error(`[BedrockPolly Stream] Error ending audio session for ${callSid}:`, err.message);
     }
 
-    try {
-      const [callRecord] = await db
-        .select()
-        .from(twilioOpenaiCalls)
-        .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
-        .limit(1);
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const [callRecord] = await db
+          .select()
+          .from(twilioOpenaiCalls)
+          .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
+          .limit(1);
 
-      if (callRecord) {
-        await db
-          .update(twilioOpenaiCalls)
-          .set({
-            status: 'completed',
-            endedAt: new Date(),
-            duration: sessionResult.duration > 0 ? sessionResult.duration : null,
-            transcript: sessionResult.transcript.length > 0 ? sessionResult.transcript : null,
-          })
-          .where(eq(twilioOpenaiCalls.id, callRecord.id));
-        logger.info(`Marked call ${callRecord.id} as completed in DB`, undefined, 'BedrockPolly Stream');
+        if (callRecord) {
+          const fallbackUpdates: Record<string, unknown> = {
+            status: callRecord.status === 'completed' ? 'completed' : 'completed',
+            endedAt: callRecord.endedAt || new Date(),
+          };
 
-        try {
-          const [flowExec] = await db
-            .select()
-            .from(flowExecutions)
-            .where(eq(flowExecutions.callId, callRecord.id))
-            .limit(1);
-
-          if (flowExec && flowExec.status === 'running') {
-            await db
-              .update(flowExecutions)
-              .set({
-                status: 'completed',
-                completedAt: new Date(),
-              })
-              .where(eq(flowExecutions.id, flowExec.id));
-            logger.info(`Updated flow execution ${flowExec.id} to completed`, undefined, 'BedrockPolly Stream');
+          if (!callRecord.duration && sessionResult.duration > 0) {
+            fallbackUpdates.duration = sessionResult.duration;
+          } else if (!callRecord.duration && callRecord.startedAt) {
+            const calcDuration = Math.max(0, Math.floor(
+              ((callRecord.endedAt || new Date()).getTime() - new Date(callRecord.startedAt).getTime()) / 1000
+            ));
+            if (calcDuration > 0) {
+              fallbackUpdates.duration = calcDuration;
+            }
           }
-        } catch (flowExecError: any) {
-          logger.warn(`Failed to update flow execution status: ${flowExecError.message}`, undefined, 'BedrockPolly Stream');
+
+          if (!callRecord.transcript && sessionResult.transcript.length > 0) {
+            fallbackUpdates.transcript = sessionResult.transcript;
+          }
+
+          const hasUpdates = Object.keys(fallbackUpdates).some(
+            k => k !== 'status' && k !== 'endedAt'
+          ) || callRecord.status !== 'completed' || !callRecord.endedAt;
+
+          if (hasUpdates) {
+            await db
+              .update(twilioOpenaiCalls)
+              .set(fallbackUpdates)
+              .where(eq(twilioOpenaiCalls.id, callRecord.id));
+            logger.info(`Fallback DB update for call ${callRecord.id}: ${JSON.stringify(Object.keys(fallbackUpdates))}`, undefined, 'BedrockPolly Stream');
+          }
+
+          try {
+            const [flowExec] = await db
+              .select()
+              .from(flowExecutions)
+              .where(eq(flowExecutions.callId, callRecord.id))
+              .limit(1);
+
+            if (flowExec && flowExec.status === 'running') {
+              await db
+                .update(flowExecutions)
+                .set({
+                  status: 'completed',
+                  completedAt: new Date(),
+                })
+                .where(eq(flowExecutions.id, flowExec.id));
+              logger.info(`Updated flow execution ${flowExec.id} to completed`, undefined, 'BedrockPolly Stream');
+            }
+          } catch (flowExecError: any) {
+            logger.warn(`Failed to update flow execution status: ${flowExecError.message}`, undefined, 'BedrockPolly Stream');
+          }
+        } else {
+          logger.warn(`No call record found for twilioCallSid=${callSid}, cannot mark completed`, undefined, 'BedrockPolly Stream');
         }
-      } else {
-        logger.warn(`No call record found for twilioCallSid=${callSid}, cannot mark completed`, undefined, 'BedrockPolly Stream');
+        break;
+      } catch (dbErr: any) {
+        console.error(`[BedrockPolly Stream] Failed to update call record in DB for ${callSid} (attempt ${attempt}/${maxRetries}):`, dbErr.message);
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
       }
-    } catch (dbErr: any) {
-      console.error(`[BedrockPolly Stream] Failed to update call record in DB for ${callSid}:`, dbErr.message);
     }
   });
 
@@ -345,70 +373,92 @@ async function initializeSession(
     const toNumber = callRecord.toNumber;
 
     BedrockPollyAudioBridge.onSessionEnd(callSid, async (sessionData) => {
-      try {
-        const updates: Record<string, unknown> = {
-          status: 'completed',
-          endedAt: new Date(),
-        };
+      const updates: Record<string, unknown> = {
+        status: 'completed',
+        endedAt: new Date(),
+      };
 
-        if (sessionData?.transcript) {
-          updates.transcript = sessionData.transcript;
+      if (sessionData?.transcript) {
+        updates.transcript = sessionData.transcript;
+      }
+      if (sessionData?.duration && sessionData.duration > 0) {
+        updates.duration = sessionData.duration;
+      }
+      if (sessionData?.bedrockSessionId) {
+        updates.openaiSessionId = sessionData.bedrockSessionId;
+      }
 
-          if (sessionData.transcript.length > 50) {
-            try {
-              const insights = await CallInsightsService.analyzeTranscript(
-                sessionData.transcript,
-                {
-                  callId: callId,
-                  fromNumber: fromNumber || undefined,
-                  toNumber: toNumber || undefined,
-                  duration: sessionData?.duration
-                }
-              );
-
-              if (insights) {
-                let aiSummary = insights.aiSummary || '';
-
-                if (metaDataSchema && metaDataSchema.length > 0) {
-                  try {
-                    const dataSummary = await BedrockAgentFactory.generateCollectedDataSummary(callId, metaDataSchema);
-                    if (dataSummary) {
-                      aiSummary += dataSummary;
-                    }
-                  } catch (dsErr: any) {
-                    logger.warn(`Failed to generate data collection summary: ${dsErr.message}`, undefined, 'BedrockPolly Stream');
-                  }
-                }
-
-                updates.aiSummary = aiSummary;
-                updates.sentiment = insights.sentiment;
-                updates.classification = insights.classification;
-                if (insights.keyPoints) updates.keyPoints = insights.keyPoints;
-                if (insights.nextActions) updates.nextActions = insights.nextActions;
-                logger.info(`Generated AI insights for call ${callId}`, {
-                  sentiment: insights.sentiment,
-                  classification: insights.classification
-                }, 'BedrockPolly Stream');
-              }
-            } catch (insightError: any) {
-              logger.error('Failed to generate call insights', insightError, 'BedrockPolly Stream');
+      const saveCoreToDB = async (data: Record<string, unknown>, retries = 3) => {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            await db
+              .update(twilioOpenaiCalls)
+              .set(data)
+              .where(eq(twilioOpenaiCalls.id, callId));
+            return true;
+          } catch (dbErr: any) {
+            logger.error(`DB update attempt ${attempt}/${retries} failed for call ${callId}: ${dbErr.message}`, dbErr, 'BedrockPolly Stream');
+            if (attempt < retries) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
             }
           }
         }
-        if (sessionData?.duration) {
-          updates.duration = sessionData.duration;
+        return false;
+      };
+
+      const coreSaved = await saveCoreToDB(updates);
+      if (!coreSaved) {
+        logger.error(`Failed to save core call data for ${callId} after retries`, undefined, 'BedrockPolly Stream');
+        return;
+      }
+      logger.info(`Call ${callId} core data saved (duration=${updates.duration || 0}s, transcript=${(sessionData?.transcript || '').length} chars)`, undefined, 'BedrockPolly Stream');
+
+      if (sessionData?.transcript && sessionData.transcript.length > 50) {
+        try {
+          const insights = await CallInsightsService.analyzeTranscript(
+            sessionData.transcript,
+            {
+              callId: callId,
+              fromNumber: fromNumber || undefined,
+              toNumber: toNumber || undefined,
+              duration: sessionData?.duration
+            }
+          );
+
+          if (insights) {
+            let aiSummary = insights.aiSummary || '';
+
+            if (metaDataSchema && metaDataSchema.length > 0) {
+              try {
+                const dataSummary = await BedrockAgentFactory.generateCollectedDataSummary(callId, metaDataSchema);
+                if (dataSummary) {
+                  aiSummary += dataSummary;
+                }
+              } catch (dsErr: any) {
+                logger.warn(`Failed to generate data collection summary: ${dsErr.message}`, undefined, 'BedrockPolly Stream');
+              }
+            }
+
+            const insightUpdates: Record<string, unknown> = {
+              aiSummary,
+              sentiment: insights.sentiment,
+              classification: insights.classification,
+            };
+            if (insights.keyPoints) insightUpdates.keyPoints = insights.keyPoints;
+            if (insights.nextActions) insightUpdates.nextActions = insights.nextActions;
+
+            await saveCoreToDB(insightUpdates, 2);
+            logger.info(`Generated AI insights for call ${callId}`, {
+              sentiment: insights.sentiment,
+              classification: insights.classification
+            }, 'BedrockPolly Stream');
+          }
+        } catch (insightError: any) {
+          logger.error(`Failed to generate call insights for ${callId} (transcript already saved)`, insightError, 'BedrockPolly Stream');
         }
-        if (sessionData?.bedrockSessionId) {
-          updates.openaiSessionId = sessionData.bedrockSessionId;
-        }
+      }
 
-        await db
-          .update(twilioOpenaiCalls)
-          .set(updates)
-          .where(eq(twilioOpenaiCalls.id, callId));
-
-        logger.info(`Call ${callId} record updated (${updates.duration || 0}s)`, undefined, 'BedrockPolly Stream');
-
+      try {
         if (callUserId && sessionData?.duration && sessionData.duration >= 1) {
           const creditsToDeduct = Math.ceil(sessionData.duration / 60);
 
@@ -444,20 +494,20 @@ async function initializeSession(
             }
           }
         }
+      } catch (creditErr: any) {
+        logger.error(`Credit processing error for call ${callId}: ${creditErr.message}`, creditErr, 'BedrockPolly Stream');
+      }
 
-        if (callUserId) {
-          try {
-            const { CRMLeadProcessor } = await import('../../crm/lead-processor.service');
-            const result = await CRMLeadProcessor.processTwilioOpenAICall(callId);
-            if (result?.leadId) {
-              logger.info(`CRM lead created: ${result.leadId}`, undefined, 'BedrockPolly Stream');
-            }
-          } catch (crmError: any) {
-            logger.error(`Failed to create CRM lead: ${crmError.message}`, crmError, 'BedrockPolly Stream');
+      if (callUserId) {
+        try {
+          const { CRMLeadProcessor } = await import('../../crm/lead-processor.service');
+          const result = await CRMLeadProcessor.processTwilioOpenAICall(callId);
+          if (result?.leadId) {
+            logger.info(`CRM lead created: ${result.leadId}`, undefined, 'BedrockPolly Stream');
           }
+        } catch (crmError: any) {
+          logger.error(`Failed to create CRM lead: ${crmError.message}`, crmError, 'BedrockPolly Stream');
         }
-      } catch (error: any) {
-        logger.error('Error updating call record', error, 'BedrockPolly Stream');
       }
     });
 

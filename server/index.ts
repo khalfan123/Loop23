@@ -29,6 +29,7 @@ import { webhookRetryService } from "./services/webhook-retry-service";
 import { preloadJwtExpiry } from "./middleware/auth";
 import { storage } from "./storage";
 import { initializeMigrationEngine } from "./engines/elevenlabs-migration";
+import { startStaleCallsCleanup } from "./services/stale-calls-cleanup";
 import { correlationIdMiddleware } from "./middleware/correlation-id";
 import { emailService } from "./services/email-service";
 import { initializeDirectories } from "./utils/init-directories";
@@ -413,6 +414,9 @@ app.use((req, res, next) => {
     
     // Start ElevenLabs migration engine (handles retry queue for capacity errors)
     initializeMigrationEngine();
+    
+    // Start stale pending calls cleanup (marks calls pending > 5 min as failed)
+    startStaleCallsCleanup();
     
     // Signal PM2 that the process is ready to receive connections
     signalReady();

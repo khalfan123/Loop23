@@ -103,6 +103,14 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
     - KB tool handler enriches RAG results with `RAGKnowledgeService.buildDataSchemaContext()` when agent has a data schema
     - `AgentConfig` type extended with `behaviorConfig`, `waitingMessages`, `dataSchema` fields. `BedrockPollyBridgeSession` extended with `explicitEndCall` flag
     - Inbound webhook passes `behaviorConfig`, `waitingMessages`, `dataSchema`, `resumedFromCallId` through call metadata for stream handler consumption
+- **Production Hardening — Call Error Analysis & Fixes (Mar 2026)**:
+  - **Whisper Arabic Hallucination Filter**: 35 exact-match + 14 substring-match hallucination phrases (YouTube phrases, religious repetitions, music symbols). N-gram repetition detector catches "التطبيقات الموجودة في التطبيقات..." style nonsense. Single-word repetition filter for 4+ word transcripts.
+  - **Silence Thresholds Retuned**: Short/medium/long silence 400/350/300ms, opening 800ms. Filler audio system removed entirely for immediate response. Barge-in min bytes reduced to 8000.
+  - **Tool Call Parsing Hardened**: `parseToolCall()` with 3 fallback strategies. `sanitizeForTTS()` strips `[TOOL_CALL]` tags/JSON/error messages before TTS. Localized recovery phrases (AR/EN/ES/FR/DE/HI) spoken on parse failure instead of raw errors.
+  - **Truncated Response Guard**: Min 3-char length check in `synthesizeAndSend()` and sentence loop prevents single-character TTS.
+  - **Session End Hardening**: Retry logic (3 attempts with exponential backoff) for DB writes. Duration/transcript saved first, AI insights separately. Fallback duration calculation from timestamps. Guard against double-end.
+  - **Stale Pending Calls Cleanup**: New `server/services/stale-calls-cleanup.ts` — 2-min interval marks calls pending >5min as failed. Covers both `calls` and `twilio_openai_calls` tables. Wired into server startup and graceful shutdown.
+  - **Conversation Prompts Simplified**: Removed forced "acknowledge/restate" patterns across all 4 engines + conversation compiler. Now: "Answer directly without repeating the question. Don't start with acknowledgments."
 - **Human-Like Reasoning & Comprehension Upgrade (Mar 2026)**:
   - **VAD Silence Thresholds Increased**: OpenAI engines (Twilio/Plivo) silence_duration_ms 700ms→1000ms, threshold 0.6→0.7, prefix_padding 400→500ms, eagerness medium→low. Bedrock+Polly short/medium/long silence 800/600/500→1200/1000/800ms, opening silence 1800→2200ms.
   - **Barge-in Sensitivity Reduced**: Bedrock+Polly speech energy threshold 500→600, barge-in threshold 600→800, min barge-in bytes 8000→12000. Prevents agent from cutting off mid-sentence too easily.

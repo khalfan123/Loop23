@@ -141,12 +141,12 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_SHORT_MS = 30;
-  private static readonly SILENCE_MEDIUM_MS = 20;
-  private static readonly SILENCE_LONG_UTTERANCE_MS = 10;
+  private static readonly SILENCE_SHORT_MS = 400;
+  private static readonly SILENCE_MEDIUM_MS = 350;
+  private static readonly SILENCE_LONG_UTTERANCE_MS = 300;
   private static readonly LONG_UTTERANCE_BYTES = 16000;
   private static readonly SHORT_UTTERANCE_BYTES = 8000;
-  private static readonly OPENING_SILENCE_THRESHOLD_MS = 300;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 800;
   private static readonly OPENING_PHASE_DURATION_MS = 8000;
   private static readonly MIN_AUDIO_LENGTH = 6400;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
@@ -735,39 +735,100 @@ export class BedrockPollyAudioBridge {
     }
   }
 
+  private static readonly WHISPER_HALLUCINATION_EXACT: string[] = [
+    'شكراً على المشاهدة',
+    'وشكراً على المشاهدة',
+    'شكرا على المشاهدة',
+    'شكرا للمشاهدة',
+    'اشتركوا في القناة',
+    'اشترك في القناة',
+    'لا تنسوا الاشتراك',
+    'ترجمة',
+    'أعوذ بالله من الشيطان الرجيم',
+    'بسم الله الرحمن الرحيم',
+    'السلام عليكم ورحمة الله وبركاته',
+    'صلى الله عليه وسلم',
+    'سبحان الله وبحمده',
+    'الحمد لله رب العالمين',
+    'subscribe',
+    'thank you for watching',
+    'thanks for watching',
+    'like and subscribe',
+    'please subscribe',
+    'don\'t forget to subscribe',
+    'hit the bell',
+    'Shabbat shalom',
+    'subtitles by',
+    'amara.org',
+    'www.mooji.org',
+    '♪',
+    '...',
+    'you',
+    'bye',
+    'the end',
+    'thank you',
+    'thanks',
+    'MBC',
+    'SBS',
+  ];
+
+  private static readonly WHISPER_HALLUCINATION_CONTAINS: string[] = [
+    'شكرا على المشاهدة',
+    'شكراً على المشاهدة',
+    'اشتركوا في القناة',
+    'لا تنسوا الاشتراك',
+    'thank you for watching',
+    'thanks for watching',
+    'like and subscribe',
+    'please subscribe',
+    'subtitles by',
+    'amara.org',
+    'www.mooji.org',
+    'مشاهدة ممتعة',
+    'تابعونا على',
+    'قناتنا على',
+  ];
+
   private static isWhisperHallucination(text: string): boolean {
     const trimmed = text.trim();
     if (trimmed.length < 3) return true;
 
-    const hallucinations = [
-      'اشتركوا في القناة',
-      'شكراً على المشاهدة',
-      'وشكراً على المشاهدة',
-      'لا تنسوا الاشتراك',
-      'شكرا للمشاهدة',
-      'اشترك في القناة',
-      'ترجمة',
-      'subscribe',
-      'thank you for watching',
-      'thanks for watching',
-      'like and subscribe',
-      'please subscribe',
-      'Shabbat shalom',
-      'subtitles by',
-      'amara.org',
-      'www.mooji.org',
-      '♪',
-      '...',
-      'أعوذ بالله من الشيطان الرجيم',
-      'بسم الله الرحمن الرحيم',
-    ];
     const lower = trimmed.toLowerCase();
-    for (const h of hallucinations) {
+
+    for (const h of this.WHISPER_HALLUCINATION_EXACT) {
       if (lower === h.toLowerCase()) return true;
     }
 
-    const repeatedPattern = /^(.{2,15})\1{2,}$/;
-    if (repeatedPattern.test(trimmed)) return true;
+    for (const h of this.WHISPER_HALLUCINATION_CONTAINS) {
+      if (lower.includes(h.toLowerCase())) return true;
+    }
+
+    if (/^[♪♫🎵🎶\s.,!?]+$/.test(trimmed)) return true;
+
+    if (/^\.{2,}$/.test(trimmed)) return true;
+
+    const exactRepeat = /^(.{2,30})\1{2,}$/;
+    if (exactRepeat.test(trimmed)) return true;
+
+    const words = trimmed.split(/\s+/).filter(w => w.length > 1);
+    if (words.length >= 4) {
+      const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+      if (uniqueWords.size === 1) return true;
+
+      const windowSize = Math.min(4, Math.floor(words.length / 3));
+      if (windowSize >= 2) {
+        for (let phraseLen = 2; phraseLen <= windowSize; phraseLen++) {
+          const phraseCounts = new Map<string, number>();
+          for (let i = 0; i <= words.length - phraseLen; i++) {
+            const phrase = words.slice(i, i + phraseLen).join(' ').toLowerCase();
+            phraseCounts.set(phrase, (phraseCounts.get(phrase) || 0) + 1);
+          }
+          for (const count of phraseCounts.values()) {
+            if (count >= 3) return true;
+          }
+        }
+      }
+    }
 
     return false;
   }
@@ -1023,7 +1084,7 @@ export class BedrockPollyAudioBridge {
           const sentences = this.splitSentences(sentenceBuffer, useEager);
           for (let i = 0; i < sentences.length - 1; i++) {
             const sentence = sentences[i];
-            if (sentence.length < 2) continue;
+            if (sentence.length < 3) continue;
 
             if (pendingSynthesis) {
               await pendingSynthesis;
@@ -1113,13 +1174,12 @@ export class BedrockPollyAudioBridge {
     }
   }
 
-  private static async handleStreamToolCall(
-    session: BedrockPollyBridgeSession,
-    fullText: string,
-    systemPrompt: string
-  ): Promise<string> {
-    const toolCallIdx = fullText.indexOf('[TOOL_CALL]');
-    const afterTag = fullText.substring(toolCallIdx + '[TOOL_CALL]'.length).trim();
+  private static extractToolCallJson(text: string): { jsonStr: string; textBefore: string } {
+    const toolCallIdx = text.indexOf('[TOOL_CALL]');
+    if (toolCallIdx === -1) return { jsonStr: '', textBefore: text.trim() };
+
+    const afterTag = text.substring(toolCallIdx + '[TOOL_CALL]'.length).trim();
+    const textBefore = text.substring(0, toolCallIdx).trim();
     const jsonStart = afterTag.indexOf('{');
     let jsonStr = '';
     if (jsonStart !== -1) {
@@ -1136,18 +1196,72 @@ export class BedrockPollyAudioBridge {
         jsonStr = afterTag.substring(jsonStart, jsonEnd + 1);
       }
     }
+    return { jsonStr, textBefore };
+  }
 
-    const textBeforeToolCall = fullText.substring(0, toolCallIdx).trim();
-    if (textBeforeToolCall.length > 2) {
-      await this.synthesizeAndSend(session, textBeforeToolCall);
+  private static parseToolCall(jsonStr: string): { name: string; params: Record<string, unknown> } | null {
+    if (!jsonStr) return null;
+    try {
+      const parsed = JSON.parse(jsonStr) as { name?: string; params?: Record<string, unknown>; query?: string };
+      if (!parsed.name || parsed.name === 'undefined' || typeof parsed.name !== 'string') {
+        const nameMatch = jsonStr.match(/"name"\s*:\s*"([^"]+)"/);
+        if (nameMatch && nameMatch[1] && nameMatch[1] !== 'undefined') {
+          parsed.name = nameMatch[1];
+        } else {
+          console.error(`[BedrockPolly Bridge] Tool call has no valid name: ${jsonStr.substring(0, 200)}`);
+          return null;
+        }
+      }
+      return {
+        name: parsed.name,
+        params: parsed.params || (parsed.query ? { query: parsed.query } : {}),
+      };
+    } catch (e: any) {
+      const nameMatch = jsonStr.match(/"name"\s*:\s*"([^"]+)"/);
+      if (nameMatch && nameMatch[1] && nameMatch[1] !== 'undefined') {
+        const paramsMatch = jsonStr.match(/"params"\s*:\s*(\{[^}]*\})/);
+        let params: Record<string, unknown> = {};
+        if (paramsMatch) {
+          try { params = JSON.parse(paramsMatch[1]); } catch {}
+        }
+        return { name: nameMatch[1], params };
+      }
+      console.error(`[BedrockPolly Bridge] Failed to parse tool call JSON: ${e.message}, raw: ${jsonStr.substring(0, 200)}`);
+      return null;
+    }
+  }
+
+  private static getToolParseRecoveryPhrase(lang?: string): string {
+    const phrases: Record<string, string> = {
+      ar: 'عذرًا، واجهت مشكلة في معالجة طلبك. هل يمكنك تكرار ذلك؟',
+      es: 'Lo siento, tuve un problema procesando eso. ¿Podría repetirlo?',
+      fr: 'Désolé, j\'ai eu un problème en traitant cela. Pourriez-vous répéter ?',
+      de: 'Entschuldigung, ich hatte ein Problem bei der Verarbeitung. Könnten Sie das wiederholen?',
+      hi: 'क्षमा करें, मुझे उसे प्रोसेस करने में समस्या हुई। क्या आप दोहरा सकते हैं?',
+    };
+    return phrases[lang || ''] || 'I\'m sorry, I had trouble processing that request. Could you please repeat what you need?';
+  }
+
+  private static async handleStreamToolCall(
+    session: BedrockPollyBridgeSession,
+    fullText: string,
+    systemPrompt: string
+  ): Promise<string> {
+    const { jsonStr, textBefore } = this.extractToolCallJson(fullText);
+
+    if (textBefore.length > 2) {
+      await this.synthesizeAndSend(session, textBefore);
+    }
+
+    const toolCall = this.parseToolCall(jsonStr);
+    if (!toolCall) {
+      console.error(`[BedrockPolly Bridge] Tool call parsing failed for ${session.callSid}, using recovery phrase`);
+      const recovery = this.getToolParseRecoveryPhrase(session.agentConfig.language);
+      await this.synthesizeAndSend(session, recovery);
+      return textBefore || recovery;
     }
 
     try {
-      const toolCall = JSON.parse(jsonStr) as {
-        name: string;
-        params: Record<string, unknown>;
-      };
-
       const toolResult = await this.handleToolCalls(session, [toolCall]);
 
       session.messages.push({
@@ -1163,9 +1277,11 @@ export class BedrockPollyAudioBridge {
       });
 
       return await this.streamBedrockAndSpeak(session);
-    } catch (parseError: any) {
-      console.error(`[BedrockPolly Bridge] Failed to parse tool call in stream:`, parseError.message);
-      return textBeforeToolCall || fullText;
+    } catch (execError: any) {
+      console.error(`[BedrockPolly Bridge] Tool execution error in stream for ${session.callSid}:`, execError.message);
+      const recovery = this.getToolParseRecoveryPhrase(session.agentConfig.language);
+      await this.synthesizeAndSend(session, recovery);
+      return textBefore || recovery;
     }
   }
 
@@ -1216,37 +1332,16 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       const content = response.content || '';
       console.log(`[BedrockPolly Bridge] Bedrock response: ${content.length} chars, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);
 
-      const toolCallIdx = content.indexOf('[TOOL_CALL]');
-      if (toolCallIdx !== -1) {
-        const afterTag = content.substring(toolCallIdx + '[TOOL_CALL]'.length).trim();
-        const jsonStart = afterTag.indexOf('{');
-        let jsonStr = '';
-        if (jsonStart !== -1) {
-          let depth = 0;
-          let jsonEnd = -1;
-          for (let i = jsonStart; i < afterTag.length; i++) {
-            if (afterTag[i] === '{') depth++;
-            else if (afterTag[i] === '}') {
-              depth--;
-              if (depth === 0) { jsonEnd = i; break; }
-            }
-          }
-          if (jsonEnd !== -1) {
-            jsonStr = afterTag.substring(jsonStart, jsonEnd + 1);
-          }
+      if (content.indexOf('[TOOL_CALL]') !== -1) {
+        const { jsonStr, textBefore } = this.extractToolCallJson(content);
+        const toolCall = this.parseToolCall(jsonStr);
+
+        if (!toolCall) {
+          console.error(`[BedrockPolly Bridge] Tool call parsing failed in getBedrockResponse for ${session.callSid}`);
+          return textBefore || this.getToolParseRecoveryPhrase(agentConfig.language);
         }
 
-        const remainingText = jsonStr
-          ? afterTag.substring(afterTag.indexOf(jsonStr) + jsonStr.length).trim()
-          : afterTag;
-        const textBeforeToolCall = content.substring(0, toolCallIdx).trim();
-
         try {
-          const toolCall = JSON.parse(jsonStr) as {
-            name: string;
-            params: Record<string, unknown>;
-          };
-
           const toolResult = await this.handleToolCalls(session, [toolCall]);
 
           session.messages.push({
@@ -1263,10 +1358,9 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
           const followUp = await this.getBedrockResponse(session);
           return followUp;
-        } catch (parseError: any) {
-          console.error(`[BedrockPolly Bridge] Failed to parse tool call:`, parseError.message);
-          const cleanText = (textBeforeToolCall + ' ' + remainingText).trim();
-          return cleanText || content;
+        } catch (execError: any) {
+          console.error(`[BedrockPolly Bridge] Tool execution error in getBedrockResponse:`, execError.message);
+          return textBefore || this.getToolParseRecoveryPhrase(agentConfig.language);
         }
       }
 
@@ -1381,9 +1475,15 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
 
     try {
-      const trimmedText = text.trim();
-      if (!trimmedText) {
-        console.log(`[BedrockPolly Bridge] Empty text, skipping synthesis for ${callSid}`);
+      let trimmedText = text.trim();
+      if (!trimmedText || trimmedText.length < 3) {
+        console.log(`[BedrockPolly Bridge] Text too short (${trimmedText.length} chars), skipping synthesis for ${callSid}: "${trimmedText}"`);
+        return;
+      }
+
+      trimmedText = this.sanitizeForTTS(trimmedText);
+      if (!trimmedText || trimmedText.length < 3) {
+        console.log(`[BedrockPolly Bridge] Text too short after TTS sanitization, skipping for ${callSid}`);
         return;
       }
 
@@ -1436,6 +1536,18 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     } catch (error: any) {
       console.error(`[BedrockPolly Bridge] TTS synthesis error for ${callSid}:`, error.message);
     }
+  }
+
+  private static sanitizeForTTS(text: string): string {
+    let sanitized = text;
+    sanitized = sanitized.replace(/\[TOOL_CALL\]\s*\{[\s\S]*?\}/g, '');
+    sanitized = sanitized.replace(/\[TOOL_CALL\]/g, '');
+    sanitized = sanitized.replace(/\{"name"\s*:\s*"[^"]*"\s*,\s*"params"\s*:\s*\{[\s\S]*?\}\s*\}/g, '');
+    sanitized = sanitized.replace(/Tool\s+"[^"]*"\s+returned:\s*\{[\s\S]*?\}/g, '');
+    sanitized = sanitized.replace(/Tool\s+"undefined"\s+returned:[\s\S]*/g, '');
+    sanitized = sanitized.replace(/\{\s*"error"\s*:\s*"[^"]*"\s*\}/g, '');
+    sanitized = sanitized.replace(/\s{2,}/g, ' ');
+    return sanitized.trim();
   }
 
   private static ssmlBlockedVoices: Set<string> = new Set();
@@ -1562,6 +1674,13 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     for (const toolCall of toolCalls) {
       const { name, params } = toolCall;
+
+      if (!name || name === 'undefined' || typeof name !== 'string') {
+        console.error(`[BedrockPolly Bridge] Skipping tool call with invalid name: "${name}" for ${callSid}`);
+        results.push('Tool call skipped — invalid tool name');
+        continue;
+      }
+
       console.log(`[BedrockPolly Bridge] Tool call: ${name} for ${callSid}`);
 
       const toolId = `${name}-${Date.now()}`;
@@ -1890,42 +2009,61 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     const session = this.activeSessions.get(callSid);
     if (!session) return { duration: 0, transcript: '' };
 
+    if (session.status === 'disconnected') {
+      const durationMs = (session.endedAt || new Date()).getTime() - session.startedAt.getTime();
+      const duration = Math.max(0, Math.floor(durationMs / 1000));
+      const transcript = session.transcriptParts
+        .map((p) => `${p.role}: ${p.text}`)
+        .join('\n');
+      return { duration, transcript };
+    }
+
     console.log(`[BedrockPolly Bridge] Ending session for ${callSid}`);
 
     session.status = 'disconnected';
     session.endedAt = new Date();
 
-    const timer = silenceTimers.get(callSid);
-    if (timer) {
-      clearTimeout(timer);
-      silenceTimers.delete(callSid);
+    const durationMs = session.endedAt.getTime() - session.startedAt.getTime();
+    const duration = Math.max(0, Math.floor(durationMs / 1000));
+    const transcript = session.transcriptParts
+      .map((p) => `${p.role}: ${p.text}`)
+      .join('\n');
+
+    try {
+      const timer = silenceTimers.get(callSid);
+      if (timer) {
+        clearTimeout(timer);
+        silenceTimers.delete(callSid);
+      }
+
+      audioBuffers.delete(callSid);
+      bufferStartTimes.delete(callSid);
+      bargeInFlags.delete(callSid);
+      bargeInAccum.delete(callSid);
+      playingGreeting.delete(callSid);
+      openingPhaseEnd.delete(callSid);
+      twilioStreamReady.delete(callSid);
+      speechActive.delete(callSid);
+      noiseFloorSamples.delete(callSid);
+      calibratedNoiseFloor.delete(callSid);
+      calibrationStartTime.delete(callSid);
+      pendingMarks.delete(callSid);
+      peakEnergy.delete(callSid);
+      whisperAbortControllers.get(callSid)?.abort();
+      whisperAbortControllers.delete(callSid);
+
+      const nrTimer = noResponseTimers.get(callSid);
+      if (nrTimer) {
+        clearTimeout(nrTimer);
+        noResponseTimers.delete(callSid);
+      }
+      callerHasSpoken.delete(callSid);
+    } catch (cleanupErr: any) {
+      console.error(`[BedrockPolly Bridge] Timer/buffer cleanup error for ${callSid}: ${cleanupErr.message}`);
     }
 
-    audioBuffers.delete(callSid);
-    bufferStartTimes.delete(callSid);
-    bargeInFlags.delete(callSid);
-    bargeInAccum.delete(callSid);
-    playingGreeting.delete(callSid);
-    openingPhaseEnd.delete(callSid);
-    twilioStreamReady.delete(callSid);
-    speechActive.delete(callSid);
-    noiseFloorSamples.delete(callSid);
-    calibratedNoiseFloor.delete(callSid);
-    calibrationStartTime.delete(callSid);
-    pendingMarks.delete(callSid);
-    peakEnergy.delete(callSid);
-    whisperAbortControllers.get(callSid)?.abort();
-    whisperAbortControllers.delete(callSid);
-
-    const nrTimer = noResponseTimers.get(callSid);
-    if (nrTimer) {
-      clearTimeout(nrTimer);
-      noResponseTimers.delete(callSid);
-    }
-    callerHasSpoken.delete(callSid);
-
-    if (!session.explicitEndCall && session.transcriptParts.length > 0) {
-      try {
+    try {
+      if (!session.explicitEndCall && session.transcriptParts.length > 0) {
         const [callRecord] = await db
           .select({ id: calls.id })
           .from(calls)
@@ -1949,27 +2087,27 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
           await conversationResumptionService.markCallResumable(callRecord.id, context);
           console.log(`[BedrockPolly Bridge] Marked call ${callRecord.id} as resumable (no explicit end_call)`);
         }
-      } catch (err: any) {
-        console.log(`[BedrockPolly Bridge] Could not mark call as resumable: ${err.message}`);
       }
+    } catch (err: any) {
+      console.log(`[BedrockPolly Bridge] Could not mark call as resumable: ${err.message}`);
     }
 
-    const durationMs = session.endedAt.getTime() - session.startedAt.getTime();
-    const duration = Math.floor(durationMs / 1000);
-    const transcript = session.transcriptParts
-      .map((p) => `${p.role}: ${p.text}`)
-      .join('\n');
+    try {
+      await this.fireEndCallback(session);
+    } catch (cbErr: any) {
+      console.error(`[BedrockPolly Bridge] End callback error for ${callSid}: ${cbErr.message}`);
+    }
 
-    this.fireEndCallback(session);
     this.activeSessions.delete(callSid);
 
+    console.log(`[BedrockPolly Bridge] Session ended for ${callSid}: duration=${duration}s, transcript=${transcript.length} chars`);
     return { duration, transcript };
   }
 
   /**
    * Fire the session-end callback with transcript and duration data.
    */
-  private static fireEndCallback(session: BedrockPollyBridgeSession): void {
+  private static async fireEndCallback(session: BedrockPollyBridgeSession): Promise<void> {
     if (!session.onEndCallback) return;
 
     const durationMs = session.endedAt
@@ -1980,14 +2118,16 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       .map((p) => `${p.role}: ${p.text}`)
       .join('\n');
 
+    const duration = Math.max(0, Math.floor(durationMs / 1000));
+
     try {
-      session.onEndCallback({
+      await Promise.resolve(session.onEndCallback({
         transcript,
-        duration: Math.floor(durationMs / 1000),
+        duration,
         bedrockSessionId: session.bedrockSessionId,
-      });
+      }));
     } catch (error: any) {
-      console.error(`[BedrockPolly Bridge] End callback error:`, error.message);
+      console.error(`[BedrockPolly Bridge] End callback error for ${session.callSid}:`, error.message);
     }
   }
 

@@ -99,6 +99,13 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .map((ivr) => ivr.phoneNumberId)
       .filter((id): id is string => id !== null);
 
+    // Get phone numbers assigned to human agent connections
+    const humanPhoneAssignments = await db
+      .select({ phoneNumberId: humanIncomingConnections.phoneNumberId })
+      .from(humanIncomingConnections)
+      .where(eq(humanIncomingConnections.userId, userId));
+    const humanPhoneIds = humanPhoneAssignments.map((h) => h.phoneNumberId);
+
     // Check which phones have active campaign conflicts
     const activeStatuses = ['pending', 'running', 'scheduled', 'paused'];
     const allPhoneIds = allUserNumbers.map(pn => pn.id);
@@ -142,12 +149,15 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
     const availablePhoneNumbersWithConflict = allUserNumbers.map(pn => {
       const isConnected = connectedPhoneIds.includes(pn.id);
       const isIvrAssigned = ivrPhoneIds.includes(pn.id);
+      const isHumanConnected = humanPhoneIds.includes(pn.id);
       const campaign = conflictMap.get(pn.id);
       const connInfo = connectionLookup.get(pn.id);
 
       let unavailableReason: string | null = null;
       if (isConnected) {
         unavailableReason = `Connected to ${connInfo?.agentName || "an agent"}`;
+      } else if (isHumanConnected) {
+        unavailableReason = "Connected to human agent";
       } else if (isIvrAssigned) {
         unavailableReason = "Assigned to department/IVR";
       } else if (campaign) {
@@ -156,7 +166,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
       return {
         ...pn,
-        isUnavailable: isConnected || isIvrAssigned || !!campaign,
+        isUnavailable: isConnected || isHumanConnected || isIvrAssigned || !!campaign,
         unavailableReason,
         isConflicted: !!campaign,
         conflictReason: campaign
@@ -259,6 +269,17 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
 
     if (existingConnection.length) {
       return res.status(400).json({ message: "Phone number is already connected to an agent" });
+    }
+
+    // Check if phone number is connected to a human agent
+    const existingHumanConnection = await db
+      .select()
+      .from(humanIncomingConnections)
+      .where(eq(humanIncomingConnections.phoneNumberId, phoneNumberId))
+      .limit(1);
+
+    if (existingHumanConnection.length) {
+      return res.status(400).json({ message: "Phone number is already connected to a human agent" });
     }
 
     // Check if phone number has assignment via deprecated incoming_agents system

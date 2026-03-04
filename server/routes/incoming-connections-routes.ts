@@ -1023,6 +1023,15 @@ router.post("/human", authenticateHybrid, async (req: AuthRequest, res) => {
         .returning();
 
       createdConnections.push(newConnection);
+
+      if (phoneNumber[0].twilioSid) {
+        try {
+          await twilioService.configurePhoneWebhook(phoneNumber[0].twilioSid);
+          console.log(`✅ [Human Connection] Configured Twilio webhook for ${phoneNumber[0].phoneNumber}`);
+        } catch (twilioError: any) {
+          console.error('⚠️  [Human Connection] Failed to configure Twilio webhook:', twilioError);
+        }
+      }
     }
 
     if (createdConnections.length === 0 && errors.length > 0) {
@@ -1065,9 +1074,40 @@ router.delete("/human/:id", authenticateHybrid, async (req: AuthRequest, res) =>
       return res.status(404).json({ message: "Human transfer connection not found" });
     }
 
+    const phoneNumberRecord = await db
+      .select({ twilioSid: phoneNumbers.twilioSid })
+      .from(phoneNumbers)
+      .where(eq(phoneNumbers.id, existing[0].phoneNumberId))
+      .limit(1);
+
     await db
       .delete(humanIncomingConnections)
       .where(eq(humanIncomingConnections.id, connectionId));
+
+    if (phoneNumberRecord.length && phoneNumberRecord[0].twilioSid) {
+      const phoneId = existing[0].phoneNumberId;
+      const hasAiConnection = await db
+        .select({ id: incomingConnections.id })
+        .from(incomingConnections)
+        .where(eq(incomingConnections.phoneNumberId, phoneId))
+        .limit(1);
+      const hasIvr = await db
+        .select({ id: ivrConfigurations.id })
+        .from(ivrConfigurations)
+        .where(eq(ivrConfigurations.phoneNumberId, phoneId))
+        .limit(1);
+
+      if (!hasAiConnection.length && !hasIvr.length) {
+        try {
+          await twilioService.clearPhoneWebhook(phoneNumberRecord[0].twilioSid);
+          console.log(`✅ [Human Connection] Cleared Twilio webhook for deleted connection`);
+        } catch (twilioError: any) {
+          console.error('⚠️  [Human Connection] Failed to clear Twilio webhook:', twilioError);
+        }
+      } else {
+        console.log(`ℹ️  [Human Connection] Keeping Twilio webhook — phone number still used by other connections`);
+      }
+    }
 
     res.json({ message: "Human transfer connection deleted successfully" });
   } catch (error: any) {

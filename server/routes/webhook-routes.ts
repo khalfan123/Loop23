@@ -17,7 +17,7 @@
  */
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { calls, campaigns, users, creditTransactions, contacts, globalSettings, phoneNumbers, incomingAgents, incomingConnections, agents, knowledgeBase, appointments, appointmentSettings, flows, sipCalls, elevenLabsCredentials, ivrConfigurations, departments, departmentAgents } from '../../shared/schema';
+import { calls, campaigns, users, creditTransactions, contacts, globalSettings, phoneNumbers, incomingAgents, incomingConnections, humanIncomingConnections, agents, knowledgeBase, appointments, appointmentSettings, flows, sipCalls, elevenLabsCredentials, ivrConfigurations, departments, departmentAgents } from '../../shared/schema';
 import { nanoid } from 'nanoid';
 import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import WebSocket from 'ws';
@@ -1592,6 +1592,36 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
     }
 
     const phone = phoneNumber[0];
+
+    // Check for Human Agent Connection FIRST (direct transfer, standalone feature — not call center)
+    const humanConnection = await db
+      .select({
+        id: humanIncomingConnections.id,
+        transferNumber: humanIncomingConnections.transferNumber,
+        ivrEnabled: humanIncomingConnections.ivrEnabled,
+        ivrGreeting: humanIncomingConnections.ivrGreeting,
+        label: humanIncomingConnections.label,
+      })
+      .from(humanIncomingConnections)
+      .where(eq(humanIncomingConnections.phoneNumberId, phone.id))
+      .limit(1);
+
+    if (humanConnection && humanConnection.length > 0) {
+      const hc = humanConnection[0];
+      console.log(`📞 [Human Agent] Found human agent connection for ${To} → transferring to ${hc.transferNumber}`);
+
+      const VoiceResponse = twilio.twiml.VoiceResponse;
+      const response = new VoiceResponse();
+
+      if (hc.ivrEnabled && hc.ivrGreeting) {
+        response.say({ voice: 'Polly.Joanna' }, hc.ivrGreeting);
+      }
+
+      response.dial({ callerId: From }, hc.transferNumber);
+
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
 
     // Check for Department IVR configuration FIRST (department routing takes priority)
     let ivrConfig = await db

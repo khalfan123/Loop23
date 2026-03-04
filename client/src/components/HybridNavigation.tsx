@@ -128,7 +128,10 @@ export function HybridNavigation({
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns", icon: PhoneOutgoing },
     { title: t('nav.outbound', 'Outbound'), url: "/app/outbound", icon: PhoneOutgoing },
     { title: t('nav.integrations', 'Integrations'), url: "/app/integrations", icon: Plug },
-    { title: 'RockCenter', url: "/app/rock-center", icon: Zap },
+  ];
+
+  const adminSetupItems: NavItem[] = [
+    { title: 'RockCenter', url: "/admin/rock-center", icon: Zap },
   ];
 
   const manageItems: NavItem[] = [
@@ -141,7 +144,9 @@ export function HybridNavigation({
     { title: t('nav.settings', 'Settings'), url: "/app/settings", icon: Settings },
   ];
 
-  const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [] : [
+  const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [
+    { label: 'Tools', items: adminSetupItems },
+  ] : [
     { label: t('sidebar.setup', 'Setup'), items: setupItems },
     { label: t('sidebar.manage', 'Manage'), items: manageItems },
     { label: '', items: settingsItems },

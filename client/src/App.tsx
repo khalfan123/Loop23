@@ -157,6 +157,7 @@ function AdminRouter() {
           </Route>
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/dashboard" component={AdminDashboard} />
+          <Route path="/admin/rock-center" component={RockCenter} />
           <Route path="/admin/campaigns/:id" component={AdminCampaignDetail} />
           <Route component={NotFound} />
         </Switch>
@@ -250,7 +251,6 @@ function UserRouter() {
           <Route path="/app/outbound" component={OutboundCanvas} />
           <Route path="/app/settings/*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
-          <Route path="/app/rock-center" component={RockCenter} />
           <Route path="/app/live-monitoring" component={LiveMonitoring} />
           <Route path="/app/developers" component={() => <div className="text-center py-16 text-muted-foreground">Developers page coming soon</div>} />
           <Route component={NotFound} />
@@ -337,7 +337,6 @@ function TeamMemberRouter() {
           </Route>
           <Route path="/app/settings/*" component={SettingsHub} />
           <Route path="/app/settings" component={SettingsHub} />
-          <Route path="/app/rock-center" component={RockCenter} />
           <Route path="/app/live-monitoring" component={LiveMonitoring} />
           <Route path="/admin" component={AdminDashboard} />
           <Route component={NotFound} />
@@ -357,6 +356,7 @@ function AdminTeamMemberRouter() {
           </Route>
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/dashboard" component={AdminDashboard} />
+          <Route path="/admin/rock-center" component={RockCenter} />
           <Route path="/admin/campaigns/:id" component={AdminCampaignDetail} />
           <Route component={NotFound} />
         </Switch>

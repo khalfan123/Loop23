@@ -77,7 +77,6 @@ const calibrationStartTime: Map<string, number> = new Map();
 
 const peakEnergy: Map<string, number> = new Map();
 
-const cachedFillerAudio: Map<string, Buffer> = new Map();
 
 const whisperAbortControllers: Map<string, AbortController> = new Map();
 
@@ -274,7 +273,6 @@ export class BedrockPollyAudioBridge {
 
     awsBedrockService.warmConnection().catch(() => {});
 
-    this.preWarmFillerAudio(agentConfig.voice || 'Joanna', agentConfig.language || 'en').catch(() => {});
 
     console.log(`[BedrockPolly Bridge] Session created for ${callSid} — ready for Twilio stream`);
     return session;
@@ -922,43 +920,7 @@ export class BedrockPollyAudioBridge {
     return sentences;
   }
 
-  private static getFillerPhrase(language: string): string {
-    const fillers: Record<string, string[]> = {
-      ar: ['لحظة من فضلك', 'دقيقة واحدة', 'خلّيني أتحقق لك'],
-      en: ['One moment please', 'Let me check that for you', 'Bear with me one second'],
-      es: ['Un momento por favor', 'Déjame verificar eso'],
-      fr: ['Un instant s\'il vous plaît', 'Laissez-moi vérifier'],
-      de: ['Einen Moment bitte', 'Lassen Sie mich nachsehen'],
-      zh: ['请稍等一下', '让我查一下'],
-      ja: ['少々お待ちください', '確認いたします'],
-      ko: ['잠시만 기다려 주세요', '확인해 보겠습니다'],
-      pt: ['Um momento por favor', 'Deixe-me verificar'],
-      it: ['Un momento per favore', 'Lasci che verifichi'],
-      hi: ['एक पल रुकिए', 'मैं देखता हूँ'],
-      tr: ['Bir saniye lütfen', 'Hemen bakıyorum'],
-    };
-    const options = fillers[language] || fillers['en'];
-    return options[Math.floor(Math.random() * options.length)];
-  }
 
-  private static async preWarmFillerAudio(voiceId: string, language: string): Promise<void> {
-    const fillers: Record<string, string[]> = {
-      ar: ['لحظة من فضلك', 'دقيقة واحدة', 'خلّيني أتحقق لك'],
-      en: ['One moment please', 'Let me check that for you', 'Bear with me one second'],
-    };
-    const phrases = fillers[language] || fillers['en'];
-    for (const phrase of phrases) {
-      const cacheKey = `${voiceId}_${phrase}`;
-      if (cachedFillerAudio.has(cacheKey)) continue;
-      try {
-        const pcm = await this.synthesizeWithPolly(phrase, voiceId);
-        const mulaw = this.pcmToMulaw(pcm);
-        cachedFillerAudio.set(cacheKey, mulaw);
-      } catch (_) {
-      }
-    }
-    console.log(`[BedrockPolly Bridge] Pre-cached ${phrases.length} filler audio buffers for voice=${voiceId}`);
-  }
 
   private static async streamBedrockAndSpeak(session: BedrockPollyBridgeSession, sttMs?: number): Promise<string> {
     const { callSid, agentConfig, messages } = session;
@@ -994,8 +956,6 @@ export class BedrockPollyAudioBridge {
       let sentenceBuffer = '';
       let sentencesSent = 0;
       let toolCallDetected = false;
-      let fillerSent = false;
-      let fillerInProgress = false;
       let pendingSynthesis: Promise<void> | null = null;
       const startTime = Date.now();
       let firstTokenTime = 0;
@@ -1003,34 +963,7 @@ export class BedrockPollyAudioBridge {
       let firstTtsAudioTime = 0;
 
       const behaviorCfg = agentConfig.behaviorConfig || {};
-      const hasBehaviorConfig = agentConfig.behaviorConfig && Object.keys(agentConfig.behaviorConfig).length > 0;
-      const softTimeoutMs = (behaviorCfg.softTimeoutSec ?? (hasBehaviorConfig ? 4 : 0.4)) * 1000;
       const hardTimeoutMs = (behaviorCfg.hardTimeoutSec ?? 15) * 1000;
-      const customWaitingMessages = agentConfig.waitingMessages;
-
-      const fillerTimer = setTimeout(async () => {
-        if (sentencesSent === 0 && !fillerSent && !fillerInProgress && session.status !== 'disconnected' && !bargeInFlags.get(callSid)) {
-          fillerInProgress = true;
-          fillerSent = true;
-          const lang = agentConfig.language || 'en';
-          let fillerText: string;
-          if (customWaitingMessages && customWaitingMessages.length > 0) {
-            fillerText = customWaitingMessages[Math.floor(Math.random() * customWaitingMessages.length)];
-          } else {
-            fillerText = this.getFillerPhrase(lang);
-          }
-          const cacheKey = `${agentConfig.voice || 'default'}_${fillerText}`;
-          const cachedBuf = cachedFillerAudio.get(cacheKey);
-          if (cachedBuf) {
-            console.log(`[BedrockPolly Bridge] Playing cached filler for ${callSid}: "${fillerText}"`);
-            this.sendMulawToTwilio(session, cachedBuf);
-          } else {
-            console.log(`[BedrockPolly Bridge] Sending filler for ${callSid}: "${fillerText}"`);
-            await this.synthesizeAndSend(session, fillerText);
-          }
-          fillerInProgress = false;
-        }
-      }, softTimeoutMs);
 
       let hardTimedOut = false;
       const hardTimer = setTimeout(() => {
@@ -1065,7 +998,6 @@ export class BedrockPollyAudioBridge {
 
         if (sentenceBuffer.includes('[TOOL_CALL]')) {
           toolCallDetected = true;
-          clearTimeout(fillerTimer);
           clearTimeout(hardTimer);
           continue;
         }
@@ -1093,10 +1025,6 @@ export class BedrockPollyAudioBridge {
             const sentence = sentences[i];
             if (sentence.length < 2) continue;
 
-            while (fillerInProgress) {
-              await new Promise(r => setTimeout(r, 50));
-            }
-
             if (pendingSynthesis) {
               await pendingSynthesis;
               pendingSynthesis = null;
@@ -1104,7 +1032,6 @@ export class BedrockPollyAudioBridge {
 
             sentencesSent++;
             if (sentencesSent === 1) {
-              clearTimeout(fillerTimer);
               clearTimeout(hardTimer);
               firstTtsStartTime = Date.now();
               const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
@@ -1128,7 +1055,6 @@ export class BedrockPollyAudioBridge {
         }
       }
 
-      clearTimeout(fillerTimer);
       clearTimeout(hardTimer);
 
       if (pendingSynthesis) {
@@ -1148,12 +1074,8 @@ export class BedrockPollyAudioBridge {
       }
 
       if (sentenceBuffer.trim().length > 0 && !bargeInFlags.get(callSid) && session.status !== 'disconnected') {
-        while (fillerInProgress) {
-          await new Promise(r => setTimeout(r, 50));
-        }
         sentencesSent++;
         if (sentencesSent === 1) {
-          clearTimeout(fillerTimer);
           clearTimeout(hardTimer);
           firstTtsStartTime = Date.now();
         }

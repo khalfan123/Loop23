@@ -124,7 +124,7 @@
     "crm": "Leads",
     "analytics": "Analytics",
     "phoneNumbers": "Phone Numbers",
-    "incomingConnections": "Incoming Connections",
+    "incomingConnections": "Assign AI Agent",
     "departments": "Departments",
     "flowBuilder": "Flow Builder",
     "executionLogs": "Execution Logs",
@@ -4764,7 +4764,7 @@
     }
   },
   "incomingConnections": {
-    "title": "Incoming Connections",
+    "title": "Assign AI Agent",
     "subtitle": "Connect incoming agents to your phone numbers for receiving calls",
     "newConnection": "New Connection",
     "stats": {

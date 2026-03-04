@@ -377,7 +377,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
     <div className="space-y-4 p-4" data-testid="connections-list-view">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold">Incoming Connections</h2>
+          <h2 className="text-lg font-semibold">Assign AI Agent</h2>
           <p className="text-sm text-muted-foreground">
             Manage phone numbers connected to AI agents for incoming calls
           </p>
@@ -397,7 +397,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
       ) : existingConnections.length === 0 ? (
         <div className="text-center py-12">
           <LinkIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="font-medium mb-1">No Incoming Connections</h3>
+          <h3 className="font-medium mb-1">No AI Agents Assigned</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Connect phone numbers to AI agents so they can handle incoming calls.
           </p>

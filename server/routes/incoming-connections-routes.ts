@@ -309,6 +309,7 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .where(
         and(
           eq(campaigns.phoneNumberId, phoneNumberId),
+          isNull(campaigns.deletedAt),
           or(
             eq(campaigns.status, 'pending'),
             eq(campaigns.status, 'running'),

@@ -141,12 +141,12 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_SHORT_MS = 1200;
-  private static readonly SILENCE_MEDIUM_MS = 1000;
-  private static readonly SILENCE_LONG_UTTERANCE_MS = 800;
+  private static readonly SILENCE_SHORT_MS = 700;
+  private static readonly SILENCE_MEDIUM_MS = 550;
+  private static readonly SILENCE_LONG_UTTERANCE_MS = 450;
   private static readonly LONG_UTTERANCE_BYTES = 16000;
   private static readonly SHORT_UTTERANCE_BYTES = 8000;
-  private static readonly OPENING_SILENCE_THRESHOLD_MS = 2200;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 1500;
   private static readonly OPENING_PHASE_DURATION_MS = 8000;
   private static readonly MIN_AUDIO_LENGTH = 6400;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
@@ -155,7 +155,7 @@ export class BedrockPollyAudioBridge {
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
   private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 600;
   private static readonly DEFAULT_BARGE_IN_ENERGY_THRESHOLD = 800;
-  private static readonly BARGE_IN_MIN_BYTES = 12000;
+  private static readonly BARGE_IN_MIN_BYTES = 8000;
   private static readonly NOISE_CALIBRATION_DURATION_MS = 1500;
   private static readonly NOISE_FLOOR_SPEECH_MULTIPLIER = 4.0;
   private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 5.0;

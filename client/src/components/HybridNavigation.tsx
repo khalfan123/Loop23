@@ -6,7 +6,7 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { 
   Settings, LogOut, Coins, Menu, ChevronDown,
   ChevronLeft, ChevronRight, BarChart3, Users, Phone,
-  Building2, PhoneCall, PhoneIncoming, PhoneOutgoing,
+  Building2, PhoneIncoming, PhoneOutgoing,
   Bot, BookOpen, Calendar, FileText, Home, Plus, Plug, Webhook, Zap, Mountain,
   type LucideIcon
 } from "lucide-react";
@@ -108,7 +108,6 @@ export function HybridNavigation({
 
   const topItems: NavItem[] = [
     { title: t('nav.analytics', 'Analytics'), url: "/app/analytics", icon: BarChart3 },
-    { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: PhoneCall },
   ];
   
   const returnToAppItem: NavItem = { 

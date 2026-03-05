@@ -32,7 +32,6 @@ import Dashboard from "@/pages/Dashboard";
 import Campaigns from "@/pages/Campaigns";
 import CreateCampaign from "@/pages/CreateCampaign";
 import CampaignDetail from "@/pages/CampaignDetail";
-import Calls from "@/pages/Calls";
 import CallDetail from "@/pages/CallDetail";
 import Analytics from "@/pages/Analytics";
 import QualityAssurance from "@/pages/QualityAssurance";
@@ -182,7 +181,9 @@ function UserRouter() {
           <Route path="/app/campaigns" component={Campaigns} />
           <Route path="/app/forms" component={FormsPage} />
           <Route path="/app/calls/:id" component={CallDetail} />
-          <Route path="/app/calls" component={Calls} />
+          <Route path="/app/calls">
+            <Redirect to="/app/analytics" />
+          </Route>
           <Route path="/app/contacts" component={AllContacts} />
           <Route path="/app/analytics" component={Analytics} />
           <Route path="/app/quality-assurance" component={QualityAssurance} />
@@ -278,7 +279,9 @@ function TeamMemberRouter() {
           <Route path="/app/campaigns" component={Campaigns} />
           <Route path="/app/forms" component={FormsPage} />
           <Route path="/app/calls/:id" component={CallDetail} />
-          <Route path="/app/calls" component={Calls} />
+          <Route path="/app/calls">
+            <Redirect to="/app/analytics" />
+          </Route>
           <Route path="/app/contacts" component={AllContacts} />
           <Route path="/app/analytics" component={Analytics} />
           <Route path="/app/quality-assurance" component={QualityAssurance} />

@@ -18,7 +18,7 @@ import { AnalyticsChart } from "@/components/AnalyticsChart";
 import { MetricCard } from "@/components/MetricCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio } from "lucide-react";
+import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio, PhoneCall } from "lucide-react";
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,6 +28,7 @@ import { AuthStorage } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
 import LiveMonitoring from "@/pages/LiveMonitoring";
+import Calls from "@/pages/Calls";
 
 interface TypeBreakdown {
   incoming: number;
@@ -53,7 +54,7 @@ export default function Analytics() {
   const { t } = useTranslation();
   const [timeRange, setTimeRange] = useState("7days");
   const [callType, setCallType] = useState("all");
-  const [activeView, setActiveView] = useState<"analytics" | "live-monitoring">("analytics");
+  const [activeView, setActiveView] = useState<"analytics" | "call-history" | "live-monitoring">("analytics");
   const [isExporting, setIsExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -184,6 +185,13 @@ export default function Analytics() {
           data-testid="nav-analytics-view"
         />
         <SubPanelItem
+          icon={<PhoneCall className="w-4 h-4" />}
+          label={t('nav.callHistory', 'Call History')}
+          isActive={activeView === "call-history"}
+          onClick={() => setActiveView("call-history")}
+          data-testid="nav-call-history-view"
+        />
+        <SubPanelItem
           icon={<Radio className="w-4 h-4" />}
           label="Live Monitoring"
           isActive={activeView === "live-monitoring"}
@@ -223,6 +231,18 @@ export default function Analytics() {
       )}
     </div>
   );
+
+  if (activeView === "call-history") {
+    return (
+      <ThreeColumnLayout 
+        subPanel={subPanelContent} 
+        subPanelWidth="sm"
+        subPanelHeader={<span className="font-medium text-sm">{t('nav.analytics', 'Analytics')}</span>}
+      >
+        <Calls embedded />
+      </ThreeColumnLayout>
+    );
+  }
 
   if (activeView === "live-monitoring") {
     return (

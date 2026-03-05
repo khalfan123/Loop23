@@ -116,7 +116,7 @@ type SortField = 'time' | 'duration' | 'status' | 'sentiment' | 'direction' | 'a
 type SortDirection = 'asc' | 'desc';
 const VIEW_MODE_STORAGE_KEY = 'calls-view-mode';
 
-export default function Calls() {
+export default function Calls({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1103,12 +1103,8 @@ export default function Calls() {
     </div>
   );
 
-  return (
-    <ThreeColumnLayout 
-      subPanel={subPanelContent} 
-      subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">{t('calls.title', 'Calls')}</span>}
-    >
+  const mainContent = (
+    <>
       <div className="space-y-6">
         {/* iOS 18 Style Clean Header */}
         <div className="flex flex-col gap-6">
@@ -1704,6 +1700,20 @@ export default function Calls() {
           }
         />
       )}
+    </>
+  );
+
+  if (embedded) {
+    return <>{mainContent}</>;
+  }
+
+  return (
+    <ThreeColumnLayout 
+      subPanel={subPanelContent} 
+      subPanelWidth="sm"
+      subPanelHeader={<span className="font-medium text-sm">{t('calls.title', 'Calls')}</span>}
+    >
+      {mainContent}
     </ThreeColumnLayout>
   );
 }

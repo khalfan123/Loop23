@@ -17,9 +17,6 @@ import {
   PauseCircle,
   StopCircle,
   BarChart3,
-  PhoneCall,
-  PhoneForwarded,
-  UserCheck
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
@@ -30,13 +27,6 @@ interface BatchJobStats {
   failed: number;
   inProgress: number;
   pending: number;
-}
-
-interface RetellStats {
-  total_task_count: number;
-  sent: number;
-  picked_up: number;
-  successful: number;
 }
 
 interface BatchJob {
@@ -51,7 +41,6 @@ interface BatchJob {
   createdAt?: string;
   lastUpdatedAt?: string;
   provider?: string;
-  retellStats?: RetellStats;
   stats?: {
     pending: number;
     scheduled: number;
@@ -71,7 +60,6 @@ interface BatchJobsResponse {
 
 const PROVIDER_LABELS: Record<string, string> = {
   elevenlabs: "ElevenLabs",
-  retell: "Retell AI",
   "bedrock-polly": "Bedrock+Polly",
   plivo: "Plivo",
   "twilio-openai": "Twilio+OpenAI",
@@ -81,7 +69,6 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const PROVIDER_COLORS: Record<string, string> = {
   elevenlabs: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
-  retell: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
   "bedrock-polly": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   plivo: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   "twilio-openai": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
@@ -198,25 +185,6 @@ export default function BatchJobsMonitor() {
   };
 
   const renderCallStats = (job: BatchJob) => {
-    if (job.provider === 'retell' && job.retellStats) {
-      return (
-        <>
-          <span className="flex items-center gap-1">
-            <PhoneForwarded className="h-3 w-3 text-blue-500" />
-            {job.retellStats.sent} sent
-          </span>
-          <span className="flex items-center gap-1">
-            <PhoneCall className="h-3 w-3 text-amber-500" />
-            {job.retellStats.picked_up} picked up
-          </span>
-          <span className="flex items-center gap-1">
-            <UserCheck className="h-3 w-3 text-emerald-500" />
-            {job.retellStats.successful} successful
-          </span>
-        </>
-      );
-    }
-
     if (job.stats) {
       return (
         <>

@@ -27,8 +27,6 @@ import { nanoid } from "nanoid";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { BatchCallingService } from "../services/batch-calling";
-import { RetellBatchCallingService } from "../services/retell-batch-calling";
-import { retellCredentials } from "@shared/schema";
 import { PlanLimitExceededError } from "../services/contact-upload-service";
 
 export function createCampaignRoutes(ctx: RouteContext): Router {
@@ -930,51 +928,11 @@ Create a greeting template, call script playbook, and system prompt that maximiz
       }
 
       const batchJobId = campaign.batchJobId;
-      const provider = agent.telephonyProvider === 'retell' ? 'retell'
-        : batchJobId.startsWith('bedrock-polly-') ? 'bedrock-polly'
+      const provider = batchJobId.startsWith('bedrock-polly-') ? 'bedrock-polly'
         : agent.telephonyProvider === 'plivo' ? 'plivo'
         : agent.telephonyProvider === 'twilio_openai' ? 'twilio-openai'
         : (agent.telephonyProvider === 'elevenlabs-sip' || agent.telephonyProvider === 'openai-sip') ? 'sip'
         : 'elevenlabs';
-
-      if (provider === 'retell') {
-        if (!agent.retellCredentialId) {
-          return res.status(500).json({ error: "No Retell credential found for agent" });
-        }
-        const [retellCred] = await db
-          .select()
-          .from(retellCredentials)
-          .where(eq(retellCredentials.id, agent.retellCredentialId))
-          .limit(1);
-        if (!retellCred) {
-          return res.status(500).json({ error: "Retell credential not found" });
-        }
-        const retellService = new RetellBatchCallingService(retellCred.apiKey);
-        const retellBatch = await retellService.getBatch(batchJobId);
-        const mappedStatus = RetellBatchCallingService.mapStatus(retellBatch.status);
-        const retellStats = RetellBatchCallingService.getRetellBatchStats(retellBatch);
-        return res.json({
-          batchJob: {
-            id: retellBatch.batch_call_id,
-            status: mappedStatus,
-            name: retellBatch.name,
-            total_calls_scheduled: retellBatch.total_task_count,
-            total_calls_dispatched: retellBatch.sent,
-          },
-          stats: {
-            pending: retellBatch.total_task_count - retellBatch.sent,
-            scheduled: 0,
-            dispatched: retellBatch.sent,
-            in_progress: Math.max(0, retellBatch.sent - retellBatch.successful),
-            completed: retellBatch.successful,
-            failed: retellBatch.sent - retellBatch.picked_up,
-            total: retellBatch.total_task_count,
-            progress: retellBatch.total_task_count > 0 ? Math.round((retellBatch.sent / retellBatch.total_task_count) * 100) : 0,
-          },
-          retellStats,
-          provider,
-        });
-      }
 
       if (provider === 'bedrock-polly' || provider === 'plivo' || provider === 'twilio-openai' || provider === 'sip') {
         const completedCalls = campaign.completedCalls || 0;

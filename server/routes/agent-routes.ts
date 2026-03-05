@@ -81,8 +81,6 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         telephonyProvider,
         openaiVoice,
         voiceProvider,
-        retellAgentId,
-        retellCredentialId,
         sourceTemplateId,
         isFromTemplate,
         tags,
@@ -109,18 +107,9 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       // Voice validation depends on telephony provider
       // OpenAI-based providers (plivo, twilio_openai) use OpenAI voices, not ElevenLabs
       const isOpenAIProvider = telephonyProvider === 'plivo' || telephonyProvider === 'twilio_openai';
-      const isRetellProvider = telephonyProvider === 'retell';
       
       if (type === 'incoming') {
-        if (isRetellProvider) {
-          if (!retellAgentId) {
-            return res.status(400).json({ error: "Retell Agent ID is required for Retell agents" });
-          }
-          if (!retellCredentialId) {
-            return res.status(400).json({ error: "Retell Credential is required for Retell agents" });
-          }
-          console.log(`📞 Creating Retell agent with agentId: ${retellAgentId}`);
-        } else if (isOpenAIProvider) {
+        if (isOpenAIProvider) {
           // OpenAI-based agents use OpenAI voices - openaiVoice has a default in schema ('alloy')
           // No validation needed as schema provides default
           console.log(`📞 Creating ${telephonyProvider} agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
@@ -242,8 +231,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
       const isAwsPollyProvider = voiceProvider === 'aws_polly';
 
-      // Only create ElevenLabs agent for Twilio-based incoming agents (not OpenAI, AWS Polly, or Retell providers)
-      if (type === 'incoming' && !isOpenAIProvider && !isAwsPollyProvider && !isRetellProvider) {
+      if (type === 'incoming' && !isOpenAIProvider && !isAwsPollyProvider) {
         const credential = await ElevenLabsPoolService.getUserCredential(req.userId!);
         if (!credential) {
           return res.status(500).json({ error: "No available ElevenLabs API keys" });
@@ -325,15 +313,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         }
         
         // Voice validation depends on telephony provider for flow agents
-        if (isRetellProvider) {
-          if (!retellAgentId) {
-            return res.status(400).json({ error: "Retell Agent ID is required for Retell flow agents" });
-          }
-          if (!retellCredentialId) {
-            return res.status(400).json({ error: "Retell Credential is required for Retell flow agents" });
-          }
-          console.log(`📞 [Flow Agent Create] Creating Retell flow agent with agentId: ${retellAgentId}`);
-        } else if (isOpenAIProvider) {
+        if (isOpenAIProvider) {
           // OpenAI-based flow agents use OpenAI voices - openaiVoice has a default in schema ('alloy')
           console.log(`📞 [Flow Agent Create] Creating ${telephonyProvider} flow agent with OpenAI voice: ${openaiVoice || 'alloy'}`);
         } else {
@@ -352,8 +332,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           return res.status(404).json({ error: "Selected flow not found" });
         }
 
-        // For OpenAI-based or Retell flow agents, skip ElevenLabs agent creation
-        if (isOpenAIProvider || isRetellProvider) {
+        if (isOpenAIProvider) {
           console.log(`📞 [Flow Agent Create] Skipping ElevenLabs agent creation for ${telephonyProvider} flow agent`);
           // elevenLabsAgentId remains null for non-ElevenLabs flow agents
         } else {
@@ -427,10 +406,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         voiceProvider: voiceProvider || 'elevenlabs',
         awsPollyVoiceId: voiceProvider === 'aws_polly' ? req.body.awsPollyVoiceId : null,
         // OpenAI Realtime configuration (for plivo and twilio_openai providers)
-        telephonyProvider: isRetellProvider ? 'retell' : (isOpenAIProvider ? telephonyProvider : 'twilio'),
+        telephonyProvider: isOpenAIProvider ? telephonyProvider : 'twilio',
         openaiVoice: isOpenAIProvider ? (openaiVoice || 'alloy') : null,
-        retellAgentId: isRetellProvider ? retellAgentId : null,
-        retellCredentialId: isRetellProvider ? (retellCredentialId || null) : null,
         // Template tracking fields
         sourceTemplateId: sourceTemplateId || null,
         isFromTemplate: isFromTemplate || false,

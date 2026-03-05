@@ -35,19 +35,10 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 ## External Dependencies
 - **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude Sonnet-4-5, AWS Bedrock Claude 3.5 Sonnet.
 - **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly.
-- **Telephony Providers**: Twilio, Plivo, TCXC, Retell AI.
+- **Telephony Providers**: Twilio, Plivo, TCXC.
 - **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.
 - **Database**: Neon (PostgreSQL).
 - **Email**: SMTP.
-
-## Retell AI Integration
-- **Schema**: `retellCredentials` table for API key management, `retellAgentId` and `retellCredentialId` columns on `agents` table
-- **Service**: `server/services/retell-batch-calling.ts` — REST client for Retell AI batch call API (create, get, list, cancel batches)
-- **Campaign Executor**: Full Retell routing in `executeCampaign()`, `pauseCampaign()`, `cancelCampaign()`, `resumeCampaign()`, `getBatchJobStatus()`, and `validateCampaign()`
-- **Campaign Scheduler**: Polls Retell batch status via `getBatchJobStatus()` alongside ElevenLabs/Bedrock-Polly
-- **Admin Routes**: CRUD for Retell credentials at `/api/admin/retell-credentials` (with test endpoint)
-- **Frontend**: Retell provider option in agent creation (both wizard & editor), Retell credential management in admin settings, provider badge in batch jobs monitor
-- **Bedrock-Polly Parity**: `getBatchJobStatus()` now handles `bedrock-polly-` prefixed campaigns for batch monitoring
 
 ## Recent Fixes
 - **Widget Language + Flow Agent Fixes (Feb 2026)**: Fixed multiple widget issues:
@@ -71,13 +62,13 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - **Warm Transfer (T004)**: Already implemented — `transfer_call` tool in `handleToolCalls`, `executeTransfer` method, and `bedrock-agent-factory` adds transfer tool with phone number metadata.
   - **Call Recording (T005)**: Added Twilio recording initiation to IVR-routed calls (`/handle-selection` and `/fallback` endpoints) via REST API with dual-channel recording. Recording URLs saved via existing `/voice/recording` callback.
   - **Adaptive VAD (T006)**: Noise floor calibration during first 1.5s of call (greeting playback). Trimmed mean of energy samples (10% outlier removal). Dynamic speech threshold = 2.5x noise floor, barge-in threshold = 3x noise floor, with minimum floors (200/250) for clean lines. Per-call calibration maps with proper session cleanup.
-- **Retell AI Parity Latency Upgrade (Mar 2026)**:
+- **Latency Optimization Upgrade (Mar 2026)**:
   - **Smart Turn-Taking (T001)**: Replaced fixed 1200ms silence timer with adaptive 400-600ms timers based on utterance length + energy falloff detection. Short utterances (<8KB) get 600ms, medium (8-16KB) get 500ms, long (16KB+) get 400ms. Energy falloff >70% from peak triggers fast 400ms timer. Tracks peak energy per utterance.
   - **Whisper STT Optimization (T002)**: Added `response_format: 'text'` (skips JSON parsing), `temperature: 0` (deterministic), and `AbortController` to cancel stale requests when new speech arrives. Per-turn timing logs.
   - **Bedrock Warmup + Prompt Compression (T003)**: Pre-warms Bedrock HTTP/2 connection during session creation with minimal invoke. Compressed tool call and voice instructions prompts. Default temperature lowered to 0.3.
   - **Async TTS Queue + Cached Fillers (T004)**: 20-char eager synthesis threshold for first fragment. Filler audio buffers pre-synthesized at session start (3 phrases per language cached as mulaw). Filler playback from cache = 0ms Polly delay. Filler timer reduced from 500ms to 400ms.
   - **Audio Delivery Optimization (T005)**: Chunk size increased from 320 to 640 bytes (fewer WebSocket frames). Synchronous chunk sending via `sendMulawToTwilio` helper eliminates per-chunk async overhead.
-  - **Per-Turn Latency Logging (T006)**: `[LATENCY]` log lines per turn with stt, llm_first, tts_start, tts_audio, stream_total breakdowns. Enables Retell-style latency dashboard debugging.
+  - **Per-Turn Latency Logging (T006)**: `[LATENCY]` log lines per turn with stt, llm_first, tts_start, tts_audio, stream_total breakdowns. Enables latency dashboard debugging.
 - **10x AI Reasoning & Human-Like Conversations Upgrade (Mar 2026)**:
   - **Bedrock 500k Token Context (T001)**: Added `invokeWithLargeContext()` to `aws-bedrock.ts` for processing inputs up to 500k tokens through intelligent chunking with 5% overlap, per-chunk analysis, and synthesis. Added Claude 3.7 Sonnet and 3.5 Sonnet v2 model aliases. Added `selectModelForTask()` for cost-effective model routing (synthesis/reasoning/quick/rerank). Added `estimateTokenCount()` utility.
   - **Deep Web Scraper (T002)**: New `server/services/deep-scraper.ts` — `DeepScrapeService` that crawls up to 50 sub-pages, 3 levels deep, with sitemap.xml parsing, recursive link discovery, content deduplication (85% Jaccard similarity), and progressive token accumulation up to 500k tokens. Concurrent fetching (5 parallel) with polite delays. Extracts structured content (pricing tables, feature comparisons, team bios, testimonials, case studies).

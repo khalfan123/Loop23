@@ -38,10 +38,8 @@ interface Agent {
   name: string;
   personality: string;
   type: 'incoming' | 'natural' | 'flow';
-  telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | 'retell' | null;
+  telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
   sipPhoneNumberId?: string | null;
-  retellAgentId?: string | null;
-  retellCredentialId?: string | null;
 }
 
 interface PhoneNumber {
@@ -155,13 +153,11 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const selectedAgent = agents.find(a => a.id === formData.agentId);
   const isSipAgent = selectedAgent?.telephonyProvider === 'elevenlabs-sip' || selectedAgent?.telephonyProvider === 'openai-sip';
   const isPlivoAgent = selectedAgent?.telephonyProvider === 'plivo';
-  const isRetellAgent = selectedAgent?.telephonyProvider === 'retell';
   const isTwilioAgent = !selectedAgent?.telephonyProvider || selectedAgent?.telephonyProvider === 'twilio' || selectedAgent?.telephonyProvider === 'twilio_openai';
 
   const getAvailablePhoneNumbers = (): (PhoneNumber | SipPhoneNumber | PlivoPhoneNumber)[] => {
     if (isSipAgent) return sipPhoneNumbers;
     if (isPlivoAgent) return plivoPhoneNumbers;
-    if (isRetellAgent) return phoneNumbers;
     return phoneNumbers;
   };
 
@@ -282,20 +278,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       return;
     }
     
-    if (isRetellAgent) {
-      if (!selectedAgent?.retellAgentId) {
-        toast({ title: "Retell Agent ID is not configured for this agent.", variant: "destructive" });
-        return;
-      }
-      if (!selectedAgent?.retellCredentialId) {
-        toast({ title: "Retell credential is not configured for this agent.", variant: "destructive" });
-        return;
-      }
-      if (!formData.phoneNumberId) {
-        toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
-        return;
-      }
-    } else if (isSipAgent) {
+    if (isSipAgent) {
       if (!isSipPluginEnabled) {
         toast({ title: "SIP Plugin is disabled. Please select a different agent.", variant: "destructive" });
         return;
@@ -522,7 +505,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                       >
                         <SelectTrigger data-testid="select-from-number">
                           <SelectValue placeholder={availablePhoneNumbers.length === 0 
-                            ? (isSipAgent ? "No SIP phone numbers available" : isPlivoAgent ? "No Plivo phone numbers available" : isRetellAgent ? "No phone numbers available" : t("campaigns.create.noPhoneNumbers"))
+                            ? (isSipAgent ? "No SIP phone numbers available" : isPlivoAgent ? "No Plivo phone numbers available" : t("campaigns.create.noPhoneNumbers"))
                             : t('campaigns.selectNumber', 'Select a phone number')} 
                           />
                         </SelectTrigger>
@@ -539,7 +522,6 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                       <p className="text-sm text-muted-foreground">
                         {isSipAgent ? "No SIP phone numbers available. Import a SIP phone number first." 
                           : isPlivoAgent ? "No Plivo phone numbers available. Purchase a Plivo phone number first."
-                          : isRetellAgent ? "No phone numbers available. Add a phone number first."
                           : t("campaigns.create.goToPhoneNumbers")}
                       </p>
                     )}
@@ -816,7 +798,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
             </Button>
             <Button 
               onClick={handleSubmit}
-              disabled={createMutation.isPending || !formData.agentId || (isSipAgent ? (!isSipPluginEnabled || !formData.sipPhoneNumberId) : isRetellAgent ? !formData.phoneNumberId : !formData.phoneNumberId)}
+              disabled={createMutation.isPending || !formData.agentId || (isSipAgent ? (!isSipPluginEnabled || !formData.sipPhoneNumberId) : !formData.phoneNumberId)}
               data-testid="button-send"
             >
               {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

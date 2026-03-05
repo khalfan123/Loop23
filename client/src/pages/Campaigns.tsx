@@ -703,7 +703,7 @@ export default function Campaigns() {
           <span className="font-medium">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>
         </div>
         <Button 
-          onClick={() => setLocation('/app/outbound')}
+          onClick={() => setActiveView('outbound')}
           data-testid="button-create-campaign"
         >
           {t('campaigns.createBatchCall', 'Create a batch call')}

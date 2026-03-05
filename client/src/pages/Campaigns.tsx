@@ -663,13 +663,6 @@ export default function Campaigns() {
           badge={contacts.length}
           onClick={() => setActiveView('contacts')}
         />
-        <SubPanelItem
-          icon={<Plus className="w-4 h-4" />}
-          label={t('campaigns.newOutbound', 'New Outbound Campaign')}
-          isActive={activeView === 'outbound'}
-          onClick={() => setActiveView('outbound')}
-          data-testid="nav-new-outbound-campaign"
-        />
       </SubPanelSection>
 
       <SubPanelSection title={t('campaigns.status.title', 'STATUS')}>

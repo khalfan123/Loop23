@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Phone, AlertTriangle, Loader2, Users, Search, Trash2, Upload, Download, PhoneIncoming, PhoneOutgoing, Plus, FileSpreadsheet, Contact2, Mail, Pencil, GripVertical, LayoutGrid, List, Globe, Tag, Check, X } from "lucide-react";
+import OutboundCanvas from "@/pages/OutboundCanvas";
 import {
   Dialog,
   DialogContent,
@@ -156,7 +157,7 @@ interface GroupMembership {
   group_color: string;
 }
 
-type ViewMode = 'batch' | 'contacts';
+type ViewMode = 'batch' | 'contacts' | 'outbound';
 
 export default function Campaigns() {
   const [, setLocation] = useLocation();
@@ -665,8 +666,8 @@ export default function Campaigns() {
         <SubPanelItem
           icon={<Plus className="w-4 h-4" />}
           label={t('campaigns.newOutbound', 'New Outbound Campaign')}
-          isActive={false}
-          onClick={() => setLocation('/app/outbound')}
+          isActive={activeView === 'outbound'}
+          onClick={() => setActiveView('outbound')}
           data-testid="nav-new-outbound-campaign"
         />
       </SubPanelSection>
@@ -1574,7 +1575,7 @@ export default function Campaigns() {
         subPanelWidth="sm"
         subPanelHeader={<span className="font-medium text-sm">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>}
       >
-        {activeView === 'batch' ? renderBatchCallView() : renderContactsView()}
+        {activeView === 'outbound' ? <OutboundCanvas /> : activeView === 'batch' ? renderBatchCallView() : renderContactsView()}
       </ThreeColumnLayout>
       <input ref={csvFileRef} type="file" accept=".csv,.xlsx,.xls,.txt" className="hidden" data-testid="input-csv-file" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file, "csv"); e.target.value = ""; }} />
       <input ref={vcardFileRef} type="file" accept=".vcf,.vcard" className="hidden" data-testid="input-vcard-file" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file, "vcard"); e.target.value = ""; }} />

@@ -30,7 +30,6 @@ import { TeamAuth } from "./lib/team-auth";
 import { useQuery } from "@tanstack/react-query";
 import Dashboard from "@/pages/Dashboard";
 import Campaigns from "@/pages/Campaigns";
-import CreateCampaign from "@/pages/CreateCampaign";
 import CampaignDetail from "@/pages/CampaignDetail";
 import CallDetail from "@/pages/CallDetail";
 import Analytics from "@/pages/Analytics";
@@ -176,7 +175,9 @@ function UserRouter() {
             <Redirect to="/app/analytics" />
           </Route>
           <Route path="/app/dashboard" component={Dashboard} />
-          <Route path="/app/campaigns/new" component={CreateCampaign} />
+          <Route path="/app/campaigns/new">
+            <Redirect to="/app/outbound" />
+          </Route>
           <Route path="/app/campaigns/:id" component={CampaignDetail} />
           <Route path="/app/campaigns" component={Campaigns} />
           <Route path="/app/forms" component={FormsPage} />
@@ -274,7 +275,9 @@ function TeamMemberRouter() {
             <Redirect to="/app/analytics" />
           </Route>
           <Route path="/app/dashboard" component={Dashboard} />
-          <Route path="/app/campaigns/new" component={CreateCampaign} />
+          <Route path="/app/campaigns/new">
+            <Redirect to="/app/outbound" />
+          </Route>
           <Route path="/app/campaigns/:id" component={CampaignDetail} />
           <Route path="/app/campaigns" component={Campaigns} />
           <Route path="/app/forms" component={FormsPage} />

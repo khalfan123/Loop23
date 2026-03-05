@@ -662,6 +662,13 @@ export default function Campaigns() {
           badge={contacts.length}
           onClick={() => setActiveView('contacts')}
         />
+        <SubPanelItem
+          icon={<Plus className="w-4 h-4" />}
+          label={t('campaigns.newOutbound', 'New Outbound Campaign')}
+          isActive={false}
+          onClick={() => setLocation('/app/outbound')}
+          data-testid="nav-new-outbound-campaign"
+        />
       </SubPanelSection>
 
       <SubPanelSection title={t('campaigns.status.title', 'STATUS')}>
@@ -695,7 +702,7 @@ export default function Campaigns() {
           <span className="font-medium">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>
         </div>
         <Button 
-          onClick={() => setLocation('/app/campaigns/new')}
+          onClick={() => setLocation('/app/outbound')}
           data-testid="button-create-campaign"
         >
           {t('campaigns.createBatchCall', 'Create a batch call')}

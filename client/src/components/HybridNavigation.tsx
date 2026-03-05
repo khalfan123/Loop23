@@ -107,7 +107,7 @@ export function HybridNavigation({
   }, [isExpanded]);
 
   const topItems: NavItem[] = [
-    { title: t('nav.analytics', 'Analytics'), url: "/app/analytics", icon: BarChart3 },
+    { title: t('nav.dashboard', 'Dashboard'), url: "/app/analytics", icon: BarChart3 },
   ];
   
   const returnToAppItem: NavItem = { 

@@ -237,7 +237,7 @@ export default function Analytics() {
       <ThreeColumnLayout 
         subPanel={subPanelContent} 
         subPanelWidth="sm"
-        subPanelHeader={<span className="font-medium text-sm">{t('nav.analytics', 'Analytics')}</span>}
+        subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}
       >
         <Calls embedded />
       </ThreeColumnLayout>
@@ -249,7 +249,7 @@ export default function Analytics() {
       <ThreeColumnLayout 
         subPanel={subPanelContent} 
         subPanelWidth="sm"
-        subPanelHeader={<span className="font-medium text-sm">{t('nav.analytics', 'Analytics')}</span>}
+        subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}
       >
         <LiveMonitoring />
       </ThreeColumnLayout>
@@ -261,7 +261,7 @@ export default function Analytics() {
       <ThreeColumnLayout 
         subPanel={subPanelContent} 
         subPanelWidth="sm"
-        subPanelHeader={<span className="font-medium text-sm">{t('nav.analytics', 'Analytics')}</span>}
+        subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}
       >
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -274,7 +274,7 @@ export default function Analytics() {
     <ThreeColumnLayout 
       subPanel={subPanelContent} 
       subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">{t('nav.analytics', 'Analytics')}</span>}
+      subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}
     >
       <div className="space-y-6" ref={reportRef}>
         {/* iOS 18 Style Header - Clean and Minimal */}

@@ -21,7 +21,7 @@ import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
 import { db } from "./db";
 import { nanoid } from "nanoid";
-import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions, twilioOpenaiCalls, globalSettings } from "@shared/schema";
+import { phoneNumbers, agents, calls, creditTransactions, paymentTransactions, phoneNumberRentals, campaigns, contacts, incomingConnections, llmModels, twilioCountries, users, knowledgeBase, userSubscriptions, twilioOpenaiCalls, globalSettings, retellCredentials } from "@shared/schema";
 import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import { authenticateToken, requireRole, generateTokenAsync, checkActiveMembership, checkUserActive, type AuthRequest } from "./middleware/auth";
 import { authRateLimiter, strictRateLimiter, paymentRateLimiter } from "./middleware/rateLimiter";
@@ -34,6 +34,7 @@ const elevenLabsPoolService = new ElevenLabsPoolService();
 import { getTwilioClient } from "./services/twilio-connector";
 import { campaignExecutor } from "./services/campaign-executor";
 import { BatchCallingService } from "./services/batch-calling";
+import { RetellBatchCallingService } from "./services/retell-batch-calling";
 import { 
   handleTwilioVoiceWebhook,
   handleIncomingCallWebhook,
@@ -2749,10 +2750,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin Batch Jobs Routes (ElevenLabs Batch Calling)
+  // Admin Batch Jobs Routes (All Providers: ElevenLabs, Retell, Bedrock-Polly, Plivo, Twilio-OpenAI)
   app.get("/api/admin/batch-jobs", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
     try {
-      // Get all campaigns with batch jobs
       const campaignsWithBatches = await db
         .select({
           campaign: campaigns,
@@ -2763,7 +2763,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(sql`${campaigns.batchJobId} IS NOT NULL`)
         .orderBy(desc(campaigns.startedAt));
 
-      // For each campaign with a batch job, fetch the latest status from ElevenLabs
       const batchJobs = await Promise.all(
         campaignsWithBatches.map(async (item) => {
           try {
@@ -2775,7 +2774,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 batchJobStatus: item.campaign.batchJobStatus || 'unknown',
                 totalContacts: item.campaign.totalContacts,
                 completedCalls: item.campaign.completedCalls,
+                provider: 'unknown',
                 error: 'Missing agent or batch job ID'
+              };
+            }
+
+            const batchJobId = item.campaign.batchJobId;
+            const provider = item.agent.telephonyProvider === 'retell' ? 'retell'
+              : batchJobId.startsWith('bedrock-polly-') ? 'bedrock-polly'
+              : item.agent.telephonyProvider === 'plivo' ? 'plivo'
+              : item.agent.telephonyProvider === 'twilio_openai' ? 'twilio-openai'
+              : (item.agent.telephonyProvider === 'elevenlabs-sip' || item.agent.telephonyProvider === 'openai-sip') ? 'sip'
+              : 'elevenlabs';
+
+            if (provider === 'retell') {
+              if (!item.agent.retellCredentialId) {
+                return {
+                  campaignId: item.campaign.id,
+                  campaignName: item.campaign.name,
+                  batchJobId: batchJobId,
+                  batchJobStatus: item.campaign.batchJobStatus || 'unknown',
+                  agentName: item.agent.name,
+                  totalContacts: item.campaign.totalContacts,
+                  completedCalls: item.campaign.completedCalls,
+                  provider,
+                  error: 'No Retell credential found'
+                };
+              }
+              try {
+                const [retellCred] = await db
+                  .select()
+                  .from(retellCredentials)
+                  .where(eq(retellCredentials.id, item.agent.retellCredentialId))
+                  .limit(1);
+                if (!retellCred) {
+                  throw new Error('Retell credential not found');
+                }
+                const retellService = new RetellBatchCallingService(retellCred.apiKey);
+                const retellBatch = await retellService.getBatch(batchJobId);
+                const retellStats = RetellBatchCallingService.getRetellBatchStats(retellBatch);
+                const mappedStatus = RetellBatchCallingService.mapStatus(retellBatch.status);
+                return {
+                  campaignId: item.campaign.id,
+                  campaignName: item.campaign.name,
+                  batchJobId: retellBatch.batch_call_id,
+                  batchJobStatus: mappedStatus,
+                  agentName: item.agent.name,
+                  totalContacts: item.campaign.totalContacts,
+                  totalCallsScheduled: retellBatch.total_task_count,
+                  totalCallsDispatched: retellBatch.sent,
+                  createdAt: retellBatch.created_at ? new Date(retellBatch.created_at * 1000).toISOString() : item.campaign.startedAt?.toISOString(),
+                  lastUpdatedAt: item.campaign.updatedAt?.toISOString(),
+                  provider,
+                  retellStats: retellStats,
+                  stats: {
+                    pending: retellBatch.total_task_count - retellBatch.sent,
+                    scheduled: 0,
+                    dispatched: retellBatch.sent,
+                    in_progress: retellBatch.sent - retellBatch.successful - (retellBatch.total_task_count - retellBatch.sent > 0 ? 0 : 0),
+                    completed: retellBatch.successful,
+                    failed: retellBatch.sent - retellBatch.picked_up,
+                    total: retellBatch.total_task_count,
+                    progress: retellBatch.total_task_count > 0 ? Math.round((retellBatch.sent / retellBatch.total_task_count) * 100) : 0,
+                  },
+                };
+              } catch (retellErr: any) {
+                return {
+                  campaignId: item.campaign.id,
+                  campaignName: item.campaign.name,
+                  batchJobId: batchJobId,
+                  batchJobStatus: item.campaign.batchJobStatus || 'unknown',
+                  agentName: item.agent.name,
+                  totalContacts: item.campaign.totalContacts,
+                  completedCalls: item.campaign.completedCalls,
+                  provider,
+                  error: retellErr.message,
+                };
+              }
+            }
+
+            if (provider === 'bedrock-polly' || provider === 'plivo' || provider === 'twilio-openai' || provider === 'sip') {
+              const completedCalls = item.campaign.completedCalls || 0;
+              const successfulCalls = item.campaign.successfulCalls || 0;
+              const totalContacts = item.campaign.totalContacts || 0;
+              const failedCalls = completedCalls - successfulCalls;
+              const activeCalls = totalContacts - completedCalls;
+              const progress = totalContacts > 0 ? Math.round((completedCalls / totalContacts) * 100) : 0;
+
+              return {
+                campaignId: item.campaign.id,
+                campaignName: item.campaign.name,
+                batchJobId: batchJobId,
+                batchJobStatus: item.campaign.batchJobStatus || item.campaign.status || 'unknown',
+                agentName: item.agent.name,
+                totalContacts: totalContacts,
+                completedCalls: completedCalls,
+                provider,
+                stats: {
+                  pending: Math.max(0, activeCalls),
+                  scheduled: 0,
+                  dispatched: completedCalls,
+                  in_progress: item.campaign.status === 'running' ? Math.max(0, activeCalls) : 0,
+                  completed: successfulCalls,
+                  failed: Math.max(0, failedCalls),
+                  total: totalContacts,
+                  progress,
+                },
+                createdAt: item.campaign.startedAt?.toISOString(),
+                lastUpdatedAt: item.campaign.updatedAt?.toISOString(),
               };
             }
 
@@ -2784,16 +2890,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return {
                 campaignId: item.campaign.id,
                 campaignName: item.campaign.name,
-                batchJobId: item.campaign.batchJobId,
+                batchJobId: batchJobId,
                 batchJobStatus: item.campaign.batchJobStatus || 'unknown',
                 totalContacts: item.campaign.totalContacts,
                 completedCalls: item.campaign.completedCalls,
+                provider,
                 error: 'No credential found'
               };
             }
 
             const batchService = new BatchCallingService(credential.apiKey);
-            const batchJob = await batchService.getBatch(item.campaign.batchJobId);
+            const batchJob = await batchService.getBatch(batchJobId);
             const stats = BatchCallingService.getBatchStats(batchJob);
 
             return {
@@ -2807,6 +2914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               totalCallsDispatched: batchJob.total_calls_dispatched,
               createdAt: new Date(batchJob.created_at_unix * 1000).toISOString(),
               lastUpdatedAt: new Date(batchJob.last_updated_at_unix * 1000).toISOString(),
+              provider,
               stats: stats,
             };
           } catch (error: any) {
@@ -2817,6 +2925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               batchJobStatus: item.campaign.batchJobStatus || 'unknown',
               totalContacts: item.campaign.totalContacts,
               completedCalls: item.campaign.completedCalls,
+              provider: 'unknown',
               error: error.message
             };
           }
@@ -2835,25 +2944,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { batchId } = req.params;
 
-      // Find the campaign with this batch job
-      const [campaign] = await db
+      const [campaignRow] = await db
         .select()
         .from(campaigns)
         .where(eq(campaigns.batchJobId, batchId))
         .limit(1);
 
-      if (!campaign || !campaign.agentId) {
+      if (!campaignRow || !campaignRow.agentId) {
         return res.status(404).json({ error: "Batch job not found" });
       }
 
       const [agent] = await db
         .select()
         .from(agents)
-        .where(eq(agents.id, campaign.agentId))
+        .where(eq(agents.id, campaignRow.agentId))
         .limit(1);
 
       if (!agent) {
         return res.status(404).json({ error: "Agent not found" });
+      }
+
+      const provider = agent.telephonyProvider === 'retell' ? 'retell'
+        : batchId.startsWith('bedrock-polly-') ? 'bedrock-polly'
+        : agent.telephonyProvider === 'plivo' ? 'plivo'
+        : agent.telephonyProvider === 'twilio_openai' ? 'twilio-openai'
+        : (agent.telephonyProvider === 'elevenlabs-sip' || agent.telephonyProvider === 'openai-sip') ? 'sip'
+        : 'elevenlabs';
+
+      if (provider === 'retell') {
+        if (!agent.retellCredentialId) {
+          return res.status(500).json({ error: "No Retell credential found" });
+        }
+        const [retellCred] = await db
+          .select()
+          .from(retellCredentials)
+          .where(eq(retellCredentials.id, agent.retellCredentialId))
+          .limit(1);
+        if (!retellCred) {
+          return res.status(500).json({ error: "Retell credential not found" });
+        }
+        const retellService = new RetellBatchCallingService(retellCred.apiKey);
+        const retellBatch = await retellService.getBatch(batchId);
+        return res.json({
+          batchJob: retellBatch,
+          campaign: { id: campaignRow.id, name: campaignRow.name, status: campaignRow.status },
+          provider,
+        });
+      }
+
+      if (provider === 'bedrock-polly' || provider === 'plivo' || provider === 'twilio-openai' || provider === 'sip') {
+        return res.json({
+          batchJob: {
+            id: batchId,
+            status: campaignRow.batchJobStatus || campaignRow.status,
+            totalContacts: campaignRow.totalContacts,
+            completedCalls: campaignRow.completedCalls,
+            successfulCalls: campaignRow.successfulCalls,
+          },
+          campaign: { id: campaignRow.id, name: campaignRow.name, status: campaignRow.status },
+          provider,
+        });
       }
 
       const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
@@ -2866,11 +3016,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         batchJob,
-        campaign: {
-          id: campaign.id,
-          name: campaign.name,
-          status: campaign.status,
-        }
+        campaign: { id: campaignRow.id, name: campaignRow.name, status: campaignRow.status },
+        provider,
       });
     } catch (error: any) {
       console.error("Get batch job detail error:", error);

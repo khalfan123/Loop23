@@ -19,7 +19,7 @@ import { ElevenLabsService } from './elevenlabs';
 import { ElevenLabsPoolService } from './elevenlabs-pool';
 import { BatchCallingService, BatchJob, BatchJobWithRecipients } from './batch-calling';
 import { db } from '../db';
-import { campaigns, contacts, calls, agents, phoneNumbers, flowExecutions, flows } from '../../shared/schema';
+import { campaigns, contacts, calls, agents, phoneNumbers, flowExecutions, flows, retellCredentials } from '../../shared/schema';
 import { nanoid } from 'nanoid';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { CampaignScheduler } from './campaign-scheduler';
@@ -35,6 +35,7 @@ import {
 import { PlivoBatchCallingService } from '../engines/plivo/services/plivo-batch-calling.service';
 import { TwilioOpenAIBatchCallingService } from '../engines/twilio-openai/services/twilio-openai-batch-calling.service';
 import { BedrockPollyBatchCallingService } from '../engines/twilio-bedrock-polly/services/bedrock-polly-batch-calling.service';
+import { RetellBatchCallingService } from './retell-batch-calling';
 import { batchInsertCalls, batchInsertFlowExecutions, FlowExecutionInsert } from '../utils/batch-utils';
 
 import * as path from 'path';
@@ -195,6 +196,27 @@ export class CampaignExecutor {
           const SipBatchCallingService = getSipBatchCallingService();
           if (!SipBatchCallingService) {
             errors.push('SIP Engine plugin is not installed. Please install the sip-engine plugin to use SIP-based calling.');
+          }
+        } else if (provider === 'retell') {
+          // Retell AI engine validation
+          if (!agent.retellAgentId) {
+            errors.push('Agent does not have a Retell AI Agent ID configured. Please set the Retell Agent ID in Agent Settings.');
+          }
+          
+          if (!agent.retellCredentialId) {
+            errors.push('Agent is not assigned to a Retell AI API key. Please configure Retell AI credentials in Admin Settings.');
+          } else {
+            // Verify the credential exists and is active
+            const [retellCred] = await db
+              .select()
+              .from(retellCredentials)
+              .where(eq(retellCredentials.id, agent.retellCredentialId))
+              .limit(1);
+            if (!retellCred) {
+              errors.push('Retell AI credential not found. The assigned credential may have been deleted.');
+            } else if (!retellCred.isActive) {
+              errors.push('Retell AI credential is inactive. Please activate it or assign a different credential.');
+            }
           }
         } else {
           // ElevenLabs engine validation (default)
@@ -770,6 +792,167 @@ export class CampaignExecutor {
         };
       }
 
+      // Route to Retell AI engine if agent uses Retell telephony
+      if (agent.telephonyProvider === 'retell') {
+        console.log(`📞 [Campaign Executor] Routing to Retell AI engine for campaign ${campaignId}`);
+        
+        if (!agent.retellAgentId) {
+          throw new Error('Agent does not have a Retell AI Agent ID configured');
+        }
+        if (!agent.retellCredentialId) {
+          throw new Error('Agent is not assigned to a Retell AI API key');
+        }
+
+        const campaignContacts = await db
+          .select()
+          .from(contacts)
+          .where(eq(contacts.campaignId, campaignId));
+
+        if (campaignContacts.length === 0) {
+          throw new Error('Campaign has no contacts');
+        }
+
+        const [campaignPhoneNumberRetell] = await db
+          .select()
+          .from(phoneNumbers)
+          .where(eq(phoneNumbers.id, campaign.phoneNumberId!))
+          .limit(1);
+
+        if (!campaignPhoneNumberRetell) {
+          throw new Error('Campaign phone number not found');
+        }
+
+        // Get Retell credential
+        const [retellCred] = await db
+          .select()
+          .from(retellCredentials)
+          .where(eq(retellCredentials.id, agent.retellCredentialId))
+          .limit(1);
+
+        if (!retellCred || !retellCred.isActive) {
+          throw new Error('Retell AI credential not found or inactive');
+        }
+
+        const retellBatchJobId = `retell-${campaignId}`;
+
+        await db
+          .update(campaigns)
+          .set({
+            status: 'running',
+            startedAt: new Date(),
+            batchJobId: retellBatchJobId,
+            batchJobStatus: 'running',
+            totalContacts: campaignContacts.length,
+          })
+          .where(eq(campaigns.id, campaignId));
+
+        // PRE-CREATE CALL RECORDS
+        const callInsertsRetell = campaignContacts.map(contact => ({
+          userId: campaign.userId,
+          campaignId: campaign.id,
+          contactId: contact.id,
+          phoneNumber: contact.phone,
+          fromNumber: campaignPhoneNumberRetell.phoneNumber,
+          toNumber: contact.phone,
+          status: 'pending' as const,
+          callDirection: 'outgoing' as const,
+          metadata: {
+            batchCall: true,
+            batchJobId: retellBatchJobId,
+            agentId: agent.id,
+            telephonyProvider: 'retell',
+            retellAgentId: agent.retellAgentId,
+            contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
+          },
+        }));
+
+        const callResultRetell = await batchInsertCalls(callInsertsRetell, '📞 [Retell Campaign]');
+        const preCreatedCallsRetell = callResultRetell.results;
+
+        // Create flow execution records if applicable
+        const effectiveFlowIdRetell = campaign.flowId || agent.flowId;
+        if (effectiveFlowIdRetell && preCreatedCallsRetell.length > 0) {
+          const flowExecInsertsRetell: FlowExecutionInsert[] = preCreatedCallsRetell.map(callRecord => ({
+            callId: callRecord.id,
+            flowId: effectiveFlowIdRetell,
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            contactPhone: callRecord.phoneNumber || '',
+            telephonyProvider: 'retell',
+          }));
+          
+          await batchInsertFlowExecutions(flowExecInsertsRetell, '🔀 [Retell Campaign]');
+        }
+
+        // Convert contacts to Retell tasks format
+        const retellTasks = RetellBatchCallingService.contactsToRetellTasks(
+          campaignContacts.map(c => ({
+            firstName: c.firstName,
+            lastName: c.lastName,
+            phone: c.phone,
+            email: c.email,
+            customFields: c.customFields as Record<string, any> | null,
+          })),
+          agent.retellAgentId
+        );
+
+        // Calculate scheduled time
+        let triggerTimestamp: number | undefined;
+        if (campaign.scheduleEnabled) {
+          const nextWindow = CampaignScheduler.getNextCallWindow(campaign);
+          if (nextWindow) {
+            triggerTimestamp = nextWindow.getTime(); // Retell uses milliseconds
+            console.log(`   Scheduled for: ${nextWindow.toISOString()}`);
+          }
+        }
+
+        // Create the batch job via Retell API
+        const retellBatchService = new RetellBatchCallingService(retellCred.apiKey);
+        const retellBatch = await retellBatchService.createBatch({
+          from_number: campaignPhoneNumberRetell.phoneNumber,
+          tasks: retellTasks,
+          name: campaign.name,
+          trigger_timestamp: triggerTimestamp,
+        });
+
+        console.log(`✅ [Campaign Executor] Retell batch job created: ${retellBatch.batch_call_id}`);
+
+        // Update campaign with actual Retell batch call ID
+        await db
+          .update(campaigns)
+          .set({
+            batchJobId: retellBatch.batch_call_id,
+            batchJobStatus: 'running',
+          })
+          .where(eq(campaigns.id, campaignId));
+
+        // Update pre-created call records with Retell batch job ID
+        if (preCreatedCallsRetell.length > 0) {
+          const callIds = preCreatedCallsRetell.map(c => c.id);
+          await db
+            .update(calls)
+            .set({
+              metadata: sql`jsonb_set(COALESCE(metadata, '{}'::jsonb), '{retellBatchCallId}', ${JSON.stringify(retellBatch.batch_call_id)}::jsonb)`
+            })
+            .where(inArray(calls.id, callIds));
+        }
+
+        return {
+          batchJob: {
+            id: retellBatch.batch_call_id,
+            name: campaign.name,
+            agent_id: agent.id,
+            agent_name: agent.name,
+            created_at_unix: Math.floor(Date.now() / 1000),
+            scheduled_time_unix: triggerTimestamp ? Math.floor(triggerTimestamp / 1000) : 0,
+            last_updated_at_unix: Math.floor(Date.now() / 1000),
+            total_calls_scheduled: campaignContacts.length,
+            total_calls_dispatched: 0,
+            status: 'in_progress' as const,
+          }
+        };
+      }
+
       // ElevenLabs flow - auto-sync agent if not yet synced
       if (!agent.elevenLabsAgentId) {
         console.log(`🔄 [Campaign Executor] Agent "${agent.name}" not synced with ElevenLabs, auto-syncing...`);
@@ -1163,6 +1346,140 @@ export class CampaignExecutor {
       return null;
     }
 
+    // Handle Retell AI campaigns
+    if (agent.telephonyProvider === 'retell') {
+      if (!agent.retellCredentialId) return null;
+      
+      const [retellCred] = await db
+        .select()
+        .from(retellCredentials)
+        .where(eq(retellCredentials.id, agent.retellCredentialId))
+        .limit(1);
+      
+      if (!retellCred) return null;
+      
+      const retellService = new RetellBatchCallingService(retellCred.apiKey);
+      const retellBatch = await retellService.getBatch(campaign.batchJobId);
+      const mappedStatus = RetellBatchCallingService.mapStatus(retellBatch.status);
+      
+      await db
+        .update(campaigns)
+        .set({
+          batchJobStatus: mappedStatus,
+          completedCalls: retellBatch.sent || 0,
+          successfulCalls: retellBatch.successful || 0,
+        })
+        .where(eq(campaigns.id, campaignId));
+      
+      if (mappedStatus === 'completed' || mappedStatus === 'failed') {
+        const campaignCalls = await db.select().from(calls).where(eq(calls.campaignId, campaignId));
+        const completedCallsCount = campaignCalls.filter(c => 
+          ['completed', 'failed', 'busy', 'no-answer'].includes(c.status)
+        ).length;
+        const successfulCallsCount = retellBatch.successful || 0;
+        const failedCallsCount = (retellBatch.sent || 0) - (retellBatch.successful || 0);
+        
+        await db
+          .update(campaigns)
+          .set({
+            status: mappedStatus === 'completed' ? 'completed' : 'failed',
+            completedAt: new Date(),
+            completedCalls: completedCallsCount,
+            successfulCalls: successfulCallsCount,
+            failedCalls: failedCallsCount,
+          })
+          .where(eq(campaigns.id, campaignId));
+        
+        if (campaign.userId && mappedStatus === 'completed') {
+          webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.completed', {
+            campaign: {
+              id: campaign.id,
+              name: campaign.name,
+              type: campaign.type,
+              status: 'completed',
+              totalContacts: campaign.totalContacts,
+              startedAt: campaign.startedAt,
+              completedAt: new Date().toISOString(),
+              createdAt: campaign.createdAt,
+            },
+            stats: {
+              successfulCalls: successfulCallsCount,
+              failedCalls: failedCallsCount,
+              totalCalls: retellBatch.total_task_count,
+              completedCalls: retellBatch.sent,
+              pickedUp: retellBatch.picked_up,
+            },
+          }, campaignId).catch(err => {
+            console.error('❌ [Webhook] Error triggering campaign.completed event:', err);
+          });
+          
+          try {
+            await emailService.sendCampaignCompleted(campaignId);
+          } catch (emailError: any) {
+            console.error(`❌ [Campaign] Failed to send campaign completed email:`, emailError);
+          }
+        }
+      }
+      
+      // Return as BatchJobWithRecipients for API compatibility
+      return {
+        id: retellBatch.batch_call_id,
+        name: retellBatch.name || campaign.name,
+        agent_id: agent.retellAgentId || '',
+        created_at_unix: retellBatch.created_at || Math.floor(Date.now() / 1000),
+        scheduled_time_unix: 0,
+        total_calls_dispatched: retellBatch.sent || 0,
+        total_calls_scheduled: retellBatch.total_task_count,
+        last_updated_at_unix: Math.floor(Date.now() / 1000),
+        status: mappedStatus as any,
+        agent_name: agent.name,
+        recipients: [],
+      };
+    }
+
+    // Handle Bedrock+Polly campaigns (local execution with in-memory service)
+    if (campaign.batchJobId?.startsWith('bedrock-polly-')) {
+      const bedrockPollyService = BedrockPollyBatchCallingService.getInstance(campaignId);
+      const progress = bedrockPollyService.getProgress();
+      
+      const mappedStatus = progress.percentage >= 100 ? 'completed' : 
+                           progress.inProgress > 0 ? 'in_progress' : 'pending';
+      
+      await db
+        .update(campaigns)
+        .set({
+          batchJobStatus: mappedStatus,
+          completedCalls: progress.completed + progress.failed,
+          successfulCalls: progress.completed,
+          failedCalls: progress.failed,
+        })
+        .where(eq(campaigns.id, campaignId));
+      
+      if (mappedStatus === 'completed') {
+        await db
+          .update(campaigns)
+          .set({
+            status: 'completed',
+            completedAt: new Date(),
+          })
+          .where(eq(campaigns.id, campaignId));
+      }
+      
+      return {
+        id: campaign.batchJobId,
+        name: campaign.name,
+        agent_id: agent.id,
+        created_at_unix: Math.floor((campaign.startedAt?.getTime() || Date.now()) / 1000),
+        scheduled_time_unix: 0,
+        total_calls_dispatched: progress.completed + progress.failed,
+        total_calls_scheduled: progress.total,
+        last_updated_at_unix: Math.floor(Date.now() / 1000),
+        status: mappedStatus as any,
+        agent_name: agent.name,
+        recipients: [],
+      };
+    }
+
     const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
     if (!credential) {
       return null;
@@ -1382,6 +1699,61 @@ export class CampaignExecutor {
       return null;
     }
 
+    // Route to Retell AI engine
+    if (agent.telephonyProvider === 'retell') {
+      if (!campaign.batchJobId) {
+        throw new Error('Campaign has no active batch job');
+      }
+      if (!agent.retellCredentialId) {
+        throw new Error('No Retell AI credential found for agent');
+      }
+      
+      const [retellCred] = await db
+        .select()
+        .from(retellCredentials)
+        .where(eq(retellCredentials.id, agent.retellCredentialId))
+        .limit(1);
+      
+      if (!retellCred) {
+        throw new Error('Retell AI credential not found');
+      }
+      
+      const retellBatchService = new RetellBatchCallingService(retellCred.apiKey);
+      await retellBatchService.cancelBatch(campaign.batchJobId);
+      
+      await db
+        .update(campaigns)
+        .set({ 
+          status: 'paused',
+          batchJobStatus: 'cancelled',
+          config: sql`jsonb_set(COALESCE(config, '{}'::jsonb), '{pauseReason}', ${JSON.stringify(reason)}::jsonb)`
+        })
+        .where(eq(campaigns.id, campaignId));
+      
+      console.log(`⏸️ [Campaign Executor] Paused Retell campaign ${campaignId} (reason: ${reason})`);
+      
+      if (campaign.userId) {
+        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.paused', {
+          campaign: { 
+            id: campaign.id, 
+            name: campaign.name,
+            type: campaign.type,
+            totalContacts: campaign.totalContacts,
+            completedCalls: campaign.completedCalls,
+            successfulCalls: campaign.successfulCalls,
+            failedCalls: campaign.failedCalls,
+          },
+          pausedAt: new Date().toISOString(),
+          reason,
+          engine: 'retell',
+        }, campaignId).catch(err => {
+          console.error('❌ [Webhook] Error triggering campaign.paused event:', err);
+        });
+      }
+      
+      return null;
+    }
+
     // ElevenLabs flow - requires batchJobId
     if (!campaign.batchJobId) {
       throw new Error('Campaign has no active batch job');
@@ -1518,6 +1890,78 @@ export class CampaignExecutor {
       return null;
     }
 
+    // Route to Retell AI engine
+    if (agent.telephonyProvider === 'retell') {
+      if (!campaign.batchJobId) {
+        throw new Error('Campaign has no active batch job');
+      }
+      if (!agent.retellCredentialId) {
+        throw new Error('No Retell AI credential found for agent');
+      }
+      
+      const [retellCred] = await db
+        .select()
+        .from(retellCredentials)
+        .where(eq(retellCredentials.id, agent.retellCredentialId))
+        .limit(1);
+      
+      if (!retellCred) {
+        throw new Error('Retell AI credential not found');
+      }
+      
+      const retellBatchService = new RetellBatchCallingService(retellCred.apiKey);
+      await retellBatchService.cancelBatch(campaign.batchJobId);
+      
+      const campaignCalls = await db.select().from(calls).where(eq(calls.campaignId, campaignId));
+      const completedCallsCount = campaignCalls.filter(c => 
+        ['completed', 'failed', 'busy', 'no-answer'].includes(c.status)
+      ).length;
+      const successfulCallsCount = campaignCalls.filter(c => c.status === 'completed').length;
+      const failedCallsCount = campaignCalls.filter(c => 
+        ['failed', 'busy', 'no-answer'].includes(c.status)
+      ).length;
+      
+      await db
+        .update(campaigns)
+        .set({ 
+          status: 'cancelled',
+          batchJobStatus: 'cancelled',
+          completedAt: new Date(),
+          completedCalls: completedCallsCount,
+          successfulCalls: successfulCallsCount,
+          failedCalls: failedCallsCount,
+        })
+        .where(eq(campaigns.id, campaignId));
+      
+      console.log(`🛑 [Campaign Executor] Cancelled Retell campaign ${campaignId}`);
+      
+      if (campaign.userId) {
+        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.cancelled', {
+          campaign: { 
+            id: campaign.id, 
+            name: campaign.name,
+            type: campaign.type,
+            totalContacts: campaign.totalContacts,
+            startedAt: campaign.startedAt,
+            cancelledAt: new Date().toISOString(),
+            createdAt: campaign.createdAt,
+          },
+          stats: {
+            completedCalls: completedCallsCount,
+            successfulCalls: successfulCallsCount,
+            failedCalls: failedCallsCount,
+            totalCalls: campaignCalls.length,
+          },
+          cancelledAt: new Date().toISOString(),
+          engine: 'retell',
+        }, campaignId).catch(err => {
+          console.error('❌ [Webhook] Error triggering campaign.cancelled event:', err);
+        });
+      }
+      
+      return null;
+    }
+
     // ElevenLabs flow - requires batchJobId
     if (!campaign.batchJobId) {
       throw new Error('Campaign has no active batch job');
@@ -1631,6 +2075,122 @@ export class CampaignExecutor {
         total_calls_dispatched: result.completedCalls + result.failedCalls,
         status: result.status === 'completed' ? 'completed' as const : 
                result.status === 'cancelled' ? 'cancelled' as const : 'failed' as const,
+      };
+    }
+
+    // Route to Retell AI engine — re-create batch with remaining pending contacts
+    if (agent.telephonyProvider === 'retell') {
+      if (!agent.retellCredentialId || !agent.retellAgentId) {
+        throw new Error('Agent is missing Retell AI configuration');
+      }
+      
+      const [retellCred] = await db
+        .select()
+        .from(retellCredentials)
+        .where(eq(retellCredentials.id, agent.retellCredentialId))
+        .limit(1);
+      
+      if (!retellCred) {
+        throw new Error('Retell AI credential not found');
+      }
+
+      // Get pending contacts (not yet called)
+      const pendingContacts = await db
+        .select({ contact: contacts })
+        .from(contacts)
+        .where(eq(contacts.campaignId, campaignId));
+      
+      const pendingCallRecords = await db
+        .select()
+        .from(calls)
+        .where(
+          eq(calls.campaignId, campaignId)
+        );
+      
+      // Find contacts that still have pending calls
+      const pendingPhones = new Set(
+        pendingCallRecords
+          .filter(c => c.status === 'pending')
+          .map(c => c.phoneNumber)
+      );
+      
+      const contactsToRetry = pendingContacts
+        .map(r => r.contact)
+        .filter(c => pendingPhones.has(c.phone));
+      
+      if (contactsToRetry.length === 0) {
+        throw new Error('No pending contacts to retry');
+      }
+
+      const [campaignPhoneNumber] = await db
+        .select()
+        .from(phoneNumbers)
+        .where(eq(phoneNumbers.id, campaign.phoneNumberId!))
+        .limit(1);
+      
+      if (!campaignPhoneNumber) {
+        throw new Error('Campaign phone number not found');
+      }
+
+      const retellTasks = RetellBatchCallingService.contactsToRetellTasks(
+        contactsToRetry.map(c => ({
+          firstName: c.firstName,
+          lastName: c.lastName,
+          phone: c.phone,
+          email: c.email,
+          customFields: c.customFields as Record<string, any> | null,
+        })),
+        agent.retellAgentId
+      );
+
+      const retellBatchService = new RetellBatchCallingService(retellCred.apiKey);
+      const retellBatch = await retellBatchService.createBatch({
+        from_number: campaignPhoneNumber.phoneNumber,
+        tasks: retellTasks,
+        name: `${campaign.name} (resumed)`,
+      });
+
+      await db
+        .update(campaigns)
+        .set({ 
+          status: 'running',
+          batchJobId: retellBatch.batch_call_id,
+          batchJobStatus: 'running',
+          completedAt: null,
+          config: sql`jsonb_set(COALESCE(config, '{}'::jsonb), '{resumeReason}', ${JSON.stringify(reason)}::jsonb)`
+        })
+        .where(eq(campaigns.id, campaignId));
+
+      console.log(`▶️ [Campaign Executor] Resumed Retell campaign ${campaignId} with ${contactsToRetry.length} pending contacts`);
+
+      if (campaign.userId) {
+        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.resumed', {
+          campaign: { 
+            id: campaign.id, 
+            name: campaign.name,
+            type: campaign.type,
+            totalContacts: campaign.totalContacts,
+          },
+          resumedAt: new Date().toISOString(),
+          reason,
+          engine: 'retell',
+          pendingContacts: contactsToRetry.length,
+        }, campaignId).catch(err => {
+          console.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
+        });
+      }
+
+      return {
+        id: retellBatch.batch_call_id,
+        name: campaign.name,
+        agent_id: agent.id,
+        agent_name: agent.name,
+        created_at_unix: Math.floor(Date.now() / 1000),
+        scheduled_time_unix: 0,
+        last_updated_at_unix: Math.floor(Date.now() / 1000),
+        total_calls_scheduled: contactsToRetry.length,
+        total_calls_dispatched: 0,
+        status: 'in_progress' as const,
       };
     }
 
@@ -1839,6 +2399,9 @@ export class CampaignExecutor {
     }
     if (message.includes('plivo')) {
       return 'PLIVO_API_ERROR';
+    }
+    if (message.includes('retell')) {
+      return 'RETELL_API_ERROR';
     }
     if (message.includes('phone') && (message.includes('not found') || message.includes('not synced'))) {
       return 'PHONE_NUMBER_ERROR';

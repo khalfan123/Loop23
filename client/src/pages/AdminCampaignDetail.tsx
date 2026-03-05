@@ -422,7 +422,7 @@ export default function AdminCampaignDetail() {
         {campaign.batchJobId && batchJobData?.stats && (
           <TabsContent value="batch">
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">ElevenLabs Batch Job Status</h3>
+              <h3 className="text-lg font-semibold mb-4">Batch Job Status</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 rounded-lg bg-muted/50">
                   <p className="text-sm text-muted-foreground">Pending</p>

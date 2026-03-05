@@ -240,9 +240,14 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   });
   const sipPhoneNumbers = sipPhoneNumbersResponse?.data || [];
 
+  const { data: retellCredentialsList } = useQuery<{ id: number; name: string; isActive: boolean }[]>({
+    queryKey: ["/api/retell-credentials"],
+  });
+  const isRetellEnabled = (retellCredentialsList && retellCredentialsList.length > 0) || false;
+
   const isPlivoEnabled = voiceEngineSettings?.plivo_openai_engine_enabled ?? false;
   const isTwilioOpenaiEnabled = voiceEngineSettings?.twilio_openai_engine_enabled ?? false;
-  const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed;
+  const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed || isRetellEnabled;
 
   const [formData, setFormData] = useState({
     useCase: "",
@@ -256,9 +261,11 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
-    telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+    telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "retell",
     openaiVoice: "alloy",
     sipPhoneNumberId: "",
+    retellAgentId: "",
+    retellCredentialId: "",
     sourcePresetId: "" as string,
     behaviorConfig: undefined as any,
     waitingMessages: undefined as string[] | undefined,
@@ -303,6 +310,19 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         return !!formData.useCase;
       case "basics":
         // Voice validation depends on telephony provider
+        const isRetellProvider = formData.telephonyProvider === "retell";
+        if (isRetellProvider) {
+          if (!formData.retellAgentId) {
+            toast({ title: "Please enter the Retell Agent ID", variant: "destructive" });
+            return;
+          }
+          if (!formData.retellCredentialId) {
+            toast({ title: "Please select a Retell credential", variant: "destructive" });
+            return;
+          }
+          setCurrentStep("prompt");
+          return;
+        }
         const isOpenAIProvider = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
         const hasValidVoice = isOpenAIProvider
           ? !!formData.openaiVoice 
@@ -369,6 +389,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
       telephonyProvider: "twilio",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
+      retellAgentId: "",
+      retellCredentialId: "",
       sourcePresetId: "",
       behaviorConfig: undefined,
       waitingMessages: undefined,
@@ -380,6 +402,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   const createMutation = useMutation({
     mutationFn: async () => {
       const isSipEngine = formData.telephonyProvider === "elevenlabs-sip" || formData.telephonyProvider === "openai-sip";
+      const isRetellEngine = formData.telephonyProvider === "retell";
       const isOpenAIVoice = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
       const isElevenLabsVoice = formData.telephonyProvider === "twilio" || formData.telephonyProvider === "elevenlabs-sip";
       
@@ -400,6 +423,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         telephonyProvider: formData.telephonyProvider,
         openaiVoice: isOpenAIVoice ? formData.openaiVoice : undefined,
         sipPhoneNumberId: isSipEngine ? formData.sipPhoneNumberId : undefined,
+        retellAgentId: isRetellEngine ? formData.retellAgentId : undefined,
+        retellCredentialId: isRetellEngine ? formData.retellCredentialId : undefined,
         sourcePresetId: formData.sourcePresetId || undefined,
         behaviorConfig: formData.behaviorConfig || undefined,
         waitingMessages: formData.waitingMessages || undefined,
@@ -677,12 +702,78 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                         </div>
                       </div>
                     )}
+                    {/* Retell AI - Cyan theme */}
+                    {isRetellEnabled && (
+                      <div
+                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          formData.telephonyProvider === "retell"
+                            ? "border-cyan-500 bg-cyan-500/10 dark:bg-cyan-500/20"
+                            : "border-border hover:border-cyan-400/50 hover:bg-cyan-500/5"
+                        }`}
+                        onClick={() => setFormData(prev => ({ ...prev, telephonyProvider: "retell" }))}
+                        data-testid="wizard-provider-retell"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-cyan-700 dark:text-cyan-300">Retell AI</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Retell-managed voice agent
+                            </p>
+                          </div>
+                          {formData.telephonyProvider === "retell" && (
+                            <Check className="h-4 w-4 text-cyan-600" />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Retell AI Configuration */}
+              {formData.telephonyProvider === "retell" && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="wizard-retell-agent-id">
+                      Retell Agent ID <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="wizard-retell-agent-id"
+                      value={formData.retellAgentId}
+                      onChange={(e) => setFormData(prev => ({ ...prev, retellAgentId: e.target.value }))}
+                      placeholder="Enter your Retell Agent ID"
+                      data-testid="input-wizard-retell-agent-id"
+                    />
+                    <p className="text-xs text-muted-foreground">The Agent ID from your Retell AI dashboard</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="wizard-retell-credential">
+                      Retell Credential <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={formData.retellCredentialId}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, retellCredentialId: value }))}
+                    >
+                      <SelectTrigger id="wizard-retell-credential" data-testid="select-wizard-retell-credential">
+                        <SelectValue placeholder="Select a Retell credential" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(retellCredentialsList || []).map((cred) => (
+                          <SelectItem key={cred.id} value={String(cred.id)}>
+                            {cred.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
 
               {/* Note: SIP Phone Number selection is done at campaign level, not agent level */}
 
+              {formData.telephonyProvider !== "retell" && (
               <div className="grid grid-cols-1 lg:[grid-template-columns:repeat(2,minmax(0,1fr))] gap-4">
                 <div className="space-y-2 relative min-w-0">
                   <Label>Voice <span className="text-destructive">*</span></Label>
@@ -780,6 +871,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                   </Select>
                 </div>
               </div>
+              )}
             </div>
           </div>
         );

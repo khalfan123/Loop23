@@ -35,10 +35,19 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 ## External Dependencies
 - **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude Sonnet-4-5, AWS Bedrock Claude 3.5 Sonnet.
 - **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly.
-- **Telephony Providers**: Twilio, Plivo, TCXC.
+- **Telephony Providers**: Twilio, Plivo, TCXC, Retell AI.
 - **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.
 - **Database**: Neon (PostgreSQL).
 - **Email**: SMTP.
+
+## Retell AI Integration
+- **Schema**: `retellCredentials` table for API key management, `retellAgentId` and `retellCredentialId` columns on `agents` table
+- **Service**: `server/services/retell-batch-calling.ts` — REST client for Retell AI batch call API (create, get, list, cancel batches)
+- **Campaign Executor**: Full Retell routing in `executeCampaign()`, `pauseCampaign()`, `cancelCampaign()`, `resumeCampaign()`, `getBatchJobStatus()`, and `validateCampaign()`
+- **Campaign Scheduler**: Polls Retell batch status via `getBatchJobStatus()` alongside ElevenLabs/Bedrock-Polly
+- **Admin Routes**: CRUD for Retell credentials at `/api/admin/retell-credentials` (with test endpoint)
+- **Frontend**: Retell provider option in agent creation (both wizard & editor), Retell credential management in admin settings, provider badge in batch jobs monitor
+- **Bedrock-Polly Parity**: `getBatchJobStatus()` now handles `bedrock-polly-` prefixed campaigns for batch monitoring
 
 ## Recent Fixes
 - **Widget Language + Flow Agent Fixes (Feb 2026)**: Fixed multiple widget issues:

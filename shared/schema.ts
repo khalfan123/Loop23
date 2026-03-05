@@ -136,7 +136,8 @@ export const agents = pgTable("agents", {
   // 'twilio_openai' = Twilio telephony + OpenAI Realtime API
   // 'elevenlabs-sip' = ElevenLabs native SIP (user's own SIP trunk)
   // 'fonoster-openai' = Fonoster SIP + OpenAI Realtime API (user's own SIP trunk)
-  telephonyProvider: text("telephony_provider").default("twilio"), // 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'fonoster-openai'
+  // 'retell' = Retell AI platform for voice agents and batch calling
+  telephonyProvider: text("telephony_provider").default("twilio"), // 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'fonoster-openai' | 'retell'
   
   // SIP Trunk Configuration (used when telephonyProvider='elevenlabs-sip' or 'fonoster-openai')
   sipTrunkId: varchar("sip_trunk_id"), // References sip_trunks.id for SIP-based engines
@@ -183,6 +184,11 @@ export const agents = pgTable("agents", {
   awsPollyVoiceId: text("aws_polly_voice_id"), // AWS Polly voice ID (e.g., 'Joanna', 'Matthew')
   awsPollyEngine: text("aws_polly_engine").default("neural"), // 'standard', 'neural', 'long-form', 'generative'
   awsCredentialId: varchar("aws_credential_id"), // References awsCredentials.id
+  
+  // Retell AI Configuration (used when telephonyProvider='retell')
+  retellAgentId: text("retell_agent_id"), // Retell AI agent ID
+  retellCredentialId: varchar("retell_credential_id"), // References retellCredentials.id
+  
   voiceStability: doublePrecision("voice_stability").default(0.55),
   voiceSimilarityBoost: doublePrecision("voice_similarity_boost").default(0.85),
   voiceSpeed: doublePrecision("voice_speed").default(1.0),
@@ -2312,6 +2318,33 @@ export const insertPlivoCredentialSchema = createInsertSchema(plivoCredentials).
 });
 export type InsertPlivoCredential = z.infer<typeof insertPlivoCredentialSchema>;
 export type PlivoCredential = typeof plivoCredentials.$inferSelect;
+
+// Retell AI Credentials - API keys for Retell AI voice agent platform
+export const retellCredentials = pgTable("retell_credentials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  apiKey: text("api_key").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  maxConcurrency: integer("max_concurrency").notNull().default(50),
+  currentLoad: integer("current_load").notNull().default(0),
+  totalAssignedAgents: integer("total_assigned_agents").notNull().default(0),
+  lastHealthCheck: timestamp("last_health_check"),
+  healthStatus: text("health_status").notNull().default("healthy"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertRetellCredentialSchema = createInsertSchema(retellCredentials).omit({
+  id: true,
+  currentLoad: true,
+  totalAssignedAgents: true,
+  lastHealthCheck: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertRetellCredential = z.infer<typeof insertRetellCredentialSchema>;
+export type RetellCredential = typeof retellCredentials.$inferSelect;
 
 // Plivo Phone Numbers
 export const plivoPhoneNumbers = pgTable("plivo_phone_numbers", {

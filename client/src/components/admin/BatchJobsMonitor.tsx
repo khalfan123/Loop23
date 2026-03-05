@@ -1,19 +1,3 @@
-/**
- * ============================================================
- * © 2025 Diploy — a brand of Bisht Technologies Private Limited
- * Original Author: BTPL Engineering Team
- * Website: https://diploy.in
- * Contact: cs@diploy.in
- *
- * Distributed under the Envato / CodeCanyon License Agreement.
- * Licensed to the purchaser for use as defined by the
- * Envato Market (CodeCanyon) Regular or Extended License.
- *
- * You are NOT permitted to redistribute, resell, sublicense,
- * or share this source code, in whole or in part.
- * Respect the author's rights and Envato licensing terms.
- * ============================================================
- */
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +16,10 @@ import {
   PlayCircle,
   PauseCircle,
   StopCircle,
-  BarChart3
+  BarChart3,
+  PhoneCall,
+  PhoneForwarded,
+  UserCheck
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
@@ -43,6 +30,13 @@ interface BatchJobStats {
   failed: number;
   inProgress: number;
   pending: number;
+}
+
+interface RetellStats {
+  total_task_count: number;
+  sent: number;
+  picked_up: number;
+  successful: number;
 }
 
 interface BatchJob {
@@ -56,6 +50,8 @@ interface BatchJob {
   totalCallsDispatched?: number;
   createdAt?: string;
   lastUpdatedAt?: string;
+  provider?: string;
+  retellStats?: RetellStats;
   stats?: {
     pending: number;
     scheduled: number;
@@ -72,6 +68,26 @@ interface BatchJob {
 interface BatchJobsResponse {
   batchJobs: BatchJob[];
 }
+
+const PROVIDER_LABELS: Record<string, string> = {
+  elevenlabs: "ElevenLabs",
+  retell: "Retell AI",
+  "bedrock-polly": "Bedrock+Polly",
+  plivo: "Plivo",
+  "twilio-openai": "Twilio+OpenAI",
+  sip: "SIP",
+  unknown: "Unknown",
+};
+
+const PROVIDER_COLORS: Record<string, string> = {
+  elevenlabs: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+  retell: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  "bedrock-polly": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  plivo: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  "twilio-openai": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  sip: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
+  unknown: "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200",
+};
 
 export default function BatchJobsMonitor() {
   const { data: batchData, isLoading, refetch, isRefetching } = useQuery<BatchJobsResponse>({
@@ -150,6 +166,17 @@ export default function BatchJobsMonitor() {
     }
   };
 
+  const getProviderBadge = (provider?: string) => {
+    const key = provider || "unknown";
+    const label = PROVIDER_LABELS[key] || key;
+    const colorClass = PROVIDER_COLORS[key] || PROVIDER_COLORS.unknown;
+    return (
+      <Badge variant="secondary" className={colorClass} data-testid={`badge-provider-${key}`}>
+        {label}
+      </Badge>
+    );
+  };
+
   const formatTime = (dateString?: string) => {
     if (!dateString) return "N/A";
     try {
@@ -170,13 +197,61 @@ export default function BatchJobsMonitor() {
     return 0;
   };
 
+  const renderCallStats = (job: BatchJob) => {
+    if (job.provider === 'retell' && job.retellStats) {
+      return (
+        <>
+          <span className="flex items-center gap-1">
+            <PhoneForwarded className="h-3 w-3 text-blue-500" />
+            {job.retellStats.sent} sent
+          </span>
+          <span className="flex items-center gap-1">
+            <PhoneCall className="h-3 w-3 text-amber-500" />
+            {job.retellStats.picked_up} picked up
+          </span>
+          <span className="flex items-center gap-1">
+            <UserCheck className="h-3 w-3 text-emerald-500" />
+            {job.retellStats.successful} successful
+          </span>
+        </>
+      );
+    }
+
+    if (job.stats) {
+      return (
+        <>
+          <span className="flex items-center gap-1">
+            <CheckCircle className="h-3 w-3 text-emerald-500" />
+            {job.stats.completed} completed
+          </span>
+          <span className="flex items-center gap-1 text-muted-foreground">
+            <Phone className="h-3 w-3" />
+            {job.stats.in_progress} in progress
+          </span>
+          {job.stats.failed > 0 && (
+            <span className="flex items-center gap-1 text-rose-500">
+              <XCircle className="h-3 w-3" />
+              {job.stats.failed} failed
+            </span>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <span className="text-muted-foreground">
+        {job.totalCallsDispatched || 0} / {job.totalCallsScheduled || job.totalContacts}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-lg font-semibold">Batch Jobs Dashboard</h2>
           <p className="text-sm text-muted-foreground">
-            Monitor ElevenLabs batch calling jobs across all campaigns
+            Monitor batch calling jobs across all providers and campaigns
           </p>
         </div>
         <Button 
@@ -265,7 +340,7 @@ export default function BatchJobsMonitor() {
             Batch Jobs
           </CardTitle>
           <CardDescription>
-            Real-time view of ElevenLabs batch calling jobs (auto-refreshes every 15 seconds)
+            Real-time view of batch calling jobs across all providers (auto-refreshes every 15 seconds)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -285,6 +360,7 @@ export default function BatchJobsMonitor() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Status</TableHead>
+                    <TableHead>Provider</TableHead>
                     <TableHead>Campaign</TableHead>
                     <TableHead className="hidden md:table-cell">Agent</TableHead>
                     <TableHead>Progress</TableHead>
@@ -297,6 +373,7 @@ export default function BatchJobsMonitor() {
                   {batchJobs.map((job) => (
                     <TableRow key={job.batchJobId} data-testid={`row-batch-job-${job.batchJobId}`}>
                       <TableCell>{getStatusBadge(job.batchJobStatus)}</TableCell>
+                      <TableCell>{getProviderBadge(job.provider)}</TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <Link href={`/admin/campaigns/${job.campaignId}`}>
@@ -322,28 +399,7 @@ export default function BatchJobsMonitor() {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <div className="flex flex-col text-sm">
-                          {job.stats ? (
-                            <>
-                              <span className="flex items-center gap-1">
-                                <CheckCircle className="h-3 w-3 text-emerald-500" />
-                                {job.stats.completed} completed
-                              </span>
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <Phone className="h-3 w-3" />
-                                {job.stats.in_progress} in progress
-                              </span>
-                              {job.stats.failed > 0 && (
-                                <span className="flex items-center gap-1 text-rose-500">
-                                  <XCircle className="h-3 w-3" />
-                                  {job.stats.failed} failed
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              {job.totalCallsDispatched || 0} / {job.totalCallsScheduled || job.totalContacts}
-                            </span>
-                          )}
+                          {renderCallStats(job)}
                         </div>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">

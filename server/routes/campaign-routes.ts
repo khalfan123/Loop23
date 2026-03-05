@@ -27,6 +27,8 @@ import { nanoid } from "nanoid";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { BatchCallingService } from "../services/batch-calling";
+import { RetellBatchCallingService } from "../services/retell-batch-calling";
+import { retellCredentials } from "@shared/schema";
 import { PlanLimitExceededError } from "../services/contact-upload-service";
 
 export function createCampaignRoutes(ctx: RouteContext): Router {
@@ -927,16 +929,91 @@ Create a greeting template, call script playbook, and system prompt that maximiz
         return res.status(400).json({ error: "Agent not found" });
       }
 
+      const batchJobId = campaign.batchJobId;
+      const provider = agent.telephonyProvider === 'retell' ? 'retell'
+        : batchJobId.startsWith('bedrock-polly-') ? 'bedrock-polly'
+        : agent.telephonyProvider === 'plivo' ? 'plivo'
+        : agent.telephonyProvider === 'twilio_openai' ? 'twilio-openai'
+        : (agent.telephonyProvider === 'elevenlabs-sip' || agent.telephonyProvider === 'openai-sip') ? 'sip'
+        : 'elevenlabs';
+
+      if (provider === 'retell') {
+        if (!agent.retellCredentialId) {
+          return res.status(500).json({ error: "No Retell credential found for agent" });
+        }
+        const [retellCred] = await db
+          .select()
+          .from(retellCredentials)
+          .where(eq(retellCredentials.id, agent.retellCredentialId))
+          .limit(1);
+        if (!retellCred) {
+          return res.status(500).json({ error: "Retell credential not found" });
+        }
+        const retellService = new RetellBatchCallingService(retellCred.apiKey);
+        const retellBatch = await retellService.getBatch(batchJobId);
+        const mappedStatus = RetellBatchCallingService.mapStatus(retellBatch.status);
+        const retellStats = RetellBatchCallingService.getRetellBatchStats(retellBatch);
+        return res.json({
+          batchJob: {
+            id: retellBatch.batch_call_id,
+            status: mappedStatus,
+            name: retellBatch.name,
+            total_calls_scheduled: retellBatch.total_task_count,
+            total_calls_dispatched: retellBatch.sent,
+          },
+          stats: {
+            pending: retellBatch.total_task_count - retellBatch.sent,
+            scheduled: 0,
+            dispatched: retellBatch.sent,
+            in_progress: Math.max(0, retellBatch.sent - retellBatch.successful),
+            completed: retellBatch.successful,
+            failed: retellBatch.sent - retellBatch.picked_up,
+            total: retellBatch.total_task_count,
+            progress: retellBatch.total_task_count > 0 ? Math.round((retellBatch.sent / retellBatch.total_task_count) * 100) : 0,
+          },
+          retellStats,
+          provider,
+        });
+      }
+
+      if (provider === 'bedrock-polly' || provider === 'plivo' || provider === 'twilio-openai' || provider === 'sip') {
+        const completedCalls = campaign.completedCalls || 0;
+        const successfulCalls = campaign.successfulCalls || 0;
+        const totalContacts = campaign.totalContacts || 0;
+        const failedCalls = completedCalls - successfulCalls;
+        const progress = totalContacts > 0 ? Math.round((completedCalls / totalContacts) * 100) : 0;
+        return res.json({
+          batchJob: {
+            id: batchJobId,
+            status: campaign.batchJobStatus || campaign.status || 'unknown',
+            name: campaign.name,
+            total_calls_scheduled: totalContacts,
+            total_calls_dispatched: completedCalls,
+          },
+          stats: {
+            pending: Math.max(0, totalContacts - completedCalls),
+            scheduled: 0,
+            dispatched: completedCalls,
+            in_progress: campaign.status === 'running' ? Math.max(0, totalContacts - completedCalls) : 0,
+            completed: successfulCalls,
+            failed: Math.max(0, failedCalls),
+            total: totalContacts,
+            progress,
+          },
+          provider,
+        });
+      }
+
       const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
       if (!credential) {
         return res.status(500).json({ error: "No credential found for agent" });
       }
 
       const batchService = new BatchCallingService(credential.apiKey);
-      const batchJob = await batchService.getBatch(campaign.batchJobId);
+      const batchJob = await batchService.getBatch(batchJobId);
       const stats = BatchCallingService.getBatchStats(batchJob);
 
-      res.json({ batchJob, stats });
+      res.json({ batchJob, stats, provider });
     } catch (error: any) {
       console.error("Get batch job error:", error);
       res.status(500).json({ error: error.message || "Failed to get batch job status" });

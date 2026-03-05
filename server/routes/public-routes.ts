@@ -19,7 +19,7 @@
 import { Router, Request, Response } from 'express';
 import { RouteContext, AuthRequest } from './common';
 import { sql, eq } from 'drizzle-orm';
-import { users, calls, campaigns, twilioCountries } from '@shared/schema';
+import { users, calls, campaigns, twilioCountries, retellCredentials } from '@shared/schema';
 import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
@@ -486,6 +486,20 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         twilio_kyc_required: true,
         plivo_kyc_required: true,
       });
+    }
+  });
+
+  router.get("/api/retell-credentials", async (_req: Request, res: Response) => {
+    try {
+      const credentials = await db.select({
+        id: retellCredentials.id,
+        name: retellCredentials.name,
+        isActive: retellCredentials.isActive,
+      }).from(retellCredentials).where(eq(retellCredentials.isActive, true));
+      res.json(credentials);
+    } catch (error) {
+      console.error('Error fetching Retell credentials:', error);
+      res.json([]);
     }
   });
 

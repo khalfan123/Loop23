@@ -120,8 +120,10 @@ interface Agent {
   endConversationEnabled: boolean | null;
   appointmentBookingEnabled: boolean | null;
   knowledgeBaseOnly: boolean | null;
-  telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
+  telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | 'retell' | null;
   openaiVoice: string | null;
+  retellAgentId: string | null;
+  retellCredentialId: string | null;
   sourceTemplateId: string | null;
   isFromTemplate: boolean | null;
   tags: string[] | null;
@@ -292,11 +294,14 @@ export default function Agents() {
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
-    // Telephony Provider selection (Twilio/ElevenLabs, Plivo/OpenAI, Twilio/OpenAI, or SIP engines)
-    telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+    // Telephony Provider selection (Twilio/ElevenLabs, Plivo/OpenAI, Twilio/OpenAI, SIP engines, or Retell)
+    telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "retell",
     openaiVoice: "alloy",
     // SIP phone number selection (for SIP engines)
     sipPhoneNumberId: "",
+    // Retell AI configuration
+    retellAgentId: "",
+    retellCredentialId: "",
     // Template tracking
     sourceTemplateId: "" as string,
     isFromTemplate: false,
@@ -399,7 +404,12 @@ export default function Agents() {
   });
   const sipPhoneNumbers = sipPhoneNumbersResponse?.data || [];
 
-  const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed;
+  const { data: retellCredentialsList } = useQuery<{ id: number; name: string; isActive: boolean }[]>({
+    queryKey: ["/api/retell-credentials"],
+  });
+  const isRetellEnabled = (retellCredentialsList && retellCredentialsList.length > 0) || false;
+
+  const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed || isRetellEnabled;
 
   // Fetch OpenAI Realtime models (for Plivo+OpenAI or Twilio+OpenAI engine)
   const { data: openaiModelsData } = useQuery<{
@@ -627,9 +637,12 @@ export default function Agents() {
       voiceSimilarityBoost: 0.85,
       voiceSpeed: 1.0,
       // Telephony Provider selection
-      telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+      telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "retell",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
+      // Retell AI configuration
+      retellAgentId: "",
+      retellCredentialId: "",
       // Template tracking
       sourceTemplateId: "",
       isFromTemplate: false,
@@ -648,21 +661,42 @@ export default function Agents() {
       return;
     }
 
-    // Incoming Agent validation
-    if (formData.type === 'incoming') {
-      // Voice validation depends on telephony provider
-      const isOpenAIVoice = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
-      const hasValidVoice = isOpenAIVoice
-        ? !!formData.openaiVoice 
-        : !!formData.elevenLabsVoiceId;
-      // Note: SIP phone number selection moved to campaign level
-      if (!hasValidVoice) {
+    // Retell Agent validation
+    if (formData.telephonyProvider === "retell") {
+      if (!formData.retellAgentId) {
         toast({
           title: t('agents.toast.missingFields'),
-          description: t('agents.toast.pleaseSelectVoice'),
+          description: "Please enter the Retell Agent ID",
           variant: "destructive",
         });
         return;
+      }
+      if (!formData.retellCredentialId) {
+        toast({
+          title: t('agents.toast.missingFields'),
+          description: "Please select a Retell credential",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Incoming Agent validation
+    if (formData.type === 'incoming') {
+      // Voice validation depends on telephony provider (skip for Retell - voice is managed in Retell platform)
+      if (formData.telephonyProvider !== "retell") {
+        const isOpenAIVoice = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+        const hasValidVoice = isOpenAIVoice
+          ? !!formData.openaiVoice 
+          : !!formData.elevenLabsVoiceId;
+        if (!hasValidVoice) {
+          toast({
+            title: t('agents.toast.missingFields'),
+            description: t('agents.toast.pleaseSelectVoice'),
+            variant: "destructive",
+          });
+          return;
+        }
       }
       if (!formData.systemPrompt) {
         toast({
@@ -693,19 +727,20 @@ export default function Agents() {
         });
         return;
       }
-      // Voice validation depends on telephony provider for flow agents
-      const isOpenAIVoiceFlow = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
-      const hasValidVoice = isOpenAIVoiceFlow
-        ? !!formData.openaiVoice 
-        : !!formData.elevenLabsVoiceId;
-      // Note: SIP phone number selection moved to campaign level
-      if (!hasValidVoice) {
-        toast({
-          title: t('agents.toast.missingFields'),
-          description: t('agents.toast.pleaseSelectVoice'),
-          variant: "destructive",
-        });
-        return;
+      // Voice validation depends on telephony provider for flow agents (skip for Retell)
+      if (formData.telephonyProvider !== "retell") {
+        const isOpenAIVoiceFlow = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+        const hasValidVoice = isOpenAIVoiceFlow
+          ? !!formData.openaiVoice 
+          : !!formData.elevenLabsVoiceId;
+        if (!hasValidVoice) {
+          toast({
+            title: t('agents.toast.missingFields'),
+            description: t('agents.toast.pleaseSelectVoice'),
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
 
@@ -744,9 +779,12 @@ export default function Agents() {
       voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
       voiceSpeed: agent.voiceSpeed ?? 1.0,
       // Telephony Provider selection
-      telephonyProvider: (agent.telephonyProvider || "twilio") as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+      telephonyProvider: (agent.telephonyProvider || "twilio") as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip" | "retell",
       openaiVoice: agent.openaiVoice || "alloy",
       sipPhoneNumberId: (agent as any).sipPhoneNumberId || "",
+      // Retell AI configuration
+      retellAgentId: agent.retellAgentId || "",
+      retellCredentialId: agent.retellCredentialId || "",
       // Template tracking
       sourceTemplateId: agent.sourceTemplateId || "",
       isFromTemplate: agent.isFromTemplate ?? false,
@@ -1796,7 +1834,7 @@ export default function Agents() {
                 )}
 
                 {/* Telephony Provider Selection for Flow Agents */}
-                {(hasAlternateEngines || formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai") && (
+                {(hasAlternateEngines || formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "retell") && (
                   <div className="space-y-2 border-t pt-4">
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
@@ -1955,13 +1993,88 @@ export default function Agents() {
                           </div>
                         </div>
                       )}
+                      {/* Retell AI - Cyan theme */}
+                      {(isRetellEnabled || formData.telephonyProvider === "retell") && (
+                        <div
+                          className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            formData.telephonyProvider === "retell"
+                              ? "border-cyan-500 bg-cyan-500/10 dark:bg-cyan-500/20"
+                              : "border-border hover:border-cyan-400/50 hover:bg-cyan-500/5"
+                          }`}
+                          onClick={() => setFormData({ 
+                            ...formData, 
+                            telephonyProvider: "retell",
+                          })}
+                          data-testid="flow-provider-retell"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-cyan-700 dark:text-cyan-300">Retell AI</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Retell-managed voice agent
+                              </p>
+                            </div>
+                            {formData.telephonyProvider === "retell" && (
+                              <Check className="h-4 w-4 text-cyan-600" />
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
 
                 {/* Note: SIP Phone Number selection is done at campaign level, not agent level */}
 
+                {/* Retell AI Configuration for Flow Agents */}
+                {formData.telephonyProvider === "retell" && (
+                  <div className="space-y-3 border-t pt-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                        <Settings2 className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                      </div>
+                      <Label className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">Retell AI Configuration</Label>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="flow-retell-agent-id">
+                        Retell Agent ID <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="flow-retell-agent-id"
+                        value={formData.retellAgentId}
+                        onChange={(e) => setFormData({ ...formData, retellAgentId: e.target.value })}
+                        placeholder="Enter your Retell Agent ID"
+                        data-testid="input-flow-retell-agent-id"
+                      />
+                      <p className="text-xs text-muted-foreground">The Agent ID from your Retell AI dashboard</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="flow-retell-credential">
+                        Retell Credential <span className="text-destructive">*</span>
+                      </Label>
+                      <Select
+                        value={formData.retellCredentialId}
+                        onValueChange={(value) => setFormData({ ...formData, retellCredentialId: value })}
+                      >
+                        <SelectTrigger id="flow-retell-credential" data-testid="select-flow-retell-credential">
+                          <SelectValue placeholder="Select a Retell credential" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(retellCredentialsList || []).map((cred) => (
+                            <SelectItem key={cred.id} value={String(cred.id)}>
+                              {cred.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
                 {/* Voice Selection for Flow Agents */}
+                {formData.telephonyProvider !== "retell" && (
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <Label htmlFor="flow-voice">
@@ -2017,6 +2130,7 @@ export default function Agents() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Flow Agent Configuration Section */}
                 <div className="space-y-4 border-t pt-4">
@@ -2262,7 +2376,7 @@ export default function Agents() {
             </div>
 
             {/* Telephony Provider Selection - Show only for INCOMING agents if alternate engines are enabled */}
-            {formData.type === 'incoming' && (hasAlternateEngines || formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai") && (
+            {formData.type === 'incoming' && (hasAlternateEngines || formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "retell") && (
               <div className="space-y-2">
                 <Label>Telephony Provider</Label>
                 <div className={`grid gap-3 ${isPlivoEnabled && isTwilioOpenaiEnabled ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -2416,12 +2530,87 @@ export default function Agents() {
                       </div>
                     </div>
                   )}
+                  {/* Retell AI - Cyan theme */}
+                  {(isRetellEnabled || formData.telephonyProvider === "retell") && (
+                    <div
+                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        formData.telephonyProvider === "retell"
+                          ? "border-cyan-500 bg-cyan-500/10 dark:bg-cyan-500/20"
+                          : "border-border hover:border-cyan-400/50 hover:bg-cyan-500/5"
+                      }`}
+                      onClick={() => setFormData({ 
+                        ...formData, 
+                        telephonyProvider: "retell",
+                      })}
+                      data-testid="provider-retell"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-cyan-700 dark:text-cyan-300">Retell AI</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Retell-managed voice agent
+                          </p>
+                        </div>
+                        {formData.telephonyProvider === "retell" && (
+                          <Check className="h-4 w-4 text-cyan-600" />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Retell AI Configuration for Incoming Agents */}
+            {formData.type === 'incoming' && formData.telephonyProvider === "retell" && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                    <Settings2 className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                  </div>
+                  <Label className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">Retell AI Configuration</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="retell-agent-id">
+                    Retell Agent ID <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="retell-agent-id"
+                    value={formData.retellAgentId}
+                    onChange={(e) => setFormData({ ...formData, retellAgentId: e.target.value })}
+                    placeholder="Enter your Retell Agent ID"
+                    data-testid="input-retell-agent-id"
+                  />
+                  <p className="text-xs text-muted-foreground">The Agent ID from your Retell AI dashboard</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="retell-credential">
+                    Retell Credential <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={formData.retellCredentialId}
+                    onValueChange={(value) => setFormData({ ...formData, retellCredentialId: value })}
+                  >
+                    <SelectTrigger id="retell-credential" data-testid="select-retell-credential">
+                      <SelectValue placeholder="Select a Retell credential" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(retellCredentialsList || []).map((cred) => (
+                        <SelectItem key={cred.id} value={String(cred.id)}>
+                          {cred.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}
 
             {/* Note: SIP Phone Number selection is done at campaign level, not agent level */}
 
+            {formData.type === 'incoming' && formData.telephonyProvider !== "retell" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 overflow-visible">
               <div className="space-y-2 relative z-20">
                 <div className="flex items-center">
@@ -2527,6 +2716,7 @@ export default function Agents() {
                 </Select>
               </div>
             </div>
+            )}
 
             {/* Incoming Agent LLM and Prompt Configuration */}
             {formData.type === 'incoming' && (

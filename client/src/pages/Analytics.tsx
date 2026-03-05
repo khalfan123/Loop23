@@ -18,7 +18,7 @@ import { AnalyticsChart } from "@/components/AnalyticsChart";
 import { MetricCard } from "@/components/MetricCard";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3 } from "lucide-react";
+import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio } from "lucide-react";
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -27,6 +27,7 @@ import { useTranslation } from 'react-i18next';
 import { AuthStorage } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
+import LiveMonitoring from "@/pages/LiveMonitoring";
 
 interface TypeBreakdown {
   incoming: number;
@@ -52,6 +53,7 @@ export default function Analytics() {
   const { t } = useTranslation();
   const [timeRange, setTimeRange] = useState("7days");
   const [callType, setCallType] = useState("all");
+  const [activeView, setActiveView] = useState<"analytics" | "live-monitoring">("analytics");
   const [isExporting, setIsExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -134,14 +136,6 @@ export default function Analytics() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   const {
     totalCalls = 0,
     successRate = 0,
@@ -181,39 +175,86 @@ export default function Analytics() {
 
   const subPanelContent = (
     <div className="space-y-1">
-      <SubPanelSection title={t('analytics.callTypes.title', 'CALL TYPES')}>
-        {callTypeItems.map((filter) => (
-          <SubPanelItem
-            key={filter.value}
-            icon={<filter.icon className="w-4 h-4" />}
-            label={filter.label}
-            isActive={callType === filter.value}
-            onClick={() => setCallType(filter.value)}
-            badge={filter.count}
-          />
-        ))}
+      <SubPanelSection title={t('analytics.views', 'VIEWS')}>
+        <SubPanelItem
+          icon={<BarChart3 className="w-4 h-4" />}
+          label={t('nav.analytics', 'Analytics')}
+          isActive={activeView === "analytics"}
+          onClick={() => setActiveView("analytics")}
+          data-testid="nav-analytics-view"
+        />
+        <SubPanelItem
+          icon={<Radio className="w-4 h-4" />}
+          label="Live Monitoring"
+          isActive={activeView === "live-monitoring"}
+          onClick={() => setActiveView("live-monitoring")}
+          data-testid="nav-live-monitoring-view"
+        />
       </SubPanelSection>
-      
-      <SubPanelSection title={t('analytics.metrics', 'METRICS')}>
-        <div className="px-2.5 py-2 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t('analytics.successRate')}</span>
-            <span className="font-medium text-emerald-600">{successRate}%</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t('analytics.avgDurationLabel')}</span>
-            <span className="font-medium">{formatDuration(avgDuration)}</span>
-          </div>
-        </div>
-      </SubPanelSection>
+
+      {activeView === "analytics" && (
+        <>
+          <SubPanelSection title={t('analytics.callTypes.title', 'CALL TYPES')}>
+            {callTypeItems.map((filter) => (
+              <SubPanelItem
+                key={filter.value}
+                icon={<filter.icon className="w-4 h-4" />}
+                label={filter.label}
+                isActive={callType === filter.value}
+                onClick={() => setCallType(filter.value)}
+                badge={filter.count}
+              />
+            ))}
+          </SubPanelSection>
+          
+          <SubPanelSection title={t('analytics.metrics', 'METRICS')}>
+            <div className="px-2.5 py-2 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t('analytics.successRate')}</span>
+                <span className="font-medium text-emerald-600">{successRate}%</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t('analytics.avgDurationLabel')}</span>
+                <span className="font-medium">{formatDuration(avgDuration)}</span>
+              </div>
+            </div>
+          </SubPanelSection>
+        </>
+      )}
     </div>
   );
+
+  if (activeView === "live-monitoring") {
+    return (
+      <ThreeColumnLayout 
+        subPanel={subPanelContent} 
+        subPanelWidth="sm"
+        subPanelHeader={<span className="font-medium text-sm">{t('nav.analytics', 'Analytics')}</span>}
+      >
+        <LiveMonitoring />
+      </ThreeColumnLayout>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <ThreeColumnLayout 
+        subPanel={subPanelContent} 
+        subPanelWidth="sm"
+        subPanelHeader={<span className="font-medium text-sm">{t('nav.analytics', 'Analytics')}</span>}
+      >
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </ThreeColumnLayout>
+    );
+  }
 
   return (
     <ThreeColumnLayout 
       subPanel={subPanelContent} 
       subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">{t('analytics.filters', 'Filters')}</span>}
+      subPanelHeader={<span className="font-medium text-sm">{t('nav.analytics', 'Analytics')}</span>}
     >
       <div className="space-y-6" ref={reportRef}>
         {/* iOS 18 Style Header - Clean and Minimal */}

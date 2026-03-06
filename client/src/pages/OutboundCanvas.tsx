@@ -77,6 +77,7 @@ import {
   Wand2,
   Tag,
   Package,
+  Pencil,
 } from "lucide-react";
 import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -2151,6 +2152,15 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 <div className="flex items-center gap-2 mb-1.5">
                   <Sparkles className="h-4 w-4 text-amber-500" />
                   <span className="font-medium text-sm">Use Case</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 ml-auto"
+                    onClick={() => setCurrentStep(1)}
+                    data-testid="button-edit-usecase-review"
+                  >
+                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                  </Button>
                 </div>
                 <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
                   {selectedFlowTemplate.name}
@@ -2162,6 +2172,15 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
               <div className="flex items-center gap-2 mb-1.5">
                 <Users className="h-4 w-4 text-violet-600" />
                 <span className="font-medium text-sm">Contacts ({selectedContacts.length})</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-auto"
+                  onClick={() => setCurrentStep(2)}
+                  data-testid="button-edit-contacts-review"
+                >
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                </Button>
               </div>
               <div className="flex flex-wrap gap-1">
                 {selectedContacts.slice(0, 5).map((contact) => {
@@ -2186,6 +2205,15 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
               <div className="flex items-center gap-2 mb-1.5">
                 <Phone className="h-4 w-4 text-green-600" />
                 <span className="font-medium text-sm">Caller ID</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-auto"
+                  onClick={() => setCurrentStep(3)}
+                  data-testid="button-edit-phone-review"
+                >
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                </Button>
               </div>
               {selectedPhone && (
                 <div className="flex items-center gap-2">
@@ -2200,10 +2228,41 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
               <div className="flex items-center gap-2 mb-1.5">
                 <Bot className="h-4 w-4 text-blue-600" />
                 <span className="font-medium text-sm">AI Agent</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0 ml-auto"
+                  onClick={() => setCurrentStep(4)}
+                  data-testid="button-edit-agent-review"
+                >
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                </Button>
               </div>
               {selectedAgent && (
                 <div>
-                  <span className="text-sm font-medium">{selectedAgent.name}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium">{selectedAgent.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-6 w-6 p-0 rounded-full flex-shrink-0 ${
+                        agentPreviewingId === selectedAgent.id
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                          : "hover:bg-accent"
+                      }`}
+                      onClick={(e) => handleAgentVoicePreview(selectedAgent, e)}
+                      disabled={agentPreviewLoading && agentPreviewingId !== selectedAgent.id}
+                      data-testid="button-agent-voice-preview-review"
+                    >
+                      {agentPreviewLoading && agentPreviewingId === selectedAgent.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : agentPreviewingId === selectedAgent.id ? (
+                        <Square className="h-2.5 w-2.5" />
+                      ) : (
+                        <Volume2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     {selectedAgent.voiceProvider === 'aws_polly' ? (
                       <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">

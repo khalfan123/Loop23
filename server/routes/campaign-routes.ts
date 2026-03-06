@@ -511,13 +511,16 @@ Generate 4-8 fields appropriate for the use case. No markdown, no explanation. $
       const { useCase, agentId, knowledgeBaseIds, formFields: formFieldsList, language } = req.body;
       if (!useCase) return res.status(400).json({ error: "Use case is required" });
 
-      let agentContext = '';
+      let agentName = 'AI Agent';
+      let agentLanguage = 'en';
+      let agentPersonality = '';
       if (agentId) {
         const agent = await storage.getAgent(agentId);
         if (agent) {
-          agentContext = `Agent name: ${agent.name || 'AI Agent'}. Language: ${agent.language || 'en'}.`;
+          agentName = agent.name || 'AI Agent';
+          agentLanguage = agent.language || 'en';
           if (agent.systemPrompt) {
-            agentContext += ` Current personality/prompt context: ${agent.systemPrompt.substring(0, 300)}`;
+            agentPersonality = agent.systemPrompt.substring(0, 500);
           }
         }
       }
@@ -530,57 +533,124 @@ Generate 4-8 fields appropriate for the use case. No markdown, no explanation. $
             .where(inArray(knowledgeBase.id, knowledgeBaseIds))
             .limit(10);
           if (kbRecords.length > 0) {
-            kbContext = `Knowledge bases available: ${kbRecords.map(kb => kb.title).join(', ')}. The agent should use these as backup for questions outside the main use case.`;
+            kbContext = `Reference knowledge bases available: ${kbRecords.map(kb => kb.title).join(', ')}.`;
           }
         } catch {}
       }
 
       let formContext = '';
       if (formFieldsList && formFieldsList.length > 0) {
-        formContext = `The agent must collect the following information during the call:\n${formFieldsList.map((f: any, i: number) => `${i + 1}. ${f.question} (${f.fieldType}${f.isRequired ? ', required' : ', optional'})`).join('\n')}`;
+        formContext = formFieldsList.map((f: any, i: number) => `${i + 1}. "${f.question}" (type: ${f.fieldType}${f.isRequired ? ', REQUIRED' : ', optional'})`).join('\n');
       }
 
       const isAppointment = useCase.toLowerCase().includes('appointment') || useCase.toLowerCase().includes('booking');
 
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
-
-      const langNote = language && language !== 'en'
-        ? `The agent MUST speak in the language matching code "${language}".`
+      const langInstruction = (language && language !== 'en') || (agentLanguage && agentLanguage !== 'en')
+        ? `\n\nLANGUAGE REQUIREMENT: The agent MUST conduct the entire conversation in the language matching code "${language || agentLanguage}". All greetings, questions, responses, and objection handling must be in this language. Do NOT mix languages.`
         : '';
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert AI phone agent prompt engineer. Generate a system prompt for an outbound calling AI agent. The prompt should define the agent's identity, communication style, goals, and step-by-step instructions for the call.
+      const metaPrompt = `You are a world-class prompt engineer specializing in AI phone agents for outbound calling campaigns. Your task is to generate the BEST possible system prompt for an AI agent that will make outbound phone calls for a specific use case.
 
-RULES:
-- Keep responses SHORT (1-3 sentences per turn) — this is a phone call
-- Be warm, natural, conversational — not robotic
-- Follow a clear step-by-step flow
-- Handle objections with empathy
-${isAppointment ? '- The agent\'s PRIMARY goal is to book an appointment. Collect name, preferred date/time, and contact details. Use the book_appointment tool when ready.' : ''}
-${formContext ? `- The agent must collect specific data points during the call. Ask one question at a time naturally.\n${formContext}` : ''}
-${kbContext ? `- ${kbContext}` : ''}
-${langNote}
+THE USE CASE: "${useCase}"
+AGENT NAME: "${agentName}"
+${agentPersonality ? `AGENT'S EXISTING PERSONALITY (incorporate this tone/style):\n${agentPersonality}\n` : ''}
+${kbContext ? `${kbContext} The agent has a lookup_knowledge_base tool and should use it for questions outside the primary call objective.\n` : ''}
 
-Output ONLY the system prompt text. No JSON, no markdown wrapping, no explanation.`
-          },
-          {
-            role: "user",
-            content: `Generate a system prompt for a "${useCase}" outbound calling campaign.\n${agentContext}`
-          }
-        ],
-        max_completion_tokens: 1500,
-        temperature: 0.7,
-      });
+WHAT YOU MUST GENERATE:
+Create a comprehensive system prompt that covers ALL of the following:
 
-      const systemPrompt = response.choices[0]?.message?.content?.trim() || '';
+1. IDENTITY & OPENING
+   - Who the agent is (use their name: "${agentName}")
+   - A warm, natural opening approach for this specific "${useCase}" scenario
+   - How to establish rapport quickly (this is a cold/outbound call — the person didn't expect it)
+
+2. PRIMARY OBJECTIVE — ${isAppointment ? 'APPOINTMENT BOOKING' : `"${useCase}" DATA COLLECTION`}
+${isAppointment ? `   - The agent's #1 goal is to BOOK AN APPOINTMENT
+   - Must collect: contact name, preferred date, preferred time, phone number
+   - When all details are confirmed, use the book_appointment tool
+   - Suggest 2-3 available time slots to make booking easier
+   - If the person is hesitant, emphasize the value/benefit of the meeting` : ''}
+${formContext ? `   - The agent must collect the following data points during the call using the submit_form tool:
+${formContext}
+   - Ask ONE question at a time — never batch multiple questions together
+   - Use conversational transitions between questions ("Great, and just to make sure I have everything...")
+   - If the caller gives a partial answer, probe gently for the complete information
+   - When all required fields are collected, use the submit_form tool to save the data` : ''}
+
+3. CONVERSATION FLOW (step-by-step)
+   - Step 1: Greet and introduce yourself + purpose of the call (1-2 sentences max)
+   - Step 2: Wait for response — if positive, proceed; if hesitant, acknowledge and provide value
+   - Step 3: ${isAppointment ? 'Present the appointment opportunity and suggest times' : 'Begin collecting information one question at a time'}
+   - Step 4: ${isAppointment ? 'Confirm all details and book the appointment' : 'After collecting all data, summarize what you gathered'}
+   - Step 5: Thank them and close the call professionally
+
+4. OBJECTION HANDLING
+   - "I'm busy right now" → Offer to call back at a better time or keep it very brief
+   - "Not interested" → Acknowledge, briefly mention one key benefit, respect their decision
+   - "How did you get my number?" → Be transparent, don't be defensive
+   - "Send me an email instead" → Offer to do so, but try to quickly cover the main point first
+   - Custom objections specific to "${useCase}" scenarios
+
+5. VOICE & TONE RULES
+   - Keep EVERY response to 1-3 sentences MAX. This is a phone call, not an email.
+   - Use contractions (I'm, we're, you'll) — sound human, not corporate
+   - Never read bullet points or lists aloud
+   - Pause naturally — don't rush through the script
+   - Match the caller's energy — if they're brief, be brief; if they're chatty, be warmer
+   - NEVER repeat the same thing twice. If they didn't hear you, rephrase.
+${langInstruction}
+
+OUTPUT RULES:
+- Output ONLY the system prompt text. No JSON, no markdown code blocks, no explanations.
+- Do NOT start with "You are..." — start with a clear identity statement like "Your name is ${agentName}."
+- Make it specific to the "${useCase}" use case — generic prompts are NOT acceptable.
+- Include concrete examples of what to say in key moments.`;
+
+      const { AWSBedrockService } = await import("../services/aws-bedrock");
+      const bedrockService = new AWSBedrockService();
+
+      let systemPrompt = '';
+
+      if (bedrockService.isConfigured()) {
+        try {
+          const bedrockResponse = await bedrockService.invoke({
+            model: 'claude-3-haiku',
+            systemPrompt: metaPrompt,
+            messages: [
+              { role: 'user', content: `Generate the best possible system prompt for a "${useCase}" outbound calling campaign with agent "${agentName}".` }
+            ],
+            maxTokens: 2000,
+            temperature: 0.6,
+          });
+          systemPrompt = bedrockResponse.content?.trim() || '';
+        } catch (bedrockErr: any) {
+          console.error("Bedrock prompt generation failed, falling back to OpenAI:", bedrockErr.message);
+        }
+      }
+
+      if (!systemPrompt && process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+        const OpenAI = (await import("openai")).default;
+        const openai = new OpenAI({
+          apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+          baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+        });
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: metaPrompt },
+            { role: "user", content: `Generate the best possible system prompt for a "${useCase}" outbound calling campaign with agent "${agentName}".` }
+          ],
+          max_completion_tokens: 2000,
+          temperature: 0.6,
+        });
+        systemPrompt = response.choices[0]?.message?.content?.trim() || '';
+      }
+
+      if (!systemPrompt) {
+        return res.status(500).json({ error: "Failed to generate prompt. Please ensure AWS Bedrock or OpenAI credentials are configured." });
+      }
+
       res.json({ systemPrompt, isAppointment });
     } catch (error: any) {
       console.error("Error generating use case prompt:", error);

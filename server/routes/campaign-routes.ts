@@ -20,7 +20,7 @@ import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import { eq, and, inArray } from "drizzle-orm";
 import { 
-  campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows, forms 
+  campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows, forms, formFields, knowledgeBase 
 } from "@shared/schema";
 import { flowTemplates } from "../services/flow-templates";
 import { nanoid } from "nanoid";
@@ -407,6 +407,278 @@ Create a greeting template, call script playbook, and system prompt that maximiz
     }
   });
 
+  router.post("/api/campaigns/generate-form", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { useCase, language } = req.body;
+      if (!useCase) return res.status(400).json({ error: "Use case is required" });
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const langNote = language && language !== 'en'
+        ? `Generate field questions in the language matching code "${language}".`
+        : '';
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert form designer for AI phone agents. Given a campaign use case, generate the ideal set of form fields that the AI agent should collect during the call. Each field must have: question (what the agent asks), fieldType (one of: text, number, yes_no, multiple_choice, email, phone, date, rating), isRequired (boolean), and options (array of strings, only for multiple_choice). Output ONLY a valid JSON object with this structure:
+{
+  "formName": "short descriptive name",
+  "formDescription": "one sentence description",
+  "fields": [
+    { "question": "...", "fieldType": "text", "isRequired": true, "options": null },
+    ...
+  ]
+}
+Generate 4-8 fields appropriate for the use case. No markdown, no explanation. ${langNote}`
+          },
+          {
+            role: "user",
+            content: `Generate form fields for a "${useCase}" calling campaign.`
+          }
+        ],
+        max_completion_tokens: 1000,
+        temperature: 0.7,
+      });
+
+      const raw = response.choices[0]?.message?.content?.trim() || '';
+      let parsed: any = {};
+      try {
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        return res.status(500).json({ error: "Failed to parse generated form" });
+      }
+
+      res.json({
+        formName: parsed.formName || `${useCase} Form`,
+        formDescription: parsed.formDescription || '',
+        fields: parsed.fields || [],
+      });
+    } catch (error: any) {
+      console.error("Error generating form:", error);
+      res.status(500).json({ error: "Failed to generate form" });
+    }
+  });
+
+  router.post("/api/campaigns/create-form", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { formName, formDescription, fields } = req.body;
+      if (!formName || !fields || !Array.isArray(fields) || fields.length === 0) {
+        return res.status(400).json({ error: "Form name and fields are required" });
+      }
+
+      const formId = nanoid();
+      const now = new Date();
+      await db.insert(forms).values({
+        id: formId,
+        userId: req.userId!,
+        name: formName,
+        description: formDescription || null,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      for (let i = 0; i < fields.length; i++) {
+        const field = fields[i];
+        await db.insert(formFields).values({
+          id: nanoid(),
+          formId,
+          question: field.question,
+          fieldType: field.fieldType || 'text',
+          options: field.options || null,
+          isRequired: field.isRequired ?? true,
+          order: i,
+        });
+      }
+
+      res.json({ formId, formName });
+    } catch (error: any) {
+      console.error("Error creating form:", error);
+      res.status(500).json({ error: "Failed to create form" });
+    }
+  });
+
+  router.post("/api/campaigns/generate-use-case-prompt", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { useCase, agentId, knowledgeBaseIds, formFields: formFieldsList, language } = req.body;
+      if (!useCase) return res.status(400).json({ error: "Use case is required" });
+
+      let agentContext = '';
+      if (agentId) {
+        const agent = await storage.getAgent(agentId);
+        if (agent) {
+          agentContext = `Agent name: ${agent.name || 'AI Agent'}. Language: ${agent.language || 'en'}.`;
+          if (agent.systemPrompt) {
+            agentContext += ` Current personality/prompt context: ${agent.systemPrompt.substring(0, 300)}`;
+          }
+        }
+      }
+
+      let kbContext = '';
+      if (knowledgeBaseIds && knowledgeBaseIds.length > 0) {
+        try {
+          const kbRecords = await db.select({ title: knowledgeBase.title, type: knowledgeBase.type })
+            .from(knowledgeBase)
+            .where(inArray(knowledgeBase.id, knowledgeBaseIds))
+            .limit(10);
+          if (kbRecords.length > 0) {
+            kbContext = `Knowledge bases available: ${kbRecords.map(kb => kb.title).join(', ')}. The agent should use these as backup for questions outside the main use case.`;
+          }
+        } catch {}
+      }
+
+      let formContext = '';
+      if (formFieldsList && formFieldsList.length > 0) {
+        formContext = `The agent must collect the following information during the call:\n${formFieldsList.map((f: any, i: number) => `${i + 1}. ${f.question} (${f.fieldType}${f.isRequired ? ', required' : ', optional'})`).join('\n')}`;
+      }
+
+      const isAppointment = useCase.toLowerCase().includes('appointment') || useCase.toLowerCase().includes('booking');
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const langNote = language && language !== 'en'
+        ? `The agent MUST speak in the language matching code "${language}".`
+        : '';
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert AI phone agent prompt engineer. Generate a system prompt for an outbound calling AI agent. The prompt should define the agent's identity, communication style, goals, and step-by-step instructions for the call.
+
+RULES:
+- Keep responses SHORT (1-3 sentences per turn) — this is a phone call
+- Be warm, natural, conversational — not robotic
+- Follow a clear step-by-step flow
+- Handle objections with empathy
+${isAppointment ? '- The agent\'s PRIMARY goal is to book an appointment. Collect name, preferred date/time, and contact details. Use the book_appointment tool when ready.' : ''}
+${formContext ? `- The agent must collect specific data points during the call. Ask one question at a time naturally.\n${formContext}` : ''}
+${kbContext ? `- ${kbContext}` : ''}
+${langNote}
+
+Output ONLY the system prompt text. No JSON, no markdown wrapping, no explanation.`
+          },
+          {
+            role: "user",
+            content: `Generate a system prompt for a "${useCase}" outbound calling campaign.\n${agentContext}`
+          }
+        ],
+        max_completion_tokens: 1500,
+        temperature: 0.7,
+      });
+
+      const systemPrompt = response.choices[0]?.message?.content?.trim() || '';
+      res.json({ systemPrompt, isAppointment });
+    } catch (error: any) {
+      console.error("Error generating use case prompt:", error);
+      res.status(500).json({ error: "Failed to generate prompt" });
+    }
+  });
+
+  router.post("/api/campaigns/import-reference-url", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') return res.status(400).json({ error: "URL is required" });
+
+      try {
+        const parsedUrl = new URL(url);
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          return res.status(400).json({ error: "Only HTTP/HTTPS URLs are allowed" });
+        }
+        const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '169.254.169.254', 'metadata.google.internal'];
+        if (blockedHosts.includes(parsedUrl.hostname) || parsedUrl.hostname.startsWith('10.') || parsedUrl.hostname.startsWith('192.168.') || parsedUrl.hostname.startsWith('172.')) {
+          return res.status(400).json({ error: "Internal/private URLs are not allowed" });
+        }
+      } catch {
+        return res.status(400).json({ error: "Invalid URL format" });
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      let html: string;
+      try {
+        const resp = await fetch(url, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'Platform-Knowledge-Bot/1.0', 'Accept': 'text/html, */*' },
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        html = await resp.text();
+      } catch (fetchErr: any) {
+        if (fetchErr?.message?.includes('certificate') || fetchErr?.cause?.code?.includes('CERT')) {
+          const { execSync } = await import('child_process');
+          const safeUrl = url.replace(/["`$\\]/g, '');
+          html = execSync(`curl -sSLk --max-time 25 "${safeUrl}"`, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+        } else {
+          throw fetchErr;
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      let textContent = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (textContent.length < 50) {
+        return res.status(400).json({ error: "Could not extract meaningful content from the URL" });
+      }
+
+      textContent = textContent.substring(0, 500000);
+
+      let pageTitle = '';
+      const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+      if (titleMatch) pageTitle = titleMatch[1].trim();
+
+      const kbId = nanoid();
+      const domain = new URL(url).hostname;
+      await db.insert(knowledgeBase).values({
+        id: kbId,
+        userId: req.userId!,
+        title: pageTitle || `Reference: ${domain}`,
+        type: 'url',
+        url: url,
+        content: textContent,
+        createdAt: new Date(),
+      });
+
+      try {
+        const { RAGKnowledgeService } = await import("../services/rag-knowledge");
+        RAGKnowledgeService.processKnowledgeItem(kbId, req.userId!, textContent).catch((err: any) => {
+          console.error(`Failed to process KB ${kbId}:`, err.message);
+        });
+      } catch {}
+
+      res.json({
+        knowledgeBaseId: kbId,
+        title: pageTitle || `Reference: ${domain}`,
+        contentLength: textContent.length,
+      });
+    } catch (error: any) {
+      console.error("Error importing reference URL:", error);
+      res.status(500).json({ error: "Failed to import reference URL" });
+    }
+  });
+
   router.post("/api/campaigns/test-call", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const { phoneNumber, agentId, phoneNumberId, script, telephonyType } = req.body;
@@ -434,7 +706,7 @@ Create a greeting template, call script playbook, and system prompt that maximiz
   // Create campaign
   router.post("/api/campaigns", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
-      const { name, type, goal, script, flowId, agentId, voiceId, phoneNumberId, sipPhoneNumberId, scheduledFor, batchMode, greetingMessage, languageOptions, selectedFormId, knowledgeBaseIds, knowledgeBaseOnly } = req.body;
+      const { name, type, goal, script, flowId, agentId, voiceId, phoneNumberId, sipPhoneNumberId, scheduledFor, batchMode, greetingMessage, languageOptions, selectedFormId, knowledgeBaseIds, knowledgeBaseOnly, appointmentBookingEnabled } = req.body;
 
       if (!name || !type) {
         return res.status(400).json({ error: "Name and type are required" });
@@ -605,6 +877,9 @@ Create a greeting template, call script playbook, and system prompt that maximiz
       }
       if (typeof knowledgeBaseOnly === 'boolean') {
         campaignConfig.knowledgeBaseOnly = knowledgeBaseOnly;
+      }
+      if (typeof appointmentBookingEnabled === 'boolean') {
+        campaignConfig.appointmentBookingEnabled = appointmentBookingEnabled;
       }
 
       const campaign = await storage.createCampaign({

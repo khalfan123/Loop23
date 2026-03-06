@@ -331,8 +331,47 @@ export class BedrockPollyCallService {
           );
         }
 
-        if (agent.appointmentBookingEnabled) {
+        if (agent.appointmentBookingEnabled || metadata?.campaignAppointmentBooking) {
           naturalConfig = BedrockAgentFactory.addAppointmentTool(naturalConfig, userId, agentId, callId);
+        }
+
+        const campaignFormId = metadata?.selectedFormId as string | undefined;
+        if (campaignFormId) {
+          try {
+            const { forms, formFields: formFieldsTable } = await import('@shared/schema');
+            const formRecord = await db.select().from(forms).where(eq(forms.id, campaignFormId)).limit(1);
+            if (formRecord.length > 0) {
+              const fieldsData = await db.select().from(formFieldsTable).where(eq(formFieldsTable.formId, campaignFormId));
+              if (fieldsData.length > 0) {
+                naturalConfig = BedrockAgentFactory.addFormTool(
+                  naturalConfig,
+                  formRecord[0].id,
+                  formRecord[0].name,
+                  fieldsData.map(f => ({
+                    id: f.id,
+                    question: f.question,
+                    fieldType: f.fieldType,
+                    isRequired: f.isRequired ?? true,
+                  })),
+                  userId,
+                  callId
+                );
+                logger.info(`[Outbound] Added form tool for campaign form "${formRecord[0].name}" (${fieldsData.length} fields)`, undefined, 'BedrockPollyCall');
+              }
+            }
+          } catch (formErr: any) {
+            logger.error(`[Outbound] Failed to add form tool: ${formErr.message}`, formErr, 'BedrockPollyCall');
+          }
+        }
+
+        const campaignKbIds = metadata?.campaignKnowledgeBaseIds as string[] | undefined;
+        if (campaignKbIds && campaignKbIds.length > 0 && (!agent.knowledgeBaseIds || agent.knowledgeBaseIds.length === 0)) {
+          naturalConfig = BedrockAgentFactory.addKnowledgeBaseTool(
+            naturalConfig,
+            campaignKbIds,
+            userId
+          );
+          logger.info(`[Outbound] Added campaign-level KB tool (${campaignKbIds.length} KBs)`, undefined, 'BedrockPollyCall');
         }
 
         if (agent.transferEnabled && agent.transferPhoneNumber) {

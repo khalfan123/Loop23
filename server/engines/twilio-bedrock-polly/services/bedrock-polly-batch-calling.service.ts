@@ -385,6 +385,9 @@ export class BedrockPollyBatchCallingService {
           contactPhone: contact.phone || '',
           contactCustomFields: customFields,
           callScript: campaignConfig.callScript || null,
+          selectedFormId: campaignConfig.selectedFormId || null,
+          campaignAppointmentBooking: campaignConfig.appointmentBookingEnabled || false,
+          campaignKnowledgeBaseIds: campaignConfig.knowledgeBaseIds || null,
         },
       });
 

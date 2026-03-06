@@ -26,12 +26,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Loader2, Clock, ChevronLeft, ChevronRight, Download, Phone, Info, Minus, Plus } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Upload, Loader2, Clock, ChevronLeft, ChevronRight, Download, Phone, Info, Minus, Plus, Link2, CalendarCheck, FileText, Brain, Globe, Sparkles, X, Check } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "./PhoneConflictDialog";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface KnowledgeBaseItem {
+  id: string;
+  title: string;
+  type: string;
+}
+
+interface GeneratedFormField {
+  question: string;
+  fieldType: string;
+  isRequired: boolean;
+  options: string[] | null;
+}
 
 interface Agent {
   id: string;
@@ -108,6 +122,22 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const [isDragging, setIsDragging] = useState(false);
   const [showScheduleSettings, setShowScheduleSettings] = useState(false);
 
+  const [generatedFormFields, setGeneratedFormFields] = useState<GeneratedFormField[]>([]);
+  const [generatedFormName, setGeneratedFormName] = useState('');
+  const [isGeneratingForm, setIsGeneratingForm] = useState(false);
+  const [formGenerated, setFormGenerated] = useState(false);
+  const [createdFormId, setCreatedFormId] = useState<string | null>(null);
+
+  const [generatedPrompt, setGeneratedPrompt] = useState('');
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [promptGenerated, setPromptGenerated] = useState(false);
+
+  const [selectedKBIds, setSelectedKBIds] = useState<string[]>([]);
+  const [referenceUrl, setReferenceUrl] = useState('');
+  const [isImportingUrl, setIsImportingUrl] = useState(false);
+  const [importedKBs, setImportedKBs] = useState<Array<{ id: string; title: string }>>([]);
+  const [showAdvancedScript, setShowAdvancedScript] = useState(false);
+
   const { data: userData } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
     enabled: open,
@@ -150,6 +180,11 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     enabled: open,
   });
 
+  const { data: knowledgeBaseItems = [] } = useQuery<KnowledgeBaseItem[]>({
+    queryKey: ["/api/rag-knowledge"],
+    enabled: open,
+  });
+
   const selectedAgent = agents.find(a => a.id === formData.agentId);
   const isSipAgent = selectedAgent?.telephonyProvider === 'elevenlabs-sip' || selectedAgent?.telephonyProvider === 'openai-sip';
   const isPlivoAgent = selectedAgent?.telephonyProvider === 'plivo';
@@ -171,12 +206,116 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       return true;
     });
 
+  const isAppointmentBooking = formData.type.toLowerCase().includes('appointment') || formData.type.toLowerCase().includes('booking');
+
+  const generateFormForUseCase = async () => {
+    if (isAppointmentBooking) return;
+    setIsGeneratingForm(true);
+    try {
+      const res = await apiRequest("POST", "/api/campaigns/generate-form", {
+        useCase: formData.type,
+        language: selectedAgent?.telephonyProvider ? 'en' : 'en',
+      });
+      const data = await res.json();
+      setGeneratedFormFields(data.fields || []);
+      setGeneratedFormName(data.formName || `${formData.type} Form`);
+      setFormGenerated(true);
+    } catch (err: any) {
+      toast({ title: "Failed to generate form", description: err.message, variant: "destructive" });
+    } finally {
+      setIsGeneratingForm(false);
+    }
+  };
+
+  const createFormAndGetId = async (): Promise<string | null> => {
+    if (createdFormId) return createdFormId;
+    if (generatedFormFields.length === 0) return null;
+    try {
+      const res = await apiRequest("POST", "/api/campaigns/create-form", {
+        formName: generatedFormName,
+        formDescription: `Auto-generated for ${formData.type} campaign`,
+        fields: generatedFormFields,
+      });
+      const data = await res.json();
+      setCreatedFormId(data.formId);
+      return data.formId;
+    } catch {
+      return null;
+    }
+  };
+
+  const generatePromptForUseCase = async () => {
+    if (!formData.agentId || !formData.type) return;
+    setIsGeneratingPrompt(true);
+    try {
+      const allKbIds = [...selectedKBIds, ...importedKBs.map(kb => kb.id)];
+      const res = await apiRequest("POST", "/api/campaigns/generate-use-case-prompt", {
+        useCase: formData.type,
+        agentId: formData.agentId,
+        knowledgeBaseIds: allKbIds.length > 0 ? allKbIds : undefined,
+        formFields: !isAppointmentBooking && generatedFormFields.length > 0 ? generatedFormFields : undefined,
+      });
+      const data = await res.json();
+      setGeneratedPrompt(data.systemPrompt || '');
+      setPromptGenerated(true);
+      if (data.systemPrompt) {
+        setFormData(prev => ({ ...prev, script: data.systemPrompt }));
+      }
+    } catch (err: any) {
+      toast({ title: "Failed to generate prompt", description: err.message, variant: "destructive" });
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  };
+
+  const handleImportUrl = async () => {
+    if (!referenceUrl.trim()) return;
+    setIsImportingUrl(true);
+    try {
+      const res = await apiRequest("POST", "/api/campaigns/import-reference-url", { url: referenceUrl.trim() });
+      const data = await res.json();
+      setImportedKBs(prev => [...prev, { id: data.knowledgeBaseId, title: data.title }]);
+      setSelectedKBIds(prev => [...prev, data.knowledgeBaseId]);
+      setReferenceUrl('');
+      toast({ title: "URL imported successfully", description: `"${data.title}" added as knowledge` });
+    } catch (err: any) {
+      toast({ title: "Failed to import URL", description: err.message, variant: "destructive" });
+    } finally {
+      setIsImportingUrl(false);
+    }
+  };
+
+  useEffect(() => {
+    if (formData.type && open && !isAppointmentBooking && !formGenerated) {
+      generateFormForUseCase();
+    }
+  }, [formData.type, open]);
+
+  useEffect(() => {
+    if (formData.agentId && formData.type && open) {
+      if (isAppointmentBooking || formGenerated) {
+        generatePromptForUseCase();
+      }
+    }
+  }, [formData.agentId, formGenerated, formData.type]);
+
   const dayKeys = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
+      let selectedFormId: string | undefined;
+      if (!isAppointmentBooking && generatedFormFields.length > 0) {
+        const fId = await createFormAndGetId();
+        if (fId) selectedFormId = fId;
+      }
+
+      const allKbIds = [...selectedKBIds, ...importedKBs.map(kb => kb.id)];
+
+      const payload: any = {
         ...formData,
+        selectedFormId: selectedFormId || undefined,
+        knowledgeBaseIds: allKbIds.length > 0 ? allKbIds : undefined,
+        appointmentBookingEnabled: isAppointmentBooking || undefined,
       };
       if (payload.flowId) {
         payload.script = "";
@@ -261,6 +400,18 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     setCsvFile(null);
     setParsedContacts([]);
     setShowScheduleSettings(false);
+    setGeneratedFormFields([]);
+    setGeneratedFormName('');
+    setIsGeneratingForm(false);
+    setFormGenerated(false);
+    setCreatedFormId(null);
+    setGeneratedPrompt('');
+    setIsGeneratingPrompt(false);
+    setPromptGenerated(false);
+    setSelectedKBIds([]);
+    setReferenceUrl('');
+    setImportedKBs([]);
+    setShowAdvancedScript(false);
   };
 
   const handleClose = () => {
@@ -444,11 +595,19 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                   {/* Campaign Type */}
                   <div className="space-y-2">
                     <Label>{t('campaigns.create.typeRequired', 'Campaign Type *')}</Label>
-                    <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                    <Select value={formData.type} onValueChange={(value) => {
+                      setFormData({ ...formData, type: value });
+                      setFormGenerated(false);
+                      setGeneratedFormFields([]);
+                      setCreatedFormId(null);
+                      setPromptGenerated(false);
+                      setGeneratedPrompt('');
+                    }}>
                       <SelectTrigger data-testid="select-campaign-type">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="Appointment Booking">Appointment Booking</SelectItem>
                         <SelectItem value="Lead Qualification">{t("campaigns.create.typeOptions.lead")}</SelectItem>
                         <SelectItem value="Feedback Collection">{t("campaigns.create.typeOptions.feedback")}</SelectItem>
                         <SelectItem value="Promotional">{t("campaigns.create.typeOptions.promotional")}</SelectItem>
@@ -457,6 +616,30 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                         <SelectItem value="Survey">{t("campaigns.create.typeOptions.survey")}</SelectItem>
                       </SelectContent>
                     </Select>
+
+                    {isAppointmentBooking && (
+                      <div className="flex items-start gap-2 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800" data-testid="info-appointment-booking">
+                        <CalendarCheck className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium text-green-700 dark:text-green-300">Appointment Booking Mode</p>
+                          <p className="text-green-600 dark:text-green-400 text-xs mt-0.5">The AI agent will focus on booking appointments. Results will appear in your Appointments page.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!isAppointmentBooking && (
+                      <div className="flex items-start gap-2 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800" data-testid="info-form-collection">
+                        <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium text-purple-700 dark:text-purple-300">Data Collection Mode</p>
+                          <p className="text-purple-600 dark:text-purple-400 text-xs mt-0.5">
+                            {isGeneratingForm ? 'Generating data collection form...' :
+                              formGenerated ? `A "${generatedFormName}" form with ${generatedFormFields.length} fields will collect data during calls. Results in Forms page.` :
+                              'A dynamic form will be auto-generated to collect data during calls.'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Agent Selection */}
@@ -480,6 +663,128 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                     {agents.filter(a => a.type !== 'incoming').length === 0 && (
                       <p className="text-sm text-muted-foreground">{t("campaigns.create.goToAgentsPage")}</p>
                     )}
+                  </div>
+
+                  {/* AI System Prompt */}
+                  {formData.agentId && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="flex items-center gap-1.5">
+                          <Brain className="h-4 w-4" />
+                          AI Agent Script
+                        </Label>
+                        <div className="flex gap-1">
+                          {isGeneratingPrompt && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                            onClick={generatePromptForUseCase}
+                            disabled={isGeneratingPrompt}
+                            data-testid="button-regenerate-prompt"
+                          >
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            {promptGenerated ? 'Regenerate' : 'Generate'}
+                          </Button>
+                        </div>
+                      </div>
+                      {promptGenerated ? (
+                        <Textarea
+                          value={formData.script}
+                          onChange={(e) => setFormData({ ...formData, script: e.target.value })}
+                          rows={4}
+                          className="text-xs font-mono"
+                          placeholder="AI agent system prompt will be auto-generated..."
+                          data-testid="textarea-system-prompt"
+                        />
+                      ) : (
+                        <div className="p-3 rounded-md border border-dashed text-xs text-muted-foreground text-center">
+                          {isGeneratingPrompt ? 'Generating AI script based on your use case...' : 'Select an agent to auto-generate an AI script'}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Knowledge Base & Reference URL */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <Globe className="h-4 w-4" />
+                      Knowledge Base
+                    </Label>
+                    <p className="text-xs text-muted-foreground">Select knowledge bases for the agent to reference during calls</p>
+                    {knowledgeBaseItems.length > 0 ? (
+                      <div className="space-y-1.5 max-h-32 overflow-y-auto border rounded-md p-2">
+                        {knowledgeBaseItems.map((kb) => (
+                          <div key={kb.id} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`kb-${kb.id}`}
+                              checked={selectedKBIds.includes(kb.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedKBIds(prev => [...prev, kb.id]);
+                                } else {
+                                  setSelectedKBIds(prev => prev.filter(id => id !== kb.id));
+                                }
+                              }}
+                              data-testid={`checkbox-kb-${kb.id}`}
+                            />
+                            <Label htmlFor={`kb-${kb.id}`} className="text-xs font-normal cursor-pointer truncate">
+                              {kb.title}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-2 rounded border border-dashed text-xs text-muted-foreground text-center">
+                        No knowledge bases available
+                      </div>
+                    )}
+
+                    {importedKBs.length > 0 && (
+                      <div className="space-y-1">
+                        {importedKBs.map((kb) => (
+                          <div key={kb.id} className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-950/30 p-1.5 rounded" data-testid={`imported-kb-${kb.id}`}>
+                            <Check className="h-3 w-3 text-green-500" />
+                            <span className="truncate flex-1">{kb.title}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 w-5 p-0"
+                              onClick={() => {
+                                setImportedKBs(prev => prev.filter(k => k.id !== kb.id));
+                                setSelectedKBIds(prev => prev.filter(id => id !== kb.id));
+                              }}
+                              data-testid={`button-remove-kb-${kb.id}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          value={referenceUrl}
+                          onChange={(e) => setReferenceUrl(e.target.value)}
+                          placeholder="Import reference URL..."
+                          className="pl-7 h-8 text-xs"
+                          data-testid="input-reference-url"
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={handleImportUrl}
+                        disabled={isImportingUrl || !referenceUrl.trim()}
+                        data-testid="button-import-url"
+                      >
+                        {isImportingUrl ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Import'}
+                      </Button>
+                    </div>
                   </div>
 
                   {/* From Number */}
@@ -764,30 +1069,103 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
               </ScrollArea>
             </div>
 
-            {/* Right Recipients Column */}
+            {/* Right Preview Column */}
             <div className="w-1/2 flex flex-col bg-muted/30">
               <div className="p-4 border-b">
-                <h3 className="font-semibold">{t('campaigns.recipients', 'Recipients')}</h3>
+                <h3 className="font-semibold">
+                  {parsedContacts.length > 0 ? t('campaigns.recipients', 'Recipients') :
+                    !isAppointmentBooking && formGenerated ? 'Data Collection Form' : 'Campaign Preview'}
+                </h3>
               </div>
-              <div className="flex-1 flex items-center justify-center p-6">
-                {parsedContacts.length === 0 ? (
-                  <div className="text-center text-muted-foreground">
-                    <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">{t('campaigns.pleaseUploadRecipients', 'Please upload recipients first')}</p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-full w-full">
+              <ScrollArea className="flex-1">
+                <div className="p-6 space-y-4">
+                  {/* Recipients */}
+                  {parsedContacts.length > 0 && (
                     <div className="space-y-2">
-                      {parsedContacts.map((contact, idx) => (
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('campaigns.recipients', 'Recipients')} ({parsedContacts.length})</p>
+                      {parsedContacts.slice(0, 20).map((contact, idx) => (
                         <div key={idx} className="flex items-center gap-3 p-2 bg-background rounded border" data-testid={`recipient-row-${idx}`}>
                           <Phone className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">{contact.phone_number}</span>
                         </div>
                       ))}
+                      {parsedContacts.length > 20 && (
+                        <p className="text-xs text-muted-foreground text-center">+{parsedContacts.length - 20} more contacts</p>
+                      )}
                     </div>
-                  </ScrollArea>
-                )}
-              </div>
+                  )}
+
+                  {/* Generated Form Preview */}
+                  {!isAppointmentBooking && formGenerated && generatedFormFields.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Form Fields ({generatedFormFields.length})</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs"
+                          onClick={generateFormForUseCase}
+                          disabled={isGeneratingForm}
+                          data-testid="button-regenerate-form"
+                        >
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Regenerate
+                        </Button>
+                      </div>
+                      {generatedFormFields.map((field, idx) => (
+                        <div key={idx} className="p-3 bg-background rounded-lg border space-y-1" data-testid={`form-field-preview-${idx}`}>
+                          <div className="flex items-start justify-between">
+                            <p className="text-sm font-medium">{field.question}</p>
+                            {field.isRequired && <span className="text-[10px] text-red-500 font-medium">Required</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{field.fieldType}</span>
+                            {field.options && field.options.length > 0 && (
+                              <span className="text-[10px] text-muted-foreground">{field.options.join(', ')}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {isGeneratingForm && (
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                      <p className="text-sm text-muted-foreground">Generating form fields for {formData.type}...</p>
+                    </div>
+                  )}
+
+                  {/* Appointment Booking Info */}
+                  {isAppointmentBooking && (
+                    <div className="space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Appointment Booking</p>
+                      <div className="p-4 bg-background rounded-lg border space-y-2">
+                        <div className="flex items-center gap-2">
+                          <CalendarCheck className="h-5 w-5 text-green-500" />
+                          <p className="text-sm font-medium">Automatic Appointment Booking</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">The AI agent will collect:</p>
+                        <ul className="text-xs text-muted-foreground space-y-1 ml-4 list-disc">
+                          <li>Contact name</li>
+                          <li>Preferred date and time</li>
+                          <li>Contact phone number</li>
+                          <li>Any special requirements</li>
+                        </ul>
+                        <p className="text-xs text-muted-foreground mt-2">Booked appointments will appear at <span className="font-medium text-foreground">/app/appointments</span></p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {parsedContacts.length === 0 && !formGenerated && !isGeneratingForm && !isAppointmentBooking && (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">{t('campaigns.pleaseUploadRecipients', 'Please upload recipients first')}</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
           </div>
 

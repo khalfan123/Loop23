@@ -27,7 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Loader2, Clock, ChevronLeft, ChevronRight, Download, Phone, Info, Minus, Plus, Link2, CalendarCheck, FileText, Brain, Globe, Sparkles, X, Check } from "lucide-react";
+import { Upload, Loader2, Clock, ChevronLeft, ChevronRight, Download, Phone, Info, Minus, Plus, Link2, CalendarCheck, FileText, Brain, Globe, Sparkles, X, Check, Volume2, Square, Pencil } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "./PhoneConflictDialog";
@@ -48,6 +48,10 @@ interface Agent {
   type: 'incoming' | 'natural' | 'flow';
   telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
   sipPhoneNumberId?: string | null;
+  voiceProvider?: string | null;
+  elevenLabsVoiceId?: string | null;
+  awsPollyVoiceId?: string | null;
+  openaiVoice?: string | null;
 }
 
 interface PhoneNumber {
@@ -130,6 +134,9 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const [isImportingUrl, setIsImportingUrl] = useState(false);
   const [importedKBs, setImportedKBs] = useState<Array<{ id: string; title: string }>>([]);
   const [showAdvancedScript, setShowAdvancedScript] = useState(false);
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [voiceAudioRef, setVoiceAudioRef] = useState<HTMLAudioElement | null>(null);
+  const [useCaseLocked, setUseCaseLocked] = useState(true);
 
   const { data: userData } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
@@ -272,6 +279,79 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     }
   };
 
+  const [isLoadingVoice, setIsLoadingVoice] = useState(false);
+
+  const handlePlayVoice = async () => {
+    if (isPlayingVoice && voiceAudioRef) {
+      voiceAudioRef.pause();
+      voiceAudioRef.currentTime = 0;
+      setIsPlayingVoice(false);
+      setVoiceAudioRef(null);
+      return;
+    }
+
+    if (!selectedAgent || isLoadingVoice) return;
+
+    const voiceProvider = selectedAgent.voiceProvider || 'elevenlabs';
+    const previewText = 'Hello! This is how I will sound during the campaign calls.';
+
+    let endpoint = '';
+    let body: Record<string, unknown> = {};
+
+    if (voiceProvider === 'openai' || ((!selectedAgent.elevenLabsVoiceId && !selectedAgent.awsPollyVoiceId) && selectedAgent.openaiVoice)) {
+      endpoint = '/api/openai/voices/preview';
+      body = { voiceId: selectedAgent.openaiVoice || 'alloy', text: previewText };
+    } else if (voiceProvider === 'elevenlabs' || selectedAgent.elevenLabsVoiceId) {
+      if (!selectedAgent.elevenLabsVoiceId) {
+        toast({ title: "No voice configured", description: "This agent doesn't have an ElevenLabs voice set up yet.", variant: "destructive" });
+        return;
+      }
+      endpoint = '/api/voices/preview';
+      body = { voiceId: selectedAgent.elevenLabsVoiceId, text: previewText };
+    } else if (selectedAgent.openaiVoice) {
+      endpoint = '/api/openai/voices/preview';
+      body = { voiceId: selectedAgent.openaiVoice, text: previewText };
+    } else {
+      toast({ title: "No voice configured", description: "This agent doesn't have a voice set up yet.", variant: "destructive" });
+      return;
+    }
+
+    setIsLoadingVoice(true);
+    setIsPlayingVoice(true);
+    try {
+      const token = AuthStorage.getToken();
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) throw new Error('Failed to generate voice preview');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      setVoiceAudioRef(audio);
+      setIsLoadingVoice(false);
+      audio.onended = () => {
+        setIsPlayingVoice(false);
+        setVoiceAudioRef(null);
+        URL.revokeObjectURL(url);
+      };
+      audio.onerror = () => {
+        setIsPlayingVoice(false);
+        setVoiceAudioRef(null);
+        URL.revokeObjectURL(url);
+      };
+      audio.play();
+    } catch (err: any) {
+      toast({ title: "Voice preview failed", description: err.message, variant: "destructive" });
+      setIsPlayingVoice(false);
+      setIsLoadingVoice(false);
+      setVoiceAudioRef(null);
+    }
+  };
+
   useEffect(() => {
     if (formData.type && open && !isAppointmentBooking && !formGenerated) {
       generateFormForUseCase();
@@ -398,6 +478,13 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     setReferenceUrl('');
     setImportedKBs([]);
     setShowAdvancedScript(false);
+    setIsPlayingVoice(false);
+    setIsLoadingVoice(false);
+    if (voiceAudioRef) {
+      voiceAudioRef.pause();
+      setVoiceAudioRef(null);
+    }
+    setUseCaseLocked(true);
   };
 
   const handleClose = () => {
@@ -580,28 +667,56 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
 
                   {/* Campaign Type */}
                   <div className="space-y-2">
-                    <Label>{t('campaigns.create.typeRequired', 'Campaign Type *')}</Label>
-                    <Select value={formData.type} onValueChange={(value) => {
-                      setFormData({ ...formData, type: value });
-                      setFormGenerated(false);
-                      setGeneratedFormFields([]);
-                      setCreatedFormId(null);
-                      setPromptGenerated(false);
-                      setGeneratedPrompt('');
-                    }}>
-                      <SelectTrigger data-testid="select-campaign-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Appointment Booking">Appointment Booking</SelectItem>
-                        <SelectItem value="Lead Qualification">{t("campaigns.create.typeOptions.lead")}</SelectItem>
-                        <SelectItem value="Feedback Collection">{t("campaigns.create.typeOptions.feedback")}</SelectItem>
-                        <SelectItem value="Promotional">{t("campaigns.create.typeOptions.promotional")}</SelectItem>
-                        <SelectItem value="Payment Reminder">{t("campaigns.create.typeOptions.payment")}</SelectItem>
-                        <SelectItem value="Event Promotion">{t("campaigns.create.typeOptions.event")}</SelectItem>
-                        <SelectItem value="Survey">{t("campaigns.create.typeOptions.survey")}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center justify-between">
+                      <Label>{t('campaigns.create.typeRequired', 'Campaign Type *')}</Label>
+                      {useCaseLocked && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs px-2"
+                          onClick={() => setUseCaseLocked(false)}
+                          data-testid="button-edit-use-case"
+                          title="Edit use case"
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                    {useCaseLocked ? (
+                      <div className="flex items-center gap-2 p-2.5 rounded-md border bg-muted/50">
+                        {isAppointmentBooking ? (
+                          <CalendarCheck className="h-4 w-4 text-green-500 shrink-0" />
+                        ) : (
+                          <FileText className="h-4 w-4 text-purple-500 shrink-0" />
+                        )}
+                        <span className="text-sm font-medium flex-1">{formData.type}</span>
+                      </div>
+                    ) : (
+                      <Select value={formData.type} onValueChange={(value) => {
+                        setFormData({ ...formData, type: value });
+                        setFormGenerated(false);
+                        setGeneratedFormFields([]);
+                        setCreatedFormId(null);
+                        setPromptGenerated(false);
+                        setGeneratedPrompt('');
+                        setUseCaseLocked(true);
+                      }}>
+                        <SelectTrigger data-testid="select-campaign-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Appointment Booking">Appointment Booking</SelectItem>
+                          <SelectItem value="Lead Qualification">{t("campaigns.create.typeOptions.lead")}</SelectItem>
+                          <SelectItem value="Feedback Collection">{t("campaigns.create.typeOptions.feedback")}</SelectItem>
+                          <SelectItem value="Promotional">{t("campaigns.create.typeOptions.promotional")}</SelectItem>
+                          <SelectItem value="Payment Reminder">{t("campaigns.create.typeOptions.payment")}</SelectItem>
+                          <SelectItem value="Event Promotion">{t("campaigns.create.typeOptions.event")}</SelectItem>
+                          <SelectItem value="Survey">{t("campaigns.create.typeOptions.survey")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
 
                     {isAppointmentBooking && (
                       <div className="flex items-start gap-2 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800" data-testid="info-appointment-booking">
@@ -631,21 +746,43 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                   {/* Agent Selection */}
                   <div className="space-y-2">
                     <Label>{t('campaigns.selectAgent', 'Select Agent *')}</Label>
-                    <Select 
-                      value={formData.agentId} 
-                      onValueChange={(value) => setFormData({ ...formData, agentId: value, phoneNumberId: '', sipPhoneNumberId: '' })}
-                    >
-                      <SelectTrigger data-testid="select-agent">
-                        <SelectValue placeholder={filteredAgents.length === 0 ? t("campaigns.create.noAgentsAvailable") : t('campaigns.selectAgentPlaceholder', 'Select an agent')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredAgents.map((agent) => (
-                          <SelectItem key={agent.id} value={agent.id}>
-                            {agent.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select 
+                        value={formData.agentId} 
+                        onValueChange={(value) => setFormData({ ...formData, agentId: value, phoneNumberId: '', sipPhoneNumberId: '' })}
+                      >
+                        <SelectTrigger data-testid="select-agent" className="flex-1">
+                          <SelectValue placeholder={filteredAgents.length === 0 ? t("campaigns.create.noAgentsAvailable") : t('campaigns.selectAgentPlaceholder', 'Select an agent')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredAgents.map((agent) => (
+                            <SelectItem key={agent.id} value={agent.id}>
+                              {agent.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {formData.agentId && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0 h-10 w-10"
+                          onClick={handlePlayVoice}
+                          disabled={!selectedAgent || isLoadingVoice}
+                          data-testid="button-play-voice"
+                          title={isPlayingVoice ? "Stop voice preview" : "Listen to agent voice"}
+                        >
+                          {isLoadingVoice ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : isPlayingVoice ? (
+                            <Square className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     {agents.filter(a => a.type !== 'incoming').length === 0 && (
                       <p className="text-sm text-muted-foreground">{t("campaigns.create.goToAgentsPage")}</p>
                     )}

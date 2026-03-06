@@ -471,7 +471,7 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
     .where(and(eq(twilioOpenaiCalls.userId, userId), gte(twilioOpenaiCalls.createdAt, startDate)));
 
   for (const toc of twilioOpenAICallsData) {
-    allUserCalls.push({
+    const engineCall = {
       id: toc.id,
       userId: toc.userId,
       campaignId: toc.campaignId,
@@ -485,7 +485,15 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
       createdAt: toc.createdAt,
       metadata: toc.metadata,
       incomingConnectionId: null,
-    } as Call);
+    } as Call;
+    if (toc.campaignId && toc.contactId) {
+      const dupIdx = allUserCalls.findIndex(c => c.campaignId === toc.campaignId && c.contactId === toc.contactId);
+      if (dupIdx !== -1) {
+        allUserCalls[dupIdx] = engineCall;
+        continue;
+      }
+    }
+    allUserCalls.push(engineCall);
   }
 
   const plivoAnalyticsCallsData = await db.select()
@@ -493,7 +501,7 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
     .where(and(eq(plivoCalls.userId, userId), gte(plivoCalls.createdAt, startDate)));
 
   for (const pc of plivoAnalyticsCallsData) {
-    allUserCalls.push({
+    const engineCall = {
       id: pc.id,
       userId: pc.userId,
       campaignId: pc.campaignId,
@@ -507,12 +515,20 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
       createdAt: pc.createdAt,
       metadata: pc.metadata,
       incomingConnectionId: null,
-    } as Call);
+    } as Call;
+    if (pc.campaignId && pc.contactId) {
+      const dupIdx = allUserCalls.findIndex(c => c.campaignId === pc.campaignId && c.contactId === pc.contactId);
+      if (dupIdx !== -1) {
+        allUserCalls[dupIdx] = engineCall;
+        continue;
+      }
+    }
+    allUserCalls.push(engineCall);
   }
 
   const isBatchCall = (c: Call): boolean => {
     const meta = c.metadata as Record<string, any> | null;
-    return !!(meta?.batch_call || meta?.batchId || meta?.batch_calling);
+    return !!(meta?.batch_call || meta?.batchCall || meta?.batchId || meta?.batchJobId || meta?.batch_calling);
   };
 
   const incomingDirections = ['incoming', 'inbound', 'bridged', 'simulcall'];
@@ -752,7 +768,7 @@ export async function calculateDashboardData(userId: string): Promise<DashboardD
   
   const isBatchCall = (c: Call): boolean => {
     const meta = c.metadata as Record<string, any> | null;
-    return !!(meta?.batch_call || meta?.batchId || meta?.batch_calling);
+    return !!(meta?.batch_call || meta?.batchCall || meta?.batchId || meta?.batchJobId || meta?.batch_calling);
   };
 
   const isIncomingCall = (c: Call): boolean => 

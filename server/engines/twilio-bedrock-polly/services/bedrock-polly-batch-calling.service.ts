@@ -1,6 +1,6 @@
 'use strict';
 import { db } from "../../../db";
-import { campaigns, contacts, agents, phoneNumbers } from "@shared/schema";
+import { campaigns, contacts, agents, phoneNumbers, calls } from "@shared/schema";
 import { eq, inArray, ne, and, sql } from "drizzle-orm";
 import { BedrockPollyCallService } from "./bedrock-polly-call.service";
 import { logger } from '../../../utils/logger';
@@ -494,6 +494,27 @@ export class BedrockPollyBatchCallingService {
         this.failedCount++;
       }
       logger.info(`Call ${callId} already marked as ${contact.status} by webhook`, undefined, 'BedrockPollyBatch');
+    }
+
+    try {
+      const callStatus = success ? 'completed' : 'failed';
+      const callRecord = await BedrockPollyCallService.getCallStatus(callId);
+      const duration = callRecord?.duration || 0;
+      await db
+        .update(calls)
+        .set({
+          status: callStatus,
+          duration: duration,
+        })
+        .where(
+          and(
+            eq(calls.campaignId, this.config!.campaignId),
+            eq(calls.contactId, contactId)
+          )
+        );
+      logger.info(`Synced calls table record for contact ${contactId}: ${callStatus}`, undefined, 'BedrockPollyBatch');
+    } catch (syncErr) {
+      logger.error(`Failed to sync calls table record for contact ${contactId}`, syncErr, 'BedrockPollyBatch');
     }
   }
 

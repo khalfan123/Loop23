@@ -818,7 +818,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     }
 
     const voiceProvider = agent.voiceProvider?.toLowerCase() || '';
-    const previewText = "Hello! I'm your AI assistant. How can I help you today?";
+    const previewText = "Hi there! This is a quick call regarding an exciting opportunity we have for you. Do you have a moment to chat?";
 
     if (voiceProvider === 'aws_polly' && agent.awsPollyVoiceId) {
       setAgentPreviewingId(agent.id);

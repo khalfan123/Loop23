@@ -293,7 +293,7 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     if (!selectedAgent || isLoadingVoice) return;
 
     const voiceProvider = selectedAgent.voiceProvider || 'elevenlabs';
-    const previewText = 'Hello! This is how I will sound during the campaign calls.';
+    const previewText = 'Hi there! This is a quick call regarding an exciting opportunity we have for you. Do you have a moment to chat?';
 
     let endpoint = '';
     let body: Record<string, unknown> = {};

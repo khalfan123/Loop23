@@ -440,6 +440,12 @@ function OutboundWizard() {
     queryKey: ["/api/rag-knowledge"],
   });
 
+  useEffect(() => {
+    if (knowledgeBases.length > 0) {
+      setSelectedKnowledgeBaseIds(knowledgeBases.map(kb => kb.id));
+    }
+  }, [knowledgeBases]);
+
   const importUrlMutation = useMutation({
     mutationFn: async (url: string) => {
       const res = await apiRequest("POST", "/api/rag-knowledge/url", { url, name: url });
@@ -874,12 +880,6 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     }
   };
 
-  const toggleKnowledgeBase = (kbId: string) => {
-    setSelectedKnowledgeBaseIds((prev) =>
-      prev.includes(kbId) ? prev.filter((id) => id !== kbId) : [...prev, kbId]
-    );
-  };
-
   const canProceed = (step: number) => {
     switch (step) {
       case 1: return true;
@@ -894,7 +894,11 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
 
   const goNext = () => {
     if (canProceed(currentStep) && currentStep < 6) {
-      setCurrentStep(currentStep + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      if (nextStep === 5 && !greetingMessage.trim() && !generateGreetingMutation.isPending) {
+        generateGreetingMutation.mutate();
+      }
     }
   };
 
@@ -947,7 +951,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     if (selectedContactIds.length > 0) parts.push(`${selectedContactIds.length} contacts`);
     if (selectedPhone) parts.push(selectedPhone.phoneNumber);
     if (selectedAgent) parts.push(selectedAgent.name);
-    if (selectedKnowledgeBaseIds.length > 0) parts.push(`${selectedKnowledgeBaseIds.length} KB`);
+    if (knowledgeBases.length > 0) parts.push(`${knowledgeBases.length} KB`);
     return parts.length > 0 ? parts.join(" → ") : "";
   };
 
@@ -1776,80 +1780,40 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
           <div className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-cyan-600" />
             <Label className="font-medium text-sm">Knowledge Base</Label>
-            <Badge variant="outline" className="text-[10px] ml-auto">
-              {selectedKnowledgeBaseIds.length} selected
+            <Badge variant="outline" className="text-[10px] ml-auto bg-green-500/10 text-green-600 border-green-500/20">
+              {knowledgeBases.length > 0 ? `${knowledgeBases.length} auto-included` : 'None available'}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            Connect knowledge bases to give the AI agent access to your business data during calls.
+            All your knowledge base articles are automatically used as background information during calls.
           </p>
 
           {kbLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-full" />
-            </div>
+            <Skeleton className="h-14 w-full" />
           ) : knowledgeBases.length === 0 ? (
             <div className="text-center py-4 border-2 border-dashed rounded-lg">
               <BookOpen className="h-6 w-6 text-muted-foreground mx-auto mb-2 opacity-50" />
               <p className="text-sm text-muted-foreground">No knowledge bases yet.</p>
-              <p className="text-xs text-muted-foreground mt-1">Import a URL below or create one in Knowledge Base.</p>
+              <p className="text-xs text-muted-foreground mt-1">Import a URL below to add reference material.</p>
             </div>
           ) : (
-            <div className="overflow-y-auto max-h-[200px]">
-              <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2">
-                {knowledgeBases.map((kb) => {
-                  const isSelected = selectedKnowledgeBaseIds.includes(kb.id);
-                  return (
-                    <Card
-                      key={kb.id}
-                      className={`cursor-pointer transition-all ${
-                        isSelected ? "border-cyan-500 bg-cyan-500/5 ring-1 ring-cyan-500/20" : "hover:bg-accent/30"
-                      }`}
-                      onClick={() => toggleKnowledgeBase(kb.id)}
-                      data-testid={`card-kb-${kb.id}`}
-                    >
-                      <CardContent className="p-2.5 flex items-center gap-2.5">
-                        <div className={`flex items-center justify-center h-8 w-8 rounded-md flex-shrink-0 ${
-                          isSelected ? "bg-cyan-500 text-white" : "bg-cyan-100 dark:bg-cyan-900/30"
-                        }`}>
-                          {isSelected ? <Check className="h-4 w-4" /> : kb.type === 'url' ? <Link className="h-4 w-4 text-cyan-600" /> : <FileUp className="h-4 w-4 text-cyan-600" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{kb.title}</div>
-                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                            <span>{kb.type === 'url' ? 'URL' : 'File'}</span>
-                            {kb.chunkCount > 0 && <span>{kb.chunkCount} chunks</span>}
-                            {kb.isRAGEnabled && (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 bg-green-500/10 text-green-600 border-green-500/20">
-                                RAG
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+            <div className="bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <Check className="h-4 w-4 text-cyan-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-cyan-700 dark:text-cyan-400">
+                    {knowledgeBases.length} knowledge base{knowledgeBases.length !== 1 ? 's' : ''} will be used automatically
+                  </span>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {knowledgeBases.map((kb) => (
+                      <Badge key={kb.id} variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-400">
+                        {kb.type === 'url' ? <Link className="h-2.5 w-2.5 mr-0.5" /> : <FileUp className="h-2.5 w-2.5 mr-0.5" />}
+                        {kb.title}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-
-          {selectedKnowledgeBaseIds.length > 0 && (
-            <div className="flex items-center justify-between bg-muted/50 rounded-md p-2.5">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={knowledgeBaseOnly}
-                  onCheckedChange={setKnowledgeBaseOnly}
-                  data-testid="switch-kb-only"
-                />
-                <Label className="text-xs font-medium cursor-pointer" onClick={() => setKnowledgeBaseOnly(!knowledgeBaseOnly)}>
-                  Knowledge Base Only Mode
-                </Label>
-              </div>
-              <span className="text-[10px] text-muted-foreground">
-                {knowledgeBaseOnly ? "AI answers ONLY from KB" : "AI can use general knowledge"}
-              </span>
             </div>
           )}
         </div>
@@ -1947,6 +1911,12 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-green-600" />
               <Label className="font-medium text-sm">Greeting Message</Label>
+              {generateGreetingMutation.isPending && (
+                <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20 animate-pulse">
+                  <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />
+                  Auto-generating...
+                </Badge>
+              )}
             </div>
             <Button
               variant="outline"
@@ -1961,18 +1931,18 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
               ) : (
                 <Sparkles className="h-3 w-3" />
               )}
-              AI Generate
+              Regenerate
             </Button>
           </div>
           <Input
             value={greetingMessage}
             onChange={(e) => setGreetingMessage(e.target.value)}
-            placeholder="e.g. Hi {{firstName}}, this is Sarah from Acme Corp!"
+            placeholder={generateGreetingMutation.isPending ? "Generating greeting based on your use case..." : "e.g. Hi {{firstName}}, this is Sarah from Acme Corp!"}
             className="text-sm"
             data-testid="input-greeting-message"
           />
           <p className="text-xs text-muted-foreground">
-            Use <code className="bg-muted px-1 rounded text-[10px]">{"{{firstName}}"}</code>, <code className="bg-muted px-1 rounded text-[10px]">{"{{company}}"}</code> etc. for per-contact personalization.
+            Auto-generated based on your use case. Use <code className="bg-muted px-1 rounded text-[10px]">{"{{firstName}}"}</code>, <code className="bg-muted px-1 rounded text-[10px]">{"{{company}}"}</code> etc. for per-contact personalization.
           </p>
         </div>
 
@@ -2290,12 +2260,10 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
               <div className="border-t pt-3">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Brain className="h-4 w-4 text-cyan-600" />
-                  <span className="font-medium text-sm">Knowledge Base ({selectedKnowledgeBaseIds.length})</span>
-                  {knowledgeBaseOnly && (
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 border-amber-500/20">
-                      KB Only
-                    </Badge>
-                  )}
+                  <span className="font-medium text-sm">Knowledge Base ({knowledgeBases.length})</span>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-green-500/10 text-green-600 border-green-500/20">
+                    Auto-included
+                  </Badge>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {knowledgeBases

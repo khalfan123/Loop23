@@ -34,12 +34,6 @@ import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } fr
 import { usePluginStatus } from "@/hooks/use-plugin-status";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface KnowledgeBaseItem {
-  id: string;
-  title: string;
-  type: string;
-}
-
 interface GeneratedFormField {
   question: string;
   fieldType: string;
@@ -132,7 +126,6 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [promptGenerated, setPromptGenerated] = useState(false);
 
-  const [selectedKBIds, setSelectedKBIds] = useState<string[]>([]);
   const [referenceUrl, setReferenceUrl] = useState('');
   const [isImportingUrl, setIsImportingUrl] = useState(false);
   const [importedKBs, setImportedKBs] = useState<Array<{ id: string; title: string }>>([]);
@@ -177,11 +170,6 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
 
   const { data: plivoPhoneNumbers = [] } = useQuery<PlivoPhoneNumber[]>({
     queryKey: ["/api/plivo/phone-numbers"],
-    enabled: open,
-  });
-
-  const { data: knowledgeBaseItems = [] } = useQuery<KnowledgeBaseItem[]>({
-    queryKey: ["/api/rag-knowledge"],
     enabled: open,
   });
 
@@ -248,11 +236,11 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     if (!formData.agentId || !formData.type) return;
     setIsGeneratingPrompt(true);
     try {
-      const allKbIds = [...selectedKBIds, ...importedKBs.map(kb => kb.id)];
+      const importedKbIds = importedKBs.map(kb => kb.id);
       const res = await apiRequest("POST", "/api/campaigns/generate-use-case-prompt", {
         useCase: formData.type,
         agentId: formData.agentId,
-        knowledgeBaseIds: allKbIds.length > 0 ? allKbIds : undefined,
+        knowledgeBaseIds: importedKbIds.length > 0 ? importedKbIds : undefined,
         formFields: !isAppointmentBooking && generatedFormFields.length > 0 ? generatedFormFields : undefined,
       });
       const data = await res.json();
@@ -275,7 +263,6 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
       const res = await apiRequest("POST", "/api/campaigns/import-reference-url", { url: referenceUrl.trim() });
       const data = await res.json();
       setImportedKBs(prev => [...prev, { id: data.knowledgeBaseId, title: data.title }]);
-      setSelectedKBIds(prev => [...prev, data.knowledgeBaseId]);
       setReferenceUrl('');
       toast({ title: "URL imported successfully", description: `"${data.title}" added as knowledge` });
     } catch (err: any) {
@@ -309,12 +296,12 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
         if (fId) selectedFormId = fId;
       }
 
-      const allKbIds = [...selectedKBIds, ...importedKBs.map(kb => kb.id)];
+      const importedKbIds = importedKBs.map(kb => kb.id);
 
       const payload: any = {
         ...formData,
         selectedFormId: selectedFormId || undefined,
-        knowledgeBaseIds: allKbIds.length > 0 ? allKbIds : undefined,
+        knowledgeBaseIds: importedKbIds.length > 0 ? importedKbIds : undefined,
         appointmentBookingEnabled: isAppointmentBooking || undefined,
       };
       if (payload.flowId) {
@@ -408,7 +395,6 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     setGeneratedPrompt('');
     setIsGeneratingPrompt(false);
     setPromptGenerated(false);
-    setSelectedKBIds([]);
     setReferenceUrl('');
     setImportedKBs([]);
     setShowAdvancedScript(false);
@@ -705,40 +691,13 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                     </div>
                   )}
 
-                  {/* Knowledge Base & Reference URL */}
+                  {/* Reference URL Import */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-1.5">
                       <Globe className="h-4 w-4" />
-                      Knowledge Base
+                      Reference URL
                     </Label>
-                    <p className="text-xs text-muted-foreground">Select knowledge bases for the agent to reference during calls</p>
-                    {knowledgeBaseItems.length > 0 ? (
-                      <div className="space-y-1.5 max-h-32 overflow-y-auto border rounded-md p-2">
-                        {knowledgeBaseItems.map((kb) => (
-                          <div key={kb.id} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`kb-${kb.id}`}
-                              checked={selectedKBIds.includes(kb.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedKBIds(prev => [...prev, kb.id]);
-                                } else {
-                                  setSelectedKBIds(prev => prev.filter(id => id !== kb.id));
-                                }
-                              }}
-                              data-testid={`checkbox-kb-${kb.id}`}
-                            />
-                            <Label htmlFor={`kb-${kb.id}`} className="text-xs font-normal cursor-pointer truncate">
-                              {kb.title}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-2 rounded border border-dashed text-xs text-muted-foreground text-center">
-                        No knowledge bases available
-                      </div>
-                    )}
+                    <p className="text-xs text-muted-foreground">All your knowledge base articles are used automatically. Import additional reference URLs below.</p>
 
                     {importedKBs.length > 0 && (
                       <div className="space-y-1">
@@ -752,7 +711,6 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                               className="h-5 w-5 p-0"
                               onClick={() => {
                                 setImportedKBs(prev => prev.filter(k => k.id !== kb.id));
-                                setSelectedKBIds(prev => prev.filter(id => id !== kb.id));
                               }}
                               data-testid={`button-remove-kb-${kb.id}`}
                             >

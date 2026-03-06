@@ -1802,16 +1802,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 <Check className="h-4 w-4 text-cyan-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <span className="text-xs font-medium text-cyan-700 dark:text-cyan-400">
-                    {knowledgeBases.length} knowledge base{knowledgeBases.length !== 1 ? 's' : ''} will be used automatically
+                    {knowledgeBases.length} knowledge base article{knowledgeBases.length !== 1 ? 's' : ''} will be used automatically
                   </span>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {knowledgeBases.map((kb) => (
-                      <Badge key={kb.id} variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-400">
-                        {kb.type === 'url' ? <Link className="h-2.5 w-2.5 mr-0.5" /> : <FileUp className="h-2.5 w-2.5 mr-0.5" />}
-                        {kb.title}
-                      </Badge>
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
@@ -2256,24 +2248,14 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
               )}
             </div>
 
-            {selectedKnowledgeBaseIds.length > 0 && (
+            {knowledgeBases.length > 0 && (
               <div className="border-t pt-3">
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-2">
                   <Brain className="h-4 w-4 text-cyan-600" />
-                  <span className="font-medium text-sm">Knowledge Base ({knowledgeBases.length})</span>
+                  <span className="font-medium text-sm">Knowledge Base</span>
                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-green-500/10 text-green-600 border-green-500/20">
-                    Auto-included
+                    {knowledgeBases.length} auto-included
                   </Badge>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {knowledgeBases
-                    .filter((kb) => selectedKnowledgeBaseIds.includes(kb.id))
-                    .map((kb) => (
-                      <Badge key={kb.id} variant="outline" className="border-cyan-300 text-cyan-700 dark:text-cyan-400 text-[10px]">
-                        <BookOpen className="h-2.5 w-2.5 mr-0.5" />
-                        {kb.title}
-                      </Badge>
-                    ))}
                 </div>
               </div>
             )}

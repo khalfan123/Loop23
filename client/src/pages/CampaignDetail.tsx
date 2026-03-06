@@ -23,7 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, PhoneCall, Download, CheckCircle2, XCircle, Clock, Loader2, TrendingUp, Users, Target, Pause, StopCircle, Play, Flame, ThermometerSun, Snowflake, RefreshCw, RotateCcw, Layers } from "lucide-react";
+import { ArrowLeft, PhoneCall, Download, CheckCircle2, XCircle, Clock, Loader2, TrendingUp, Users, Target, Pause, StopCircle, Play, Flame, ThermometerSun, Snowflake, RefreshCw, RotateCcw, Layers, Volume2, Square, Pencil, Check, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -70,6 +71,17 @@ interface Campaign {
   batchJobId: string | null;
   batchJobStatus: string | null;
   retryEnabled: boolean;
+  agentId: string | null;
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  voiceProvider?: string | null;
+  elevenLabsVoiceId?: string | null;
+  awsPollyVoiceId?: string | null;
+  openaiVoice?: string | null;
+  telephonyProvider?: string | null;
 }
 
 interface BatchJobStats {
@@ -91,6 +103,12 @@ export default function CampaignDetail() {
   const currentUser = AuthStorage.getUser();
   const isAdmin = currentUser?.role === 'admin';
 
+  const [isEditingType, setIsEditingType] = useState(false);
+  const [editTypeValue, setEditTypeValue] = useState('');
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [isLoadingVoice, setIsLoadingVoice] = useState(false);
+  const [voiceAudioRef, setVoiceAudioRef] = useState<HTMLAudioElement | null>(null);
+
   const { data: campaign, isLoading: campaignLoading } = useQuery<Campaign>({
     queryKey: [`/api/campaigns/${id}`],
     enabled: !!id,
@@ -99,6 +117,94 @@ export default function CampaignDetail() {
       return data?.status === 'running' || data?.status === 'in-progress' ? 3000 : false;
     },
   });
+
+  const { data: agent } = useQuery<Agent>({
+    queryKey: ['/api/agents', campaign?.agentId],
+    queryFn: async () => {
+      const res = await fetch(`/api/agents/${campaign!.agentId}`, {
+        headers: { Authorization: `Bearer ${AuthStorage.getToken()}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch agent');
+      return res.json();
+    },
+    enabled: !!campaign?.agentId,
+  });
+
+  const updateTypeMutation = useMutation({
+    mutationFn: async (newType: string) => {
+      await apiRequest("PATCH", `/api/campaigns/${id}`, { type: newType });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/campaigns/${id}`] });
+      setIsEditingType(false);
+      toast({ title: "Campaign type updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update campaign type", variant: "destructive" });
+    },
+  });
+
+  const handlePlayVoice = async () => {
+    if (isPlayingVoice && voiceAudioRef) {
+      voiceAudioRef.pause();
+      voiceAudioRef.currentTime = 0;
+      setIsPlayingVoice(false);
+      setVoiceAudioRef(null);
+      return;
+    }
+    if (!agent || isLoadingVoice) return;
+
+    const voiceProvider = agent.voiceProvider || 'elevenlabs';
+    const previewText = 'Hello! This is how I will sound during the campaign calls.';
+    let endpoint = '';
+    let body: Record<string, unknown> = {};
+
+    if (voiceProvider === 'openai' || ((!agent.elevenLabsVoiceId && !agent.awsPollyVoiceId) && agent.openaiVoice)) {
+      endpoint = '/api/openai/voices/preview';
+      body = { voiceId: agent.openaiVoice || 'alloy', text: previewText };
+    } else if (voiceProvider === 'elevenlabs' || agent.elevenLabsVoiceId) {
+      if (!agent.elevenLabsVoiceId) {
+        toast({ title: "No voice configured", description: "This agent doesn't have a voice set up.", variant: "destructive" });
+        return;
+      }
+      endpoint = '/api/voices/preview';
+      body = { voiceId: agent.elevenLabsVoiceId, text: previewText };
+    } else if (agent.openaiVoice) {
+      endpoint = '/api/openai/voices/preview';
+      body = { voiceId: agent.openaiVoice, text: previewText };
+    } else if (agent.awsPollyVoiceId) {
+      toast({ title: "Polly voice preview", description: `This agent uses AWS Polly voice "${agent.awsPollyVoiceId}". Preview is available in the agent settings.` });
+      return;
+    } else {
+      toast({ title: "No voice configured", description: "This agent doesn't have a voice set up.", variant: "destructive" });
+      return;
+    }
+
+    setIsLoadingVoice(true);
+    setIsPlayingVoice(true);
+    try {
+      const token = AuthStorage.getToken();
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Failed to generate voice preview');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      setVoiceAudioRef(audio);
+      setIsLoadingVoice(false);
+      audio.onended = () => { setIsPlayingVoice(false); setVoiceAudioRef(null); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setIsPlayingVoice(false); setVoiceAudioRef(null); URL.revokeObjectURL(url); };
+      audio.play();
+    } catch (err: any) {
+      toast({ title: "Voice preview failed", description: err.message, variant: "destructive" });
+      setIsPlayingVoice(false);
+      setIsLoadingVoice(false);
+      setVoiceAudioRef(null);
+    }
+  };
 
   const { data: contacts = [], isLoading: contactsLoading } = useQuery<Contact[]>({
     queryKey: [`/api/campaigns/${id}/contacts`],
@@ -523,12 +629,87 @@ export default function CampaignDetail() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">{t('campaignDetail.labels.campaignType')}</p>
-                <p className="font-medium">{campaign.type}</p>
+                {isEditingType ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Select value={editTypeValue} onValueChange={setEditTypeValue}>
+                      <SelectTrigger className="h-8 text-sm w-48" data-testid="select-edit-campaign-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Appointment Booking">Appointment Booking</SelectItem>
+                        <SelectItem value="Lead Qualification">Lead Qualification</SelectItem>
+                        <SelectItem value="Feedback Collection">Feedback Collection</SelectItem>
+                        <SelectItem value="Promotional">Promotional</SelectItem>
+                        <SelectItem value="Payment Reminder">Payment Reminder</SelectItem>
+                        <SelectItem value="Event Promotion">Event Promotion</SelectItem>
+                        <SelectItem value="Survey">Survey</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => updateTypeMutation.mutate(editTypeValue)}
+                      disabled={updateTypeMutation.isPending}
+                      data-testid="button-save-type"
+                    >
+                      {updateTypeMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5 text-green-600" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setIsEditingType(false)}
+                      data-testid="button-cancel-type-edit"
+                    >
+                      <X className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium">{campaign.type}</p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => { setEditTypeValue(campaign.type); setIsEditingType(true); }}
+                      data-testid="button-edit-type"
+                      title="Edit campaign type"
+                    >
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
               </div>
               <div>
                 <p className="text-muted-foreground">{t('campaignDetail.labels.status')}</p>
                 <div className="mt-1">{getStatusBadge(campaign.status)}</div>
               </div>
+              {agent && (
+                <div>
+                  <p className="text-muted-foreground">AI Agent</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium">{agent.name}</p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={handlePlayVoice}
+                      disabled={isLoadingVoice}
+                      data-testid="button-play-agent-voice"
+                      title={isPlayingVoice ? "Stop voice preview" : "Listen to agent voice"}
+                    >
+                      {isLoadingVoice ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : isPlayingVoice ? (
+                        <Square className="h-3 w-3 text-red-500" />
+                      ) : (
+                        <Volume2 className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="text-muted-foreground">{t('campaignDetail.labels.created')}</p>
                 <p className="font-medium">{format(new Date(campaign.createdAt), "MMM d, yyyy 'at' h:mm a")}</p>

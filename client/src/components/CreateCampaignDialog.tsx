@@ -311,6 +311,9 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     } else if (selectedAgent.openaiVoice) {
       endpoint = '/api/openai/voices/preview';
       body = { voiceId: selectedAgent.openaiVoice, text: previewText };
+    } else if (selectedAgent.awsPollyVoiceId) {
+      toast({ title: "Polly voice preview", description: `This agent uses AWS Polly voice "${selectedAgent.awsPollyVoiceId}". Preview is available in the agent settings.` });
+      return;
     } else {
       toast({ title: "No voice configured", description: "This agent doesn't have a voice set up yet.", variant: "destructive" });
       return;

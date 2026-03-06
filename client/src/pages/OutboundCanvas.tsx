@@ -354,6 +354,44 @@ function categorizeTemplate(id: string): string {
   return "sales";
 }
 
+function getGreetingExample(category: string, templateId?: string | null): string {
+  if (templateId?.match(/appointment|no.show|waitlist|recurring|multi.provider|group.booking|same.day|virtual/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling to book an appointment — can I have a moment of your time?";
+  if (templateId?.match(/lead|cold.call|demo|product.launch/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm reaching out because we have something that could really help your business — do you have a quick minute?";
+  if (templateId?.match(/upsell|renewal|win.back|contract/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling about your account — I have a great offer I'd love to share with you.";
+  if (templateId?.match(/past.due|collections|payment.plan|invoice/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling regarding your account balance — do you have a moment to discuss?";
+  if (templateId?.match(/survey|nps|satisfaction|feedback|market.research/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. We'd love your feedback — do you have a couple of minutes for a quick survey?";
+  if (templateId?.match(/general.inquiry|complaint|tech|billing|support/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm following up on your recent inquiry — is now a good time to chat?";
+  if (templateId?.match(/prescription|lab.result|insurance|pre.visit|post.discharge|patient/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling regarding your upcoming visit — do you have a moment?";
+  if (templateId?.match(/property|viewing|buyer|mortgage|open.house/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling about a property that matches what you're looking for — got a minute?";
+  if (templateId?.match(/hotel|concierge|loyalty|flight|travel/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling about your upcoming reservation — do you have a moment?";
+  if (templateId?.match(/fraud|kyc|investment|credit.limit|policy|claims|loan/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling regarding your account — it's important, do you have a moment?";
+  if (templateId?.match(/order|payment.reminder|payment.confirm/))
+    return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling about your recent order — do you have a quick moment?";
+  switch (category) {
+    case "appointments": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling to book an appointment — can I have a moment of your time?";
+    case "sales": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm reaching out because we have something that could really help — do you have a quick minute?";
+    case "collections": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling regarding your account balance — do you have a moment?";
+    case "surveys": return "Hi {{firstName}}, this is [Agent] from [Company]. We'd love your feedback — do you have a couple minutes?";
+    case "support": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm following up on your recent inquiry — is now a good time?";
+    case "healthcare": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling regarding your upcoming visit — do you have a moment?";
+    case "realestate": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling about a property listing — got a minute?";
+    case "hospitality": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling about your reservation — do you have a moment?";
+    case "finance": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling regarding your account — do you have a moment?";
+    case "ecommerce": return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling about your recent order — do you have a quick moment?";
+    default: return "Hi {{firstName}}, this is [Agent] from [Company]. I'm calling about something that might interest you — do you have a moment?";
+  }
+}
+
 const STEPS = [
   { id: 1, label: "Use Case", icon: Sparkles },
   { id: 2, label: "Contacts", icon: Users },
@@ -1929,7 +1967,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
           <Input
             value={greetingMessage}
             onChange={(e) => setGreetingMessage(e.target.value)}
-            placeholder={generateGreetingMutation.isPending ? "Generating greeting based on your use case..." : "e.g. Hi {{firstName}}, this is Sarah from Acme Corp!"}
+            placeholder={generateGreetingMutation.isPending ? "Generating greeting based on your use case..." : `e.g. ${getGreetingExample(selectedTemplateId ? categorizeTemplate(selectedTemplateId) : '', selectedTemplateId)}`}
             className="text-sm"
             data-testid="input-greeting-message"
           />

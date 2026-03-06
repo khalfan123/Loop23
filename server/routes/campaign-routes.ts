@@ -162,7 +162,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         messages: [
           {
             role: "system",
-            content: `You are writing the opening line for an AI phone agent who sounds like a real person. The greeting should feel human, warm, and conversational — like a friendly colleague calling, not a robot or call center script. The agent should naturally introduce themselves by name and their company if provided. Keep it to 1-2 short sentences. Use natural speech patterns — contractions, casual tone, slight warmth. Do not use quotes around the message. Only output the greeting text, nothing else.${personalizationNote}${productNote}${langInstruction}`
+            content: `You are writing the opening line for an AI phone agent who sounds like a real person. The greeting MUST clearly state the PURPOSE of the call based on the use case — for example, if the use case is about booking appointments, say you're calling to book an appointment; if it's about a survey, say you're calling for a quick survey; if it's sales, mention the product/offer. The greeting should feel human, warm, and conversational — like a friendly colleague calling, not a robot or call center script. The agent should naturally introduce themselves by name and their company if provided. Keep it to 2-3 short sentences: introduce yourself, state the call purpose, and ask if they have a moment. Use natural speech patterns — contractions, casual tone, slight warmth. Do not use quotes around the message. Only output the greeting text, nothing else.${personalizationNote}${productNote}${langInstruction}`
           },
           {
             role: "user",

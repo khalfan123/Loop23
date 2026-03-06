@@ -1924,9 +1924,29 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       bufferStartTimes.delete(callSid);
 
       const agentName = agentConfig.agentName;
-      const followUp = agentName
-        ? `Hey, it's ${agentName} — can you hear me okay?`
-        : `Hey, can you hear me okay?`;
+      const lang = agentConfig.language || 'en';
+      let followUp: string;
+      if (lang === 'ar') {
+        followUp = agentName
+          ? `مرحبا، أنا ${agentName} — هل تسمعني؟`
+          : `مرحبا، هل تسمعني؟`;
+      } else if (lang === 'es') {
+        followUp = agentName
+          ? `Hola, soy ${agentName} — ¿me escuchas bien?`
+          : `Hola, ¿me escuchas bien?`;
+      } else if (lang === 'fr') {
+        followUp = agentName
+          ? `Bonjour, c'est ${agentName} — vous m'entendez bien ?`
+          : `Bonjour, vous m'entendez bien ?`;
+      } else if (lang === 'hi') {
+        followUp = agentName
+          ? `नमस्ते, मैं ${agentName} हूँ — क्या आप मुझे सुन सकते हैं?`
+          : `नमस्ते, क्या आप मुझे सुन सकते हैं?`;
+      } else {
+        followUp = agentName
+          ? `Hey, it's ${agentName} — can you hear me okay?`
+          : `Hey, can you hear me okay?`;
+      }
 
       currentSession.transcriptParts.push({
         role: 'assistant',
@@ -1962,7 +1982,19 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
         console.log(`[BedrockPolly Bridge] Still no response for ${callSid} — sending final check`);
 
-        const finalMsg = `I think we might have a bad connection. I'll try you another time!`;
+        const finalLang = agentConfig.language || 'en';
+        let finalMsg: string;
+        if (finalLang === 'ar') {
+          finalMsg = `يبدو أن هناك مشكلة في الاتصال. سأحاول معك في وقت آخر!`;
+        } else if (finalLang === 'es') {
+          finalMsg = `Parece que tenemos una mala conexión. ¡Te intentaré llamar en otro momento!`;
+        } else if (finalLang === 'fr') {
+          finalMsg = `On dirait que la connexion est mauvaise. Je vous rappellerai plus tard !`;
+        } else if (finalLang === 'hi') {
+          finalMsg = `लगता है कनेक्शन में समस्या है। मैं आपको बाद में कॉल करूँगा!`;
+        } else {
+          finalMsg = `I think we might have a bad connection. I'll try you another time!`;
+        }
 
         sess.transcriptParts.push({
           role: 'assistant',

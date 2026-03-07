@@ -196,8 +196,17 @@ export class CampaignExecutor {
           if (!SipBatchCallingService) {
             errors.push('SIP Engine plugin is not installed. Please install the sip-engine plugin to use SIP-based calling.');
           }
+        } else if (agent.voiceProvider === 'aws_polly' || agent.voiceProvider === 'elevenlabs') {
+          if (agent.voiceProvider === 'elevenlabs' && !agent.elevenLabsVoiceId) {
+            errors.push('Agent has no ElevenLabs voice selected. Please select a voice in Agent Settings.');
+          }
+          if (agent.voiceProvider === 'elevenlabs' && !agent.elevenLabsCredentialId) {
+            const hasEnvKey = !!process.env.ELEVENLABS_API_KEY;
+            if (!hasEnvKey) {
+              errors.push('No ElevenLabs API key available. Please configure ElevenLabs credentials in Admin Settings.');
+            }
+          }
         } else {
-          // ElevenLabs engine validation (default)
           if (!agent.elevenLabsAgentId) {
             errors.push('Agent is not synced with ElevenLabs. Please sync the agent from Agent Settings before starting the campaign.');
           }
@@ -210,7 +219,6 @@ export class CampaignExecutor {
             errors.push('Phone number is not synced with ElevenLabs. Please sync your phone numbers from Admin Settings.');
           }
 
-          // Check credential mismatch (warning, not error - we can auto-migrate)
           if (phoneNumber && agent.elevenLabsCredentialId && 
               phoneNumber.elevenLabsCredentialId && 
               phoneNumber.elevenLabsCredentialId !== agent.elevenLabsCredentialId) {
@@ -637,9 +645,11 @@ export class CampaignExecutor {
         };
       }
 
-      // Route to Bedrock+Polly engine if agent uses AWS Polly as voice provider
-      if (agent.voiceProvider === 'aws_polly') {
-        console.log(`📞 [Campaign Executor] Routing to Bedrock+Polly engine for campaign ${campaignId}`);
+      // Route to Bedrock+Polly engine for AWS Polly and ElevenLabs voice providers
+      // ElevenLabs voices are supported natively by the Bedrock+Polly engine via TTS provider config
+      if (agent.voiceProvider === 'aws_polly' || agent.voiceProvider === 'elevenlabs') {
+        const ttsLabel = agent.voiceProvider === 'elevenlabs' ? 'ElevenLabs' : 'AWS Polly';
+        console.log(`📞 [Campaign Executor] Routing to Bedrock+Polly engine (TTS: ${ttsLabel}) for campaign ${campaignId}`);
         
         const campaignContacts = await db
           .select()

@@ -652,7 +652,6 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     onSuccess: (data: any) => {
       if (data.greeting) {
         setGreetingMessage(data.greeting);
-        toast({ title: "Greeting Generated", description: "AI-generated greeting message applied." });
       }
     },
     onError: () => {
@@ -688,7 +687,6 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
       const combinedScript = [data.callScript, data.systemPrompt].filter(Boolean).join('\n\n');
       if (combinedScript) setCallScript(combinedScript);
       if (data.availableVariables) setPersonalizationVars(data.availableVariables);
-      toast({ title: "Content Generated", description: "Personalized greeting, script, and prompt generated with contact variables." });
     },
     onError: () => {
       toast({ title: "Generation Failed", description: "Could not generate outbound content", variant: "destructive" });

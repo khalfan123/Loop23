@@ -135,6 +135,20 @@ export class BatchCallingService {
       }
       
       console.error(`[BatchCalling] ❌ API Error: ${response.status} - ${errorDetail}`);
+      
+      if (response.status === 403 && typeof errorDetail === 'string' && errorDetail.includes('Terms')) {
+        throw new ExternalServiceError(
+          'ElevenLabs',
+          `ElevenLabs Batch Calling requires accepting Terms & Conditions. Please go to your ElevenLabs dashboard → Conversational AI → Batch Calling and accept the T&C, then retry.`,
+          undefined,
+          {
+            operation: endpoint,
+            statusCode: response.status,
+            responseBody: errorText,
+          }
+        );
+      }
+      
       throw new ExternalServiceError(
         'ElevenLabs',
         `ElevenLabs Batch API error: ${response.status} - ${errorDetail}`,

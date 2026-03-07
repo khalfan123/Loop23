@@ -230,7 +230,7 @@ export async function generateAgentAvatar(
 ): Promise<string> {
   try {
     const prompt = generateAvatarPrompt(agentName, specialist);
-    const imageBuffer = await generateImageBuffer(prompt, "512x512");
+    const imageBuffer = await generateImageBuffer(prompt, "1024x1024");
     
     // Ensure avatars directory exists
     const avatarsDir = join(process.cwd(), 'public', 'avatars');

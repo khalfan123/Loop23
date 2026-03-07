@@ -77,6 +77,7 @@ import {
   Package,
   Pencil,
   PhoneOff,
+  Bot,
 } from "lucide-react";
 import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -389,7 +390,7 @@ const STEPS = [
   { id: 1, label: "Use Case", icon: Sparkles },
   { id: 2, label: "Contacts", icon: Users },
   { id: 3, label: "Phone", icon: Phone },
-  { id: 4, label: "Voice", icon: AudioWaveform },
+  { id: 4, label: "Voice & Agent", icon: AudioWaveform },
   { id: 5, label: "Knowledge", icon: Brain },
   { id: 6, label: "Launch", icon: Send },
 ];
@@ -410,6 +411,9 @@ function OutboundWizard() {
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
   const [selectedVoiceProvider, setSelectedVoiceProvider] = useState<'polly' | 'elevenlabs'>('polly');
   const [selectedVoiceName, setSelectedVoiceName] = useState("");
+  const [agentName, setAgentName] = useState("");
+  const [agentNameSuggestions, setAgentNameSuggestions] = useState<string[]>([]);
+  const [suggestingAgentName, setSuggestingAgentName] = useState(false);
   const [campaignName, setCampaignName] = useState("");
   const [callScript, setCallScript] = useState("");
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
@@ -546,7 +550,7 @@ function OutboundWizard() {
         useCase: template?.name || undefined,
         useCaseDescription: template?.description || undefined,
         language: agentLang,
-        agentName: undefined,
+        agentName: agentName.trim() || undefined,
         companyName: currentUser?.company || undefined,
         contactName,
         productOrService: productOrService.trim() || undefined,
@@ -579,7 +583,7 @@ function OutboundWizard() {
         useCase: template?.name || undefined,
         useCaseDescription: template?.description || undefined,
         category: template?.category || undefined,
-        agentName: undefined,
+        agentName: agentName.trim() || undefined,
         companyName: currentUser?.company || undefined,
         language: agentLang,
         contactSample,
@@ -893,7 +897,7 @@ function OutboundWizard() {
         const phone = phoneNumbers.find(p => p.id === selectedPhoneId);
         return phone ? isOutboundCapable(phone) : false;
       }
-      case 4: return selectedVoiceId !== null;
+      case 4: return selectedVoiceId !== null && agentName.trim().length > 0;
       case 5: return true;
       case 6: return campaignName.trim().length > 0;
       default: return false;
@@ -971,7 +975,7 @@ function OutboundWizard() {
       if (!campaignName.trim()) throw new Error("Campaign name is required");
 
       const template = flowTemplates.find(t => t.id === selectedTemplateId);
-      const agentName = template ? `${template.name} Agent` : `${campaignName} Agent`;
+      const finalAgentName = agentName.trim() || (template ? `${template.name} Agent` : `${campaignName} Agent`);
 
       const categoryGoals: Record<string, string> = {
         'Sales': 'YOUR GOAL: Qualify the lead, pitch the value, and either close the sale or schedule a follow-up demo/meeting. Ask about their current situation, identify pain points, and present how your solution solves them.',
@@ -997,7 +1001,7 @@ function OutboundWizard() {
         ? `\nCALL SCRIPT & CONVERSATION GUIDE (follow these points step-by-step as your playbook):\n${callScript}\n\nIMPORTANT: Follow the script above as a GUIDE — cover each point in order but use your own natural words. Do NOT read it verbatim. Adapt based on the person's responses while staying on track.`
         : '';
 
-      const outboundSystemPrompt = `You are ${agentName}, an experienced outbound calling agent${currentUser?.company ? ` from ${currentUser.company}` : ''}. You are confident, friendly, and goal-oriented. You know exactly why you're calling and what outcome you want.
+      const outboundSystemPrompt = `You are ${finalAgentName}, an experienced outbound calling agent${currentUser?.company ? ` from ${currentUser.company}` : ''}. You are confident, friendly, and goal-oriented. You know exactly why you're calling and what outcome you want.
 
 ${useCaseContext}
 ${scriptSection}
@@ -1026,7 +1030,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
 
       const agentPayload: Record<string, any> = {
         type: 'incoming',
-        name: agentName,
+        name: finalAgentName,
         systemPrompt: outboundSystemPrompt,
         firstMessage: greetingMessage || undefined,
         language: shortLang,
@@ -1669,8 +1673,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   const renderStep4 = () => (
     <div className="space-y-3" data-testid="outbound-step-4">
       <div className="text-center mb-1">
-        <h2 className="text-sm sm:text-base font-semibold">Select Voice</h2>
-        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose a voice for your AI calling agent</p>
+        <h2 className="text-sm sm:text-base font-semibold">Voice & Agent</h2>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose a voice and name your AI calling agent</p>
       </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-3">
@@ -1892,6 +1896,84 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
             <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 ml-auto">
               {selectedVoiceProvider === 'elevenlabs' ? 'ElevenLabs' : 'AWS Polly'}
             </Badge>
+          </div>
+        )}
+
+        {selectedVoiceId && (
+          <div className="space-y-2 pt-2 border-t">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-primary" />
+              <Label className="font-medium text-sm">Agent Name *</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                placeholder="e.g., Sara, Alex, Jordan..."
+                className="flex-1 h-9 text-sm"
+                data-testid="input-agent-name"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-3 gap-1.5 flex-shrink-0"
+                disabled={suggestingAgentName}
+                onClick={async () => {
+                  setSuggestingAgentName(true);
+                  setAgentNameSuggestions([]);
+                  try {
+                    const template = flowTemplates.find(t => t.id === selectedTemplateId);
+                    const pollyVoice = selectedVoiceProvider === 'polly' ? POLLY_VOICES.find(v => v.id === selectedVoiceId) : null;
+                    const elVoice = selectedVoiceProvider === 'elevenlabs' ? elevenLabsVoices.find(v => v.voice_id === selectedVoiceId) : null;
+                    const voiceGender = pollyVoice?.gender || elVoice?.labels?.gender || '';
+                    const res = await apiRequest("POST", "/api/campaigns/suggest-agent-name", {
+                      useCase: template?.name || '',
+                      useCaseDescription: template?.description || '',
+                      voiceName: selectedVoiceName,
+                      voiceGender,
+                      campaignName,
+                      companyName: currentUser?.company || '',
+                    });
+                    const data = await res.json();
+                    if (data.suggestions?.length) {
+                      setAgentNameSuggestions(data.suggestions);
+                    }
+                  } catch (err) {
+                    console.error("Failed to suggest agent names:", err);
+                  } finally {
+                    setSuggestingAgentName(false);
+                  }
+                }}
+                data-testid="button-suggest-agent-name"
+              >
+                {suggestingAgentName ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
+                <span className="text-xs">Suggest</span>
+              </Button>
+            </div>
+            {agentNameSuggestions.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-muted-foreground">Suggestions:</span>
+                {agentNameSuggestions.map((name) => (
+                  <button
+                    key={name}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                      agentName === name
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/50 hover:bg-muted border-border hover:border-primary/40"
+                    }`}
+                    onClick={() => setAgentName(name)}
+                    data-testid={`button-agent-suggestion-${name}`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">This is the name your AI agent will use when introducing itself on calls.</p>
           </div>
         )}
       </div>
@@ -2345,7 +2427,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
             <div className="border-t pt-3">
               <div className="flex items-center gap-2 mb-1.5">
                 <AudioWaveform className="h-4 w-4 text-blue-600" />
-                <span className="font-medium text-sm">Voice</span>
+                <span className="font-medium text-sm">Voice & Agent</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -2357,16 +2439,22 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 </Button>
               </div>
               {selectedVoiceId && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-sm font-medium">{selectedVoiceName}</span>
-                  <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 ${
-                    selectedVoiceProvider === 'polly'
-                      ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
-                      : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-                  }`}>
-                    <AudioWaveform className="h-2.5 w-2.5 mr-0.5" />
-                    {selectedVoiceProvider === 'polly' ? 'AWS Polly' : 'ElevenLabs'}
-                  </Badge>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Bot className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-sm font-medium">{agentName || 'Unnamed Agent'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <AudioWaveform className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">{selectedVoiceName}</span>
+                    <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 ${
+                      selectedVoiceProvider === 'polly'
+                        ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
+                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                    }`}>
+                      {selectedVoiceProvider === 'polly' ? 'AWS Polly' : 'ElevenLabs'}
+                    </Badge>
+                  </div>
                 </div>
               )}
             </div>

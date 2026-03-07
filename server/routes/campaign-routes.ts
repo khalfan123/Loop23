@@ -212,6 +212,55 @@ Only output the greeting text. Nothing else.`
     }
   });
 
+  router.post("/api/campaigns/suggest-agent-name", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { useCase, useCaseDescription, voiceName, voiceGender, campaignName, companyName } = req.body;
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const context = [
+        useCase ? `Use case: ${useCase}` : '',
+        useCaseDescription ? `Description: ${useCaseDescription}` : '',
+        voiceName ? `Voice: ${voiceName}` : '',
+        voiceGender ? `Voice gender: ${voiceGender}` : '',
+        campaignName ? `Campaign: ${campaignName}` : '',
+        companyName ? `Company: ${companyName}` : '',
+      ].filter(Boolean).join('. ');
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You suggest 3 short, professional AI agent names for an outbound calling agent. Names should be human-like and match the voice gender if provided. Return ONLY a JSON array of 3 strings. Example: ["Sara", "Alex", "Jordan"]. No explanation.`
+          },
+          {
+            role: "user",
+            content: context || 'Suggest 3 professional agent names for a general outbound calling agent.'
+          }
+        ],
+        max_completion_tokens: 60,
+      });
+
+      const raw = response.choices[0]?.message?.content?.trim() || '[]';
+      let suggestions: string[] = [];
+      try {
+        suggestions = JSON.parse(raw);
+        if (!Array.isArray(suggestions)) suggestions = [];
+      } catch {
+        const matches = raw.match(/"([^"]+)"/g);
+        suggestions = matches ? matches.map(m => m.replace(/"/g, '')) : [];
+      }
+      res.json({ suggestions: suggestions.slice(0, 3) });
+    } catch (error: any) {
+      console.error("Error suggesting agent name:", error);
+      res.status(500).json({ error: "Failed to suggest agent names" });
+    }
+  });
+
   router.post("/api/campaigns/generate-script", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const { campaignType, campaignName, campaignGoal } = req.body;

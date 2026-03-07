@@ -459,7 +459,7 @@ export default function Settings() {
       {/* Profile Section */}
       <div id="section-profile" ref={(el) => { sectionRefs.current["section-profile"] = el; }}>
         {/* Profile Header */}
-        <div id="section-profile-header" className="rounded-xl border bg-card p-5 mb-4">
+        <div id="section-profile-header" className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] p-5 mb-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 text-lg">
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold text-lg">
@@ -476,7 +476,7 @@ export default function Settings() {
           </div>
         </div>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Profile</p>
-        <div className="rounded-xl border bg-card">
+        <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
           <div className="p-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -561,7 +561,7 @@ export default function Settings() {
       {/* Security Section */}
       <div id="section-security" ref={(el) => { sectionRefs.current["section-security"] = el; }}>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Security</p>
-        <div className="rounded-xl border bg-card">
+        <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
           <button
             type="button"
             className="w-full flex items-center gap-3 p-4 text-left"
@@ -647,7 +647,7 @@ export default function Settings() {
       {isRestApiPluginEnabled && (
         <div id="section-developer" ref={(el) => { sectionRefs.current["section-developer"] = el; }}>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Developer</p>
-          <div className="rounded-xl border bg-card">
+          <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
             <button
               type="button"
               className="w-full flex items-center gap-3 p-4 text-left border-b last:border-b-0"
@@ -674,7 +674,7 @@ export default function Settings() {
       {settingsTabs.map((tab) => (
         <div key={tab.id}>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">{tab.label}</p>
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] p-4">
             <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
               <tab.component />
             </Suspense>
@@ -685,7 +685,7 @@ export default function Settings() {
       {/* Notifications Section */}
       <div id="section-notifications" ref={(el) => { sectionRefs.current["section-notifications"] = el; }}>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">{t('settings.notifications')}</p>
-        <div className="rounded-xl border bg-card">
+        <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
           <div className="flex items-center gap-3 p-4">
             <div className="w-7 h-7 rounded-md flex items-center justify-center bg-purple-500/10 text-purple-500">
               <Bell className="h-4 w-4" />
@@ -703,7 +703,7 @@ export default function Settings() {
       {/* Data & Privacy Section */}
       <div id="section-data-privacy" ref={(el) => { sectionRefs.current["section-data-privacy"] = el; }}>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Data & Privacy</p>
-        <div className="rounded-xl border bg-card">
+        <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
           <div className="flex items-center gap-3 p-4">
             <div className="w-7 h-7 rounded-md flex items-center justify-center bg-teal-500/10 text-teal-500">
               <Download className="h-4 w-4" />
@@ -732,7 +732,7 @@ export default function Settings() {
       {/* Account Section */}
       <div id="section-account" ref={(el) => { sectionRefs.current["section-account"] = el; }}>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">{t('settings.account')}</p>
-        <div className="rounded-xl border bg-card">
+        <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
           <button
             type="button"
             className="w-full flex items-center gap-3 p-4 text-left"
@@ -937,7 +937,7 @@ function KycDocumentsSection({ user }: { user: User | undefined }) {
   };
 
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
       <div className="flex items-center gap-3 p-4 border-b">
         <div className="w-7 h-7 rounded-md flex items-center justify-center bg-green-500/10 text-green-500">
           <ShieldCheck className="h-4 w-4" />
@@ -1214,7 +1214,7 @@ function AddressesSection() {
   }
 
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
       <div className="flex items-center gap-3 p-4 border-b">
         <div className="w-7 h-7 rounded-md flex items-center justify-center bg-sky-500/10 text-sky-500">
           <MapPin className="h-4 w-4" />

@@ -327,7 +327,7 @@ export default function IntegrationMarketplace() {
           </div>
         </div>
 
-        <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl rounded-2xl border border-white/60 dark:border-white/[0.08] overflow-y-auto p-4 space-y-6">
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (

@@ -207,7 +207,7 @@ function EstimatedCost({ model }: { model: string }) {
   const totalCost = VOICE_COST + llmCostWithMargin;
   
   return (
-    <div className="mt-2 p-3 bg-secondary/50 rounded-md text-xs">
+    <div className="mt-2 p-3 glass-surface rounded-xl text-xs">
       <div className="font-medium mb-1">{t('agents.cost.estimatedBreakdown', { margin: marginPercentage })}</div>
       <div className="space-y-1">
         <div className="flex justify-between">
@@ -1133,8 +1133,8 @@ export default function Agents() {
     >
       <div className={activeTab === 'templates' ? '' : 'hidden'}>
         <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
-          <div className="flex items-center justify-between p-3 md:p-4 border-b">
-            <h2 className="text-base md:text-lg font-semibold">
+          <div className="flex items-center justify-between p-3 md:p-4 border-b glass-surface">
+            <h2 className="text-base md:text-lg font-semibold tracking-tight">
               {templateCategory === 'all' ? 'Prompt Templates' : CATEGORIES.find(c => c.value === templateCategory)?.label || 'Templates'}
             </h2>
           </div>
@@ -1145,8 +1145,8 @@ export default function Agents() {
       </div>
       <div className={activeTab === 'voices' ? '' : 'hidden'}>
         <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
-          <div className="flex items-center justify-between p-3 md:p-4 border-b">
-            <h2 className="text-base md:text-lg font-semibold">
+          <div className="flex items-center justify-between p-3 md:p-4 border-b glass-surface">
+            <h2 className="text-base md:text-lg font-semibold tracking-tight">
               {voiceLanguage === 'all' 
                 ? (voiceProvider === 'elevenlabs' ? 'ElevenLabs Voices' : 'OpenAI Voices')
                 : `${availableVoiceLanguages.find(l => l.value === voiceLanguage)?.label || 'Voices'} Voices`}
@@ -1166,9 +1166,9 @@ export default function Agents() {
       {/* Main Content Area */}
       <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
           {/* Header */}
-          <div className="flex flex-col gap-3 p-3 md:p-4 border-b">
+          <div className="flex flex-col gap-3 p-3 md:p-4 border-b glass-surface">
             <div className="flex items-center justify-between">
-              <h2 className="text-base md:text-lg font-semibold">
+              <h2 className="text-base md:text-lg font-semibold tracking-tight">
                 {selectedFolder === 'all' ? 'Staff AI' : (folderNames[selectedFolder] || 'Staff AI')}
               </h2>
               {/* Create Agent Dropdown */}
@@ -1250,10 +1250,10 @@ export default function Agents() {
               </div>
             ) : filteredAgents.length === 0 ? (
               <div className="p-12 text-center">
-                <div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+                <div className="h-16 w-16 mx-auto mb-4 rounded-2xl glass-card flex items-center justify-center">
                   <Bot className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="text-lg font-semibold mb-2 tracking-tight">
                   {searchQuery ? t('agents.noAgentsFound') : t('agents.noAgents')}
                 </h3>
                 <p className="text-muted-foreground mb-4">
@@ -1450,7 +1450,7 @@ export default function Agents() {
           
           {/* Pagination */}
           {filteredAgents.length > 0 && (
-            <div className="border-t p-2 md:p-4">
+            <div className="border-t p-2 md:p-4 glass-surface">
               <DataPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -1471,16 +1471,16 @@ export default function Agents() {
           resetForm();
         }
       }}>
-        <DialogContent className={`w-[95vw] max-w-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] p-0 gap-0 overflow-hidden ${animationState === 'error' ? 'animate-shake' : ''}`}>
+        <DialogContent className={`w-[95vw] max-w-2xl flex flex-col max-h-[90vh] md:max-h-[85vh] p-0 gap-0 overflow-hidden glass-card-heavy rounded-2xl ${animationState === 'error' ? 'animate-shake' : ''}`}>
           {/* Success Animation Overlay */}
           {animationState === 'success' && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/90 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-xl">
               <div className="flex flex-col items-center gap-4 animate-in zoom-in-50 fade-in duration-300">
-                <div className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <div className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-[var(--glass-shadow-lg)]">
                   <CheckCircle2 className="h-8 w-8 md:h-10 md:w-10 text-white animate-in zoom-in-75 duration-300 delay-150" />
                 </div>
                 <div className="text-center px-4">
-                  <p className="text-base md:text-lg font-semibold text-foreground">
+                  <p className="text-base md:text-lg font-semibold text-foreground tracking-tight">
                     {editingAgent ? t('agents.create.agentUpdated') : t('agents.create.agentCreated')}
                   </p>
                   <p className="text-sm text-muted-foreground">{t('agents.create.readyToUse')}</p>
@@ -1505,10 +1505,10 @@ export default function Agents() {
               <Label className="text-sm md:text-base font-semibold">{t('agents.create.typeRequired')} <span className="text-destructive">*</span></Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                 <div 
-                  className={`relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+                  className={`relative p-4 rounded-2xl cursor-pointer transition-all duration-300 ${
                     formData.type === 'incoming' 
-                      ? 'bg-gradient-to-br from-emerald-500/20 via-emerald-400/10 to-teal-500/20 dark:from-emerald-500/30 dark:via-emerald-400/15 dark:to-teal-500/25 border-2 border-emerald-500/50 shadow-lg shadow-emerald-500/10' 
-                      : 'bg-muted/30 hover:bg-muted/50 border-2 border-transparent hover:border-border'
+                      ? 'glass-card bg-emerald-500/10 dark:bg-emerald-500/15 border-2 border-emerald-500/40 shadow-[var(--glass-shadow)]' 
+                      : 'glass-surface border-2 border-transparent hover:border-white/30 dark:hover:border-white/10'
                   }`}
                   onClick={() => setFormData({ ...formData, type: 'incoming' })}
                   data-testid="card-type-incoming"
@@ -1517,13 +1517,13 @@ export default function Agents() {
                     <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
                       formData.type === 'incoming' 
                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                        : 'bg-muted text-muted-foreground'
+                        : 'bg-muted/60 text-muted-foreground'
                     }`}>
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className={`font-semibold ${formData.type === 'incoming' ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>{t('agents.create.incomingAgent')}</h4>
+                        <h4 className={`font-semibold tracking-tight ${formData.type === 'incoming' ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>{t('agents.create.incomingAgent')}</h4>
                         {formData.type === 'incoming' && (
                           <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                         )}
@@ -1536,10 +1536,10 @@ export default function Agents() {
                 </div>
 
                 <div 
-                  className={`relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+                  className={`relative p-4 rounded-2xl cursor-pointer transition-all duration-300 ${
                     formData.type === 'flow' 
-                      ? 'bg-gradient-to-br from-violet-500/20 via-purple-400/10 to-indigo-500/20 dark:from-violet-500/30 dark:via-purple-400/15 dark:to-indigo-500/25 border-2 border-violet-500/50 shadow-lg shadow-violet-500/10' 
-                      : 'bg-muted/30 hover:bg-muted/50 border-2 border-transparent hover:border-border'
+                      ? 'glass-card bg-violet-500/10 dark:bg-violet-500/15 border-2 border-violet-500/40 shadow-[var(--glass-shadow)]' 
+                      : 'glass-surface border-2 border-transparent hover:border-white/30 dark:hover:border-white/10'
                   }`}
                   onClick={() => setFormData({ ...formData, type: 'flow' })}
                   data-testid="card-type-flow"
@@ -1548,13 +1548,13 @@ export default function Agents() {
                     <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
                       formData.type === 'flow' 
                         ? 'bg-violet-500/20 text-violet-600 dark:text-violet-400' 
-                        : 'bg-muted text-muted-foreground'
+                        : 'bg-muted/60 text-muted-foreground'
                     }`}>
                       <GitBranch className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className={`font-semibold ${formData.type === 'flow' ? 'text-violet-700 dark:text-violet-300' : ''}`}>{t('agents.create.flowAgent')}</h4>
+                        <h4 className={`font-semibold tracking-tight ${formData.type === 'flow' ? 'text-violet-700 dark:text-violet-300' : ''}`}>{t('agents.create.flowAgent')}</h4>
                         {formData.type === 'flow' && (
                           <div className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />
                         )}

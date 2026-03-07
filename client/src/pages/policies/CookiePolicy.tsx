@@ -24,11 +24,10 @@ export default function CookiePolicy() {
   const { branding, currentLogo } = useBranding();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <nav className="border-b bg-background sticky top-0 z-50 backdrop-blur-md bg-background/80">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-50/20 dark:to-blue-950/5">
+      <nav className="border-b sticky top-0 z-[999] glass-panel">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between gap-4 h-20">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocation('/')}>
               {currentLogo ? (
                 <img
@@ -39,10 +38,10 @@ export default function CookiePolicy() {
                 />
               ) : (
                 <>
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                     <Mic2 className="h-6 w-6 text-white" />
                   </div>
-                  <span className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                  <span className="text-2xl font-semibold tracking-tight text-foreground">
                     {branding.app_name}
                   </span>
                 </>
@@ -56,8 +55,8 @@ export default function CookiePolicy() {
         </div>
       </nav>
 
-      {/* Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="rounded-2xl glass-card-heavy p-8 md:p-12">
         <div className="prose prose-slate dark:prose-invert max-w-none">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Cookie Policy</h1>
           <p className="text-muted-foreground text-lg mb-12">Last updated: November 2, 2025</p>
@@ -167,6 +166,7 @@ export default function CookiePolicy() {
               If you have questions about our use of cookies, please contact our support team through the application.
             </p>
           </section>
+        </div>
         </div>
       </div>
     </div>

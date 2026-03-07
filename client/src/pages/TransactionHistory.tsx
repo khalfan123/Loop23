@@ -183,7 +183,7 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
 
   if (isLoading) {
     return (
-      <div className="rounded-xl bg-card border border-border overflow-hidden">
+      <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] overflow-hidden">
         <div className="p-4 space-y-4">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="flex items-center justify-between py-3">
@@ -201,7 +201,7 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
 
   if (isError) {
     return (
-      <div className="rounded-xl bg-card border border-border p-8 text-center">
+      <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] p-8 text-center">
         <Receipt className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
         <p className="text-sm font-medium text-foreground mb-1">{t('transactionHistory.errorTitle')}</p>
         <p className="text-xs text-muted-foreground">{t('transactionHistory.errorDescription')}</p>
@@ -243,7 +243,7 @@ export default function TransactionHistory({ embedded = false }: TransactionHist
         </div>
       )}
 
-      <div className="rounded-xl bg-card border border-border overflow-hidden">
+      <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] overflow-hidden">
         {transactions.length === 0 ? (
           <div className="p-12 text-center">
             <Receipt className="h-8 w-8 text-muted-foreground mx-auto mb-3" />

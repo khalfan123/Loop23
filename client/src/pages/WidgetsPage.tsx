@@ -1119,7 +1119,7 @@ export default function WidgetsPage() {
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between p-3 rounded-xl border">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                         <div>
                           <Label>Status</Label>
                           <p className="text-sm text-muted-foreground">Enable or disable this widget</p>
@@ -1247,7 +1247,7 @@ export default function WidgetsPage() {
                     </div>
 
                     <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-                      <div className="flex items-center justify-between p-3 rounded-xl border">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                         <div>
                           <Label>Require Terms Acceptance</Label>
                           <p className="text-sm text-muted-foreground">
@@ -1260,7 +1260,7 @@ export default function WidgetsPage() {
                         />
                       </div>
 
-                      <div className="flex items-center justify-between p-3 rounded-xl border">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                         <div>
                           <Label>Appointment Booking</Label>
                           <p className="text-sm text-muted-foreground">
@@ -1314,7 +1314,7 @@ export default function WidgetsPage() {
                     </div>
 
                     <div className="rounded-xl bg-white dark:bg-zinc-900 p-5 space-y-4">
-                      <div className="flex items-center justify-between p-3 rounded-xl border">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                         <div>
                           <Label>Business Hours</Label>
                           <p className="text-sm text-muted-foreground">

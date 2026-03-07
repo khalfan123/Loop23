@@ -190,7 +190,7 @@ function FlowNode({ data, selected }: { data: any; selected?: boolean }) {
       />
       
       <div
-        className={`bg-card rounded-xl border shadow-sm overflow-hidden p-3 min-w-[220px] ${selected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} transition-all`}
+        className={`bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl rounded-2xl border border-white/60 dark:border-white/[0.08] shadow-sm overflow-hidden p-3 min-w-[220px] ${selected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} transition-all`}
         style={{ borderLeftWidth: '4px', borderLeftColor: colors.handle }}
       >
         <div className="flex items-center gap-2.5">

@@ -33,13 +33,13 @@ export function ThreeColumnLayout({
         <>
           <aside
             className={cn(
-              "hidden lg:flex flex-col flex-shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900 h-full",
+              "hidden lg:flex flex-col flex-shrink-0 glass-panel border-r border-white/40 dark:border-white/[0.06] h-full",
               subPanelWidthClass[subPanelWidth]
             )}
           >
             {subPanelHeader && (
-              <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
-                <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              <div className="px-5 py-4 border-b border-black/[0.04] dark:border-white/[0.06]">
+                <h2 className="text-[15px] font-semibold text-foreground tracking-tight">
                   {subPanelHeader}
                 </h2>
               </div>
@@ -50,9 +50,9 @@ export function ThreeColumnLayout({
           </aside>
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetContent side="left" className="w-72 p-0">
-              <SheetHeader className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
-                <SheetTitle className="text-[15px] font-semibold tracking-tight">
+            <SheetContent side="left" className="w-72 p-0 glass-panel">
+              <SheetHeader className="px-5 py-4 border-b border-black/[0.04] dark:border-white/[0.06]">
+                <SheetTitle className="text-[15px] font-semibold text-foreground tracking-tight">
                   {subPanelHeader || "Menu"}
                 </SheetTitle>
               </SheetHeader>
@@ -64,7 +64,7 @@ export function ThreeColumnLayout({
         </>
       )}
       
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-zinc-50/80 dark:bg-zinc-950/50">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-background">
         {subPanel && (
           <div className="lg:hidden flex items-center gap-2 px-4 pt-3">
             <Button
@@ -77,7 +77,7 @@ export function ThreeColumnLayout({
               <PanelLeft className="h-4 w-4" />
             </Button>
             {subPanelHeader && (
-              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <span className="text-sm font-medium text-foreground">
                 {subPanelHeader}
               </span>
             )}
@@ -105,7 +105,7 @@ export function SubPanelSection({
   return (
     <div className={cn("mb-3", className)}>
       {title && (
-        <h3 className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide px-3 mb-1">
+        <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-1">
           {title}
         </h3>
       )}
@@ -140,24 +140,24 @@ export function SubPanelItem({
       onClick={onClick}
       data-testid={dataTestId}
       className={cn(
-        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] text-left transition-all duration-150 hover-elevate active-elevate-2",
+        "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-left transition-all duration-200 hover-elevate active-elevate-2",
         isActive 
-          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium" 
-          : "text-zinc-600 dark:text-zinc-400",
+          ? "bg-primary/10 text-primary font-medium" 
+          : "text-muted-foreground",
         className
       )}
     >
       {icon && (
         <span className={cn(
           "flex-shrink-0 w-4 h-4",
-          isActive ? "text-blue-500" : "text-zinc-400 dark:text-zinc-500"
+          isActive ? "text-primary" : "text-muted-foreground/70"
         )}>
           {icon}
         </span>
       )}
       <span className="flex-1 truncate">{label}</span>
       {badge && (
-        <span className="text-[12px] text-zinc-400 dark:text-zinc-500 font-medium">
+        <span className="text-[12px] text-muted-foreground font-medium">
           {badge}
         </span>
       )}

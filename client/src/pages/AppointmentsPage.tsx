@@ -330,7 +330,7 @@ export default function AppointmentsPage() {
                           {dayAppointments.slice(0, 2).map((apt) => (
                             <div
                               key={apt.id}
-                              className="text-[10px] leading-tight px-1.5 py-0.5 bg-primary/8 dark:bg-primary/15 text-foreground rounded truncate"
+                              className="text-[10px] leading-tight px-1.5 py-0.5 bg-primary/[0.08] dark:bg-primary/[0.15] text-foreground rounded truncate"
                               title={`${apt.contactName} - ${format(new Date(apt.scheduledFor), "h:mm a")}`}
                               data-testid={`appointment-${apt.id}`}
                             >
@@ -544,7 +544,7 @@ export default function AppointmentsPage() {
 
               <div className="space-y-3">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("appointments.settings.workingDays")}</Label>
-                <div className="rounded-xl border divide-y">
+                <div className="rounded-xl bg-muted/20 divide-y divide-border/40">
                   {workingDayOptions.map((day) => (
                     <div
                       key={day}

@@ -234,68 +234,52 @@ export default function AdminDashboard() {
         </div>
         <div className="flex items-center gap-2 md:gap-3 flex-wrap">
               <div 
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-sm transition-colors ${
                   twilioStatus?.connected 
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' 
-                    : 'bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700'
+                    ? 'bg-emerald-500/10 dark:bg-emerald-500/10' 
+                    : 'bg-muted/50 dark:bg-muted/30'
                 }`}
                 data-testid={twilioStatus?.connected ? "status-twilio-connected" : "status-twilio-disconnected"}
                 title={twilioStatus?.error || undefined}
               >
-                <div className={`p-1 rounded-full ${
+                <div className={`p-1.5 rounded-lg ${
                   twilioStatus?.connected 
-                    ? 'bg-emerald-500' 
-                    : 'bg-slate-400'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30' 
+                    : 'bg-muted'
                 }`}>
-                  <Phone className="h-3 w-3 text-white" />
+                  <Phone className={`h-3 w-3 ${twilioStatus?.connected ? 'text-emerald-500' : 'text-muted-foreground'}`} />
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-xs font-medium ${
-                    twilioStatus?.connected 
-                      ? 'text-emerald-700 dark:text-emerald-400' 
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}>
+                  <span className="text-xs font-medium">
                     Twilio
                   </span>
-                  <span className={`text-[10px] ${
-                    twilioStatus?.connected 
-                      ? 'text-emerald-600/70 dark:text-emerald-500/70' 
-                      : 'text-slate-500 dark:text-slate-500'
-                  }`}>
+                  <span className="text-[10px] text-muted-foreground">
                     {twilioStatus?.connected ? 'Connected' : 'Not Connected'}
                   </span>
                 </div>
               </div>
               
               <div 
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-sm transition-colors ${
                   elevenLabsStatus?.connected 
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' 
-                    : 'bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700'
+                    ? 'bg-emerald-500/10 dark:bg-emerald-500/10' 
+                    : 'bg-muted/50 dark:bg-muted/30'
                 }`}
                 data-testid={elevenLabsStatus?.connected ? "status-elevenlabs-connected" : "status-elevenlabs-disconnected"}
                 title={elevenLabsStatus?.error || undefined}
               >
-                <div className={`p-1 rounded-full ${
+                <div className={`p-1.5 rounded-lg ${
                   elevenLabsStatus?.connected 
-                    ? 'bg-emerald-500' 
-                    : 'bg-slate-400'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30' 
+                    : 'bg-muted'
                 }`}>
-                  <Server className="h-3 w-3 text-white" />
+                  <Server className={`h-3 w-3 ${elevenLabsStatus?.connected ? 'text-emerald-500' : 'text-muted-foreground'}`} />
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-xs font-medium ${
-                    elevenLabsStatus?.connected 
-                      ? 'text-emerald-700 dark:text-emerald-400' 
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}>
+                  <span className="text-xs font-medium">
                     ElevenLabs
                   </span>
-                  <span className={`text-[10px] ${
-                    elevenLabsStatus?.connected 
-                      ? 'text-emerald-600/70 dark:text-emerald-500/70' 
-                      : 'text-slate-500 dark:text-slate-500'
-                  }`}>
+                  <span className="text-[10px] text-muted-foreground">
                     {elevenLabsStatus?.connected 
                       ? elevenLabsStatus.voiceCount !== undefined 
                         ? `${elevenLabsStatus.voiceCount} voices` 
@@ -305,36 +289,27 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* OpenAI Status Indicator */}
               <div 
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-sm transition-colors ${
                   openaiStatus?.connected 
-                    ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' 
-                    : 'bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700'
+                    ? 'bg-purple-500/10 dark:bg-purple-500/10' 
+                    : 'bg-muted/50 dark:bg-muted/30'
                 }`}
                 data-testid={openaiStatus?.connected ? "status-openai-connected" : "status-openai-disconnected"}
                 title={openaiStatus?.error || undefined}
               >
-                <div className={`p-1 rounded-full ${
+                <div className={`p-1.5 rounded-lg ${
                   openaiStatus?.connected 
-                    ? 'bg-purple-500' 
-                    : 'bg-slate-400'
+                    ? 'bg-purple-100 dark:bg-purple-900/30' 
+                    : 'bg-muted'
                 }`}>
-                  <Sparkles className="h-3 w-3 text-white" />
+                  <Sparkles className={`h-3 w-3 ${openaiStatus?.connected ? 'text-purple-500' : 'text-muted-foreground'}`} />
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-xs font-medium ${
-                    openaiStatus?.connected 
-                      ? 'text-purple-700 dark:text-purple-400' 
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}>
+                  <span className="text-xs font-medium">
                     OpenAI
                   </span>
-                  <span className={`text-[10px] ${
-                    openaiStatus?.connected 
-                      ? 'text-purple-600/70 dark:text-purple-500/70' 
-                      : 'text-slate-500 dark:text-slate-500'
-                  }`}>
+                  <span className="text-[10px] text-muted-foreground">
                     {openaiStatus?.connected 
                       ? (openaiStatus as any).modelCount !== undefined 
                         ? `${(openaiStatus as any).modelCount} models` 
@@ -344,36 +319,27 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* OpenAI Realtime Voice API Status Indicator */}
               <div 
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-sm transition-colors ${
                   openaiRealtimeStatus?.connected 
-                    ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800' 
-                    : 'bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/10' 
+                    : 'bg-muted/50 dark:bg-muted/30'
                 }`}
                 data-testid={openaiRealtimeStatus?.connected ? "status-openai-voice-connected" : "status-openai-voice-disconnected"}
                 title={openaiRealtimeStatus?.error || undefined}
               >
-                <div className={`p-1 rounded-full ${
+                <div className={`p-1.5 rounded-lg ${
                   openaiRealtimeStatus?.connected 
-                    ? 'bg-orange-500' 
-                    : 'bg-slate-400'
+                    ? 'bg-orange-100 dark:bg-orange-900/30' 
+                    : 'bg-muted'
                 }`}>
-                  <Mic className="h-3 w-3 text-white" />
+                  <Mic className={`h-3 w-3 ${openaiRealtimeStatus?.connected ? 'text-orange-500' : 'text-muted-foreground'}`} />
                 </div>
                 <div className="flex flex-col">
-                  <span className={`text-xs font-medium ${
-                    openaiRealtimeStatus?.connected 
-                      ? 'text-orange-700 dark:text-orange-400' 
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}>
+                  <span className="text-xs font-medium">
                     OpenAI Voice
                   </span>
-                  <span className={`text-[10px] ${
-                    openaiRealtimeStatus?.connected 
-                      ? 'text-orange-600/70 dark:text-orange-500/70' 
-                      : 'text-slate-500 dark:text-slate-500'
-                  }`}>
+                  <span className="text-[10px] text-muted-foreground">
                     {openaiRealtimeStatus?.connected 
                       ? (openaiRealtimeStatus as any).keyCount !== undefined 
                         ? `${(openaiRealtimeStatus as any).keyCount} keys` 
@@ -383,20 +349,19 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Version Badge */}
               <div 
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-sm bg-blue-500/10 dark:bg-blue-500/10"
                 data-testid="status-version"
                 title="Application Version"
               >
-                <div className="p-1 rounded-full bg-blue-500">
-                  <Power className="h-3 w-3 text-white" />
+                <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <Power className="h-3 w-3 text-blue-500" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                  <span className="text-xs font-medium">
                     Version
                   </span>
-                  <span className="text-[10px] text-blue-600/70 dark:text-blue-500/70">
+                  <span className="text-[10px] text-muted-foreground">
                     v{versionData?.version || '1.0.0'}
                   </span>
                 </div>

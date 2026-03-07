@@ -171,8 +171,8 @@ export default function RockCenter() {
             <Card data-testid="card-bedrock-status">
               <CardContent className="p-5">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center">
-                    <Brain className="h-5 w-5 text-white" />
+                  <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                    <Brain className="h-5 w-5 text-indigo-500" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-muted-foreground">Bedrock</p>
@@ -192,8 +192,8 @@ export default function RockCenter() {
             <Card data-testid="card-polly-status">
               <CardContent className="p-5">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
-                    <Volume2 className="h-5 w-5 text-white" />
+                  <div className="h-10 w-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
+                    <Volume2 className="h-5 w-5 text-cyan-500" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-muted-foreground">Polly</p>
@@ -213,8 +213,8 @@ export default function RockCenter() {
             <Card data-testid="card-active-sessions">
               <CardContent className="p-5">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-                    <Phone className="h-5 w-5 text-white" />
+                  <div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                    <Phone className="h-5 w-5 text-emerald-500" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-muted-foreground">Active Sessions</p>
@@ -404,7 +404,7 @@ export default function RockCenter() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {filteredVoices.map((voice) => (
-                    <Card key={voice.id || voice.name} className="border" data-testid={`card-voice-${voice.id || voice.name}`}>
+                    <Card key={voice.id || voice.name} data-testid={`card-voice-${voice.id || voice.name}`}>
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-2 flex-wrap">
                           <div className="min-w-0 flex-1">
@@ -448,7 +448,7 @@ export default function RockCenter() {
                   {models.map((model) => (
                     <div
                       key={model.modelId}
-                      className="flex items-center justify-between gap-3 p-3 rounded-lg border flex-wrap"
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 flex-wrap"
                       data-testid={`row-model-${model.modelId}`}
                     >
                       <div className="flex items-center gap-3 min-w-0">

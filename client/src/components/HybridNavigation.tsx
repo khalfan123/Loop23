@@ -1,6 +1,6 @@
 /**
- * Hybrid Navigation System - iOS 18 Minimal Design
- * Clean, minimal sidebar with pill-shaped selections
+ * Hybrid Navigation System - iOS 26 Frosted Glass Design
+ * Clean, minimal sidebar with frosted glass panels and pill-shaped selections
  */
 import { useState, useEffect, createContext, useContext } from "react";
 import { 
@@ -190,7 +190,6 @@ export function HybridNavigation({
     return location === url || location.startsWith(url + '/');
   };
 
-  // iOS 18 style nav item with icon
   const NavItemComponent = ({ item, showLabel }: { item: NavItem; showLabel: boolean }) => {
     const active = isActive(item.url);
     const IconComponent = item.icon;
@@ -200,17 +199,17 @@ export function HybridNavigation({
         href={item.url}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-[13px] group",
+          "flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-300 text-[13px] group",
           active 
-            ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-medium shadow-sm" 
-            : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            ? "bg-primary/[0.12] dark:bg-primary/20 text-primary dark:text-primary font-medium shadow-[0_1px_3px_rgba(0,0,0,0.04)]" 
+            : "text-muted-foreground hover:bg-foreground/[0.04] dark:hover:bg-foreground/[0.06]"
         )}
         data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
       >
         {IconComponent && (
           <IconComponent className={cn(
-            "h-4 w-4 flex-shrink-0",
-            active ? "text-white dark:text-zinc-900" : "text-zinc-400 dark:text-zinc-500"
+            "h-4 w-4 flex-shrink-0 transition-colors duration-300",
+            active ? "text-primary" : "text-muted-foreground/70"
           )} />
         )}
         {showLabel && <span className="truncate flex-1">{item.title}</span>}
@@ -218,8 +217,8 @@ export function HybridNavigation({
           <span className={cn(
             "ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-semibold min-w-[18px] text-center",
             active 
-              ? "bg-white/20 text-white dark:bg-zinc-900/20 dark:text-zinc-900" 
-              : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+              ? "bg-primary/20 text-primary" 
+              : "bg-foreground/[0.06] text-muted-foreground"
           )}>
             {item.badge}
           </span>
@@ -228,10 +227,9 @@ export function HybridNavigation({
     );
   };
 
-  // Desktop Sidebar - iOS 18 Minimal Style with soft gray (always expanded)
   const DesktopSidebar = () => (
     <aside
-      className="hidden lg:flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-black/[0.06] dark:border-white/[0.08] w-64"
+      className="hidden lg:flex flex-col h-full glass-panel border-r border-transparent w-64"
     >
       {/* Navigation Content with Logo merged in */}
       <div className="flex-1 min-h-0 px-3 overflow-y-auto">
@@ -294,17 +292,16 @@ export function HybridNavigation({
         </div>
       </div>
 
-      {/* Credits + User Footer combined */}
       <div className="flex-shrink-0 px-3 pb-1.5 pt-1">
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+        <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl glass-card">
           <div className="flex items-center gap-2">
             <Coins className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{t('sidebar.credits')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('sidebar.credits')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">{remainingCredits.toLocaleString()}</span>
+            <span className="text-sm font-semibold tabular-nums text-foreground">{remainingCredits.toLocaleString()}</span>
             {isPaidPlan && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">
                 {planDisplayName}
               </span>
             )}
@@ -312,7 +309,7 @@ export function HybridNavigation({
         </div>
       </div>
 
-      <div className="flex-shrink-0 px-2 pb-2 border-t border-border/20">
+      <div className="flex-shrink-0 px-2 pb-2 border-t" style={{ borderColor: 'var(--glass-border)' }}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -331,7 +328,7 @@ export function HybridNavigation({
               <ChevronDown className="h-3.5 w-3.5 text-foreground/30" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top" className="w-60 rounded-2xl p-2 border-border/30">
+          <DropdownMenuContent align="start" side="top" className="w-60 rounded-2xl p-2 glass-card-heavy border-0">
             <div className="px-3 py-2.5 mb-1">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
@@ -345,7 +342,7 @@ export function HybridNavigation({
                 </div>
               </div>
             </div>
-            <DropdownMenuSeparator className="bg-border/20" />
+            <DropdownMenuSeparator style={{ backgroundColor: 'var(--glass-border)' }} />
             <div className="p-1">
               <DropdownMenuItem 
                 onClick={() => setLocation("/app/settings")} 
@@ -370,11 +367,10 @@ export function HybridNavigation({
     </aside>
   );
 
-  // Mobile Sidebar - iOS 18 Minimal Style
   const MobileSidebar = () => (
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-      <SheetContent side="left" className="w-72 p-0 border-r-0 flex flex-col">
-        <SheetHeader className="px-4 py-3 flex-shrink-0 border-b border-border/20">
+      <SheetContent side="left" className="w-72 p-0 border-r-0 flex flex-col glass-panel">
+        <SheetHeader className="px-4 py-3 flex-shrink-0 border-b" style={{ borderColor: 'var(--glass-border)' }}>
           <SheetTitle className="text-left text-sm font-medium text-muted-foreground">
             {t('sidebar.navigation') || 'Menu'}
           </SheetTitle>
@@ -413,9 +409,8 @@ export function HybridNavigation({
           )}
         </div>
 
-        {/* Mobile Footer - iOS 18 Minimal */}
-        <div className="flex-shrink-0 p-3 border-t border-border/20 space-y-2">
-          <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+        <div className="flex-shrink-0 p-3 border-t space-y-2" style={{ borderColor: 'var(--glass-border)' }}>
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl glass-card">
             <div className="flex items-center gap-2">
               <Coins className="h-4 w-4 text-amber-500" />
               <span className="text-xs text-muted-foreground">{t('sidebar.credits')}</span>
@@ -444,8 +439,7 @@ export function HybridNavigation({
 
         {/* Main Content Area */}
         <div className="flex flex-col flex-1 min-w-0">
-          {/* Top Bar - iOS 18 Minimal Style with soft gray */}
-          <header className="sticky top-0 z-40 flex h-12 items-center gap-3 border-b border-black/[0.06] dark:border-white/[0.08] bg-zinc-50/90 dark:bg-zinc-900/90 backdrop-blur-xl px-4">
+          <header className="sticky top-0 z-40 flex h-12 items-center gap-3 border-b px-4 glass-surface" style={{ borderColor: 'var(--glass-border)' }}>
             {/* Mobile Menu Button */}
             <Button
               variant="ghost"
@@ -462,14 +456,14 @@ export function HybridNavigation({
               <GlobalSearch />
             </div>
 
-            {/* Right side utilities - iOS 18 pill group */}
+            {/* Right side utilities */}
             <div className="flex items-center gap-1">
               {showNotifications && (
                 <HeaderBannerNotifications />
               )}
               <ThemeToggle />
 
-              {/* User Menu - iOS 18 Style */}
+              {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-1.5 rounded-2xl" data-testid="button-user-menu">
@@ -481,8 +475,8 @@ export function HybridNavigation({
                     <ChevronDown className="h-3 w-3 opacity-50 hidden sm:block" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2 border-border/30">
-                  {/* User Info - iOS 18 Minimal */}
+                <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2 glass-card-heavy border-0">
+                  {/* User Info */}
                   <div className="px-3 py-3 mb-1">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
@@ -497,9 +491,8 @@ export function HybridNavigation({
                     </div>
                   </div>
 
-                  {/* Credits Pill - iOS 18 Style */}
                   <div className="px-2 pb-2">
-                    <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-foreground/[0.04] border border-border/20">
+                    <div className="flex items-center justify-between px-3 py-2.5 rounded-2xl glass-card">
                       <div className="flex items-center gap-2">
                         <Coins className="h-4 w-4 text-amber-500" />
                         <span className="text-xs text-muted-foreground">{t('sidebar.credits')}</span>
@@ -523,7 +516,7 @@ export function HybridNavigation({
                     </div>
                   </div>
 
-                  <DropdownMenuSeparator className="bg-border/20" />
+                  <DropdownMenuSeparator style={{ backgroundColor: 'var(--glass-border)' }} />
 
                   <div className="p-1">
                     <DropdownMenuItem onClick={() => setLocation("/app/settings")} className="rounded-2xl cursor-pointer py-2 px-3">

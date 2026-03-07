@@ -249,8 +249,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-blue-50/30 dark:to-blue-950/10 p-4">
+      <Card className="w-full max-w-md glass-card-heavy rounded-2xl border-[var(--glass-border)]">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-md bg-foreground text-background">

@@ -642,12 +642,12 @@ export default function AllContacts() {
         }}
       />
 
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-50 via-cyan-100/50 to-emerald-50 dark:from-teal-950/40 dark:via-cyan-900/30 dark:to-emerald-950/40 border border-teal-100 dark:border-teal-900/50 p-6 md:p-8">
-        <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
+      <div className="relative overflow-hidden rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] p-6 md:p-8">
+        <div className="absolute inset-0 bg-grid-slate-200/30 dark:bg-grid-slate-700/10 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/25">
-              <Users className="h-7 w-7 text-white" />
+            <div className="h-14 w-14 rounded-2xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+              <Users className="h-7 w-7 text-teal-500" />
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t('contacts.title')}</h1>

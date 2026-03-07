@@ -387,7 +387,7 @@ export default function CampaignDetail() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           {t('campaignDetail.backToCampaigns')}
         </Button>
-        <Card className="p-16 text-center">
+        <Card className="glass-card p-16 text-center">
           <h3 className="text-lg font-semibold mb-2">{t('campaignDetail.notFound')}</h3>
           <p className="text-muted-foreground">{t('campaignDetail.notFoundDesc')}</p>
         </Card>
@@ -532,19 +532,19 @@ export default function CampaignDetail() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
+        <Card className="glass-card p-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">{t('campaignDetail.labels.status')}</p>
             <div>{getStatusBadge(campaign.status)}</div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="glass-card p-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">{t('campaignDetail.labels.totalRecipients')}</p>
             <p className="text-2xl font-semibold">{campaign.totalContacts}</p>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="glass-card p-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">{t('campaignDetail.labels.started')}</p>
             <p className="text-sm font-medium">
@@ -552,7 +552,7 @@ export default function CampaignDetail() {
             </p>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="glass-card p-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">{t('campaignDetail.labels.progress')}</p>
             <div className="flex items-center gap-2">
@@ -578,7 +578,7 @@ export default function CampaignDetail() {
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-6" data-testid="card-successful-calls">
+            <Card className="glass-card p-6" data-testid="card-successful-calls">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-green-500/10 rounded-lg">
                   <CheckCircle2 className="h-6 w-6 text-green-500" />
@@ -593,7 +593,7 @@ export default function CampaignDetail() {
               </div>
             </Card>
 
-            <Card className="p-6" data-testid="card-failed-calls">
+            <Card className="glass-card p-6" data-testid="card-failed-calls">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-500/10 rounded-lg">
                   <XCircle className="h-6 w-6 text-red-500" />
@@ -608,7 +608,7 @@ export default function CampaignDetail() {
               </div>
             </Card>
 
-            <Card className="p-6" data-testid="card-pending-calls">
+            <Card className="glass-card p-6" data-testid="card-pending-calls">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-yellow-500/10 rounded-lg">
                   <Clock className="h-6 w-6 text-yellow-500" />
@@ -624,7 +624,7 @@ export default function CampaignDetail() {
             </Card>
           </div>
 
-          <Card className="p-6">
+          <Card className="glass-card p-6">
             <h3 className="text-lg font-semibold mb-4">{t('campaignDetail.sections.campaignDetails')}</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -724,7 +724,7 @@ export default function CampaignDetail() {
           </Card>
 
           {campaign.batchJobId && (
-            <Card className="p-6" data-testid="card-batch-job-status">
+            <Card className="glass-card p-6" data-testid="card-batch-job-status">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Layers className="h-5 w-5" />
@@ -878,7 +878,7 @@ export default function CampaignDetail() {
 
         <TabsContent value="analytics" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="p-6" data-testid="card-call-performance">
+            <Card className="glass-card p-6" data-testid="card-call-performance">
               <h3 className="text-lg font-semibold mb-4">{t('campaignDetail.analytics.callPerformance')}</h3>
               <div className="space-y-4">
                 <div>
@@ -914,7 +914,7 @@ export default function CampaignDetail() {
               </div>
             </Card>
 
-            <Card className="p-6" data-testid="card-status-distribution">
+            <Card className="glass-card p-6" data-testid="card-status-distribution">
               <h3 className="text-lg font-semibold mb-4">{t('campaignDetail.analytics.callStatusDistribution')}</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center" data-testid="row-distribution-successful">
@@ -943,7 +943,7 @@ export default function CampaignDetail() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="p-6" data-testid="card-lead-quality-distribution">
+            <Card className="glass-card p-6" data-testid="card-lead-quality-distribution">
               <h3 className="text-lg font-semibold mb-4">{t('campaignDetail.analytics.leadQualityDistribution')}</h3>
               <div className="space-y-4">
                 <div className="space-y-3">
@@ -994,7 +994,7 @@ export default function CampaignDetail() {
               </div>
             </Card>
 
-            <Card className="p-6" data-testid="card-sentiment-distribution">
+            <Card className="glass-card p-6" data-testid="card-sentiment-distribution">
               <h3 className="text-lg font-semibold mb-4">{t('campaignDetail.analytics.sentimentAnalysis')}</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -1024,7 +1024,7 @@ export default function CampaignDetail() {
         </TabsContent>
 
         <TabsContent value="recipients">
-          <Card>
+          <Card className="glass-card">
             <div className="p-6 border-b">
               <h2 className="text-lg font-semibold">{t('campaignDetail.recipients.title')}</h2>
             </div>
@@ -1109,7 +1109,7 @@ export default function CampaignDetail() {
 
         <TabsContent value="lead-quality" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-6" data-testid="card-hot-leads">
+            <Card className="glass-card p-6" data-testid="card-hot-leads">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-500/10 rounded-lg">
                   <Flame className="h-6 w-6 text-red-500" />
@@ -1126,7 +1126,7 @@ export default function CampaignDetail() {
               </div>
             </Card>
 
-            <Card className="p-6" data-testid="card-warm-leads">
+            <Card className="glass-card p-6" data-testid="card-warm-leads">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-orange-500/10 rounded-lg">
                   <ThermometerSun className="h-6 w-6 text-orange-500" />
@@ -1143,7 +1143,7 @@ export default function CampaignDetail() {
               </div>
             </Card>
 
-            <Card className="p-6" data-testid="card-lost-leads">
+            <Card className="glass-card p-6" data-testid="card-lost-leads">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-500/10 rounded-lg">
                   <Snowflake className="h-6 w-6 text-blue-500" />
@@ -1161,7 +1161,7 @@ export default function CampaignDetail() {
             </Card>
           </div>
 
-          <Card className="p-6">
+          <Card className="glass-card p-6">
             <h3 className="text-lg font-semibold mb-4">{t('campaignDetail.leads.classificationDetails')}</h3>
             <div className="overflow-x-auto">
               <Table>

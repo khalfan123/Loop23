@@ -567,9 +567,9 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
           )}
         </div>
 
-      {/* iOS 18 Style Pill Tabs */}
+      {/* iOS 26 Style Pill Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as EngineTab)} className="w-full">
-        <TabsList className={`grid w-full mb-4 rounded-2xl bg-foreground/[0.03] border border-border/30 p-1 ${enabledEngineCount === 1 ? 'grid-cols-1' : enabledEngineCount === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full mb-4 rounded-2xl glass-surface border border-border/20 p-1 ${enabledEngineCount === 1 ? 'grid-cols-1' : enabledEngineCount === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
           <TabsTrigger value="twilio-elevenlabs" className="flex items-center gap-2" data-testid="tab-twilio-elevenlabs">
             <SiTwilio className="h-3.5 w-3.5 text-red-500" />
             <ElevenLabsIcon className="h-3.5 w-3.5 text-violet-600" />
@@ -593,7 +593,7 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
 
         {/* Twilio + ElevenLabs Content */}
         <TabsContent value="twilio-elevenlabs">
-          <Card>
+          <Card className="glass-card">
             <CardContent className="pt-6">
               {connectionsLoading ? (
                 <div className="space-y-4">
@@ -661,7 +661,7 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
         {/* Plivo + OpenAI Content */}
         {plivoEnabled && (
         <TabsContent value="plivo-openai">
-          <Card>
+          <Card className="glass-card">
             <CardContent className="pt-6">
               {plivoConnectionsLoading ? (
                 <div className="space-y-4">
@@ -737,7 +737,7 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
         {/* Twilio + OpenAI Content */}
         {twilioOpenaiEnabled && (
         <TabsContent value="twilio-openai">
-          <Card>
+          <Card className="glass-card">
             <CardContent className="pt-6">
               {twilioOpenaiConnectionsLoading ? (
                 <div className="space-y-4">

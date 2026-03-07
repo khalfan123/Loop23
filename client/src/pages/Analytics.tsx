@@ -277,23 +277,22 @@ export default function Analytics() {
       subPanelHeader={<span className="font-medium text-sm">{t('nav.dashboard', 'Dashboard')}</span>}
     >
       <div className="space-y-6" ref={reportRef}>
-        {/* iOS 18 Style Header - Clean and Minimal */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-foreground/[0.06] flex items-center justify-center">
+            <div className="h-12 w-12 rounded-2xl glass-card flex items-center justify-center">
               <BarChart3 className="h-6 w-6 text-foreground/70" />
             </div>
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-foreground" data-testid="text-analytics-title">
                 {t('analytics.title')}
               </h1>
-              <p className="text-sm text-foreground/50 mt-0.5">{t('analytics.subtitle')}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{t('analytics.subtitle')}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 glass-surface rounded-2xl px-3 py-2">
             <Select value={timeRange} onValueChange={setTimeRange}>
               <SelectTrigger 
-                className="w-[150px] h-10 rounded-xl border-border/40 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-colors" 
+                className="w-[150px] rounded-xl border-border/40 bg-background/50" 
                 data-testid="select-time-range"
               >
                 <SelectValue placeholder={t('analytics.selectPeriod')} />
@@ -307,7 +306,7 @@ export default function Analytics() {
             </Select>
             <Button 
               variant="default"
-              className="h-10 rounded-xl"
+              className="rounded-xl"
               onClick={handleExportPDF}
               disabled={isExporting}
               data-testid="button-export-report"
@@ -322,8 +321,7 @@ export default function Analytics() {
           </div>
         </div>
 
-      {/* iOS 18 Style Pill Tabs */}
-      <div className="flex flex-wrap gap-2" data-testid="tabs-call-type">
+      <div className="flex flex-wrap gap-2 glass-surface rounded-2xl p-2" data-testid="tabs-call-type">
         {callTypes.map((type) => {
           const Icon = type.icon;
           const isActive = callType === type.value;
@@ -332,10 +330,10 @@ export default function Analytics() {
               key={type.value}
               onClick={() => setCallType(type.value)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200",
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                 isActive 
-                  ? "bg-foreground/[0.08] text-foreground" 
-                  : "text-foreground/60 hover:text-foreground hover:bg-foreground/[0.04]"
+                  ? "glass-card-heavy text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]"
               )}
               data-testid={`tab-${type.value}-calls`}
             >
@@ -346,8 +344,8 @@ export default function Analytics() {
                 <span className={cn(
                   "ml-1 text-xs px-2 py-0.5 rounded-full",
                   isActive 
-                    ? "bg-foreground/[0.08] text-foreground" 
-                    : "bg-foreground/[0.05] text-foreground/50"
+                    ? "bg-primary/10 text-primary" 
+                    : "bg-foreground/[0.05] text-muted-foreground"
                 )}>
                   {type.count}
                 </span>
@@ -357,7 +355,6 @@ export default function Analytics() {
         })}
       </div>
 
-      {/* Metrics Grid - iOS 18 Style Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title={t('analytics.totalCalls')}
@@ -365,7 +362,7 @@ export default function Analytics() {
           icon={Phone}
           trend={totalCalls > 0 ? { value: 0, direction: "up" as const } : undefined}
           testId="metric-total-calls"
-          gradientClassName="rounded-2xl bg-foreground/[0.02] border-border/30"
+          gradientClassName="glass-card rounded-2xl"
           iconClassName="text-cyan-500"
         />
         <MetricCard
@@ -374,7 +371,7 @@ export default function Analytics() {
           icon={TrendingUp}
           trend={successRate > 0 ? { value: 0, direction: "up" as const } : undefined}
           testId="metric-success-rate"
-          gradientClassName="rounded-2xl bg-foreground/[0.02] border-border/30"
+          gradientClassName="glass-card rounded-2xl"
           iconClassName="text-emerald-500"
         />
         <MetricCard
@@ -383,7 +380,7 @@ export default function Analytics() {
           icon={Users}
           trend={qualifiedLeads > 0 ? { value: 0, direction: "up" as const } : undefined}
           testId="metric-qualified-leads"
-          gradientClassName="rounded-2xl bg-foreground/[0.02] border-border/30"
+          gradientClassName="glass-card rounded-2xl"
           iconClassName="text-blue-500"
         />
         <MetricCard
@@ -392,26 +389,25 @@ export default function Analytics() {
           icon={Clock}
           subtitle={t('analytics.minutesPerCall')}
           testId="metric-avg-duration"
-          gradientClassName="rounded-2xl bg-foreground/[0.02] border-border/30"
+          gradientClassName="glass-card rounded-2xl"
           iconClassName="text-violet-500"
         />
       </div>
 
-      {/* Charts Grid - iOS 18 Style */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AnalyticsChart 
           title={getCallVolumeTitle()} 
           type="bar" 
           data={formattedDailyCalls.length > 0 ? formattedDailyCalls : [{ name: t('analytics.noData'), value: 0 }]} 
           testId="chart-calls-this-week"
-          gradientClassName="rounded-2xl bg-foreground/[0.02] border-border/30"
+          gradientClassName="glass-card rounded-2xl"
         />
         <AnalyticsChart 
           title={t('analytics.leadDistribution')} 
           type="pie" 
           data={leadDistribution.length > 0 ? leadDistribution : [{ name: t('analytics.noData'), value: 1 }]} 
           testId="chart-lead-distribution"
-          gradientClassName="rounded-2xl bg-foreground/[0.02] border-border/30"
+          gradientClassName="glass-card rounded-2xl"
         />
       </div>
 
@@ -423,51 +419,50 @@ export default function Analytics() {
           xAxisKey="name"
           dataKey="value"
           testId="chart-campaign-success"
-          gradientClassName="rounded-2xl bg-foreground/[0.02] border-border/30"
+          gradientClassName="glass-card rounded-2xl"
         />
         <AnalyticsChart 
           title={t('analytics.sentimentAnalysis')} 
           type="pie" 
           data={sentimentDistribution.length > 0 ? sentimentDistribution : [{ name: t('analytics.noData'), value: 1 }]} 
           testId="chart-sentiment-analysis"
-          gradientClassName="rounded-2xl bg-foreground/[0.02] border-border/30"
+          gradientClassName="glass-card rounded-2xl"
         />
       </div>
 
-      {/* Call Type Breakdown - iOS 18 Style */}
       {callType === 'all' && typeBreakdown.total > 0 && (
-        <div className="rounded-2xl bg-foreground/[0.02] border border-border/30 p-6" data-testid="card-call-breakdown">
+        <div className="glass-card rounded-2xl p-6" data-testid="card-call-breakdown">
           <h3 className="text-base font-semibold text-foreground mb-5">{t('analytics.callTypeBreakdown')}</h3>
           <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-foreground/[0.03] border border-border/20">
+            <div className="p-4 rounded-2xl glass-surface">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
                   <PhoneIncoming className="h-4 w-4 text-emerald-500" />
                 </div>
               </div>
-              <p className="text-center text-sm text-foreground/50 mb-1">{t('analytics.callTypes.incoming')}</p>
+              <p className="text-center text-sm text-muted-foreground mb-1">{t('analytics.callTypes.incoming')}</p>
               <p className="text-center text-2xl font-bold text-foreground" data-testid="breakdown-incoming">
                 {typeBreakdown.incoming}
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-foreground/[0.03] border border-border/20">
+            <div className="p-4 rounded-2xl glass-surface">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <div className="h-8 w-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
                   <PhoneOutgoing className="h-4 w-4 text-blue-500" />
                 </div>
               </div>
-              <p className="text-center text-sm text-foreground/50 mb-1">{t('analytics.callTypes.outgoing')}</p>
+              <p className="text-center text-sm text-muted-foreground mb-1">{t('analytics.callTypes.outgoing')}</p>
               <p className="text-center text-2xl font-bold text-foreground" data-testid="breakdown-outgoing">
                 {typeBreakdown.outgoing}
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-foreground/[0.03] border border-border/20">
+            <div className="p-4 rounded-2xl glass-surface">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <div className="h-8 w-8 rounded-xl bg-violet-500/10 flex items-center justify-center">
                   <Target className="h-4 w-4 text-violet-500" />
                 </div>
               </div>
-              <p className="text-center text-sm text-foreground/50 mb-1">{t('analytics.callTypes.campaigns')}</p>
+              <p className="text-center text-sm text-muted-foreground mb-1">{t('analytics.callTypes.campaigns')}</p>
               <p className="text-center text-2xl font-bold text-foreground" data-testid="breakdown-campaigns">
                 {typeBreakdown.batch}
               </p>

@@ -114,7 +114,7 @@ function IssueCard({ icon: Icon, label, count, total }: { icon: any; label: stri
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
   
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40">
       <Icon className="w-5 h-5 text-muted-foreground" />
       <div className="flex-1">
         <div className="flex justify-between items-center mb-1">

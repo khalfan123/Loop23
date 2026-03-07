@@ -335,7 +335,7 @@ export default function FlowsPage() {
 
         <TabsContent value="flows" className="space-y-6">
           {!flows || flows.length === 0 ? (
-            <div className="rounded-xl bg-card p-12">
+            <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] p-12">
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
                   <GitBranch className="w-6 h-6 text-muted-foreground" />
@@ -367,7 +367,7 @@ export default function FlowsPage() {
             </div>
           ) : (
             <>
-              <div className="rounded-xl bg-card overflow-visible">
+              <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] overflow-visible">
                 {paginatedFlows.map((flow, index) => (
                   <div
                     key={flow.id}

@@ -1154,7 +1154,7 @@ export default function PhoneNumbers() {
                 }}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${
                   selectedPhoneId === phone.id
-                    ? 'bg-primary/10 dark:bg-primary/15'
+                    ? 'bg-primary/10 dark:bg-primary/[0.15]'
                     : 'hover-elevate'
                 }`}
                 data-testid={`sidebar-phone-${phone.id}`}
@@ -1507,7 +1507,7 @@ export default function PhoneNumbers() {
 
             {selectedProvider && (
               <>
-                <div className="rounded-lg border p-3 bg-muted/30">
+                <div className="rounded-xl bg-muted/30 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="font-medium">{selectedProvider.name}</p>
@@ -1554,7 +1554,7 @@ export default function PhoneNumbers() {
                   </div>
                   
                   {marketplaceSearchResults.length > 0 && (
-                    <div className="rounded-lg border max-h-64 overflow-y-auto">
+                    <div className="rounded-xl bg-muted/20 max-h-64 overflow-y-auto">
                       {marketplaceSearchResults.map((did) => (
                         <div 
                           key={did.i_did}
@@ -1600,7 +1600,7 @@ export default function PhoneNumbers() {
                   )}
                 </div>
 
-                <div className="rounded-lg border p-4">
+                <div className="rounded-xl bg-muted/20 p-4">
                   <h4 className="text-sm font-medium mb-3">Your Rented Numbers from {selectedProvider.name}</h4>
                   <div className="space-y-2">
                     {providerCallerIds
@@ -1608,7 +1608,7 @@ export default function PhoneNumbers() {
                       .map((callerId) => (
                         <div 
                           key={callerId.id} 
-                          className="p-3 rounded-lg border flex items-center justify-between gap-2"
+                          className="p-3 rounded-xl bg-muted/30 flex items-center justify-between gap-2"
                           data-testid={`caller-id-${callerId.id}`}
                         >
                           <div>
@@ -1662,7 +1662,7 @@ export default function PhoneNumbers() {
                       {selectedMarketplaceDid.sms && <Badge variant="secondary">SMS</Badge>}
                     </div>
                   </div>
-                  <div className="rounded-lg border p-3 space-y-1">
+                  <div className="rounded-xl bg-muted/30 p-3 space-y-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-muted-foreground">Monthly Fee:</span>
                       <span className="font-medium">${selectedMarketplaceDid.monthly_fee}</span>
@@ -2096,10 +2096,10 @@ export default function PhoneNumbers() {
                   {plivoAvailableNumbers.map((number) => (
                     <div
                       key={number.phoneNumber}
-                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      className={`p-3 rounded-xl cursor-pointer transition-all ${
                         selectedPlivoNumber?.phoneNumber === number.phoneNumber 
-                          ? "border-primary bg-primary/5" 
-                          : "border-border hover:border-primary/50 hover:bg-muted/50"
+                          ? "bg-primary/10 ring-2 ring-primary" 
+                          : "bg-muted/30 hover:bg-muted/50"
                       }`}
                       onClick={() => setSelectedPlivoNumber(number)}
                       data-testid={`plivo-number-${number.phoneNumber.replace(/\+/g, '')}`}

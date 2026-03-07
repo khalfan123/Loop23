@@ -33,7 +33,7 @@ const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3
 export function AnalyticsChart({ title, type, data, dataKey = "value", xAxisKey = "name", testId, gradientClassName }: AnalyticsChartProps) {
   return (
     <Card className={cn("p-6", gradientClassName)} data-testid={testId || `chart-${title.toLowerCase().replace(/\s+/g, "-")}`}>
-      <h3 className="text-lg font-semibold mb-4">{title}</h3>
+      <h3 className="text-base font-semibold text-foreground mb-4">{title}</h3>
       <div className="min-h-[300px]">
         {type === "bar" ? (
           <ResponsiveContainer width="100%" height={300}>

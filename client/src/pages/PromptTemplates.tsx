@@ -156,7 +156,7 @@ export default function PromptTemplates() {
 
       {/* Info Banner */}
       <div 
-        className="flex items-center gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5"
+        className="flex items-center gap-3 p-4 rounded-xl bg-primary/5"
         data-info-banner
       >
         <Sparkles className="h-5 w-5 text-primary shrink-0" />

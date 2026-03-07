@@ -118,7 +118,7 @@ export default function FlowTemplatesPage() {
       </div>
 
       {templates.length === 0 ? (
-        <div className="rounded-xl bg-card border p-12 flex flex-col items-center justify-center">
+        <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] p-12 flex flex-col items-center justify-center">
           <GitBranch className="h-10 w-10 text-muted-foreground mb-3" />
           <h3 className="text-base font-medium mb-1">{t('flowTemplates.noTemplates')}</h3>
           <p className="text-sm text-muted-foreground text-center max-w-md">
@@ -126,7 +126,7 @@ export default function FlowTemplatesPage() {
           </p>
         </div>
       ) : (
-        <div className="rounded-xl bg-card border">
+        <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
           {templates.map((template, index) => (
             <div
               key={template.id}

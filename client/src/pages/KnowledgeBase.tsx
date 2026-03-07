@@ -1531,7 +1531,7 @@ export default function KnowledgeBase() {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                       <button
                         onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-lg border hover-elevate text-left"
+                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
                         data-testid="quick-access-entities"
                       >
                         <Tags className="h-4 w-4 text-blue-500 mb-1" />
@@ -1540,7 +1540,7 @@ export default function KnowledgeBase() {
                       </button>
                       <button
                         onClick={() => { setViewMode("topic-clusters"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-lg border hover-elevate text-left"
+                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
                         data-testid="quick-access-clusters"
                       >
                         <Layers className="h-4 w-4 text-green-500 mb-1" />
@@ -1549,7 +1549,7 @@ export default function KnowledgeBase() {
                       </button>
                       <button
                         onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-lg border hover-elevate text-left"
+                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
                         data-testid="quick-access-faqs"
                       >
                         <HelpCircle className="h-4 w-4 text-orange-500 mb-1" />
@@ -1558,7 +1558,7 @@ export default function KnowledgeBase() {
                       </button>
                       <button
                         onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-lg border hover-elevate text-left"
+                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
                         data-testid="quick-access-gaps"
                       >
                         <Lightbulb className="h-4 w-4 text-yellow-500 mb-1" />
@@ -1567,7 +1567,7 @@ export default function KnowledgeBase() {
                       </button>
                       <button
                         onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }}
-                        className="p-3 rounded-lg border hover-elevate text-left"
+                        className="p-3 rounded-xl bg-muted/40 hover-elevate text-left"
                         data-testid="quick-access-content-studio"
                       >
                         <Sparkles className="h-4 w-4 text-amber-500 mb-1" />

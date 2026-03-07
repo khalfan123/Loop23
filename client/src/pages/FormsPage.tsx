@@ -1332,7 +1332,7 @@ export default function FormsPage() {
       </div>
 
       {/* Knowledge Base + Forms Context Banner */}
-      <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-background to-primary/3 p-4 space-y-3" data-testid="banner-forms-kb-context">
+      <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] p-4 space-y-3" data-testid="banner-forms-kb-context">
         <div className="flex items-start gap-3">
           <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
             <Brain className="h-5 w-5 text-primary" />
@@ -1386,7 +1386,7 @@ export default function FormsPage() {
 
       {forms.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="h-14 w-14 rounded-2xl bg-primary/8 flex items-center justify-center mb-4">
+          <div className="h-14 w-14 rounded-2xl bg-primary/[0.08] flex items-center justify-center mb-4">
             <ClipboardList className="h-6 w-6 text-primary/60" />
           </div>
           <h3 className="text-base font-medium mb-1">{t("forms.noForms")}</h3>
@@ -1423,7 +1423,7 @@ export default function FormsPage() {
               onClick={() => handleViewSubmissions(form)}
               data-testid={`card-form-${form.id}`}
             >
-              <div className="h-10 w-10 rounded-[12px] bg-primary/8 dark:bg-primary/15 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-[12px] bg-primary/[0.08] dark:bg-primary/[0.15] flex items-center justify-center shrink-0">
                 <FileText className="h-[18px] w-[18px] text-primary/70" />
               </div>
               <div className="min-w-0 flex-1">

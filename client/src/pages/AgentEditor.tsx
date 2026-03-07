@@ -454,15 +454,15 @@ export default function AgentEditor() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
       {animationState === 'success' && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/90 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-xl">
           <div className="flex flex-col items-center gap-4 animate-in zoom-in-50 fade-in duration-300">
-            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-[var(--glass-shadow-lg)]">
               <CheckCircle2 className="h-10 w-10 text-white animate-in zoom-in-75 duration-300 delay-150" />
             </div>
             <div className="text-center">
-              <p className="text-lg font-semibold text-foreground">
+              <p className="text-lg font-semibold text-foreground tracking-tight">
                 {isEditMode ? t('agents.create.agentUpdated') : t('agents.create.agentCreated')}
               </p>
               <p className="text-sm text-muted-foreground">{t('agents.create.readyToUse')}</p>
@@ -471,7 +471,7 @@ export default function AgentEditor() {
         </div>
       )}
 
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4">
         <Button 
           variant="ghost" 
           size="icon"
@@ -481,25 +481,25 @@ export default function AgentEditor() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-bold tracking-tight">
             {isEditMode ? t('agents.create.editTitle') : t('agents.create.title')}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {t('agents.create.dialogDescription')}
           </p>
         </div>
       </div>
 
-      <Card className={`p-6 ${animationState === 'error' ? 'animate-shake' : ''}`}>
+      <Card className={`p-6 glass-card-heavy ${animationState === 'error' ? 'animate-shake' : ''}`}>
         <div className="space-y-6">
           <div className="space-y-3">
             <Label className="text-base font-semibold">{t('agents.create.typeRequired')} <span className="text-destructive">*</span></Label>
             <div className="grid grid-cols-2 gap-4">
               <div 
-                className={`relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+                className={`relative p-4 rounded-2xl cursor-pointer transition-all duration-300 ${
                   formData.type === 'incoming' 
-                    ? 'bg-gradient-to-br from-emerald-500/20 via-emerald-400/10 to-teal-500/20 dark:from-emerald-500/30 dark:via-emerald-400/15 dark:to-teal-500/25 border-2 border-emerald-500/50 shadow-lg shadow-emerald-500/10' 
-                    : 'bg-muted/30 hover:bg-muted/50 border-2 border-transparent hover:border-border'
+                    ? 'glass-card bg-emerald-500/10 dark:bg-emerald-500/15 border-2 border-emerald-500/40 shadow-[var(--glass-shadow)]' 
+                    : 'glass-surface border-2 border-transparent hover:border-white/30 dark:hover:border-white/10'
                 } ${isEditMode ? 'pointer-events-none opacity-60' : ''}`}
                 onClick={() => !isEditMode && setFormData({ ...formData, type: 'incoming' })}
                 data-testid="card-type-incoming"
@@ -508,13 +508,13 @@ export default function AgentEditor() {
                   <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
                     formData.type === 'incoming' 
                       ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                      : 'bg-muted text-muted-foreground'
+                      : 'bg-muted/60 text-muted-foreground'
                   }`}>
                     <Sparkles className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className={`font-semibold ${formData.type === 'incoming' ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>{t('agents.create.incomingAgent')}</h4>
+                      <h4 className={`font-semibold tracking-tight ${formData.type === 'incoming' ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>{t('agents.create.incomingAgent')}</h4>
                       {formData.type === 'incoming' && (
                         <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                       )}
@@ -527,10 +527,10 @@ export default function AgentEditor() {
               </div>
 
               <div 
-                className={`relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+                className={`relative p-4 rounded-2xl cursor-pointer transition-all duration-300 ${
                   formData.type === 'flow' 
-                    ? 'bg-gradient-to-br from-violet-500/20 via-purple-400/10 to-indigo-500/20 dark:from-violet-500/30 dark:via-purple-400/15 dark:to-indigo-500/25 border-2 border-violet-500/50 shadow-lg shadow-violet-500/10' 
-                    : 'bg-muted/30 hover:bg-muted/50 border-2 border-transparent hover:border-border'
+                    ? 'glass-card bg-violet-500/10 dark:bg-violet-500/15 border-2 border-violet-500/40 shadow-[var(--glass-shadow)]' 
+                    : 'glass-surface border-2 border-transparent hover:border-white/30 dark:hover:border-white/10'
                 } ${isEditMode ? 'pointer-events-none opacity-60' : ''}`}
                 onClick={() => !isEditMode && setFormData({ ...formData, type: 'flow' })}
                 data-testid="card-type-flow"
@@ -539,13 +539,13 @@ export default function AgentEditor() {
                   <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
                     formData.type === 'flow' 
                       ? 'bg-violet-500/20 text-violet-600 dark:text-violet-400' 
-                      : 'bg-muted text-muted-foreground'
+                      : 'bg-muted/60 text-muted-foreground'
                   }`}>
                     <GitBranch className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className={`font-semibold ${formData.type === 'flow' ? 'text-violet-700 dark:text-violet-300' : ''}`}>{t('agents.create.flowAgent')}</h4>
+                      <h4 className={`font-semibold tracking-tight ${formData.type === 'flow' ? 'text-violet-700 dark:text-violet-300' : ''}`}>{t('agents.create.flowAgent')}</h4>
                       {formData.type === 'flow' && (
                         <div className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />
                       )}
@@ -1095,7 +1095,7 @@ export default function AgentEditor() {
           />
         </div>
 
-        <div className="flex justify-end gap-2 pt-6 mt-6 border-t">
+        <div className="flex justify-end gap-2 pt-6 mt-6 border-t border-white/20 dark:border-white/[0.06]">
           <Button
             variant="outline"
             onClick={() => setLocation("/app/agents")}
@@ -1118,8 +1118,8 @@ export default function AgentEditor() {
       </Card>
 
       {showTemplateLibrary && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="max-w-4xl w-full max-h-[80vh] overflow-auto p-6">
+        <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-xl flex items-center justify-center p-4">
+          <Card className="max-w-4xl w-full max-h-[80vh] overflow-auto p-6 glass-card-heavy">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">{t('agents.create.selectTemplate')}</h2>
               <Button variant="ghost" size="icon" onClick={() => setShowTemplateLibrary(false)}>

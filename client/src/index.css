@@ -18,51 +18,49 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE - Clean blue accent style */
+/* LIGHT MODE - iOS 26 Frosted Glass Design */
 :root {
-  --button-outline: rgba(0,0,0, .08);
-  --badge-outline: rgba(0,0,0, .05);
+  --button-outline: rgba(0,0,0, .06);
+  --badge-outline: rgba(0,0,0, .04);
 
-  /* Automatic computation of border around primary / danger buttons */
-  --opaque-button-border-intensity: -8; /* In terms of percentages */
+  --opaque-button-border-intensity: -6;
 
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .06);
+  --elevate-1: rgba(0,0,0, .025);
+  --elevate-2: rgba(0,0,0, .05);
 
-  --background: 0 0% 100%;
+  --background: 240 6% 97%;
 
-  --foreground: 220 9% 18%;
+  --foreground: 220 10% 12%;
 
-  --border: 220 13% 91%;
+  --border: 220 10% 92%;
 
   --card: 0 0% 100%;
 
-  --card-foreground: 220 9% 18%;
+  --card-foreground: 220 10% 12%;
 
-  --card-border: 220 13% 91%;
+  --card-border: 220 10% 93%;
 
   --sidebar: 0 0% 100%;
 
-  --sidebar-foreground: 220 9% 35%;
+  --sidebar-foreground: 220 9% 38%;
 
-  --sidebar-border: 220 13% 93%;
+  --sidebar-border: 220 10% 94%;
 
   --sidebar-primary: 217 91% 60%;
 
   --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 217 91% 96%;
+  --sidebar-accent: 217 80% 96%;
 
-  --sidebar-accent-foreground: 217 91% 45%;
+  --sidebar-accent-foreground: 217 80% 42%;
 
   --sidebar-ring: 217 91% 60%;
 
   --popover: 0 0% 100%;
 
-  --popover-foreground: 220 9% 18%;
+  --popover-foreground: 220 10% 12%;
 
-  --popover-border: 220 13% 91%;
+  --popover-border: 220 10% 93%;
 
   --primary: 217 91% 60%;
 
@@ -74,17 +72,17 @@
 
   --muted: 220 14% 96%;
 
-  --muted-foreground: 220 9% 46%;
+  --muted-foreground: 220 8% 50%;
 
-  --accent: 217 91% 96%;
+  --accent: 217 80% 96%;
 
-  --accent-foreground: 217 91% 45%;
+  --accent-foreground: 217 80% 42%;
 
   --destructive: 0 84% 60%;
 
   --destructive-foreground: 0 0% 100%;
 
-  --input: 220 13% 91%;
+  --input: 220 10% 92%;
   --ring: 217 91% 60%;
   --chart-1: 203.8863 88.2845% 53.1373%;
   --chart-2: 159.7826 100% 36.0784%;
@@ -92,19 +90,26 @@
   --chart-4: 147.1429 78.5047% 41.9608%;
   --chart-5: 341.4894 75.2000% 50.9804%;
 
-  --font-sans: 'Inter', sans-serif;
-  --font-serif: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', Menlo, monospace;
-  --radius: 0.8rem;
-  --shadow-2xs: 0px 2px 0px 0px hsl(9, 75%, 61% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(9, 75%, 61% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(9, 75%, 61% / 0.00), 0px 1px 2px -1px hsl(9, 75%, 61% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(9, 75%, 61% / 0.00), 0px 1px 2px -1px hsl(9, 75%, 61% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(9, 75%, 61% / 0.00), 0px 2px 4px -1px hsl(9, 75%, 61% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(9, 75%, 61% / 0.00), 0px 4px 6px -1px hsl(9, 75%, 61% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(9, 75%, 61% / 0.00), 0px 8px 10px -1px hsl(9, 75%, 61% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(9, 75%, 61% / 0.00);
-  --tracking-normal: 0em;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  --font-serif: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --radius: 0.875rem;
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-heavy: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 2px 20px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  --glass-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.03);
+  --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.03);
+  --shadow-2xl: 0 24px 60px rgba(0, 0, 0, 0.1);
+  --tracking-normal: -0.011em;
   --spacing: 0.25rem;
 
   /* Automatically computed borders - intensity can be controlled by the user by the --opaque-button-border-intensity setting */
@@ -139,70 +144,69 @@
 }
 
 .dark {
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
+  --button-outline: rgba(255,255,255, .08);
+  --badge-outline: rgba(255,255,255, .04);
 
-  --opaque-button-border-intensity: 9;  /* In terms of percentages */
+  --opaque-button-border-intensity: 7;
 
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
+  --elevate-1: rgba(255,255,255, .03);
+  --elevate-2: rgba(255,255,255, .07);
 
-  --background: 222 47% 11%;
+  --background: 0 0% 7%;
 
-  --foreground: 210 40% 98%;
+  --foreground: 0 0% 95%;
 
-  --border: 217 33% 17%;
+  --border: 0 0% 15%;
 
-  --card: 222 47% 13%;
+  --card: 0 0% 10%;
 
-  --card-foreground: 210 40% 98%;
+  --card-foreground: 0 0% 95%;
 
-  --card-border: 217 33% 17%;
+  --card-border: 0 0% 15%;
 
-  --sidebar: 222 47% 11%;
+  --sidebar: 0 0% 8%;
 
-  --sidebar-foreground: 215 20% 65%;
+  --sidebar-foreground: 0 0% 60%;
 
-  --sidebar-border: 217 33% 17%;
+  --sidebar-border: 0 0% 14%;
 
   --sidebar-primary: 217 91% 60%;
 
   --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 217 33% 20%;
+  --sidebar-accent: 217 30% 18%;
 
-  --sidebar-accent-foreground: 217 91% 70%;
+  --sidebar-accent-foreground: 217 80% 70%;
 
   --sidebar-ring: 217 91% 60%;
 
-  --popover: 222 47% 13%;
+  --popover: 0 0% 10%;
 
-  --popover-foreground: 210 40% 98%;
+  --popover-foreground: 0 0% 95%;
 
-  --popover-border: 217 33% 17%;
+  --popover-border: 0 0% 15%;
 
   --primary: 217 91% 60%;
 
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 217 33% 17%;
+  --secondary: 0 0% 14%;
 
-  --secondary-foreground: 210 40% 98%;
+  --secondary-foreground: 0 0% 95%;
 
-  --muted: 217 33% 17%;
+  --muted: 0 0% 14%;
 
-  --muted-foreground: 215 20% 65%;
+  --muted-foreground: 0 0% 55%;
 
-  --accent: 217 33% 20%;
+  --accent: 217 30% 18%;
 
-  --accent-foreground: 217 91% 70%;
+  --accent-foreground: 217 80% 70%;
 
   --destructive: 0 63% 51%;
 
   --destructive-foreground: 0 0% 100%;
 
-  --input: 217 33% 17%;
+  --input: 0 0% 15%;
   --ring: 217 91% 60%;
   --chart-1: 203.8863 88.2845% 53.1373%;
   --chart-2: 159.7826 100% 36.0784%;
@@ -210,14 +214,20 @@
   --chart-4: 147.1429 78.5047% 41.9608%;
   --chart-5: 341.4894 75.2000% 50.9804%;
 
-  --shadow-2xs: 0px 1px 1px 0px hsl(210 6% 0% / 0.12);
-  --shadow-xs: 0px 1px 2px 0px hsl(210 6% 0% / 0.18);
-  --shadow-sm: 0px 1px 2px 0px hsl(210 6% 0% / 0.20), 0px 1px 3px -1px hsl(210 6% 0% / 0.24);
-  --shadow: 0px 1px 3px 0px hsl(210 6% 0% / 0.24), 0px 1px 2px -1px hsl(210 6% 0% / 0.28);
-  --shadow-md: 0px 2px 4px -1px hsl(210 6% 0% / 0.24), 0px 4px 6px -1px hsl(210 6% 0% / 0.30);
-  --shadow-lg: 0px 4px 6px -1px hsl(210 6% 0% / 0.28), 0px 10px 15px -3px hsl(210 6% 0% / 0.32);
-  --shadow-xl: 0px 10px 10px -5px hsl(210 6% 0% / 0.30), 0px 20px 25px -5px hsl(210 6% 0% / 0.34);
-  --shadow-2xl: 0px 25px 50px -12px hsl(210 6% 0% / 0.40);
+  --glass-bg: rgba(28, 28, 30, 0.72);
+  --glass-bg-heavy: rgba(28, 28, 30, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 2px 20px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --glass-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
+
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 24px 60px rgba(0, 0, 0, 0.5);
 
 }
 
@@ -228,6 +238,41 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    letter-spacing: var(--tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .glass-card-heavy {
+    background: var(--glass-bg-heavy);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .glass-panel {
+    background: var(--glass-bg-heavy);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid var(--glass-border);
+  }
+
+  .glass-surface {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
   }
 }
 

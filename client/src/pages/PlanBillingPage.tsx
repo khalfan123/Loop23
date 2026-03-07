@@ -771,8 +771,8 @@ export default function PlanBillingPage() {
                 return (
                   <div
                     key={plan.id}
-                    className={`relative overflow-hidden rounded-xl bg-card border border-border transition-all duration-200 ${
-                      isCurrentPlan ? "ring-2 ring-primary" : isRecommended && !isCurrentPlan ? "ring-1 ring-border" : ""
+                    className={`relative overflow-hidden rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] transition-all duration-200 ${
+                      isCurrentPlan ? "ring-2 ring-primary" : isRecommended && !isCurrentPlan ? "ring-1 ring-border/40" : ""
                     }`}
                     data-testid={`card-plan-${plan.name}`}
                   >
@@ -947,7 +947,7 @@ export default function PlanBillingPage() {
         <div className="space-y-6">
           {packages && packages.length > 0 && (
             <div>
-              <div className="rounded-xl bg-card border border-border overflow-hidden">
+              <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] overflow-hidden">
                 {packages.map((pkg, index) => {
                   const priceInfo = getPackagePrice(pkg, selectedCurrency);
                   const displayPrice = parseFloat(priceInfo.price);
@@ -1014,7 +1014,7 @@ export default function PlanBillingPage() {
 
           {subscription && hasActiveSubscription && !subscription.cancelAtPeriodEnd && subscription.plan.name !== "free" && (subscription.stripeSubscriptionId || subscription.razorpaySubscriptionId || subscription.paypalSubscriptionId || subscription.paystackSubscriptionCode || subscription.mercadopagoSubscriptionId) && (
             <div>
-              <div className="rounded-xl bg-card border border-border overflow-hidden">
+              <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] overflow-hidden">
                 <div className="p-5 space-y-4">
                   <div className="flex items-center gap-3">
                     <Calendar className="h-5 w-5 text-muted-foreground" />
@@ -1076,7 +1076,7 @@ export default function PlanBillingPage() {
             </Button>
           </div>
 
-          <div className="rounded-xl bg-card border border-border overflow-hidden" data-testid="card-credit-records">
+          <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] overflow-hidden" data-testid="card-credit-records">
             <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-muted-foreground" />

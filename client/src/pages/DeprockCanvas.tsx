@@ -716,7 +716,7 @@ const WIZARD_STEPS = [
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
-    <div className="flex items-center justify-center gap-0 py-4 sm:py-6" data-testid="step-indicator">
+    <div className="flex items-center justify-center gap-0 py-4 sm:py-6 glass-surface rounded-xl" data-testid="step-indicator">
       {WIZARD_STEPS.map((step, idx) => {
         const isCompleted = currentStep > step.id;
         const isCurrent = currentStep === step.id;
@@ -818,7 +818,7 @@ function PhoneSelectionStep({
               return (
                 <Card
                   key={phone.id}
-                  className={`transition-colors ${isUsed ? "opacity-50 cursor-not-allowed" : "cursor-pointer toggle-elevate"} ${isSelected ? "toggle-elevated border-green-500" : ""}`}
+                  className={`glass-card transition-colors ${isUsed ? "opacity-50 cursor-not-allowed" : "cursor-pointer toggle-elevate"} ${isSelected ? "toggle-elevated border-green-500" : ""}`}
                   onClick={() => { if (!isUsed) onTogglePhone(phone.id); }}
                   data-testid={`card-phone-${phone.id}`}
                 >
@@ -1246,7 +1246,7 @@ function DepartmentCard({
   const enabledFeaturesCount = [dept.enableTransfer, dept.enableLanguageDetection, dept.enableEndConversation, dept.enableAppointmentBooking, dept.enableRecording].filter(Boolean).length;
 
   return (
-    <Card className="shadow-sm border" data-testid={`card-dept-${dept.id}`}>
+    <Card className="glass-card" data-testid={`card-dept-${dept.id}`}>
       <div
         className="flex items-center justify-between gap-2 px-3 py-2.5 cursor-pointer"
         onClick={onToggleExpand}
@@ -2277,7 +2277,7 @@ function IVRRouterStep({
         </p>
       </div>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap p-3 bg-muted/50 rounded-lg">
+      <div className="flex items-center justify-between gap-3 flex-wrap p-3 glass-surface rounded-xl">
         <div>
           <Label className="font-medium">Enable IVR</Label>
           <p className="text-xs text-muted-foreground">Play menu when calls connect</p>
@@ -2682,7 +2682,7 @@ function IVRRouterStep({
         </>
       )}
 
-      <Card data-testid="card-summary">
+      <Card className="glass-card" data-testid="card-summary">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">Configuration Summary</CardTitle>
         </CardHeader>
@@ -2983,7 +2983,7 @@ export default function DeprockCanvas() {
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2 sm:gap-3 mt-6 sm:mt-8 pt-4 border-t">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 mt-6 sm:mt-8 pt-4 border-t border-border/30">
           <Button
             variant="outline"
             onClick={() => setCurrentStep((s) => Math.max(1, s - 1))}

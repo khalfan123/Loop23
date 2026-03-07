@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useBranding } from "@/components/BrandingProvider";
@@ -74,18 +73,23 @@ export default function TeamMemberLogin() {
 
   return (
     <div className="min-h-screen flex">
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-primary/5 to-background items-center justify-center p-12">
-        <div className="max-w-md text-center">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50/50 to-purple-50/30 dark:from-[#0a0a0f] dark:via-[#0f0f1a] dark:to-[#0a0a0f] items-center justify-center p-12">
+        <div className="absolute inset-0">
+          <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] bg-blue-400/15 dark:bg-blue-500/8 rounded-full blur-[100px]" />
+          <div className="absolute bottom-[-5%] right-[-10%] w-[350px] h-[350px] bg-purple-400/15 dark:bg-purple-500/8 rounded-full blur-[100px]" />
+          <div className="absolute top-[40%] right-[20%] w-[300px] h-[300px] bg-teal-300/10 dark:bg-teal-500/5 rounded-full blur-[80px]" />
+        </div>
+        <div className="relative z-10 max-w-md text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Users className="w-10 h-10 text-primary" />
+            <div className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-blue-500/10 dark:bg-blue-400/15 flex items-center justify-center backdrop-blur-sm">
+              <Users className="w-10 h-10 text-blue-500 dark:text-blue-400" />
             </div>
-            <h1 className="text-3xl font-bold mb-4">Team Member Portal</h1>
-            <p className="text-muted-foreground text-lg">
+            <h1 className="text-3xl font-semibold mb-4 tracking-tight text-gray-900 dark:text-white">Team Member Portal</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-lg font-light">
               Access your team workspace and collaborate with your colleagues.
             </p>
           </motion.div>
@@ -96,19 +100,19 @@ export default function TeamMemberLogin() {
             transition={{ delay: 0.3, duration: 0.5 }}
             className="mt-12 grid grid-cols-2 gap-4"
           >
-            <div className="p-4 rounded-lg bg-card border">
-              <div className="text-2xl font-bold text-primary">Secure</div>
-              <div className="text-sm text-muted-foreground">Access</div>
+            <div className="p-4 rounded-xl glass-card">
+              <div className="text-2xl font-semibold text-blue-500 dark:text-blue-400">Secure</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 font-light">Access</div>
             </div>
-            <div className="p-4 rounded-lg bg-card border">
-              <div className="text-2xl font-bold text-primary">Role</div>
-              <div className="text-sm text-muted-foreground">Based</div>
+            <div className="p-4 rounded-xl glass-card">
+              <div className="text-2xl font-semibold text-blue-500 dark:text-blue-400">Role</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 font-light">Based</div>
             </div>
           </motion.div>
         </div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50/50 dark:bg-[#1c1c1e]">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -137,26 +141,27 @@ export default function TeamMemberLogin() {
             )}
           </div>
 
-          <Card>
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Team Member Login</CardTitle>
-              <CardDescription>
+          <div className="rounded-2xl backdrop-blur-xl bg-white/70 dark:bg-white/5 border border-white/40 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/20 p-8">
+            <div className="text-center pb-6">
+              <h2 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Team Member Login</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-light mt-2">
                 Sign in with your team member credentials
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              </p>
+            </div>
+            <div>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-4">
+                <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-5">
                   <FormField
                     control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</FormLabel>
                         <FormControl>
                           <Input
                             type="email"
                             placeholder="your.email@company.com"
+                            className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 px-4 text-base placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-0 transition-all duration-300"
                             {...field}
                             disabled={isLoading}
                             data-testid="input-team-email"
@@ -172,19 +177,22 @@ export default function TeamMemberLogin() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Password</FormLabel>
+                        <FormLabel className="text-sm font-medium text-gray-600 dark:text-gray-400">Password</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Input
                               type={showPassword ? "text" : "password"}
                               placeholder="Enter your password"
+                              className="h-[52px] rounded-xl bg-gray-100/80 dark:bg-white/10 border-0 px-4 pr-12 text-base placeholder:text-gray-400 dark:placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-0 transition-all duration-300"
                               {...field}
                               disabled={isLoading}
                               data-testid="input-team-password"
                             />
-                            <button
+                            <Button
                               type="button"
-                              className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground transition-colors"
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                               onClick={() => setShowPassword(!showPassword)}
                               tabIndex={-1}
                               data-testid="button-toggle-password"
@@ -194,7 +202,7 @@ export default function TeamMemberLogin() {
                               ) : (
                                 <Eye className="h-4 w-4" />
                               )}
-                            </button>
+                            </Button>
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -204,15 +212,15 @@ export default function TeamMemberLogin() {
 
                   <Button 
                     type="submit" 
-                    className="w-full" 
+                    className="w-full h-[52px] rounded-xl bg-blue-500 text-white font-medium shadow-md shadow-blue-500/20 hover:bg-blue-600 active:bg-blue-700 transition-all duration-200" 
                     disabled={isLoading}
                     data-testid="button-team-login"
                   >
                     {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         Signing in...
-                      </>
+                      </span>
                     ) : (
                       "Sign In"
                     )}
@@ -221,15 +229,15 @@ export default function TeamMemberLogin() {
               </Form>
 
               <div className="mt-6 text-center">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-light">
                   Not a team member?{" "}
-                  <Link href="/login" className="text-primary hover:underline">
+                  <Link href="/login" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">
                     Login as user
                   </Link>
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
             Contact your team administrator if you need access or forgot your password.

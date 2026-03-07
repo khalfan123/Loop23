@@ -14,8 +14,8 @@ Always test every feature or change you implement before marking it complete.
 ## System Architecture
 The application uses a client-server architecture with a React 18, Vite, TypeScript, TailwindCSS, and shadcn/ui frontend, and a Node.js/Express 4.x backend utilizing Drizzle ORM and PostgreSQL.
 
-- **UI/UX**: Modern design inspired by Google Workspace Studio and Microsoft 365, featuring hero sections, template cards, category filtering, stats overviews, and quick action panels. Visual elements include gradients and consistent spacing.
-- **Hybrid Navigation System**: Microsoft 365-inspired layout with a slim top bar and a collapsible side rail for main navigation. Sidebar state persists in localStorage.
+- **UI/UX**: iOS 26-inspired minimal design with frosted glass cards (`glass-card`, `glass-panel`, `glass-surface` CSS classes), backdrop blur effects, clean Apple-like typography (Inter + SF Pro fallback), soft diffused shadows, and translucent borders. Features hero sections, template cards, category filtering, stats overviews, and quick action panels. Design tokens defined as CSS custom properties (`--glass-bg`, `--glass-border`, `--glass-shadow`) with full light/dark mode support. Cards use `bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl` by default. Border radius system: lg=1rem, md=0.75rem, sm=0.5rem.
+- **Hybrid Navigation System**: iOS 26 frosted glass sidebar with pill-shaped nav items, `glass-panel` treatment, and translucent active states (`bg-primary/[0.12]`). Sidebar state persists in localStorage.
 - **Real-time Communication**: WebSocket connections for real-time voice streaming.
 - **Background Processing**: Schedulers manage campaign execution, billing, and cleanup tasks.
 - **Modular Design**: Feature modules and engine integrations are organized within `server/modules/` and `server/engines/` respectively.

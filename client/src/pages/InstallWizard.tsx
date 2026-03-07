@@ -137,20 +137,20 @@ export default function InstallWizard() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-blue-50/30 dark:to-blue-950/10 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-100 dark:to-slate-200 mb-4">
-            <Rocket className="h-8 w-8 text-slate-100 dark:text-slate-900" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-400 dark:to-indigo-500 mb-4 shadow-lg shadow-blue-500/20">
+            <Rocket className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">{t("install.title")}</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-semibold mb-2 tracking-tight">{t("install.title")}</h1>
+          <p className="text-muted-foreground font-light">
             {t("install.subtitle")}
           </p>
         </div>
 
         {step === "checking" && (
-          <Card>
+          <Card className="glass-card-heavy rounded-2xl border-[var(--glass-border)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Server className="h-5 w-5" />
@@ -181,7 +181,7 @@ export default function InstallWizard() {
                   {checkData.checks.map((check, index) => (
                     <div
                       key={index}
-                      className="flex items-start gap-3 p-3 rounded-lg border bg-card"
+                      className="flex items-start gap-3 p-3 rounded-xl bg-muted/30"
                       data-testid={`check-${check.name.toLowerCase().replace(/\s+/g, '-')}`}
                     >
                       <div className="mt-0.5">{getStatusIcon(check.status)}</div>
@@ -209,7 +209,7 @@ export default function InstallWizard() {
         )}
 
         {step === "form" && checkData?.canInstall && (
-          <Card>
+          <Card className="glass-card-heavy rounded-2xl border-[var(--glass-border)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -315,7 +315,7 @@ export default function InstallWizard() {
         )}
 
         {step === "installing" && (
-          <Card>
+          <Card className="glass-card-heavy rounded-2xl border-[var(--glass-border)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
@@ -340,7 +340,7 @@ export default function InstallWizard() {
         )}
 
         {step === "success" && adminCredentials && (
-          <Card className="border-emerald-600/20 dark:border-emerald-400/20">
+          <Card className="glass-card-heavy rounded-2xl border-emerald-600/20 dark:border-emerald-400/20">
             <CardHeader>
               <div className="flex items-center justify-center mb-4">
                 <div className="w-12 h-12 rounded-full bg-emerald-600/10 dark:bg-emerald-400/10 flex items-center justify-center">

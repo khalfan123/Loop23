@@ -1112,7 +1112,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   });
 
   const renderStepIndicator = () => (
-    <div className="border-b bg-muted/30 px-2 sm:px-3 py-1" data-testid="outbound-step-indicator">
+    <div className="border-b glass-surface px-2 sm:px-3 py-1" data-testid="outbound-step-indicator">
       <div className="flex items-center gap-0.5 text-[11px] sm:text-xs overflow-x-auto scrollbar-none">
         {STEPS.map((step, index) => {
           const isCompleted = currentStep > step.id;
@@ -1205,7 +1205,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 return (
                   <Card
                     key={uc.id}
-                    className={`cursor-pointer transition-all ${
+                    className={`glass-card cursor-pointer transition-all ${
                       isSelected
                         ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                         : "hover:bg-accent/30 hover:shadow-sm"
@@ -1279,7 +1279,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
         </div>
 
         <Card
-          className={`cursor-pointer transition-all border-2 border-dashed ${
+          className={`glass-card cursor-pointer transition-all border-2 border-dashed ${
             selectedTemplateId === null
               ? "border-primary bg-primary/5 ring-2 ring-primary/20"
               : "border-muted-foreground/20 hover:border-primary/40 hover:bg-accent/30"
@@ -1322,7 +1322,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 return (
                   <Card
                     key={template.id}
-                    className={`cursor-pointer transition-all ${
+                    className={`glass-card cursor-pointer transition-all ${
                       isSelected
                         ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                         : "hover:bg-accent/30 hover:shadow-sm"
@@ -1632,7 +1632,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
             return (
               <Card
                 key={phone.id}
-                className={`transition-colors ${
+                className={`glass-card transition-colors ${
                   !canOutbound
                     ? "opacity-40 cursor-not-allowed border-dashed"
                     : isSelected
@@ -2205,7 +2205,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                   {filteredTemplates.map((template) => (
                     <Card
                       key={template.id}
-                      className="cursor-pointer hover:bg-accent/50 transition-colors"
+                      className="glass-card cursor-pointer hover:bg-accent/50 transition-colors"
                       onClick={() => applyFormTemplate(template)}
                       data-testid={`card-template-${template.id}`}
                     >
@@ -2263,7 +2263,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                   return (
                     <Card
                       key={form.id}
-                      className={`cursor-pointer transition-colors ${
+                      className={`glass-card cursor-pointer transition-colors ${
                         isSelected ? "border-emerald-500 bg-emerald-500/5" : "hover:bg-accent/50"
                       }`}
                       onClick={() => setSelectedFormId(isSelected ? null : form.id)}
@@ -2311,7 +2311,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
           />
         </div>
 
-        <Card>
+        <Card className="glass-card">
           <CardContent className="p-3 sm:p-4 space-y-3">
             {selectedFlowTemplate && (
               <div>
@@ -2542,7 +2542,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
 
   return (
     <div className="flex flex-col relative -m-6 overflow-hidden" style={{ width: 'calc(100% + 3rem)', height: 'calc(100dvh - 48px)' }}>
-      <div className="flex items-center px-2 sm:px-3 py-1.5 border-b bg-background gap-1.5 flex-shrink-0">
+      <div className="flex items-center px-2 sm:px-3 py-1.5 border-b glass-surface gap-1.5 flex-shrink-0">
         <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 flex-shrink-0" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
           <ArrowLeft className="h-3.5 w-3.5" />
           <span className="hidden sm:inline ml-1 text-xs">Back</span>
@@ -2573,7 +2573,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-2 sm:px-3 py-1.5 border-t bg-background gap-2 flex-shrink-0 safe-area-bottom" style={{ minHeight: '40px' }}>
+      <div className="flex items-center justify-between px-2 sm:px-3 py-1.5 border-t glass-surface gap-2 flex-shrink-0 safe-area-bottom" style={{ minHeight: '40px' }}>
         <Button
           variant="outline"
           size="sm"

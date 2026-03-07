@@ -1345,7 +1345,7 @@ export default function DeprockManagement() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-card overflow-hidden" data-testid="deprock-call-center-org-card">
+            <div className="rounded-xl border border-border/30 glass-card overflow-hidden" data-testid="deprock-call-center-org-card">
               <div className="flex items-stretch overflow-x-auto">
 
                 <div className="flex-1 min-w-[120px] flex flex-col items-center justify-center text-center px-3 py-3 relative group">
@@ -1528,7 +1528,7 @@ export default function DeprockManagement() {
                 ))}
 
                 <div 
-                  className="rounded-2xl border border-dashed border-border/60 hover-elevate cursor-pointer min-h-[150px] sm:min-h-[200px] flex flex-col items-center justify-center"
+                  className="rounded-2xl border border-dashed border-border/40 hover-elevate cursor-pointer min-h-[150px] sm:min-h-[200px] flex flex-col items-center justify-center glass-surface"
                   onClick={() => {
                     setSelectedDepartment(null);
                     setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
@@ -1538,7 +1538,7 @@ export default function DeprockManagement() {
                   }}
                   data-testid="deprock-add-department-card"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-muted/40 flex items-center justify-center mb-2">
+                  <div className="w-9 h-9 rounded-xl bg-muted/30 flex items-center justify-center mb-2">
                     <Plus className="h-4 w-4 text-muted-foreground/60" />
                   </div>
                   <span className="text-xs text-muted-foreground/60">Add Department</span>
@@ -1547,7 +1547,7 @@ export default function DeprockManagement() {
             </div>
 
             {multiLangEnabled && languageOptions.length > 1 && departments.length > 0 && (
-              <div className="border rounded-lg" data-testid="deprock-auto-greetings-table">
+              <div className="border border-border/30 rounded-xl glass-card" data-testid="deprock-auto-greetings-table">
                 <button
                   onClick={() => setShowFlowDetails(!showFlowDetails)}
                   className="w-full flex items-center justify-between gap-2 p-4 hover-elevate rounded-lg text-left"
@@ -1668,7 +1668,7 @@ export default function DeprockManagement() {
               ))}
 
               <div 
-                className="rounded-2xl border border-dashed border-border/60 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"
+                className="rounded-2xl border border-dashed border-border/40 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center glass-surface"
                 onClick={() => {
                   setSelectedDepartment(null);
                   setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
@@ -1678,7 +1678,7 @@ export default function DeprockManagement() {
                 }}
                 data-testid="deprock-add-department-card-tab"
               >
-                <div className="w-9 h-9 rounded-xl bg-muted/40 flex items-center justify-center mb-2">
+                <div className="w-9 h-9 rounded-xl bg-muted/30 flex items-center justify-center mb-2">
                   <Plus className="h-4 w-4 text-muted-foreground/60" />
                 </div>
                 <span className="text-xs text-muted-foreground/60">Add Department</span>
@@ -2386,7 +2386,7 @@ export default function DeprockManagement() {
                 </div>
                 
                 {activeLangAgent && (
-                  <Card className="p-4 space-y-4">
+                  <Card className="glass-card p-4 space-y-4">
                     <div className="flex items-center justify-between">
                       <Select
                         value={activeLangAgent.language}
@@ -3422,7 +3422,7 @@ function DeprockDepartmentCard({
 
   return (
     <div 
-      className="rounded-2xl bg-white dark:bg-zinc-900 border border-border shadow-sm p-3 sm:p-4 space-y-3"
+      className="rounded-2xl glass-card p-3 sm:p-4 space-y-3"
       data-testid={`deprock-department-card-${department.id}`}
     >
       <div className="flex items-start justify-between gap-2">

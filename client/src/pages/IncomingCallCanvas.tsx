@@ -375,7 +375,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
 
   const renderConnectionsList = () => (
     <div className="space-y-4 p-4" data-testid="connections-list-view">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex items-center justify-between gap-2 flex-wrap glass-surface rounded-xl p-4">
         <div>
           <h2 className="text-lg font-semibold">Assign AI Agent</h2>
           <p className="text-sm text-muted-foreground">
@@ -412,7 +412,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
             const connAgent = (conn as any).agent;
             const connPhone = (conn as any).phoneNumber;
             return (
-              <Card key={conn.id} data-testid={`card-connection-${conn.id}`}>
+              <Card key={conn.id} className="glass-card" data-testid={`card-connection-${conn.id}`}>
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="flex items-center justify-center h-10 w-10 rounded-md bg-green-100 dark:bg-green-900/30 flex-shrink-0">
                     <Phone className="h-5 w-5 text-green-600" />
@@ -464,7 +464,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
   );
 
   const renderStepIndicator = () => (
-    <div className="flex items-center justify-center gap-1 py-4 px-4" data-testid="wizard-step-indicator">
+    <div className="flex items-center justify-center gap-1 py-4 px-4 glass-surface" data-testid="wizard-step-indicator">
       {STEPS.map((step, index) => {
         const isCompleted = currentStep > step.id;
         const isActive = currentStep === step.id;
@@ -475,12 +475,12 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
               onClick={() => {
                 if (isCompleted) setCurrentStep(step.id);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm transition-colors ${
                 isActive
-                  ? "bg-primary text-primary-foreground font-medium"
+                  ? "bg-primary text-primary-foreground font-medium shadow-sm"
                   : isCompleted
-                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-pointer"
-                  : "bg-muted text-muted-foreground"
+                  ? "bg-green-100/80 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-pointer"
+                  : "bg-muted/60 text-muted-foreground"
               }`}
               disabled={!isCompleted && !isActive}
               data-testid={`button-step-${step.id}`}
@@ -546,7 +546,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
               return (
                 <Card
                   key={phone.id}
-                  className={`cursor-pointer transition-colors ${
+                  className={`glass-card cursor-pointer transition-colors ${
                     isSelected
                       ? "border-primary bg-primary/5"
                       : "hover-elevate"
@@ -577,7 +577,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
             })}
 
             {unavailablePhones.map((phone) => (
-              <Card key={phone.id} className="opacity-50 cursor-not-allowed" data-testid={`card-phone-unavailable-${phone.id}`}>
+              <Card key={phone.id} className="glass-card opacity-50 cursor-not-allowed" data-testid={`card-phone-unavailable-${phone.id}`}>
                 <CardContent className="p-3 flex items-center gap-3">
                   <div className="flex items-center justify-center h-8 w-8 rounded-md bg-muted">
                     <Phone className="h-4 w-4 text-muted-foreground" />
@@ -658,7 +658,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
             return (
               <Card
                 key={agent.id}
-                className={`cursor-pointer transition-colors ${
+                className={`glass-card cursor-pointer transition-colors ${
                   isSelected
                     ? "border-primary bg-primary/5"
                     : "hover-elevate"
@@ -762,7 +762,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
                   return (
                     <Card
                       key={template.id}
-                      className={`cursor-pointer transition-colors ${
+                      className={`glass-card cursor-pointer transition-colors ${
                         isSelected ? "border-purple-500 bg-purple-500/5" : "hover-elevate"
                       }`}
                       onClick={() => applyTemplate(template)}
@@ -867,7 +867,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
                 return (
                   <Card
                     key={kb.id}
-                    className={`cursor-pointer transition-colors ${
+                    className={`glass-card cursor-pointer transition-colors ${
                       isSelected ? "border-amber-500 bg-amber-500/5" : "hover-elevate"
                     }`}
                     onClick={() => toggleKB(kb.id)}
@@ -905,7 +905,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
       </div>
 
       <div className="max-w-2xl mx-auto space-y-4">
-        <Card>
+        <Card className="glass-card">
           <CardContent className="p-4 space-y-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -1032,7 +1032,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
   return (
     <div className={`${embedded ? "h-full" : "h-screen"} flex flex-col`}>
       {!embedded && (
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-background gap-2 flex-wrap">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 glass-panel gap-2 flex-wrap">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => setLocation("/app/incoming-connections/list")} data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-1" />
@@ -1051,7 +1051,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
       )}
 
       {embedded && (
-        <div className="flex items-center px-4 py-2 border-b bg-background gap-2">
+        <div className="flex items-center px-4 py-2 border-b border-border/30 glass-surface gap-2">
           <Button variant="ghost" size="sm" onClick={() => setWizardMode("list")} data-testid="button-back-to-list">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Connections
@@ -1071,7 +1071,7 @@ function IncomingCallWizard({ embedded = false }: { embedded?: boolean }) {
         </div>
       </ScrollArea>
 
-      <div className="flex items-center justify-between px-4 py-3 border-t bg-background gap-2">
+      <div className="flex items-center justify-between px-4 py-3 border-t border-border/30 glass-panel gap-2">
         <Button
           variant="outline"
           onClick={() => {

@@ -34,27 +34,29 @@ interface MetricCardProps {
 
 export function MetricCard({ title, value, icon: Icon, trend, subtitle, testId, gradientClassName, iconClassName }: MetricCardProps) {
   return (
-    <Card className={cn("p-6", gradientClassName)} data-testid={testId || `card-metric-${title.toLowerCase().replace(/\s+/g, "-")}`}>
+    <Card className={cn("p-6 hover:shadow-md transition-all duration-300", gradientClassName)} data-testid={testId || `card-metric-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <div className="flex items-center justify-between space-y-0 pb-2">
-        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-        <Icon className={cn("h-5 w-5 text-muted-foreground", iconClassName)} />
+        <h3 className="text-[13px] font-medium text-muted-foreground tracking-tight">{title}</h3>
+        <div className="h-8 w-8 rounded-xl bg-primary/[0.08] dark:bg-primary/[0.15] flex items-center justify-center">
+          <Icon className={cn("h-4 w-4 text-primary/70", iconClassName)} />
+        </div>
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-3xl font-bold tabular-nums" data-testid="text-metric-value">{value}</div>
+        <div className="text-3xl font-semibold tabular-nums tracking-tight" data-testid="text-metric-value">{value}</div>
         {subtitle && (
           <p className="text-xs text-muted-foreground">{subtitle}</p>
         )}
         {trend && (
           <div className="flex items-center gap-1 text-xs">
             {trend.direction === "up" ? (
-              <TrendingUp className="h-3 w-3 text-success" />
+              <TrendingUp className="h-3 w-3 text-emerald-500" />
             ) : (
-              <TrendingDown className="h-3 w-3 text-destructive" />
+              <TrendingDown className="h-3 w-3 text-red-400" />
             )}
-            <span className={trend.direction === "up" ? "text-success" : "text-destructive"}>
+            <span className={trend.direction === "up" ? "text-emerald-500" : "text-red-400"}>
               {trend.value}%
             </span>
-            <span className="text-muted-foreground">vs last month</span>
+            <span className="text-muted-foreground/70">vs last month</span>
           </div>
         )}
       </div>

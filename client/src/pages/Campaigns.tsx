@@ -768,7 +768,7 @@ export default function Campaigns() {
         </Button>
       </div>
     
-      <div className="flex-1 bg-white dark:bg-card rounded-lg border overflow-hidden">
+      <div className="flex-1 glass-card rounded-lg overflow-hidden">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center h-full">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1142,7 +1142,7 @@ export default function Campaigns() {
         </div>
       )}
 
-      <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-hidden">
+      <div className="flex-1 glass-card rounded-xl overflow-hidden">
         {contactsLoading ? (
           <div className="flex-1 flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1285,7 +1285,7 @@ export default function Campaigns() {
                     <div
                       key={contact.id}
                       data-testid={`card-contact-${contact.id}`}
-                      className="bg-background border rounded-xl p-4 flex flex-col items-center text-center gap-2 hover:shadow-md transition-shadow cursor-pointer group relative"
+                      className="glass-card rounded-xl p-4 flex flex-col items-center text-center gap-2 hover:shadow-md transition-shadow cursor-pointer group relative"
                       onClick={() => openEditDialog(contact)}
                     >
                       <div className="absolute top-2 left-2">

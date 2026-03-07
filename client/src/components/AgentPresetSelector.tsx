@@ -112,7 +112,7 @@ export default function AgentPresetSelector({ onSelect, onSkip }: AgentPresetSel
     return (
       <div className="space-y-6">
         <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold">Choose a Preset</h3>
+          <h3 className="text-lg font-semibold tracking-tight">Choose a Preset</h3>
           <p className="text-sm text-muted-foreground">
             Start with an industry-optimized configuration
           </p>
@@ -174,13 +174,13 @@ export default function AgentPresetSelector({ onSelect, onSkip }: AgentPresetSel
                     return (
                       <Card
                         key={preset.id}
-                        className="cursor-pointer hover-elevate transition-all duration-200 border"
+                        className="cursor-pointer hover-elevate transition-all duration-200 border glass-card"
                         onClick={() => onSelect(preset)}
                         data-testid={`card-preset-${preset.id}`}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-start gap-3">
-                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <div className="h-10 w-10 rounded-2xl bg-primary/[0.08] dark:bg-primary/[0.15] flex items-center justify-center flex-shrink-0">
                               <Icon className="h-5 w-5 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">

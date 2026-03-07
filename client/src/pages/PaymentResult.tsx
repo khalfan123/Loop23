@@ -40,14 +40,14 @@ const CheckmarkAnimation = () => (
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="h-32 w-32 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/30"
+      className="h-32 w-32 rounded-full bg-emerald-500/[0.12] dark:bg-emerald-500/[0.2] flex items-center justify-center"
     >
       <motion.div
         initial={{ pathLength: 0, opacity: 0 }}
         animate={{ pathLength: 1, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <CheckCircle2 className="h-16 w-16 text-white" strokeWidth={2.5} />
+        <CheckCircle2 className="h-16 w-16 text-emerald-500" strokeWidth={2.5} />
       </motion.div>
     </motion.div>
     <motion.div
@@ -70,14 +70,14 @@ const FailureAnimation = () => (
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="h-32 w-32 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center shadow-2xl shadow-red-500/30"
+      className="h-32 w-32 rounded-full bg-red-500/[0.12] dark:bg-red-500/[0.2] flex items-center justify-center"
     >
       <motion.div
         initial={{ rotate: -90, opacity: 0 }}
         animate={{ rotate: 0, opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.3 }}
       >
-        <XCircle className="h-16 w-16 text-white" strokeWidth={2.5} />
+        <XCircle className="h-16 w-16 text-red-500" strokeWidth={2.5} />
       </motion.div>
     </motion.div>
     <motion.div
@@ -93,9 +93,9 @@ const ProcessingAnimation = () => (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    className="h-32 w-32 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/30"
+    className="h-32 w-32 rounded-full bg-blue-500/[0.12] dark:bg-blue-500/[0.2] flex items-center justify-center"
   >
-    <Loader2 className="h-16 w-16 text-white animate-spin" />
+    <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
   </motion.div>
 );
 
@@ -293,7 +293,7 @@ export default function PaymentResult() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="p-8 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-slate-200/50 dark:border-slate-700/50 shadow-2xl">
+        <Card className="p-8 glass-card-heavy">
           <div className="flex flex-col items-center text-center space-y-6">
             <AnimatePresence mode="wait">
               {status === "processing" && <ProcessingAnimation key="processing" />}
@@ -307,7 +307,7 @@ export default function PaymentResult() {
               transition={{ delay: 0.5 }}
               className="space-y-3"
             >
-              <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100" data-testid="text-payment-result-title">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100" data-testid="text-payment-result-title">
                 {getTitle()}
               </h1>
               <p className="text-slate-600 dark:text-slate-400" data-testid="text-payment-result-description">

@@ -361,14 +361,14 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">{t('calls.status.completed')}</Badge>;
+        return <Badge className="rounded-xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] text-emerald-700 dark:text-emerald-400 border-emerald-500/20">{t('calls.status.completed')}</Badge>;
       case "failed":
-        return <Badge className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20">{t('calls.status.failed')}</Badge>;
+        return <Badge className="rounded-xl bg-rose-500/[0.08] dark:bg-rose-500/[0.15] text-rose-700 dark:text-rose-400 border-rose-500/20">{t('calls.status.failed')}</Badge>;
       case "in_progress":
       case "in-progress":
-        return <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">{t('calls.status.inProgress')}</Badge>;
+        return <Badge className="rounded-xl bg-amber-500/[0.08] dark:bg-amber-500/[0.15] text-amber-700 dark:text-amber-400 border-amber-500/20">{t('calls.status.inProgress')}</Badge>;
       case "ended":
-        return <Badge className="bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20">{t('calls.status.ended')}</Badge>;
+        return <Badge className="rounded-xl bg-slate-500/[0.08] dark:bg-slate-500/[0.15] text-slate-700 dark:text-slate-400 border-slate-500/20">{t('calls.status.ended')}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -378,11 +378,11 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
     if (!sentiment) return null;
     switch (sentiment) {
       case "positive":
-        return <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">{t('calls.sentiment.positive')}</Badge>;
+        return <Badge className="rounded-xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] text-emerald-700 dark:text-emerald-400 border-emerald-500/20">{t('calls.sentiment.positive')}</Badge>;
       case "negative":
-        return <Badge className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20">{t('calls.sentiment.negative')}</Badge>;
+        return <Badge className="rounded-xl bg-rose-500/[0.08] dark:bg-rose-500/[0.15] text-rose-700 dark:text-rose-400 border-rose-500/20">{t('calls.sentiment.negative')}</Badge>;
       case "neutral":
-        return <Badge className="bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20">{t('calls.sentiment.neutral')}</Badge>;
+        return <Badge className="rounded-xl bg-slate-500/[0.08] dark:bg-slate-500/[0.15] text-slate-700 dark:text-slate-400 border-slate-500/20">{t('calls.sentiment.neutral')}</Badge>;
       default:
         return <Badge variant="outline">{sentiment}</Badge>;
     }
@@ -392,19 +392,19 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
     if (!classification) return null;
     switch (classification) {
       case "hot":
-        return <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">{t('calls.classification.hot')}</Badge>;
+        return <Badge className="rounded-xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] text-emerald-700 dark:text-emerald-400 border-emerald-500/20">{t('calls.classification.hot')}</Badge>;
       case "warm":
-        return <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">{t('calls.classification.warm')}</Badge>;
+        return <Badge className="rounded-xl bg-amber-500/[0.08] dark:bg-amber-500/[0.15] text-amber-700 dark:text-amber-400 border-amber-500/20">{t('calls.classification.warm')}</Badge>;
       case "cold":
-        return <Badge className="bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20">{t('calls.classification.cold')}</Badge>;
+        return <Badge className="rounded-xl bg-slate-500/[0.08] dark:bg-slate-500/[0.15] text-slate-700 dark:text-slate-400 border-slate-500/20">{t('calls.classification.cold')}</Badge>;
       case "lost":
-        return <Badge className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20">{t('calls.classification.lost')}</Badge>;
+        return <Badge className="rounded-xl bg-rose-500/[0.08] dark:bg-rose-500/[0.15] text-rose-700 dark:text-rose-400 border-rose-500/20">{t('calls.classification.lost')}</Badge>;
       case "completed_successful":
-        return <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">{t('calls.classification.successful')}</Badge>;
+        return <Badge className="rounded-xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] text-emerald-700 dark:text-emerald-400 border-emerald-500/20">{t('calls.classification.successful')}</Badge>;
       case "completed_failed":
-        return <Badge className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20">{t('calls.status.failed')}</Badge>;
+        return <Badge className="rounded-xl bg-rose-500/[0.08] dark:bg-rose-500/[0.15] text-rose-700 dark:text-rose-400 border-rose-500/20">{t('calls.status.failed')}</Badge>;
       case "completed":
-        return <Badge className="bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20">{t('calls.status.completed')}</Badge>;
+        return <Badge className="rounded-xl bg-slate-500/[0.08] dark:bg-slate-500/[0.15] text-slate-700 dark:text-slate-400 border-slate-500/20">{t('calls.status.completed')}</Badge>;
       default:
         return <Badge variant="outline">{classification}</Badge>;
     }
@@ -412,21 +412,21 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
 
   const getEngineBadge = (engine?: string) => {
     if (engine === 'twilio-openai') {
-      return <Badge className="bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20">Twilio+OpenAI</Badge>;
+      return <Badge className="rounded-xl bg-violet-500/[0.08] dark:bg-violet-500/[0.15] text-violet-700 dark:text-violet-400 border-violet-500/20">Twilio+OpenAI</Badge>;
     }
     if (engine === 'plivo-openai') {
-      return <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20">Plivo+OpenAI</Badge>;
+      return <Badge className="rounded-xl bg-orange-500/[0.08] dark:bg-orange-500/[0.15] text-orange-700 dark:text-orange-400 border-orange-500/20">Plivo+OpenAI</Badge>;
     }
     if (engine === 'openai') {
-      return <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">OpenAI</Badge>;
+      return <Badge className="rounded-xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] text-emerald-700 dark:text-emerald-400 border-emerald-500/20">OpenAI</Badge>;
     }
-    return <Badge className="bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20">ElevenLabs</Badge>;
+    return <Badge className="rounded-xl bg-sky-500/[0.08] dark:bg-sky-500/[0.15] text-sky-700 dark:text-sky-400 border-sky-500/20">ElevenLabs</Badge>;
   };
 
   const getWidgetBadge = (call: Call) => {
     if (!call.widgetId) return null;
     return (
-      <Badge className="bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20 gap-1">
+      <Badge className="rounded-xl bg-teal-500/[0.08] dark:bg-teal-500/[0.15] text-teal-700 dark:text-teal-400 border-teal-500/20 gap-1">
         <Globe className="h-3 w-3" />
         {call.widget?.name || 'Widget'}
       </Badge>
@@ -640,17 +640,17 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
       <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0">
-              <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
+              <div className={`flex-shrink-0 h-10 w-10 rounded-2xl flex items-center justify-center ${
                 call.callDirection === 'incoming' 
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-                  : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                  ? 'bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] text-emerald-600 dark:text-emerald-400' 
+                  : 'bg-blue-500/[0.08] dark:bg-blue-500/[0.15] text-blue-600 dark:text-blue-400'
               }`}>
                 {getDirectionIcon(call.callDirection)}
               </div>
               
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-semibold text-foreground truncate">
+                  <h3 className="font-semibold tracking-tight text-foreground truncate">
                     {(() => {
                       if (call.widgetId) {
                         return call.widget?.name || (call.metadata as any)?.widgetName || 'Website Widget';
@@ -838,11 +838,11 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
   );
 
   const renderCallsTable = (callList: Call[], pagination: ReturnType<typeof usePagination>, testIdPrefix: string = "") => (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border rounded-2xl overflow-hidden glass-surface">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableRow className="glass-surface">
               {columnVisibility.time && (
                 <TableHead 
                   className="cursor-pointer select-none whitespace-nowrap"
@@ -1037,7 +1037,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                 {columnVisibility.concernedQuestions && (
                   <TableCell>
                     {(call as any).concernedQuestionsCount > 0 ? (
-                      <Badge className="bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20">
+                      <Badge className="rounded-xl bg-rose-500/[0.08] dark:bg-rose-500/[0.15] text-rose-700 dark:text-rose-400 border-rose-500/20">
                         {(call as any).concernedQuestionsCount}
                       </Badge>
                     ) : (
@@ -1127,7 +1127,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
         {/* iOS 18 Style Stats Pills */}
         <div className="flex flex-wrap gap-3">
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-2xl bg-blue-500/[0.08] dark:bg-blue-500/[0.15] flex items-center justify-center">
               <Phone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
@@ -1136,7 +1136,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
             </div>
           </div>
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-2xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] flex items-center justify-center">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
@@ -1145,7 +1145,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
             </div>
           </div>
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-2xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] flex items-center justify-center">
               <PhoneIncoming className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
@@ -1154,7 +1154,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
             </div>
           </div>
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-foreground/[0.03] border border-border/30">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-2xl bg-blue-500/[0.08] dark:bg-blue-500/[0.15] flex items-center justify-center">
               <PhoneOutgoing className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
@@ -1165,8 +1165,8 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
         </div>
       </div>
 
-      {/* iOS 18 Style Search and Filters Bar */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* iOS 26 Style Search and Filters Bar */}
+      <div className="flex items-center gap-3 flex-wrap glass-surface rounded-2xl p-3">
         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="gap-2 rounded-2xl" data-testid="button-date-range">
@@ -1304,7 +1304,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
           <PopoverContent className="w-[400px] p-0" align="start">
             <div className="p-4 border-b">
               <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Filters</h4>
+                <h4 className="font-semibold tracking-tight">Filters</h4>
                 {activeFilterCount > 0 && (
                   <Button
                     variant="ghost"
@@ -1320,7 +1320,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
               </div>
             </div>
             <Tabs value={filterTab} onValueChange={(v) => setFilterTab(v as 'base' | 'analysis')} className="w-full">
-              <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
+              <TabsList className="w-full justify-start rounded-none border-b glass-surface p-0">
                 <TabsTrigger 
                   value="base" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none"
@@ -1570,8 +1570,8 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* iOS 18 Style View Toggle */}
-        <div className="flex items-center gap-1 rounded-2xl bg-foreground/[0.03] border border-border/30 p-1">
+        {/* iOS 26 Style View Toggle */}
+        <div className="flex items-center gap-1 rounded-2xl glass-surface border border-border/30 p-1">
           <Button
             variant={viewMode === 'card' ? 'secondary' : 'ghost'}
             size="icon"
@@ -1593,7 +1593,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
 
       {/* iOS 18 Style Pill Tabs */}
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList className="bg-foreground/[0.03] rounded-2xl p-1 border border-border/30">
+        <TabsList className="glass-surface rounded-2xl p-1 border border-border/30">
           <TabsTrigger value="all" data-testid="tab-all">
             {t('calls.allCalls')} ({filteredCalls.length})
           </TabsTrigger>
@@ -1609,7 +1609,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
           {sortedCalls.length === 0 ? (
             <Card className="p-12 text-center">
               <Phone className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="font-medium text-lg mb-1">{t('calls.noCalls')}</h3>
+              <h3 className="font-medium text-lg tracking-tight mb-1">{t('calls.noCalls')}</h3>
               <p className="text-muted-foreground text-sm">
                 {calls?.length === 0 
                   ? t('calls.createCampaignToStart') 
@@ -1634,7 +1634,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
           {callsWithTranscripts.length === 0 ? (
             <Card className="p-12 text-center">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="font-medium text-lg mb-1">{t('calls.noTranscribed')}</h3>
+              <h3 className="font-medium text-lg tracking-tight mb-1">{t('calls.noTranscribed')}</h3>
               <p className="text-muted-foreground text-sm">
                 {t('calls.transcriptsWillAppear')}
               </p>
@@ -1657,7 +1657,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
           {callsWithRecordings.length === 0 ? (
             <Card className="p-12 text-center">
               <Mic className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="font-medium text-lg mb-1">{t('calls.noRecordings')}</h3>
+              <h3 className="font-medium text-lg tracking-tight mb-1">{t('calls.noRecordings')}</h3>
               <p className="text-muted-foreground text-sm">
                 {t('calls.trySyncRecordings')}
               </p>

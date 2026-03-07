@@ -97,6 +97,17 @@ const CHART_COLORS = {
   qualified: "#8b5cf6",
 };
 
+const glassTooltipStyle = {
+  backgroundColor: "var(--glass-bg-heavy)",
+  backdropFilter: "blur(20px) saturate(180%)",
+  WebkitBackdropFilter: "blur(20px) saturate(180%)",
+  border: "1px solid var(--glass-border)",
+  borderRadius: "16px",
+  boxShadow: "var(--glass-shadow-lg)",
+  padding: "10px 14px",
+  fontSize: "12px",
+};
+
 export default function Analytics() {
   const { t } = useTranslation();
   const [timeRange, setTimeRange] = useState("30d");
@@ -154,9 +165,8 @@ export default function Analytics() {
 
   return (
     <div className="space-y-6">
-      {/* Filters at top - apply to all metrics */}
       <div className="flex items-center justify-end gap-2 flex-wrap">
-        <div className="flex items-center bg-muted rounded-lg p-1">
+        <div className="flex items-center glass-surface rounded-2xl p-1">
           {timeRanges.map((range) => (
             <Button
               key={range.value}
@@ -175,14 +185,11 @@ export default function Analytics() {
         </Button>
       </div>
 
-      {/* Combined 8-tile grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Row 1: Core metrics */}
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/30 dark:to-background">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-indigo-500/20 to-transparent rounded-full blur-2xl" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground/80">Total Users</CardTitle>
-            <div className="p-2 bg-indigo-500/10 rounded-lg ring-1 ring-indigo-500/20">
+            <CardTitle className="text-sm font-medium tracking-tight text-foreground/80">Total Users</CardTitle>
+            <div className="h-9 w-9 rounded-2xl bg-indigo-500/[0.08] dark:bg-indigo-500/[0.15] flex items-center justify-center">
               <Users className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             </div>
           </CardHeader>
@@ -204,11 +211,10 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-background">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full blur-2xl" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground/80">Total Calls</CardTitle>
-            <div className="p-2 bg-emerald-500/10 rounded-lg ring-1 ring-emerald-500/20">
+            <CardTitle className="text-sm font-medium tracking-tight text-foreground/80">Total Calls</CardTitle>
+            <div className="h-9 w-9 rounded-2xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] flex items-center justify-center">
               <PhoneCall className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
           </CardHeader>
@@ -230,11 +236,10 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/30 dark:to-background">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-500/20 to-transparent rounded-full blur-2xl" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground/80">Active Campaigns</CardTitle>
-            <div className="p-2 bg-amber-500/10 rounded-lg ring-1 ring-amber-500/20">
+            <CardTitle className="text-sm font-medium tracking-tight text-foreground/80">Active Campaigns</CardTitle>
+            <div className="h-9 w-9 rounded-2xl bg-amber-500/[0.08] dark:bg-amber-500/[0.15] flex items-center justify-center">
               <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             </div>
           </CardHeader>
@@ -256,11 +261,10 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/30 dark:to-background">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-violet-500/20 to-transparent rounded-full blur-2xl" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground/80">Qualified Leads</CardTitle>
-            <div className="p-2 bg-violet-500/10 rounded-lg ring-1 ring-violet-500/20">
+            <CardTitle className="text-sm font-medium tracking-tight text-foreground/80">Qualified Leads</CardTitle>
+            <div className="h-9 w-9 rounded-2xl bg-violet-500/[0.08] dark:bg-violet-500/[0.15] flex items-center justify-center">
               <Target className="h-4 w-4 text-violet-600 dark:text-violet-400" />
             </div>
           </CardHeader>
@@ -275,12 +279,10 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        {/* Row 2: Platform resources */}
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/30 dark:to-background">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-cyan-500/20 to-transparent rounded-full blur-2xl" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground/80">Phone Numbers</CardTitle>
-            <div className="p-2 bg-cyan-500/10 rounded-lg ring-1 ring-cyan-500/20">
+            <CardTitle className="text-sm font-medium tracking-tight text-foreground/80">Phone Numbers</CardTitle>
+            <div className="h-9 w-9 rounded-2xl bg-cyan-500/[0.08] dark:bg-cyan-500/[0.15] flex items-center justify-center">
               <Phone className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
             </div>
           </CardHeader>
@@ -290,11 +292,10 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-rose-50 to-white dark:from-rose-950/30 dark:to-background">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-rose-500/20 to-transparent rounded-full blur-2xl" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground/80">Total Contacts</CardTitle>
-            <div className="p-2 bg-rose-500/10 rounded-lg ring-1 ring-rose-500/20">
+            <CardTitle className="text-sm font-medium tracking-tight text-foreground/80">Total Contacts</CardTitle>
+            <div className="h-9 w-9 rounded-2xl bg-rose-500/[0.08] dark:bg-rose-500/[0.15] flex items-center justify-center">
               <ContactRound className="h-4 w-4 text-rose-600 dark:text-rose-400" />
             </div>
           </CardHeader>
@@ -304,11 +305,10 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-teal-50 to-white dark:from-teal-950/30 dark:to-background">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-teal-500/20 to-transparent rounded-full blur-2xl" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground/80">Knowledge Bases</CardTitle>
-            <div className="p-2 bg-teal-500/10 rounded-lg ring-1 ring-teal-500/20">
+            <CardTitle className="text-sm font-medium tracking-tight text-foreground/80">Knowledge Bases</CardTitle>
+            <div className="h-9 w-9 rounded-2xl bg-teal-500/[0.08] dark:bg-teal-500/[0.15] flex items-center justify-center">
               <Package className="h-4 w-4 text-teal-600 dark:text-teal-400" />
             </div>
           </CardHeader>
@@ -318,11 +318,10 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-fuchsia-50 to-white dark:from-fuchsia-950/30 dark:to-background">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-fuchsia-500/20 to-transparent rounded-full blur-2xl" />
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-foreground/80">Pro Users</CardTitle>
-            <div className="p-2 bg-fuchsia-500/10 rounded-lg ring-1 ring-fuchsia-500/20">
+            <CardTitle className="text-sm font-medium tracking-tight text-foreground/80">Pro Users</CardTitle>
+            <div className="h-9 w-9 rounded-2xl bg-fuchsia-500/[0.08] dark:bg-fuchsia-500/[0.15] flex items-center justify-center">
               <UserPlus className="h-4 w-4 text-fuchsia-600 dark:text-fuchsia-400" />
             </div>
           </CardHeader>
@@ -337,7 +336,7 @@ export default function Analytics() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 tracking-tight">
                 <TrendingUp className="h-5 w-5 text-emerald-500" />
                 Growth Overview
               </CardTitle>
@@ -378,7 +377,7 @@ export default function Analytics() {
                   <stop offset="95%" stopColor={CHART_COLORS.campaigns} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" strokeOpacity={0.4} />
               <XAxis 
                 dataKey="date" 
                 tick={{ fontSize: 12 }}
@@ -393,11 +392,7 @@ export default function Analytics() {
                 className="fill-muted-foreground"
               />
               <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px',
-                }}
+                contentStyle={glassTooltipStyle}
                 labelStyle={{ color: 'hsl(var(--foreground))' }}
               />
               <Area
@@ -432,7 +427,7 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 tracking-tight">
               <PieChartIcon className="h-5 w-5 text-indigo-500" />
               Subscription Distribution
             </CardTitle>
@@ -448,21 +443,19 @@ export default function Analytics() {
                     data={planDistribution}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
+                    innerRadius={45}
                     outerRadius={100}
-                    paddingAngle={4}
+                    paddingAngle={2}
                     dataKey="value"
+                    strokeWidth={2}
+                    stroke="hsl(var(--background))"
                   >
                     {planDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
+                    contentStyle={glassTooltipStyle}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -482,7 +475,7 @@ export default function Analytics() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 tracking-tight">
               <BarChart3 className="h-5 w-5 text-emerald-500" />
               Performance Metrics
             </CardTitle>
@@ -508,7 +501,7 @@ export default function Analytics() {
                 layout="vertical"
                 margin={{ left: 20 }}
               >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} strokeOpacity={0.4} />
                 <XAxis 
                   type="number" 
                   domain={[0, 100]}
@@ -529,15 +522,11 @@ export default function Analytics() {
                 />
                 <Tooltip 
                   formatter={(value: any) => [`${value.toFixed(1)}%`, ""]}
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
+                  contentStyle={glassTooltipStyle}
                 />
                 <Bar 
                   dataKey="value" 
-                  radius={[0, 4, 4, 0]}
+                  radius={[10, 10, 4, 4]}
                   barSize={40}
                 >
                   {[

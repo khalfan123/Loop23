@@ -433,37 +433,37 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         bg: selected ? "bg-emerald-500/20 dark:bg-emerald-500/30" : "bg-muted/30 hover:bg-muted/50",
         border: selected ? "border-emerald-500/50" : "border-transparent hover:border-border",
         text: selected ? "text-emerald-700 dark:text-emerald-300" : "",
-        icon: selected ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground",
+        icon: selected ? "bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] text-emerald-500" : "bg-muted text-muted-foreground",
       },
       blue: {
         bg: selected ? "bg-blue-500/20 dark:bg-blue-500/30" : "bg-muted/30 hover:bg-muted/50",
         border: selected ? "border-blue-500/50" : "border-transparent hover:border-border",
         text: selected ? "text-blue-700 dark:text-blue-300" : "",
-        icon: selected ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-muted text-muted-foreground",
+        icon: selected ? "bg-blue-500/[0.08] dark:bg-blue-500/[0.15] text-blue-500" : "bg-muted text-muted-foreground",
       },
       violet: {
         bg: selected ? "bg-violet-500/20 dark:bg-violet-500/30" : "bg-muted/30 hover:bg-muted/50",
         border: selected ? "border-violet-500/50" : "border-transparent hover:border-border",
         text: selected ? "text-violet-700 dark:text-violet-300" : "",
-        icon: selected ? "bg-violet-500/20 text-violet-600 dark:text-violet-400" : "bg-muted text-muted-foreground",
+        icon: selected ? "bg-violet-500/[0.08] dark:bg-violet-500/[0.15] text-violet-500" : "bg-muted text-muted-foreground",
       },
       amber: {
         bg: selected ? "bg-amber-500/20 dark:bg-amber-500/30" : "bg-muted/30 hover:bg-muted/50",
         border: selected ? "border-amber-500/50" : "border-transparent hover:border-border",
         text: selected ? "text-amber-700 dark:text-amber-300" : "",
-        icon: selected ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground",
+        icon: selected ? "bg-amber-500/[0.08] dark:bg-amber-500/[0.15] text-amber-500" : "bg-muted text-muted-foreground",
       },
       rose: {
         bg: selected ? "bg-rose-500/20 dark:bg-rose-500/30" : "bg-muted/30 hover:bg-muted/50",
         border: selected ? "border-rose-500/50" : "border-transparent hover:border-border",
         text: selected ? "text-rose-700 dark:text-rose-300" : "",
-        icon: selected ? "bg-rose-500/20 text-rose-600 dark:text-rose-400" : "bg-muted text-muted-foreground",
+        icon: selected ? "bg-rose-500/[0.08] dark:bg-rose-500/[0.15] text-rose-500" : "bg-muted text-muted-foreground",
       },
       slate: {
         bg: selected ? "bg-slate-500/20 dark:bg-slate-500/30" : "bg-muted/30 hover:bg-muted/50",
         border: selected ? "border-slate-500/50" : "border-transparent hover:border-border",
         text: selected ? "text-slate-700 dark:text-slate-300" : "",
-        icon: selected ? "bg-slate-500/20 text-slate-600 dark:text-slate-400" : "bg-muted text-muted-foreground",
+        icon: selected ? "bg-slate-500/[0.08] dark:bg-slate-500/[0.15] text-slate-500" : "bg-muted text-muted-foreground",
       },
     };
     return colors[color] || colors.slate;
@@ -483,7 +483,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold">What will your AI agent do?</h3>
+              <h3 className="text-lg font-semibold tracking-tight">What will your AI agent do?</h3>
               <p className="text-sm text-muted-foreground">
                 Choose a use case to get started with optimized settings
               </p>
@@ -500,7 +500,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                     data-testid={`usecase-${useCase.id}`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${colors.icon}`}>
+                      <div className={`h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${colors.icon}`}>
                         <useCase.icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -524,7 +524,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold">Basic Information</h3>
+              <h3 className="text-lg font-semibold tracking-tight">Basic Information</h3>
               <p className="text-sm text-muted-foreground">
                 Name your agent and choose its voice
               </p>
@@ -788,7 +788,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold">Personality & Tone</h3>
+              <h3 className="text-lg font-semibold tracking-tight">Personality & Tone</h3>
               <p className="text-sm text-muted-foreground">
                 Define how your agent sounds and behaves
               </p>
@@ -862,7 +862,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         return (
           <div className="space-y-6">
             <div className="text-center mb-4">
-              <h3 className="text-lg font-semibold">Configure Prompts</h3>
+              <h3 className="text-lg font-semibold tracking-tight">Configure Prompts</h3>
               <p className="text-sm text-muted-foreground">
                 Customize what your agent says and how it behaves
               </p>
@@ -947,7 +947,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         return (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold">Fine-tune Voice</h3>
+              <h3 className="text-lg font-semibold tracking-tight">Fine-tune Voice</h3>
               <p className="text-sm text-muted-foreground">
                 {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai")
                   ? "OpenAI voice settings are optimized automatically"
@@ -1072,7 +1072,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/20 mb-4">
                 <CheckCircle2 className="h-6 w-6 text-emerald-500" />
               </div>
-              <h3 className="text-lg font-semibold">Review Your Agent</h3>
+              <h3 className="text-lg font-semibold tracking-tight">Review Your Agent</h3>
               <p className="text-sm text-muted-foreground">
                 Everything looks good! Review and create your agent.
               </p>

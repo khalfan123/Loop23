@@ -360,7 +360,7 @@ export default function CallDetailPanel({
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-muted/30">
+            <div className="flex items-center justify-between gap-2 px-4 py-2 border-b glass-surface">
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 Use{" "}
                 <Button
@@ -387,19 +387,18 @@ export default function CallDetailPanel({
 
             <div className="flex-1 overflow-y-auto">
               <div className="p-5 space-y-4">
-                {/* Header Card */}
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 via-indigo-100/50 to-sky-50 dark:from-blue-950/40 dark:via-indigo-900/30 dark:to-sky-950/40 border border-blue-100 dark:border-blue-900/50 p-4">
+                <div className="glass-card rounded-2xl p-4">
                   <div className="flex items-start gap-3">
-                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+                    <div className="h-11 w-11 rounded-2xl bg-blue-500/[0.08] dark:bg-blue-500/[0.15] flex items-center justify-center shrink-0">
                       {isIncoming ? (
-                        <PhoneIncoming className="h-5 w-5 text-white" />
+                        <PhoneIncoming className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       ) : (
-                        <PhoneOutgoing className="h-5 w-5 text-white" />
+                        <PhoneOutgoing className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-lg font-bold text-foreground truncate" data-testid="text-contact-name">
+                        <h2 className="text-lg font-bold tracking-tight text-foreground truncate" data-testid="text-contact-name">
                           {contactName}
                         </h2>
                         {getStatusBadge(call.status)}
@@ -471,30 +470,29 @@ export default function CallDetailPanel({
                   </div>
                 </div>
 
-                {/* KPI Stats Row */}
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-blue-100/50 dark:border-blue-800/30">
+                  <div className="glass-surface rounded-2xl p-3">
                     <div className="flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                      <span className="text-lg font-bold text-blue-700 dark:text-blue-300" data-testid="text-duration">
+                      <span className="text-lg font-bold tracking-tight text-blue-700 dark:text-blue-300" data-testid="text-duration">
                         {formatDuration(call.duration)}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">Duration</div>
                   </div>
-                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-indigo-100/50 dark:border-indigo-800/30">
+                  <div className="glass-surface rounded-2xl p-3">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300" data-testid="text-date">
+                      <span className="text-sm font-bold tracking-tight text-indigo-700 dark:text-indigo-300" data-testid="text-date">
                         {format(new Date(call.startedAt || call.createdAt), "MMM d, h:mm a")}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">Date & Time</div>
                   </div>
-                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-rose-100/50 dark:border-rose-800/30">
+                  <div className="glass-surface rounded-2xl p-3">
                     <div className="flex items-center gap-1.5">
                       <AlertTriangle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-                      <span className="text-lg font-bold text-rose-700 dark:text-rose-300" data-testid="text-concerns">
+                      <span className="text-lg font-bold tracking-tight text-rose-700 dark:text-rose-300" data-testid="text-concerns">
                         {call.concernedQuestionsCount || 0}
                       </span>
                     </div>
@@ -502,13 +500,12 @@ export default function CallDetailPanel({
                   </div>
                 </div>
 
-                {/* Secondary Stats */}
                 <div className="grid grid-cols-2 gap-2">
                   {call.cost != null && (
-                    <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-emerald-100/50 dark:border-emerald-800/30">
+                    <div className="glass-surface rounded-2xl p-3">
                       <div className="flex items-center gap-1.5">
                         <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300" data-testid="text-cost">
+                        <span className="text-sm font-bold tracking-tight text-emerald-700 dark:text-emerald-300" data-testid="text-cost">
                           ${Number(call.cost).toFixed(4)}
                         </span>
                       </div>
@@ -516,37 +513,37 @@ export default function CallDetailPanel({
                     </div>
                   )}
                   {call.endToEndLatencyMs != null && (
-                    <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-amber-100/50 dark:border-amber-800/30">
+                    <div className="glass-surface rounded-2xl p-3">
                       <div className="flex items-center gap-1.5">
                         <Zap className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                        <span className="text-sm font-bold text-amber-700 dark:text-amber-300" data-testid="text-latency">
+                        <span className="text-sm font-bold tracking-tight text-amber-700 dark:text-amber-300" data-testid="text-latency">
                           {call.endToEndLatencyMs}ms
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">Latency</div>
                     </div>
                   )}
-                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-sky-100/50 dark:border-sky-800/30">
+                  <div className="glass-surface rounded-2xl p-3">
                     <div className="flex items-center gap-1.5">
                       {hasRecording ? (
                         <Volume2 className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
                       ) : (
                         <XCircle className="h-3.5 w-3.5 text-slate-400" />
                       )}
-                      <span className="text-sm font-bold text-sky-700 dark:text-sky-300">
+                      <span className="text-sm font-bold tracking-tight text-sky-700 dark:text-sky-300">
                         {hasRecording ? "Available" : "None"}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">Recording</div>
                   </div>
-                  <div className="bg-white/80 dark:bg-white/5 rounded-lg p-3 border border-emerald-100/50 dark:border-emerald-800/30">
+                  <div className="glass-surface rounded-2xl p-3">
                     <div className="flex items-center gap-1.5">
                       {call.transcript ? (
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                       ) : (
                         <XCircle className="h-3.5 w-3.5 text-slate-400" />
                       )}
-                      <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                      <span className="text-sm font-bold tracking-tight text-emerald-700 dark:text-emerald-300">
                         {call.transcript ? "Available" : "None"}
                       </span>
                     </div>
@@ -554,122 +551,117 @@ export default function CallDetailPanel({
                   </div>
                 </div>
 
-                {/* Audio Player with Waveform */}
                 {hasRecording && (
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border border-slate-700/50 p-4">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent" />
-                    <div className="relative">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Volume2 className="h-4 w-4 text-blue-400" />
-                        <h3 className="text-sm font-medium text-slate-300">Audio Recording</h3>
-                      </div>
+                  <div className="glass-card rounded-2xl p-4 bg-slate-900/90 dark:bg-slate-950/90">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Volume2 className="h-4 w-4 text-blue-400" />
+                      <h3 className="text-sm font-medium tracking-tight text-slate-300">Audio Recording</h3>
+                    </div>
 
-                      {recordingBlobUrl ? (
-                        <div className="flex items-center gap-3">
-                          <Button
-                            size="icon"
-                            className="rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30"
-                            onClick={() => {
-                              if (audioRef.current) {
-                                if (isPlaying) {
-                                  audioRef.current.pause();
-                                } else {
-                                  audioRef.current.play();
-                                }
+                    {recordingBlobUrl ? (
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          className="rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30"
+                          onClick={() => {
+                            if (audioRef.current) {
+                              if (isPlaying) {
+                                audioRef.current.pause();
+                              } else {
+                                audioRef.current.play();
                               }
-                            }}
-                            data-testid="button-play-pause"
-                          >
-                            {isPlaying ? (
-                              <Pause className="h-4 w-4" />
-                            ) : (
-                              <Play className="h-4 w-4 ml-0.5" />
-                            )}
-                          </Button>
+                            }
+                          }}
+                          data-testid="button-play-pause"
+                        >
+                          {isPlaying ? (
+                            <Pause className="h-4 w-4" />
+                          ) : (
+                            <Play className="h-4 w-4 ml-0.5" />
+                          )}
+                        </Button>
 
-                          <div className="flex-1">
-                            <div className="h-12 bg-slate-800/50 rounded-lg flex items-center justify-center px-3 border border-slate-700/30">
-                              <div className="flex items-end gap-[2px] h-9 w-full">
-                                {Array.from({ length: 50 }).map((_, i) => {
-                                  const height =
-                                    25 +
-                                    Math.abs(
-                                      Math.sin(i * 0.35) * 45 +
-                                        Math.cos(i * 0.2) * 25
-                                    );
-                                  const isActive =
-                                    call.duration && currentTime > 0
-                                      ? i < (currentTime / call.duration) * 50
-                                      : false;
-                                  return (
-                                    <div
-                                      key={i}
-                                      className={`flex-1 rounded-full transition-all duration-150 ${
-                                        isActive
-                                          ? "bg-blue-500"
-                                          : "bg-slate-600/60"
-                                      }`}
-                                      style={{ height: `${height}%` }}
-                                    />
+                        <div className="flex-1">
+                          <div className="h-12 bg-slate-800/50 rounded-2xl flex items-center justify-center px-3 border border-slate-700/30">
+                            <div className="flex items-end gap-[2px] h-9 w-full">
+                              {Array.from({ length: 50 }).map((_, i) => {
+                                const height =
+                                  25 +
+                                  Math.abs(
+                                    Math.sin(i * 0.35) * 45 +
+                                      Math.cos(i * 0.2) * 25
                                   );
-                                })}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between mt-1 px-1">
-                              <span className="text-xs font-mono text-blue-400">
-                                {formatDuration(Math.floor(currentTime))}
-                              </span>
-                              <span className="text-xs font-mono text-slate-500">
-                                {formatDuration(call.duration)}
-                              </span>
+                                const isActive =
+                                  call.duration && currentTime > 0
+                                    ? i < (currentTime / call.duration) * 50
+                                    : false;
+                                return (
+                                  <div
+                                    key={i}
+                                    className={`flex-1 rounded-full transition-all duration-150 ${
+                                      isActive
+                                        ? "bg-blue-500"
+                                        : "bg-slate-600/60"
+                                    }`}
+                                    style={{ height: `${height}%` }}
+                                  />
+                                );
+                              })}
                             </div>
                           </div>
+                          <div className="flex items-center justify-between mt-1 px-1">
+                            <span className="text-xs font-mono text-blue-400">
+                              {formatDuration(Math.floor(currentTime))}
+                            </span>
+                            <span className="text-xs font-mono text-slate-500">
+                              {formatDuration(call.duration)}
+                            </span>
+                          </div>
+                        </div>
 
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-slate-400"
-                            onClick={() => {
-                              if (recordingBlobUrl) {
-                                const link = document.createElement("a");
-                                link.href = recordingBlobUrl;
-                                link.download = `call-recording-${call.id}.mp3`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }
-                            }}
-                            data-testid="button-download-recording"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-
-                          <audio
-                            ref={audioRef}
-                            src={recordingBlobUrl}
-                            onPlay={() => setIsPlaying(true)}
-                            onPause={() => setIsPlaying(false)}
-                            onEnded={() => setIsPlaying(false)}
-                            onTimeUpdate={(e) =>
-                              setCurrentTime(e.currentTarget.currentTime)
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-slate-400"
+                          onClick={() => {
+                            if (recordingBlobUrl) {
+                              const link = document.createElement("a");
+                              link.href = recordingBlobUrl;
+                              link.download = `call-recording-${call.id}.mp3`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
                             }
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 py-3">
-                          <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
-                          <span className="text-sm text-slate-400">
-                            Loading recording...
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                          }}
+                          data-testid="button-download-recording"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+
+                        <audio
+                          ref={audioRef}
+                          src={recordingBlobUrl}
+                          onPlay={() => setIsPlaying(true)}
+                          onPause={() => setIsPlaying(false)}
+                          onEnded={() => setIsPlaying(false)}
+                          onTimeUpdate={(e) =>
+                            setCurrentTime(e.currentTarget.currentTime)
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 py-3">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+                        <span className="text-sm text-slate-400">
+                          Loading recording...
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Conversation Analysis */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-foreground" data-testid="text-conversation-analysis-heading">
+                  <h4 className="text-sm font-semibold tracking-tight text-foreground" data-testid="text-conversation-analysis-heading">
                     Conversation Analysis
                   </h4>
                   <div className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-2.5">
@@ -763,25 +755,23 @@ export default function CallDetailPanel({
                   </div>
                 </div>
 
-                {/* AI Summary */}
                 {call.aiSummary && (
-                  <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-indigo-50/80 via-blue-50/50 to-slate-50 dark:from-indigo-950/40 dark:via-blue-950/30 dark:to-slate-950/40 border border-indigo-100/50 dark:border-indigo-900/30 p-4">
+                  <div className="glass-card rounded-2xl p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <MessageSquare className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                      <h4 className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">
+                      <h4 className="text-sm font-semibold tracking-tight">
                         AI Summary
                       </h4>
                     </div>
-                    <p className="text-sm text-indigo-800/80 dark:text-indigo-200/80 leading-relaxed" data-testid="text-ai-summary">
+                    <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-ai-summary">
                       {call.aiSummary}
                     </p>
                   </div>
                 )}
 
-                {/* Tabs */}
                 <Tabs defaultValue="transcription" className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <TabsList>
+                    <TabsList className="glass-surface rounded-2xl">
                       <TabsTrigger
                         value="transcription"
                         data-testid="panel-tab-transcription"
@@ -1040,7 +1030,7 @@ export default function CallDetailPanel({
                               <span className="text-muted-foreground col-span-2 mt-3 font-medium">
                                 Additional Metadata
                               </span>
-                              <pre className="col-span-2 text-xs bg-muted p-3 rounded-md overflow-x-auto">
+                              <pre className="col-span-2 text-xs glass-surface rounded-2xl p-3 overflow-x-auto">
                                 {JSON.stringify(call.metadata, null, 2)}
                               </pre>
                             </>
@@ -1066,7 +1056,7 @@ export default function CallDetailPanel({
                         {call.responses.map((response, index) => (
                           <div
                             key={response.id}
-                            className={`p-3 rounded-lg border ${
+                            className={`p-3 rounded-2xl border ${
                               response.isConcern
                                 ? "bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40"
                                 : "bg-card border-border"
@@ -1107,16 +1097,16 @@ export default function CallDetailPanel({
                                       }
                                     })()
                                   : (
-                                      <span
-                                        className={`font-medium ${
-                                          response.isConcern
-                                            ? "text-rose-600 dark:text-rose-400"
-                                            : "text-emerald-600 dark:text-emerald-400"
-                                        }`}
-                                      >
-                                        {response.answerValue}
-                                      </span>
-                                    )}
+                                    <span
+                                      className={`font-medium ${
+                                        response.isConcern
+                                          ? "text-rose-600 dark:text-rose-400"
+                                          : "text-emerald-600 dark:text-emerald-400"
+                                      }`}
+                                    >
+                                      {response.answerValue}
+                                    </span>
+                                  )}
                               </span>
                             </div>
                           </div>

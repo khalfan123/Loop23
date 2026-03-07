@@ -312,12 +312,12 @@ export default function LiveMonitoring() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             {wsConnected ? (
-              <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/30 gap-1" data-testid="badge-ws-connected">
+              <Badge variant="outline" className="bg-green-500/[0.08] dark:bg-green-500/[0.15] text-green-600 dark:text-green-400 border-green-500/20 gap-1" data-testid="badge-ws-connected">
                 <Wifi className="h-3 w-3" />
                 Live
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-500/30 gap-1" data-testid="badge-ws-disconnected">
+              <Badge variant="outline" className="bg-red-500/[0.08] dark:bg-red-500/[0.15] text-red-600 dark:text-red-400 border-red-500/20 gap-1" data-testid="badge-ws-disconnected">
                 <WifiOff className="h-3 w-3" />
                 Disconnected
               </Badge>
@@ -339,7 +339,7 @@ export default function LiveMonitoring() {
         <Card data-testid="card-stat-total">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
+              <div className="p-2 rounded-2xl bg-blue-500/[0.08] dark:bg-blue-500/[0.15]">
                 <Activity className="h-5 w-5 text-primary" />
               </div>
               <div>
@@ -353,7 +353,7 @@ export default function LiveMonitoring() {
         <Card data-testid="card-stat-inbound">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
+              <div className="p-2 rounded-2xl bg-green-500/[0.08] dark:bg-green-500/[0.15]">
                 <PhoneIncoming className="h-5 w-5 text-green-600" />
               </div>
               <div>
@@ -367,7 +367,7 @@ export default function LiveMonitoring() {
         <Card data-testid="card-stat-outbound">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
+              <div className="p-2 rounded-2xl bg-blue-500/[0.08] dark:bg-blue-500/[0.15]">
                 <PhoneOutgoing className="h-5 w-5 text-blue-600" />
               </div>
               <div>
@@ -381,7 +381,7 @@ export default function LiveMonitoring() {
         <Card data-testid="card-stat-engines">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/10">
+              <div className="p-2 rounded-2xl bg-orange-500/[0.08] dark:bg-orange-500/[0.15]">
                 <Radio className="h-5 w-5 text-orange-600" />
               </div>
               <div>
@@ -393,7 +393,7 @@ export default function LiveMonitoring() {
         </Card>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-3">
+      <div className="flex flex-col md:flex-row gap-3 glass-surface rounded-2xl p-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -435,7 +435,7 @@ export default function LiveMonitoring() {
                 {activeCalls.length === 0 ? (
                   <>
                     <Phone className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <h3 className="text-lg font-medium text-muted-foreground">No Active Calls</h3>
+                    <h3 className="text-lg font-medium tracking-tight text-muted-foreground">No Active Calls</h3>
                     <p className="text-sm text-muted-foreground/70 mt-1">
                       Active calls will appear here in real-time
                     </p>
@@ -443,7 +443,7 @@ export default function LiveMonitoring() {
                 ) : (
                   <>
                     <Search className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <h3 className="text-lg font-medium text-muted-foreground">No Matching Calls</h3>
+                    <h3 className="text-lg font-medium tracking-tight text-muted-foreground">No Matching Calls</h3>
                     <p className="text-sm text-muted-foreground/70 mt-1">
                       Try adjusting your search or filters
                     </p>
@@ -456,7 +456,7 @@ export default function LiveMonitoring() {
               {filteredCalls.map((call) => (
                 <Card
                   key={call.callId}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
+                  className={`cursor-pointer transition-all glass-card rounded-2xl ${
                     selectedCall?.callId === call.callId ? 'ring-2 ring-primary' : ''
                   }`}
                   onClick={() => handleSelectCall(call)}
@@ -465,8 +465,8 @@ export default function LiveMonitoring() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className={`p-2 rounded-full ${
-                          call.direction === 'inbound' ? 'bg-green-500/10' : 'bg-blue-500/10'
+                        <div className={`p-2 rounded-2xl ${
+                          call.direction === 'inbound' ? 'bg-green-500/[0.08] dark:bg-green-500/[0.15]' : 'bg-blue-500/[0.08] dark:bg-blue-500/[0.15]'
                         }`}>
                           {call.direction === 'inbound' ? (
                             <PhoneIncoming className="h-4 w-4 text-green-600" />
@@ -551,7 +551,7 @@ export default function LiveMonitoring() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="text-red-600 dark:text-red-400"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEndCall(call.callId);
@@ -577,7 +577,7 @@ export default function LiveMonitoring() {
             <Card className="sticky top-4">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
+                  <CardTitle className="text-lg tracking-tight flex items-center gap-2">
                     <Headphones className="h-5 w-5 text-primary" />
                     Call Monitor
                   </CardTitle>
@@ -595,7 +595,7 @@ export default function LiveMonitoring() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                       </div>
-                      <span className="text-sm font-medium text-green-600">Live</span>
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">Live</span>
                     </div>
                   </div>
 
@@ -653,7 +653,7 @@ export default function LiveMonitoring() {
 
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-medium flex items-center gap-1">
+                    <h4 className="text-sm font-medium tracking-tight flex items-center gap-1">
                       <MessageSquare className="h-4 w-4" />
                       Live Transcript
                     </h4>
@@ -661,7 +661,7 @@ export default function LiveMonitoring() {
                       {transcriptMessages.length} messages
                     </Badge>
                   </div>
-                  <ScrollArea className="h-[300px] rounded-md border p-3 bg-muted/20" data-testid="panel-transcript">
+                  <ScrollArea className="h-[300px] rounded-2xl border p-3 glass-surface" data-testid="panel-transcript">
                     {transcriptMessages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-center">
                         <MessageSquare className="h-8 w-8 text-muted-foreground/40 mb-2" />

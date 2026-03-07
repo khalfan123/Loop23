@@ -173,13 +173,13 @@ export function CookieConsentBanner() {
   return (
     <>
       <div
-        className="fixed bottom-0 left-0 right-0 z-[100] bg-background border-t shadow-lg animate-in slide-in-from-bottom duration-300"
+        className="fixed bottom-0 left-0 right-0 z-[100] glass-card-heavy animate-in slide-in-from-bottom duration-300"
         data-testid="banner-cookie-consent"
       >
         <div className="container mx-auto px-4 py-4 max-w-6xl">
           <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
             <div className="flex items-start gap-3 flex-1">
-              <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+              <div className="p-2 bg-primary/[0.08] dark:bg-primary/[0.15] rounded-2xl flex-shrink-0">
                 <Cookie className="h-5 w-5 text-primary" />
               </div>
               <div className="space-y-1">

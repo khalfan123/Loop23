@@ -134,7 +134,8 @@ const agentTemplates = [
     icon: Calendar,
     category: "reminders",
     color: "from-pink-500 to-rose-500",
-    iconBg: "bg-pink-500/10 dark:bg-pink-500/20"
+    iconBg: "bg-pink-500/[0.1] dark:bg-pink-500/[0.15]",
+    iconColor: "text-pink-500"
   },
   {
     id: "lead-qualifier",
@@ -143,7 +144,8 @@ const agentTemplates = [
     icon: Target,
     category: "sales",
     color: "from-blue-500 to-indigo-500",
-    iconBg: "bg-blue-500/10 dark:bg-blue-500/20"
+    iconBg: "bg-blue-500/[0.1] dark:bg-blue-500/[0.15]",
+    iconColor: "text-blue-500"
   },
   {
     id: "survey",
@@ -152,7 +154,8 @@ const agentTemplates = [
     icon: ClipboardCheck,
     category: "surveys",
     color: "from-emerald-500 to-teal-500",
-    iconBg: "bg-emerald-500/10 dark:bg-emerald-500/20"
+    iconBg: "bg-emerald-500/[0.1] dark:bg-emerald-500/[0.15]",
+    iconColor: "text-emerald-500"
   },
   {
     id: "payment",
@@ -161,7 +164,8 @@ const agentTemplates = [
     icon: DollarSign,
     category: "reminders",
     color: "from-amber-500 to-orange-500",
-    iconBg: "bg-amber-500/10 dark:bg-amber-500/20"
+    iconBg: "bg-amber-500/[0.1] dark:bg-amber-500/[0.15]",
+    iconColor: "text-amber-500"
   },
   {
     id: "support",
@@ -170,7 +174,8 @@ const agentTemplates = [
     icon: HeadphonesIcon,
     category: "support",
     color: "from-violet-500 to-purple-500",
-    iconBg: "bg-violet-500/10 dark:bg-violet-500/20"
+    iconBg: "bg-violet-500/[0.1] dark:bg-violet-500/[0.15]",
+    iconColor: "text-violet-500"
   },
   {
     id: "notification",
@@ -179,7 +184,8 @@ const agentTemplates = [
     icon: Bell,
     category: "reminders",
     color: "from-cyan-500 to-sky-500",
-    iconBg: "bg-cyan-500/10 dark:bg-cyan-500/20"
+    iconBg: "bg-cyan-500/[0.1] dark:bg-cyan-500/[0.15]",
+    iconColor: "text-cyan-500"
   }
 ];
 
@@ -393,8 +399,8 @@ export default function Dashboard() {
               >
                 <CardContent className="p-5">
                   <div className="flex items-start gap-4">
-                    <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${template.color} flex items-center justify-center flex-shrink-0`}>
-                      <template.icon className="h-5 w-5 text-white" />
+                    <div className={`h-11 w-11 rounded-2xl ${template.iconBg} flex items-center justify-center flex-shrink-0`}>
+                      <template.icon className={`h-5 w-5 ${template.iconColor}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-foreground mb-1 tracking-tight">
@@ -607,15 +613,15 @@ export default function Dashboard() {
                       <Tooltip 
                         contentStyle={{ 
                           backgroundColor: 'var(--glass-bg-heavy)', 
-                          backdropFilter: 'blur(20px)',
+                          backdropFilter: 'blur(20px) saturate(180%)',
                           border: '1px solid var(--glass-border)',
-                          borderRadius: '12px',
+                          borderRadius: '16px',
                           fontSize: '12px',
-                          boxShadow: 'var(--glass-shadow)'
+                          boxShadow: 'var(--glass-shadow-lg)'
                         }} 
                       />
                       <Area 
-                        type="monotone" 
+                        type="natural" 
                         dataKey="Incoming" 
                         stroke="#10b981" 
                         fillOpacity={1} 
@@ -623,7 +629,7 @@ export default function Dashboard() {
                         strokeWidth={2}
                       />
                       <Area 
-                        type="monotone" 
+                        type="natural" 
                         dataKey="Outgoing" 
                         stroke="#3b82f6" 
                         fillOpacity={1} 

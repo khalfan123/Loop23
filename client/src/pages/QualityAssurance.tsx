@@ -114,8 +114,10 @@ function IssueCard({ icon: Icon, label, count, total }: { icon: any; label: stri
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
   
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40">
-      <Icon className="w-5 h-5 text-muted-foreground" />
+    <div className="flex items-center gap-3 p-3 glass-surface rounded-2xl border border-border/40">
+      <div className="rounded-2xl bg-primary-500/[0.08] dark:bg-primary-500/[0.15] p-2">
+        <Icon className="w-5 h-5 text-muted-foreground" />
+      </div>
       <div className="flex-1">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm font-medium">{label}</span>
@@ -208,8 +210,10 @@ export default function QualityAssurance() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
-            <ShieldCheck className="w-6 h-6 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2" data-testid="text-page-title">
+            <div className="rounded-2xl bg-blue-500/[0.08] dark:bg-blue-500/[0.15] p-2">
+              <ShieldCheck className="w-6 h-6 text-primary" />
+            </div>
             {t('qa.title', 'AI Quality Assurance')}
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -243,7 +247,7 @@ export default function QualityAssurance() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="glass-surface rounded-2xl">
           <TabsTrigger value="dashboard" data-testid="tab-dashboard">
             <BarChart3 className="w-4 h-4 mr-2" /> Dashboard
           </TabsTrigger>
@@ -272,59 +276,67 @@ export default function QualityAssurance() {
           ) : stats ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card data-testid="card-total-analyzed">
+                <Card className="glass-card rounded-2xl" data-testid="card-total-analyzed">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Total Analyzed</p>
-                        <p className="text-3xl font-bold">{stats.totalAnalyzed}</p>
+                        <p className="text-3xl font-bold tracking-tight">{stats.totalAnalyzed}</p>
                       </div>
-                      <BarChart3 className="w-10 h-10 text-primary opacity-20" />
+                      <div className="rounded-2xl bg-blue-500/[0.08] dark:bg-blue-500/[0.15] p-3">
+                        <BarChart3 className="w-7 h-7 text-primary" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
                 
-                <Card data-testid="card-avg-score">
+                <Card className="glass-card rounded-2xl" data-testid="card-avg-score">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Average Score</p>
-                        <p className="text-3xl font-bold">{stats.averageScore}%</p>
+                        <p className="text-3xl font-bold tracking-tight">{stats.averageScore}%</p>
                       </div>
-                      <TrendingUp className="w-10 h-10 text-green-500 opacity-20" />
+                      <div className="rounded-2xl bg-green-500/[0.08] dark:bg-green-500/[0.15] p-3">
+                        <TrendingUp className="w-7 h-7 text-green-500" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
                 
-                <Card data-testid="card-resolution-rate">
+                <Card className="glass-card rounded-2xl" data-testid="card-resolution-rate">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Resolution Rate</p>
-                        <p className="text-3xl font-bold">{stats.resolutionRate}%</p>
+                        <p className="text-3xl font-bold tracking-tight">{stats.resolutionRate}%</p>
                       </div>
-                      <CheckCircle2 className="w-10 h-10 text-green-500 opacity-20" />
+                      <div className="rounded-2xl bg-green-500/[0.08] dark:bg-green-500/[0.15] p-3">
+                        <CheckCircle2 className="w-7 h-7 text-green-500" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
                 
-                <Card data-testid="card-pending">
+                <Card className="glass-card rounded-2xl" data-testid="card-pending">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Pending Analysis</p>
-                        <p className="text-3xl font-bold">{pendingData?.count || 0}</p>
+                        <p className="text-3xl font-bold tracking-tight">{pendingData?.count || 0}</p>
                       </div>
-                      <Clock className="w-10 h-10 text-yellow-500 opacity-20" />
+                      <div className="rounded-2xl bg-yellow-500/[0.08] dark:bg-yellow-500/[0.15] p-3">
+                        <Clock className="w-7 h-7 text-yellow-500" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
+                <Card className="glass-card rounded-2xl">
                   <CardHeader>
-                    <CardTitle>Issue Detection</CardTitle>
+                    <CardTitle className="tracking-tight">Issue Detection</CardTitle>
                     <CardDescription>Common issues found in analyzed calls</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -355,9 +367,9 @@ export default function QualityAssurance() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="glass-card rounded-2xl">
                   <CardHeader>
-                    <CardTitle>Recent Analyses</CardTitle>
+                    <CardTitle className="tracking-tight">Recent Analyses</CardTitle>
                     <CardDescription>Latest quality assessments</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -372,7 +384,7 @@ export default function QualityAssurance() {
                         {stats.recentAnalyses.slice(0, 5).map((analysis) => (
                           <div 
                             key={analysis.id}
-                            className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover-elevate cursor-pointer"
+                            className="flex items-center justify-between p-3 glass-surface rounded-2xl border border-border/30 hover-elevate cursor-pointer"
                             onClick={() => setSelectedAnalysis(analysis)}
                             data-testid={`analysis-row-${analysis.id}`}
                           >
@@ -397,7 +409,7 @@ export default function QualityAssurance() {
             <Card>
               <CardContent className="p-12 text-center">
                 <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-                <h3 className="text-lg font-semibold mb-2">No QA Data Yet</h3>
+                <h3 className="text-lg font-semibold tracking-tight mb-2">No QA Data Yet</h3>
                 <p className="text-muted-foreground mb-4">Start analyzing your calls to see quality insights</p>
                 {pendingData && pendingData.count > 0 && (
                   <Button onClick={handleAnalyzeAll} disabled={batchAnalyzeMutation.isPending}>
@@ -411,9 +423,9 @@ export default function QualityAssurance() {
         </TabsContent>
 
         <TabsContent value="analyses" className="mt-6">
-          <Card>
+          <Card className="glass-card rounded-2xl">
             <CardHeader>
-              <CardTitle>Analyzed Calls</CardTitle>
+              <CardTitle className="tracking-tight">Analyzed Calls</CardTitle>
               <CardDescription>All completed quality assessments</CardDescription>
             </CardHeader>
             <CardContent>
@@ -483,9 +495,9 @@ export default function QualityAssurance() {
         </TabsContent>
 
         <TabsContent value="pending" className="mt-6">
-          <Card>
+          <Card className="glass-card rounded-2xl">
             <CardHeader>
-              <CardTitle>Pending Analysis</CardTitle>
+              <CardTitle className="tracking-tight">Pending Analysis</CardTitle>
               <CardDescription>Calls waiting for quality assessment</CardDescription>
             </CardHeader>
             <CardContent>
@@ -554,7 +566,7 @@ export default function QualityAssurance() {
       <Dialog open={!!selectedAnalysis} onOpenChange={() => setSelectedAnalysis(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Call Quality Analysis</DialogTitle>
+            <DialogTitle className="tracking-tight">Call Quality Analysis</DialogTitle>
             <DialogDescription>
               Detailed breakdown of call performance
             </DialogDescription>
@@ -573,7 +585,7 @@ export default function QualityAssurance() {
                 <ScoreCircle score={selectedAnalysis.performanceScore} label="Performance" size="sm" />
               </div>
 
-              <div className="p-4 rounded-lg bg-muted/50">
+              <div className="p-4 glass-surface rounded-2xl border border-border/30">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium">Resolution Status</span>
                   {getResolutionBadge(selectedAnalysis.resolutionStatus)}
@@ -584,7 +596,7 @@ export default function QualityAssurance() {
               </div>
 
               <div>
-                <h4 className="font-medium mb-3">Issues Detected</h4>
+                <h4 className="font-medium tracking-tight mb-3">Issues Detected</h4>
                 <div className="flex flex-wrap gap-2">
                   {selectedAnalysis.hasHallucinations && (
                     <Badge variant="destructive">Hallucinations Detected</Badge>
@@ -613,10 +625,10 @@ export default function QualityAssurance() {
 
               {selectedAnalysis.keyMoments && selectedAnalysis.keyMoments.length > 0 && (
                 <div>
-                  <h4 className="font-medium mb-3">Key Moments</h4>
+                  <h4 className="font-medium tracking-tight mb-3">Key Moments</h4>
                   <div className="space-y-2">
                     {selectedAnalysis.keyMoments.map((moment: any, idx: number) => (
-                      <div key={idx} className="p-2 rounded bg-muted/30 text-sm">
+                      <div key={idx} className="p-2 glass-surface rounded-2xl border border-border/30 text-sm">
                         <Badge variant="outline" className="mr-2">{moment.type}</Badge>
                         {moment.description}
                       </div>

@@ -934,7 +934,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     if (canProceed(currentStep) && currentStep < 6) {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
-      if (nextStep === 5 && !greetingMessage.trim() && !generateGreetingMutation.isPending) {
+      if (nextStep === 5 && !generateGreetingMutation.isPending) {
         generateGreetingMutation.mutate();
       }
     }

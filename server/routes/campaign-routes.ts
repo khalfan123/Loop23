@@ -123,50 +123,72 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
       });
 
-      let contextPrompt = "";
+      const agentIdentity = agentName || 'the agent';
+      const company = companyName || '';
+
+      let purposeLine = '';
       if (useCase && useCaseDescription) {
-        contextPrompt = `The use case is "${useCase}": ${useCaseDescription}`;
-      } else if (callType === "flow_template") {
-        contextPrompt = "This is a flow-based calling campaign that follows scripted conversation steps with branching logic.";
-      } else if (callType === "dynamic_form") {
-        contextPrompt = "This is a data collection campaign where the AI agent collects information from contacts using a dynamic form.";
+        purposeLine = `USE CASE: "${useCase}" — ${useCaseDescription}. The greeting MUST state this specific purpose of calling.`;
+      } else if (productOrService) {
+        purposeLine = `The agent is calling about: ${productOrService}. The greeting MUST mention what they're calling about.`;
       } else {
-        contextPrompt = "This is a general calling campaign.";
+        purposeLine = `This is a general outbound call. The greeting should mention a clear reason for calling.`;
       }
 
-      let identityPrompt = "";
-      if (agentName && companyName) {
-        identityPrompt = `The AI agent's name is "${agentName}" and they are calling on behalf of "${companyName}". The greeting MUST introduce the agent by name and mention the company naturally, as if the agent is a real person making the call.`;
-      } else if (agentName) {
-        identityPrompt = `The AI agent's name is "${agentName}". The greeting MUST introduce the agent by name, as if they are a real person making the call.`;
-      } else if (companyName) {
-        identityPrompt = `The agent is calling on behalf of "${companyName}". The greeting MUST mention the company name naturally.`;
-      }
-
-      let personalizationNote = '';
-      if (contactName) {
-        personalizationNote = ` Use the template variable {{firstName}} where you'd address the contact by name (it will be substituted with their real name at call time).`;
-      }
-
-      let productNote = '';
-      if (productOrService) {
-        productNote = ` The agent is calling about: ${productOrService}.`;
-      }
+      let personalizationNote = ' Always start with "Hi {{firstName}}" — this placeholder gets replaced with the real name at call time.';
 
       const langInstruction = language && language !== 'en'
         ? ` Generate the greeting in the language matching the code "${language}" (e.g. es=Spanish, fr=French, de=German, etc.).`
         : '';
+
+      const useCaseExamples: Record<string, string> = {
+        'appointment': `Hi {{firstName}}, this is ${agentIdentity}${company ? ` from ${company}` : ''}. I'm calling to schedule an appointment with you — do you have a quick moment?`,
+        'survey': `Hi {{firstName}}, this is ${agentIdentity}${company ? ` from ${company}` : ''}. We'd love your feedback on a quick survey — do you have a couple of minutes?`,
+        'collections': `Hi {{firstName}}, this is ${agentIdentity}${company ? ` from ${company}` : ''}. I'm calling regarding your account balance — do you have a moment to discuss?`,
+        'sales': `Hi {{firstName}}, this is ${agentIdentity}${company ? ` from ${company}` : ''}. I'm reaching out because we have something that could really benefit you — got a quick minute?`,
+        'support': `Hi {{firstName}}, this is ${agentIdentity}${company ? ` from ${company}` : ''}. I'm following up on your recent request — is now a good time to chat?`,
+        'default': `Hi {{firstName}}, this is ${agentIdentity}${company ? ` from ${company}` : ''}. I'm calling about [purpose] — can I have a moment of your time?`,
+      };
+
+      let styleExample = useCaseExamples['default'];
+      if (useCase) {
+        const lcUseCase = useCase.toLowerCase();
+        if (lcUseCase.includes('appointment') || lcUseCase.includes('booking') || lcUseCase.includes('schedule')) {
+          styleExample = useCaseExamples['appointment'];
+        } else if (lcUseCase.includes('survey') || lcUseCase.includes('feedback') || lcUseCase.includes('nps')) {
+          styleExample = useCaseExamples['survey'];
+        } else if (lcUseCase.includes('collect') || lcUseCase.includes('payment') || lcUseCase.includes('past due') || lcUseCase.includes('invoice')) {
+          styleExample = useCaseExamples['collections'];
+        } else if (lcUseCase.includes('lead') || lcUseCase.includes('sales') || lcUseCase.includes('demo') || lcUseCase.includes('upsell') || lcUseCase.includes('offer')) {
+          styleExample = useCaseExamples['sales'];
+        } else if (lcUseCase.includes('support') || lcUseCase.includes('follow') || lcUseCase.includes('inquiry') || lcUseCase.includes('complaint')) {
+          styleExample = useCaseExamples['support'];
+        }
+      }
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: `You are writing the opening line for an AI phone agent who sounds like a real person. The greeting MUST clearly state the PURPOSE of the call based on the use case — for example, if the use case is about booking appointments, say you're calling to book an appointment; if it's about a survey, say you're calling for a quick survey; if it's sales, mention the product/offer. The greeting should feel human, warm, and conversational — like a friendly colleague calling, not a robot or call center script. The agent should naturally introduce themselves by name and their company if provided. Keep it to 2-3 short sentences: introduce yourself, state the call purpose, and ask if they have a moment. Use natural speech patterns — contractions, casual tone, slight warmth. Do not use quotes around the message. Only output the greeting text, nothing else.${personalizationNote}${productNote}${langInstruction}`
+            content: `You write the FIRST LINE an outbound AI phone agent says when the person picks up. This is an OUTBOUND call — the agent called THEM, not the other way around.
+
+STRICT RULES:
+1. Start with "Hi {{firstName}}" (this is a template variable, use it exactly)
+2. Introduce the agent by name${company ? ` and company "${company}"` : ''}
+3. State the SPECIFIC REASON for calling based on the use case (e.g. "I'm calling to book an appointment", "I'm calling about your account balance", "I'm calling to share an exciting offer")
+4. End with a polite ask for their time (e.g. "can I have a moment?", "do you have a quick minute?", "is now a good time?")
+5. Keep it 2-3 sentences MAX — natural and conversational
+6. NEVER say "How can I assist you?" or "How can I help?" — YOU called THEM, you know why you're calling
+7. NEVER use quotes around the output
+
+Style example for reference: "${styleExample}"${personalizationNote}${langInstruction}
+
+Only output the greeting text. Nothing else.`
           },
           {
             role: "user",
-            content: `Generate a personalized greeting message for a calling campaign${campaignName ? ` called "${campaignName}"` : ''}. ${identityPrompt} ${contextPrompt}`
+            content: `Generate an outbound calling greeting. Agent name: "${agentIdentity}"${company ? `, Company: "${company}"` : ''}. ${purposeLine}`
           }
         ],
         max_completion_tokens: 150,

@@ -2408,7 +2408,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   );
 
   return (
-    <div className="flex flex-col -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6" style={{ height: 'calc(100vh - 48px)', minHeight: '400px' }}>
+    <div className="flex flex-col relative -m-6 overflow-hidden" style={{ width: 'calc(100% + 3rem)', height: 'calc(100dvh - 48px)' }}>
       <div className="flex items-center px-2 sm:px-3 py-1.5 border-b bg-background gap-1.5 flex-shrink-0">
         <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 flex-shrink-0" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
           <ArrowLeft className="h-3.5 w-3.5" />

@@ -62,6 +62,8 @@ const bargeInFlags: Map<string, boolean> = new Map();
 
 const noResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 const callerHasSpoken: Map<string, boolean> = new Map();
+const inboundHallucinationCount: Map<string, number> = new Map();
+const inboundNoResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
 const bargeInAccum: Map<string, number> = new Map();
 
@@ -375,6 +377,18 @@ export class BedrockPollyAudioBridge {
       openingPhaseEnd.set(newKey, opEnd);
     }
 
+    const hallucCount = inboundHallucinationCount.get(oldKey);
+    if (hallucCount !== undefined) {
+      inboundHallucinationCount.delete(oldKey);
+      inboundHallucinationCount.set(newKey, hallucCount);
+    }
+
+    const inbNrTimer = inboundNoResponseTimers.get(oldKey);
+    if (inbNrTimer) {
+      inboundNoResponseTimers.delete(oldKey);
+      inboundNoResponseTimers.set(newKey, inbNrTimer);
+    }
+
     const marks = pendingMarks.get(oldKey);
     if (marks) {
       pendingMarks.delete(oldKey);
@@ -619,7 +633,8 @@ export class BedrockPollyAudioBridge {
 
     const isOpeningPhase = session.isOutbound && !callerHasSpoken.get(callSid);
     const isEarlyConversation = session.isOutbound && session.messages.filter(m => m.role === 'user').length < 2;
-    const minRequired = isOpeningPhase ? Math.floor(this.MIN_AUDIO_LENGTH * 0.3) : (isEarlyConversation ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH);
+    const isInboundEarlyConversation = !session.isOutbound && session.messages.filter(m => m.role === 'user').length < 2;
+    const minRequired = isOpeningPhase ? Math.floor(this.MIN_AUDIO_LENGTH * 0.3) : ((isEarlyConversation || isInboundEarlyConversation) ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH);
     console.log(`[BedrockPolly Bridge] onSilenceDetected for ${callSid}: bufferSize=${totalLength}b, minRequired=${minRequired}b, callerHasSpoken=${callerHasSpoken.get(callSid)}${isOpeningPhase ? ' (opening phase - relaxed threshold)' : ''}`);
 
     if (totalLength < minRequired) {
@@ -631,6 +646,14 @@ export class BedrockPollyAudioBridge {
           clearTimeout(nrTimer);
           noResponseTimers.delete(callSid);
           console.log(`[BedrockPolly Bridge] Short speech detected during opening — cancelled no-response timer for ${callSid}`);
+        }
+      }
+      if (!session.isOutbound && totalLength > 0) {
+        const inbNrTimer = inboundNoResponseTimers.get(callSid);
+        if (inbNrTimer) {
+          clearTimeout(inbNrTimer);
+          inboundNoResponseTimers.delete(callSid);
+          console.log(`[BedrockPolly Bridge] Short inbound speech detected — cancelled inbound no-response timer for ${callSid}`);
         }
       }
       audioBuffers.set(callSid, []);
@@ -765,10 +788,46 @@ export class BedrockPollyAudioBridge {
       if (this.isWhisperHallucination(transcription)) {
         console.log(`[BedrockPolly Bridge] Filtered Whisper hallucination for ${callSid}: "${transcription.substring(0, 100)}"`);
         session.isProcessing = false;
+
+        if (!session.isOutbound) {
+          const existingInbTimer = inboundNoResponseTimers.get(callSid);
+          if (existingInbTimer) {
+            clearTimeout(existingInbTimer);
+            inboundNoResponseTimers.delete(callSid);
+            console.log(`[BedrockPolly Bridge] Cleared inbound no-response timer on hallucination filter for ${callSid}`);
+          }
+
+          const count = (inboundHallucinationCount.get(callSid) || 0) + 1;
+          inboundHallucinationCount.set(callSid, count);
+
+          if (count <= 2) {
+            const lang = session.agentConfig.language || 'en';
+            const reprompts: Record<string, string> = {
+              en: "I'm here. Please go ahead.",
+              ar: "أنا هنا، تفضل.",
+              es: "Estoy aquí. Adelante, por favor.",
+              fr: "Je suis là. Allez-y, s'il vous plaît.",
+              hi: "मैं यहाँ हूँ। कृपया बताइए।",
+            };
+            const reprompt = reprompts[lang] || reprompts['en'];
+            console.log(`[BedrockPolly Bridge] Inbound hallucination re-prompt #${count} for ${callSid}: "${reprompt}"`);
+            this.synthesizeAndSend(session, reprompt).catch(err => {
+              console.error(`[BedrockPolly Bridge] Error sending hallucination re-prompt for ${callSid}:`, err);
+            });
+          }
+        }
+
         return;
       }
 
       console.log(`[BedrockPolly Bridge] User: "${transcription.substring(0, 200)}"`);
+
+      const inboundNrTimer = inboundNoResponseTimers.get(callSid);
+      if (inboundNrTimer) {
+        clearTimeout(inboundNrTimer);
+        inboundNoResponseTimers.delete(callSid);
+        console.log(`[BedrockPolly Bridge] Cancelled inbound no-response timer for ${callSid} — user spoke`);
+      }
 
       session.transcriptParts.push({
         role: 'user',
@@ -2285,6 +2344,102 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     bargeInFlags.set(callSid, false);
 
     console.log(`[BedrockPolly Bridge] Inbound greeting finished for ${callSid} — now listening`);
+
+    const INBOUND_NO_RESPONSE_MS = 8000;
+    const INBOUND_FINAL_TIMEOUT_MS = 12000;
+
+    const inboundFollowUpTimer = setTimeout(async () => {
+      inboundNoResponseTimers.delete(callSid);
+
+      const currentSession = this.activeSessions.get(callSid);
+      if (!currentSession || currentSession.status === 'disconnected') return;
+
+      const hasUserTurn = currentSession.messages.some(m => m.role === 'user');
+      if (hasUserTurn) return;
+
+      console.log(`[BedrockPolly Bridge] Inbound no response after greeting for ${callSid} — sending follow-up`);
+
+      const lang = agentConfig.language || 'en';
+      const followUps: Record<string, string> = {
+        en: "I'm still here. How can I help you?",
+        ar: "أنا لا زلت هنا، كيف يمكنني مساعدتك؟",
+        es: "Sigo aquí. ¿En qué puedo ayudarle?",
+        fr: "Je suis toujours là. Comment puis-je vous aider ?",
+        hi: "मैं अभी भी यहाँ हूँ। मैं आपकी कैसे मदद कर सकता हूँ?",
+      };
+      const followUp = followUps[lang] || followUps['en'];
+
+      currentSession.transcriptParts.push({
+        role: 'assistant',
+        text: followUp,
+        timestamp: new Date(),
+      });
+
+      currentSession.messages.push({
+        role: 'assistant',
+        content: followUp,
+        timestamp: new Date(),
+      });
+
+      if (currentSession.onTranscriptCallback) {
+        currentSession.onTranscriptCallback(followUp, true);
+      }
+
+      await this.synthesizeAndSend(currentSession, followUp);
+
+      console.log(`[BedrockPolly Bridge] Inbound follow-up sent for ${callSid} — waiting for response`);
+
+      const inboundFinalTimer = setTimeout(async () => {
+        inboundNoResponseTimers.delete(callSid);
+
+        const sess = this.activeSessions.get(callSid);
+        if (!sess || sess.status === 'disconnected') return;
+
+        const hasUserResponse = sess.messages.some(m => m.role === 'user');
+        if (hasUserResponse) return;
+
+        console.log(`[BedrockPolly Bridge] Inbound still no response for ${callSid} — saying goodbye`);
+
+        const goodbyes: Record<string, string> = {
+          en: "It seems like you're not available right now. Feel free to call back anytime. Goodbye!",
+          ar: "يبدو أنك غير متاح حالياً. لا تتردد في الاتصال بنا مرة أخرى. مع السلامة!",
+          es: "Parece que no está disponible en este momento. No dude en llamar de nuevo. ¡Adiós!",
+          fr: "Il semble que vous ne soyez pas disponible pour le moment. N'hésitez pas à rappeler. Au revoir !",
+          hi: "लगता है आप अभी उपलब्ध नहीं हैं। कभी भी वापस कॉल करें। अलविदा!",
+        };
+        const goodbye = goodbyes[lang] || goodbyes['en'];
+
+        sess.transcriptParts.push({
+          role: 'assistant',
+          text: goodbye,
+          timestamp: new Date(),
+        });
+
+        if (sess.onTranscriptCallback) {
+          sess.onTranscriptCallback(goodbye, true);
+        }
+
+        await this.synthesizeAndSend(sess, goodbye);
+
+        setTimeout(async () => {
+          const hangupSess = this.activeSessions.get(callSid);
+          if (!hangupSess || hangupSess.status === 'disconnected') return;
+
+          const hasResponse = hangupSess.messages.some(m => m.role === 'user');
+          if (hasResponse) return;
+
+          console.log(`[BedrockPolly Bridge] Inbound graceful hangup for ${callSid}`);
+          try {
+            const twilioClient = await getTwilioClient();
+            await twilioClient.calls(callSid).update({ status: 'completed' });
+          } catch (hangupErr: any) {
+            console.error(`[BedrockPolly Bridge] Error during inbound hangup for ${callSid}: ${hangupErr.message}`);
+          }
+        }, 3000);
+      }, INBOUND_FINAL_TIMEOUT_MS);
+      inboundNoResponseTimers.set(callSid, inboundFinalTimer);
+    }, INBOUND_NO_RESPONSE_MS);
+    inboundNoResponseTimers.set(callSid, inboundFollowUpTimer);
   }
 
   /**
@@ -2345,6 +2500,12 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         noResponseTimers.delete(callSid);
       }
       callerHasSpoken.delete(callSid);
+      inboundHallucinationCount.delete(callSid);
+      const inboundNrTimer = inboundNoResponseTimers.get(callSid);
+      if (inboundNrTimer) {
+        clearTimeout(inboundNrTimer);
+        inboundNoResponseTimers.delete(callSid);
+      }
       RealtimeSentimentService.resetCall(callSid);
     } catch (cleanupErr: any) {
       console.error(`[BedrockPolly Bridge] Timer/buffer cleanup error for ${callSid}: ${cleanupErr.message}`);

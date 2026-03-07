@@ -41,6 +41,12 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Email**: SMTP.
 
 ## Recent Fixes
+- **Deprock Inbound Agent Response Fix (Mar 2026)**: Fixed inbound Deprock IVR calls where the AI agent would go silent after greeting:
+  - Relaxed minimum audio buffer threshold (6400b → 3200b) for inbound calls during early conversation (< 2 user turns), allowing shorter Arabic phrases to be captured
+  - Added inbound-specific re-prompt after Whisper hallucination filtering — agent now says "I'm here, please go ahead" (language-aware) instead of going silent, up to 2 times
+  - Added inbound no-response timer: 8s follow-up prompt after greeting if no valid speech, then 12s graceful goodbye and hangup if still no response
+  - Cancels inbound timers on any detected speech (even if too short or filtered) to prevent premature hangup
+  - Properly cleans up new maps (`inboundHallucinationCount`, `inboundNoResponseTimers`) in `endSession` and `remapSession`
 - **Widget Language + Flow Agent Fixes (Feb 2026)**: Fixed multiple widget issues:
   - Fixed null crash in ephemeral-token endpoint when agent is null (OpenAI path `agent?.openaiModel`)
   - Widget now passes selected language to ElevenLabs via `conversation_initiation_client_data` with language override

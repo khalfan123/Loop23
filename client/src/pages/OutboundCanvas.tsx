@@ -78,6 +78,7 @@ import {
   Tag,
   Package,
   Pencil,
+  PhoneOff,
 } from "lucide-react";
 import { FORM_TEMPLATES, FORM_TEMPLATE_CATEGORIES, type FormTemplate } from "@/data/form-templates";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -149,7 +150,11 @@ interface PhoneNumber {
   id: string;
   phoneNumber: string;
   friendlyName: string | null;
-  provider: string;
+  country: string;
+  numberType: string | null;
+  capabilities: unknown;
+  status: string;
+  isSystemPool: boolean;
 }
 
 interface Agent {
@@ -918,11 +923,23 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     }
   };
 
+  const isOutboundCapable = (phone: PhoneNumber) => {
+    if (phone.status && phone.status !== 'active') return false;
+    if (phone.isSystemPool) return false;
+    const caps = phone.capabilities as any;
+    if (caps && caps.voice === false) return false;
+    return true;
+  };
+
   const canProceed = (step: number) => {
     switch (step) {
       case 1: return true;
       case 2: return selectedContactIds.length > 0;
-      case 3: return selectedPhoneId !== null;
+      case 3: {
+        if (!selectedPhoneId) return false;
+        const phone = phoneNumbers.find(p => p.id === selectedPhoneId);
+        return phone ? isOutboundCapable(phone) : false;
+      }
       case 4: return selectedAgentId !== null;
       case 5: return true;
       case 6: return campaignName.trim().length > 0;
@@ -1429,47 +1446,71 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
       </div>
 
       {phonesLoading ? (
-        <div className="space-y-3 w-full max-w-2xl mx-auto">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
+        <div className="space-y-2 w-full max-w-2xl mx-auto">
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
         </div>
       ) : phoneNumbers.length === 0 ? (
-        <div className="text-center py-8">
-          <Phone className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground mb-3">No phone numbers available. Purchase one first.</p>
+        <div className="text-center py-6">
+          <Phone className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground mb-2">No phone numbers available.</p>
           <Button variant="outline" size="sm" onClick={() => setLocation("/app/phone-numbers")} data-testid="button-buy-numbers">
             <Plus className="h-4 w-4 mr-1" />
             Buy Phone Number
           </Button>
         </div>
       ) : (
-        <div className="w-full max-w-2xl mx-auto grid gap-2 grid-cols-1 sm:grid-cols-2">
+        <div className="w-full max-w-2xl mx-auto grid gap-1.5 grid-cols-1 sm:grid-cols-2">
           {phoneNumbers.map((phone) => {
             const isSelected = selectedPhoneId === phone.id;
+            const canOutbound = isOutboundCapable(phone);
+            const caps = phone.capabilities as any;
+            let disabledReason = '';
+            if (!canOutbound) {
+              if (phone.status !== 'active') disabledReason = 'Inactive';
+              else if (phone.isSystemPool) disabledReason = 'Shared pool';
+              else if (caps && caps.voice === false) disabledReason = 'No voice';
+            }
             return (
               <Card
                 key={phone.id}
-                className={`cursor-pointer transition-colors ${
-                  isSelected ? "border-primary bg-primary/5" : "hover:bg-accent/50"
+                className={`transition-colors ${
+                  !canOutbound
+                    ? "opacity-40 cursor-not-allowed border-dashed"
+                    : isSelected
+                    ? "border-primary bg-primary/5 cursor-pointer"
+                    : "hover:border-primary/50 cursor-pointer"
                 }`}
-                onClick={() => setSelectedPhoneId(phone.id)}
+                onClick={() => canOutbound && setSelectedPhoneId(phone.id)}
                 data-testid={`card-phone-${phone.id}`}
               >
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className={`flex items-center justify-center h-8 w-8 rounded-md ${
-                    isSelected ? "bg-primary text-primary-foreground" : "bg-green-100 dark:bg-green-900/30"
+                <CardContent className="p-2.5 flex items-center gap-2.5">
+                  <div className={`flex items-center justify-center h-7 w-7 rounded-md flex-shrink-0 ${
+                    !canOutbound
+                      ? "bg-muted text-muted-foreground"
+                      : isSelected
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-green-100 dark:bg-green-900/30"
                   }`}>
-                    {isSelected ? (
-                      <Check className="h-4 w-4" />
+                    {!canOutbound ? (
+                      <PhoneOff className="h-3.5 w-3.5" />
+                    ) : isSelected ? (
+                      <Check className="h-3.5 w-3.5" />
                     ) : (
-                      <Phone className="h-4 w-4 text-green-600" />
+                      <Phone className="h-3.5 w-3.5 text-green-600" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{phone.phoneNumber}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                      <span>{phone.provider}</span>
-                      {phone.friendlyName && <span>{phone.friendlyName}</span>}
+                    <div className={`font-medium text-sm truncate ${!canOutbound ? 'line-through' : ''}`}>{phone.phoneNumber}</div>
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                      {phone.numberType && <span className="capitalize">{phone.numberType}</span>}
+                      {phone.country && <span>{phone.country}</span>}
+                      {phone.friendlyName && <span className="truncate">{phone.friendlyName}</span>}
+                      {disabledReason && (
+                        <Badge variant="destructive" className="text-[9px] font-normal">
+                          {disabledReason}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -2219,7 +2260,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 <div className="flex items-center gap-2">
                   <Phone className="h-3.5 w-3.5 text-green-600" />
                   <span className="text-sm">{selectedPhone.phoneNumber}</span>
-                  <span className="text-xs text-muted-foreground">({selectedPhone.provider})</span>
+                  {selectedPhone.numberType && <span className="text-xs text-muted-foreground capitalize">({selectedPhone.numberType})</span>}
                 </div>
               )}
             </div>

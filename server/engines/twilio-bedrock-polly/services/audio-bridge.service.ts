@@ -63,6 +63,7 @@ const callerHasSpoken: Map<string, boolean> = new Map();
 const bargeInAccum: Map<string, number> = new Map();
 
 const playingGreeting: Map<string, boolean> = new Map();
+const greetingMarkCallbacks: Map<string, () => void> = new Map();
 
 const openingPhaseEnd: Map<string, number> = new Map();
 
@@ -359,6 +360,12 @@ export class BedrockPollyAudioBridge {
       playingGreeting.set(newKey, greeting);
     }
 
+    const greetCb = greetingMarkCallbacks.get(oldKey);
+    if (greetCb) {
+      greetingMarkCallbacks.delete(oldKey);
+      greetingMarkCallbacks.set(newKey, greetCb);
+    }
+
     const opEnd = openingPhaseEnd.get(oldKey);
     if (opEnd !== undefined) {
       openingPhaseEnd.delete(oldKey);
@@ -568,6 +575,15 @@ export class BedrockPollyAudioBridge {
             marks.delete(event.mark.name);
           }
           console.log(`[BedrockPolly Bridge] Mark acknowledged: ${event.mark.name} for ${callSid}`);
+
+          if (event.mark.name === 'greeting_playback_complete') {
+            const cb = greetingMarkCallbacks.get(callSid);
+            if (cb) {
+              greetingMarkCallbacks.delete(callSid);
+              console.log(`[BedrockPolly Bridge] Greeting playback confirmed by Twilio for ${callSid} — starting no-response timer`);
+              cb();
+            }
+          }
         }
         break;
 
@@ -606,6 +622,7 @@ export class BedrockPollyAudioBridge {
     if (totalLength < minRequired) {
       if (isOpeningPhase && totalLength > 0) {
         callerHasSpoken.set(callSid, true);
+        greetingMarkCallbacks.delete(callSid);
         const nrTimer = noResponseTimers.get(callSid);
         if (nrTimer) {
           clearTimeout(nrTimer);
@@ -619,6 +636,7 @@ export class BedrockPollyAudioBridge {
 
     if (session.isOutbound && !callerHasSpoken.get(callSid)) {
       callerHasSpoken.set(callSid, true);
+      greetingMarkCallbacks.delete(callSid);
       const nrTimer = noResponseTimers.get(callSid);
       if (nrTimer) {
         clearTimeout(nrTimer);
@@ -2051,15 +2069,25 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     await this.synthesizeAndSend(session, agentConfig.firstMessage);
 
+    if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
+      session.twilioWs.send(JSON.stringify({
+        event: 'mark',
+        streamSid: session.streamSid,
+        mark: { name: 'greeting_playback_complete' },
+      }));
+    }
+
     playingGreeting.set(callSid, false);
     audioBuffers.set(callSid, []);
     bufferStartTimes.delete(callSid);
 
     openingPhaseEnd.set(callSid, Date.now() + this.OPENING_PHASE_DURATION_MS);
 
-    console.log(`[BedrockPolly Bridge] Greeting finished for ${callSid} — opening phase active (${this.OPENING_PHASE_DURATION_MS}ms), now listening`);
+    console.log(`[BedrockPolly Bridge] Greeting sent for ${callSid} — waiting for Twilio playback confirmation before starting no-response timer`);
 
-    const followUpTimer = setTimeout(async () => {
+    const startNoResponseTimer = () => {
+      console.log(`[BedrockPolly Bridge] Greeting playback done for ${callSid} — opening phase active, now listening`);
+      const followUpTimer = setTimeout(async () => {
       noResponseTimers.delete(callSid);
       if (callerHasSpoken.get(callSid)) return;
 
@@ -2177,8 +2205,20 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         noResponseTimers.set(callSid, hangupTimer);
       }, this.FOLLOW_UP_TIMEOUT_MS);
       noResponseTimers.set(callSid, finalCheckTimer);
-    }, this.NO_RESPONSE_TIMEOUT_MS);
-    noResponseTimers.set(callSid, followUpTimer);
+      }, this.NO_RESPONSE_TIMEOUT_MS);
+      noResponseTimers.set(callSid, followUpTimer);
+    };
+
+    greetingMarkCallbacks.set(callSid, startNoResponseTimer);
+
+    setTimeout(() => {
+      const cb = greetingMarkCallbacks.get(callSid);
+      if (cb) {
+        greetingMarkCallbacks.delete(callSid);
+        console.log(`[BedrockPolly Bridge] Greeting mark timeout for ${callSid} — starting no-response timer (fallback)`);
+        cb();
+      }
+    }, 15000);
   }
 
   private static async sendInboundGreeting(session: BedrockPollyBridgeSession): Promise<void> {
@@ -2262,6 +2302,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       bargeInFlags.delete(callSid);
       bargeInAccum.delete(callSid);
       playingGreeting.delete(callSid);
+      greetingMarkCallbacks.delete(callSid);
       openingPhaseEnd.delete(callSid);
       twilioStreamReady.delete(callSid);
       speechActive.delete(callSid);

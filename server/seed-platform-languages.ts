@@ -1,7 +1,7 @@
 /**
  * ============================================================
  * Platform Language Seed Script
- * Seeds all 11 default platform UI languages with complete translations.
+ * Seeds all 7 default platform UI languages with complete translations.
  * Run with: npx tsx server/seed-platform-languages.ts
  * Use --force to reseed and overwrite existing languages
  * ============================================================
@@ -29,11 +29,7 @@ const PLATFORM_LANGUAGES: LanguageConfig[] = [
   { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸', direction: 'ltr', isDefault: false, sortOrder: 3 },
   { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷', direction: 'ltr', isDefault: false, sortOrder: 4 },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳', direction: 'ltr', isDefault: false, sortOrder: 5 },
-  { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹', direction: 'ltr', isDefault: false, sortOrder: 6 },
-  { code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵', direction: 'ltr', isDefault: false, sortOrder: 7 },
-  { code: 'pl', name: 'Polish', nativeName: 'Polski', flag: '🇵🇱', direction: 'ltr', isDefault: false, sortOrder: 8 },
-  { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇧🇷', direction: 'ltr', isDefault: false, sortOrder: 9 },
-  { code: 'sv', name: 'Swedish', nativeName: 'Svenska', flag: '🇸🇪', direction: 'ltr', isDefault: false, sortOrder: 10 },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇧🇷', direction: 'ltr', isDefault: false, sortOrder: 6 },
 ];
 
 function loadTranslations(code: string): Record<string, unknown> {

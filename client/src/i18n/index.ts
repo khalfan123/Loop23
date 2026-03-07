@@ -24,11 +24,7 @@ import de from './locales/de.json';
 import es from './locales/es.json';
 import fr from './locales/fr.json';
 import hi from './locales/hi.json';
-import it from './locales/it.json';
-import ja from './locales/ja.json';
-import pl from './locales/pl.json';
 import pt from './locales/pt.json';
-import sv from './locales/sv.json';
 
 export const languages = [
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸', direction: 'ltr' as const },
@@ -37,11 +33,7 @@ export const languages = [
   { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸', direction: 'ltr' as const },
   { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷', direction: 'ltr' as const },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳', direction: 'ltr' as const },
-  { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹', direction: 'ltr' as const },
-  { code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵', direction: 'ltr' as const },
-  { code: 'pl', name: 'Polish', nativeName: 'Polski', flag: '🇵🇱', direction: 'ltr' as const },
   { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇧🇷', direction: 'ltr' as const },
-  { code: 'sv', name: 'Swedish', nativeName: 'Svenska', flag: '🇸🇪', direction: 'ltr' as const },
 ];
 
 export const RTL_LANGUAGES = ['ar', 'he', 'fa', 'ur'];
@@ -53,11 +45,7 @@ const resources = {
   es: { translation: es },
   fr: { translation: fr },
   hi: { translation: hi },
-  it: { translation: it },
-  ja: { translation: ja },
-  pl: { translation: pl },
   pt: { translation: pt },
-  sv: { translation: sv },
 };
 
 i18n

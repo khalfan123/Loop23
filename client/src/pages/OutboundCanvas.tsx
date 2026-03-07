@@ -2541,7 +2541,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   );
 
   return (
-    <div className="flex flex-col relative -m-6 overflow-hidden" style={{ width: 'calc(100% + 3rem)', height: 'calc(100dvh - 48px)' }}>
+    <div className="flex flex-col relative -m-6 overflow-hidden" style={{ width: 'calc(100% + 3rem)', height: 'calc(100dvh - env(safe-area-inset-bottom, 0px) - 48px)' }}>
       <div className="flex items-center px-2 sm:px-3 py-1.5 border-b glass-surface gap-1.5 flex-shrink-0">
         <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 flex-shrink-0" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -2563,7 +2563,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain min-h-0">
-        <div className="px-2.5 sm:px-3 py-2 pb-3">
+        <div className="px-2.5 sm:px-3 py-2 pb-6 sm:pb-3">
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
@@ -2573,11 +2573,11 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-2 sm:px-3 py-1.5 border-t glass-surface gap-2 flex-shrink-0 safe-area-bottom" style={{ minHeight: '40px' }}>
+      <div className="flex items-center justify-between px-2 sm:px-3 py-2.5 sm:py-1.5 border-t glass-surface gap-2 flex-shrink-0 safe-area-bottom" style={{ minHeight: '52px' }}>
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-2.5 text-xs flex-shrink-0"
+          className="h-10 sm:h-8 px-4 sm:px-2.5 text-sm sm:text-xs flex-shrink-0"
           onClick={() => {
             if (currentStep === 1) {
               setLocation("/app/campaigns");
@@ -2597,7 +2597,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
 
         <Button
           size="sm"
-          className="h-8 px-4 text-xs flex-shrink-0"
+          className="h-10 sm:h-8 px-5 sm:px-4 text-sm sm:text-xs flex-shrink-0"
           onClick={currentStep < 6 ? goNext : () => saveMutation.mutate()}
           disabled={currentStep < 6 ? !canProceed(currentStep) : (saveMutation.isPending || !campaignName.trim() || !selectedAgentId || !selectedPhoneId || selectedContactIds.length === 0)}
           data-testid={currentStep < 6 ? "button-wizard-next" : "button-wizard-save"}

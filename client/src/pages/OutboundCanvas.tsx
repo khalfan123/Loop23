@@ -1684,27 +1684,25 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     <div className="space-y-3" data-testid="outbound-step-4">
       <div className="text-center mb-1">
         <h2 className="text-sm sm:text-base font-semibold">Select AI Agent & Voice</h2>
-        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose an AI agent with AWS Polly neural voice</p>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose an AI agent ({agents.length} available)</p>
       </div>
 
-      <div className="w-full max-w-2xl mx-auto space-y-3">
-
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={agentSearch}
-            onChange={(e) => setAgentSearch(e.target.value)}
-            placeholder="Search agents..."
-            className="pl-9 h-9 text-sm"
-            data-testid="input-agent-search"
-          />
-        </div>
-
-        {availableLanguages.length > 1 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Globe className="h-4 w-4 text-muted-foreground" />
+      <div className="w-full max-w-2xl mx-auto space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={agentSearch}
+              onChange={(e) => setAgentSearch(e.target.value)}
+              placeholder="Search agents..."
+              className="pl-9 h-8 text-xs"
+              data-testid="input-agent-search"
+            />
+          </div>
+          {availableLanguages.length > 1 && (
             <Select value={languageFilter} onValueChange={setLanguageFilter}>
-              <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs" data-testid="select-language-filter">
+              <SelectTrigger className="w-[130px] h-8 text-xs flex-shrink-0" data-testid="select-language-filter">
+                <Globe className="h-3 w-3 mr-1 text-muted-foreground" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1714,277 +1712,256 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 ))}
               </SelectContent>
             </Select>
+          )}
+        </div>
+
+        {!showCreateAgent ? (
+          <button
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border-2 border-dashed border-muted-foreground/25 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-colors"
+            onClick={() => {
+              setShowCreateAgent(true);
+              if (selectedFlowTemplate) {
+                setNewAgentName(selectedFlowTemplate.name + " Agent");
+              }
+            }}
+            data-testid="button-create-new-agent"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Train New Agent
+          </button>
+        ) : (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold flex items-center gap-1.5">
+                <UserPlus className="h-3.5 w-3.5 text-primary" />
+                New Agent
+              </span>
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => setShowCreateAgent(false)} data-testid="button-cancel-create-agent">
+                Cancel
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-medium text-muted-foreground">Name *</Label>
+                <Input
+                  value={newAgentName}
+                  onChange={(e) => setNewAgentName(e.target.value)}
+                  placeholder="e.g., Sales Agent"
+                  className="h-8 text-xs"
+                  data-testid="input-new-agent-name"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-medium text-muted-foreground">Language</Label>
+                <Select value={newAgentLanguage} onValueChange={(val) => {
+                  setNewAgentLanguage(val);
+                  const firstVoice = POLLY_VOICES.find(v => v.language === val);
+                  if (firstVoice) setNewAgentVoiceId(firstVoice.id);
+                }}>
+                  <SelectTrigger className="h-8 text-xs" data-testid="select-new-agent-language">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pollyLanguageOptions.map(([code, label]) => (
+                      <SelectItem key={code} value={code}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] font-medium text-muted-foreground">Voice</Label>
+                <div className="flex items-center gap-0.5">
+                  {(['all', 'Female', 'Male'] as const).map(g => (
+                    <button
+                      key={g}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                        newAgentGenderFilter === g
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted"
+                      }`}
+                      onClick={() => setNewAgentGenderFilter(g)}
+                      data-testid={`button-gender-${g}`}
+                    >
+                      {g === 'all' ? 'All' : g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-1 grid-cols-2 sm:grid-cols-3 max-h-[140px] overflow-y-auto">
+                {filteredPollyVoices.map(voice => (
+                  <div
+                    key={voice.id}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md border cursor-pointer transition-all ${
+                      newAgentVoiceId === voice.id
+                        ? "border-primary bg-primary/10"
+                        : "hover:bg-accent/30 border-transparent"
+                    }`}
+                    onClick={() => setNewAgentVoiceId(voice.id)}
+                    data-testid={`voice-option-${voice.id}`}
+                  >
+                    <div className={`h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-bold ${
+                      newAgentVoiceId === voice.id
+                        ? "bg-primary text-primary-foreground"
+                        : voice.gender === 'Female'
+                        ? "bg-pink-100 dark:bg-pink-900/30 text-pink-600"
+                        : "bg-blue-100 dark:bg-blue-900/30 text-blue-600"
+                    }`}>
+                      {newAgentVoiceId === voice.id ? <Check className="h-2.5 w-2.5" /> : voice.name[0]}
+                    </div>
+                    <span className="text-[10px] font-medium truncate flex-1">{voice.name}</span>
+                    <button
+                      className={`h-5 w-5 flex items-center justify-center rounded-full flex-shrink-0 ${
+                        previewingVoiceId === voice.id
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent text-muted-foreground"
+                      }`}
+                      onClick={(e) => { e.stopPropagation(); playVoicePreview(voice.id, e); }}
+                      data-testid={`button-preview-voice-${voice.id}`}
+                    >
+                      {previewingVoiceId === voice.id ? (
+                        <Square className="h-2 w-2" />
+                      ) : (
+                        <Volume2 className="h-2.5 w-2.5" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+                {filteredPollyVoices.length === 0 && (
+                  <div className="col-span-3 text-center py-3 text-[10px] text-muted-foreground">
+                    No voices match filters
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Button
+              className="w-full h-8 text-xs"
+              disabled={!newAgentName.trim() || createAgentMutation.isPending}
+              onClick={() => createAgentMutation.mutate()}
+              data-testid="button-submit-create-agent"
+            >
+              {createAgentMutation.isPending ? (
+                <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Creating...</>
+              ) : (
+                <><Plus className="h-3.5 w-3.5 mr-1.5" /> Create & Select Agent</>
+              )}
+            </Button>
           </div>
         )}
 
-        <div>
-          {!showCreateAgent ? (
-            <Button
-              variant="outline"
-              className="w-full h-10 border-dashed border-2 text-sm"
-              onClick={() => {
-                setShowCreateAgent(true);
-                if (selectedFlowTemplate) {
-                  setNewAgentName(selectedFlowTemplate.name + " Agent");
-                }
-              }}
-              data-testid="button-create-new-agent"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Train your Own Agent
-            </Button>
-          ) : (
-            <Card className="border-2 border-primary/30 bg-primary/5">
-              <CardContent className="p-3 sm:p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm flex items-center gap-1.5">
-                    <UserPlus className="h-4 w-4 text-primary" />
-                    Train your Own Agent
-                  </h3>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setShowCreateAgent(false)} data-testid="button-cancel-create-agent">
-                    Cancel
-                  </Button>
-                </div>
+        {agentsLoading ? (
+          <div className="space-y-1">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-14 w-full" />
+            ))}
+          </div>
+        ) : filteredAgents.length === 0 ? (
+          <div className="text-center py-6">
+            <Bot className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground">
+              {agentSearch.trim()
+                ? `No agents match "${agentSearch.trim()}"`
+                : languageFilter !== "all"
+                ? `No agents for ${getLanguageLabel(languageFilter)}`
+                : "No agents available. Create one above."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-y-auto max-h-[42vh] sm:max-h-[380px] border rounded-lg">
+            <div className="divide-y">
+              {filteredAgents.map((agent) => {
+                const isSelected = selectedAgentId === agent.id;
+                const isPolly = agent.voiceProvider === 'aws_polly';
+                const hasKB = agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0;
+                const voiceName = agent.awsPollyVoiceId || agent.voiceName || '';
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Agent Name *</Label>
-                  <Input
-                    value={newAgentName}
-                    onChange={(e) => setNewAgentName(e.target.value)}
-                    placeholder="e.g., Sales Agent, Support Bot..."
-                    className="h-9 text-sm"
-                    data-testid="input-new-agent-name"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Language</Label>
-                  <Select value={newAgentLanguage} onValueChange={(val) => {
-                    setNewAgentLanguage(val);
-                    const firstVoice = POLLY_VOICES.find(v => v.language === val);
-                    if (firstVoice) setNewAgentVoiceId(firstVoice.id);
-                  }}>
-                    <SelectTrigger className="h-9 text-sm" data-testid="select-new-agent-language">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pollyLanguageOptions.map(([code, label]) => (
-                        <SelectItem key={code} value={code}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Voice</Label>
-                    <div className="flex items-center gap-1">
-                      {(['all', 'Female', 'Male'] as const).map(g => (
-                        <Button
-                          key={g}
-                          variant={newAgentGenderFilter === g ? "default" : "outline"}
-                          size="sm"
-                          className="h-6 px-2 text-[10px]"
-                          onClick={() => setNewAgentGenderFilter(g)}
-                          data-testid={`button-gender-${g}`}
-                        >
-                          {g === 'all' ? 'All' : g}
-                        </Button>
-                      ))}
+                return (
+                  <div
+                    key={agent.id}
+                    className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
+                      isSelected ? "bg-primary/5" : "hover:bg-accent/40"
+                    }`}
+                    onClick={() => {
+                      setSelectedAgentId(agent.id);
+                      if (agent.firstMessage && !greetingMessage) {
+                        setGreetingMessage(agent.firstMessage);
+                      }
+                    }}
+                    data-testid={`card-agent-${agent.id}`}
+                  >
+                    <div className={`flex items-center justify-center h-6 w-6 rounded-md flex-shrink-0 border ${
+                      isSelected ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border"
+                    }`}>
+                      {isSelected && <Check className="h-3.5 w-3.5" />}
                     </div>
-                  </div>
-                  <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2 max-h-[180px] overflow-y-auto">
-                    {filteredPollyVoices.map(voice => (
-                      <div
-                        key={voice.id}
-                        className={`flex items-center gap-2.5 p-2 rounded-md border cursor-pointer transition-all ${
-                          newAgentVoiceId === voice.id
-                            ? "border-primary bg-primary/10 ring-1 ring-primary/20"
-                            : "hover:bg-accent/30"
-                        }`}
-                        onClick={() => setNewAgentVoiceId(voice.id)}
-                        data-testid={`voice-option-${voice.id}`}
-                      >
-                        <div className={`flex items-center justify-center h-8 w-8 rounded-full flex-shrink-0 text-xs font-bold ${
-                          newAgentVoiceId === voice.id
-                            ? "bg-primary text-primary-foreground"
-                            : voice.gender === 'Female'
-                            ? "bg-pink-100 dark:bg-pink-900/30 text-pink-600"
-                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-600"
-                        }`}>
-                          {newAgentVoiceId === voice.id ? <Check className="h-3.5 w-3.5" /> : voice.name[0]}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-xs">{voice.name}</div>
-                          <div className="text-[10px] text-muted-foreground truncate">{voice.description}</div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`h-7 w-7 p-0 flex-shrink-0 rounded-full ${
-                            previewingVoiceId === voice.id
-                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                              : "hover:bg-accent"
-                          }`}
-                          onClick={(e) => playVoicePreview(voice.id, e)}
-                          data-testid={`button-preview-voice-${voice.id}`}
-                        >
-                          {previewingVoiceId === voice.id ? (
-                            <Square className="h-3 w-3" />
-                          ) : (
-                            <Volume2 className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                    {filteredPollyVoices.length === 0 && (
-                      <div className="col-span-2 text-center py-4 text-xs text-muted-foreground">
-                        No voices match the selected filters
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <Button
-                  className="w-full h-9 text-sm"
-                  disabled={!newAgentName.trim() || createAgentMutation.isPending}
-                  onClick={() => createAgentMutation.mutate()}
-                  data-testid="button-submit-create-agent"
-                >
-                  {createAgentMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Creating...</>
-                  ) : (
-                    <><Plus className="h-4 w-4 mr-1.5" /> Create & Select Agent</>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-
-      {agentsLoading ? (
-        <div className="space-y-3 w-full max-w-2xl mx-auto">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      ) : filteredAgents.length === 0 ? (
-        <div className="text-center py-8">
-          <Bot className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">
-            {agentSearch.trim()
-              ? `No agents match "${agentSearch.trim()}"`
-              : languageFilter !== "all"
-              ? `No agents available for ${getLanguageLabel(languageFilter)}`
-              : "No agents available. Create an agent first."}
-          </p>
-        </div>
-      ) : (
-        <div className="w-full max-w-2xl mx-auto grid gap-2 grid-cols-1 sm:grid-cols-2">
-          {filteredAgents.map((agent) => {
-            const isSelected = selectedAgentId === agent.id;
-            const isPolly = agent.voiceProvider === 'aws_polly';
-            const hasKB = agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0;
-
-            return (
-              <Card
-                key={agent.id}
-                className={`cursor-pointer transition-all ${
-                  isSelected
-                    ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                    : "hover:bg-accent/30 hover:shadow-sm"
-                }`}
-                onClick={() => {
-                  setSelectedAgentId(agent.id);
-                  if (agent.firstMessage && !greetingMessage) {
-                    setGreetingMessage(agent.firstMessage);
-                  }
-                }}
-                data-testid={`card-agent-${agent.id}`}
-              >
-                <CardContent className="p-2.5 flex items-start gap-2.5">
-                  <div className={`flex items-center justify-center h-8 w-8 rounded-lg flex-shrink-0 ${
-                    isSelected
-                      ? "bg-primary text-primary-foreground"
-                      : isPolly
-                      ? "bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30"
-                      : "bg-blue-100 dark:bg-blue-900/30"
-                  }`}>
-                    {isSelected ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Bot className="h-4 w-4 text-blue-600" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm">{agent.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`h-6 w-6 p-0 rounded-full flex-shrink-0 ${
-                          agentPreviewingId === agent.id
-                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                            : "hover:bg-accent"
-                        }`}
-                        onClick={(e) => handleAgentVoicePreview(agent, e)}
-                        disabled={agentPreviewLoading && agentPreviewingId !== agent.id}
-                        data-testid={`button-agent-voice-preview-${agent.id}`}
-                      >
-                        {agentPreviewLoading && agentPreviewingId === agent.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : agentPreviewingId === agent.id ? (
-                          <Square className="h-2.5 w-2.5" />
+                    <div className={`flex items-center justify-center h-8 w-8 rounded-lg flex-shrink-0 ${
+                      isSelected
+                        ? "bg-primary/20"
+                        : isPolly
+                        ? "bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30"
+                        : "bg-blue-100 dark:bg-blue-900/30"
+                    }`}>
+                      <Bot className={`h-4 w-4 ${isSelected ? "text-primary" : "text-blue-600"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium truncate">{agent.name}</span>
+                        {isPolly ? (
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
+                            Neural
+                          </Badge>
+                        ) : agent.telephonyProvider === 'twilio_openai' ? (
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                            OpenAI
+                          </Badge>
                         ) : (
-                          <Volume2 className="h-3 w-3" />
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+                            11Labs
+                          </Badge>
                         )}
-                      </Button>
+                        {hasKB && (
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20">
+                            KB
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                        {agent.language && <span>{getLanguageLabel(agent.language)}</span>}
+                        {voiceName && <span className="ml-1.5">· {voiceName}</span>}
+                        {agent.systemPrompt && <span className="ml-1.5">· {agent.systemPrompt.substring(0, 50)}...</span>}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      {isPolly ? (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
-                          <AudioWaveform className="h-2.5 w-2.5 mr-0.5" />
-                          Neural Voice
-                        </Badge>
-                      ) : agent.telephonyProvider === 'twilio_openai' ? (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
-                          OpenAI
-                        </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 w-7 p-0 rounded-full flex-shrink-0 ${
+                        agentPreviewingId === agent.id
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                          : "hover:bg-accent"
+                      }`}
+                      onClick={(e) => handleAgentVoicePreview(agent, e)}
+                      disabled={agentPreviewLoading && agentPreviewingId !== agent.id}
+                      data-testid={`button-agent-voice-preview-${agent.id}`}
+                    >
+                      {agentPreviewLoading && agentPreviewingId === agent.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : agentPreviewingId === agent.id ? (
+                        <Square className="h-2.5 w-2.5" />
                       ) : (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
-                          ElevenLabs
-                        </Badge>
+                        <Volume2 className="h-3.5 w-3.5" />
                       )}
-                      {agent.language && (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
-                          {getLanguageLabel(agent.language)}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      {hasKB && (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20">
-                          <Brain className="h-2.5 w-2.5 mr-0.5" />
-                          KB Connected
-                        </Badge>
-                      )}
-                      {agent.awsPollyVoiceId && (
-                        <span className="text-[10px] text-muted-foreground">{agent.awsPollyVoiceId}</span>
-                      )}
-                      {agent.voiceName && !agent.awsPollyVoiceId && (
-                        <span className="text-[10px] text-muted-foreground">{agent.voiceName}</span>
-                      )}
-                    </div>
-                    {agent.systemPrompt && (
-                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">{agent.systemPrompt}</p>
-                    )}
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 

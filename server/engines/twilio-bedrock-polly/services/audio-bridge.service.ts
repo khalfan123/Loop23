@@ -141,12 +141,12 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_SHORT_MS = 400;
-  private static readonly SILENCE_MEDIUM_MS = 350;
-  private static readonly SILENCE_LONG_UTTERANCE_MS = 300;
+  private static readonly SILENCE_SHORT_MS = 300;
+  private static readonly SILENCE_MEDIUM_MS = 250;
+  private static readonly SILENCE_LONG_UTTERANCE_MS = 200;
   private static readonly LONG_UTTERANCE_BYTES = 16000;
   private static readonly SHORT_UTTERANCE_BYTES = 8000;
-  private static readonly OPENING_SILENCE_THRESHOLD_MS = 800;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 600;
   private static readonly OPENING_PHASE_DURATION_MS = 8000;
   private static readonly MIN_AUDIO_LENGTH = 6400;
   private static readonly MAX_BUFFER_DURATION_MS = 30000;
@@ -1025,7 +1025,7 @@ export class BedrockPollyAudioBridge {
 
     const isOutbound = agentConfig.systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || agentConfig.systemPrompt.includes('TASK-FIRST FRAMEWORK');
     const voiceInstructions = isOutbound
-      ? `\n\nVOICE CALL RULES: This is a live outbound phone call. Keep every response to 1-2 sentences MAX. Be direct and concise. Do NOT ramble or over-explain.`
+      ? `\n\nVOICE CALL RULES: This is a live outbound phone call. Give clear, complete explanations — cover all important details the person needs. Keep it natural and conversational but do NOT cut yourself short. If the person asks a question, answer it fully. Aim for 2-4 sentences per response.`
       : `\n\nVOICE CALL RULES: This is a live phone call. Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.`;
 
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + voiceInstructions;
@@ -1105,7 +1105,7 @@ export class BedrockPollyAudioBridge {
 
         const useEager = sentencesSent === 0;
         const shouldSynth = useEager
-          ? (sentenceBuffer.length >= 20 && this.splitSentences(sentenceBuffer, true).length > 1)
+          ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
           : this.splitSentences(sentenceBuffer, false).length > 1;
 
         if (shouldSynth) {
@@ -1205,9 +1205,9 @@ export class BedrockPollyAudioBridge {
   private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string): number {
     const isOutboundCall = systemPrompt ? (systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || systemPrompt.includes('TASK-FIRST FRAMEWORK')) : false;
 
-    const MIN_TOKENS = isOutboundCall ? 80 : 150;
-    const MAX_TOKENS = isOutboundCall ? 200 : 1024;
-    const DEFAULT_TOKENS = isOutboundCall ? 120 : 300;
+    const MIN_TOKENS = isOutboundCall ? 200 : 200;
+    const MAX_TOKENS = 1024;
+    const DEFAULT_TOKENS = isOutboundCall ? 400 : 400;
 
     if (!messages || messages.length === 0) return DEFAULT_TOKENS;
 
@@ -1230,11 +1230,11 @@ export class BedrockPollyAudioBridge {
     }
 
     if (hasQuestionMark && wordCount > 5) {
-      return isOutboundCall ? 180 : 512;
+      return isOutboundCall ? 512 : 512;
     }
 
     if (turnCount <= 1) {
-      return isOutboundCall ? 150 : 400;
+      return isOutboundCall ? 512 : 512;
     }
 
     return DEFAULT_TOKENS;

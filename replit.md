@@ -47,6 +47,10 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - Added inbound no-response timer: 8s follow-up prompt after greeting if no valid speech, then 12s graceful goodbye and hangup if still no response
   - Cancels inbound timers on any detected speech (even if too short or filtered) to prevent premature hangup
   - Properly cleans up new maps (`inboundHallucinationCount`, `inboundNoResponseTimers`) in `endSession` and `remapSession`
+  - Fixed Whisper Arabic prompt: replaced hallucination-inducing terms (e.g. "تغيير") with conversational cues ("ألو، مرحبا، أريد، ممكن، مساعدة...")
+  - Whitelisted valid short Arabic phrases ("ألو", "نعم", "أريد", etc.) so they are no longer filtered as hallucinations; whitelist tolerates punctuation and character elongation
+  - Increased inbound token limits: MIN=1024, MAX=2048, DEFAULT=1024 (outbound unchanged at 200/1024/400)
+  - Increased KB result formatting limit from 400 to 1200 chars for inbound calls to support thorough knowledge-base answers
 - **Widget Language + Flow Agent Fixes (Feb 2026)**: Fixed multiple widget issues:
   - Fixed null crash in ephemeral-token endpoint when agent is null (OpenAI path `agent?.openaiModel`)
   - Widget now passes selected language to ElevenLabs via `conversation_initiation_client_data` with language override

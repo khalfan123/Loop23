@@ -329,7 +329,8 @@ CRITICAL BEHAVIORAL RULES:
             };
           }
           
-          let formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
+          const isOutboundAgent = config.systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || config.systemPrompt.includes('TASK-FIRST FRAMEWORK');
+          let formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, isOutboundAgent ? 400 : 1200);
 
           if (config.dataSchema && config.dataSchema.length > 0) {
             const dataSchemaContext = RAGKnowledgeService.buildDataSchemaContext(config.dataSchema);

@@ -1036,8 +1036,13 @@ export class BedrockPollyAudioBridge {
       const arabicOnly = trimmed.replace(/[^\u0600-\u06FF\s]/g, '').trim();
       const arabicRatio = arabicOnly.length / trimmed.length;
       if (arabicRatio > 0.8) {
+        const cleanedForCheck = trimmed.replace(/[؟?!.,،؛\s]+$/g, '').replace(/(.)\1{2,}/g, '$1$1');
+        const validShortArabic = /^(ألو|مرحبا|مرحباً|أهلا|أهلاً|هلا|نعم|لا|أيوه|أيوا|أريد|ممكن|طيب|تمام|ماشي|شكرا|شكراً|يعطيك العافية|سلام|السلام عليكم|وعليكم السلام|أبي|أبغى|بدي|عايز|كيف|ليش|وين|متى|كم|مين|شو|إيش|هل|مساعدة|سؤال|استفسار|مشكلة|حساب|فاتورة|رصيد|خدمة|اشتراك)$/i;
         const arabicWords = trimmed.split(/\s+/).filter(w => w.length > 0);
-        if (arabicWords.length <= 2 && trimmed.length < 15) return true;
+
+        if (arabicWords.length <= 2 && trimmed.length < 15) {
+          if (!validShortArabic.test(cleanedForCheck)) return true;
+        }
 
         if (/الله|سبحان|بسم|صلى|رحمة|الحمد|أعوذ|الشيطان/.test(trimmed) && arabicWords.length <= 6) return true;
 
@@ -1151,7 +1156,7 @@ export class BedrockPollyAudioBridge {
 
       let whisperPrompt = '';
       if (language === 'ar') {
-        whisperPrompt = 'تجوال، eSIM، موعد، حجز، إلغاء، تغيير، حساب، اشتراك، فاتورة، رصيد، دفع';
+        whisperPrompt = 'ألو، مرحبا، أهلا، أريد، ممكن، سؤال، مساعدة، حساب، فاتورة، رصيد، دفع، موعد، حجز، إلغاء، اشتراك، تجوال، خدمة، مشكلة، شكوى، استفسار';
       }
       if (conversationContext && conversationContext.length > 0) {
         const recentContext = conversationContext.slice(-2).join(' ').substring(0, 200);
@@ -1425,9 +1430,9 @@ export class BedrockPollyAudioBridge {
   private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string): number {
     const isOutboundCall = systemPrompt ? (systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || systemPrompt.includes('TASK-FIRST FRAMEWORK')) : false;
 
-    const MIN_TOKENS = isOutboundCall ? 200 : 200;
-    const MAX_TOKENS = 1024;
-    const DEFAULT_TOKENS = isOutboundCall ? 400 : 400;
+    const MIN_TOKENS = isOutboundCall ? 200 : 1024;
+    const MAX_TOKENS = isOutboundCall ? 1024 : 2048;
+    const DEFAULT_TOKENS = isOutboundCall ? 400 : 1024;
 
     if (!messages || messages.length === 0) return DEFAULT_TOKENS;
 
@@ -1450,11 +1455,11 @@ export class BedrockPollyAudioBridge {
     }
 
     if (hasQuestionMark && wordCount > 5) {
-      return isOutboundCall ? 512 : 512;
+      return isOutboundCall ? 512 : 1024;
     }
 
     if (turnCount <= 1) {
-      return isOutboundCall ? 512 : 512;
+      return isOutboundCall ? 512 : 800;
     }
 
     return DEFAULT_TOKENS;

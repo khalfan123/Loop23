@@ -1370,80 +1370,106 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     </div>
   );
 
-  const renderStep2 = () => (
+  const selectGroupContacts = (groupId: string) => {
+    const groupContactIds = contacts
+      .filter((c) => {
+        const groups = contactGroupsByPhone.get(c.phone);
+        return groups?.some((g) => g.group_id === groupId);
+      })
+      .map((c) => c.id);
+    setSelectedContactIds((prev) => {
+      const allAlreadySelected = groupContactIds.every((id) => prev.includes(id));
+      if (allAlreadySelected) {
+        return prev.filter((id) => !groupContactIds.includes(id));
+      }
+      return [...new Set([...prev, ...groupContactIds])];
+    });
+  };
+
+  const renderStep2 = () => {
+    const VISIBLE_LIMIT = 50;
+    const visibleContacts = filteredContacts.slice(0, VISIBLE_LIMIT);
+    const hasMore = filteredContacts.length > VISIBLE_LIMIT;
+
+    return (
     <div className="space-y-3" data-testid="outbound-step-2">
       <div className="text-center mb-1">
         <h2 className="text-sm sm:text-base font-semibold">Select Contacts</h2>
-        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose people to call</p>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose people to call ({contacts.length} total)</p>
       </div>
 
-      <div className="w-full max-w-2xl mx-auto space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={contactSearch}
-            onChange={(e) => setContactSearch(e.target.value)}
-            placeholder="Search name, phone, email..."
-            className="pl-9 h-9 text-sm"
-            data-testid="input-contact-search"
-          />
-        </div>
-
-        {(contactGroups.length > 0 || availableCountries.length > 0) && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0 hidden sm:block" />
-            {contactGroups.length > 0 && (
-              <Select value={groupFilter} onValueChange={setGroupFilter}>
-                <SelectTrigger className="w-full sm:w-[170px] h-8 text-xs" data-testid="select-group-filter">
-                  <FolderOpen className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                  <SelectValue placeholder="All Tags" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Tags</SelectItem>
-                  {contactGroups.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: g.color }} />
-                        {g.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {availableCountries.length > 0 && (
-              <Select value={countryFilter} onValueChange={setCountryFilter}>
-                <SelectTrigger className="w-full sm:w-[170px] h-8 text-xs" data-testid="select-country-filter">
-                  <MapPin className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                  <SelectValue placeholder="All Countries" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Countries</SelectItem>
-                  {availableCountries.map((c) => (
-                    <SelectItem key={c.name} value={c.name}>{c.flag} {c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {(groupFilter !== "all" || countryFilter !== "all") && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs px-2"
-                onClick={() => { setGroupFilter("all"); setCountryFilter("all"); }}
-                data-testid="button-clear-filters"
-              >
-                Clear
-              </Button>
-            )}
+      <div className="w-full max-w-2xl mx-auto space-y-2">
+        {contactGroups.length > 0 && (
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Quick Select by Group</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {contactGroups.map((g) => {
+                const groupContactCount = contacts.filter((c) => {
+                  const groups = contactGroupsByPhone.get(c.phone);
+                  return groups?.some((gr) => gr.group_id === g.id);
+                }).length;
+                const groupContactIds = contacts
+                  .filter((c) => {
+                    const groups = contactGroupsByPhone.get(c.phone);
+                    return groups?.some((gr) => gr.group_id === g.id);
+                  })
+                  .map((c) => c.id);
+                const allSelected = groupContactIds.length > 0 && groupContactIds.every((id) => selectedContactIds.includes(id));
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => selectGroupContacts(g.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                      allSelected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted border-transparent"
+                    }`}
+                    data-testid={`button-select-group-${g.id}`}
+                  >
+                    <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: allSelected ? 'currentColor' : g.color }} />
+                    {g.name}
+                    <span className={`text-[10px] ${allSelected ? "text-primary-foreground/70" : "text-muted-foreground/60"}`}>
+                      {groupContactCount}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
+              placeholder="Search name, phone, email..."
+              className="pl-9 h-8 text-xs"
+              data-testid="input-contact-search"
+            />
+          </div>
+          {availableCountries.length > 0 && (
+            <Select value={countryFilter} onValueChange={setCountryFilter}>
+              <SelectTrigger className="w-[130px] h-8 text-xs flex-shrink-0" data-testid="select-country-filter">
+                <MapPin className="h-3 w-3 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="Country" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Countries</SelectItem>
+                {availableCountries.map((c) => (
+                  <SelectItem key={c.name} value={c.name}>{c.flag} {c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
         {contactsLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
+          <div className="space-y-1">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
           </div>
         ) : contacts.length === 0 ? (
           <div className="text-center py-8">
@@ -1456,116 +1482,118 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-sm font-medium">
-                {selectedContactIds.length} of {filteredContacts.length} selected
-                {(groupFilter !== "all" || countryFilter !== "all") && (
-                  <span className="text-muted-foreground font-normal ml-1">
-                    (filtered from {contacts.length})
-                  </span>
-                )}
-              </span>
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={selectAllContacts} data-testid="button-select-all-contacts">
-                  Select All
+                <span className="text-xs font-medium">
+                  <span className="text-primary">{selectedContactIds.length}</span>
+                  <span className="text-muted-foreground"> / {filteredContacts.length} selected</span>
+                </span>
+                {(groupFilter !== "all" || countryFilter !== "all" || contactSearch.trim()) && (
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    Filtered
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[11px] px-2"
+                  onClick={selectAllContacts}
+                  data-testid="button-select-all-contacts"
+                >
+                  {selectedContactIds.length === filteredContacts.length && filteredContacts.length > 0 ? "Deselect All" : "Select All"}
                 </Button>
                 {selectedContactIds.length > 0 && (
-                  <Button variant="ghost" size="sm" onClick={clearContacts} data-testid="button-clear-contacts">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[11px] px-2"
+                    onClick={clearContacts}
+                    data-testid="button-clear-contacts"
+                  >
                     Clear
                   </Button>
                 )}
               </div>
             </div>
 
-            <div className="overflow-y-auto max-h-[40vh] sm:max-h-[400px] -mx-1 px-1">
-              <div className="grid gap-1.5 sm:gap-2">
-                {filteredContacts.map((contact) => {
+            <div className="overflow-y-auto max-h-[42vh] sm:max-h-[420px] border rounded-lg">
+              <div className="divide-y">
+                {visibleContacts.map((contact) => {
                   const isSelected = selectedContactIds.includes(contact.id);
                   const displayName = contact.names?.[0]
                     ? `${contact.names[0].firstName} ${contact.names[0].lastName || ""}`.trim()
                     : "Unknown";
+                  const country = contactCountryMap.get(contact.id);
+                  const groups = contactGroupsByPhone.get(contact.phone);
 
                   return (
-                    <Card
+                    <div
                       key={contact.id}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected ? "border-primary bg-primary/5" : "hover:bg-accent/50"
+                      className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
+                        isSelected ? "bg-primary/5" : "hover:bg-accent/40"
                       }`}
                       onClick={() => toggleContact(contact.id)}
                       data-testid={`card-contact-${contact.id}`}
                     >
-                      <CardContent className="p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3">
-                        <div className={`flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-full flex-shrink-0 ${
-                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
-                        }`}>
-                          {isSelected ? (
-                            <Check className="h-4 w-4" />
-                          ) : (
-                            <span className="text-xs font-medium">{displayName.charAt(0).toUpperCase()}</span>
+                      <div className={`flex items-center justify-center h-6 w-6 rounded-md flex-shrink-0 border ${
+                        isSelected ? "bg-primary border-primary text-primary-foreground" : "bg-background border-border"
+                      }`}>
+                        {isSelected && <Check className="h-3.5 w-3.5" />}
+                      </div>
+                      <div className={`flex items-center justify-center h-7 w-7 rounded-full flex-shrink-0 text-xs font-medium ${
+                        isSelected ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium truncate">{displayName}</span>
+                          {country && <span className="text-[11px]" title={country.name}>{country.flag}</span>}
+                          {groups && groups.length > 0 && (
+                            <div className="flex items-center gap-0.5">
+                              {groups.slice(0, 2).map((g) => (
+                                <span key={g.group_id} className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: g.group_color }} title={g.group_name} />
+                              ))}
+                              {groups.length > 2 && <span className="text-[9px] text-muted-foreground">+{groups.length - 2}</span>}
+                            </div>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate flex items-center gap-1.5">
-                            {displayName}
-                            {(() => {
-                              const country = contactCountryMap.get(contact.id);
-                              return country ? (
-                                <span className="text-xs" title={country.name}>{country.flag}</span>
-                              ) : null;
-                            })()}
-                          </div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {contact.phone}
-                            </span>
-                            {contact.email && (
-                              <span className="truncate">{contact.email}</span>
-                            )}
-                          </div>
-                          {(() => {
-                            const groups = contactGroupsByPhone.get(contact.phone);
-                            return groups && groups.length > 0 ? (
-                              <div className="flex items-center gap-1 mt-1 flex-wrap">
-                                {groups.slice(0, 3).map((g) => (
-                                  <Badge key={g.group_id} variant="secondary" className="text-[10px] py-0 px-1.5 h-4 gap-1">
-                                    <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: g.group_color }} />
-                                    {g.group_name}
-                                  </Badge>
-                                ))}
-                                {groups.length > 3 && (
-                                  <span className="text-[10px] text-muted-foreground">
-                                    +{groups.length - 3} more
-                                  </span>
-                                )}
-                              </div>
-                            ) : null;
-                          })()}
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {contact.phone}
+                          {contact.email && <span className="ml-2">{contact.email}</span>}
                         </div>
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          {contact.callCount > 0 && (
-                            <Badge variant="outline" className="text-[10px]">
-                              {contact.callCount} call{contact.callCount > 1 ? "s" : ""}
-                            </Badge>
-                          )}
-                          {(() => {
-                            const country = contactCountryMap.get(contact.id);
-                            return country ? (
-                              <span className="text-[10px] text-muted-foreground">{country.name}</span>
-                            ) : null;
-                          })()}
-                        </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      {contact.callCount > 0 && (
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                          {contact.callCount} call{contact.callCount > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
                   );
                 })}
               </div>
+              {hasMore && (
+                <div className="px-3 py-2 text-center border-t bg-muted/30">
+                  <span className="text-[11px] text-muted-foreground">
+                    Showing {VISIBLE_LIMIT} of {filteredContacts.length} contacts — use search or groups to narrow down
+                  </span>
+                </div>
+              )}
             </div>
+
+            {filteredContacts.length === 0 && contactSearch.trim() && (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No contacts match "{contactSearch}"
+              </p>
+            )}
           </>
         )}
       </div>
     </div>
   );
+  };
 
   const renderStep3 = () => (
     <div className="space-y-3" data-testid="outbound-step-3">

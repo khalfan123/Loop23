@@ -124,7 +124,17 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
       });
 
       const agentIdentity = agentName || 'the agent';
-      const company = companyName || '';
+      let company = companyName || '';
+      if (useCase && company) {
+        const useCaseLower = useCase.toLowerCase();
+        const companyLower = company.toLowerCase();
+        if (!useCaseLower.includes(companyLower)) {
+          const brandMatch = useCase.match(/(?:for|from|by|at)\s+([A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+)*)/);
+          if (brandMatch) {
+            company = brandMatch[1];
+          }
+        }
+      }
 
       let purposeLine = '';
       if (useCase && useCaseDescription) {
@@ -327,7 +337,7 @@ No markdown. No explanation. Only the JSON object. ${langInstruction}`
 USE CASE: ${useCase || 'General Outbound'}${useCaseDescription ? ` — ${useCaseDescription}` : ''}
 CATEGORY: ${category || 'General'}
 AGENT NAME: ${agentName || 'AI Agent'}
-COMPANY: ${companyName || 'Our Company'}
+COMPANY: ${(() => { let co = companyName || 'Our Company'; if (useCase && co) { const ucLower = (useCase as string).toLowerCase(); const coLower = co.toLowerCase(); if (!ucLower.includes(coLower)) { const m = (useCase as string).match(/(?:for|from|by|at)\s+([A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+)*)/); if (m) co = m[1]; } } return co; })()}
 ${productOrService ? `PRODUCT/SERVICE: ${productOrService}` : ''}
 ${sampleContext}
 

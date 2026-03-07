@@ -49,6 +49,15 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - OpenAI model from server is now used in WebRTC connection URL instead of hardcoded model
   - Improved ElevenLabs WebSocket error/close handlers with descriptive error messages
   - **IVR handle-selection fix**: Deprock IVR now stores full agent metadata (systemPrompt, firstMessage, language, knowledgeBaseIds, flow agent data, TTS provider, voice config, transfer/booking settings) in call records, matching the pattern used by direct inbound calls. Fixes Arabic language errors and English flow agent connection failures via IVR.
+- **Outbound Campaign Call Behavior Fix (Mar 2026)**:
+  - Campaign call scripts now fully replace the agent's base system prompt (instead of keeping it as "BACKGROUND KNOWLEDGE") — prevents conflicting role instructions (e.g., HR agent vs. eSIM sales campaign)
+  - TASK-FIRST FRAMEWORK objection handling now distinguishes hard rejections ("no", "nope", "not interested") from soft objections ("I'm busy") — hard rejections trigger immediate polite wrap-up instead of pushing back
+  - Added "never push more than once" rule for any objection type
+  - Response length hard-capped at 2 sentences per turn for outbound calls
+  - Audio bridge voice instructions now differentiate outbound (brevity-focused) vs inbound (thorough answers)
+  - Max token limits lowered for outbound calls (80-200 range vs 150-1024 for inbound)
+  - Greeting generator now extracts business name from use case title (e.g., "Promotional Calls for Tejwal eSIM Plans" → "Tejwal") instead of using platform company name
+  - Campaign role detection tightened to match only AI/phone/outbound/sales/calling/campaign agent patterns
 - **Bedrock Agent Conversation Quality Fix (Mar 2026)**:
   - Fixed corrupted Arabic firstMessage for agent "Nasser Al Rashid" in database (garbled "مeee" text replaced with proper Arabic greeting matching Tejwal eSIM billing context)
   - Added script-based language detection to `localizeFirstMessage` — skips unnecessary translation when the message is already in the target language's script (Arabic, Chinese, Japanese, Korean, Hindi, Hebrew, Thai, Russian)

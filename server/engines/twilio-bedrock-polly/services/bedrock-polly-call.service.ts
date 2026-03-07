@@ -282,11 +282,13 @@ export class BedrockPollyCallService {
           const resolvedScript = resolveTemplateVariables(callScript.trim());
           const scriptSection = `CALL SCRIPT & CONVERSATION GUIDE (follow these points step-by-step as your playbook):\n${resolvedScript}\n\nIMPORTANT: Follow the script above as a GUIDE — cover each point in order but use your own natural words. Do NOT read it verbatim.`;
 
-          const campaignRoleMatch = resolvedScript.match(/^You are an? .+?(?:call|campaign|agent)[^.]*\./i);
-          if (campaignRoleMatch) {
+          const hasCampaignRole = /^You are an? (?:AI |phone |outbound |sales |calling |campaign )/i.test(resolvedScript);
+          if (hasCampaignRole) {
             const agentNameFromPrompt = agent.name || 'an AI agent';
-            effectiveSystemPrompt = `YOUR ROLE FOR THIS CAMPAIGN CALL:\n${resolvedScript}\n\nYou are ${agentNameFromPrompt}. Your ONLY focus for this call is the campaign task described above. Ignore any previous role descriptions — you are now fully dedicated to this campaign objective.\n\nBACKGROUND KNOWLEDGE (use only if relevant to the campaign task above):\n${effectiveSystemPrompt}`;
-            logger.info(`[Outbound] Campaign script overrides agent role — campaign-first prompt (${resolvedScript.length} chars)`, undefined, 'BedrockPollyCall');
+            const callContextMatch = effectiveSystemPrompt.match(/\n\nCALL CONTEXT:[\s\S]*/);
+            const callContext = callContextMatch ? callContextMatch[0] : '';
+            effectiveSystemPrompt = `${resolvedScript}\n\nYou are ${agentNameFromPrompt}. Focus ONLY on the campaign task above. Do NOT introduce topics outside this task.${callContext}`;
+            logger.info(`[Outbound] Campaign script fully replaces agent prompt — clean campaign-only prompt (${resolvedScript.length} chars)`, undefined, 'BedrockPollyCall');
           } else {
             const existingScriptMatch = effectiveSystemPrompt.match(/CALL SCRIPT & CONVERSATION GUIDE[^:]*:\n[\s\S]*?(?=\n\n[A-Z]|$)/);
             if (existingScriptMatch) {

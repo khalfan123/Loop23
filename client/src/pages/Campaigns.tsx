@@ -165,6 +165,8 @@ export default function Campaigns() {
   const { toast } = useToast();
   const [showPhoneNumberAlert, setShowPhoneNumberAlert] = useState(false);
   const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [activeView, setActiveView] = useState<ViewMode>('batch');
   const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [deletingContact, setDeletingContact] = useState<DeduplicatedContact | null>(null);
@@ -250,6 +252,40 @@ export default function Campaigns() {
       toast({ title: "Failed to delete campaign", description: error.message || "Please try again", variant: "destructive" });
     },
   });
+
+  const bulkDeleteCampaignMutation = useMutation({
+    mutationFn: async (campaignIds: string[]) => {
+      await Promise.all(campaignIds.map(id => apiRequest("DELETE", `/api/campaigns/${id}`)));
+      return campaignIds.length;
+    },
+    onSuccess: (count: number) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      setSelectedCampaignIds(new Set());
+      setShowBulkDeleteDialog(false);
+      toast({ title: `${count} campaign(s) deleted` });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete campaigns", description: error.message || "Please try again", variant: "destructive" });
+    },
+  });
+
+  const toggleCampaignSelection = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedCampaignIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllCampaigns = () => {
+    if (selectedCampaignIds.size === campaigns.length) {
+      setSelectedCampaignIds(new Set());
+    } else {
+      setSelectedCampaignIds(new Set(campaigns.map(c => c.id)));
+    }
+  };
 
   const editContactMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { firstName: string; lastName: string; phone: string; email: string } }) => {
@@ -705,13 +741,26 @@ export default function Campaigns() {
 
   const renderBatchCallView = () => (
     <div className="flex flex-col h-[calc(100vh-120px)]">
-      <div className="flex items-center justify-between gap-2 flex-wrap py-3 px-1">
+      <div className="flex items-center justify-between gap-2 flex-wrap py-2.5 px-1">
         <div className="flex items-center gap-2">
-          <Phone className="h-4 w-4 text-foreground" />
-          <span className="font-medium text-sm">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>
+          <Phone className="h-3.5 w-3.5 text-foreground" />
+          <span className="font-medium text-xs">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>
+          {selectedCampaignIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-6 px-2 text-[10px] gap-1"
+              onClick={() => setShowBulkDeleteDialog(true)}
+              data-testid="button-bulk-delete-campaigns"
+            >
+              <Trash2 className="h-2.5 w-2.5" />
+              Delete {selectedCampaignIds.size}
+            </Button>
+          )}
         </div>
         <Button 
           size="sm"
+          className="h-7 text-xs"
           onClick={() => setActiveView('outbound')}
           data-testid="button-create-campaign"
         >
@@ -736,6 +785,14 @@ export default function Campaigns() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30 text-xs">
+                  <TableHead className="w-8 py-2 px-2">
+                    <Checkbox
+                      checked={campaigns.length > 0 && selectedCampaignIds.size === campaigns.length}
+                      onCheckedChange={toggleAllCampaigns}
+                      data-testid="checkbox-select-all-campaigns"
+                      className="h-3.5 w-3.5"
+                    />
+                  </TableHead>
                   <TableHead className="font-medium text-xs py-2">{t('campaigns.table.batchCallName', 'Name')}</TableHead>
                   <TableHead className="font-medium text-xs py-2">{t('campaigns.table.status', 'Status')}</TableHead>
                   <TableHead className="font-medium text-xs py-2 hidden sm:table-cell">{t('campaigns.table.recipients', 'To')}</TableHead>
@@ -756,6 +813,15 @@ export default function Campaigns() {
                     onClick={() => setLocation(`/app/campaigns/${campaign.id}`)}
                     data-testid={`row-campaign-${campaign.id}`}
                   >
+                    <TableCell className="py-2 px-2">
+                      <Checkbox
+                        checked={selectedCampaignIds.has(campaign.id)}
+                        onCheckedChange={() => {}}
+                        onClick={(e) => toggleCampaignSelection(campaign.id, e)}
+                        data-testid={`checkbox-campaign-${campaign.id}`}
+                        className="h-3.5 w-3.5"
+                      />
+                    </TableCell>
                     <TableCell className="font-medium text-xs py-2 max-w-[180px] truncate" data-testid={`text-name-${campaign.id}`}>
                       {campaign.name}
                     </TableCell>
@@ -841,6 +907,27 @@ export default function Campaigns() {
               data-testid="button-confirm-delete-campaign"
             >
               {deleteCampaignMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent data-testid="dialog-bulk-delete-campaigns">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedCampaignIds.size} Batch Call{selectedCampaignIds.size > 1 ? 's' : ''}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedCampaignIds.size} batch call{selectedCampaignIds.size > 1 ? 's' : ''}? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => bulkDeleteCampaignMutation.mutate([...selectedCampaignIds])}
+              data-testid="button-confirm-bulk-delete"
+            >
+              {bulkDeleteCampaignMutation.isPending ? "Deleting..." : `Delete ${selectedCampaignIds.size}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

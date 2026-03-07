@@ -66,7 +66,6 @@ import {
   Link,
   Brain,
   AudioWaveform,
-  Timer,
   ChevronDown,
   ChevronUp,
   ExternalLink,
@@ -928,6 +927,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
     if (phone.isSystemPool) return false;
     const caps = phone.capabilities as any;
     if (caps && caps.voice === false) return false;
+    if (phone.country === 'AE' && phone.numberType === 'toll_free') return false;
+    if (phone.phoneNumber?.startsWith('+9718')) return false;
     return true;
   };
 
@@ -1158,15 +1159,15 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
           onClick={() => handleSelectUseCase(null)}
           data-testid="card-usecase-scratch"
         >
-          <CardContent className="p-3 sm:p-4 flex items-center gap-3">
-            <div className={`flex items-center justify-center h-10 w-10 rounded-lg flex-shrink-0 ${
+          <CardContent className="p-2.5 flex items-center gap-2.5">
+            <div className={`flex items-center justify-center h-8 w-8 rounded-lg flex-shrink-0 ${
               selectedTemplateId === null ? "bg-primary text-primary-foreground" : "bg-muted"
             }`}>
-              <Zap className="h-5 w-5" />
+              <Zap className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm">Start from Scratch</div>
-              <p className="text-xs text-muted-foreground mt-0.5">Build a custom campaign with your own script and settings</p>
+              <div className="font-semibold text-xs">Start from Scratch</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Custom campaign with your own script</p>
             </div>
             {selectedTemplateId === null && (
               <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
@@ -1201,27 +1202,27 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                     onClick={() => handleSelectUseCase(template.id)}
                     data-testid={`card-usecase-${template.id}`}
                   >
-                    <CardContent className="p-3 flex items-start gap-2.5">
-                      <div className={`flex items-center justify-center h-9 w-9 rounded-lg flex-shrink-0 ${
+                    <CardContent className="p-2 flex items-start gap-2">
+                      <div className={`flex items-center justify-center h-7 w-7 rounded-md flex-shrink-0 ${
                         isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
                       }`}>
-                        {isSelected ? <Check className="h-4 w-4" /> : <CatIcon className="h-4 w-4" />}
+                        {isSelected ? <Check className="h-3.5 w-3.5" /> : <CatIcon className="h-3.5 w-3.5" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-sm truncate">{template.name}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-xs truncate">{template.name}</span>
                           {popular && (
                             <Badge className="text-[9px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" variant="outline">
                               Popular
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{template.description}</p>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{template.description}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5">
                             {catDef?.label || "General"}
                           </Badge>
-                          <span className="text-[10px] text-muted-foreground">{template.nodeCount} steps</span>
+                          <span className="text-[9px] text-muted-foreground">{template.nodeCount} steps</span>
                         </div>
                       </div>
                     </CardContent>
@@ -1467,9 +1468,10 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
             const caps = phone.capabilities as any;
             let disabledReason = '';
             if (!canOutbound) {
-              if (phone.status !== 'active') disabledReason = 'Inactive';
+              if (phone.status && phone.status !== 'active') disabledReason = 'Inactive';
               else if (phone.isSystemPool) disabledReason = 'Shared pool';
               else if (caps && caps.voice === false) disabledReason = 'No voice';
+              else if ((phone.country === 'AE' && phone.numberType === 'toll_free') || phone.phoneNumber?.startsWith('+9718')) disabledReason = 'UAE toll-free';
             }
             return (
               <Card
@@ -1744,8 +1746,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 }}
                 data-testid={`card-agent-${agent.id}`}
               >
-                <CardContent className="p-3 sm:p-4 flex items-start gap-3">
-                  <div className={`flex items-center justify-center h-10 w-10 rounded-lg flex-shrink-0 ${
+                <CardContent className="p-2.5 flex items-start gap-2.5">
+                  <div className={`flex items-center justify-center h-8 w-8 rounded-lg flex-shrink-0 ${
                     isSelected
                       ? "bg-primary text-primary-foreground"
                       : isPolly
@@ -1753,9 +1755,9 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                       : "bg-blue-100 dark:bg-blue-900/30"
                   }`}>
                     {isSelected ? (
-                      <Check className="h-5 w-5" />
+                      <Check className="h-4 w-4" />
                     ) : (
-                      <Bot className="h-5 w-5 text-blue-600" />
+                      <Bot className="h-4 w-4 text-blue-600" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -1797,10 +1799,6 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                           ElevenLabs
                         </Badge>
                       )}
-                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                        <Timer className="h-2.5 w-2.5 mr-0.5" />
-                        ~400ms
-                      </Badge>
                       {agent.language && (
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
                           {getLanguageLabel(agent.language)}
@@ -1808,12 +1806,6 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      {isPolly && (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20">
-                          <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-                          Humanized
-                        </Badge>
-                      )}
                       {hasKB && (
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20">
                           <Brain className="h-2.5 w-2.5 mr-0.5" />
@@ -1828,7 +1820,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                       )}
                     </div>
                     {agent.systemPrompt && (
-                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{agent.systemPrompt}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">{agent.systemPrompt}</p>
                     )}
                   </div>
                 </CardContent>
@@ -2315,10 +2307,6 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                         {selectedAgent.voiceProvider || 'Standard'}
                       </Badge>
                     )}
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                      <Timer className="h-2.5 w-2.5 mr-0.5" />
-                      ~400ms
-                    </Badge>
                     {selectedAgent.language && (
                       <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">{getLanguageLabel(selectedAgent.language)}</Badge>
                     )}
@@ -2397,7 +2385,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 <span className="font-medium text-orange-700 dark:text-orange-400">Performance Tips</span>
                 <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
                   <li>SSML Humanizer adds natural prosody and pauses automatically</li>
-                  <li>Neural engine delivers ~400ms latency with high voice quality</li>
+                  <li>Neural engine delivers low-latency responses with high voice quality</li>
                   <li>Streaming audio reduces perceived wait time</li>
                   {selectedKnowledgeBaseIds.length > 0 && (
                     <li>RAG retrieval adds ~100ms — preload for faster responses</li>

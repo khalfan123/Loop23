@@ -315,7 +315,8 @@ async function initializeSession(
         );
       }
 
-      if (metadata?.appointmentBookingEnabled && callRecord.userId && callRecord.agentId) {
+      const incomingPromptMentionsAppointment = agentConfig.systemPrompt && /appointment|booking|schedule.*meeting|book.*slot|calendar/i.test(agentConfig.systemPrompt);
+      if ((metadata?.appointmentBookingEnabled || incomingPromptMentionsAppointment) && callRecord.userId && callRecord.agentId) {
         agentConfig = BedrockAgentFactory.addAppointmentTool(
           agentConfig,
           callRecord.userId,

@@ -341,8 +341,10 @@ export class BedrockPollyCallService {
           );
         }
 
-        if (agent.appointmentBookingEnabled || metadata?.campaignAppointmentBooking) {
+        const promptMentionsAppointment = effectiveSystemPrompt && /appointment|booking|schedule.*meeting|book.*slot|calendar/i.test(effectiveSystemPrompt);
+        if (agent.appointmentBookingEnabled || metadata?.campaignAppointmentBooking || promptMentionsAppointment) {
           naturalConfig = BedrockAgentFactory.addAppointmentTool(naturalConfig, userId, agentId, callId);
+          logger.info(`[Outbound] Added appointment tool (flag=${!!agent.appointmentBookingEnabled}, campaignFlag=${!!metadata?.campaignAppointmentBooking}, promptDetect=${!!promptMentionsAppointment})`, undefined, 'BedrockPollyCall');
         }
 
         const campaignFormId = metadata?.selectedFormId as string | undefined;

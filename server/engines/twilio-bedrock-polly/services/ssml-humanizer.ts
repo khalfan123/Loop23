@@ -64,17 +64,17 @@ function randomVariation(baseMs: number, variancePct: number = 30): number {
 }
 
 function getCommaBreak(): string {
-  return `<break time="${randomVariation(180)}ms"/>`;
+  return `<break time="${randomVariation(250)}ms"/>`;
 }
 
 function getSentenceBreak(nextSentence?: string): string {
   if (!nextSentence) return '';
-  if (isQuestion(nextSentence)) return `<break time="${randomVariation(350)}ms"/>`;
-  return `<break time="${randomVariation(280)}ms"/>`;
+  if (isQuestion(nextSentence)) return `<break time="${randomVariation(450)}ms"/>`;
+  return `<break time="${randomVariation(380)}ms"/>`;
 }
 
 function getEndBreathBreak(sentenceCount: number): string {
-  if (sentenceCount > 2) return `<break time="${randomVariation(200)}ms"/>`;
+  if (sentenceCount > 2) return `<break time="${randomVariation(300)}ms"/>`;
   return '';
 }
 
@@ -92,12 +92,6 @@ function processEllipsis(escapedText: string): string {
   return escapedText.replace(/\.{3}/g, '<break time="400ms"/>');
 }
 
-function addEmphasis(escaped: string): string {
-  return escaped
-    .replace(/(\d+[\.,]?\d*\s*(?:percent|%|dollars?|minutes?|hours?|days?|months?|years?|times?))/gi, '<emphasis level="moderate">$1</emphasis>')
-    .replace(/\b(free|guaranteed|limited|exclusive|urgent|important|critical|deadline)\b/gi, '<emphasis level="moderate">$1</emphasis>');
-}
-
 function randomProsodyShift(baseRate: number, basePitch: number): { rate: string; pitch: string } {
   const rateShift = (Math.random() * 4 - 2);
   const pitchShift = (Math.random() * 2 - 1);
@@ -108,34 +102,32 @@ function randomProsodyShift(baseRate: number, basePitch: number): { rate: string
 }
 
 function wrapSentence(escaped: string, original: string): string {
-  const emphasizedText = addEmphasis(escaped);
-
   if (isGreeting(original)) {
-    const { rate, pitch } = randomProsodyShift(96, 3);
-    return `<prosody rate="${rate}" pitch="${pitch}">${emphasizedText}</prosody>`;
+    const { rate, pitch } = randomProsodyShift(92, 3);
+    return `<prosody rate="${rate}" pitch="${pitch}">${escaped}</prosody>`;
   }
   if (isQuestion(original)) {
-    const { rate, pitch } = randomProsodyShift(94, 2);
-    return `<prosody rate="${rate}" pitch="${pitch}">${emphasizedText}</prosody>`;
+    const { rate, pitch } = randomProsodyShift(90, 2);
+    return `<prosody rate="${rate}" pitch="${pitch}">${escaped}</prosody>`;
   }
   if (isExclamation(original)) {
-    const { rate, pitch } = randomProsodyShift(98, 2);
-    return `<prosody rate="${rate}" pitch="${pitch}">${emphasizedText}</prosody>`;
+    const { rate, pitch } = randomProsodyShift(94, 2);
+    return `<prosody rate="${rate}" pitch="${pitch}">${escaped}</prosody>`;
   }
   if (isEmpathetic(original)) {
-    const { rate, pitch } = randomProsodyShift(92, -1);
-    return `<prosody rate="${rate}" pitch="${pitch}">${emphasizedText}</prosody>`;
+    const { rate, pitch } = randomProsodyShift(88, -1);
+    return `<prosody rate="${rate}" pitch="${pitch}">${escaped}</prosody>`;
   }
   if (isImportantInfo(original)) {
-    const { rate, pitch } = randomProsodyShift(90, 1);
-    return `<prosody rate="${rate}" pitch="${pitch}">${emphasizedText}</prosody>`;
+    const { rate, pitch } = randomProsodyShift(86, 1);
+    return `<prosody rate="${rate}" pitch="${pitch}">${escaped}</prosody>`;
   }
   if (isShortResponse(original)) {
-    const { rate } = randomProsodyShift(97, 0);
-    return `<prosody rate="${rate}">${emphasizedText}</prosody>`;
+    const { rate } = randomProsodyShift(93, 0);
+    return `<prosody rate="${rate}">${escaped}</prosody>`;
   }
-  const { rate } = randomProsodyShift(95, 0);
-  return `<prosody rate="${rate}">${emphasizedText}</prosody>`;
+  const { rate } = randomProsodyShift(90, 0);
+  return `<prosody rate="${rate}">${escaped}</prosody>`;
 }
 
 export function humanizeToSSML(text: string): string {

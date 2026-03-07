@@ -3965,3 +3965,19 @@ export const insertAgentPresetSchema = createInsertSchema(agentPresets).omit({
 });
 export type InsertAgentPreset = z.infer<typeof insertAgentPresetSchema>;
 export type AgentPreset = typeof agentPresets.$inferSelect;
+
+export const generatedUseCases = pgTable("generated_use_cases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertGeneratedUseCaseSchema = createInsertSchema(generatedUseCases).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertGeneratedUseCase = z.infer<typeof insertGeneratedUseCaseSchema>;
+export type GeneratedUseCase = typeof generatedUseCases.$inferSelect;

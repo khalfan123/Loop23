@@ -34,6 +34,7 @@ import { storage } from "../storage";
 import { db } from "../db";
 import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowledgeEntities, knowledgeTopics } from "@shared/schema";
 import { eq, and, sql, desc, asc, count, inArray } from "drizzle-orm";
+import { generateUseCasesFromKB } from "../services/use-case-generator";
 
 // Extend Request to include userId
 interface AuthRequest extends Request {
@@ -617,6 +618,8 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         { source: 'file', filename }
       ).catch(err => console.error("[RAG Routes] Background processing error:", err));
 
+      generateUseCasesFromKB(req.userId!).catch(err => console.error("[RAG] Use case generation error:", err));
+
       res.json({
         ...item,
         ragStatus: 'processing',
@@ -718,6 +721,8 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         { source: 'url', url }
       ).catch(err => console.error("[RAG Routes] Background processing error:", err));
 
+      generateUseCasesFromKB(req.userId!).catch(err => console.error("[RAG] Use case generation error:", err));
+
       // Advanced scraping: sub-pages, metadata, contact info, FAQs (async background)
       if (isHtml && rawHtml.length > 100) {
         (async () => {
@@ -808,6 +813,8 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         text,
         { source: 'text' }
       ).catch(err => console.error("[RAG Routes] Background processing error:", err));
+
+      generateUseCasesFromKB(req.userId!).catch(err => console.error("[RAG] Use case generation error:", err));
 
       res.json({
         ...item,

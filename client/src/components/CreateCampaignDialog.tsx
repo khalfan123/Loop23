@@ -27,7 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Loader2, Clock, ChevronLeft, ChevronRight, Download, Phone, Info, Minus, Plus, Link2, CalendarCheck, FileText, Brain, Globe, Sparkles, X, Check, Volume2, Square, Pencil } from "lucide-react";
+import { Upload, Loader2, Clock, ChevronLeft, ChevronRight, Download, Phone, Info, Minus, Plus, Link2, CalendarCheck, FileText, Brain, Globe, Sparkles, X, Check, Volume2, Square, Pencil, RefreshCw } from "lucide-react";
 import { AuthStorage } from "@/lib/auth-storage";
 import { TimezoneEnforcementModal } from "@/components/TimezoneEnforcementModal";
 import { PhoneConflictDialog, PhoneConflictState, initialPhoneConflictState } from "./PhoneConflictDialog";
@@ -137,6 +137,18 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [voiceAudioRef, setVoiceAudioRef] = useState<HTMLAudioElement | null>(null);
   const [useCaseLocked, setUseCaseLocked] = useState(true);
+
+  interface GeneratedUseCase {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+  }
+
+  const { data: dynamicUseCases = [], isLoading: useCasesLoading } = useQuery<GeneratedUseCase[]>({
+    queryKey: ["/api/campaigns/use-cases"],
+    enabled: open,
+  });
 
   const { data: userData } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
@@ -672,20 +684,22 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label>{t('campaigns.create.typeRequired', 'Campaign Type *')}</Label>
-                      {useCaseLocked && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs px-2"
-                          onClick={() => setUseCaseLocked(false)}
-                          data-testid="button-edit-use-case"
-                          title="Edit use case"
-                        >
-                          <Pencil className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {useCaseLocked && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs px-2"
+                            onClick={() => setUseCaseLocked(false)}
+                            data-testid="button-edit-use-case"
+                            title="Edit use case"
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     {useCaseLocked ? (
                       <div className="flex items-center gap-2 p-2.5 rounded-md border bg-muted/50">
@@ -697,28 +711,73 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                         <span className="text-sm font-medium flex-1">{formData.type}</span>
                       </div>
                     ) : (
-                      <Select value={formData.type} onValueChange={(value) => {
-                        setFormData({ ...formData, type: value });
-                        setFormGenerated(false);
-                        setGeneratedFormFields([]);
-                        setCreatedFormId(null);
-                        setPromptGenerated(false);
-                        setGeneratedPrompt('');
-                        setUseCaseLocked(true);
-                      }}>
-                        <SelectTrigger data-testid="select-campaign-type">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Appointment Booking">Appointment Booking</SelectItem>
-                          <SelectItem value="Lead Qualification">{t("campaigns.create.typeOptions.lead")}</SelectItem>
-                          <SelectItem value="Feedback Collection">{t("campaigns.create.typeOptions.feedback")}</SelectItem>
-                          <SelectItem value="Promotional">{t("campaigns.create.typeOptions.promotional")}</SelectItem>
-                          <SelectItem value="Payment Reminder">{t("campaigns.create.typeOptions.payment")}</SelectItem>
-                          <SelectItem value="Event Promotion">{t("campaigns.create.typeOptions.event")}</SelectItem>
-                          <SelectItem value="Survey">{t("campaigns.create.typeOptions.survey")}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-2">
+                        {useCasesLoading ? (
+                          <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2">
+                            {[1, 2, 3, 4].map((i) => (
+                              <div key={i} className="h-16 rounded-lg bg-muted/50 animate-pulse" />
+                            ))}
+                          </div>
+                        ) : (
+                          <ScrollArea className="max-h-[200px]">
+                            <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2 pr-2">
+                              {dynamicUseCases.map((uc) => {
+                                const isAppointment = uc.name.toLowerCase().includes('appointment') || uc.name.toLowerCase().includes('booking');
+                                const isSelected = formData.type === uc.name;
+                                return (
+                                  <button
+                                    key={uc.id || uc.name}
+                                    type="button"
+                                    className={`text-left p-2.5 rounded-lg border transition-all ${
+                                      isSelected
+                                        ? isAppointment
+                                          ? "border-green-500 bg-green-50 dark:bg-green-950/30 ring-1 ring-green-500/30"
+                                          : "border-primary bg-primary/5 ring-1 ring-primary/30"
+                                        : "border-border hover:border-primary/40 hover:bg-accent/30"
+                                    }`}
+                                    onClick={() => {
+                                      setFormData({ ...formData, type: uc.name });
+                                      setFormGenerated(false);
+                                      setGeneratedFormFields([]);
+                                      setCreatedFormId(null);
+                                      setPromptGenerated(false);
+                                      setGeneratedPrompt('');
+                                      setUseCaseLocked(true);
+                                    }}
+                                    data-testid={`button-usecase-${uc.name.toLowerCase().replace(/\s+/g, '-')}`}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <div className={`flex items-center justify-center h-6 w-6 rounded-md flex-shrink-0 mt-0.5 ${
+                                        isSelected
+                                          ? isAppointment ? "bg-green-500 text-white" : "bg-primary text-primary-foreground"
+                                          : "bg-muted"
+                                      }`}>
+                                        {isSelected ? (
+                                          <Check className="h-3 w-3" />
+                                        ) : isAppointment ? (
+                                          <CalendarCheck className="h-3 w-3" />
+                                        ) : (
+                                          <Sparkles className="h-3 w-3" />
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium truncate">{uc.name}</p>
+                                        <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{uc.description}</p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </ScrollArea>
+                        )}
+                        {dynamicUseCases.length > 0 && dynamicUseCases[0]?.id?.startsWith('default-') && (
+                          <p className="text-[10px] text-muted-foreground text-center">
+                            <Sparkles className="h-3 w-3 inline mr-1" />
+                            Add knowledge base entries to get AI-tailored use cases for your business
+                          </p>
+                        )}
+                      </div>
                     )}
 
                     {isAppointmentBooking && (

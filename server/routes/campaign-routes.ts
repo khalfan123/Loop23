@@ -20,7 +20,7 @@ import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import { eq, and, inArray } from "drizzle-orm";
 import { 
-  campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows, forms, formFields, knowledgeBase 
+  campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows, forms, formFields, knowledgeBase, generatedUseCases 
 } from "@shared/schema";
 import { flowTemplates } from "../services/flow-templates";
 import { nanoid } from "nanoid";
@@ -1962,6 +1962,27 @@ OUTPUT RULES:
         error: "Failed to initiate test call",
         details: error.message 
       });
+    }
+  });
+
+  router.get("/api/campaigns/use-cases", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const existing = await db.select().from(generatedUseCases).where(eq(generatedUseCases.userId, req.userId!));
+      if (existing.length > 0) {
+        return res.json(existing);
+      }
+      res.json([
+        { id: "default-appointment", name: "Appointment Booking", description: "Schedule appointments with prospects or customers", category: "appointments" },
+        { id: "default-lead", name: "Lead Qualification", description: "Qualify inbound leads and assess buying intent", category: "sales" },
+        { id: "default-feedback", name: "Feedback Collection", description: "Gather customer feedback and satisfaction scores", category: "surveys" },
+        { id: "default-promotional", name: "Promotional", description: "Promote products, services, or special offers", category: "sales" },
+        { id: "default-payment", name: "Payment Reminder", description: "Remind customers about pending or overdue payments", category: "collections" },
+        { id: "default-event", name: "Event Promotion", description: "Promote upcoming events and drive registrations", category: "sales" },
+        { id: "default-survey", name: "Survey", description: "Conduct structured surveys to collect data", category: "surveys" },
+      ]);
+    } catch (error: any) {
+      console.error("Error fetching use cases:", error);
+      res.status(500).json({ error: "Failed to fetch use cases" });
     }
   });
 

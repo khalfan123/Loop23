@@ -27,6 +27,7 @@ import { IncomingAgentService } from "../services/incoming-agent";
 import { FlowAgentService } from "../services/flow-agent";
 import { setupRAGToolForAgent, isRAGEnabled } from "../services/rag-elevenlabs-tool";
 import { generateAgentAvatar } from "../services/avatar-generator";
+import { generateUseCasesFromKB } from "../services/use-case-generator";
 
 export function createAgentRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -1279,6 +1280,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         storageSize,
       });
 
+      generateUseCasesFromKB(req.userId!).catch(err => console.error("[KB] Use case generation error:", err));
+
       res.json(item);
     } catch (error: any) {
       console.error("Create knowledge base item error:", error);
@@ -1328,6 +1331,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         storageSize: req.file.size,
       });
 
+      generateUseCasesFromKB(req.userId!).catch(err => console.error("[KB] Use case generation error:", err));
+
       res.json(item);
     } catch (error: any) {
       console.error("Upload knowledge base file error:", error);
@@ -1367,6 +1372,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         metadata: { url },
         storageSize: 0,
       });
+
+      generateUseCasesFromKB(req.userId!).catch(err => console.error("[KB] Use case generation error:", err));
 
       res.json(item);
     } catch (error: any) {
@@ -1411,6 +1418,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         metadata: null,
         storageSize: text.length,
       });
+
+      generateUseCasesFromKB(req.userId!).catch(err => console.error("[KB] Use case generation error:", err));
 
       res.json(item);
     } catch (error: any) {

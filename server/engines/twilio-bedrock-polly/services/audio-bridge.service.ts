@@ -83,6 +83,8 @@ const calibrationStartTime: Map<string, number> = new Map();
 
 const peakEnergy: Map<string, number> = new Map();
 
+const lastTtsEndTime: Map<string, number> = new Map();
+const ECHO_COOLDOWN_MS = 600;
 
 const whisperAbortControllers: Map<string, AbortController> = new Map();
 
@@ -419,6 +421,12 @@ export class BedrockPollyAudioBridge {
       peakEnergy.set(newKey, pk);
     }
 
+    const ttsEnd = lastTtsEndTime.get(oldKey);
+    if (ttsEnd !== undefined) {
+      lastTtsEndTime.delete(oldKey);
+      lastTtsEndTime.set(newKey, ttsEnd);
+    }
+
     console.log(`[BedrockPolly Bridge] Remapped session ${oldKey} → ${newKey}`);
   }
 
@@ -497,6 +505,14 @@ export class BedrockPollyAudioBridge {
               }
             }
             break;
+          }
+
+          if (!session.isOutbound) {
+            const ttsEnd = lastTtsEndTime.get(callSid);
+            if (ttsEnd && (Date.now() - ttsEnd) < ECHO_COOLDOWN_MS) {
+              this.collectNoiseFloorSample(callSid, this.calculateMulawEnergy(audioChunk));
+              break;
+            }
           }
 
           let buf = audioBuffers.get(callSid);
@@ -811,12 +827,21 @@ export class BedrockPollyAudioBridge {
             };
             const reprompt = reprompts[lang] || reprompts['en'];
             console.log(`[BedrockPolly Bridge] Inbound hallucination re-prompt #${count} for ${callSid}: "${reprompt}"`);
-            this.synthesizeAndSend(session, reprompt).catch(err => {
+            this.synthesizeAndSend(session, reprompt).then(() => {
+              lastTtsEndTime.set(callSid, Date.now());
+            }).catch(err => {
               console.error(`[BedrockPolly Bridge] Error sending hallucination re-prompt for ${callSid}:`, err);
             });
           }
         }
 
+        return;
+      }
+
+      const expectedLang = session.agentConfig.language || 'en';
+      if (this.isLanguageMismatch(transcription, expectedLang)) {
+        console.log(`[BedrockPolly Bridge] Language mismatch filtered for ${callSid} (expected=${expectedLang}): "${transcription.substring(0, 100)}"`);
+        session.isProcessing = false;
         return;
       }
 
@@ -917,6 +942,7 @@ export class BedrockPollyAudioBridge {
       console.error(`[BedrockPolly Bridge] Turn processing error for ${callSid}:`, error.message);
     } finally {
       session.isProcessing = false;
+      lastTtsEndTime.set(callSid, Date.now());
       bargeInAccum.set(callSid, 0);
     }
   }
@@ -1073,6 +1099,30 @@ export class BedrockPollyAudioBridge {
     return false;
   }
 
+  private static isLanguageMismatch(text: string, expectedLang: string): boolean {
+    const trimmed = text.trim();
+    if (trimmed.length < 5) return false;
+
+    const arabicChars = (trimmed.match(/[\u0600-\u06FF]/g) || []).length;
+    const latinChars = (trimmed.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
+    const cjkChars = (trimmed.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length;
+    const totalAlpha = arabicChars + latinChars + cjkChars;
+    if (totalAlpha < 3) return false;
+
+    if (expectedLang === 'ar') {
+      if (arabicChars / totalAlpha < 0.3) return true;
+    } else if (expectedLang === 'en') {
+      if (arabicChars / totalAlpha > 0.5) return true;
+      if (cjkChars / totalAlpha > 0.3) return true;
+      const frenchPatterns = /\b(je suis|nous|vous|qu['']|c['']est|pas de|il semble|voulez|s['']il vous|en tout cas|on est)\b/i;
+      const spanishPatterns = /\b(está|usted|nosotros|también|pero|porque|entonces|gracias por|quiero|necesito)\b/i;
+      if (frenchPatterns.test(trimmed) && latinChars > 10) return true;
+      if (spanishPatterns.test(trimmed) && latinChars > 10) return true;
+    }
+
+    return false;
+  }
+
   private static cachedOpenAIKey: string | null = null;
   private static cachedKeyTimestamp: number = 0;
   private static readonly KEY_CACHE_TTL_MS = 300_000;
@@ -1150,8 +1200,9 @@ export class BedrockPollyAudioBridge {
       formData.append('model', 'whisper-1');
       formData.append('response_format', 'text');
       formData.append('temperature', '0');
-      if (language && language !== 'en') {
-        formData.append('language', language);
+      if (language) {
+        const whisperLang = language.split('-')[0].toLowerCase();
+        formData.append('language', whisperLang);
       }
 
       let whisperPrompt = '';
@@ -2349,6 +2400,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     bargeInFlags.set(callSid, false);
 
     console.log(`[BedrockPolly Bridge] Inbound greeting finished for ${callSid} — now listening`);
+    lastTtsEndTime.set(callSid, Date.now());
 
     const INBOUND_NO_RESPONSE_MS = 8000;
     const INBOUND_FINAL_TIMEOUT_MS = 12000;
@@ -2505,6 +2557,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         noResponseTimers.delete(callSid);
       }
       callerHasSpoken.delete(callSid);
+      lastTtsEndTime.delete(callSid);
       inboundHallucinationCount.delete(callSid);
       const inboundNrTimer = inboundNoResponseTimers.get(callSid);
       if (inboundNrTimer) {

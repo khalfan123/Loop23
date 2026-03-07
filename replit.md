@@ -51,6 +51,9 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - Whitelisted valid short Arabic phrases ("ألو", "نعم", "أريد", etc.) so they are no longer filtered as hallucinations; whitelist tolerates punctuation and character elongation
   - Increased inbound token limits: MIN=1024, MAX=2048, DEFAULT=1024 (outbound unchanged at 200/1024/400)
   - Increased KB result formatting limit from 400 to 1200 chars for inbound calls to support thorough knowledge-base answers
+  - Added 600ms post-TTS echo cooldown (inbound only) — discards audio detected right after agent finishes speaking to prevent echo-to-Whisper feedback loop
+  - Always pass language code to Whisper (including English) so it can't transcribe echo as random foreign languages; normalizes locale codes (e.g. en-US → en)
+  - Added language mismatch filter: rejects Whisper transcriptions that don't match the agent's configured language (e.g. French text on English call = echo, not real speech)
 - **Widget Language + Flow Agent Fixes (Feb 2026)**: Fixed multiple widget issues:
   - Fixed null crash in ephemeral-token endpoint when agent is null (OpenAI path `agent?.openaiModel`)
   - Widget now passes selected language to ElevenLabs via `conversation_initiation_client_data` with language override

@@ -983,13 +983,20 @@ export class BedrockPollyAudioBridge {
 
 
 
+  private static ensureUserFirst(msgs: Array<{role: string; content: string}>): Array<{role: string; content: string}> {
+    if (msgs.length > 0 && msgs[0].role === 'assistant') {
+      return [{ role: 'user', content: '[The person answered the phone]' }, ...msgs];
+    }
+    return msgs;
+  }
+
   private static async streamBedrockAndSpeak(session: BedrockPollyBridgeSession, sttMs?: number): Promise<string> {
     const { callSid, agentConfig, messages } = session;
 
-    const bedrockMessages = messages.map((m) => ({
+    const bedrockMessages = this.ensureUserFirst(messages.map((m) => ({
       role: m.role,
       content: m.content,
-    }));
+    })));
 
     let toolCallInstructions = '';
     if (agentConfig.tools && agentConfig.tools.length > 0) {
@@ -1334,10 +1341,10 @@ export class BedrockPollyAudioBridge {
   private static async getBedrockResponse(session: BedrockPollyBridgeSession): Promise<string> {
     const { agentConfig, messages } = session;
 
-    const bedrockMessages = messages.map((m) => ({
+    const bedrockMessages = this.ensureUserFirst(messages.map((m) => ({
       role: m.role,
       content: m.content,
-    }));
+    })));
 
     let toolCallInstructions = '';
     if (agentConfig.tools && agentConfig.tools.length > 0) {

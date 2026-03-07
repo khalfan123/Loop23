@@ -1382,7 +1382,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     const isOutboundNonStream = agentConfig.systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || agentConfig.systemPrompt.includes('TASK-FIRST FRAMEWORK');
     const conversationBehavior = isOutboundNonStream
       ? `\n\nCONVERSATION STYLE: Keep responses to 1-2 sentences MAX. Be direct, natural, and concise. This is an outbound phone call.`
-      : `\n\nCONVERSATION STYLE: Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure" — just answer naturally.`;
+      : `\n\nCONVERSATION STYLE: Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure" — just answer naturally. CRITICAL: After delivering your greeting, you MUST wait for the user to actually speak before responding. Do NOT assume the user has said something if you have not clearly heard their words. If there is silence or unclear noise, do NOT fabricate or guess what the user said — instead, wait patiently or say "Hello, are you there?"`;
     const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + conversationBehavior;
 
     const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt);

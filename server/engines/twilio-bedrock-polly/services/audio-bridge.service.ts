@@ -637,13 +637,59 @@ export class BedrockPollyAudioBridge {
     });
   }
 
+  private static readonly ACKNOWLEDGMENT_FILLERS: Record<string, string[]> = {
+    en: ['Mm-hmm.', 'Right.', 'Sure.', 'Got it.', 'Okay.', 'Yeah.'],
+    ar: ['حسناً.', 'تمام.', 'نعم.', 'فهمت.', 'أها.', 'ماشي.'],
+    es: ['Ajá.', 'Claro.', 'Sí.', 'Entendido.', 'Vale.', 'Bien.'],
+    fr: ['D\'accord.', 'Oui.', 'Bien sûr.', 'Compris.', 'Hmm.', 'Okay.'],
+    de: ['Ja.', 'Klar.', 'Verstehe.', 'Genau.', 'Okay.', 'Richtig.'],
+    pt: ['Certo.', 'Sim.', 'Entendi.', 'Okay.', 'Claro.', 'Tá.'],
+    hi: ['हाँ.', 'ठीक है.', 'अच्छा.', 'समझ गया.', 'बिलकुल.', 'जी.'],
+  };
+  private static readonly THINKING_FILLERS: Record<string, string[]> = {
+    en: ['Hmm, good question.', 'Let me think about that.', 'So,', 'Well,', 'That\'s a great question.'],
+    ar: ['سؤال جيد.', 'خليني أفكر.', 'حسناً،', 'يعني،', 'سؤال ممتاز.'],
+    es: ['Buena pregunta.', 'Déjame pensar.', 'A ver,', 'Bueno,', 'Excelente pregunta.'],
+    fr: ['Bonne question.', 'Laissez-moi réfléchir.', 'Alors,', 'Eh bien,', 'Excellente question.'],
+    de: ['Gute Frage.', 'Lassen Sie mich überlegen.', 'Also,', 'Nun,', 'Sehr gute Frage.'],
+    pt: ['Boa pergunta.', 'Deixe-me pensar.', 'Então,', 'Bom,', 'Excelente pergunta.'],
+    hi: ['अच्छा सवाल.', 'मुझे सोचने दीजिए.', 'तो,', 'देखिए,', 'बहुत अच्छा सवाल.'],
+  };
+
+  private static getRandomFiller(fillers: string[]): string {
+    return fillers[Math.floor(Math.random() * fillers.length)];
+  }
+
+  private static async playFillerAudio(session: BedrockPollyBridgeSession, filler: string): Promise<void> {
+    try {
+      const voiceId = session.agentConfig.voice || 'Joanna';
+      const audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
+      const mulawAudio = this.pcmToMulaw(audioBuffer);
+      const chunkSize = 640;
+      for (let offset = 0; offset < mulawAudio.length; offset += chunkSize) {
+        if (bargeInFlags.get(session.callSid)) break;
+        const chunk = mulawAudio.subarray(offset, offset + chunkSize);
+        if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
+          session.twilioWs.send(JSON.stringify({
+            event: 'media',
+            streamSid: session.streamSid,
+            media: { payload: chunk.toString('base64') },
+          }));
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[BedrockPolly Bridge] Filler audio failed: ${e.message}`);
+    }
+  }
+
   /**
    * Process a complete user speech turn:
    * 1. Collect buffered audio
-   * 2. Transcribe via OpenAI Whisper
-   * 3. Send to Bedrock for AI response
-   * 4. Convert response to speech via Polly
-   * 5. Stream audio back to Twilio
+   * 2. Play instant acknowledgment filler (kills dead air)
+   * 3. Transcribe via OpenAI Whisper
+   * 4. Send to Bedrock for AI response
+   * 5. Convert response to speech via Polly
+   * 6. Stream audio back to Twilio
    */
   private static async processUserTurn(session: BedrockPollyBridgeSession): Promise<void> {
     const { callSid } = session;
@@ -671,8 +717,20 @@ export class BedrockPollyAudioBridge {
         return;
       }
 
+      const turnCount = session.messages.filter(m => m.role === 'user').length;
+      const isLongUtterance = audioBuffer.length > 16000;
+
+      const isStreamReady = session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid;
+      if (turnCount >= 1 && isLongUtterance && isStreamReady && !playingGreeting.get(callSid) && !bargeInFlags.get(callSid)) {
+        const lang = session.agentConfig.language || 'en';
+        const ackFillers = this.ACKNOWLEDGMENT_FILLERS[lang] || this.ACKNOWLEDGMENT_FILLERS['en'];
+        const filler = this.getRandomFiller(ackFillers);
+        console.log(`[BedrockPolly Bridge] Playing acknowledgment filler for ${callSid}: "${filler}"`);
+        await this.playFillerAudio(session, filler);
+      }
+
       const turnStart = Date.now();
-      const recentUserMessages = session.messages.filter(m => m.role === 'user').slice(-2).map(m => m.content).filter(Boolean);
+      const recentUserMessages = session.messages.filter(m => m.role === 'user').slice(-4).map(m => m.content).filter(Boolean);
       const sttStart = Date.now();
       const transcription = await this.transcribeAudio(audioBuffer, session.agentConfig.language, recentUserMessages, callSid);
       const sttMs = Date.now() - sttStart;
@@ -710,6 +768,17 @@ export class BedrockPollyAudioBridge {
       if (session.status === 'disconnected') {
         console.log(`[BedrockPolly Bridge] Session disconnected before Bedrock call for ${callSid}`);
         return;
+      }
+
+      const words = transcription.trim().split(/\s+/);
+      const hasQuestion = /\?|؟/.test(transcription);
+      const isComplex = (hasQuestion && words.length > 8) || words.length > 15;
+      if (isComplex && !bargeInFlags.get(callSid)) {
+        const lang = session.agentConfig.language || 'en';
+        const thinkFillers = this.THINKING_FILLERS[lang] || this.THINKING_FILLERS['en'];
+        const thinkFiller = this.getRandomFiller(thinkFillers);
+        console.log(`[BedrockPolly Bridge] Playing thinking filler for ${callSid}: "${thinkFiller}"`);
+        await this.playFillerAudio(session, thinkFiller);
       }
 
       console.log(`[BedrockPolly Bridge] Calling Bedrock for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);

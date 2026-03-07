@@ -137,6 +137,9 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [voiceAudioRef, setVoiceAudioRef] = useState<HTMLAudioElement | null>(null);
   const [useCaseLocked, setUseCaseLocked] = useState(true);
+  const [campaignGoal, setCampaignGoal] = useState('');
+  const [isGeneratingUseCases, setIsGeneratingUseCases] = useState(false);
+  const [onDemandUseCases, setOnDemandUseCases] = useState<GeneratedUseCase[]>([]);
 
   interface GeneratedUseCase {
     id: string;
@@ -149,6 +152,24 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
     queryKey: ["/api/campaigns/use-cases"],
     enabled: open,
   });
+
+  const displayedUseCases = onDemandUseCases.length > 0 ? onDemandUseCases : dynamicUseCases;
+
+  const handleGenerateUseCases = async () => {
+    setIsGeneratingUseCases(true);
+    try {
+      const res = await apiRequest("POST", "/api/campaigns/generate-use-cases", {
+        goal: campaignGoal.trim() || undefined,
+      });
+      const data = await res.json();
+      setOnDemandUseCases(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns/use-cases"] });
+    } catch (err: any) {
+      toast({ title: "Failed to generate use cases", description: err.message, variant: "destructive" });
+    } finally {
+      setIsGeneratingUseCases(false);
+    }
+  };
 
   const { data: userData } = useQuery<UserData>({
     queryKey: ["/api/auth/me"],
@@ -711,70 +732,112 @@ export function CreateCampaignDialog({ open, onOpenChange }: CreateCampaignDialo
                         <span className="text-sm font-medium flex-1">{formData.type}</span>
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        {useCasesLoading ? (
+                      <div className="space-y-3">
+                        <div className="p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            <Brain className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-xs font-medium">What do you want to achieve?</span>
+                          </div>
+                          <Textarea
+                            value={campaignGoal}
+                            onChange={(e) => setCampaignGoal(e.target.value)}
+                            placeholder="e.g. I want to follow up with customers who purchased our premium plan and upsell add-on services..."
+                            className="min-h-[60px] text-xs resize-none"
+                            data-testid="textarea-campaign-goal"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="w-full h-8 text-xs"
+                            onClick={handleGenerateUseCases}
+                            disabled={isGeneratingUseCases}
+                            data-testid="button-generate-use-cases"
+                          >
+                            {isGeneratingUseCases ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                                Analyzing your business & generating use cases...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-3 w-3 mr-1.5" />
+                                Generate Tailored Use Cases
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {(useCasesLoading || isGeneratingUseCases) ? (
                           <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2">
-                            {[1, 2, 3, 4].map((i) => (
+                            {[1, 2, 3, 4, 5, 6].map((i) => (
                               <div key={i} className="h-16 rounded-lg bg-muted/50 animate-pulse" />
                             ))}
                           </div>
-                        ) : (
-                          <ScrollArea className="max-h-[200px]">
-                            <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2 pr-2">
-                              {dynamicUseCases.map((uc) => {
-                                const isAppointment = uc.name.toLowerCase().includes('appointment') || uc.name.toLowerCase().includes('booking');
-                                const isSelected = formData.type === uc.name;
-                                return (
-                                  <button
-                                    key={uc.id || uc.name}
-                                    type="button"
-                                    className={`text-left p-2.5 rounded-lg border transition-all ${
-                                      isSelected
-                                        ? isAppointment
-                                          ? "border-green-500 bg-green-50 dark:bg-green-950/30 ring-1 ring-green-500/30"
-                                          : "border-primary bg-primary/5 ring-1 ring-primary/30"
-                                        : "border-border hover:border-primary/40 hover:bg-accent/30"
-                                    }`}
-                                    onClick={() => {
-                                      setFormData({ ...formData, type: uc.name });
-                                      setFormGenerated(false);
-                                      setGeneratedFormFields([]);
-                                      setCreatedFormId(null);
-                                      setPromptGenerated(false);
-                                      setGeneratedPrompt('');
-                                      setUseCaseLocked(true);
-                                    }}
-                                    data-testid={`button-usecase-${uc.name.toLowerCase().replace(/\s+/g, '-')}`}
-                                  >
-                                    <div className="flex items-start gap-2">
-                                      <div className={`flex items-center justify-center h-6 w-6 rounded-md flex-shrink-0 mt-0.5 ${
+                        ) : displayedUseCases.length > 0 ? (
+                          <>
+                            {onDemandUseCases.length > 0 && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-primary font-medium">
+                                <Sparkles className="h-3 w-3" />
+                                AI-generated use cases tailored to your business
+                              </div>
+                            )}
+                            <ScrollArea className="max-h-[200px]">
+                              <div className="grid gap-1.5 grid-cols-1 sm:grid-cols-2 pr-2">
+                                {displayedUseCases.map((uc) => {
+                                  const isAppointment = uc.name.toLowerCase().includes('appointment') || uc.name.toLowerCase().includes('booking');
+                                  const isSelected = formData.type === uc.name;
+                                  return (
+                                    <button
+                                      key={uc.id || uc.name}
+                                      type="button"
+                                      className={`text-left p-2.5 rounded-lg border transition-all ${
                                         isSelected
-                                          ? isAppointment ? "bg-green-500 text-white" : "bg-primary text-primary-foreground"
-                                          : "bg-muted"
-                                      }`}>
-                                        {isSelected ? (
-                                          <Check className="h-3 w-3" />
-                                        ) : isAppointment ? (
-                                          <CalendarCheck className="h-3 w-3" />
-                                        ) : (
-                                          <Sparkles className="h-3 w-3" />
-                                        )}
+                                          ? isAppointment
+                                            ? "border-green-500 bg-green-50 dark:bg-green-950/30 ring-1 ring-green-500/30"
+                                            : "border-primary bg-primary/5 ring-1 ring-primary/30"
+                                          : "border-border hover:border-primary/40 hover:bg-accent/30"
+                                      }`}
+                                      onClick={() => {
+                                        setFormData({ ...formData, type: uc.name });
+                                        setFormGenerated(false);
+                                        setGeneratedFormFields([]);
+                                        setCreatedFormId(null);
+                                        setPromptGenerated(false);
+                                        setGeneratedPrompt('');
+                                        setUseCaseLocked(true);
+                                      }}
+                                      data-testid={`button-usecase-${uc.name.toLowerCase().replace(/\s+/g, '-')}`}
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <div className={`flex items-center justify-center h-6 w-6 rounded-md flex-shrink-0 mt-0.5 ${
+                                          isSelected
+                                            ? isAppointment ? "bg-green-500 text-white" : "bg-primary text-primary-foreground"
+                                            : "bg-muted"
+                                        }`}>
+                                          {isSelected ? (
+                                            <Check className="h-3 w-3" />
+                                          ) : isAppointment ? (
+                                            <CalendarCheck className="h-3 w-3" />
+                                          ) : (
+                                            <Sparkles className="h-3 w-3" />
+                                          )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium truncate">{uc.name}</p>
+                                          <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{uc.description}</p>
+                                        </div>
                                       </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-medium truncate">{uc.name}</p>
-                                        <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{uc.description}</p>
-                                      </div>
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </ScrollArea>
-                        )}
-                        {dynamicUseCases.length > 0 && dynamicUseCases[0]?.id?.startsWith('default-') && (
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </ScrollArea>
+                          </>
+                        ) : null}
+                        {displayedUseCases.length > 0 && displayedUseCases[0]?.id?.startsWith('default-') && (
                           <p className="text-[10px] text-muted-foreground text-center">
                             <Sparkles className="h-3 w-3 inline mr-1" />
-                            Add knowledge base entries to get AI-tailored use cases for your business
+                            Add knowledge base entries for smarter, business-specific use cases
                           </p>
                         )}
                       </div>

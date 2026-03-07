@@ -1986,5 +1986,17 @@ OUTPUT RULES:
     }
   });
 
+  router.post("/api/campaigns/generate-use-cases", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { goal } = req.body;
+      const { generateUseCasesOnDemand } = await import("../services/use-case-generator");
+      const useCases = await generateUseCasesOnDemand(req.userId!, goal || undefined);
+      res.json(useCases);
+    } catch (error: any) {
+      console.error("Error generating use cases:", error);
+      res.status(500).json({ error: error.message || "Failed to generate use cases" });
+    }
+  });
+
   return router;
 }

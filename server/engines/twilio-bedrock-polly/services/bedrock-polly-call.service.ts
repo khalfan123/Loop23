@@ -281,13 +281,21 @@ export class BedrockPollyCallService {
         if (callScript && callScript.trim()) {
           const resolvedScript = resolveTemplateVariables(callScript.trim());
           const scriptSection = `CALL SCRIPT & CONVERSATION GUIDE (follow these points step-by-step as your playbook):\n${resolvedScript}\n\nIMPORTANT: Follow the script above as a GUIDE — cover each point in order but use your own natural words. Do NOT read it verbatim.`;
-          const existingScriptMatch = effectiveSystemPrompt.match(/CALL SCRIPT & CONVERSATION GUIDE[^:]*:\n[\s\S]*?(?=\n\n[A-Z]|$)/);
-          if (existingScriptMatch) {
-            effectiveSystemPrompt = effectiveSystemPrompt.replace(existingScriptMatch[0], scriptSection);
-            logger.info(`[Outbound] Replaced existing call script with campaign script (${resolvedScript.length} chars)`, undefined, 'BedrockPollyCall');
+
+          const campaignRoleMatch = resolvedScript.match(/^You are an? .+?(?:call|campaign|agent)[^.]*\./i);
+          if (campaignRoleMatch) {
+            const agentNameFromPrompt = agent.name || 'an AI agent';
+            effectiveSystemPrompt = `YOUR ROLE FOR THIS CAMPAIGN CALL:\n${resolvedScript}\n\nYou are ${agentNameFromPrompt}. Your ONLY focus for this call is the campaign task described above. Ignore any previous role descriptions — you are now fully dedicated to this campaign objective.\n\nBACKGROUND KNOWLEDGE (use only if relevant to the campaign task above):\n${effectiveSystemPrompt}`;
+            logger.info(`[Outbound] Campaign script overrides agent role — campaign-first prompt (${resolvedScript.length} chars)`, undefined, 'BedrockPollyCall');
           } else {
-            effectiveSystemPrompt += `\n\n${scriptSection}`;
-            logger.info(`[Outbound] Injected campaign call script (${resolvedScript.length} chars) into agent system prompt`, undefined, 'BedrockPollyCall');
+            const existingScriptMatch = effectiveSystemPrompt.match(/CALL SCRIPT & CONVERSATION GUIDE[^:]*:\n[\s\S]*?(?=\n\n[A-Z]|$)/);
+            if (existingScriptMatch) {
+              effectiveSystemPrompt = effectiveSystemPrompt.replace(existingScriptMatch[0], scriptSection);
+              logger.info(`[Outbound] Replaced existing call script with campaign script (${resolvedScript.length} chars)`, undefined, 'BedrockPollyCall');
+            } else {
+              effectiveSystemPrompt += `\n\n${scriptSection}`;
+              logger.info(`[Outbound] Injected campaign call script (${resolvedScript.length} chars) into agent system prompt`, undefined, 'BedrockPollyCall');
+            }
           }
           const hasOutboundContext = effectiveSystemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS');
           if (!hasOutboundContext) {

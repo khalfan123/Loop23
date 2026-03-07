@@ -33,6 +33,9 @@ import type {
 import { humanizeToSSML } from './ssml-humanizer';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { calls } from '@shared/schema';
+import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
+import { liveCallRegistry } from '../../../services/live-call-registry';
+import { NotificationService } from '../../../services/notification-service';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -775,6 +778,28 @@ export class BedrockPollyAudioBridge {
 
       if (session.onTranscriptCallback) {
         session.onTranscriptCallback(transcription, true);
+      }
+
+      try {
+        const sentimentResult = RealtimeSentimentService.analyzeSentiment(
+          callSid,
+          transcription,
+          session.agentConfig.language || 'en'
+        );
+        liveCallRegistry.updateSentiment(callSid, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);
+        if (sentimentResult.alert && session.userId) {
+          NotificationService.create({
+            userId: session.userId,
+            type: 'sentiment_alert',
+            title: 'Call Needs Attention',
+            message: `Call with ${session.agentConfig.agentName || 'AI Agent'} flagged: ${sentimentResult.reason}. Sentiment: ${sentimentResult.level} (score: ${sentimentResult.score})`,
+            link: '/app/live-monitoring',
+            displayType: 'both',
+            priority: 1,
+          });
+        }
+      } catch (sentErr: any) {
+        console.error(`[BedrockPolly Bridge] Sentiment analysis error for ${callSid}: ${sentErr.message}`);
       }
 
       session.messages.push({
@@ -2320,6 +2345,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         noResponseTimers.delete(callSid);
       }
       callerHasSpoken.delete(callSid);
+      RealtimeSentimentService.resetCall(callSid);
     } catch (cleanupErr: any) {
       console.error(`[BedrockPolly Bridge] Timer/buffer cleanup error for ${callSid}: ${cleanupErr.message}`);
     }

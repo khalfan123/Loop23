@@ -25,13 +25,18 @@ export interface LiveCall {
   duration?: number;
   transcript?: string[];
   metadata?: Record<string, unknown>;
+  sentimentLevel?: 'positive' | 'neutral' | 'cautious' | 'negative' | 'critical';
+  sentimentScore?: number;
+  sentimentAlert?: boolean;
+  sentimentReason?: string | null;
 }
 
 export type LiveCallEvent = 
   | { type: 'call_started'; call: LiveCall }
   | { type: 'call_updated'; call: LiveCall }
   | { type: 'call_ended'; callId: string; userId: string }
-  | { type: 'transcript_update'; callId: string; userId: string; message: string; role: 'agent' | 'caller' };
+  | { type: 'transcript_update'; callId: string; userId: string; message: string; role: 'agent' | 'caller' }
+  | { type: 'sentiment_alert'; callId: string; userId: string; sentimentLevel: string; sentimentScore: number; sentimentReason: string | null; call: LiveCall };
 
 const STALE_CALL_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 const STALE_CALL_CHECK_INTERVAL_MS = 60 * 1000;
@@ -88,6 +93,38 @@ class LiveCallRegistry extends EventEmitter {
       message,
       role,
     } as LiveCallEvent);
+  }
+
+  updateSentiment(callId: string, level: string, score: number, alert: boolean, reason: string | null): void {
+    const existing = this.activeCalls.get(callId);
+    if (!existing) return;
+
+    existing.sentimentLevel = level as LiveCall['sentimentLevel'];
+    existing.sentimentScore = score;
+    this.activeCalls.set(callId, existing);
+
+    if (alert && !existing.sentimentAlert) {
+      existing.sentimentAlert = true;
+      existing.sentimentReason = reason;
+      this.activeCalls.set(callId, existing);
+
+      this.emit('call_event', {
+        type: 'sentiment_alert',
+        callId,
+        userId: existing.userId,
+        sentimentLevel: level,
+        sentimentScore: score,
+        sentimentReason: reason,
+        call: { ...existing },
+      } as LiveCallEvent);
+      console.log(`🚨 [LiveRegistry] Sentiment alert for ${callId}: ${level} (score: ${score}) — ${reason}`);
+    }
+  }
+
+  getFlaggedCalls(): LiveCall[] {
+    return Array.from(this.activeCalls.values())
+      .filter(call => call.sentimentAlert === true)
+      .sort((a, b) => (a.sentimentScore || 0) - (b.sentimentScore || 0));
   }
 
   endCall(callId: string): void {

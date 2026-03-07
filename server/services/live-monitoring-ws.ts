@@ -110,6 +110,8 @@ class LiveMonitoringWebSocket {
       case 'call_ended':
       case 'transcript_update':
         return event.userId === client.userId;
+      case 'sentiment_alert':
+        return event.userId === client.userId;
       default:
         return false;
     }
@@ -117,6 +119,17 @@ class LiveMonitoringWebSocket {
 
   private serializeEvent(event: LiveCallEvent): string {
     if (event.type === 'call_started' || event.type === 'call_updated') {
+      return JSON.stringify({
+        ...event,
+        call: {
+          ...event.call,
+          startedAt: event.call.startedAt.toISOString(),
+          answeredAt: event.call.answeredAt?.toISOString() || null,
+          duration: event.call.duration || Math.floor((Date.now() - event.call.startedAt.getTime()) / 1000),
+        },
+      });
+    }
+    if (event.type === 'sentiment_alert') {
       return JSON.stringify({
         ...event,
         call: {

@@ -35,6 +35,9 @@ import { eq } from 'drizzle-orm';
 import { OpenAIAgentFactory } from './openai-agent-factory';
 import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
+import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
+import { liveCallRegistry } from '../../../services/live-call-registry';
+import { NotificationService } from '../../../services/notification-service';
 
 const execAsync = promisify(exec);
 const fsWriteFile = promisify(fs.writeFile);
@@ -479,6 +482,28 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
               timestamp: new Date(),
             });
             console.log(`[TwilioOpenAI Bridge] User: "${message.transcript.substring(0, 100)}..."`);
+
+            try {
+              const sentimentResult = RealtimeSentimentService.analyzeSentiment(
+                session.callSid,
+                message.transcript,
+                session.agentConfig?.language || 'en'
+              );
+              liveCallRegistry.updateSentiment(session.callSid, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);
+              if (sentimentResult.alert && session.userId) {
+                NotificationService.create({
+                  userId: session.userId,
+                  type: 'sentiment_alert',
+                  title: 'Call Needs Attention',
+                  message: `Call with ${session.agentConfig?.agentName || 'AI Agent'} flagged: ${sentimentResult.reason}. Sentiment: ${sentimentResult.level} (score: ${sentimentResult.score})`,
+                  link: '/app/live-monitoring',
+                  displayType: 'both',
+                  priority: 1,
+                });
+              }
+            } catch (sentErr: any) {
+              console.error(`[TwilioOpenAI Bridge] Sentiment analysis error for ${session.callSid}: ${sentErr.message}`);
+            }
           }
           break;
 
@@ -1295,6 +1320,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       .join('\n');
 
     this.activeSessions.delete(callSid);
+    RealtimeSentimentService.resetCall(callSid);
 
     return {
       duration,

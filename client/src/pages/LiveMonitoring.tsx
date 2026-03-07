@@ -33,7 +33,11 @@ import {
   Volume2,
   VolumeX,
   UserCheck,
+  ShieldAlert,
+  TrendingDown,
 } from "lucide-react";
+
+type SentimentLevel = 'positive' | 'neutral' | 'cautious' | 'negative' | 'critical';
 
 interface LiveCall {
   callId: string;
@@ -56,6 +60,10 @@ interface LiveCall {
   duration: number;
   transcript?: string[];
   metadata?: Record<string, unknown>;
+  sentimentLevel?: SentimentLevel;
+  sentimentScore?: number;
+  sentimentAlert?: boolean;
+  sentimentReason?: string | null;
 }
 
 interface LiveCallStats {
@@ -75,6 +83,9 @@ interface WsMessage {
   message?: string;
   role?: string;
   timestamp?: number;
+  sentimentLevel?: string;
+  sentimentScore?: number;
+  sentimentReason?: string | null;
 }
 
 const ENGINE_LABELS: Record<string, string> = {
@@ -93,6 +104,14 @@ const ENGINE_COLORS: Record<string, string> = {
   'plivo-openai': 'bg-green-500/10 text-green-700 border-green-500/30',
   'plivo-elevenlabs': 'bg-teal-500/10 text-teal-700 border-teal-500/30',
   'sip': 'bg-gray-500/10 text-gray-700 border-gray-500/30',
+};
+
+const SENTIMENT_CONFIG: Record<SentimentLevel, { label: string; color: string }> = {
+  positive: { label: 'Positive', color: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30' },
+  neutral: { label: 'Neutral', color: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/30' },
+  cautious: { label: 'Cautious', color: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30' },
+  negative: { label: 'Negative', color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30' },
+  critical: { label: 'Critical', color: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30' },
 };
 
 function formatDuration(seconds: number): string {
@@ -115,6 +134,7 @@ export default function LiveMonitoring() {
   const [searchTerm, setSearchTerm] = useState("");
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [engineFilter, setEngineFilter] = useState<string>("all");
+  const [sentimentFilter, setSentimentFilter] = useState<string>("all");
   const [selectedCall, setSelectedCall] = useState<LiveCall | null>(null);
   const [transcriptMessages, setTranscriptMessages] = useState<{ role: string; message: string }[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -188,6 +208,34 @@ export default function LiveMonitoring() {
                 if (selectedCall?.callId === data.callId) {
                   setTranscriptMessages(prev => [...prev, { role: data.role!, message: data.message! }]);
                 }
+              }
+              break;
+
+            case 'sentiment_alert':
+              if (data.call) {
+                setActiveCalls(prev =>
+                  prev.map(c => c.callId === data.call!.callId ? {
+                    ...c,
+                    sentimentLevel: data.call!.sentimentLevel,
+                    sentimentScore: data.call!.sentimentScore,
+                    sentimentAlert: data.call!.sentimentAlert,
+                    sentimentReason: data.call!.sentimentReason,
+                  } : c)
+                );
+                if (selectedCall?.callId === data.call.callId) {
+                  setSelectedCall(prev => prev ? {
+                    ...prev,
+                    sentimentLevel: data.call!.sentimentLevel,
+                    sentimentScore: data.call!.sentimentScore,
+                    sentimentAlert: data.call!.sentimentAlert,
+                    sentimentReason: data.call!.sentimentReason,
+                  } : prev);
+                }
+                toast({
+                  title: "Sentiment Alert",
+                  description: `${data.call.contactName || data.call.toNumber || 'A call'} flagged: ${data.call.sentimentReason || 'negative sentiment'}`,
+                  variant: "destructive",
+                });
               }
               break;
 
@@ -276,6 +324,8 @@ export default function LiveMonitoring() {
   const filteredCalls = activeCalls.filter(call => {
     if (directionFilter !== 'all' && call.direction !== directionFilter) return false;
     if (engineFilter !== 'all' && call.engine !== engineFilter) return false;
+    if (sentimentFilter === 'flagged' && !call.sentimentAlert) return false;
+    if (sentimentFilter !== 'all' && sentimentFilter !== 'flagged' && call.sentimentLevel !== sentimentFilter) return false;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       return (
@@ -289,6 +339,8 @@ export default function LiveMonitoring() {
     }
     return true;
   });
+
+  const flaggedCount = activeCalls.filter(c => c.sentimentAlert).length;
 
   const stats: LiveCallStats = {
     totalActive: activeCalls.length,
@@ -378,16 +430,26 @@ export default function LiveMonitoring() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-stat-engines">
+        <Card
+          data-testid="card-stat-flagged"
+          className={`cursor-pointer transition-all ${sentimentFilter === 'flagged' ? 'ring-2 ring-red-500' : ''} ${flaggedCount > 0 ? 'border-red-500/30' : ''}`}
+          onClick={() => setSentimentFilter(sentimentFilter === 'flagged' ? 'all' : 'flagged')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-2xl bg-orange-500/[0.08] dark:bg-orange-500/[0.15]">
-                <Radio className="h-5 w-5 text-orange-600" />
+              <div className={`p-2 rounded-2xl ${flaggedCount > 0 ? 'bg-red-500/[0.12] dark:bg-red-500/[0.2]' : 'bg-orange-500/[0.08] dark:bg-orange-500/[0.15]'}`}>
+                <ShieldAlert className={`h-5 w-5 ${flaggedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-orange-600'}`} />
               </div>
               <div>
-                <p className="text-2xl font-bold">{Object.keys(stats.byEngine).length}</p>
-                <p className="text-xs text-muted-foreground">Active Engines</p>
+                <p className={`text-2xl font-bold ${flaggedCount > 0 ? 'text-red-600 dark:text-red-400' : ''}`} data-testid="text-total-flagged">{flaggedCount}</p>
+                <p className="text-xs text-muted-foreground">Flagged Calls</p>
               </div>
+              {flaggedCount > 0 && (
+                <div className="ml-auto relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -425,6 +487,20 @@ export default function LiveMonitoring() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={sentimentFilter} onValueChange={setSentimentFilter}>
+          <SelectTrigger className="w-[170px]" data-testid="select-sentiment">
+            <SelectValue placeholder="Sentiment" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sentiment</SelectItem>
+            <SelectItem value="flagged">Flagged Only</SelectItem>
+            <SelectItem value="critical">Critical</SelectItem>
+            <SelectItem value="negative">Negative</SelectItem>
+            <SelectItem value="cautious">Cautious</SelectItem>
+            <SelectItem value="neutral">Neutral</SelectItem>
+            <SelectItem value="positive">Positive</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className={`grid gap-4 ${selectedCall ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}>
@@ -458,7 +534,7 @@ export default function LiveMonitoring() {
                   key={call.callId}
                   className={`cursor-pointer transition-all glass-card rounded-2xl ${
                     selectedCall?.callId === call.callId ? 'ring-2 ring-primary' : ''
-                  }`}
+                  } ${call.sentimentAlert ? 'border-red-500/40 shadow-red-500/10 shadow-sm' : ''}`}
                   onClick={() => handleSelectCall(call)}
                   data-testid={`card-call-${call.callId}`}
                 >
@@ -515,6 +591,18 @@ export default function LiveMonitoring() {
                           }>
                             {call.direction}
                           </Badge>
+                          {call.sentimentLevel && call.sentimentLevel !== 'neutral' && (
+                            <Badge
+                              variant="outline"
+                              className={SENTIMENT_CONFIG[call.sentimentLevel]?.color || ''}
+                              data-testid={`badge-sentiment-${call.callId}`}
+                            >
+                              {call.sentimentAlert && (
+                                <ShieldAlert className="h-3 w-3 mr-0.5" />
+                              )}
+                              {SENTIMENT_CONFIG[call.sentimentLevel]?.label || call.sentimentLevel}
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1 text-sm font-mono tabular-nums">
@@ -647,7 +735,38 @@ export default function LiveMonitoring() {
                       {ENGINE_LABELS[selectedCall.engine] || selectedCall.engine}
                     </Badge>
                   </div>
+
+                  {selectedCall.sentimentLevel && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Sentiment</span>
+                      <Badge
+                        variant="outline"
+                        className={SENTIMENT_CONFIG[selectedCall.sentimentLevel]?.color || ''}
+                        data-testid="badge-selected-sentiment"
+                      >
+                        {selectedCall.sentimentAlert && <ShieldAlert className="h-3 w-3 mr-1" />}
+                        {SENTIMENT_CONFIG[selectedCall.sentimentLevel]?.label}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
+
+                {selectedCall.sentimentAlert && selectedCall.sentimentReason && (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/[0.06] dark:bg-red-500/[0.1] p-3" data-testid="panel-sentiment-alert">
+                    <div className="flex items-start gap-2">
+                      <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-red-700 dark:text-red-400">Needs Attention</p>
+                        <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
+                          {selectedCall.sentimentReason}
+                          {selectedCall.sentimentScore !== undefined && (
+                            <span className="ml-1">(score: {selectedCall.sentimentScore})</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <Separator />
 

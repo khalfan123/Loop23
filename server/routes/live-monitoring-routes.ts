@@ -75,6 +75,37 @@ export function createLiveMonitoringRoutes(authenticateHybrid: any): Router {
     }
   });
 
+  router.get('/api/live-calls/flagged', authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const isAdmin = req.userRole === 'admin';
+      const flaggedCalls = liveCallRegistry.getFlaggedCalls();
+
+      const filtered = isAdmin
+        ? flaggedCalls
+        : flaggedCalls.filter(c => c.userId === userId);
+
+      const serialized = filtered.map(call => ({
+        ...call,
+        startedAt: call.startedAt.toISOString(),
+        answeredAt: call.answeredAt?.toISOString() || null,
+        duration: call.duration || Math.floor((Date.now() - call.startedAt.getTime()) / 1000),
+      }));
+
+      return res.json({
+        flaggedCalls: serialized,
+        totalFlagged: serialized.length,
+      });
+    } catch (error: any) {
+      console.error('Error fetching flagged calls:', error);
+      return res.status(500).json({ error: 'Failed to fetch flagged calls' });
+    }
+  });
+
   router.get('/api/live-calls/:callId', authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.userId;

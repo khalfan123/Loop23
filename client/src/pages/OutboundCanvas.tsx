@@ -1068,7 +1068,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
 
   const renderStepIndicator = () => (
     <div className="border-b bg-muted/30" data-testid="outbound-step-indicator">
-      <div className="flex items-center justify-between px-1.5 py-1.5 sm:justify-center sm:gap-1 sm:py-2.5 sm:px-4">
+      <div className="flex items-center justify-between px-1.5 py-1 sm:justify-center sm:gap-0.5 sm:py-1.5 sm:px-3">
         {STEPS.map((step, index) => {
           const isCompleted = currentStep > step.id;
           const isActive = currentStep === step.id;
@@ -1079,7 +1079,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 onClick={() => {
                   if (isCompleted) setCurrentStep(step.id);
                 }}
-                className={`flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto sm:gap-1.5 sm:px-2.5 sm:py-1.5 rounded-full sm:rounded-md text-[11px] sm:text-sm transition-colors ${
+                className={`flex items-center justify-center w-6 h-6 sm:w-auto sm:h-auto sm:gap-1 sm:px-2 sm:py-1 rounded-full sm:rounded-md text-[10px] sm:text-xs transition-colors ${
                   isActive
                     ? "bg-primary text-primary-foreground font-medium"
                     : isCompleted
@@ -1090,16 +1090,16 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
                 data-testid={`button-outbound-step-${step.id}`}
               >
                 {isCompleted ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                  <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
                 ) : isActive ? (
-                  <StepIcon className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                  <StepIcon className="h-3 w-3 flex-shrink-0" />
                 ) : (
-                  <Circle className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                  <Circle className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0" />
                 )}
                 <span className="hidden sm:inline">{step.label}</span>
               </button>
               {index < STEPS.length - 1 && (
-                <div className={`flex-1 h-px mx-0.5 sm:w-4 sm:flex-initial ${isCompleted ? "bg-green-400" : "bg-border"}`} />
+                <div className={`flex-1 h-px mx-0.5 sm:w-3 sm:flex-initial ${isCompleted ? "bg-green-400" : "bg-border"}`} />
               )}
             </div>
           );
@@ -1111,8 +1111,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   const renderStep1 = () => (
     <div className="space-y-3" data-testid="outbound-step-1">
       <div className="text-center mb-1">
-        <h2 className="text-base sm:text-lg font-semibold">Choose Your Use Case</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">Select a template or start from scratch</p>
+        <h2 className="text-sm sm:text-base font-semibold">Choose Your Use Case</h2>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Select a template or start from scratch</p>
       </div>
 
       <div className="w-full max-w-3xl mx-auto space-y-3">
@@ -1244,8 +1244,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   const renderStep2 = () => (
     <div className="space-y-3" data-testid="outbound-step-2">
       <div className="text-center mb-1">
-        <h2 className="text-base sm:text-lg font-semibold">Select Contacts</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">Choose people to call</p>
+        <h2 className="text-sm sm:text-base font-semibold">Select Contacts</h2>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose people to call</p>
       </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-3">
@@ -1441,8 +1441,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   const renderStep3 = () => (
     <div className="space-y-3" data-testid="outbound-step-3">
       <div className="text-center mb-1">
-        <h2 className="text-base sm:text-lg font-semibold">Select Caller ID</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">Choose the phone number for outbound calls</p>
+        <h2 className="text-sm sm:text-base font-semibold">Select Caller ID</h2>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose the phone number for outbound calls</p>
       </div>
 
       {phonesLoading ? (
@@ -1525,8 +1525,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   const renderStep4 = () => (
     <div className="space-y-3" data-testid="outbound-step-4">
       <div className="text-center mb-1">
-        <h2 className="text-base sm:text-lg font-semibold">Select AI Agent & Voice</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">Choose an AI agent with AWS Polly neural voice</p>
+        <h2 className="text-sm sm:text-base font-semibold">Select AI Agent & Voice</h2>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Choose an AI agent with AWS Polly neural voice</p>
       </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-3">
@@ -1843,8 +1843,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   const renderStep5 = () => (
     <div className="space-y-4" data-testid="outbound-step-5">
       <div className="text-center mb-1">
-        <h2 className="text-base sm:text-lg font-semibold">Knowledge & Script</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">Connect knowledge base and configure the call script</p>
+        <h2 className="text-sm sm:text-base font-semibold">Knowledge & Script</h2>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Configure knowledge base and call script</p>
       </div>
 
       {generateAllContentMutation.isPending && (
@@ -2171,8 +2171,8 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   const renderStep6 = () => (
     <div className="space-y-4" data-testid="outbound-step-6">
       <div className="text-center mb-1">
-        <h2 className="text-base sm:text-lg font-semibold">Review & Launch</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">Review your campaign before launching</p>
+        <h2 className="text-sm sm:text-base font-semibold">Review & Launch</h2>
+        <p className="text-[11px] sm:text-xs text-muted-foreground">Review your campaign before launching</p>
       </div>
 
       <div className="w-full max-w-2xl mx-auto space-y-4">
@@ -2421,18 +2421,18 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
 
   return (
     <div className="flex flex-col -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6" style={{ height: 'calc(100vh - 48px)', minHeight: '400px' }}>
-      <div className="flex items-center px-3 sm:px-4 py-2 border-b bg-background gap-2 flex-shrink-0">
-        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3 flex-shrink-0" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
-          <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline ml-1">Back</span>
+      <div className="flex items-center px-2 sm:px-3 py-1.5 border-b bg-background gap-1.5 flex-shrink-0">
+        <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-auto sm:px-2 flex-shrink-0" onClick={() => setLocation("/app/campaigns")} data-testid="button-back">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline ml-1 text-xs">Back</span>
         </Button>
         <div className="min-w-0 flex-1">
-          <h1 className="font-semibold flex items-center gap-1.5 text-sm sm:text-base truncate">
-            <PhoneOutgoing className="h-4 w-4 text-primary flex-shrink-0" />
+          <h1 className="font-semibold flex items-center gap-1 text-xs sm:text-sm truncate">
+            <PhoneOutgoing className="h-3.5 w-3.5 text-primary flex-shrink-0" />
             New Outbound Campaign
           </h1>
         </div>
-        <span className="text-xs text-muted-foreground flex-shrink-0 sm:hidden">
+        <span className="text-[10px] text-muted-foreground flex-shrink-0 sm:hidden">
           {currentStep}/6
         </span>
       </div>
@@ -2442,7 +2442,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
       </div>
 
       <div className="flex-1 overflow-y-auto overscroll-contain min-h-0">
-        <div className="px-3 sm:px-4 py-3 pb-4">
+        <div className="px-2.5 sm:px-3 py-2 pb-3">
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
@@ -2452,11 +2452,11 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-t bg-background gap-2 flex-shrink-0 safe-area-bottom" style={{ minHeight: '48px' }}>
+      <div className="flex items-center justify-between px-2 sm:px-3 py-1.5 border-t bg-background gap-2 flex-shrink-0 safe-area-bottom" style={{ minHeight: '40px' }}>
         <Button
           variant="outline"
           size="sm"
-          className="h-9 px-3 text-xs sm:text-sm flex-shrink-0"
+          className="h-8 px-2.5 text-xs flex-shrink-0"
           onClick={() => {
             if (currentStep === 1) {
               setLocation("/app/campaigns");
@@ -2476,7 +2476,7 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
 
         <Button
           size="sm"
-          className="h-9 px-5 text-xs sm:text-sm flex-shrink-0"
+          className="h-8 px-4 text-xs flex-shrink-0"
           onClick={currentStep < 6 ? goNext : () => saveMutation.mutate()}
           disabled={currentStep < 6 ? !canProceed(currentStep) : (saveMutation.isPending || !campaignName.trim() || !selectedAgentId || !selectedPhoneId || selectedContactIds.length === 0)}
           data-testid={currentStep < 6 ? "button-wizard-next" : "button-wizard-save"}

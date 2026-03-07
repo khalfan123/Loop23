@@ -189,9 +189,18 @@ export default function Campaigns() {
     queryKey: ["/api/auth/me"],
   });
 
-  const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
+  const { data: rawCampaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: ["/api/campaigns"],
   });
+
+  const campaigns = useMemo(() =>
+    [...rawCampaigns].sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    }),
+    [rawCampaigns]
+  );
 
   const { data: contacts = [], isLoading: contactsLoading } = useQuery<DeduplicatedContact[]>({
     queryKey: ["/api/contacts/deduplicated"],
@@ -531,30 +540,36 @@ export default function Campaigns() {
   };
 
   const getStatusBadge = (status: string) => {
+    const cls = "text-[10px] px-1.5 py-0";
     switch (status) {
       case 'completed':
-        return <Badge variant="secondary">{t('campaigns.status.completed')}</Badge>;
+        return <Badge variant="secondary" className={cls}>{t('campaigns.status.completed')}</Badge>;
       case 'in_progress':
-        return <Badge variant="default">{t('campaigns.status.active')}</Badge>;
+        return <Badge variant="default" className={cls}>{t('campaigns.status.active')}</Badge>;
       case 'pending':
-        return <Badge variant="outline">{t('campaigns.status.pending')}</Badge>;
+        return <Badge variant="outline" className={cls}>{t('campaigns.status.pending')}</Badge>;
       case 'scheduled':
-        return <Badge variant="outline">{t('campaigns.status.scheduled')}</Badge>;
+        return <Badge variant="outline" className={cls}>{t('campaigns.status.scheduled')}</Badge>;
       case 'failed':
-        return <Badge variant="destructive">{t('campaigns.status.failed')}</Badge>;
+        return <Badge variant="destructive" className={cls}>{t('campaigns.status.failed')}</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary" className={cls}>{status}</Badge>;
     }
   };
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    });
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHrs = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
   const activeCampaigns = campaigns.filter(c => c.status === 'in_progress').length;
@@ -690,12 +705,13 @@ export default function Campaigns() {
 
   const renderBatchCallView = () => (
     <div className="flex flex-col h-[calc(100vh-120px)]">
-      <div className="flex items-center justify-between gap-2 flex-wrap py-4 px-1">
+      <div className="flex items-center justify-between gap-2 flex-wrap py-3 px-1">
         <div className="flex items-center gap-2">
           <Phone className="h-4 w-4 text-foreground" />
-          <span className="font-medium">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>
+          <span className="font-medium text-sm">{t('campaigns.campaignsAndBatchCalls', 'Campaigns & Batch Calls')}</span>
         </div>
         <Button 
+          size="sm"
           onClick={() => setActiveView('outbound')}
           data-testid="button-create-campaign"
         >
@@ -703,73 +719,71 @@ export default function Campaigns() {
         </Button>
       </div>
     
-      <div className="flex-1 bg-white dark:bg-card rounded-xl border overflow-hidden">
+      <div className="flex-1 bg-white dark:bg-card rounded-lg border overflow-hidden">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : campaigns.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center h-full">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md border bg-background">
-              <Phone className="h-5 w-5 text-muted-foreground" />
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md border bg-background">
+              <Phone className="h-4 w-4 text-muted-foreground" />
             </div>
-            <p className="text-sm text-muted-foreground" data-testid="text-empty-state">{t('campaigns.noBatchCalls', 'You don\'t have any batch calls')}</p>
+            <p className="text-xs text-muted-foreground" data-testid="text-empty-state">{t('campaigns.noBatchCalls', 'You don\'t have any batch calls')}</p>
           </div>
         ) : (
           <ScrollArea className="h-full">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="font-medium">{t('campaigns.table.batchCallName', 'Batch Call Name')}</TableHead>
-                  <TableHead className="font-medium">{t('campaigns.table.status', 'Status')}</TableHead>
-                  <TableHead className="font-medium">{t('campaigns.table.recipients', 'Recipients')}</TableHead>
-                  <TableHead className="font-medium">
-                    <div className="flex items-center gap-1">
-                      <span>{t('campaigns.table.completed', 'Completed')}</span>
-                      <span className="text-muted-foreground">|</span>
-                      <span>{t('campaigns.table.successful', 'Successful')}</span>
-                    </div>
+                <TableRow className="bg-muted/30 text-xs">
+                  <TableHead className="font-medium text-xs py-2">{t('campaigns.table.batchCallName', 'Name')}</TableHead>
+                  <TableHead className="font-medium text-xs py-2">{t('campaigns.table.status', 'Status')}</TableHead>
+                  <TableHead className="font-medium text-xs py-2 hidden sm:table-cell">{t('campaigns.table.recipients', 'To')}</TableHead>
+                  <TableHead className="font-medium text-xs py-2 hidden md:table-cell">
+                    <span>{t('campaigns.table.completed', 'Done')}</span>
+                    <span className="text-muted-foreground mx-0.5">/</span>
+                    <span>{t('campaigns.table.successful', 'OK')}</span>
                   </TableHead>
-                  <TableHead className="font-medium">{t('campaigns.table.lastUpdated', 'Last Updated')}</TableHead>
-                  <TableHead className="w-10"></TableHead>
+                  <TableHead className="font-medium text-xs py-2 hidden lg:table-cell">{t('campaigns.table.lastUpdated', 'Updated')}</TableHead>
+                  <TableHead className="w-8 py-2"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {campaigns.map((campaign) => (
                   <TableRow 
                     key={campaign.id} 
-                    className="cursor-pointer"
+                    className="cursor-pointer text-xs"
                     onClick={() => setLocation(`/app/campaigns/${campaign.id}`)}
                     data-testid={`row-campaign-${campaign.id}`}
                   >
-                    <TableCell className="font-medium" data-testid={`text-name-${campaign.id}`}>
+                    <TableCell className="font-medium text-xs py-2 max-w-[180px] truncate" data-testid={`text-name-${campaign.id}`}>
                       {campaign.name}
                     </TableCell>
-                    <TableCell data-testid={`status-campaign-${campaign.id}`}>
+                    <TableCell className="py-2" data-testid={`status-campaign-${campaign.id}`}>
                       {getStatusBadge(campaign.status)}
                     </TableCell>
-                    <TableCell data-testid={`text-recipients-${campaign.id}`}>
+                    <TableCell className="text-xs py-2 hidden sm:table-cell" data-testid={`text-recipients-${campaign.id}`}>
                       {campaign.totalContacts}
                     </TableCell>
-                    <TableCell data-testid={`text-stats-${campaign.id}`}>
-                      <div className="flex items-center gap-1 text-sm">
+                    <TableCell className="py-2 hidden md:table-cell" data-testid={`text-stats-${campaign.id}`}>
+                      <span className="text-xs text-muted-foreground">
                         <span data-testid={`text-completed-${campaign.id}`}>{campaign.completedCalls}</span>
-                        <span className="text-muted-foreground">|</span>
+                        <span className="mx-0.5">/</span>
                         <span data-testid={`text-successful-${campaign.id}`}>{campaign.successfulCalls}</span>
-                      </div>
+                      </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground" data-testid={`text-date-${campaign.id}`}>
+                    <TableCell className="text-xs text-muted-foreground py-2 hidden lg:table-cell" data-testid={`text-date-${campaign.id}`}>
                       {formatDate(campaign.updatedAt || campaign.createdAt)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
                         onClick={(e) => { e.stopPropagation(); setDeletingCampaignId(campaign.id); }}
                         data-testid={`button-delete-campaign-${campaign.id}`}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </TableCell>
                   </TableRow>

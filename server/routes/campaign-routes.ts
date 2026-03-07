@@ -1000,6 +1000,39 @@ OUTPUT RULES:
     }
   });
 
+  router.get("/api/campaigns/use-cases", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const existing = await db.select().from(generatedUseCases).where(eq(generatedUseCases.userId, req.userId!));
+      if (existing.length > 0) {
+        return res.json(existing);
+      }
+      res.json([
+        { id: "default-appointment", name: "Appointment Booking", description: "Schedule appointments with prospects or customers", category: "appointments" },
+        { id: "default-lead", name: "Lead Qualification", description: "Qualify inbound leads and assess buying intent", category: "sales" },
+        { id: "default-feedback", name: "Feedback Collection", description: "Gather customer feedback and satisfaction scores", category: "surveys" },
+        { id: "default-promotional", name: "Promotional", description: "Promote products, services, or special offers", category: "sales" },
+        { id: "default-payment", name: "Payment Reminder", description: "Remind customers about pending or overdue payments", category: "collections" },
+        { id: "default-event", name: "Event Promotion", description: "Promote upcoming events and drive registrations", category: "sales" },
+        { id: "default-survey", name: "Survey", description: "Conduct structured surveys to collect data", category: "surveys" },
+      ]);
+    } catch (error: any) {
+      console.error("Error fetching use cases:", error);
+      res.status(500).json({ error: "Failed to fetch use cases" });
+    }
+  });
+
+  router.post("/api/campaigns/generate-use-cases", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const { goal } = req.body;
+      const { generateUseCasesOnDemand } = await import("../services/use-case-generator");
+      const useCases = await generateUseCasesOnDemand(req.userId!, goal || undefined);
+      res.json(useCases);
+    } catch (error: any) {
+      console.error("Error generating use cases:", error);
+      res.status(500).json({ error: error.message || "Failed to generate use cases" });
+    }
+  });
+
   // Get single campaign
   router.get("/api/campaigns/:id", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
@@ -1962,39 +1995,6 @@ OUTPUT RULES:
         error: "Failed to initiate test call",
         details: error.message 
       });
-    }
-  });
-
-  router.get("/api/campaigns/use-cases", authenticateHybrid, async (req: AuthRequest, res: Response) => {
-    try {
-      const existing = await db.select().from(generatedUseCases).where(eq(generatedUseCases.userId, req.userId!));
-      if (existing.length > 0) {
-        return res.json(existing);
-      }
-      res.json([
-        { id: "default-appointment", name: "Appointment Booking", description: "Schedule appointments with prospects or customers", category: "appointments" },
-        { id: "default-lead", name: "Lead Qualification", description: "Qualify inbound leads and assess buying intent", category: "sales" },
-        { id: "default-feedback", name: "Feedback Collection", description: "Gather customer feedback and satisfaction scores", category: "surveys" },
-        { id: "default-promotional", name: "Promotional", description: "Promote products, services, or special offers", category: "sales" },
-        { id: "default-payment", name: "Payment Reminder", description: "Remind customers about pending or overdue payments", category: "collections" },
-        { id: "default-event", name: "Event Promotion", description: "Promote upcoming events and drive registrations", category: "sales" },
-        { id: "default-survey", name: "Survey", description: "Conduct structured surveys to collect data", category: "surveys" },
-      ]);
-    } catch (error: any) {
-      console.error("Error fetching use cases:", error);
-      res.status(500).json({ error: "Failed to fetch use cases" });
-    }
-  });
-
-  router.post("/api/campaigns/generate-use-cases", authenticateHybrid, async (req: AuthRequest, res: Response) => {
-    try {
-      const { goal } = req.body;
-      const { generateUseCasesOnDemand } = await import("../services/use-case-generator");
-      const useCases = await generateUseCasesOnDemand(req.userId!, goal || undefined);
-      res.json(useCases);
-    } catch (error: any) {
-      console.error("Error generating use cases:", error);
-      res.status(500).json({ error: error.message || "Failed to generate use cases" });
     }
   });
 

@@ -155,10 +155,10 @@ export class BedrockPollyAudioBridge {
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
   private static readonly DEFAULT_SPEECH_ENERGY_THRESHOLD = 600;
   private static readonly DEFAULT_BARGE_IN_ENERGY_THRESHOLD = 800;
-  private static readonly BARGE_IN_MIN_BYTES = 8000;
+  private static readonly BARGE_IN_MIN_BYTES = 3200;
   private static readonly NOISE_CALIBRATION_DURATION_MS = 1500;
   private static readonly NOISE_FLOOR_SPEECH_MULTIPLIER = 4.0;
-  private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 5.0;
+  private static readonly NOISE_FLOOR_BARGE_IN_MULTIPLIER = 3.5;
   private static readonly MIN_SPEECH_THRESHOLD = 500;
   private static readonly MIN_BARGE_IN_THRESHOLD = 600;
   private static readonly ENERGY_FALLOFF_RATIO = 0.3;
@@ -765,6 +765,23 @@ export class BedrockPollyAudioBridge {
     'صلى الله عليه وسلم',
     'سبحان الله وبحمده',
     'الحمد لله رب العالمين',
+    'والسلام عليكم ورحمة الله',
+    'إن شاء الله',
+    'ما شاء الله',
+    'لا حول ولا قوة إلا بالله',
+    'سبحان الله',
+    'الله أكبر',
+    'لا إله إلا الله',
+    'استغفر الله',
+    'أشهد أن لا إله إلا الله',
+    'رضي الله عنه',
+    'جزاكم الله خيرا',
+    'بارك الله فيكم',
+    'حسبي الله ونعم الوكيل',
+    'إنا لله وإنا إليه راجعون',
+    'تحياتي',
+    'مع السلامة',
+    'الى اللقاء',
     'subscribe',
     'thank you for watching',
     'thanks for watching',
@@ -785,6 +802,8 @@ export class BedrockPollyAudioBridge {
     'thanks',
     'MBC',
     'SBS',
+    'TV',
+    'FM',
   ];
 
   private static readonly WHISPER_HALLUCINATION_CONTAINS: string[] = [
@@ -802,6 +821,22 @@ export class BedrockPollyAudioBridge {
     'مشاهدة ممتعة',
     'تابعونا على',
     'قناتنا على',
+    'ترجمة الأخ',
+    'ترجمة فريق',
+    'أخرجها',
+    'إخراج',
+    'مونتاج',
+    'تصوير',
+    'إعداد وتقديم',
+    'حلقة جديدة',
+    'الحلقة القادمة',
+    'في الحلقة',
+    'نراكم في',
+    'كونوا معنا',
+    'لا تنسى الإعجاب',
+    'اضغط لايك',
+    'فعل الجرس',
+    'رابط القناة',
   ];
 
   private static isWhisperHallucination(text: string): boolean {
@@ -824,6 +859,20 @@ export class BedrockPollyAudioBridge {
 
     const exactRepeat = /^(.{2,30})\1{2,}$/;
     if (exactRepeat.test(trimmed)) return true;
+
+    const isArabic = /[\u0600-\u06FF]/.test(trimmed);
+    if (isArabic) {
+      const arabicOnly = trimmed.replace(/[^\u0600-\u06FF\s]/g, '').trim();
+      const arabicRatio = arabicOnly.length / trimmed.length;
+      if (arabicRatio > 0.8) {
+        const arabicWords = trimmed.split(/\s+/).filter(w => w.length > 0);
+        if (arabicWords.length <= 2 && trimmed.length < 15) return true;
+
+        if (/الله|سبحان|بسم|صلى|رحمة|الحمد|أعوذ|الشيطان/.test(trimmed) && arabicWords.length <= 6) return true;
+
+        if (/المشاهدة|الاشتراك|القناة|الحلقة|تابعونا|لايك|الجرس/.test(trimmed)) return true;
+      }
+    }
 
     const words = trimmed.split(/\s+/).filter(w => w.length > 1);
     if (words.length >= 4) {

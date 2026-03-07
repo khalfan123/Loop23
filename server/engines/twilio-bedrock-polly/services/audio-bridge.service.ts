@@ -597,9 +597,21 @@ export class BedrockPollyAudioBridge {
 
     const buf = audioBuffers.get(callSid) || [];
     const totalLength = buf.reduce((sum, b) => sum + b.length, 0);
-    console.log(`[BedrockPolly Bridge] onSilenceDetected for ${callSid}: bufferSize=${totalLength}b, minRequired=${this.MIN_AUDIO_LENGTH}b, callerHasSpoken=${callerHasSpoken.get(callSid)}`);
 
-    if (totalLength < this.MIN_AUDIO_LENGTH) {
+    const isOpeningPhase = session.isOutbound && !callerHasSpoken.get(callSid);
+    const minRequired = isOpeningPhase ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH;
+    console.log(`[BedrockPolly Bridge] onSilenceDetected for ${callSid}: bufferSize=${totalLength}b, minRequired=${minRequired}b, callerHasSpoken=${callerHasSpoken.get(callSid)}${isOpeningPhase ? ' (opening phase - relaxed threshold)' : ''}`);
+
+    if (totalLength < minRequired) {
+      if (isOpeningPhase && totalLength > 0) {
+        callerHasSpoken.set(callSid, true);
+        const nrTimer = noResponseTimers.get(callSid);
+        if (nrTimer) {
+          clearTimeout(nrTimer);
+          noResponseTimers.delete(callSid);
+          console.log(`[BedrockPolly Bridge] Short speech detected during opening — cancelled no-response timer for ${callSid}`);
+        }
+      }
       audioBuffers.set(callSid, []);
       return;
     }

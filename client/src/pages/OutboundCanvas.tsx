@@ -471,7 +471,7 @@ function OutboundWizard() {
     setSelectedTemplateId(`ai-${uc.id}`);
     setCampaignName(uc.name + " Campaign");
     setCallScript(
-      `You are an AI phone agent conducting a "${uc.name}" call.\n\n${uc.description}\n\nBe professional, friendly, and natural. Keep responses concise (1-3 sentences). Use natural conversation patterns — vary your sentence openings, use appropriate fillers, and mirror the caller's energy.`
+      `Campaign: "${uc.name}"\nObjective: ${uc.description}\n\nBe professional, friendly, and natural. Keep responses concise (1-3 sentences). Use natural conversation patterns — vary your sentence openings, use appropriate fillers, and mirror the caller's energy.`
     );
   };
 

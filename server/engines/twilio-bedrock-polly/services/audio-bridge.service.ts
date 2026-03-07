@@ -599,7 +599,8 @@ export class BedrockPollyAudioBridge {
     const totalLength = buf.reduce((sum, b) => sum + b.length, 0);
 
     const isOpeningPhase = session.isOutbound && !callerHasSpoken.get(callSid);
-    const minRequired = isOpeningPhase ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH;
+    const isEarlyConversation = session.isOutbound && session.messages.filter(m => m.role === 'user').length < 2;
+    const minRequired = isOpeningPhase ? Math.floor(this.MIN_AUDIO_LENGTH * 0.3) : (isEarlyConversation ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH);
     console.log(`[BedrockPolly Bridge] onSilenceDetected for ${callSid}: bufferSize=${totalLength}b, minRequired=${minRequired}b, callerHasSpoken=${callerHasSpoken.get(callSid)}${isOpeningPhase ? ' (opening phase - relaxed threshold)' : ''}`);
 
     if (totalLength < minRequired) {
@@ -662,8 +663,10 @@ export class BedrockPollyAudioBridge {
       const speechThresh = this.getSpeechThreshold(callSid);
       console.log(`[BedrockPolly Bridge] processUserTurn START for ${callSid}: audioSize=${audioBuffer.length}b, avgEnergy=${Math.round(bufferEnergy)}, threshold=${Math.round(speechThresh)}`);
 
-      if (bufferEnergy < speechThresh * 0.6) {
-        console.log(`[BedrockPolly Bridge] Buffer energy too low (${Math.round(bufferEnergy)} < ${Math.round(speechThresh * 0.6)}), skipping Whisper for ${callSid}`);
+      const hasSpoken = callerHasSpoken.get(callSid);
+      const energyMultiplier = (session.isOutbound && !hasSpoken) ? 0.2 : 0.4;
+      if (bufferEnergy < speechThresh * energyMultiplier) {
+        console.log(`[BedrockPolly Bridge] Buffer energy too low (${Math.round(bufferEnergy)} < ${Math.round(speechThresh * energyMultiplier)}), skipping Whisper for ${callSid} (multiplier=${energyMultiplier})`);
         session.isProcessing = false;
         return;
       }

@@ -975,7 +975,11 @@ function OutboundWizard() {
       if (!campaignName.trim()) throw new Error("Campaign name is required");
 
       const template = flowTemplates.find(t => t.id === selectedTemplateId);
-      const finalAgentName = agentName.trim() || (template ? `${template.name} Agent` : `${campaignName} Agent`);
+      const aiUseCase = !template && selectedTemplateId?.startsWith('ai-')
+        ? displayedAiUseCases.find(uc => `ai-${uc.id}` === selectedTemplateId)
+        : null;
+      const useCaseSource = template || aiUseCase;
+      const finalAgentName = agentName.trim() || (useCaseSource ? `${useCaseSource.name} Agent` : `${campaignName} Agent`);
 
       const categoryGoals: Record<string, string> = {
         'Sales': 'YOUR GOAL: Qualify the lead, pitch the value, and either close the sale or schedule a follow-up demo/meeting. Ask about their current situation, identify pain points, and present how your solution solves them.',
@@ -992,10 +996,10 @@ function OutboundWizard() {
         'Follow-up': 'YOUR GOAL: Check in on their experience, gather feedback, address any concerns, and identify opportunities for additional value.',
       };
 
-      const category = template?.category || '';
+      const category = useCaseSource?.category || '';
       const goalSection = categoryGoals[category] || 'YOUR GOAL: Achieve the purpose of this call as described in your use case and script. Drive the conversation toward a clear outcome.';
-      const useCaseContext = template
-        ? `USE CASE: ${template.name}\nDESCRIPTION: ${template.description}\nCATEGORY: ${template.category}\n\n${goalSection}`
+      const useCaseContext = useCaseSource
+        ? `USE CASE: ${useCaseSource.name}\nDESCRIPTION: ${useCaseSource.description}\nCATEGORY: ${useCaseSource.category}\n\n${goalSection}`
         : `GENERAL OUTBOUND CALL\n\n${goalSection}`;
       const scriptSection = callScript
         ? `\nCALL SCRIPT & CONVERSATION GUIDE (follow these points step-by-step as your playbook):\n${callScript}\n\nIMPORTANT: Follow the script above as a GUIDE — cover each point in order but use your own natural words. Do NOT read it verbatim. Adapt based on the person's responses while staying on track.`

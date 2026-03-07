@@ -40,7 +40,7 @@ import {
   Sparkles,
   Check,
   CheckCircle2,
-  Circle,
+  ChevronRight,
   Search,
   Plus,
   ClipboardList,
@@ -1068,39 +1068,29 @@ FAILURE HANDLING: If the person firmly declines, thank them for their time and e
   });
 
   const renderStepIndicator = () => (
-    <div className="border-b bg-muted/30" data-testid="outbound-step-indicator">
-      <div className="flex items-center justify-between px-1.5 py-1 sm:justify-center sm:gap-0.5 sm:py-1.5 sm:px-3">
+    <div className="border-b bg-muted/30 px-2 sm:px-3 py-1" data-testid="outbound-step-indicator">
+      <div className="flex items-center gap-0.5 text-[11px] sm:text-xs overflow-x-auto scrollbar-none">
         {STEPS.map((step, index) => {
           const isCompleted = currentStep > step.id;
           const isActive = currentStep === step.id;
-          const StepIcon = step.icon;
           return (
-            <div key={step.id} className="flex items-center flex-1 sm:flex-initial last:flex-initial">
+            <div key={step.id} className="flex items-center gap-0.5 flex-shrink-0">
               <button
-                onClick={() => {
-                  if (isCompleted) setCurrentStep(step.id);
-                }}
-                className={`flex items-center justify-center w-6 h-6 sm:w-auto sm:h-auto sm:gap-1 sm:px-2 sm:py-1 rounded-full sm:rounded-md text-[10px] sm:text-xs transition-colors ${
+                onClick={() => { if (isCompleted) setCurrentStep(step.id); }}
+                className={`transition-colors ${
                   isActive
-                    ? "bg-primary text-primary-foreground font-medium"
+                    ? "text-foreground font-semibold"
                     : isCompleted
-                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-pointer"
-                    : "bg-muted/60 text-muted-foreground"
+                    ? "text-primary cursor-pointer hover:underline"
+                    : "text-muted-foreground/50"
                 }`}
                 disabled={!isCompleted && !isActive}
                 data-testid={`button-outbound-step-${step.id}`}
               >
-                {isCompleted ? (
-                  <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
-                ) : isActive ? (
-                  <StepIcon className="h-3 w-3 flex-shrink-0" />
-                ) : (
-                  <Circle className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0" />
-                )}
-                <span className="hidden sm:inline">{step.label}</span>
+                {step.label}
               </button>
               {index < STEPS.length - 1 && (
-                <div className={`flex-1 h-px mx-0.5 sm:w-3 sm:flex-initial ${isCompleted ? "bg-green-400" : "bg-border"}`} />
+                <ChevronRight className={`h-3 w-3 flex-shrink-0 ${currentStep > step.id ? "text-primary/50" : "text-muted-foreground/30"}`} />
               )}
             </div>
           );

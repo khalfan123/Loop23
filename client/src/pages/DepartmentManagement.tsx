@@ -156,9 +156,10 @@ interface NewAgentConfig {
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
+  { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },
-  { code: "it", label: "Italian" },
-  { code: "zh", label: "Chinese" },
+  { code: "de", label: "German" },
+  { code: "pt", label: "Portuguese" },
   { code: "hi", label: "Hindi" },
   { code: "ar", label: "Arabic" },
 ];
@@ -178,14 +179,14 @@ const VOICE_PREVIEWS: Record<string, string> = {
 const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_");
 
 const OPENAI_VOICES = [
-  { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "echo", name: "Echo (OpenAI)", gender: "male", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "shimmer", name: "Shimmer (OpenAI)", gender: "female", style: "friendly", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "ash", name: "Ash (OpenAI)", gender: "male", style: "professional", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "coral", name: "Coral (OpenAI)", gender: "female", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "sage", name: "Sage (OpenAI)", gender: "neutral", style: "calm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "verse", name: "Verse (OpenAI)", gender: "male", style: "expressive", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced", languages: ["en", "es", "fr", "de", "pt", "hi", "ar"] },
+  { id: "echo", name: "Echo (OpenAI)", gender: "male", style: "warm", languages: ["en", "es", "fr", "de", "pt", "hi", "ar"] },
+  { id: "shimmer", name: "Shimmer (OpenAI)", gender: "female", style: "friendly", languages: ["en", "es", "fr", "de", "pt", "hi", "ar"] },
+  { id: "ash", name: "Ash (OpenAI)", gender: "male", style: "professional", languages: ["en", "es", "fr", "de", "pt", "hi", "ar"] },
+  { id: "coral", name: "Coral (OpenAI)", gender: "female", style: "warm", languages: ["en", "es", "fr", "de", "pt", "hi", "ar"] },
+  { id: "sage", name: "Sage (OpenAI)", gender: "neutral", style: "calm", languages: ["en", "es", "fr", "de", "pt", "hi", "ar"] },
+  { id: "verse", name: "Verse (OpenAI)", gender: "male", style: "expressive", languages: ["en", "es", "fr", "de", "pt", "hi", "ar"] },
+  { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm", languages: ["en", "es", "fr", "de", "pt", "hi", "ar"] },
 ];
 
 const ELEVENLABS_VOICES = [

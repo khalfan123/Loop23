@@ -263,26 +263,12 @@ const POLLY_VOICES: PollyVoice[] = [
   { id: 'Vicki', name: 'Vicki', description: 'Friendly German female voice', gender: 'Female', language: 'de-DE', engine: 'neural' },
   { id: 'Daniel', name: 'Daniel', description: 'Confident German male voice', gender: 'Male', language: 'de-DE', engine: 'neural' },
   { id: 'Hannah', name: 'Hannah', description: 'Natural Austrian German female voice', gender: 'Female', language: 'de-AT', engine: 'neural' },
-  { id: 'Bianca', name: 'Bianca', description: 'Elegant Italian female voice', gender: 'Female', language: 'it-IT', engine: 'neural' },
-  { id: 'Adriano', name: 'Adriano', description: 'Smooth Italian male voice', gender: 'Male', language: 'it-IT', engine: 'neural' },
   { id: 'Kajal', name: 'Kajal', description: 'Natural Hindi female voice', gender: 'Female', language: 'hi-IN', engine: 'neural' },
-  { id: 'Zhiyu', name: 'Zhiyu', description: 'Professional Mandarin Chinese female voice', gender: 'Female', language: 'cmn-CN', engine: 'neural' },
-  { id: 'Hiujin', name: 'Hiujin', description: 'Natural Cantonese Chinese female voice', gender: 'Female', language: 'yue-CN', engine: 'neural' },
   { id: 'Hala', name: 'Hala', description: 'Clear Gulf Arabic female voice', gender: 'Female', language: 'ar-AE', engine: 'neural' },
   { id: 'Zayd', name: 'Zayd', description: 'Natural Gulf Arabic male voice', gender: 'Male', language: 'ar-AE', engine: 'neural' },
-  { id: 'Takumi', name: 'Takumi', description: 'Natural Japanese male voice', gender: 'Male', language: 'ja-JP', engine: 'neural' },
-  { id: 'Kazuha', name: 'Kazuha', description: 'Warm Japanese female voice', gender: 'Female', language: 'ja-JP', engine: 'neural' },
-  { id: 'Seoyeon', name: 'Seoyeon', description: 'Clear Korean female voice', gender: 'Female', language: 'ko-KR', engine: 'neural' },
   { id: 'Camila', name: 'Camila', description: 'Warm Brazilian Portuguese female voice', gender: 'Female', language: 'pt-BR', engine: 'neural' },
   { id: 'Thiago', name: 'Thiago', description: 'Natural Brazilian Portuguese male voice', gender: 'Male', language: 'pt-BR', engine: 'neural' },
   { id: 'Ines', name: 'Ines', description: 'Clear Portuguese female voice', gender: 'Female', language: 'pt-PT', engine: 'neural' },
-  { id: 'Laura', name: 'Laura', description: 'Natural Dutch female voice', gender: 'Female', language: 'nl-NL', engine: 'neural' },
-  { id: 'Ola', name: 'Ola', description: 'Friendly Polish female voice', gender: 'Female', language: 'pl-PL', engine: 'neural' },
-  { id: 'Suvi', name: 'Suvi', description: 'Clear Finnish female voice', gender: 'Female', language: 'fi-FI', engine: 'neural' },
-  { id: 'Ida', name: 'Ida', description: 'Natural Norwegian female voice', gender: 'Female', language: 'nb-NO', engine: 'neural' },
-  { id: 'Elin', name: 'Elin', description: 'Bright Swedish female voice', gender: 'Female', language: 'sv-SE', engine: 'neural' },
-  { id: 'Sofie', name: 'Sofie', description: 'Natural Danish female voice', gender: 'Female', language: 'da-DK', engine: 'neural' },
-  { id: 'Burcu', name: 'Burcu', description: 'Natural Turkish female voice', gender: 'Female', language: 'tr-TR', engine: 'neural' },
 ];
 
 const POLLY_LANGUAGE_MAP: Record<string, string> = {
@@ -291,31 +277,22 @@ const POLLY_LANGUAGE_MAP: Record<string, string> = {
   'fr-FR': 'French', 'fr-CA': 'French (CA)',
   'es-US': 'Spanish (US)', 'es-ES': 'Spanish (ES)', 'es-MX': 'Spanish (MX)',
   'de-DE': 'German', 'de-AT': 'German (AT)',
-  'it-IT': 'Italian', 'hi-IN': 'Hindi',
-  'cmn-CN': 'Chinese (Mandarin)', 'yue-CN': 'Chinese (Cantonese)',
-  'ar-AE': 'Arabic (Gulf)', 'ja-JP': 'Japanese', 'ko-KR': 'Korean',
+  'hi-IN': 'Hindi',
+  'ar-AE': 'Arabic (Gulf)',
   'pt-BR': 'Portuguese (BR)', 'pt-PT': 'Portuguese (PT)',
-  'nl-NL': 'Dutch', 'pl-PL': 'Polish', 'fi-FI': 'Finnish',
-  'nb-NO': 'Norwegian', 'sv-SE': 'Swedish', 'da-DK': 'Danish', 'tr-TR': 'Turkish',
 };
 
 const POLLY_LANG_TO_SHORT: Record<string, string> = {
   'en-US': 'en', 'en-GB': 'en', 'en-AU': 'en', 'en-NZ': 'en', 'en-IE': 'en', 'en-ZA': 'en',
   'fr-FR': 'fr', 'fr-CA': 'fr', 'es-US': 'es', 'es-ES': 'es', 'es-MX': 'es',
-  'de-DE': 'de', 'de-AT': 'de', 'it-IT': 'it', 'hi-IN': 'hi',
-  'cmn-CN': 'zh', 'yue-CN': 'zh', 'ar-AE': 'ar',
-  'ja-JP': 'ja', 'ko-KR': 'ko', 'pt-BR': 'pt', 'pt-PT': 'pt',
-  'nl-NL': 'nl', 'pl-PL': 'pl', 'fi-FI': 'fi',
-  'nb-NO': 'no', 'sv-SE': 'sv', 'da-DK': 'da', 'tr-TR': 'tr',
+  'de-DE': 'de', 'de-AT': 'de', 'hi-IN': 'hi',
+  'ar-AE': 'ar', 'pt-BR': 'pt', 'pt-PT': 'pt',
 };
 
 const getLanguageLabel = (code: string) => {
   const labels: Record<string, string> = {
     en: "English", ar: "Arabic", fr: "French", hi: "Hindi",
-    it: "Italian", zh: "Chinese", es: "Spanish", de: "German",
-    pt: "Portuguese", ja: "Japanese", ko: "Korean", ru: "Russian",
-    nl: "Dutch", tr: "Turkish", pl: "Polish", sv: "Swedish",
-    no: "Norwegian", fi: "Finnish", da: "Danish",
+    es: "Spanish", de: "German", pt: "Portuguese",
   };
   return labels[code] || code.toUpperCase();
 };

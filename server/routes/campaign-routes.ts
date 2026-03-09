@@ -695,7 +695,7 @@ OUTPUT RULES:
       if (bedrockService.isConfigured()) {
         try {
           const bedrockResponse = await bedrockService.invoke({
-            model: 'claude-3-haiku',
+            model: 'claude-sonnet-4',
             systemPrompt: metaPrompt,
             messages: [
               { role: 'user', content: `Generate the best possible system prompt for a "${useCase}" outbound calling campaign with agent "${agentName}".` }

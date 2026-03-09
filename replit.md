@@ -22,7 +22,7 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Department Management System**: Manages agents and IVR configurations within departments via a 3-step wizard.
 - **Knowledge Base & AI Intelligence**: Integrated knowledge base for AI-powered topic analysis and content generation, with folder-based navigation. Supports "Knowledge Base Only" mode for AI agents.
 - **Provider DID Marketplace**: Allows browsing and renting DIDs from various carrier providers.
-- **Bedrock + Polly Engine (RockCenter)**: Utilizes AWS Bedrock (Claude 3.5 Sonnet) for AI and multi-provider TTS (AWS Polly or ElevenLabs) with Twilio telephony. Supports both outbound and inbound scenarios, including a unique SSML Humanizer for natural speech. Features distinct "Task-First Framework" for outbound and "Enterprise Framework" for inbound agents.
+- **Bedrock + Polly Engine (RockCenter)**: Utilizes AWS Bedrock (Claude Sonnet 4 / Opus 4) for AI and multi-provider TTS (AWS Polly or ElevenLabs) with Twilio telephony. Supports both outbound and inbound scenarios, including a unique SSML Humanizer for natural speech. Features distinct "Task-First Framework" for outbound and "Enterprise Framework" for inbound agents.
 - **Outbound Agent Prompt Chain**: Rich system prompt generation for outbound agents, including personalized call scripts with `{{variable}}` placeholders, integrated with a 3-phase no-response handling for call lifecycle.
 - **Deprock Department System**: Replicates the Department Management system specifically for the Bedrock + Polly engine, using AWS Polly voices and separate configuration via `engineType`.
 - **Deprock IVR System (Enterprise-Grade)**: Full Twilio IVR implementation for Bedrock+Polly, supporting dual-input (DTMF + speech), retry logic, fallback departments, and multi-language support. Includes ElevenLabs voice ID to Polly mapping.
@@ -33,7 +33,7 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Live Call Monitoring System**: Real-time supervisor dashboard for monitoring active calls, with WebSocket-based updates, transcript streaming, and role-based access.
 
 ## External Dependencies
-- **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude Sonnet-4-5, AWS Bedrock Claude 3.5 Sonnet.
+- **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude Sonnet-4-5, AWS Bedrock Claude Sonnet 4 & Opus 4 (with legacy Claude 3.5 Sonnet/3.7 Sonnet support).
 - **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly.
 - **Telephony Providers**: Twilio, Plivo, TCXC.
 - **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.

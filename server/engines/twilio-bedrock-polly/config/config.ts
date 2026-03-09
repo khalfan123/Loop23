@@ -31,7 +31,7 @@ export interface BedrockPollyConfig {
  */
 export const BEDROCK_POLLY_CONFIG: BedrockPollyConfig = {
   defaultVoice: 'Joanna',
-  defaultModel: 'claude-3-5-sonnet',
+  defaultModel: 'claude-sonnet-4',
   defaultPollyEngine: 'generative',
   defaultTemperature: 0.7,
   webhookTimeout: 15000,

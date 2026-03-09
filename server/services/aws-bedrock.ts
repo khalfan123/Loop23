@@ -45,9 +45,11 @@ export interface LargeContextResponse {
 }
 
 export const BEDROCK_MODELS = {
-  "claude-3-5-sonnet": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
-  "claude-3-5-sonnet-v2": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+  "claude-opus-4": "us.anthropic.claude-opus-4-20250514-v1:0",
+  "claude-sonnet-4": "us.anthropic.claude-sonnet-4-20250514-v1:0",
   "claude-3-7-sonnet": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+  "claude-3-5-sonnet": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+  "claude-3-5-sonnet-v2": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
   "claude-3-5-haiku": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
   "claude-3-haiku": "anthropic.claude-3-haiku-20240307-v1:0",
   "claude-3-opus": "us.anthropic.claude-3-opus-20240229-v1:0",
@@ -62,8 +64,10 @@ export const BEDROCK_MODELS = {
 export type BedrockModelAlias = keyof typeof BEDROCK_MODELS;
 
 const MODEL_CONTEXT_LIMITS: Record<string, number> = {
-  "claude-3-5-sonnet-v2": 200000,
+  "claude-opus-4": 200000,
+  "claude-sonnet-4": 200000,
   "claude-3-7-sonnet": 200000,
+  "claude-3-5-sonnet-v2": 200000,
   "claude-3-5-sonnet": 200000,
   "claude-3-5-haiku": 200000,
   "claude-3-haiku": 200000,
@@ -134,11 +138,13 @@ export class AWSBedrockService {
 
   listModels(): { id: string; alias: string; provider: string; tier: string; contextWindow: number }[] {
     return [
+      { id: BEDROCK_MODELS["claude-opus-4"], alias: "claude-opus-4", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
+      { id: BEDROCK_MODELS["claude-sonnet-4"], alias: "claude-sonnet-4", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
       { id: BEDROCK_MODELS["claude-3-7-sonnet"], alias: "claude-3-7-sonnet", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
       { id: BEDROCK_MODELS["claude-3-5-sonnet-v2"], alias: "claude-3-5-sonnet-v2", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
       { id: BEDROCK_MODELS["claude-3-5-sonnet"], alias: "claude-3-5-sonnet", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
+      { id: BEDROCK_MODELS["claude-3-5-haiku"], alias: "claude-3-5-haiku", provider: "Anthropic", tier: "standard", contextWindow: 200000 },
       { id: BEDROCK_MODELS["claude-3-haiku"], alias: "claude-3-haiku", provider: "Anthropic", tier: "standard", contextWindow: 200000 },
-      { id: BEDROCK_MODELS["claude-3-opus"], alias: "claude-3-opus", provider: "Anthropic", tier: "premium", contextWindow: 200000 },
       { id: BEDROCK_MODELS["titan-text-express"], alias: "titan-text-express", provider: "Amazon", tier: "budget", contextWindow: 8000 },
       { id: BEDROCK_MODELS["titan-text-lite"], alias: "titan-text-lite", provider: "Amazon", tier: "budget", contextWindow: 4000 },
       { id: BEDROCK_MODELS["llama-3-8b"], alias: "llama-3-8b", provider: "Meta", tier: "budget", contextWindow: 8000 },
@@ -158,11 +164,11 @@ export class AWSBedrockService {
   selectModelForTask(task: 'synthesis' | 'reasoning' | 'quick' | 'rerank'): string {
     switch (task) {
       case 'synthesis':
-        return 'claude-3-7-sonnet';
+        return 'claude-opus-4';
       case 'reasoning':
-        return 'claude-3-5-sonnet-v2';
+        return 'claude-sonnet-4';
       case 'rerank':
-        return 'claude-3-5-haiku';
+        return 'claude-sonnet-4';
       case 'quick':
       default:
         return 'claude-3-5-haiku';
@@ -171,7 +177,7 @@ export class AWSBedrockService {
 
   async invoke(options: BedrockInvokeOptions): Promise<BedrockResponse> {
     const client = this.getClient();
-    const modelId = this.resolveModelId(options.model || "claude-3-5-sonnet");
+    const modelId = this.resolveModelId(options.model || "claude-sonnet-4");
 
     if (modelId.includes("anthropic.")) {
       return this.invokeAnthropicModel(client, modelId, options);
@@ -187,7 +193,7 @@ export class AWSBedrockService {
   }
 
   async invokeWithLargeContext(options: LargeContextOptions): Promise<LargeContextResponse> {
-    const model = options.model || 'claude-3-7-sonnet';
+    const model = options.model || 'claude-opus-4';
     const contextLimit = getModelContextLimit(model);
     const contentTokens = estimateTokenCount(options.content);
     const systemTokens = estimateTokenCount(options.systemPrompt);
@@ -501,7 +507,7 @@ ${options.systemPrompt}`;
 
   async *invokeStream(options: BedrockInvokeOptions): AsyncGenerator<string> {
     const client = this.getClient();
-    const modelId = this.resolveModelId(options.model || "claude-3-5-sonnet");
+    const modelId = this.resolveModelId(options.model || "claude-sonnet-4");
 
     const payload = {
       anthropic_version: "bedrock-2023-05-31",
@@ -542,7 +548,7 @@ ${options.systemPrompt}`;
   async warmConnection(): Promise<void> {
     try {
       const client = this.getClient();
-      const modelId = this.resolveModelId("claude-3-5-sonnet");
+      const modelId = this.resolveModelId("claude-sonnet-4");
       const payload = {
         anthropic_version: "bedrock-2023-05-31",
         max_tokens: 1,

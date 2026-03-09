@@ -34,8 +34,8 @@ export const MODELS_SEED_DATA = [
     isActive: true,
   },
   {
-    modelId: "claude-3-haiku",
-    name: "Claude 3 Haiku (Anthropic)",
+    modelId: "claude-3-5-haiku",
+    name: "Claude 3.5 Haiku (Anthropic)",
     provider: "anthropic",
     tier: "free",
     sortOrder: 3,
@@ -92,11 +92,27 @@ export const MODELS_SEED_DATA = [
     isActive: true,
   },
   {
-    modelId: "claude-3-5-sonnet",
-    name: "Claude 3.5 Sonnet (Anthropic)",
+    modelId: "claude-sonnet-4",
+    name: "Claude Sonnet 4 (Anthropic)",
     provider: "anthropic",
     tier: "pro",
     sortOrder: 12,
+    isActive: true,
+  },
+  {
+    modelId: "claude-opus-4",
+    name: "Claude Opus 4 (Anthropic)",
+    provider: "anthropic",
+    tier: "pro",
+    sortOrder: 13,
+    isActive: true,
+  },
+  {
+    modelId: "claude-3-5-sonnet",
+    name: "Claude 3.5 Sonnet (Anthropic - Legacy)",
+    provider: "anthropic",
+    tier: "pro",
+    sortOrder: 14,
     isActive: true,
   },
   {
@@ -104,7 +120,7 @@ export const MODELS_SEED_DATA = [
     name: "Gemini 2.5 Flash (Google)",
     provider: "google",
     tier: "pro",
-    sortOrder: 13,
+    sortOrder: 15,
     isActive: true,
   },
   {
@@ -112,7 +128,7 @@ export const MODELS_SEED_DATA = [
     name: "Gemini 2.0 Flash (Google)",
     provider: "google",
     tier: "pro",
-    sortOrder: 14,
+    sortOrder: 16,
     isActive: true,
   },
   {
@@ -120,7 +136,7 @@ export const MODELS_SEED_DATA = [
     name: "GPT-OSS-120B (ElevenLabs)",
     provider: "elevenlabs",
     tier: "pro",
-    sortOrder: 15,
+    sortOrder: 17,
     isActive: true,
   },
   // Note: scribe_v2_realtime was removed - it's a transcription model, not valid for ElevenLabs Conversational AI

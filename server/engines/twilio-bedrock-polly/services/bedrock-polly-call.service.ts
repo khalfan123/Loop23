@@ -101,7 +101,7 @@ export class BedrockPollyCallService {
       
       const effectiveFlowId = overrideFlowId || agent.flowId;
       const defaultVoice: PollyVoiceId = 'Joanna';
-      const defaultModel: BedrockModel = 'claude-3-5-sonnet';
+      const defaultModel: BedrockModel = 'claude-sonnet-4';
 
       const ttsProvider: TtsProvider = agent.voiceProvider === 'elevenlabs' ? 'elevenlabs' : 'aws_polly';
       let elevenLabsApiKey: string | undefined;

@@ -184,7 +184,7 @@ export class CallInsightsService {
     callId: string
   ): Promise<CallInsights | null> {
     const response = await this.bedrockService.invoke({
-      model: 'claude-3-haiku',
+      model: 'claude-sonnet-4',
       systemPrompt: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
       maxTokens: 500,

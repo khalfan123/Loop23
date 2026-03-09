@@ -110,7 +110,7 @@ export class ContentGenerator {
     };
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4",
       max_tokens: 2048,
       messages: [{
         role: "user",
@@ -182,7 +182,7 @@ Return ONLY valid JSON, no other text.`
     ).join('\n\n');
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4",
       max_tokens: 8192,
       messages: [{
         role: "user",
@@ -235,7 +235,7 @@ Write the complete article using only headings, paragraphs, bold, italic, and li
       sourceKnowledgeBaseIds: relevantContent.map(c => c.id),
       sourceChunkIds: chunks.map(c => c.id),
       citations,
-      llmModel: 'claude-sonnet-4-5',
+      llmModel: 'claude-sonnet-4',
       generationPrompt: JSON.stringify(brief)
     }).returning();
 
@@ -267,7 +267,7 @@ Write the complete article using only headings, paragraphs, bold, italic, and li
     }
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4",
       max_tokens: 2048,
       messages: [{
         role: "user",

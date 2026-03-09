@@ -550,8 +550,9 @@ ${options.systemPrompt}`;
     }
 
     const streamIterator = response.body[Symbol.asyncIterator]();
-    const FIRST_TOKEN_TIMEOUT_MS = 15000;
-    let gotFirstToken = false;
+    const FIRST_TEXT_TIMEOUT_MS = 15000;
+    const INTER_CHUNK_TIMEOUT_MS = 30000;
+    let gotFirstText = false;
     const startMs = Date.now();
 
     const timeoutRace = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
@@ -564,9 +565,9 @@ ${options.systemPrompt}`;
 
     let done = false;
     while (!done) {
-      const result = gotFirstToken
-        ? await streamIterator.next()
-        : await timeoutRace(streamIterator.next(), FIRST_TOKEN_TIMEOUT_MS, 'Bedrock first-token timeout');
+      const timeout = gotFirstText ? INTER_CHUNK_TIMEOUT_MS : FIRST_TEXT_TIMEOUT_MS;
+      const label = gotFirstText ? 'Bedrock inter-chunk timeout' : 'Bedrock first-text timeout';
+      const result = await timeoutRace(streamIterator.next(), timeout, label);
 
       if (result.done) {
         done = true;
@@ -577,24 +578,22 @@ ${options.systemPrompt}`;
       if (event.chunk?.bytes) {
         const chunk = JSON.parse(new TextDecoder().decode(event.chunk.bytes));
         if (chunk.type === "content_block_delta" && chunk.delta?.text) {
-          if (!gotFirstToken) {
-            gotFirstToken = true;
-            console.log(`[Bedrock] First token from "${modelId}" in ${Date.now() - startMs}ms`);
+          if (!gotFirstText) {
+            gotFirstText = true;
+            console.log(`[Bedrock] First text from "${modelId}" in ${Date.now() - startMs}ms`);
           }
           yield chunk.delta.text;
-        } else if ((chunk.type === "message_start" || chunk.type === "content_block_start") && !gotFirstToken) {
-          gotFirstToken = true;
         }
       }
     }
 
-    if (!gotFirstToken) {
+    if (!gotFirstText) {
       throw new Error(`Bedrock stream completed with no content from model "${modelId}"`);
     }
   }
 
   async warmConnection(): Promise<void> {
-    const modelsToTest = ['claude-sonnet-4', 'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-7-sonnet'] as const;
+    const modelsToTest = ['claude-sonnet-4', 'claude-opus-4', 'claude-3-5-haiku', 'claude-3-5-sonnet', 'claude-3-7-sonnet'] as const;
     const client = this.getClient();
     let firstWorking: string | null = null;
 

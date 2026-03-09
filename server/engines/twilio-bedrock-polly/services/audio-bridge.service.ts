@@ -507,7 +507,7 @@ export class BedrockPollyAudioBridge {
             break;
           }
 
-          if (!session.isOutbound) {
+          {
             const ttsEnd = lastTtsEndTime.get(callSid);
             if (ttsEnd && (Date.now() - ttsEnd) < ECHO_COOLDOWN_MS) {
               this.collectNoiseFloorSample(callSid, this.calculateMulawEnergy(audioChunk));
@@ -1341,13 +1341,36 @@ export class BedrockPollyAudioBridge {
       bargeInFlags.set(callSid, false);
       bargeInAccum.set(callSid, 0);
 
-      const stream = awsBedrockService.invokeStream({
-        model: agentConfig.model,
-        messages: bedrockMessages,
-        systemPrompt,
-        temperature: 0.3,
-        maxTokens: adaptiveTokens,
-      });
+      let primaryModel = agentConfig.model;
+      let stream: AsyncGenerator<string>;
+      try {
+        stream = awsBedrockService.invokeStream({
+          model: primaryModel,
+          messages: bedrockMessages,
+          systemPrompt,
+          temperature: 0.3,
+          maxTokens: adaptiveTokens,
+        });
+        const firstResult = await stream.next();
+        const wrappedStream = (async function* () {
+          if (!firstResult.done) {
+            yield firstResult.value;
+            yield* stream;
+          }
+        })();
+        stream = wrappedStream;
+      } catch (modelErr: any) {
+        const fallbackModel = 'claude-3-5-sonnet';
+        console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" failed for ${callSid}: ${modelErr.message}. Falling back to "${fallbackModel}"`);
+        primaryModel = fallbackModel;
+        stream = awsBedrockService.invokeStream({
+          model: fallbackModel,
+          messages: bedrockMessages,
+          systemPrompt,
+          temperature: 0.3,
+          maxTokens: adaptiveTokens,
+        });
+      }
 
       for await (const token of stream) {
         if (!firstTokenTime) {

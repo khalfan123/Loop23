@@ -253,7 +253,7 @@ async function initializeSession(
 
       const factoryConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
-        model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
+        model: ((metadata?.bedrockModel as string) || (callRecord as any).bedrockModel || BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: localizedFlowFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,
@@ -282,7 +282,7 @@ async function initializeSession(
 
       agentConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
-        model: (BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
+        model: ((metadata?.bedrockModel as string) || (callRecord as any).bedrockModel || BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
         systemPrompt: (metadata?.systemPrompt as string) || 'You are a helpful AI assistant.',
         firstMessage: localizedNaturalFirstMsg,
         temperature: (metadata?.temperature as number) ?? 0.7,

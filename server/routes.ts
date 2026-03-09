@@ -269,6 +269,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/bedrock-polly', bedrockPollyWebhookRoutes);
   console.log('✅ Twilio + Bedrock + Polly Engine initialized');
 
+  (async () => {
+    try {
+      const { awsBedrockService } = await import('./services/aws-bedrock');
+      await awsBedrockService.warmConnection();
+    } catch (e: any) {
+      console.warn(`[Bedrock] Warm connection probe failed: ${e.message}`);
+    }
+  })();
+
   // Register KYC Engine routes
   // TODO: Express middleware type compatibility - KYC engine accepts generic middleware types
   // but authenticateToken/checkAdmin use extended Request types. Fixing requires updating the

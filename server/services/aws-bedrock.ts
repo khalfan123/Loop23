@@ -509,6 +509,8 @@ ${options.systemPrompt}`;
     const client = this.getClient();
     const modelId = this.resolveModelId(options.model || "claude-sonnet-4");
 
+    console.log(`[Bedrock] invokeStream: model=${options.model}, resolved=${modelId}`);
+
     const payload = {
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: options.maxTokens || 4096,
@@ -529,40 +531,103 @@ ${options.systemPrompt}`;
       body: JSON.stringify(payload),
     });
 
-    const response = await client.send(command);
+    const STREAM_CONNECT_TIMEOUT_MS = 10000;
+    let response: any;
+    try {
+      response = await Promise.race([
+        client.send(command),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Bedrock stream timeout: model "${modelId}" did not respond within ${STREAM_CONNECT_TIMEOUT_MS}ms`)), STREAM_CONNECT_TIMEOUT_MS)
+        ),
+      ]);
+    } catch (err: any) {
+      console.error(`[Bedrock] invokeStream failed for model "${modelId}": ${err.message}`);
+      throw err;
+    }
 
     if (!response.body) {
       throw new Error("No response body from Bedrock");
     }
 
-    for await (const event of response.body) {
+    const streamIterator = response.body[Symbol.asyncIterator]();
+    const FIRST_TOKEN_TIMEOUT_MS = 15000;
+    let gotFirstToken = false;
+    const startMs = Date.now();
+
+    const timeoutRace = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`${label} for model "${modelId}" (${ms}ms)`)), ms)
+        ),
+      ]);
+
+    let done = false;
+    while (!done) {
+      const result = gotFirstToken
+        ? await streamIterator.next()
+        : await timeoutRace(streamIterator.next(), FIRST_TOKEN_TIMEOUT_MS, 'Bedrock first-token timeout');
+
+      if (result.done) {
+        done = true;
+        break;
+      }
+
+      const event = result.value;
       if (event.chunk?.bytes) {
         const chunk = JSON.parse(new TextDecoder().decode(event.chunk.bytes));
         if (chunk.type === "content_block_delta" && chunk.delta?.text) {
+          if (!gotFirstToken) {
+            gotFirstToken = true;
+            console.log(`[Bedrock] First token from "${modelId}" in ${Date.now() - startMs}ms`);
+          }
           yield chunk.delta.text;
+        } else if ((chunk.type === "message_start" || chunk.type === "content_block_start") && !gotFirstToken) {
+          gotFirstToken = true;
         }
       }
+    }
+
+    if (!gotFirstToken) {
+      throw new Error(`Bedrock stream completed with no content from model "${modelId}"`);
     }
   }
 
   async warmConnection(): Promise<void> {
-    try {
-      const client = this.getClient();
-      const modelId = this.resolveModelId("claude-sonnet-4");
-      const payload = {
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 1,
-        temperature: 0,
-        messages: [{ role: "user", content: "." }],
-      };
-      const command = new InvokeModelCommand({
-        modelId,
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify(payload),
-      });
-      await client.send(command);
-    } catch (_) {
+    const modelsToTest = ['claude-sonnet-4', 'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-7-sonnet'] as const;
+    const client = this.getClient();
+    let firstWorking: string | null = null;
+
+    for (const alias of modelsToTest) {
+      try {
+        const modelId = this.resolveModelId(alias);
+        const payload = {
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: 1,
+          temperature: 0,
+          messages: [{ role: "user", content: "." }],
+        };
+        const command = new InvokeModelCommand({
+          modelId,
+          contentType: "application/json",
+          accept: "application/json",
+          body: JSON.stringify(payload),
+        });
+        await Promise.race([
+          client.send(command),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+        ]);
+        console.log(`[Bedrock] ✅ Model "${alias}" (${modelId}) is accessible`);
+        if (!firstWorking) firstWorking = alias;
+      } catch (err: any) {
+        console.warn(`[Bedrock] ❌ Model "${alias}" is NOT accessible: ${err.message}`);
+      }
+    }
+
+    if (firstWorking) {
+      console.log(`[Bedrock] Warm connection established with "${firstWorking}"`);
+    } else {
+      console.error(`[Bedrock] ⚠️ No Bedrock models are accessible! Check AWS credentials and model access.`);
     }
   }
 

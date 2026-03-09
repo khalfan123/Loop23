@@ -1360,7 +1360,7 @@ export class BedrockPollyAudioBridge {
         })();
         stream = wrappedStream;
       } catch (modelErr: any) {
-        const fallbackModel = 'claude-3-5-sonnet';
+        const fallbackModel = 'claude-3-5-haiku';
         console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" failed for ${callSid}: ${modelErr.message}. Falling back to "${fallbackModel}"`);
         primaryModel = fallbackModel;
         stream = awsBedrockService.invokeStream({

@@ -269,7 +269,7 @@ export default function KnowledgeBase() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "ml-operations" | "ml-insights">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "ml-operations" | "ml-insights" | "bedrock-kb">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -292,6 +292,10 @@ export default function KnowledgeBase() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
+
+  const [bedrockQueryInput, setBedrockQueryInput] = useState("");
+  const [bedrockQueryResults, setBedrockQueryResults] = useState<Array<{text: string; score: number; sourceUri?: string}>>([]);
+  const bedrockFileInputRef = useRef<HTMLInputElement>(null);
   
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [folderName, setFolderName] = useState("");
@@ -369,6 +373,119 @@ export default function KnowledgeBase() {
       return 30000;
     },
   });
+
+  interface BedrockKBStatus {
+    provisioned: boolean;
+    bedrockKbId?: string;
+    status?: string;
+    fileCount?: number;
+    configured: boolean;
+  }
+
+  interface BedrockKBFile {
+    id: string;
+    fileName: string;
+    fileType: string;
+    mimeType: string;
+    s3Key: string;
+    sizeBytes: number;
+    status: string;
+    createdAt: string;
+  }
+
+  const { data: bedrockStatus, isLoading: bedrockStatusLoading } = useQuery<BedrockKBStatus>({
+    queryKey: ['/api/bedrock-kb/status'],
+    enabled: viewMode === 'bedrock-kb',
+  });
+
+  const { data: bedrockFiles = [], isLoading: bedrockFilesLoading } = useQuery<BedrockKBFile[]>({
+    queryKey: ['/api/bedrock-kb/files'],
+    enabled: viewMode === 'bedrock-kb' && !!bedrockStatus?.provisioned,
+  });
+
+  const bedrockProvisionMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/bedrock-kb/provision');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/bedrock-kb/status'] });
+      toast({ title: "Knowledge Base Provisioned", description: "Your Bedrock AI Knowledge Base is now active." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Provisioning Failed", description: error.message || "Could not provision the knowledge base.", variant: "destructive" });
+    },
+  });
+
+  const bedrockUploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const headers: Record<string, string> = {};
+      const authHeader = AuthStorage.getAuthHeader();
+      if (authHeader) headers['Authorization'] = authHeader;
+      const response = await fetch('/api/bedrock-kb/upload', { method: 'POST', headers, credentials: 'include', body: formData });
+      if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Upload failed'); }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/bedrock-kb/files'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bedrock-kb/status'] });
+      toast({ title: "File Uploaded", description: "File uploaded to Bedrock Knowledge Base." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Upload Failed", description: error.message || "Could not upload file.", variant: "destructive" });
+    },
+  });
+
+  const bedrockDeleteFileMutation = useMutation({
+    mutationFn: async (fileId: string) => {
+      const res = await apiRequest('DELETE', `/api/bedrock-kb/files/${fileId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/bedrock-kb/files'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bedrock-kb/status'] });
+      toast({ title: "File Deleted", description: "File removed from Bedrock Knowledge Base." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Delete Failed", description: error.message || "Could not delete file.", variant: "destructive" });
+    },
+  });
+
+  const bedrockSyncMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/bedrock-kb/sync');
+      return res.json() as Promise<{ ingestionJobId?: string }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Sync Started", description: `Re-indexing triggered. Job ID: ${data.ingestionJobId || 'N/A'}` });
+    },
+    onError: (error: any) => {
+      toast({ title: "Sync Failed", description: error.message || "Could not trigger re-indexing.", variant: "destructive" });
+    },
+  });
+
+  const bedrockQueryMutation = useMutation({
+    mutationFn: async (query: string) => {
+      const res = await apiRequest('POST', '/api/bedrock-kb/query', { query, numberOfResults: 5 });
+      return res.json() as Promise<{ results?: Array<{ text: string; score: number; sourceUri?: string }> }>;
+    },
+    onSuccess: (data) => {
+      setBedrockQueryResults(data.results || []);
+    },
+    onError: (error: any) => {
+      toast({ title: "Query Failed", description: error.message || "Could not query knowledge base.", variant: "destructive" });
+    },
+  });
+
+  const getBedrockFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return <Globe className="h-4 w-4 text-purple-500" />;
+    if (mimeType.startsWith('audio/')) return <Phone className="h-4 w-4 text-green-500" />;
+    if (mimeType.startsWith('video/')) return <Activity className="h-4 w-4 text-red-500" />;
+    if (mimeType === 'application/pdf') return <FileText className="h-4 w-4 text-red-600" />;
+    return <FileType className="h-4 w-4 text-blue-500" />;
+  };
 
   const formatTimeRemaining = (seconds: number | null): string => {
     if (!seconds) return "calculating...";
@@ -1182,6 +1299,13 @@ export default function KnowledgeBase() {
         <SubPanelItem icon={<HelpCircle className="h-4 w-4" />} label="FAQs" isActive={viewMode === "faqs"} onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }} data-testid="folder-faqs" />
         <SubPanelItem icon={<Lightbulb className="h-4 w-4" />} label="Content Gaps" isActive={viewMode === "content-gaps"} onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }} data-testid="folder-content-gaps" />
         <SubPanelItem icon={<BarChart3 className="h-4 w-4" />} label="ML Conversations" isActive={viewMode === "ml-conversations"} onClick={() => { setViewMode("ml-conversations"); setSelectedFolderId(null); }} data-testid="folder-ml-conversations" />
+
+        <div className="mt-3 mb-1.5 px-3 flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">Bedrock AI</span>
+          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700/50" />
+        </div>
+
+        <SubPanelItem icon={<Database className="h-4 w-4" />} label="AI Knowledge Base" isActive={viewMode === "bedrock-kb"} onClick={() => { setViewMode("bedrock-kb"); setSelectedFolderId(null); }} data-testid="folder-bedrock-kb" />
       </SubPanelSection>
 
       {storageUsage && (
@@ -1374,6 +1498,299 @@ export default function KnowledgeBase() {
               <KnowledgeIntelligence section="ml-operations" />
             ) : viewMode === "ml-insights" ? (
               <KnowledgeIntelligence section="ml-insights" />
+            ) : viewMode === "bedrock-kb" ? (
+              <div className="space-y-6">
+                {bedrockStatusLoading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                          <div className="h-5 w-5 rounded bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                            <Database className="h-3 w-3 text-amber-500" />
+                          </div>
+                          Bedrock AI Knowledge Base Status
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {bedrockStatus?.provisioned ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="default" data-testid="badge-bedrock-status">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Active
+                              </Badge>
+                              {bedrockStatus.bedrockKbId && (
+                                <Badge variant="outline" data-testid="badge-bedrock-kb-id">
+                                  KB ID: {bedrockStatus.bedrockKbId}
+                                </Badge>
+                              )}
+                              <Badge variant="secondary">
+                                {bedrockStatus.fileCount || 0} file(s)
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => bedrockSyncMutation.mutate()}
+                                disabled={bedrockSyncMutation.isPending}
+                                data-testid="button-bedrock-sync"
+                              >
+                                {bedrockSyncMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4 mr-1.5" />
+                                )}
+                                Sync / Re-index
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" data-testid="badge-bedrock-not-provisioned">
+                                <AlertCircle className="h-3 w-3 mr-1" />
+                                Not Provisioned
+                              </Badge>
+                              {bedrockStatus?.configured === false && (
+                                <Badge variant="destructive">
+                                  Not Configured
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {bedrockStatus?.configured === false
+                                ? "Bedrock Knowledge Base is not configured by the administrator. Contact support."
+                                : "Provision a Bedrock AI Knowledge Base to upload files and enable AI-powered retrieval."}
+                            </p>
+                            {bedrockStatus?.configured !== false && (
+                              <Button
+                                onClick={() => bedrockProvisionMutation.mutate()}
+                                disabled={bedrockProvisionMutation.isPending}
+                                data-testid="button-bedrock-provision"
+                              >
+                                {bedrockProvisionMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                    Provisioning...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Database className="h-4 w-4 mr-1.5" />
+                                    Provision Knowledge Base
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {bedrockStatus?.provisioned && (
+                      <>
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                              <div className="h-5 w-5 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                <Upload className="h-3 w-3 text-blue-500" />
+                              </div>
+                              Upload Files
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                              Upload images, audio, video, PDFs, and text files (max 50MB)
+                            </p>
+                          </CardHeader>
+                          <CardContent>
+                            <div
+                              className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary/50"
+                              onClick={() => bedrockFileInputRef.current?.click()}
+                              data-testid="bedrock-upload-area"
+                            >
+                              <input
+                                ref={bedrockFileInputRef}
+                                type="file"
+                                className="hidden"
+                                accept="image/*,audio/*,video/*,.pdf,.txt,.csv,.json,.xml,.html,.md,.doc,.docx,.xls,.xlsx"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    bedrockUploadMutation.mutate(file);
+                                    e.target.value = '';
+                                  }
+                                }}
+                                data-testid="input-bedrock-file"
+                              />
+                              {bedrockUploadMutation.isPending ? (
+                                <div className="flex flex-col items-center gap-2">
+                                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center gap-2">
+                                  <Upload className="h-8 w-8 text-muted-foreground" />
+                                  <p className="text-sm font-medium">Click to upload a file</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    PDF, images, audio, video, text, CSV, JSON, XML, DOC, XLS
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                              <div className="h-5 w-5 rounded bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                <FileText className="h-3 w-3 text-green-500" />
+                              </div>
+                              Uploaded Files
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                              {bedrockFiles.length} file(s) in knowledge base
+                            </p>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            {bedrockFilesLoading ? (
+                              <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                              </div>
+                            ) : bedrockFiles.length === 0 ? (
+                              <div className="text-center py-8 text-sm text-muted-foreground">
+                                No files uploaded yet. Upload files above to get started.
+                              </div>
+                            ) : (
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>File</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead className="hidden md:table-cell">Size</TableHead>
+                                    <TableHead className="hidden md:table-cell">Status</TableHead>
+                                    <TableHead className="hidden lg:table-cell">Uploaded</TableHead>
+                                    <TableHead className="w-[60px]"></TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {bedrockFiles.map((file) => (
+                                    <TableRow key={file.id} data-testid={`row-bedrock-file-${file.id}`}>
+                                      <TableCell>
+                                        <div className="flex items-center gap-2">
+                                          {getBedrockFileIcon(file.mimeType)}
+                                          <span className="text-sm truncate max-w-[200px]">{file.fileName}</span>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge variant="outline" className="text-xs">{file.fileType || file.mimeType}</Badge>
+                                      </TableCell>
+                                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                                        {formatBytes(file.sizeBytes)}
+                                      </TableCell>
+                                      <TableCell className="hidden md:table-cell">
+                                        <Badge variant={file.status === 'active' || file.status === 'uploaded' ? 'default' : 'secondary'} className="text-xs">
+                                          {file.status}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                                        {new Date(file.createdAt).toLocaleDateString()}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => bedrockDeleteFileMutation.mutate(file.id)}
+                                          disabled={bedrockDeleteFileMutation.isPending}
+                                          data-testid={`button-bedrock-delete-file-${file.id}`}
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                              <div className="h-5 w-5 rounded bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                <Search className="h-3 w-3 text-purple-500" />
+                              </div>
+                              Test Query
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                              Preview retrieval results from your Bedrock Knowledge Base
+                            </p>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="Enter a test query..."
+                                  value={bedrockQueryInput}
+                                  onChange={(e) => setBedrockQueryInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && bedrockQueryInput.trim()) {
+                                      bedrockQueryMutation.mutate(bedrockQueryInput.trim());
+                                    }
+                                  }}
+                                  data-testid="input-bedrock-query"
+                                />
+                                <Button
+                                  onClick={() => {
+                                    if (bedrockQueryInput.trim()) {
+                                      bedrockQueryMutation.mutate(bedrockQueryInput.trim());
+                                    }
+                                  }}
+                                  disabled={bedrockQueryMutation.isPending || !bedrockQueryInput.trim()}
+                                  data-testid="button-bedrock-query"
+                                >
+                                  {bedrockQueryMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Search className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+
+                              {bedrockQueryResults.length > 0 && (
+                                <div className="space-y-3" data-testid="bedrock-query-results">
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                    {bedrockQueryResults.length} result(s)
+                                  </p>
+                                  {bedrockQueryResults.map((result, index) => (
+                                    <div key={index} className="p-3 rounded-lg bg-muted/40 space-y-1" data-testid={`bedrock-query-result-${index}`}>
+                                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <Badge variant="secondary" className="text-xs">
+                                          Score: {(result.score * 100).toFixed(1)}%
+                                        </Badge>
+                                        {result.sourceUri && (
+                                          <span className="text-xs text-muted-foreground truncate max-w-[300px]">
+                                            {result.sourceUri}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm whitespace-pre-wrap">{result.text}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             ) : isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

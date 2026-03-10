@@ -403,6 +403,71 @@ You are in BRAIN-ONLY mode. This means:
     };
   }
 
+  static addBedrockKBTool(
+    config: AgentConfigWithContext,
+    bedrockKbId: string
+  ): AgentConfigWithContext {
+    const { bedrockKBService } = require("../../../services/bedrock-knowledge-base.service");
+
+    const bedrockKbTool: AgentTool = {
+      name: 'lookup_bedrock_knowledge_base',
+      description: 'Search the enhanced multimodal knowledge base for information including text, images, audio, and video content. Use this when the primary knowledge base does not have enough information or when looking for multimedia content.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The search query to find relevant information from the multimodal knowledge base.',
+          },
+        },
+        required: ['query'],
+      },
+      handler: async (params: Record<string, unknown>) => {
+        try {
+          const query = params.query as string;
+          console.log(`[Bedrock KB Tool] Searching: "${query.substring(0, 50)}..."`);
+
+          const results = await bedrockKBService.retrieve(bedrockKbId, query, 5);
+
+          if (results.length === 0) {
+            return {
+              found: false,
+              message: 'No results found in the enhanced knowledge base. Use your existing knowledge to answer.',
+            };
+          }
+
+          const formattedResults = results
+            .map((r: any, i: number) => `[${i + 1}] (Score: ${(r.score * 100).toFixed(0)}%) ${r.text.substring(0, 500)}`)
+            .join('\n\n');
+
+          console.log(`[Bedrock KB Tool] Found ${results.length} results`);
+          return {
+            found: true,
+            information: formattedResults,
+          };
+        } catch (error: any) {
+          console.error(`[Bedrock KB Tool] Error:`, error.message);
+          return {
+            found: false,
+            message: 'Could not retrieve from enhanced knowledge base. Use your existing knowledge.',
+          };
+        }
+      },
+    };
+
+    const enhancedPrompt = config.systemPrompt + `
+
+ENHANCED MULTIMODAL KNOWLEDGE BASE:
+=====================================
+You have access to an enhanced knowledge base that contains multimodal content (text, images, audio, video). Use the 'lookup_bedrock_knowledge_base' tool when you need more detailed or multimedia-sourced information. This complements your primary knowledge base tool.`;
+
+    return {
+      ...config,
+      systemPrompt: enhancedPrompt,
+      tools: [...(config.tools || []), bedrockKbTool],
+    };
+  }
+
   static addAppointmentTool(
     config: AgentConfigWithContext,
     userId: string,

@@ -35,6 +35,27 @@ import { db } from "../db";
 import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowledgeEntities, knowledgeTopics } from "@shared/schema";
 import { eq, and, sql, desc, asc, count, inArray } from "drizzle-orm";
 import { generateUseCasesFromKB } from "../services/use-case-generator";
+import { bedrockKBService } from "../services/bedrock-knowledge-base.service";
+
+async function pushToBedrockKB(userId: string, buffer: Buffer, fileName: string, mimeType: string, localKbId?: string) {
+  try {
+    const user = await storage.getUser(userId);
+    if (!user) return;
+
+    if (!user.bedrockKbId && bedrockKBService.isConfigured()) {
+      await bedrockKBService.provisionUserKB(userId, user.name);
+    }
+
+    const freshUser = await storage.getUser(userId);
+    if (!freshUser?.bedrockKbId || freshUser.bedrockKbStatus !== 'active') return;
+
+    await bedrockKBService.uploadFile(userId, buffer, fileName, mimeType, localKbId);
+    await bedrockKBService.syncKnowledgeBase(userId);
+    console.log(`[RAG Routes] Pushed "${fileName}" to Bedrock KB for user ${userId}`);
+  } catch (err: any) {
+    console.warn(`[RAG Routes] Bedrock KB push failed (non-blocking):`, err.message);
+  }
+}
 
 // Extend Request to include userId
 interface AuthRequest extends Request {
@@ -135,6 +156,23 @@ function isTextBasedFile(filename: string, mimeType: string): boolean {
   ];
   
   return textMimeTypes.includes(mimeType) || mimeType.startsWith('text/');
+}
+
+function isMultimodalFile(mimeType: string): boolean {
+  return (
+    mimeType === 'application/pdf' ||
+    mimeType.startsWith('image/') ||
+    mimeType.startsWith('audio/') ||
+    mimeType.startsWith('video/')
+  );
+}
+
+function getMultimodalFileType(mimeType: string): string {
+  if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('video/')) return 'video';
+  return 'document';
 }
 
 /**
@@ -565,26 +603,16 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
       const filename = req.file.originalname;
       const mimeType = req.file.mimetype;
       const fileSize = req.file.size;
+      const isText = isTextBasedFile(filename, mimeType);
+      const isMultimodal = isMultimodalFile(mimeType);
 
-      // Validate file type
-      if (!isTextBasedFile(filename, mimeType)) {
+      if (!isText && !isMultimodal) {
         return res.status(400).json({ 
-          error: "Unsupported file type. Currently supported: TXT, MD, HTML, JSON, XML, CSV. PDF and DOCX support coming soon.",
-          supportedTypes: ALLOWED_TEXT_EXTENSIONS.join(', ')
+          error: "Unsupported file type. Supported: text files (TXT, MD, HTML, JSON, XML, CSV), PDFs, images, audio, and video.",
+          supportedTypes: [...ALLOWED_TEXT_EXTENSIONS, '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp3', '.wav', '.mp4', '.webm'].join(', ')
         });
       }
 
-      // Parse file content as text
-      let fileContent: string;
-      try {
-        fileContent = req.file.buffer.toString('utf8');
-      } catch (parseError) {
-        return res.status(400).json({ 
-          error: "Failed to read file content. Please ensure the file is valid text."
-        });
-      }
-
-      // Check storage limit
       const hasSpace = await RAGKnowledgeService.checkStorageSpace(req.userId!, fileSize);
       if (!hasSpace) {
         return res.status(400).json({ 
@@ -593,37 +621,56 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         });
       }
 
-      // Create knowledge base item in database (WITHOUT uploading to ElevenLabs)
+      let fileContent = '';
+      if (isText) {
+        try {
+          fileContent = req.file.buffer.toString('utf8');
+        } catch (parseError) {
+          return res.status(400).json({ 
+            error: "Failed to read file content. Please ensure the file is valid text."
+          });
+        }
+      }
+
+      const fileType = isText ? 'text' : getMultimodalFileType(mimeType);
+
       const item = await storage.createKnowledgeBaseItem({
         userId: req.userId!,
         type: 'file',
         title: name || filename,
-        content: fileContent,
+        content: fileContent || `[${fileType} file: ${filename}]`,
         url: null,
         fileUrl: filename,
-        elevenLabsDocId: null, // No ElevenLabs upload
+        elevenLabsDocId: null,
         metadata: { 
           filename, 
           mimeType,
-          ragEnabled: true,
+          fileType,
+          ragEnabled: isText,
+          bedrockOnly: !isText,
         },
         storageSize: fileSize,
       });
 
-      // Process with RAG (async - chunks and embeddings)
-      RAGKnowledgeService.processKnowledgeItem(
-        item.id,
-        req.userId!,
-        fileContent,
-        { source: 'file', filename }
-      ).catch(err => console.error("[RAG Routes] Background processing error:", err));
+      if (isText && fileContent) {
+        RAGKnowledgeService.processKnowledgeItem(
+          item.id,
+          req.userId!,
+          fileContent,
+          { source: 'file', filename }
+        ).catch(err => console.error("[RAG Routes] Background processing error:", err));
 
-      generateUseCasesFromKB(req.userId!).catch(err => console.error("[RAG] Use case generation error:", err));
+        generateUseCasesFromKB(req.userId!).catch(err => console.error("[RAG] Use case generation error:", err));
+      }
+
+      pushToBedrockKB(req.userId!, req.file!.buffer, filename, mimeType, item.id);
 
       res.json({
         ...item,
-        ragStatus: 'processing',
-        message: "File uploaded. Processing embeddings in background.",
+        ragStatus: isText ? 'processing' : 'bedrock_only',
+        message: isText 
+          ? "File uploaded. Processing embeddings in background."
+          : `${fileType} file uploaded. Will be indexed by Bedrock AI Knowledge Base.`,
       });
     } catch (error: any) {
       console.error("[RAG Routes] Upload error:", error);

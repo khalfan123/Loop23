@@ -5,6 +5,7 @@ import { BedrockPollyAudioBridge } from '../services/audio-bridge.service';
 import { BedrockAgentFactory } from '../services/bedrock-agent-factory';
 import { db } from '../../../db';
 import { twilioOpenaiCalls, flowExecutions, users } from '@shared/schema';
+import { storage } from '../../../storage';
 import { eq, sql } from 'drizzle-orm';
 import { logger } from '../../../utils/logger';
 import { BEDROCK_POLLY_CONFIG } from '../config/config';
@@ -305,6 +306,18 @@ async function initializeSession(
           knowledgeBaseIds,
           callRecord.userId
         );
+      }
+
+      if (callRecord.userId) {
+        try {
+          const callUser = await storage.getUser(callRecord.userId);
+          if (callUser?.bedrockKbId && callUser.bedrockKbStatus === 'active') {
+            agentConfig = BedrockAgentFactory.addBedrockKBTool(agentConfig, callUser.bedrockKbId);
+            console.log(`[Stream] Added Bedrock KB tool for user ${callRecord.userId}, KB: ${callUser.bedrockKbId}`);
+          }
+        } catch (err: any) {
+          console.warn(`[Stream] Failed to check Bedrock KB for user:`, err.message);
+        }
       }
 
       if (metaDataSchema && metaDataSchema.length > 0) {

@@ -20,7 +20,7 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Background Processing**: Schedulers manage campaign execution, billing, and cleanup tasks.
 - **Modular Design**: Feature modules and engine integrations are organized within `server/modules/` and `server/engines/` respectively.
 - **Department Management System**: Manages agents and IVR configurations within departments via a 3-step wizard.
-- **Knowledge Base & AI Intelligence**: Integrated knowledge base for AI-powered topic analysis and content generation, with folder-based navigation. Supports "Knowledge Base Only" mode for AI agents.
+- **Knowledge Base & AI Intelligence**: Integrated knowledge base for AI-powered topic analysis and content generation, with folder-based navigation. Supports "Knowledge Base Only" mode for AI agents. Dual-pipeline: local RAG (OpenAI embeddings + PostgreSQL cosine similarity) for text, plus per-user AWS Bedrock Knowledge Bases for multimodal content (images, audio, video, PDFs). Each user gets auto-provisioned Bedrock KB ID backed by S3. Agents have `lookup_bedrock_knowledge_base` tool alongside existing local KB tool during calls.
 - **Provider DID Marketplace**: Allows browsing and renting DIDs from various carrier providers.
 - **Bedrock + Polly Engine (RockCenter)**: Utilizes AWS Bedrock (Claude Sonnet 4 / Opus 4) for AI and multi-provider TTS (AWS Polly or ElevenLabs) with Twilio telephony. Supports both outbound and inbound scenarios, including a unique SSML Humanizer for natural speech. Features distinct "Task-First Framework" for outbound and "Enterprise Framework" for inbound agents.
 - **Outbound Agent Prompt Chain**: Rich system prompt generation for outbound agents, including personalized call scripts with `{{variable}}` placeholders, integrated with a 3-phase no-response handling for call lifecycle.
@@ -41,6 +41,16 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Email**: SMTP.
 
 ## Recent Fixes
+- **AWS Bedrock Knowledge Bases — Multimodal Per-User Integration (Mar 2026)**:
+  - Per-user auto-provisioned Bedrock Knowledge Bases backed by S3 storage with OpenSearch Serverless vector store
+  - New DB columns on `users`: `bedrockKbId`, `bedrockKbStatus`, `bedrockS3Prefix`, `bedrockDataSourceId`; new `bedrock_kb_files` table for S3 file tracking
+  - Service: `server/services/bedrock-knowledge-base.service.ts` — provision, upload, sync/ingest, retrieve, delete
+  - API routes: `server/routes/bedrock-kb-routes.ts` — 8 endpoints (provision, status, upload, files, delete, sync, sync-status, query)
+  - Dual-pipeline upload: text files go through both local RAG (OpenAI embeddings) AND Bedrock KB; multimodal files (images, audio, video, PDFs) go to Bedrock only
+  - Agent integration: `stream.ts` loads user's `bedrockKbId` from DB and adds `lookup_bedrock_knowledge_base` tool to agent during calls if KB is active
+  - Frontend: "AI Knowledge Base" tab on Knowledge Base page with status card, multimodal upload, file list, sync button, and test query
+  - Auto-provision: KB is auto-created on first file upload if not yet provisioned
+  - Env vars needed: `BEDROCK_KB_S3_BUCKET`, `BEDROCK_KB_ROLE_ARN`, `BEDROCK_KB_OPENSEARCH_ARN`
 - **Deprock Inbound Agent Response Fix (Mar 2026)**: Fixed inbound Deprock IVR calls where the AI agent would go silent after greeting:
   - Relaxed minimum audio buffer threshold (6400b → 3200b) for inbound calls during early conversation (< 2 user turns), allowing shorter Arabic phrases to be captured
   - Added inbound-specific re-prompt after Whisper hallucination filtering — agent now says "I'm here, please go ahead" (language-aware) instead of going silent, up to 2 times

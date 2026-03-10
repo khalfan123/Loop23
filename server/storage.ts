@@ -26,9 +26,10 @@ import {
   promptTemplates, agentVersions, seoSettings, analyticsScripts,
   paymentTransactions, refunds, invoices, paymentWebhookQueue, emailNotificationSettings,
   bannedWords, contentViolations, twilioOpenaiCalls, plivoCalls, demoSessions, websiteWidgets,
-  agentPresets,
+  agentPresets, bedrockKbFiles,
   type User, type InsertUser,
   type AgentPreset,
+  type BedrockKbFile, type InsertBedrockKbFile,
   type Agent, type InsertAgent,
   type KnowledgeBase as KnowledgeBaseType, type InsertKnowledgeBase,
   type Campaign, type InsertCampaign,
@@ -111,6 +112,16 @@ export interface IStorage {
   createKnowledgeBaseItem(item: InsertKnowledgeBase): Promise<KnowledgeBaseType>;
   updateKnowledgeBaseItem(id: string, item: Partial<InsertKnowledgeBase>): Promise<void>;
   deleteKnowledgeBaseItem(id: string): Promise<void>;
+
+  // Bedrock KB Files
+  createBedrockKBFile(data: InsertBedrockKbFile): Promise<BedrockKbFile>;
+  getBedrockKBFiles(userId: string): Promise<BedrockKbFile[]>;
+  getBedrockKBFile(fileId: string): Promise<BedrockKbFile | undefined>;
+  updateBedrockKBFile(fileId: string, data: Partial<InsertBedrockKbFile>): Promise<void>;
+  deleteBedrockKBFile(fileId: string): Promise<void>;
+
+  // User updates (for Bedrock KB fields)
+  updateUser(userId: string, data: Partial<any>): Promise<void>;
 
   // Campaigns
   getCampaign(id: string): Promise<Campaign | undefined>;
@@ -2638,6 +2649,28 @@ export class DbStorage implements IStorage {
   async getAgentPreset(id: string): Promise<AgentPreset | undefined> {
     const [preset] = await db.select().from(agentPresets).where(eq(agentPresets.id, id));
     return preset;
+  }
+
+  async createBedrockKBFile(data: InsertBedrockKbFile): Promise<BedrockKbFile> {
+    const [file] = await db.insert(bedrockKbFiles).values(data).returning();
+    return file;
+  }
+
+  async getBedrockKBFiles(userId: string): Promise<BedrockKbFile[]> {
+    return db.select().from(bedrockKbFiles).where(eq(bedrockKbFiles.userId, userId)).orderBy(desc(bedrockKbFiles.createdAt));
+  }
+
+  async getBedrockKBFile(fileId: string): Promise<BedrockKbFile | undefined> {
+    const [file] = await db.select().from(bedrockKbFiles).where(eq(bedrockKbFiles.id, fileId));
+    return file;
+  }
+
+  async updateBedrockKBFile(fileId: string, data: Partial<InsertBedrockKbFile>): Promise<void> {
+    await db.update(bedrockKbFiles).set(data).where(eq(bedrockKbFiles.id, fileId));
+  }
+
+  async deleteBedrockKBFile(fileId: string): Promise<void> {
+    await db.delete(bedrockKbFiles).where(eq(bedrockKbFiles.id, fileId));
   }
 }
 

@@ -64,6 +64,10 @@ export const users = pgTable("users", {
   billingPostalCode: text("billing_postal_code"),
   billingCountry: text("billing_country"),
   company: text("company"), // Company name for profile and team naming
+  bedrockKbId: text("bedrock_kb_id"),
+  bedrockKbStatus: text("bedrock_kb_status").default("none"),
+  bedrockS3Prefix: text("bedrock_s3_prefix"),
+  bedrockDataSourceId: text("bedrock_data_source_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -3981,3 +3985,24 @@ export const insertGeneratedUseCaseSchema = createInsertSchema(generatedUseCases
 });
 export type InsertGeneratedUseCase = z.infer<typeof insertGeneratedUseCaseSchema>;
 export type GeneratedUseCase = typeof generatedUseCases.$inferSelect;
+
+export const bedrockKbFiles = pgTable("bedrock_kb_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  knowledgeBaseId: varchar("knowledge_base_id").references(() => knowledgeBase.id, { onDelete: "set null" }),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(),
+  mimeType: text("mime_type").notNull(),
+  s3Key: text("s3_key").notNull(),
+  sizeBytes: integer("size_bytes").notNull().default(0),
+  status: text("status").notNull().default("uploading"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBedrockKbFileSchema = createInsertSchema(bedrockKbFiles).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBedrockKbFile = z.infer<typeof insertBedrockKbFileSchema>;
+export type BedrockKbFile = typeof bedrockKbFiles.$inferSelect;

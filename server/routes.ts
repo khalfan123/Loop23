@@ -99,6 +99,7 @@ import invoiceRouter from "./routes/invoice-routes";
 import emailSettingsRouter from "./routes/email-settings-routes";
 import audioRoutes from "./routes/audio-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
+import { registerBedrockKBRoutes } from "./routes/bedrock-kb-routes";
 import { createKnowledgeIntelligenceRoutes } from "./routes/knowledge-intelligence-routes";
 import { createDepartmentRoutes, createIvrAudioRoutes } from "./routes/department-routes";
 import { createDeprockRoutes, createDeprockIvrAudioRoutes } from "./routes/deprock-routes";
@@ -1800,6 +1801,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set USE_RAG_KNOWLEDGE=true to enable this system
   const ragKnowledgeRoutes = createRAGKnowledgeRoutes(routeContext.authenticateHybrid);
   app.use("/api/rag-knowledge", ragKnowledgeRoutes);
+
+  registerBedrockKBRoutes(app, routeContext.authenticateHybrid);
 
   // Knowledge Intelligence routes (crawling, AI analysis, content generation)
   const knowledgeIntelligenceRoutes = createKnowledgeIntelligenceRoutes();

@@ -33,7 +33,7 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Live Call Monitoring System**: Real-time supervisor dashboard for monitoring active calls, with WebSocket-based updates, transcript streaming, and role-based access.
 
 ## External Dependencies
-- **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude Sonnet-4-5, AWS Bedrock Claude Sonnet 4 & Opus 4 (with legacy Claude 3.5 Sonnet/3.7 Sonnet support).
+- **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude, AWS Bedrock Claude Sonnet 4.6 (primary, `us.anthropic.claude-sonnet-4-6`) & Opus 4.5 (fallback, `us.anthropic.claude-opus-4-5-20251101-v1:0`), with legacy Sonnet 4/3.5 Haiku support.
 - **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly.
 - **Telephony Providers**: Twilio, Plivo, TCXC.
 - **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.

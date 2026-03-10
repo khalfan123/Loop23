@@ -359,11 +359,9 @@ ${options.systemPrompt}`;
     modelId: string,
     options: BedrockInvokeOptions
   ): Promise<BedrockResponse> {
-    const payload = {
+    const payload: Record<string, any> = {
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: options.maxTokens || 4096,
-      temperature: options.temperature ?? 0.7,
-      top_p: options.topP ?? 0.9,
       messages: options.messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
@@ -371,6 +369,12 @@ ${options.systemPrompt}`;
       ...(options.systemPrompt && { system: options.systemPrompt }),
       ...(options.stopSequences && { stop_sequences: options.stopSequences }),
     };
+
+    if (options.topP !== undefined) {
+      payload.top_p = options.topP;
+    } else {
+      payload.temperature = options.temperature ?? 0.7;
+    }
 
     const command = new InvokeModelCommand({
       modelId,
@@ -517,11 +521,9 @@ ${options.systemPrompt}`;
 
     console.log(`[Bedrock] invokeStream: model=${options.model}, resolved=${modelId}`);
 
-    const payload = {
+    const payload: Record<string, any> = {
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: options.maxTokens || 4096,
-      temperature: options.temperature ?? 0.7,
-      top_p: options.topP ?? 0.9,
       messages: options.messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
@@ -529,6 +531,12 @@ ${options.systemPrompt}`;
       ...(options.systemPrompt && { system: options.systemPrompt }),
       ...(options.stopSequences && { stop_sequences: options.stopSequences }),
     };
+
+    if (options.topP !== undefined) {
+      payload.top_p = options.topP;
+    } else {
+      payload.temperature = options.temperature ?? 0.7;
+    }
 
     const command = new InvokeModelWithResponseStreamCommand({
       modelId,

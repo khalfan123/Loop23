@@ -14,7 +14,7 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useRef, useMemo, Fragment } from "react";
+import { useState, useRef, useMemo, Fragment, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
@@ -57,7 +57,8 @@ import {
   Lightbulb,
   Square,
   Phone,
-  Activity
+  Activity,
+  Wand2
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
 import { AuthStorage } from "@/lib/auth-storage";
@@ -292,6 +293,9 @@ export default function KnowledgeBase() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
+
+  const [mediaGeneratingIds, setMediaGeneratingIds] = useState<Set<string>>(new Set());
+  const [mediaStatusMap, setMediaStatusMap] = useState<Record<string, { status: string; filesGenerated?: number; fileNames?: string[] }>>({});
 
   const [bedrockQueryInput, setBedrockQueryInput] = useState("");
   const [bedrockQueryResults, setBedrockQueryResults] = useState<Array<{text: string; score: number; sourceUri?: string}>>([]);
@@ -843,6 +847,78 @@ export default function KnowledgeBase() {
       });
     },
   });
+
+  const generateMediaMutation = useMutation({
+    mutationFn: async (knowledgeBaseId: string) => {
+      const res = await apiRequest('POST', `/api/rag-knowledge/generate-media/${knowledgeBaseId}`, { pdf: true, audio: true, images: true });
+      return res.json();
+    },
+    onMutate: (knowledgeBaseId) => {
+      setMediaGeneratingIds(prev => new Set(prev).add(knowledgeBaseId));
+    },
+    onSuccess: (data, knowledgeBaseId) => {
+      toast({
+        title: "Media Generation Started",
+        description: data.message || "Generating PDF, audio, and images...",
+      });
+      setMediaStatusMap(prev => ({ ...prev, [knowledgeBaseId]: { status: 'generating' } }));
+    },
+    onError: (error: any, knowledgeBaseId) => {
+      setMediaGeneratingIds(prev => {
+        const next = new Set(prev);
+        next.delete(knowledgeBaseId);
+        return next;
+      });
+      toast({
+        title: "Media Generation Failed",
+        description: error.message || "Could not start media generation.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const pollMediaStatus = useCallback(async (id: string) => {
+    try {
+      const res = await apiRequest('GET', `/api/rag-knowledge/media-status/${id}`);
+      const data = await res.json();
+      setMediaStatusMap(prev => ({
+        ...prev,
+        [id]: {
+          status: data.status,
+          filesGenerated: data.result?.filesGenerated,
+          fileNames: data.result?.fileNames,
+        },
+      }));
+      if (data.status === 'completed' || data.status === 'failed' || data.status === 'none') {
+        setMediaGeneratingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        if (data.status === 'completed') {
+          toast({
+            title: "Media Generated",
+            description: `${data.result?.filesGenerated || 0} file(s) generated successfully.`,
+          });
+          queryClient.invalidateQueries({ queryKey: ['/api/bedrock-kb/files'] });
+        }
+      }
+    } catch {
+      setMediaGeneratingIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (mediaGeneratingIds.size === 0) return;
+    const interval = setInterval(() => {
+      mediaGeneratingIds.forEach(id => pollMediaStatus(id));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [mediaGeneratingIds, pollMediaStatus]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2183,6 +2259,29 @@ export default function KnowledgeBase() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-1">
+                                    {(item.type === 'file' || item.type === 'url') && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            disabled={mediaGeneratingIds.has(item.id)}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              generateMediaMutation.mutate(item.id);
+                                            }}
+                                            data-testid={`button-generate-media-${item.id}`}
+                                          >
+                                            {mediaGeneratingIds.has(item.id) ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <Wand2 className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Generate Media (PDF, Audio, Images)</TooltipContent>
+                                      </Tooltip>
+                                    )}
                                     <Button
                                       variant="ghost"
                                       size="icon"
@@ -2229,6 +2328,28 @@ export default function KnowledgeBase() {
                                         <span>Chunks: {item.chunkCount || 0}</span>
                                         <span>Status: {item.ragStatus === 'completed' ? 'Ready for AI' : item.ragStatus || 'Pending'}</span>
                                       </div>
+                                      {mediaStatusMap[item.id] && (
+                                        <div className="flex items-center gap-2 text-xs" data-testid={`media-status-${item.id}`}>
+                                          {mediaStatusMap[item.id].status === 'generating' && (
+                                            <>
+                                              <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+                                              <span className="text-blue-600 dark:text-blue-400">Generating PDF, audio, images...</span>
+                                            </>
+                                          )}
+                                          {mediaStatusMap[item.id].status === 'completed' && (
+                                            <>
+                                              <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                              <span className="text-green-600 dark:text-green-400">{mediaStatusMap[item.id].filesGenerated || 0} files generated</span>
+                                            </>
+                                          )}
+                                          {mediaStatusMap[item.id].status === 'failed' && (
+                                            <>
+                                              <AlertCircle className="h-3 w-3 text-red-500" />
+                                              <span className="text-red-600 dark:text-red-400">Media generation failed</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -2393,6 +2514,29 @@ export default function KnowledgeBase() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-1">
+                                      {(item.type === 'file' || item.type === 'url') && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              disabled={mediaGeneratingIds.has(item.id)}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                generateMediaMutation.mutate(item.id);
+                                              }}
+                                              data-testid={`button-generate-media-folder-${item.id}`}
+                                            >
+                                              {mediaGeneratingIds.has(item.id) ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                              ) : (
+                                                <Wand2 className="h-4 w-4" />
+                                              )}
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Generate Media (PDF, Audio, Images)</TooltipContent>
+                                        </Tooltip>
+                                      )}
                                       <Button
                                         variant="ghost"
                                         size="icon"
@@ -2439,6 +2583,28 @@ export default function KnowledgeBase() {
                                           <span>Chunks: {item.chunkCount || 0}</span>
                                           <span>Status: {item.ragStatus === 'completed' ? 'Ready for AI' : item.ragStatus || 'Pending'}</span>
                                         </div>
+                                        {mediaStatusMap[item.id] && (
+                                          <div className="flex items-center gap-2 text-xs" data-testid={`media-status-folder-${item.id}`}>
+                                            {mediaStatusMap[item.id].status === 'generating' && (
+                                              <>
+                                                <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+                                                <span className="text-blue-600 dark:text-blue-400">Generating PDF, audio, images...</span>
+                                              </>
+                                            )}
+                                            {mediaStatusMap[item.id].status === 'completed' && (
+                                              <>
+                                                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                                <span className="text-green-600 dark:text-green-400">{mediaStatusMap[item.id].filesGenerated || 0} files generated</span>
+                                              </>
+                                            )}
+                                            {mediaStatusMap[item.id].status === 'failed' && (
+                                              <>
+                                                <AlertCircle className="h-3 w-3 text-red-500" />
+                                                <span className="text-red-600 dark:text-red-400">Media generation failed</span>
+                                              </>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>

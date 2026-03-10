@@ -36,6 +36,50 @@ import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowle
 import { eq, and, sql, desc, asc, count, inArray } from "drizzle-orm";
 import { generateUseCasesFromKB } from "../services/use-case-generator";
 import { bedrockKBService } from "../services/bedrock-knowledge-base.service";
+import { kbMediaGenerator } from "../services/kb-media-generator";
+
+const mediaGenerationJobs = new Map<string, { status: string; result?: any; error?: string; startedAt: number }>();
+
+function triggerMediaGeneration(
+  synthesized: SynthesizedKnowledge,
+  userId: string,
+  knowledgeBaseId: string,
+  options: { pdf?: boolean; audio?: boolean; images?: boolean } = {}
+) {
+  const jobKey = `media_${userId}_${knowledgeBaseId}`;
+  mediaGenerationJobs.set(jobKey, { status: "generating", startedAt: Date.now() });
+
+  (async () => {
+    try {
+      await pushToBedrockKB(
+        userId,
+        Buffer.from(KnowledgeSynthesisService.formatAsRAGContent(synthesized)),
+        `${synthesized.businessProfile?.companyName || "kb"}_synthesized.txt`,
+        "text/plain",
+        knowledgeBaseId
+      );
+
+      const result = await kbMediaGenerator.generateAllMedia(synthesized, userId, options);
+      mediaGenerationJobs.set(jobKey, {
+        status: "completed",
+        result: {
+          filesGenerated: result.files.length,
+          fileNames: result.files.map((f) => f.fileName),
+          errors: result.errors,
+        },
+        startedAt: mediaGenerationJobs.get(jobKey)?.startedAt || Date.now(),
+      });
+      console.log(`[MediaGen] Completed for KB ${knowledgeBaseId}: ${result.files.length} files, ${result.errors.length} errors`);
+    } catch (err: any) {
+      mediaGenerationJobs.set(jobKey, {
+        status: "failed",
+        error: err.message,
+        startedAt: mediaGenerationJobs.get(jobKey)?.startedAt || Date.now(),
+      });
+      console.error(`[MediaGen] Failed for KB ${knowledgeBaseId}:`, err.message);
+    }
+  })();
+}
 
 async function pushToBedrockKB(userId: string, buffer: Buffer, fileName: string, mimeType: string, localKbId?: string) {
   try {
@@ -1440,7 +1484,7 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
       const userId = req.userId;
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-      const { url, knowledgeBaseId, maxPages, maxDepth, maxTokens } = req.body;
+      const { url, knowledgeBaseId, maxPages, maxDepth, maxTokens, autoSynthesize = false, generateMedia: genMedia = false } = req.body;
       if (!url) return res.status(400).json({ error: "URL is required" });
 
       const jobId = `ds_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -1449,7 +1493,7 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         progress: { status: 'discovering', totalUrlsDiscovered: 0, pagesFetched: 0, pagesProcessed: 0, totalTokens: 0, errors: [], currentUrl: url }
       });
 
-      res.json({ jobId, status: 'started', message: 'Deep scrape job started' });
+      res.json({ jobId, status: 'started', message: 'Deep scrape job started', autoSynthesize, generateMedia: genMedia });
 
       const scraper = new DeepScrapeService();
       scraper.onProgress(jobId, (progress) => {
@@ -1479,6 +1523,41 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
               result.allContent,
               { title: `Deep scrape: ${url}`, type: 'url', deepScraped: true, pagesScraped: result.totalPages }
             );
+
+            if (autoSynthesize && result.allContent.length > 100) {
+              try {
+                console.log(`[Deep Scrape] Auto-synthesizing KB ${knowledgeBaseId}...`);
+                const synthesized = await KnowledgeSynthesisService.synthesize(
+                  result.allContent,
+                  url,
+                  (progress) => {
+                    console.log(`[Deep Scrape Synthesis] Stage ${progress.currentStage}/${progress.totalStages}: ${progress.message}`);
+                  }
+                );
+
+                const ragContent = KnowledgeSynthesisService.formatAsRAGContent(synthesized);
+                if (ragContent) {
+                  await RAGKnowledgeService.processKnowledgeItem(
+                    knowledgeBaseId,
+                    userId,
+                    ragContent,
+                    { title: `Synthesized: ${url}`, type: 'synthesized', synthesized: true }
+                  );
+                }
+
+                if (genMedia && bedrockKBService.isConfigured()) {
+                  triggerMediaGeneration(synthesized, userId, knowledgeBaseId);
+                }
+
+                if (job) {
+                  (job as any).synthesisComplete = true;
+                  (job as any).mediaGenerationTriggered = genMedia && bedrockKBService.isConfigured();
+                }
+                console.log(`[Deep Scrape] Auto-synthesis complete for KB ${knowledgeBaseId}`);
+              } catch (synthErr: any) {
+                console.error(`[Deep Scrape] Auto-synthesis failed:`, synthErr.message);
+              }
+            }
           } catch (e: any) {
             console.error(`[Deep Scrape] Failed to process KB content:`, e.message);
           }
@@ -1514,6 +1593,8 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         result: job.result || null,
         error: job.error || null,
         completed: job.progress.status === 'completed' || job.progress.status === 'failed' || !!job.result || !!job.error,
+        synthesisComplete: (job as any).synthesisComplete || false,
+        mediaGenerationTriggered: (job as any).mediaGenerationTriggered || false,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -1560,8 +1641,14 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         );
       }
 
+      const generateMedia = req.body.generateMedia !== false;
+      if (generateMedia && bedrockKBService.isConfigured()) {
+        triggerMediaGeneration(synthesized, userId, knowledgeBaseId);
+      }
+
       res.json({
         success: true,
+        mediaGenerationTriggered: generateMedia && bedrockKBService.isConfigured(),
         synthesis: {
           businessProfile: synthesized.businessProfile,
           faqCount: synthesized.faqs?.length || 0,
@@ -1725,6 +1812,75 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         autoLearnedChunks: autoLearned[0]?.count || 0,
         provenScripts: provenScripts[0]?.count || 0,
         folderDistribution: folderStats,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.post("/generate-media/:knowledgeBaseId", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { knowledgeBaseId } = req.params;
+      const { pdf = true, audio = true, images = true } = req.body;
+
+      const [entry] = await db
+        .select()
+        .from(knowledgeBase)
+        .where(and(eq(knowledgeBase.id, knowledgeBaseId), eq(knowledgeBase.userId, userId)))
+        .limit(1);
+
+      if (!entry) {
+        return res.status(404).json({ error: "Knowledge base entry not found" });
+      }
+
+      if (!entry.content || entry.content.trim().length === 0) {
+        return res.status(400).json({ error: "Knowledge base has no content to generate media from" });
+      }
+
+      const synthesized = await KnowledgeSynthesisService.synthesize(
+        entry.content,
+        entry.sourceUrl || entry.title || "unknown"
+      );
+
+      triggerMediaGeneration(synthesized, userId, knowledgeBaseId, { pdf, audio, images });
+
+      res.json({
+        success: true,
+        jobKey: `media_${userId}_${knowledgeBaseId}`,
+        message: "Media generation started. Check status with GET /media-status/:knowledgeBaseId",
+        mediaTypes: { pdf, audio, images },
+      });
+    } catch (error: any) {
+      console.error("[MediaGen Route] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.get("/media-status/:knowledgeBaseId", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { knowledgeBaseId } = req.params;
+      const jobKey = `media_${userId}_${knowledgeBaseId}`;
+      const job = mediaGenerationJobs.get(jobKey);
+
+      if (!job) {
+        return res.json({
+          status: "none",
+          message: "No media generation job found for this knowledge base entry",
+        });
+      }
+
+      res.json({
+        status: job.status,
+        result: job.result || null,
+        error: job.error || null,
+        startedAt: job.startedAt,
+        elapsedMs: Date.now() - job.startedAt,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

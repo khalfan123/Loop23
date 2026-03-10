@@ -51,6 +51,13 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - Frontend: "AI Knowledge Base" tab on Knowledge Base page with status card, multimodal upload, file list, sync button, and test query
   - Auto-provision: KB is auto-created on first file upload if not yet provisioned
   - Env vars needed: `BEDROCK_KB_S3_BUCKET`, `BEDROCK_KB_ROLE_ARN`, `BEDROCK_KB_OPENSEARCH_ARN`
+- **Post-Scrape Media Generation Pipeline (Mar 2026)**:
+  - New `server/services/kb-media-generator.ts` service generates PDF, audio (Polly TTS), and images (Bedrock Titan Image / Stability AI fallback) from synthesized knowledge
+  - Triggered automatically after knowledge synthesis completes, or manually via `POST /api/rag-knowledge/generate-media/:id`
+  - Status tracking via `GET /api/rag-knowledge/media-status/:id` with user-scoped job keys
+  - Deep scrape now supports `autoSynthesize` and `generateMedia` flags for one-shot scrape→synthesize→media pipeline
+  - Frontend: "Generate Media" button (Wand2 icon) on each KB entry, with status polling and progress indicators
+  - All generated files uploaded to user's Bedrock KB S3 and synced for multimodal retrieval
 - **Deprock Inbound Agent Response Fix (Mar 2026)**: Fixed inbound Deprock IVR calls where the AI agent would go silent after greeting:
   - Relaxed minimum audio buffer threshold (6400b → 3200b) for inbound calls during early conversation (< 2 user turns), allowing shorter Arabic phrases to be captured
   - Added inbound-specific re-prompt after Whisper hallucination filtering — agent now says "I'm here, please go ahead" (language-aware) instead of going silent, up to 2 times

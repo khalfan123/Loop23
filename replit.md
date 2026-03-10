@@ -58,6 +58,14 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - Deep scrape now supports `autoSynthesize` and `generateMedia` flags for one-shot scrape→synthesize→media pipeline
   - Frontend: "Generate Media" button (Wand2 icon) on each KB entry, with status polling and progress indicators
   - All generated files uploaded to user's Bedrock KB S3 and synced for multimodal retrieval
+- **Voice Isolation & Background Noise Rejection (Mar 2026)**:
+  - Multi-layer audio isolation system to filter out non-caller speech during AI calls
+  - **Layer 1 — Energy Gating**: Sustained energy check (45% of chunks must exceed threshold) + energy consistency filter (coefficient of variation < 4.0) to reject intermittent background bursts
+  - **Layer 2 — Whisper Confidence**: Switched to `verbose_json` response format; rejects transcriptions with `no_speech_prob > 0.6` or `avg_logprob < -1.0`
+  - **Layer 3 — Voice Fingerprint**: `server/services/voice-fingerprint.ts` — enrolls caller's voice profile on first valid utterance (zero-crossing rate, energy, spectral centroid, speaking rate), rejects different speakers on subsequent utterances
+  - **Layer 4 — Contextual Filter**: Background noise phrase blacklist (household, TV, sports, smart assistants) + topic-pattern regex with conversation context overlap check
+  - **Layer 5 — OpenAI Engine Defaults**: Both Twilio-OpenAI and Plivo-OpenAI engines now default to `semantic_vad` with threshold `0.8` + background noise prompt instructions
+  - All layers configurable per-agent via `behaviorConfig`: `voiceIsolation` (bool, default true), `backgroundNoiseRejection` (bool, default true)
 - **Deprock Inbound Agent Response Fix (Mar 2026)**: Fixed inbound Deprock IVR calls where the AI agent would go silent after greeting:
   - Relaxed minimum audio buffer threshold (6400b → 3200b) for inbound calls during early conversation (< 2 user turns), allowing shorter Arabic phrases to be captured
   - Added inbound-specific re-prompt after Whisper hallucination filtering — agent now says "I'm here, please go ahead" (language-aware) instead of going silent, up to 2 times

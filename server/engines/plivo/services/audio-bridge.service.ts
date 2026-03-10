@@ -297,8 +297,8 @@ export class AudioBridgeService {
     // VAD configuration with semantic VAD support
     // Improved defaults for better call quality - less aggressive interruption
     const vadSettings = agentConfig.vadSettings || {};
-    const vadType = vadSettings.type ?? 'server_vad';
-    const vadThreshold = vadSettings.threshold ?? 0.7;
+    const vadType = vadSettings.type ?? 'semantic_vad';
+    const vadThreshold = vadSettings.threshold ?? 0.8;
     const vadPrefixPaddingMs = vadSettings.prefixPaddingMs ?? 500;
     const vadSilenceDurationMs = vadSettings.silenceDurationMs ?? 1000;
     const vadEagerness = vadSettings.eagerness ?? 'low';
@@ -335,7 +335,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 4. When the user says goodbye or confirms they are done, THEN call the end_call function to disconnect.
 5. These function calls are MANDATORY. Data will NOT be saved unless you call the functions.`;
 
-    const enhancedInstructions = agentConfig.systemPrompt + functionCallingRequirements;
+    const backgroundNoiseInstruction = `\n\nBACKGROUND NOISE HANDLING:\n- If you hear what seems like background conversation not directed at you, ignore it and wait for the caller to address you directly.\n- Do NOT respond to ambient noise, TV audio, or other people talking nearby.\n- Only respond when you are confident the caller is speaking directly to you.\n- If a voice fingerprint rejection is noted in the conversation, it means background speech from a different speaker was detected and filtered — do not address it.`;
+
+    const enhancedInstructions = agentConfig.systemPrompt + backgroundNoiseInstruction + functionCallingRequirements;
 
     // Session configuration
     const sessionConfig = {

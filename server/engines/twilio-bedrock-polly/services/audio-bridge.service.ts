@@ -36,6 +36,7 @@ import { calls } from '@shared/schema';
 import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
+import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -170,6 +171,8 @@ export class BedrockPollyAudioBridge {
   private static readonly MIN_SPEECH_THRESHOLD = 500;
   private static readonly MIN_BARGE_IN_THRESHOLD = 600;
   private static readonly ENERGY_FALLOFF_RATIO = 0.3;
+  private static readonly SUSTAINED_ENERGY_RATIO = 0.45;
+  private static readonly ENERGY_VARIANCE_MAX_RATIO = 4.0;
 
   private static calculateMulawEnergy(chunk: Buffer): number {
     if (chunk.length === 0) return 0;
@@ -777,6 +780,45 @@ export class BedrockPollyAudioBridge {
         return;
       }
 
+      if (buf.length > 0) {
+        const chunkEnergies = buf.map(chunk => this.calculateMulawEnergy(chunk));
+        const chunksAboveThreshold = chunkEnergies.filter(e => e > speechThresh).length;
+        const sustainedRatio = chunksAboveThreshold / chunkEnergies.length;
+
+        if (sustainedRatio < this.SUSTAINED_ENERGY_RATIO) {
+          console.log(`[BedrockPolly Bridge] Sustained energy check failed for ${callSid}: only ${Math.round(sustainedRatio * 100)}% of chunks above threshold (need ${Math.round(this.SUSTAINED_ENERGY_RATIO * 100)}%) — likely background burst`);
+          session.isProcessing = false;
+          return;
+        }
+
+        if (chunkEnergies.length >= 3) {
+          const meanEnergy = chunkEnergies.reduce((s, e) => s + e, 0) / chunkEnergies.length;
+          if (meanEnergy > 0) {
+            const variance = chunkEnergies.reduce((s, e) => s + (e - meanEnergy) * (e - meanEnergy), 0) / chunkEnergies.length;
+            const coeffOfVariation = Math.sqrt(variance) / meanEnergy;
+
+            if (coeffOfVariation > this.ENERGY_VARIANCE_MAX_RATIO) {
+              console.log(`[BedrockPolly Bridge] Energy consistency check failed for ${callSid}: coefficient of variation=${coeffOfVariation.toFixed(2)} (max=${this.ENERGY_VARIANCE_MAX_RATIO}) — likely noise burst, not steady speech`);
+              session.isProcessing = false;
+              return;
+            }
+          }
+        }
+      }
+
+      const voiceIsolationEnabled = session.agentConfig?.behaviorConfig?.voiceIsolation !== false;
+      if (voiceIsolationEnabled && isEnrolled(callSid)) {
+        const speakerMatch = matchesSpeaker(callSid, audioBuffer);
+        if (!speakerMatch && bufferEnergy < speechThresh * 3) {
+          console.log(`[VAD] Rejected: different speaker detected for ${callSid} (energy=${Math.round(bufferEnergy)}, not loud enough to override)`);
+          session.isProcessing = false;
+          return;
+        }
+        if (!speakerMatch) {
+          console.log(`[VAD] Speaker mismatch but high energy for ${callSid} — proceeding with transcription (possible caller tone change)`);
+        }
+      }
+
       const turnCount = session.messages.filter(m => m.role === 'user').length;
       const isLongUtterance = audioBuffer.length > 16000;
 
@@ -843,6 +885,17 @@ export class BedrockPollyAudioBridge {
         console.log(`[BedrockPolly Bridge] Language mismatch filtered for ${callSid} (expected=${expectedLang}): "${transcription.substring(0, 100)}"`);
         session.isProcessing = false;
         return;
+      }
+
+      const backgroundNoiseRejection = session.agentConfig?.behaviorConfig?.backgroundNoiseRejection !== false;
+      if (backgroundNoiseRejection && this.isLikelyBackgroundSpeech(transcription, session.messages)) {
+        console.log(`[VAD] Skipped likely background speech for ${callSid}: "${transcription.substring(0, 100)}"`);
+        session.isProcessing = false;
+        return;
+      }
+
+      if (voiceIsolationEnabled && !isEnrolled(callSid)) {
+        enrollSpeaker(callSid, audioBuffer);
       }
 
       console.log(`[BedrockPolly Bridge] User: "${transcription.substring(0, 200)}"`);
@@ -1099,6 +1152,110 @@ export class BedrockPollyAudioBridge {
     return false;
   }
 
+  private static readonly BACKGROUND_NOISE_PHRASES: string[] = [
+    'pass me the salt',
+    'pass the salt',
+    'what do you want to eat',
+    'what should we eat',
+    'what\'s for dinner',
+    'what\'s for lunch',
+    'let\'s order food',
+    'change the channel',
+    'what\'s on tv',
+    'volume up',
+    'volume down',
+    'stay tuned',
+    'breaking news',
+    'back after the break',
+    'brought to you by',
+    'sponsored by',
+    'and now a word from',
+    'tonight on',
+    'next on',
+    'previously on',
+    'the following program',
+    'viewer discretion',
+    'brush your teeth',
+    'do your homework',
+    'clean your room',
+    'dinner is ready',
+    'food is ready',
+    'lunch is ready',
+    'time for bed',
+    'bad dog',
+    'here kitty',
+    'who scored',
+    'what\'s the score',
+    'touchdown',
+    'home run',
+    'what a play',
+    'pass the remote',
+    'where\'s the remote',
+    'someone\'s at the door',
+    'answer the door',
+    'hey google',
+    'ok google',
+    'hey siri',
+    'alexa',
+    'ناولني الملح',
+    'وش نأكل',
+    'شو بدك تاكل',
+    'غير القناة',
+    'ارفع الصوت',
+    'وطي الصوت',
+    'اسكت',
+    'روح نام',
+    'الأكل جاهز',
+    'العشاء جاهز',
+    'الغداء جاهز',
+    'مين سجل',
+    'كم النتيجة',
+    'مين على الباب',
+  ];
+
+  private static readonly BACKGROUND_TOPIC_PATTERNS: RegExp[] = [
+    /\b(?:recipe|ingredient|tablespoon|teaspoon|cups? of|oven|stir|chop|dice|bake|fry|boil)\b/i,
+    /\b(?:episode|season \d|series|movie|film|actor|actress|character|plot|scene)\b/i,
+    /\b(?:homework|math|science|teacher|school|class|exam|test|grade)\b/i,
+    /\b(?:walk the dog|feed the cat|pet food|veterinar|litter box)\b/i,
+    /\b(?:laundry|dishes|vacuum|mop|sweep|trash|garbage|recycl)\b/i,
+    /\b(?:weather forecast|traffic update|sports update|headline)\b/i,
+    /\b(?:commercial|advertisement|promo|trailer)\b/i,
+  ];
+
+  private static isLikelyBackgroundSpeech(
+    text: string,
+    conversationMessages: { role: string; content: string }[]
+  ): boolean {
+    const trimmed = text.trim().toLowerCase();
+    if (trimmed.length < 3) return false;
+
+    for (const phrase of this.BACKGROUND_NOISE_PHRASES) {
+      if (trimmed === phrase.toLowerCase() || trimmed.includes(phrase.toLowerCase())) {
+        return true;
+      }
+    }
+
+    for (const pattern of this.BACKGROUND_TOPIC_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        const recentContext = conversationMessages
+          .slice(-6)
+          .map(m => m.content.toLowerCase())
+          .join(' ');
+
+        const words = trimmed.split(/\s+/).filter(w => w.length > 3);
+        const contextOverlap = words.filter(w => recentContext.includes(w)).length;
+        const overlapRatio = words.length > 0 ? contextOverlap / words.length : 0;
+
+        if (overlapRatio < 0.15) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   private static isLanguageMismatch(text: string, expectedLang: string): boolean {
     const trimmed = text.trim();
     if (trimmed.length < 5) return false;
@@ -1198,7 +1355,7 @@ export class BedrockPollyAudioBridge {
         'audio.wav'
       );
       formData.append('model', 'whisper-1');
-      formData.append('response_format', 'text');
+      formData.append('response_format', 'verbose_json');
       formData.append('temperature', '0');
       if (language) {
         const whisperLang = language.split('-')[0].toLowerCase();
@@ -1233,9 +1390,45 @@ export class BedrockPollyAudioBridge {
         return '';
       }
 
-      const text = (await response.text()).trim();
+      const rawBody = await response.text();
       const sttMs = Date.now() - sttStart;
-      console.log(`[BedrockPolly Bridge] Whisper: ${sttMs}ms, "${text.substring(0, 200)}" (${text.length} chars, ${wavBuffer.length}b WAV)`);
+
+      let text = '';
+      let noSpeechProb = 0;
+      let avgLogprob = 0;
+      let segmentCount = 0;
+
+      try {
+        const jsonResult = JSON.parse(rawBody);
+        text = (jsonResult.text || '').trim();
+
+        if (jsonResult.segments && Array.isArray(jsonResult.segments) && jsonResult.segments.length > 0) {
+          segmentCount = jsonResult.segments.length;
+          let totalNoSpeech = 0;
+          let totalLogprob = 0;
+          for (const seg of jsonResult.segments) {
+            totalNoSpeech += (seg.no_speech_prob || 0);
+            totalLogprob += (seg.avg_logprob || 0);
+          }
+          noSpeechProb = totalNoSpeech / segmentCount;
+          avgLogprob = totalLogprob / segmentCount;
+        }
+      } catch {
+        text = rawBody.trim();
+      }
+
+      console.log(`[BedrockPolly Bridge] Whisper: ${sttMs}ms, "${text.substring(0, 200)}" (${text.length} chars, ${wavBuffer.length}b WAV, noSpeech=${noSpeechProb.toFixed(2)}, avgLogprob=${avgLogprob.toFixed(2)}, segs=${segmentCount})`);
+
+      if (segmentCount > 0 && noSpeechProb > 0.6) {
+        console.log(`[BedrockPolly Bridge] Whisper confidence reject: noSpeechProb=${noSpeechProb.toFixed(3)} > 0.6 for ${callSid}: "${text.substring(0, 100)}"`);
+        return '';
+      }
+
+      if (segmentCount > 0 && avgLogprob < -1.0) {
+        console.log(`[BedrockPolly Bridge] Whisper confidence reject: avgLogprob=${avgLogprob.toFixed(3)} < -1.0 for ${callSid}: "${text.substring(0, 100)}"`);
+        return '';
+      }
+
       return text;
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -2588,6 +2781,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         inboundNoResponseTimers.delete(callSid);
       }
       RealtimeSentimentService.resetCall(callSid);
+      clearSpeaker(callSid);
     } catch (cleanupErr: any) {
       console.error(`[BedrockPolly Bridge] Timer/buffer cleanup error for ${callSid}: ${cleanupErr.message}`);
     }

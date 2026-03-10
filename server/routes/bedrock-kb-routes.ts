@@ -87,6 +87,12 @@ export function registerBedrockKBRoutes(app: Router, authMiddleware?: any) {
       res.json({
         ...status,
         configured: bedrockKBService.isConfigured(),
+        aiModel: "Claude Sonnet 4.6",
+        aiModelId: "us.anthropic.claude-sonnet-4-6",
+        fallbackModel: "Claude Opus 4.5",
+        fallbackModelId: "us.anthropic.claude-opus-4-5-20251101-v1:0",
+        embeddingModel: "Amazon Titan Embed Text v2",
+        region: process.env.AWS_REGION || "us-east-1",
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

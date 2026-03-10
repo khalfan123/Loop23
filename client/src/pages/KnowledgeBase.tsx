@@ -384,6 +384,12 @@ export default function KnowledgeBase() {
     status?: string;
     fileCount?: number;
     configured: boolean;
+    aiModel?: string;
+    aiModelId?: string;
+    fallbackModel?: string;
+    fallbackModelId?: string;
+    embeddingModel?: string;
+    region?: string;
   }
 
   interface BedrockKBFile {
@@ -1593,7 +1599,7 @@ export default function KnowledgeBase() {
                       </CardHeader>
                       <CardContent>
                         {bedrockStatus?.provisioned ? (
-                          <div className="space-y-3">
+                          <div className="space-y-4">
                             <div className="flex items-center gap-2 flex-wrap">
                               <Badge variant="default" data-testid="badge-bedrock-status">
                                 <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -1607,7 +1613,43 @@ export default function KnowledgeBase() {
                               <Badge variant="secondary">
                                 {bedrockStatus.fileCount || 0} file(s)
                               </Badge>
+                              {bedrockStatus.region && (
+                                <Badge variant="outline" data-testid="badge-bedrock-region">
+                                  {bedrockStatus.region}
+                                </Badge>
+                              )}
                             </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
+                                <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold mb-1">Primary AI Model</p>
+                                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100" data-testid="text-bedrock-ai-model">
+                                  {bedrockStatus.aiModel || "Claude Sonnet 4.6"}
+                                </p>
+                                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono mt-0.5" data-testid="text-bedrock-ai-model-id">
+                                  {bedrockStatus.aiModelId || "us.anthropic.claude-sonnet-4-6"}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
+                                <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold mb-1">Fallback Model</p>
+                                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100" data-testid="text-bedrock-fallback-model">
+                                  {bedrockStatus.fallbackModel || "Claude Opus 4.5"}
+                                </p>
+                                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono mt-0.5" data-testid="text-bedrock-fallback-model-id">
+                                  {bedrockStatus.fallbackModelId || "us.anthropic.claude-opus-4-5-20251101-v1:0"}
+                                </p>
+                              </div>
+                              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
+                                <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold mb-1">Embedding Model</p>
+                                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100" data-testid="text-bedrock-embedding-model">
+                                  {bedrockStatus.embeddingModel || "Titan Embed Text v2"}
+                                </p>
+                                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono mt-0.5">
+                                  amazon.titan-embed-text-v2:0
+                                </p>
+                              </div>
+                            </div>
+
                             <div className="flex items-center gap-2">
                               <Button
                                 variant="outline"
@@ -1641,8 +1683,20 @@ export default function KnowledgeBase() {
                             <p className="text-sm text-muted-foreground">
                               {bedrockStatus?.configured === false
                                 ? "Bedrock Knowledge Base is not configured by the administrator. Contact support."
-                                : "Provision a Bedrock AI Knowledge Base to upload files and enable AI-powered retrieval."}
+                                : "Provision a Bedrock AI Knowledge Base to upload files and enable AI-powered retrieval during calls."}
                             </p>
+                            {bedrockStatus?.configured !== false && (
+                              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 bg-zinc-50/50 dark:bg-zinc-800/30 mt-2">
+                                <p className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold mb-1.5">Powered By</p>
+                                <div className="flex items-center gap-3 flex-wrap text-xs text-zinc-600 dark:text-zinc-400">
+                                  <span><span className="font-medium text-zinc-800 dark:text-zinc-200">Claude Sonnet 4.6</span> (Primary)</span>
+                                  <span className="text-zinc-300 dark:text-zinc-600">|</span>
+                                  <span><span className="font-medium text-zinc-800 dark:text-zinc-200">Claude Opus 4.5</span> (Fallback)</span>
+                                  <span className="text-zinc-300 dark:text-zinc-600">|</span>
+                                  <span><span className="font-medium text-zinc-800 dark:text-zinc-200">Titan Embed v2</span> (Embeddings)</span>
+                                </div>
+                              </div>
+                            )}
                             {bedrockStatus?.configured !== false && (
                               <Button
                                 onClick={() => bedrockProvisionMutation.mutate()}

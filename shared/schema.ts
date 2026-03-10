@@ -2271,7 +2271,7 @@ export const awsCredentials = pgTable("aws_credentials", {
     bedrock: boolean;
   }>().default({ polly: true, bedrock: true }),
   pollyVoiceEngine: text("polly_voice_engine").notNull().default("neural"), // standard, neural, long-form, generative
-  bedrockDefaultModel: text("bedrock_default_model").default("us.anthropic.claude-sonnet-4-20250514-v1:0"),
+  bedrockDefaultModel: text("bedrock_default_model").default("claude-sonnet-4-6"),
   maxConcurrency: integer("max_concurrency").notNull().default(100),
   currentLoad: integer("current_load").notNull().default(0),
   totalAssignedAgents: integer("total_assigned_agents").notNull().default(0),

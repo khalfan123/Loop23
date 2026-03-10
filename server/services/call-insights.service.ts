@@ -153,7 +153,7 @@ export class CallInsightsService {
     callId: string
   ): Promise<CallInsights | null> {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 500,
       system: SYSTEM_PROMPT,
       messages: [
@@ -184,7 +184,7 @@ export class CallInsightsService {
     callId: string
   ): Promise<CallInsights | null> {
     const response = await this.bedrockService.invoke({
-      model: 'claude-sonnet-4',
+      model: 'claude-sonnet-4-6',
       systemPrompt: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
       maxTokens: 500,

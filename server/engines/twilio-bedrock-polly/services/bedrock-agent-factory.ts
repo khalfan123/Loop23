@@ -963,7 +963,7 @@ Message to translate:
 ${firstMessage}`;
 
       const response = await awsBedrockService.invoke({
-        model: 'claude-sonnet-4',
+        model: 'claude-sonnet-4-6',
         messages: [{ role: 'user', content: translationPrompt }],
         systemPrompt: `You are a professional translator. Translate exactly as instructed. Output only the translation.`,
         temperature: 0.3,
@@ -1914,7 +1914,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     console.log(`[Bedrock Agent Factory] Creating agent from record: ${agent.id}, type: ${agent.type}, language: ${agent.language || 'en'}`);
 
     const voice = this.validateVoice(agent.pollyVoice || 'Joanna');
-    const model = this.validateModel(agent.bedrockModel || 'claude-sonnet-4', userTier);
+    const model = this.validateModel(agent.bedrockModel || 'claude-sonnet-4-6', userTier);
 
     let config: AgentConfigWithContext;
 

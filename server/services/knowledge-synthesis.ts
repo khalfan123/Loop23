@@ -195,7 +195,7 @@ export class KnowledgeSynthesisService {
 Be thorough. Extract ALL products, services, and pricing found. If information is not available, use null or empty arrays.`;
 
     const response = await awsBedrockService.invokeWithLargeContext({
-      model: "claude-opus-4",
+      model: "claude-opus-4-5",
       content,
       systemPrompt,
       maxOutputTokens: 8192,
@@ -255,7 +255,7 @@ Rules:
 - Avoid duplicate or near-duplicate questions`;
 
     const response = await awsBedrockService.invokeWithLargeContext({
-      model: "claude-opus-4",
+      model: "claude-opus-4-5",
       content,
       systemPrompt,
       maxOutputTokens: 16384,
@@ -296,7 +296,7 @@ Return ONLY valid JSON array:
 Each decision tree should have 3-7 steps that guide a customer service agent through the scenario.`;
 
     const response = await awsBedrockService.invokeWithLargeContext({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       content,
       systemPrompt,
       maxOutputTokens: 8192,
@@ -335,7 +335,7 @@ Return ONLY valid JSON array with 10-25 objection handlers:
 Responses must be based on actual information from the content. Be empathetic and solution-oriented.`;
 
     const response = await awsBedrockService.invokeWithLargeContext({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       content,
       systemPrompt,
       maxOutputTokens: 8192,
@@ -370,7 +370,7 @@ Return ONLY valid JSON:
 Base your analysis ONLY on information found in the content. If competitive information is limited, note that and focus on the business's self-described strengths.`;
 
     const response = await awsBedrockService.invokeWithLargeContext({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       content,
       systemPrompt,
       maxOutputTokens: 4096,
@@ -417,7 +417,7 @@ Return ONLY valid JSON array with 8-20 escalation triggers:
 Be specific and actionable. Each trigger should be something an AI agent could detect during a conversation.`;
 
     const response = await awsBedrockService.invokeWithLargeContext({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       content,
       systemPrompt,
       maxOutputTokens: 4096,

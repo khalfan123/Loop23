@@ -106,7 +106,7 @@ export class KnowledgeAIAnalyzer {
     const truncatedContent = content.slice(0, 15000);
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       messages: [{
         role: "user",
@@ -189,7 +189,7 @@ Return ONLY valid JSON array, no other text.`
     const truncatedContent = content.slice(0, 15000);
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
       messages: [{
         role: "user",
@@ -262,7 +262,7 @@ Return ONLY valid JSON array, no other text.`
     const truncatedContent = content.slice(0, 15000);
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       messages: [{
         role: "user",
@@ -330,7 +330,7 @@ Return ONLY valid JSON array, no other text.`
     const entityList = entities.map(e => `${e.name} (${e.entityType})`).join('\n');
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       messages: [{
         role: "user",
@@ -450,7 +450,7 @@ Return ONLY valid JSON array, no other text.`
     const entityNames = entities.slice(0, 50).map(e => e.name).join(', ');
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 2048,
       messages: [{
         role: "user",

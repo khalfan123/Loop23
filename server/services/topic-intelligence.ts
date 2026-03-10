@@ -190,7 +190,7 @@ export class TopicIntelligence {
     ).join('\n\n---\n\n');
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       messages: [{
         role: "user",
@@ -268,7 +268,7 @@ Return ONLY a valid JSON object with these fields:
     ).join('\n\n');
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 8192,
       messages: [{
         role: "user",
@@ -331,7 +331,7 @@ Return ONLY a valid JSON array:
     const topicList = candidates.map(c => `- ${c.topic} (${c.category})`).join('\n');
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 8192,
       messages: [{
         role: "user",
@@ -593,7 +593,7 @@ Return ONLY a valid JSON array:
     const forbidden = template.forbiddenClaims.join(', ');
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4",
+      model: "claude-sonnet-4-6",
       max_tokens: 8192,
       messages: [{
         role: "user",

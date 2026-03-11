@@ -979,18 +979,26 @@ export class BedrockPollyAudioBridge {
               console.warn(`[BedrockPolly Bridge] KB pre-fetch timed out for ${callSid} after ${kbMs}ms — falling back to tool call`);
             } else {
               const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
-              console.log(`[BedrockPolly Bridge] Pre-fetched KB for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars)`);
-            }
+              console.log(`[BedrockPolly Bridge] Pre-fetched KB for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars, found=${(kbResult as any).found})`);
 
-            if (kbResult && (kbResult as any).found !== false) {
               kbPreFetched = true;
               session._kbPreFetched = true;
-              session.messages.push({
-                role: 'user',
-                content: `[CONTEXT from knowledge base for your reference — use this to answer naturally, do NOT mention the knowledge base to the caller]\n${kbResultStr}`,
-                timestamp: new Date(),
-              });
-              console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, skipping tool call round-trip`);
+
+              if ((kbResult as any).found !== false) {
+                session.messages.push({
+                  role: 'user',
+                  content: `[CONTEXT from knowledge base for your reference — use this to answer naturally, do NOT mention the knowledge base to the caller]\n${kbResultStr}`,
+                  timestamp: new Date(),
+                });
+                console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, skipping tool call round-trip`);
+              } else {
+                session.messages.push({
+                  role: 'user',
+                  content: `[KNOWLEDGE BASE SEARCHED — no additional data found for this topic. Answer confidently using your Agent Identity knowledge. Do NOT say you lack information or need to look something up.]`,
+                  timestamp: new Date(),
+                });
+                console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
+              }
             }
           }
         } catch (kbErr: any) {
@@ -1004,8 +1012,9 @@ export class BedrockPollyAudioBridge {
       const responseText = await this.streamBedrockAndSpeak(session, sttMs);
 
       if (kbPreFetched) {
+        session._kbPreFetched = false;
         const kbContextIdx = session.messages.findIndex(m =>
-          m.role === 'user' && m.content.startsWith('[CONTEXT from knowledge base')
+          m.role === 'user' && (m.content.startsWith('[CONTEXT from knowledge base') || m.content.startsWith('[KNOWLEDGE BASE SEARCHED'))
         );
         if (kbContextIdx !== -1) {
           session.messages.splice(kbContextIdx, 1);
@@ -1529,7 +1538,8 @@ export class BedrockPollyAudioBridge {
     })));
 
     const kbToolNames = new Set(['lookup_knowledge_base', 'lookup_bedrock_knowledge_base']);
-    const activeTools = session._kbPreFetched
+    const kbAlreadySearched = !!session._kbPreFetched;
+    const activeTools = kbAlreadySearched
       ? (agentConfig.tools || []).filter(t => !kbToolNames.has(t.name))
       : (agentConfig.tools || []);
 
@@ -1543,8 +1553,9 @@ export class BedrockPollyAudioBridge {
       toolCallInstructions = `\n\nTools (respond with [TOOL_CALL] {"name":"<name>","params":{...}}):\n${toolDescriptions}\nCall tools after collecting info. Say closing message after task. Only end_call when user confirms done.`;
     }
 
-    if (session._kbPreFetched) {
-      session._kbPreFetched = false;
+    let kbOverride = '';
+    if (kbAlreadySearched) {
+      kbOverride = `\n\nKNOWLEDGE BASE STATUS: The knowledge base has already been searched for this question. Results (if any) are included in the conversation context above. Use them to answer naturally and confidently. Do NOT attempt to call lookup_knowledge_base or lookup_bedrock_knowledge_base — the search is already done. If no results were found, answer using your Agent Identity knowledge.`;
     }
 
     const isOutbound = agentConfig.systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || agentConfig.systemPrompt.includes('TASK-FIRST FRAMEWORK');
@@ -1552,7 +1563,7 @@ export class BedrockPollyAudioBridge {
       ? `\n\nVOICE CALL RULES: This is a live outbound phone call. Give clear, complete explanations — cover all important details the person needs. Keep it natural and conversational but do NOT cut yourself short. If the person asks a question, answer it fully. Aim for 2-4 sentences per response.`
       : `\n\nVOICE CALL RULES: This is a live phone call. Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.`;
 
-    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + voiceInstructions;
+    const systemPrompt = agentConfig.systemPrompt + kbOverride + toolCallInstructions + voiceInstructions;
 
     if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
       session.twilioWs.send(JSON.stringify({
@@ -1621,7 +1632,7 @@ export class BedrockPollyAudioBridge {
         })();
         stream = wrappedStream;
       } catch (modelErr: any) {
-        const fallbackModel = 'claude-opus-4-5';
+        const fallbackModel = 'claude-3-5-haiku';
         console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" failed for ${callSid}: ${modelErr.message}. Falling back to "${fallbackModel}"`);
         primaryModel = fallbackModel;
         const rawFallback = awsBedrockService.invokeStream({
@@ -1643,11 +1654,19 @@ export class BedrockPollyAudioBridge {
         })();
       }
 
+      let lastStreamLog = 0;
       for await (const token of stream) {
         if (!firstTokenTime) {
           firstTokenTime = Date.now();
         }
         fullText += token;
+
+        const now = Date.now();
+        if (now - (lastStreamLog || startTime) >= 3000) {
+          lastStreamLog = now;
+          const elapsed = now - startTime;
+          console.log(`[BedrockPolly Bridge] Stream progress for ${callSid}: ${elapsed}ms, ${fullText.length} chars, preview="${fullText.slice(0, 50).replace(/\n/g, ' ')}"`);
+        }
 
         if (toolCallDetected) {
           continue;

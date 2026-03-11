@@ -565,7 +565,7 @@ ${options.systemPrompt}`;
 
     const streamIterator = response.body[Symbol.asyncIterator]();
     const FIRST_TEXT_TIMEOUT_MS = 15000;
-    const INTER_CHUNK_TIMEOUT_MS = 30000;
+    const INTER_CHUNK_TIMEOUT_MS = 10000;
     let gotFirstText = false;
     const startMs = Date.now();
 

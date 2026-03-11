@@ -69,11 +69,17 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **KB Pre-Fetch & Stream Abort Optimization (Mar 2026)**:
   - Fixed critical Bedrock stream stall: hard timeout (15s) now actively aborts blocked streams via `Promise.race` with abort promise, instead of just setting a flag that was never checked when the stream iterator was blocked
   - KB pre-fetch: when KB tools are present, the system pre-fetches knowledge base results using the caller's transcription BEFORE calling Bedrock, injects context directly into messages, and suppresses the KB tool for that turn — eliminating the slow Bedrock→tool_call→KB_query→Bedrock round-trip
+  - KB pre-fetch now works even when KB returns no results (`found: false`): injects "answer from identity" directive and still suppresses KB tool to prevent contradictory instructions
+  - System prompt gets KB override when pre-fetched: tells model "KB already searched, use provided context, do NOT call KB tool" — eliminates contradiction between brain function protocol and missing tool
+  - KB suppression persists through recursive `streamBedrockAndSpeak` calls (non-KB tool calls); cleared only after full turn completes
   - KB pre-fetch has a 5-second timeout; falls back to normal tool-call flow if KB search is too slow
   - Thinking filler now always plays for calls with KB tools (regardless of question length), giving the caller audio feedback while KB is being queried
   - KB context is cleaned up from message history after each turn to prevent stale context contamination
+  - Fallback model changed from Claude Opus 4.5 (slower) to Claude 3.5 Haiku (fastest) for real-time voice
   - Fallback model stream also wrapped with abort logic (previously only primary model had it)
-  - Files: `server/engines/twilio-bedrock-polly/services/audio-bridge.service.ts`, `server/engines/twilio-bedrock-polly/types.ts`
+  - Inter-chunk timeout in `invokeStream` reduced from 30s to 10s — appropriate for real-time voice
+  - Token-level progress logging every 3s during streaming for diagnostics
+  - Files: `server/engines/twilio-bedrock-polly/services/audio-bridge.service.ts`, `server/engines/twilio-bedrock-polly/types.ts`, `server/services/aws-bedrock.ts`
 - **AWS Bedrock Parameter Fix (Mar 2026)**: Claude Sonnet 4.6 and Opus 4.5 reject requests with both `temperature` AND `top_p`. Fixed `invokeAnthropicModel` and `invokeStream` in `server/services/aws-bedrock.ts` to use only one parameter (temperature by default, top_p only when explicitly set).
 - **Deprock Inbound Agent Response Fix (Mar 2026)**: Fixed inbound Deprock IVR calls where the AI agent would go silent after greeting:
   - Relaxed minimum audio buffer threshold (6400b → 3200b) for inbound calls during early conversation (< 2 user turns), allowing shorter Arabic phrases to be captured

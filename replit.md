@@ -66,6 +66,15 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
   - **Layer 4 — Contextual Filter**: Background noise phrase blacklist (household, TV, sports, smart assistants) + topic-pattern regex with conversation context overlap check
   - **Layer 5 — OpenAI Engine Defaults**: Both Twilio-OpenAI and Plivo-OpenAI engines now default to `semantic_vad` with threshold `0.8` + background noise prompt instructions
   - All layers configurable per-agent via `behaviorConfig`: `voiceIsolation` (bool, default true), `backgroundNoiseRejection` (bool, default true)
+- **KB Pre-Fetch & Stream Abort Optimization (Mar 2026)**:
+  - Fixed critical Bedrock stream stall: hard timeout (15s) now actively aborts blocked streams via `Promise.race` with abort promise, instead of just setting a flag that was never checked when the stream iterator was blocked
+  - KB pre-fetch: when KB tools are present, the system pre-fetches knowledge base results using the caller's transcription BEFORE calling Bedrock, injects context directly into messages, and suppresses the KB tool for that turn — eliminating the slow Bedrock→tool_call→KB_query→Bedrock round-trip
+  - KB pre-fetch has a 5-second timeout; falls back to normal tool-call flow if KB search is too slow
+  - Thinking filler now always plays for calls with KB tools (regardless of question length), giving the caller audio feedback while KB is being queried
+  - KB context is cleaned up from message history after each turn to prevent stale context contamination
+  - Fallback model stream also wrapped with abort logic (previously only primary model had it)
+  - Files: `server/engines/twilio-bedrock-polly/services/audio-bridge.service.ts`, `server/engines/twilio-bedrock-polly/types.ts`
+- **AWS Bedrock Parameter Fix (Mar 2026)**: Claude Sonnet 4.6 and Opus 4.5 reject requests with both `temperature` AND `top_p`. Fixed `invokeAnthropicModel` and `invokeStream` in `server/services/aws-bedrock.ts` to use only one parameter (temperature by default, top_p only when explicitly set).
 - **Deprock Inbound Agent Response Fix (Mar 2026)**: Fixed inbound Deprock IVR calls where the AI agent would go silent after greeting:
   - Relaxed minimum audio buffer threshold (6400b → 3200b) for inbound calls during early conversation (< 2 user turns), allowing shorter Arabic phrases to be captured
   - Added inbound-specific re-prompt after Whisper hallucination filtering — agent now says "I'm here, please go ahead" (language-aware) instead of going silent, up to 2 times

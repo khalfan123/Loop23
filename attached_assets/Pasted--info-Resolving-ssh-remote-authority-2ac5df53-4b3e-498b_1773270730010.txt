@@ -1,0 +1,55 @@
+[info] Resolving ssh remote authority '2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev:22' (Unparsed 'ssh-remote+2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev:22') (attempt #1)
+[info] SSH askpass server listening on /var/folders/mv/1vnbm_zj1k1gwc4947lvlybc0000gn/T/cursor-ssh-YQNxVJ/socket.sock
+[debug] hostname: 2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev, remote platform map: {"2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev":"macOS"}
+[info] Using configured platform macOS for remote host 2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev
+[debug] hostname: 2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev, remote server install map: {}
+[debug] hostname: 2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev, server port range map: {}
+[info] Using askpass script: /Users/KhalfanRashid/.cursor/extensions/anysphere.remote-ssh-1.0.46/dist/scripts/launchSSHAskpass.sh with javascript file /Users/KhalfanRashid/.cursor/extensions/anysphere.remote-ssh-1.0.46/dist/scripts/sshAskClient.js. Askpass handle: /var/folders/mv/1vnbm_zj1k1gwc4947lvlybc0000gn/T/cursor-ssh-YQNxVJ/socket.sock
+[info] Launching SSH server via shell with command: cat "/var/folders/mv/1vnbm_zj1k1gwc4947lvlybc0000gn/T/cursor_remote_install_7b6dfad6-3925-42f4-a70e-4ba4e88fa4f1.sh" | ssh -T -D 63557 -p 22 2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev bash --login -c bash
+[info] Establishing SSH connection: cat "/var/folders/mv/1vnbm_zj1k1gwc4947lvlybc0000gn/T/cursor_remote_install_7b6dfad6-3925-42f4-a70e-4ba4e88fa4f1.sh" | ssh -T -D 63557 -p 22 2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev bash --login -c bash
+[info] Started installation script. Waiting for it to finish...
+[info] Waiting for SSH handshake (timeout: 120s). Install timeout: 30s.
+[info] (ssh_tunnel) stderr: Welcome to the Replit SSH Proxy.
+
+Visit https://docs.replit.com/replit-workspace/ssh to learn more about SSH on Replit.
+
+[info] Askpass server received request: POST /
+[info] Askpass server received request body: {"request":"2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev's password: "}
+[info] Pausing timeout; waiting for askpass response
+[info] Received SSH askpass request: 2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev's password: 
+[info] Resuming timeout; askpass response received
+[info] (ssh_tunnel) stderr: Permission denied, please try again.
+
+[info] Askpass server received request: POST /
+[info] Askpass server received request body: {"request":"2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev's password: "}
+[info] Pausing timeout; waiting for askpass response
+[info] Received SSH askpass request: 2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev's password: 
+[info] Resuming timeout; askpass response received
+[info] (ssh_tunnel) stderr: Permission denied, please try again.
+
+[info] Askpass server received request: POST /
+[info] Askpass server received request body: {"request":"2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev's password: "}
+[info] Pausing timeout; waiting for askpass response
+[info] Received SSH askpass request: 2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev's password: 
+[info] Resuming timeout; askpass response received
+[info] (ssh_tunnel) stderr: 2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev: Permission denied (password,publickey).
+
+[error] SSH process exited (code 255) before connection was established (after 12765ms)
+[error] Pre-connection stderr: Welcome to the Replit SSH Proxy.
+
+Visit https://docs.replit.com/replit-workspace/ssh to learn more about SSH on Replit.
+Permission denied, please try again.
+Permission denied, please try again.
+2ac5df53-4b3e-498b-8b44-fa8ab7b88808@2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev: Permission denied (password,publickey).
+
+[error] Error installing server: [o [RemoteSSHError]: Failed to connect to the remote SSH host. Please check the logs for more details.
+	at t.installCodeServer (/Users/KhalfanRashid/.cursor/extensions/anysphere.remote-ssh-1.0.46/dist/main.js:4:197302)
+	at async /Users/KhalfanRashid/.cursor/extensions/anysphere.remote-ssh-1.0.46/dist/main.js:4:475280] {
+  disconnectReason: 'preconnect_failed'
+}
+[info] Deleting local script /var/folders/mv/1vnbm_zj1k1gwc4947lvlybc0000gn/T/cursor_remote_install_7b6dfad6-3925-42f4-a70e-4ba4e88fa4f1.sh
+[error] Error resolving SSH authority [o [RemoteSSHError]: Failed to connect to the remote SSH host. Please check the logs for more details.
+	at t.installCodeServer (/Users/KhalfanRashid/.cursor/extensions/anysphere.remote-ssh-1.0.46/dist/main.js:4:197302)
+	at async /Users/KhalfanRashid/.cursor/extensions/anysphere.remote-ssh-1.0.46/dist/main.js:4:475280] {
+  disconnectReason: 'preconnect_failed'
+}

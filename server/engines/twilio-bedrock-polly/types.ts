@@ -344,6 +344,7 @@ export interface BedrockPollyBridgeSession {
   isOutbound: boolean;
   explicitEndCall: boolean;
   _mediaLogThrottle?: number;
+  _kbPreFetched?: boolean;
 }
 
 /**

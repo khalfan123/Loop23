@@ -952,7 +952,8 @@ export class BedrockPollyAudioBridge {
 
       const words = transcription.trim().split(/\s+/);
       const hasQuestion = /\?|؟/.test(transcription);
-      const isComplex = (hasQuestion && words.length > 8) || words.length > 15;
+      const hasKBTools = session.agentConfig.tools?.some(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base');
+      const isComplex = (hasQuestion && words.length > 8) || words.length > 15 || hasKBTools;
       if (isComplex && !bargeInFlags.get(callSid)) {
         const lang = session.agentConfig.language || 'en';
         const thinkFillers = this.THINKING_FILLERS[lang] || this.THINKING_FILLERS['en'];
@@ -961,10 +962,55 @@ export class BedrockPollyAudioBridge {
         await this.playFillerAudio(session, thinkFiller);
       }
 
+      let kbPreFetched = false;
+      if (hasKBTools) {
+        try {
+          const kbStartMs = Date.now();
+          const KB_PREFETCH_TIMEOUT_MS = 5000;
+          const kbTool = session.agentConfig.tools!.find(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base');
+          if (kbTool?.handler) {
+            const kbResult = await Promise.race([
+              kbTool.handler({ query: transcription }),
+              new Promise<null>(resolve => setTimeout(() => resolve(null), KB_PREFETCH_TIMEOUT_MS)),
+            ]) as any;
+            const kbMs = Date.now() - kbStartMs;
+
+            if (!kbResult) {
+              console.warn(`[BedrockPolly Bridge] KB pre-fetch timed out for ${callSid} after ${kbMs}ms — falling back to tool call`);
+            } else {
+              const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
+              console.log(`[BedrockPolly Bridge] Pre-fetched KB for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars)`);
+            }
+
+            if (kbResult && (kbResult as any).found !== false) {
+              kbPreFetched = true;
+              session._kbPreFetched = true;
+              session.messages.push({
+                role: 'user',
+                content: `[CONTEXT from knowledge base for your reference — use this to answer naturally, do NOT mention the knowledge base to the caller]\n${kbResultStr}`,
+                timestamp: new Date(),
+              });
+              console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, skipping tool call round-trip`);
+            }
+          }
+        } catch (kbErr: any) {
+          console.warn(`[BedrockPolly Bridge] KB pre-fetch failed for ${callSid}: ${kbErr.message}`);
+        }
+      }
+
       console.log(`[BedrockPolly Bridge] Calling Bedrock for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
       const bedrockStart = Date.now();
       const responseText = await this.streamBedrockAndSpeak(session, sttMs);
+
+      if (kbPreFetched) {
+        const kbContextIdx = session.messages.findIndex(m =>
+          m.role === 'user' && m.content.startsWith('[CONTEXT from knowledge base')
+        );
+        if (kbContextIdx !== -1) {
+          session.messages.splice(kbContextIdx, 1);
+        }
+      }
 
       if (!responseText || responseText.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty Bedrock response for ${callSid}`);
@@ -1482,14 +1528,23 @@ export class BedrockPollyAudioBridge {
       content: m.content,
     })));
 
+    const kbToolNames = new Set(['lookup_knowledge_base', 'lookup_bedrock_knowledge_base']);
+    const activeTools = session._kbPreFetched
+      ? (agentConfig.tools || []).filter(t => !kbToolNames.has(t.name))
+      : (agentConfig.tools || []);
+
     let toolCallInstructions = '';
-    if (agentConfig.tools && agentConfig.tools.length > 0) {
-      const toolDescriptions = agentConfig.tools.map((t) => {
+    if (activeTools.length > 0) {
+      const toolDescriptions = activeTools.map((t) => {
         const paramsDesc = JSON.stringify(t.parameters || {});
         return `- ${t.name}: ${t.description}. Parameters: ${paramsDesc}`;
       }).join('\n');
 
       toolCallInstructions = `\n\nTools (respond with [TOOL_CALL] {"name":"<name>","params":{...}}):\n${toolDescriptions}\nCall tools after collecting info. Say closing message after task. Only end_call when user confirms done.`;
+    }
+
+    if (session._kbPreFetched) {
+      session._kbPreFetched = false;
     }
 
     const isOutbound = agentConfig.systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || agentConfig.systemPrompt.includes('TASK-FIRST FRAMEWORK');
@@ -1524,10 +1579,13 @@ export class BedrockPollyAudioBridge {
       const hardTimeoutMs = (behaviorCfg.hardTimeoutSec ?? 15) * 1000;
 
       let hardTimedOut = false;
+      let streamAbortResolve: (() => void) | null = null;
+      const streamAbortPromise = new Promise<void>(resolve => { streamAbortResolve = resolve; });
       const hardTimer = setTimeout(() => {
         if (sentencesSent === 0 && !toolCallDetected && session.status !== 'disconnected') {
           hardTimedOut = true;
-          console.log(`[BedrockPolly Bridge] Hard timeout (${hardTimeoutMs}ms) reached for ${callSid}`);
+          console.log(`[BedrockPolly Bridge] Hard timeout (${hardTimeoutMs}ms) reached for ${callSid} — aborting stream`);
+          if (streamAbortResolve) streamAbortResolve();
         }
       }, hardTimeoutMs);
 
@@ -1544,11 +1602,21 @@ export class BedrockPollyAudioBridge {
           temperature: 0.3,
           maxTokens: adaptiveTokens,
         });
-        const firstResult = await stream.next();
+        const firstResult = await Promise.race([
+          stream.next(),
+          streamAbortPromise.then(() => ({ done: true, value: undefined } as IteratorResult<string>)),
+        ]);
         const wrappedStream = (async function* () {
           if (!firstResult.done) {
             yield firstResult.value;
-            yield* stream;
+            while (!hardTimedOut) {
+              const next = await Promise.race([
+                stream.next(),
+                streamAbortPromise.then(() => ({ done: true, value: undefined } as IteratorResult<string>)),
+              ]);
+              if (next.done) break;
+              yield next.value;
+            }
           }
         })();
         stream = wrappedStream;
@@ -1556,13 +1624,23 @@ export class BedrockPollyAudioBridge {
         const fallbackModel = 'claude-opus-4-5';
         console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" failed for ${callSid}: ${modelErr.message}. Falling back to "${fallbackModel}"`);
         primaryModel = fallbackModel;
-        stream = awsBedrockService.invokeStream({
+        const rawFallback = awsBedrockService.invokeStream({
           model: fallbackModel,
           messages: bedrockMessages,
           systemPrompt,
           temperature: 0.3,
           maxTokens: adaptiveTokens,
         });
+        stream = (async function* () {
+          while (!hardTimedOut) {
+            const next = await Promise.race([
+              rawFallback.next(),
+              streamAbortPromise.then(() => ({ done: true, value: undefined } as IteratorResult<string>)),
+            ]);
+            if (next.done) break;
+            yield next.value;
+          }
+        })();
       }
 
       for await (const token of stream) {

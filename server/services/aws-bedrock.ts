@@ -566,8 +566,11 @@ ${options.systemPrompt}`;
     const streamIterator = response.body[Symbol.asyncIterator]();
     const FIRST_TEXT_TIMEOUT_MS = 15000;
     const INTER_CHUNK_TIMEOUT_MS = 10000;
+    const TEXT_STALL_TIMEOUT_MS = 8000;
     let gotFirstText = false;
+    let lastTextMs = Date.now();
     const startMs = Date.now();
+    let nonTextEventCount = 0;
 
     const timeoutRace = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
       Promise.race([
@@ -594,9 +597,17 @@ ${options.systemPrompt}`;
         if (chunk.type === "content_block_delta" && chunk.delta?.text) {
           if (!gotFirstText) {
             gotFirstText = true;
-            console.log(`[Bedrock] First text from "${modelId}" in ${Date.now() - startMs}ms`);
+            const textPreview = chunk.delta.text.replace(/\n/g, '\\n').slice(0, 30);
+            console.log(`[Bedrock] First text from "${modelId}" in ${Date.now() - startMs}ms: "${textPreview}" (nonTextEvents=${nonTextEventCount})`);
           }
+          lastTextMs = Date.now();
           yield chunk.delta.text;
+        } else {
+          nonTextEventCount++;
+          if (gotFirstText && (Date.now() - lastTextMs) > TEXT_STALL_TIMEOUT_MS) {
+            console.warn(`[Bedrock] Text stall detected for "${modelId}": ${Date.now() - lastTextMs}ms since last text, ${nonTextEventCount} non-text events. Last event type: ${chunk.type}`);
+            break;
+          }
         }
       }
     }

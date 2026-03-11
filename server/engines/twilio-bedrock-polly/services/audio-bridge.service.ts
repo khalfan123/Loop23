@@ -1739,7 +1739,62 @@ export class BedrockPollyAudioBridge {
         await pendingSynthesis;
       }
 
-      if (hardTimedOut && sentencesSent === 0 && !toolCallDetected) {
+      const streamStalled = sentencesSent === 0 && !toolCallDetected && fullText.trim().length < 5;
+      if ((hardTimedOut || streamStalled) && sentencesSent === 0 && !toolCallDetected) {
+        if (primaryModel !== 'claude-3-5-haiku') {
+          console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" stalled for ${callSid} (hardTimedOut=${hardTimedOut}, fullText="${fullText.trim().slice(0, 30)}"). Retrying with Haiku...`);
+          try {
+            const haikuStream = awsBedrockService.invokeStream({
+              model: 'claude-3-5-haiku',
+              messages: bedrockMessages,
+              systemPrompt,
+              temperature: 0.3,
+              maxTokens: adaptiveTokens,
+            });
+            fullText = '';
+            sentenceBuffer = '';
+            sentencesSent = 0;
+            firstTokenTime = 0;
+            const haikuStart = Date.now();
+            for await (const token of haikuStream) {
+              if (!firstTokenTime) firstTokenTime = Date.now();
+              fullText += token;
+              sentenceBuffer += token;
+              if (session.status === 'disconnected') break;
+              const useEager = sentencesSent === 0;
+              const shouldSynth = useEager
+                ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
+                : this.splitSentences(sentenceBuffer, false).length > 1;
+              if (shouldSynth) {
+                const sentences = this.splitSentences(sentenceBuffer, useEager);
+                for (let i = 0; i < sentences.length - 1; i++) {
+                  const sentence = sentences[i];
+                  if (sentence.length < 3) continue;
+                  sentencesSent++;
+                  if (sentencesSent === 1) {
+                    console.log(`[BedrockPolly Bridge] Haiku first fragment for ${callSid} in ${Date.now() - haikuStart}ms: "${sentence.substring(0, 80)}"`);
+                  }
+                  await this.synthesizeAndSend(session, sentence);
+                  if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+                }
+                sentenceBuffer = sentences[sentences.length - 1];
+              }
+              if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+            }
+            if (sentenceBuffer.trim().length > 0 && !bargeInFlags.get(callSid) && session.status !== 'disconnected') {
+              sentencesSent++;
+              await this.synthesizeAndSend(session, sentenceBuffer.trim());
+            }
+            if (sentencesSent > 0) {
+              console.log(`[BedrockPolly Bridge] Haiku fallback succeeded for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments`);
+              session.messages.push({ role: 'assistant', content: fullText });
+              session.transcriptParts.push({ role: 'assistant', text: fullText, timestamp: new Date() });
+              return fullText;
+            }
+          } catch (haikuErr: any) {
+            console.error(`[BedrockPolly Bridge] Haiku fallback also failed for ${callSid}: ${haikuErr.message}`);
+          }
+        }
         const apologyMsg = 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';
         await this.synthesizeAndSend(session, apologyMsg);
         session.messages.push({ role: 'assistant', content: apologyMsg });

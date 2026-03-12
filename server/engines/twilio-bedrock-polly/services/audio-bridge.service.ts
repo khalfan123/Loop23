@@ -1603,7 +1603,7 @@ export class BedrockPollyAudioBridge {
       bargeInFlags.set(callSid, false);
       bargeInAccum.set(callSid, 0);
 
-      let primaryModel = agentConfig.model;
+      const primaryModel = 'claude-sonnet-4-6';
       let stream: AsyncGenerator<string>;
       try {
         stream = awsBedrockService.invokeStream({
@@ -1611,7 +1611,7 @@ export class BedrockPollyAudioBridge {
           messages: bedrockMessages,
           systemPrompt,
           temperature: 0.3,
-          maxTokens: adaptiveTokens,
+          maxTokens: 4000,
         });
         const firstResult = await Promise.race([
           stream.next(),
@@ -1632,20 +1632,18 @@ export class BedrockPollyAudioBridge {
         })();
         stream = wrappedStream;
       } catch (modelErr: any) {
-        const fallbackModel = 'claude-3-5-haiku';
-        console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" failed for ${callSid}: ${modelErr.message}. Falling back to "${fallbackModel}"`);
-        primaryModel = fallbackModel;
-        const rawFallback = awsBedrockService.invokeStream({
-          model: fallbackModel,
+        console.warn(`[BedrockPolly Bridge] Sonnet 4.6 stream init failed for ${callSid}: ${modelErr.message}. Retrying once...`);
+        const rawRetry = awsBedrockService.invokeStream({
+          model: 'claude-sonnet-4-6',
           messages: bedrockMessages,
           systemPrompt,
           temperature: 0.3,
-          maxTokens: adaptiveTokens,
+          maxTokens: 4000,
         });
         stream = (async function* () {
           while (!hardTimedOut) {
             const next = await Promise.race([
-              rawFallback.next(),
+              rawRetry.next(),
               streamAbortPromise.then(() => ({ done: true, value: undefined } as IteratorResult<string>)),
             ]);
             if (next.done) break;
@@ -1741,59 +1739,57 @@ export class BedrockPollyAudioBridge {
 
       const streamStalled = sentencesSent === 0 && !toolCallDetected && fullText.trim().length < 5;
       if ((hardTimedOut || streamStalled) && sentencesSent === 0 && !toolCallDetected) {
-        if (primaryModel !== 'claude-3-5-haiku') {
-          console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" stalled for ${callSid} (hardTimedOut=${hardTimedOut}, fullText="${fullText.trim().slice(0, 30)}"). Retrying with Haiku...`);
-          try {
-            const haikuStream = awsBedrockService.invokeStream({
-              model: 'claude-3-5-haiku',
-              messages: bedrockMessages,
-              systemPrompt,
-              temperature: 0.3,
-              maxTokens: adaptiveTokens,
-            });
-            fullText = '';
-            sentenceBuffer = '';
-            sentencesSent = 0;
-            firstTokenTime = 0;
-            const haikuStart = Date.now();
-            for await (const token of haikuStream) {
-              if (!firstTokenTime) firstTokenTime = Date.now();
-              fullText += token;
-              sentenceBuffer += token;
-              if (session.status === 'disconnected') break;
-              const useEager = sentencesSent === 0;
-              const shouldSynth = useEager
-                ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
-                : this.splitSentences(sentenceBuffer, false).length > 1;
-              if (shouldSynth) {
-                const sentences = this.splitSentences(sentenceBuffer, useEager);
-                for (let i = 0; i < sentences.length - 1; i++) {
-                  const sentence = sentences[i];
-                  if (sentence.length < 3) continue;
-                  sentencesSent++;
-                  if (sentencesSent === 1) {
-                    console.log(`[BedrockPolly Bridge] Haiku first fragment for ${callSid} in ${Date.now() - haikuStart}ms: "${sentence.substring(0, 80)}"`);
-                  }
-                  await this.synthesizeAndSend(session, sentence);
-                  if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+        console.warn(`[BedrockPolly Bridge] Sonnet 4.6 stalled for ${callSid} (hardTimedOut=${hardTimedOut}, fullText="${fullText.trim().slice(0, 30)}"). Retrying with Sonnet 4.6...`);
+        try {
+          const retryStream = awsBedrockService.invokeStream({
+            model: 'claude-sonnet-4-6',
+            messages: bedrockMessages,
+            systemPrompt,
+            temperature: 0.3,
+            maxTokens: 4000,
+          });
+          fullText = '';
+          sentenceBuffer = '';
+          sentencesSent = 0;
+          firstTokenTime = 0;
+          const retryStart = Date.now();
+          for await (const token of retryStream) {
+            if (!firstTokenTime) firstTokenTime = Date.now();
+            fullText += token;
+            sentenceBuffer += token;
+            if (session.status === 'disconnected') break;
+            const useEager = sentencesSent === 0;
+            const shouldSynth = useEager
+              ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
+              : this.splitSentences(sentenceBuffer, false).length > 1;
+            if (shouldSynth) {
+              const sentences = this.splitSentences(sentenceBuffer, useEager);
+              for (let i = 0; i < sentences.length - 1; i++) {
+                const sentence = sentences[i];
+                if (sentence.length < 3) continue;
+                sentencesSent++;
+                if (sentencesSent === 1) {
+                  console.log(`[BedrockPolly Bridge] Retry first fragment for ${callSid} in ${Date.now() - retryStart}ms: "${sentence.substring(0, 80)}"`);
                 }
-                sentenceBuffer = sentences[sentences.length - 1];
+                await this.synthesizeAndSend(session, sentence);
+                if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
               }
-              if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+              sentenceBuffer = sentences[sentences.length - 1];
             }
-            if (sentenceBuffer.trim().length > 0 && !bargeInFlags.get(callSid) && session.status !== 'disconnected') {
-              sentencesSent++;
-              await this.synthesizeAndSend(session, sentenceBuffer.trim());
-            }
-            if (sentencesSent > 0) {
-              console.log(`[BedrockPolly Bridge] Haiku fallback succeeded for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments`);
-              session.messages.push({ role: 'assistant', content: fullText });
-              session.transcriptParts.push({ role: 'assistant', text: fullText, timestamp: new Date() });
-              return fullText;
-            }
-          } catch (haikuErr: any) {
-            console.error(`[BedrockPolly Bridge] Haiku fallback also failed for ${callSid}: ${haikuErr.message}`);
+            if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
           }
+          if (sentenceBuffer.trim().length > 0 && !bargeInFlags.get(callSid) && session.status !== 'disconnected') {
+            sentencesSent++;
+            await this.synthesizeAndSend(session, sentenceBuffer.trim());
+          }
+          if (sentencesSent > 0) {
+            console.log(`[BedrockPolly Bridge] Sonnet 4.6 retry succeeded for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments`);
+            session.messages.push({ role: 'assistant', content: fullText });
+            session.transcriptParts.push({ role: 'assistant', text: fullText, timestamp: new Date() });
+            return fullText;
+          }
+        } catch (retryErr: any) {
+          console.error(`[BedrockPolly Bridge] Sonnet 4.6 retry also failed for ${callSid}: ${retryErr.message}`);
         }
         const apologyMsg = 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';
         await this.synthesizeAndSend(session, apologyMsg);
@@ -1847,41 +1843,7 @@ export class BedrockPollyAudioBridge {
   }
 
   private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string): number {
-    const isOutboundCall = systemPrompt ? (systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || systemPrompt.includes('TASK-FIRST FRAMEWORK')) : false;
-
-    const MIN_TOKENS = isOutboundCall ? 200 : 1024;
-    const MAX_TOKENS = isOutboundCall ? 1024 : 2048;
-    const DEFAULT_TOKENS = isOutboundCall ? 400 : 1024;
-
-    if (!messages || messages.length === 0) return DEFAULT_TOKENS;
-
-    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-    if (!lastUserMsg) return DEFAULT_TOKENS;
-
-    const userText = lastUserMsg.content.trim();
-    const wordCount = userText.split(/\s+/).length;
-    const hasQuestionMark = userText.includes('?') || userText.includes('؟');
-    const turnCount = messages.filter(m => m.role === 'user').length;
-
-    const shortPhrases = /^(مرحبا|هلا|أهلا|hi|hello|hey|ok|okay|نعم|لا|شكرا|bye|thanks|thank you|يعطيك العافية|تمام|ماشي|good|fine|great|الحمد لله|إن شاء الله|no|nope|yeah|yep|sure)$/i;
-    if (shortPhrases.test(userText)) {
-      return MIN_TOKENS;
-    }
-
-    const complexPatterns = /(explain|اشرح|compare|قارن|difference|الفرق|how does|كيف يعمل|tell me about|حدثني عن|what are all|ما هي كل|list|اذكر|describe|صف)/i;
-    if (complexPatterns.test(userText) || wordCount > 15) {
-      return MAX_TOKENS;
-    }
-
-    if (hasQuestionMark && wordCount > 5) {
-      return isOutboundCall ? 512 : 1024;
-    }
-
-    if (turnCount <= 1) {
-      return isOutboundCall ? 512 : 800;
-    }
-
-    return DEFAULT_TOKENS;
+    return 4000;
   }
 
   private static extractToolCallJson(text: string): { jsonStr: string; textBefore: string } {
@@ -2037,11 +1999,11 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
     try {
       const response = await awsBedrockService.invoke({
-        model: agentConfig.model,
+        model: 'claude-sonnet-4-6',
         messages: bedrockMessages,
         systemPrompt,
-        temperature: agentConfig.temperature ?? 0.7,
-        maxTokens: adaptiveTokens,
+        temperature: 0.3,
+        maxTokens: 4000,
       });
 
       const content = response.content || '';

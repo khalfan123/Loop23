@@ -361,12 +361,12 @@ ${options.systemPrompt}`;
   ): Promise<BedrockResponse> {
     const payload: Record<string, any> = {
       anthropic_version: "bedrock-2023-05-31",
-      max_tokens: options.maxTokens || 4096,
+      max_tokens: options.maxTokens || 4000,
       messages: options.messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
       })),
-      ...(options.systemPrompt && { system: options.systemPrompt }),
+      ...(options.systemPrompt && { system: [{ type: "text", text: options.systemPrompt }] }),
       ...(options.stopSequences && { stop_sequences: options.stopSequences }),
     };
 
@@ -523,12 +523,12 @@ ${options.systemPrompt}`;
 
     const payload: Record<string, any> = {
       anthropic_version: "bedrock-2023-05-31",
-      max_tokens: options.maxTokens || 4096,
+      max_tokens: options.maxTokens || 4000,
       messages: options.messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
       })),
-      ...(options.systemPrompt && { system: options.systemPrompt }),
+      ...(options.systemPrompt && { system: [{ type: "text", text: options.systemPrompt }] }),
       ...(options.stopSequences && { stop_sequences: options.stopSequences }),
     };
 
@@ -537,6 +537,8 @@ ${options.systemPrompt}`;
     } else {
       payload.temperature = options.temperature ?? 0.7;
     }
+
+    console.log(`[Bedrock] invokeStream payload: maxTokens=${payload.max_tokens}, systemLen=${options.systemPrompt?.length || 0}, msgs=${payload.messages.length}, temp=${payload.temperature}`);
 
     const command = new InvokeModelWithResponseStreamCommand({
       modelId,
@@ -618,41 +620,33 @@ ${options.systemPrompt}`;
   }
 
   async warmConnection(): Promise<void> {
-    const modelsToTest = ['claude-sonnet-4-6', 'claude-opus-4-5', 'claude-sonnet-4', 'claude-3-5-haiku'] as const;
     const client = this.getClient();
-    let firstWorking: string | null = null;
+    const alias = 'claude-sonnet-4-6';
 
-    for (const alias of modelsToTest) {
-      try {
-        const modelId = this.resolveModelId(alias);
-        const payload = {
-          anthropic_version: "bedrock-2023-05-31",
-          max_tokens: 1,
-          temperature: 0,
-          messages: [{ role: "user", content: "." }],
-        };
-        const command = new InvokeModelCommand({
-          modelId,
-          contentType: "application/json",
-          accept: "application/json",
-          body: JSON.stringify(payload),
-        });
-        await Promise.race([
-          client.send(command),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-        ]);
-        console.log(`[Bedrock] ✅ Model "${alias}" (${modelId}) is accessible`);
-        if (!firstWorking) firstWorking = alias;
-      } catch (err: any) {
-        const modelId = this.resolveModelId(alias);
-        console.warn(`[Bedrock] ❌ Model "${alias}" (${modelId}) is NOT accessible: ${err.message}`);
-      }
-    }
-
-    if (firstWorking) {
-      console.log(`[Bedrock] Warm connection established with "${firstWorking}"`);
-    } else {
-      console.error(`[Bedrock] ⚠️ No Bedrock models are accessible! Check AWS credentials and model access.`);
+    try {
+      const modelId = this.resolveModelId(alias);
+      const payload = {
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 10,
+        temperature: 0,
+        messages: [{ role: "user", content: "Say hi" }],
+        system: [{ type: "text", text: "You are a helpful assistant." }],
+      };
+      const command = new InvokeModelCommand({
+        modelId,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify(payload),
+      });
+      const resp = await Promise.race([
+        client.send(command),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+      ]);
+      const body = JSON.parse(new TextDecoder().decode((resp as any).body));
+      console.log(`[Bedrock] ✅ Claude Sonnet 4.6 is accessible (response: "${body.content?.[0]?.text?.slice(0, 30)}")`);
+    } catch (err: any) {
+      const modelId = this.resolveModelId(alias);
+      console.error(`[Bedrock] ❌ Claude Sonnet 4.6 (${modelId}) is NOT accessible: ${err.message}`);
     }
   }
 
@@ -660,7 +654,7 @@ ${options.systemPrompt}`;
     try {
       const client = this.getClient();
       const result = await this.invoke({
-        model: "claude-3-haiku",
+        model: "claude-sonnet-4-6",
         messages: [{ role: "user", content: "Say 'Hello'" }],
         maxTokens: 10,
       });

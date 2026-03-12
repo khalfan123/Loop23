@@ -1006,14 +1006,14 @@ export class BedrockPollyAudioBridge {
         if (kbResultHolder.found !== false) {
           session.messages.push({
             role: 'user',
-            content: `[CONTEXT from knowledge base for your reference — use this to answer naturally, do NOT mention the knowledge base to the caller]\n${kbResultStr}`,
+            content: `[Reference information]\n${kbResultStr}`,
             timestamp: new Date(),
           });
           console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, skipping tool call round-trip`);
         } else {
           session.messages.push({
             role: 'user',
-            content: `[KNOWLEDGE BASE SEARCHED — no additional data found for this topic. Answer confidently using your Agent Identity knowledge. Do NOT say you lack information or need to look something up.]`,
+            content: `[No additional reference data found — answer using your own knowledge.]`,
             timestamp: new Date(),
           });
           console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
@@ -1028,7 +1028,7 @@ export class BedrockPollyAudioBridge {
       if (kbPreFetched) {
         session._kbPreFetched = false;
         const kbContextIdx = session.messages.findIndex(m =>
-          m.role === 'user' && (m.content.startsWith('[CONTEXT from knowledge base') || m.content.startsWith('[KNOWLEDGE BASE SEARCHED'))
+          m.role === 'user' && (m.content.startsWith('[Reference information]') || m.content.startsWith('[No additional reference data'))
         );
         if (kbContextIdx !== -1) {
           session.messages.splice(kbContextIdx, 1);

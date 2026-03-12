@@ -24,6 +24,7 @@ import { awsBedrockService } from '../../../services/aws-bedrock';
 import { awsPollyService } from '../../../services/aws-polly';
 import { POLLY_VOICES } from '../types';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
+import { authenticateToken, AuthRequest } from '../../../middleware/auth';
 import type { TwilioWebhookParams } from '../types';
 
 const router = Router();
@@ -724,7 +725,7 @@ router.post('/voice/recording', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/test-call', async (req: Request, res: Response) => {
+router.post('/test-call', authenticateToken as any, async (req: Request, res: Response) => {
   try {
     const { agentId, toNumber, fromNumberId } = req.body;
 
@@ -732,7 +733,7 @@ router.post('/test-call', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'agentId, toNumber, and fromNumberId are required' });
     }
 
-    const userId = (req as any).userId;
+    const userId = (req as AuthRequest).userId;
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -855,6 +856,75 @@ router.get('/voice-preview/:voiceId', async (req: Request, res: Response) => {
 
 router.get('/models', (_req: Request, res: Response) => {
   res.json(awsBedrockService.listModels());
+});
+
+router.post('/ai-test-call', authenticateToken as any, async (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).userId;
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const { agentId, turns = 10 } = req.body;
+  if (!agentId) {
+    return res.status(400).json({ error: 'agentId is required' });
+  }
+
+  const maxTurns = Math.min(Math.max(turns, 3), 20);
+
+  try {
+    const [agent] = await db.execute(sql`SELECT id, name, language, system_prompt, first_message, knowledge_base_ids, knowledge_base_only, temperature FROM agents WHERE id = ${agentId} AND user_id = ${userId}`).then(r => r.rows as any[]);
+
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    const callId = nanoid(21);
+    const callSid = `AITEST_${nanoid(12)}`;
+
+    await db.insert(twilioOpenaiCalls).values({
+      id: callId,
+      userId,
+      agentId,
+      twilioCallSid: callSid,
+      fromNumber: '+AI-TESTER',
+      toNumber: '+AI-AGENT',
+      openaiVoice: 'none',
+      openaiModel: 'claude-sonnet-4-6',
+      status: 'in-progress',
+      callDirection: 'inbound',
+      startedAt: new Date(),
+      answeredAt: new Date(),
+      metadata: { testCall: true, aiToAi: true, requestedTurns: maxTurns },
+    });
+
+    res.json({ success: true, callId, callSid, message: `AI test call started with ${maxTurns} turns` });
+
+    const { runAiTestCall } = await import('../../../services/ai-test-call.service');
+    runAiTestCall(callId, agent, maxTurns).catch(err => {
+      console.error(`[AI Test Call] Background error: ${err.message}`);
+    });
+
+  } catch (error: any) {
+    logger.error('Error starting AI test call', error, 'BedrockPolly');
+    res.status(500).json({ error: error.message || 'Failed to start AI test call' });
+  }
+});
+
+router.get('/ai-test-call/:callId', authenticateToken as any, async (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).userId;
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const [call] = await db.execute(sql`SELECT id, status, duration, transcript, ai_summary, metadata FROM twilio_openai_calls WHERE id = ${req.params.callId} AND user_id = ${userId}`).then(r => r.rows as any[]);
+    if (!call) {
+      return res.status(404).json({ error: 'Call not found' });
+    }
+    res.json(call);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post('/test-bedrock', async (_req: Request, res: Response) => {

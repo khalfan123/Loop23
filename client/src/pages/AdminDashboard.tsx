@@ -632,6 +632,233 @@ interface VoiceEngineSettings {
   plivo_kyc_required: boolean;
 }
 
+interface AiTestCallResult {
+  id: string;
+  status: string;
+  duration: number | null;
+  transcript: string | null;
+  ai_summary: string | null;
+  metadata: Record<string, any> | null;
+}
+
+function AiTestCallPanel() {
+  const { toast } = useToast();
+  const [selectedAgent, setSelectedAgent] = useState('');
+  const [turns, setTurns] = useState(10);
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [callResult, setCallResult] = useState<AiTestCallResult | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollErrorCount = useRef(0);
+  const pollStartTime = useRef(0);
+
+  const { data: agentsList } = useQuery<Array<{ id: string; name: string; language: string }>>({
+    queryKey: ["/api/elevenlabs/agents"],
+  });
+
+  const stopPolling = (reason?: string) => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    pollErrorCount.current = 0;
+    pollStartTime.current = 0;
+    if (reason) {
+      setActiveCallId(null);
+      toast({ title: "Test Call Polling Stopped", description: reason, variant: "destructive" });
+    }
+  };
+
+  const startTestCall = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/bedrock-polly/ai-test-call", {
+        agentId: selectedAgent,
+        turns,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to start test call');
+      }
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setActiveCallId(data.callId);
+      setCallResult(null);
+      pollErrorCount.current = 0;
+      pollStartTime.current = Date.now();
+      toast({ title: "AI Test Call Started", description: data.message });
+
+      const MAX_POLL_ERRORS = 5;
+      const MAX_POLL_DURATION_MS = 15 * 60 * 1000;
+
+      pollRef.current = setInterval(async () => {
+        if (Date.now() - pollStartTime.current > MAX_POLL_DURATION_MS) {
+          stopPolling("Test call timed out after 15 minutes.");
+          return;
+        }
+
+        try {
+          const res = await apiRequest("GET", `/api/bedrock-polly/ai-test-call/${data.callId}`);
+          if (!res.ok) {
+            pollErrorCount.current++;
+            if (pollErrorCount.current >= MAX_POLL_ERRORS) {
+              stopPolling(`Lost connection to server after ${MAX_POLL_ERRORS} failed attempts.`);
+            }
+            return;
+          }
+          pollErrorCount.current = 0;
+          const result = await res.json();
+          if (result.status === 'completed' || result.status === 'failed') {
+            setCallResult(result);
+            setActiveCallId(null);
+            stopPolling();
+            if (result.status === 'completed') {
+              toast({ title: "AI Test Call Complete", description: result.ai_summary?.substring(0, 100) });
+            } else {
+              toast({ title: "AI Test Call Failed", description: result.ai_summary || "An error occurred", variant: "destructive" });
+            }
+          }
+        } catch {
+          pollErrorCount.current++;
+          if (pollErrorCount.current >= MAX_POLL_ERRORS) {
+            stopPolling(`Lost connection to server after ${MAX_POLL_ERRORS} failed attempts.`);
+          }
+        }
+      }, 5000);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to start test call", description: error.message, variant: "destructive" });
+    },
+  });
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <Phone className="h-5 w-5" />
+          <div>
+            <CardTitle className="text-lg">AI-to-AI Test Call</CardTitle>
+            <CardDescription>
+              Run a simulated conversation to verify your agent works correctly with Claude Sonnet 4.6
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="test-agent-select">Select Agent</Label>
+            <select
+              id="test-agent-select"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={selectedAgent}
+              onChange={(e) => setSelectedAgent(e.target.value)}
+              disabled={!!activeCallId || startTestCall.isPending}
+              data-testid="select-test-agent"
+            >
+              <option value="">Choose an agent...</option>
+              {agentsList?.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} ({a.language})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="test-turns">Number of Turns</Label>
+            <select
+              id="test-turns"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={turns}
+              onChange={(e) => setTurns(Number(e.target.value))}
+              disabled={!!activeCallId || startTestCall.isPending}
+              data-testid="select-test-turns"
+            >
+              <option value={5}>5 turns (~2 min)</option>
+              <option value={10}>10 turns (~4 min)</option>
+              <option value={15}>15 turns (~6 min)</option>
+              <option value={20}>20 turns (~8 min)</option>
+            </select>
+          </div>
+        </div>
+
+        <Button
+          onClick={() => startTestCall.mutate()}
+          disabled={!selectedAgent || !!activeCallId || startTestCall.isPending}
+          className="w-full md:w-auto"
+          data-testid="button-start-test-call"
+        >
+          {startTestCall.isPending ? (
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Starting...</>
+          ) : activeCallId ? (
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Test Running...</>
+          ) : (
+            <><Zap className="h-4 w-4 mr-2" /> Start AI Test Call</>
+          )}
+        </Button>
+
+        {activeCallId && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            <span className="text-sm text-blue-700 dark:text-blue-300">
+              AI test call in progress... The agent is having a simulated conversation. Results will appear here when complete.
+            </span>
+          </div>
+        )}
+
+        {callResult && (
+          <div className={`space-y-3 p-4 rounded-lg border ${callResult.status === 'completed' ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'}`}>
+            <div className="flex items-center gap-2">
+              {callResult.status === 'completed' ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              ) : (
+                <XCircle className="h-5 w-5 text-red-600" />
+              )}
+              <span className={`font-medium ${callResult.status === 'completed' ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                {callResult.status === 'completed' ? 'Test Call Complete' : 'Test Call Failed'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Duration</span>
+                <p className="font-medium">{callResult.duration}s</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Turns</span>
+                <p className="font-medium">{callResult.metadata?.turns || 0}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">KB Hits</span>
+                <p className="font-medium">{callResult.metadata?.kbHits || 0}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Errors</span>
+                <p className="font-medium">{callResult.metadata?.errors || 0}</p>
+              </div>
+            </div>
+            {callResult.ai_summary && (
+              <p className="text-sm text-muted-foreground">{callResult.ai_summary}</p>
+            )}
+            {callResult.transcript && (
+              <details className="mt-2">
+                <summary className="text-sm font-medium cursor-pointer text-blue-600 hover:text-blue-700">
+                  View Full Transcript ({callResult.transcript.length} chars)
+                </summary>
+                <pre className="mt-2 p-3 rounded bg-muted text-xs whitespace-pre-wrap max-h-96 overflow-y-auto">
+                  {callResult.transcript}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function VoiceAIPanel() {
   const { toast } = useToast();
   
@@ -800,6 +1027,8 @@ function VoiceAIPanel() {
           </CardContent>
         </Card>
       </div>
+      
+      <AiTestCallPanel />
       
       <div className="space-y-6">
         <OpenAIPoolManagement />

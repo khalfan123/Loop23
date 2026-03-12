@@ -618,7 +618,7 @@ ${options.systemPrompt}`;
   }
 
   async warmConnection(): Promise<void> {
-    const modelsToTest = ['claude-sonnet-4-6', 'claude-opus-4-5', 'claude-sonnet-4', 'claude-3-5-haiku'] as const;
+    const modelsToTest = ['claude-sonnet-4-6'] as const;
     const client = this.getClient();
     let firstWorking: string | null = null;
 

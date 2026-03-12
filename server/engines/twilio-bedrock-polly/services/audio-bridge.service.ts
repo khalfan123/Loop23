@@ -151,15 +151,15 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_SHORT_MS = 300;
-  private static readonly SILENCE_MEDIUM_MS = 250;
-  private static readonly SILENCE_LONG_UTTERANCE_MS = 200;
+  private static readonly SILENCE_SHORT_MS = 250;
+  private static readonly SILENCE_MEDIUM_MS = 200;
+  private static readonly SILENCE_LONG_UTTERANCE_MS = 150;
   private static readonly LONG_UTTERANCE_BYTES = 16000;
   private static readonly SHORT_UTTERANCE_BYTES = 8000;
   private static readonly OPENING_SILENCE_THRESHOLD_MS = 600;
   private static readonly OPENING_PHASE_DURATION_MS = 8000;
   private static readonly MIN_AUDIO_LENGTH = 6400;
-  private static readonly MAX_BUFFER_DURATION_MS = 30000;
+  private static readonly MAX_BUFFER_DURATION_MS = 15000;
   private static readonly AUDIO_CHUNK_SIZE = 640;
   private static readonly NO_RESPONSE_TIMEOUT_MS = 6000;
   private static readonly FOLLOW_UP_TIMEOUT_MS = 5000;
@@ -955,55 +955,68 @@ export class BedrockPollyAudioBridge {
       const hasQuestion = /\?|؟/.test(transcription);
       const hasKBTools = session.agentConfig.tools?.some(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base');
       const isComplex = (hasQuestion && words.length > 8) || words.length > 15 || hasKBTools;
+
+      let kbPreFetched = false;
+      const KB_PREFETCH_TIMEOUT_MS = 2000;
+
+      const kbTool = hasKBTools ? session.agentConfig.tools!.find(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base') : null;
+
+      const parallelTasks: Promise<any>[] = [];
+
       if (isComplex && !bargeInFlags.get(callSid)) {
         const lang = session.agentConfig.language || 'en';
         const thinkFillers = this.THINKING_FILLERS[lang] || this.THINKING_FILLERS['en'];
         const thinkFiller = this.getRandomFiller(thinkFillers);
         console.log(`[BedrockPolly Bridge] Playing thinking filler for ${callSid}: "${thinkFiller}"`);
-        await this.playFillerAudio(session, thinkFiller);
+        parallelTasks.push(this.playFillerAudio(session, thinkFiller));
       }
 
-      let kbPreFetched = false;
-      if (hasKBTools) {
-        try {
-          const kbStartMs = Date.now();
-          const KB_PREFETCH_TIMEOUT_MS = 5000;
-          const kbTool = session.agentConfig.tools!.find(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base');
-          if (kbTool?.handler) {
-            const kbResult = await Promise.race([
-              kbTool.handler({ query: transcription }),
-              new Promise<null>(resolve => setTimeout(() => resolve(null), KB_PREFETCH_TIMEOUT_MS)),
-            ]) as any;
-            const kbMs = Date.now() - kbStartMs;
-
-            if (!kbResult) {
-              console.warn(`[BedrockPolly Bridge] KB pre-fetch timed out for ${callSid} after ${kbMs}ms — falling back to tool call`);
-            } else {
-              const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
-              console.log(`[BedrockPolly Bridge] Pre-fetched KB for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars, found=${(kbResult as any).found})`);
-
-              kbPreFetched = true;
-              session._kbPreFetched = true;
-
-              if ((kbResult as any).found !== false) {
-                session.messages.push({
-                  role: 'user',
-                  content: `[CONTEXT from knowledge base for your reference — use this to answer naturally, do NOT mention the knowledge base to the caller]\n${kbResultStr}`,
-                  timestamp: new Date(),
-                });
-                console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, skipping tool call round-trip`);
-              } else {
-                session.messages.push({
-                  role: 'user',
-                  content: `[KNOWLEDGE BASE SEARCHED — no additional data found for this topic. Answer confidently using your Agent Identity knowledge. Do NOT say you lack information or need to look something up.]`,
-                  timestamp: new Date(),
-                });
-                console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
-              }
-            }
+      let kbResultHolder: any = null;
+      if (kbTool?.handler) {
+        const kbStartMs = Date.now();
+        const kbPromise = Promise.race([
+          kbTool.handler({ query: transcription }),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), KB_PREFETCH_TIMEOUT_MS)),
+        ]).then((kbResult: any) => {
+          const kbMs = Date.now() - kbStartMs;
+          if (!kbResult) {
+            console.warn(`[BedrockPolly Bridge] KB pre-fetch timed out for ${callSid} after ${kbMs}ms — falling back to tool call`);
+          } else {
+            kbResultHolder = kbResult;
+            const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
+            console.log(`[BedrockPolly Bridge] Pre-fetched KB for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars, found=${kbResult.found})`);
           }
-        } catch (kbErr: any) {
+          return kbResult;
+        }).catch((kbErr: any) => {
           console.warn(`[BedrockPolly Bridge] KB pre-fetch failed for ${callSid}: ${kbErr.message}`);
+          return null;
+        });
+        parallelTasks.push(kbPromise);
+      }
+
+      if (parallelTasks.length > 0) {
+        await Promise.all(parallelTasks);
+      }
+
+      if (kbResultHolder) {
+        kbPreFetched = true;
+        session._kbPreFetched = true;
+        const kbResultStr = typeof kbResultHolder === 'string' ? kbResultHolder : JSON.stringify(kbResultHolder);
+
+        if (kbResultHolder.found !== false) {
+          session.messages.push({
+            role: 'user',
+            content: `[CONTEXT from knowledge base for your reference — use this to answer naturally, do NOT mention the knowledge base to the caller]\n${kbResultStr}`,
+            timestamp: new Date(),
+          });
+          console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, skipping tool call round-trip`);
+        } else {
+          session.messages.push({
+            role: 'user',
+            content: `[KNOWLEDGE BASE SEARCHED — no additional data found for this topic. Answer confidently using your Agent Identity knowledge. Do NOT say you lack information or need to look something up.]`,
+            timestamp: new Date(),
+          });
+          console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
         }
       }
 
@@ -1594,7 +1607,7 @@ export class BedrockPollyAudioBridge {
       let firstTtsAudioTime = 0;
 
       const behaviorCfg = agentConfig.behaviorConfig || {};
-      const hardTimeoutMs = (behaviorCfg.hardTimeoutSec ?? 15) * 1000;
+      const hardTimeoutMs = (behaviorCfg.hardTimeoutSec ?? 8) * 1000;
 
       let hardTimedOut = false;
       let streamAbortResolve: (() => void) | null = null;
@@ -1754,11 +1767,12 @@ export class BedrockPollyAudioBridge {
 
       const streamStalled = sentencesSent === 0 && !toolCallDetected && fullText.trim().length < 5;
       if ((hardTimedOut || streamStalled) && sentencesSent === 0 && !toolCallDetected) {
-        if (primaryModel !== 'claude-3-5-haiku') {
-          console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" stalled for ${callSid} (hardTimedOut=${hardTimedOut}, fullText="${fullText.trim().slice(0, 30)}"). Retrying with Haiku...`);
+        if (!session._retryAttempted) {
+          session._retryAttempted = true;
+          console.warn(`[BedrockPolly Bridge] Model "${primaryModel}" stalled for ${callSid} (hardTimedOut=${hardTimedOut}, fullText="${fullText.trim().slice(0, 30)}"). Retrying with Sonnet 4.6...`);
           try {
-            const haikuStream = awsBedrockService.invokeStream({
-              model: 'claude-3-5-haiku',
+            const retryStream = awsBedrockService.invokeStream({
+              model: 'claude-sonnet-4-6',
               messages: bedrockMessages,
               systemPrompt,
               temperature: 0.3,
@@ -1768,8 +1782,8 @@ export class BedrockPollyAudioBridge {
             sentenceBuffer = '';
             sentencesSent = 0;
             firstTokenTime = 0;
-            const haikuStart = Date.now();
-            for await (const token of haikuStream) {
+            const retryStart = Date.now();
+            for await (const token of retryStream) {
               if (!firstTokenTime) firstTokenTime = Date.now();
               fullText += token;
               sentenceBuffer += token;
@@ -1785,7 +1799,7 @@ export class BedrockPollyAudioBridge {
                   if (sentence.length < 3) continue;
                   sentencesSent++;
                   if (sentencesSent === 1) {
-                    console.log(`[BedrockPolly Bridge] Haiku first fragment for ${callSid} in ${Date.now() - haikuStart}ms: "${sentence.substring(0, 80)}"`);
+                    console.log(`[BedrockPolly Bridge] Retry first fragment for ${callSid} in ${Date.now() - retryStart}ms: "${sentence.substring(0, 80)}"`);
                   }
                   await this.synthesizeAndSend(session, sentence);
                   if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
@@ -1799,13 +1813,13 @@ export class BedrockPollyAudioBridge {
               await this.synthesizeAndSend(session, sentenceBuffer.trim());
             }
             if (sentencesSent > 0) {
-              console.log(`[BedrockPolly Bridge] Haiku fallback succeeded for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments`);
+              console.log(`[BedrockPolly Bridge] Sonnet retry succeeded for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments`);
               session.messages.push({ role: 'assistant', content: fullText });
               session.transcriptParts.push({ role: 'assistant', text: fullText, timestamp: new Date() });
               return fullText;
             }
-          } catch (haikuErr: any) {
-            console.error(`[BedrockPolly Bridge] Haiku fallback also failed for ${callSid}: ${haikuErr.message}`);
+          } catch (retryErr: any) {
+            console.error(`[BedrockPolly Bridge] Sonnet retry also failed for ${callSid}: ${retryErr.message}`);
           }
         }
         const apologyMsg = 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';

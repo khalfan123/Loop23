@@ -1601,227 +1601,147 @@ export class BedrockPollyAudioBridge {
       let firstTtsStartTime = 0;
       let firstTtsAudioTime = 0;
 
-      const behaviorCfg = agentConfig.behaviorConfig || {};
-      const hardTimeoutMs = (behaviorCfg.hardTimeoutSec ?? 8) * 1000;
-
-      let hardTimedOut = false;
-      let streamAbortResolve: (() => void) | null = null;
-      const streamAbortPromise = new Promise<void>(resolve => { streamAbortResolve = resolve; });
-      const hardTimer = setTimeout(() => {
-        if (sentencesSent === 0 && !toolCallDetected && session.status !== 'disconnected') {
-          hardTimedOut = true;
-          console.log(`[BedrockPolly Bridge] Hard timeout (${hardTimeoutMs}ms) reached for ${callSid} — aborting stream`);
-          callErrorLogger.logCallError({
-            callId: (session.agentConfig as any).toolContext?.callId, userId: (session.agentConfig as any).toolContext?.userId, engineType: 'bedrock-polly',
-            errorCategory: 'timeout', severity: 'error',
-            message: `Hard timeout (${hardTimeoutMs}ms) reached — aborting stream`,
-            latencyMs: hardTimeoutMs, metadata: { callSid, model: primaryModel },
-          });
-          if (streamAbortResolve) streamAbortResolve();
-        }
-      }, hardTimeoutMs);
-
       bargeInFlags.set(callSid, false);
       bargeInAccum.set(callSid, 0);
 
       let primaryModel = agentConfig.model;
-      let stream: AsyncGenerator<string>;
+
+      const consumeStream = async (stream: AsyncGenerator<string>) => {
+        let lastStreamLog = 0;
+        for await (const token of stream) {
+          if (!firstTokenTime) {
+            firstTokenTime = Date.now();
+          }
+          fullText += token;
+
+          const now = Date.now();
+          if (now - (lastStreamLog || startTime) >= 3000) {
+            lastStreamLog = now;
+            const elapsed = now - startTime;
+            console.log(`[BedrockPolly Bridge] Stream progress for ${callSid}: ${elapsed}ms, ${fullText.length} chars, preview="${fullText.slice(0, 50).replace(/\n/g, ' ')}"`);
+          }
+
+          if (toolCallDetected) {
+            continue;
+          }
+
+          sentenceBuffer += token;
+
+          if (sentenceBuffer.includes('[TOOL_CALL]')) {
+            toolCallDetected = true;
+            continue;
+          }
+
+          if (bargeInFlags.get(callSid) && sentencesSent > 0) {
+            console.log(`[BedrockPolly Bridge] Barge-in during streaming for ${callSid} (after ${sentencesSent} segments)`);
+            break;
+          }
+
+          if (session.status === 'disconnected') break;
+
+          const useEager = sentencesSent === 0;
+          const shouldSynth = useEager
+            ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
+            : this.splitSentences(sentenceBuffer, false).length > 1;
+
+          if (shouldSynth) {
+            const sentences = this.splitSentences(sentenceBuffer, useEager);
+            for (let i = 0; i < sentences.length - 1; i++) {
+              const sentence = sentences[i];
+              if (sentence.length < 3) continue;
+
+              if (pendingSynthesis) {
+                await pendingSynthesis;
+                pendingSynthesis = null;
+              }
+
+              sentencesSent++;
+              if (sentencesSent === 1) {
+                firstTtsStartTime = Date.now();
+                const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
+                console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
+              }
+
+              pendingSynthesis = this.synthesizeAndSend(session, sentence).then(() => {
+                if (!firstTtsAudioTime) {
+                  firstTtsAudioTime = Date.now();
+                }
+              });
+
+              if (i < sentences.length - 2) {
+                await pendingSynthesis;
+                pendingSynthesis = null;
+              }
+
+              if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+            }
+            sentenceBuffer = sentences[sentences.length - 1];
+          }
+        }
+      };
+
       try {
-        stream = awsBedrockService.invokeStream({
+        const stream = awsBedrockService.invokeStream({
           model: primaryModel,
           messages: bedrockMessages,
           systemPrompt,
           temperature: 0.3,
           maxTokens: adaptiveTokens,
         });
-        const firstResult = await Promise.race([
-          stream.next(),
-          streamAbortPromise.then(() => ({ done: true, value: undefined } as IteratorResult<string>)),
-        ]);
-        const wrappedStream = (async function* () {
-          if (!firstResult.done) {
-            yield firstResult.value;
-            while (!hardTimedOut) {
-              const next = await Promise.race([
-                stream.next(),
-                streamAbortPromise.then(() => ({ done: true, value: undefined } as IteratorResult<string>)),
-              ]);
-              if (next.done) break;
-              yield next.value;
-            }
-          }
-        })();
-        stream = wrappedStream;
-      } catch (modelErr: any) {
-        const fallbackModel = 'claude-3-5-haiku';
-        console.warn(`[BedrockPolly Bridge] Primary model "${primaryModel}" failed for ${callSid}: ${modelErr.message}. Falling back to "${fallbackModel}"`);
-        primaryModel = fallbackModel;
-        const rawFallback = awsBedrockService.invokeStream({
-          model: fallbackModel,
-          messages: bedrockMessages,
-          systemPrompt,
-          temperature: 0.3,
-          maxTokens: adaptiveTokens,
-        });
-        stream = (async function* () {
-          while (!hardTimedOut) {
-            const next = await Promise.race([
-              rawFallback.next(),
-              streamAbortPromise.then(() => ({ done: true, value: undefined } as IteratorResult<string>)),
-            ]);
-            if (next.done) break;
-            yield next.value;
-          }
-        })();
-      }
-
-      let lastStreamLog = 0;
-      for await (const token of stream) {
-        if (!firstTokenTime) {
-          firstTokenTime = Date.now();
-        }
-        fullText += token;
-
-        const now = Date.now();
-        if (now - (lastStreamLog || startTime) >= 3000) {
-          lastStreamLog = now;
-          const elapsed = now - startTime;
-          console.log(`[BedrockPolly Bridge] Stream progress for ${callSid}: ${elapsed}ms, ${fullText.length} chars, preview="${fullText.slice(0, 50).replace(/\n/g, ' ')}"`);
-        }
-
-        if (toolCallDetected) {
-          continue;
-        }
-
-        sentenceBuffer += token;
-
-        if (sentenceBuffer.includes('[TOOL_CALL]')) {
-          toolCallDetected = true;
-          clearTimeout(hardTimer);
-          continue;
-        }
-
-        if (hardTimedOut) {
-          console.log(`[BedrockPolly Bridge] Aborting streaming due to hard timeout for ${callSid}`);
-          break;
-        }
-
-        if (bargeInFlags.get(callSid) && sentencesSent > 0) {
-          console.log(`[BedrockPolly Bridge] Barge-in during streaming for ${callSid} (after ${sentencesSent} segments)`);
-          break;
-        }
-
-        if (session.status === 'disconnected') break;
-
-        const useEager = sentencesSent === 0;
-        const shouldSynth = useEager
-          ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
-          : this.splitSentences(sentenceBuffer, false).length > 1;
-
-        if (shouldSynth) {
-          const sentences = this.splitSentences(sentenceBuffer, useEager);
-          for (let i = 0; i < sentences.length - 1; i++) {
-            const sentence = sentences[i];
-            if (sentence.length < 3) continue;
-
-            if (pendingSynthesis) {
-              await pendingSynthesis;
-              pendingSynthesis = null;
-            }
-
-            sentencesSent++;
-            if (sentencesSent === 1) {
-              clearTimeout(hardTimer);
-              firstTtsStartTime = Date.now();
-              const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
-              console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
-            }
-
-            pendingSynthesis = this.synthesizeAndSend(session, sentence).then(() => {
-              if (!firstTtsAudioTime) {
-                firstTtsAudioTime = Date.now();
-              }
-            });
-
-            if (i < sentences.length - 2) {
-              await pendingSynthesis;
-              pendingSynthesis = null;
-            }
-
-            if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
-          }
-          sentenceBuffer = sentences[sentences.length - 1];
+        await consumeStream(stream);
+      } catch (streamErr: any) {
+        console.warn(`[BedrockPolly Bridge] Stream failed for ${callSid}: ${streamErr.message}. Retrying...`);
+        fullText = '';
+        sentenceBuffer = '';
+        sentencesSent = 0;
+        firstTokenTime = 0;
+        try {
+          const retryStream = awsBedrockService.invokeStream({
+            model: 'claude-sonnet-4-6',
+            messages: bedrockMessages,
+            systemPrompt,
+            temperature: 0.3,
+            maxTokens: adaptiveTokens,
+          });
+          await consumeStream(retryStream);
+        } catch (retryErr: any) {
+          console.error(`[BedrockPolly Bridge] Retry also failed for ${callSid}: ${retryErr.message}`);
         }
       }
-
-      clearTimeout(hardTimer);
 
       if (pendingSynthesis) {
         await pendingSynthesis;
       }
 
-      const streamStalled = sentencesSent === 0 && !toolCallDetected && fullText.trim().length < 5;
-      if ((hardTimedOut || streamStalled) && sentencesSent === 0 && !toolCallDetected) {
-        if (!session._retryAttempted) {
-          session._retryAttempted = true;
-          console.warn(`[BedrockPolly Bridge] Model "${primaryModel}" stalled for ${callSid} (hardTimedOut=${hardTimedOut}, fullText="${fullText.trim().slice(0, 30)}"). Retrying with Sonnet 4.6...`);
-          try {
-            const retryStream = awsBedrockService.invokeStream({
-              model: 'claude-sonnet-4-6',
-              messages: bedrockMessages,
-              systemPrompt,
-              temperature: 0.3,
-              maxTokens: adaptiveTokens,
-            });
-            fullText = '';
-            sentenceBuffer = '';
-            sentencesSent = 0;
-            firstTokenTime = 0;
-            const retryStart = Date.now();
-            for await (const token of retryStream) {
-              if (!firstTokenTime) firstTokenTime = Date.now();
-              fullText += token;
-              sentenceBuffer += token;
-              if (session.status === 'disconnected') break;
-              const useEager = sentencesSent === 0;
-              const shouldSynth = useEager
-                ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
-                : this.splitSentences(sentenceBuffer, false).length > 1;
-              if (shouldSynth) {
-                const sentences = this.splitSentences(sentenceBuffer, useEager);
-                for (let i = 0; i < sentences.length - 1; i++) {
-                  const sentence = sentences[i];
-                  if (sentence.length < 3) continue;
-                  sentencesSent++;
-                  if (sentencesSent === 1) {
-                    console.log(`[BedrockPolly Bridge] Retry first fragment for ${callSid} in ${Date.now() - retryStart}ms: "${sentence.substring(0, 80)}"`);
-                  }
-                  await this.synthesizeAndSend(session, sentence);
-                  if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
-                }
-                sentenceBuffer = sentences[sentences.length - 1];
-              }
-              if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
-            }
-            if (sentenceBuffer.trim().length > 0 && !bargeInFlags.get(callSid) && session.status !== 'disconnected') {
-              sentencesSent++;
-              await this.synthesizeAndSend(session, sentenceBuffer.trim());
-            }
-            if (sentencesSent > 0) {
-              console.log(`[BedrockPolly Bridge] Sonnet retry succeeded for ${callSid}: ${fullText.length} chars, ${sentencesSent} segments`);
-              session.messages.push({ role: 'assistant', content: fullText });
-              session.transcriptParts.push({ role: 'assistant', text: fullText, timestamp: new Date() });
-              return fullText;
-            }
-          } catch (retryErr: any) {
-            console.error(`[BedrockPolly Bridge] Sonnet retry also failed for ${callSid}: ${retryErr.message}`);
+      if (sentencesSent === 0 && !toolCallDetected && fullText.trim().length < 5) {
+        console.warn(`[BedrockPolly Bridge] Model produced insufficient output for ${callSid}: "${fullText.trim().slice(0, 30)}". Retrying...`);
+        fullText = '';
+        sentenceBuffer = '';
+        sentencesSent = 0;
+        firstTokenTime = 0;
+        try {
+          const retryStream = awsBedrockService.invokeStream({
+            model: 'claude-sonnet-4-6',
+            messages: bedrockMessages,
+            systemPrompt,
+            temperature: 0.3,
+            maxTokens: adaptiveTokens,
+          });
+          await consumeStream(retryStream);
+          if (pendingSynthesis) {
+            await pendingSynthesis;
           }
+        } catch (retryErr: any) {
+          console.error(`[BedrockPolly Bridge] Stall retry also failed for ${callSid}: ${retryErr.message}`);
         }
-        const apologyMsg = 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';
-        await this.synthesizeAndSend(session, apologyMsg);
-        session.messages.push({ role: 'assistant', content: apologyMsg });
-        session.transcriptParts.push({ role: 'assistant', text: apologyMsg, timestamp: new Date() });
-        return apologyMsg;
+
+        if (sentencesSent === 0) {
+          const apologyMsg = session.agentConfig?.language?.startsWith('ar') ? 'عذراً، لم أتمكن من فهم ذلك. هل يمكنك إعادة المحاولة؟' : 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';
+          await this.synthesizeAndSend(session, apologyMsg);
+          session.messages.push({ role: 'assistant', content: apologyMsg });
+          session.transcriptParts.push({ role: 'assistant', text: apologyMsg, timestamp: new Date() });
+          return apologyMsg;
+        }
       }
 
       if (toolCallDetected) {
@@ -1831,7 +1751,6 @@ export class BedrockPollyAudioBridge {
       if (sentenceBuffer.trim().length > 0 && !bargeInFlags.get(callSid) && session.status !== 'disconnected') {
         sentencesSent++;
         if (sentencesSent === 1) {
-          clearTimeout(hardTimer);
           firstTtsStartTime = Date.now();
         }
         await this.synthesizeAndSend(session, sentenceBuffer.trim());

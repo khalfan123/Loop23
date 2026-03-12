@@ -565,8 +565,8 @@ ${options.systemPrompt}`;
 
     const streamIterator = response.body[Symbol.asyncIterator]();
     const FIRST_TEXT_TIMEOUT_MS = 15000;
-    const INTER_CHUNK_TIMEOUT_MS = 10000;
-    const TEXT_STALL_TIMEOUT_MS = 8000;
+    const INTER_CHUNK_TIMEOUT_MS = 30000;
+    const TEXT_STALL_TIMEOUT_MS = 20000;
     let gotFirstText = false;
     let lastTextMs = Date.now();
     const startMs = Date.now();
@@ -605,7 +605,7 @@ ${options.systemPrompt}`;
         } else {
           nonTextEventCount++;
           if (gotFirstText && (Date.now() - lastTextMs) > TEXT_STALL_TIMEOUT_MS) {
-            console.warn(`[Bedrock] Text stall detected for "${modelId}": ${Date.now() - lastTextMs}ms since last text, ${nonTextEventCount} non-text events. Last event type: ${chunk.type}`);
+            console.warn(`[Bedrock] Text stall detected for "${modelId}": ${Date.now() - lastTextMs}ms since last text, ${nonTextEventCount} non-text events`);
             break;
           }
         }

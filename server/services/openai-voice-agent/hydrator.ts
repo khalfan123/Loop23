@@ -876,9 +876,9 @@ export async function hydrateCompiledFlow(params: HydrateFlowParams): Promise<Ag
   } = params;
   
   let systemPrompt = compiledSystemPrompt;
-  if (language && language !== 'en' && !systemPrompt.includes('CRITICAL LANGUAGE REQUIREMENT')) {
+  if (language && language !== 'en' && !systemPrompt.includes('LANGUAGE:')) {
     const languageName = getLanguageName(language);
-    systemPrompt = `CRITICAL LANGUAGE REQUIREMENT: You MUST speak ONLY in ${languageName}. From the very first word you say, speak in ${languageName}. Do NOT speak English. This is mandatory.\n\n${systemPrompt}`;
+    systemPrompt = `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.\n\n${systemPrompt}`;
   }
   
   if (callerPhoneNumber && toolContext.userId) {

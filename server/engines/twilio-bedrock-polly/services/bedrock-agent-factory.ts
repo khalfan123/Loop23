@@ -1395,7 +1395,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     const languageName = this.getLanguageName(language);
     
     const parts: string[] = [
-      `CRITICAL LANGUAGE REQUIREMENT: You MUST speak ONLY in ${languageName}. From the very first word you say, speak in ${languageName}. Do NOT speak English unless ${languageName} is English. This is mandatory.`,
+      `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.`,
       '',
       'You are an AI assistant following a structured conversation flow.',
       'Guide the conversation through the following steps:',

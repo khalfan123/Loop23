@@ -110,7 +110,7 @@ export function getAskKnowledgeWebhookTool(elevenLabsAgentId: string): RAGWebhoo
   return {
     type: "webhook",
     name: toolName,
-    description: "MANDATORY: Search the knowledge base for ANY factual question. You MUST call this tool for EVERY user question before answering. This is your ONLY source of truth — never answer from general knowledge. Pass the user's exact question or relevant keywords as the query. Call this tool FIRST, then answer ONLY from the results.",
+    description: "Search your knowledge base for relevant information to help answer the caller. Use when the caller asks something you want to verify or get details on.",
     api_schema: {
       url: webhookUrl,
       method: "POST",

@@ -423,8 +423,8 @@ Remember: Saying you will do something is NOT the same as actually calling the t
     const parts: string[] = [];
     
     if (config.language !== 'en') {
-      parts.push(`# CRITICAL LANGUAGE REQUIREMENT
-You MUST speak ONLY in ${languageName}. From the very first word you say, speak in ${languageName}. Do NOT speak English. This is mandatory.
+      parts.push(`# LANGUAGE
+Speak in ${languageName}. Match the caller's language naturally.
 `);
     }
     

@@ -80,7 +80,7 @@ export class FunctionToolBuilder {
       type: 'function',
       function: {
         name: 'lookup_knowledge_base',
-        description: 'MANDATORY: Search the knowledge base for ANY factual question about the business, products, services, pricing, policies, or procedures. You MUST call this tool FIRST before answering any question that requires specific information. Before calling this tool, take a moment to understand what the caller is REALLY asking — rephrase their question clearly and specifically in the query parameter. This is your ONLY source of truth — never answer from general knowledge. After receiving results, FIRST acknowledge what the caller asked, THEN answer naturally using the information provided.',
+        description: 'Search your knowledge base for relevant information to help answer the caller. Use when the caller asks something you want to verify or get details on.',
         parameters: {
           type: 'object',
           properties: {

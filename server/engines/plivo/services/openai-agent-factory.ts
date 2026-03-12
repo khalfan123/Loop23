@@ -102,12 +102,10 @@ export class OpenAIAgentFactory {
 
     console.log(`[Agent Factory] Creating config: voice=${voice}, model=${model}, tier=${tier}, language=${language}`);
 
-    // Add language instructions to system prompt if not English
-    // Guard against duplication (e.g., when called after compileFlow which already added the header)
     let systemPrompt = params.systemPrompt;
-    if (language && language !== 'en' && !params.systemPrompt.includes('CRITICAL LANGUAGE REQUIREMENT')) {
+    if (language && language !== 'en' && !params.systemPrompt.includes('LANGUAGE:')) {
       const languageName = this.getLanguageName(language);
-      systemPrompt = `CRITICAL LANGUAGE REQUIREMENT: You MUST speak ONLY in ${languageName}. From the very first word you say, speak in ${languageName}. Do NOT speak English. This is mandatory.\n\n${params.systemPrompt}`;
+      systemPrompt = `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.\n\n${params.systemPrompt}`;
     }
 
     return {
@@ -142,13 +140,13 @@ export class OpenAIAgentFactory {
 
     const kbTool: AgentTool = {
       name: 'lookup_knowledge_base',
-      description: 'MANDATORY: You MUST call this tool BEFORE answering ANY user question. Search the knowledge base for information. You are NOT allowed to answer any question without first consulting this tool. Every response must be grounded in the results from this tool.',
+      description: 'Search your knowledge base for relevant information to help answer the caller. Use when the caller asks something you want to verify or get details on.',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'The search query to find relevant information. Be specific and include key terms.',
+            description: 'The search query to find relevant information.',
           },
         },
         required: ['query'],
@@ -162,18 +160,18 @@ export class OpenAIAgentFactory {
             query,
             knowledgeBaseIds,
             userId,
-            5 // max results
+            5
           );
           
           if (results.length === 0) {
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
-              message: 'No relevant information found in the knowledge base.' 
+              message: 'No results found. Answer using your own knowledge.' 
             };
           }
           
-          const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 400);
+          const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 1200);
           console.log(`[KB Tool] Found ${results.length} results`);
           
           return { 
@@ -184,33 +182,19 @@ export class OpenAIAgentFactory {
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: 'Unable to search knowledge base at this time.' 
+            message: 'Could not search right now. Answer using your own knowledge.' 
           };
         }
       },
     };
 
-    const kbRelevancePrompt = `
+    const kbPrompt = `
 
-KNOWLEDGE BASE RELEVANCE GUIDELINES:
-- CRITICAL: Evaluate whether each knowledge base result is actually relevant to what the caller is asking. If the caller asks about products, services, pricing, or features, do NOT use results about careers, hiring, HR policies, employee benefits, or internal company culture. Only use results that directly answer the caller's question. If no results are truly relevant, treat it as "no results found."
-- When you find relevant information in the knowledge base, use it to answer naturally and conversationally - do not just read it verbatim.`;
-
-    const kbRestrictionPrompt = `
-
-STRICT KNOWLEDGE BASE RESTRICTION:
-- You MUST call the lookup_knowledge_base tool BEFORE answering ANY question from the caller.
-- You are ONLY allowed to provide information that comes from the knowledge base results.
-- Do NOT make up, guess, or infer answers from your general knowledge. Your answers must come strictly from the knowledge base.
-- If the knowledge base returns no results or irrelevant results, say: "I don't have that information available. Let me connect you with someone who can help." Then offer to transfer the call if transfer is enabled, or ask if there's anything else you can help with.
-- Even for simple greetings and pleasantries, stay in character as defined by the system prompt, but never provide factual claims that aren't in the knowledge base.`;
-
-    const enhancedSystemPrompt = config.systemPrompt + kbRelevancePrompt + kbRestrictionPrompt;
+You have a knowledge base available. Use the lookup_knowledge_base tool when it would help you give a better answer. Combine what you find with your own intelligence to respond naturally. Never mention the knowledge base or any internal systems to the caller.`;
 
     return {
       ...config,
-      systemPrompt: enhancedSystemPrompt,
-      temperature: Math.max(Math.min(config.temperature ?? 0.7, 0.8), 0.6),
+      systemPrompt: config.systemPrompt + kbPrompt,
       knowledgeBaseIds,
       tools: [...(config.tools || []), kbTool],
     };
@@ -1664,7 +1648,7 @@ LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefu
     const languageName = this.getLanguageName(language);
     
     const parts: string[] = [
-      `CRITICAL LANGUAGE REQUIREMENT: You MUST speak ONLY in ${languageName}. From the very first word you say, speak in ${languageName}. Do NOT speak English unless ${languageName} is English. This is mandatory.`,
+      `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.`,
       '',
       'You are an AI assistant following a structured conversation flow.',
       'Guide the conversation through the following steps:',

@@ -366,7 +366,7 @@ ${options.systemPrompt}`;
         role: msg.role,
         content: msg.content,
       })),
-      ...(options.systemPrompt && { system: options.systemPrompt }),
+      ...(options.systemPrompt && { system: [{ type: "text", text: options.systemPrompt }] }),
       ...(options.stopSequences && { stop_sequences: options.stopSequences }),
     };
 
@@ -528,7 +528,7 @@ ${options.systemPrompt}`;
         role: msg.role,
         content: msg.content,
       })),
-      ...(options.systemPrompt && { system: options.systemPrompt }),
+      ...(options.systemPrompt && { system: [{ type: "text", text: options.systemPrompt }] }),
       ...(options.stopSequences && { stop_sequences: options.stopSequences }),
     };
 

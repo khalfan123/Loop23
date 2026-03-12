@@ -299,18 +299,10 @@ export class BedrockPollyCallService {
               logger.info(`[Outbound] Injected campaign call script (${resolvedScript.length} chars) into agent system prompt`, undefined, 'BedrockPollyCall');
             }
           }
-          const hasOutboundContext = effectiveSystemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS');
-          if (!hasOutboundContext) {
-            effectiveSystemPrompt += `\n\nOUTBOUND CALLING INSTRUCTIONS:
-- You INITIATED this call. You called the person, they did not call you.
-- After your greeting, WAIT for the person to respond. Then continue the conversation naturally.
-- State the purpose of your call clearly and early in the conversation.
-- Follow your CALL SCRIPT step-by-step. Cover each point in order.
-- Handle objections with empathy and provide clear value.
-- If the person is not interested, be respectful and end the call politely.
-- Keep responses SHORT — 1 to 3 sentences. This is a phone call, not an email.
-- Be warm, natural, and conversational. You are a real person, not a robot.`;
-          }
+        }
+
+        if (!effectiveSystemPrompt.includes('OUTBOUND CONTEXT')) {
+          effectiveSystemPrompt += `\n\nOUTBOUND CONTEXT: You initiated this call. State your purpose early. If the person declines, wrap up politely.`;
         }
 
         effectiveSystemPrompt = resolveTemplateVariables(effectiveSystemPrompt);

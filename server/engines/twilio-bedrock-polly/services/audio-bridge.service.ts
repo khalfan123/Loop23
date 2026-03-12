@@ -1575,15 +1575,10 @@ export class BedrockPollyAudioBridge {
 
     let kbOverride = '';
     if (kbAlreadySearched) {
-      kbOverride = `\n\nKNOWLEDGE BASE STATUS: The knowledge base has already been searched for this question. Results (if any) are included in the conversation context above. Use them to answer naturally and confidently. Do NOT attempt to call lookup_knowledge_base or lookup_bedrock_knowledge_base — the search is already done. If no results were found, answer using your Agent Identity knowledge.`;
+      kbOverride = `\n\nKB already searched — results are in the conversation above. Do not call lookup_knowledge_base or lookup_bedrock_knowledge_base again.`;
     }
 
-    const isOutbound = agentConfig.systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || agentConfig.systemPrompt.includes('TASK-FIRST FRAMEWORK');
-    const voiceInstructions = isOutbound
-      ? `\n\nVOICE CALL RULES: This is a live outbound phone call. Give clear, complete explanations — cover all important details the person needs. Keep it natural and conversational but do NOT cut yourself short. If the person asks a question, answer it fully. Aim for 2-4 sentences per response.`
-      : `\n\nVOICE CALL RULES: This is a live phone call. Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.`;
-
-    const systemPrompt = agentConfig.systemPrompt + kbOverride + toolCallInstructions + voiceInstructions;
+    const systemPrompt = agentConfig.systemPrompt + kbOverride + toolCallInstructions;
 
     if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
       session.twilioWs.send(JSON.stringify({
@@ -1880,11 +1875,9 @@ export class BedrockPollyAudioBridge {
   }
 
   private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string): number {
-    const isOutboundCall = systemPrompt ? (systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || systemPrompt.includes('TASK-FIRST FRAMEWORK')) : false;
-
-    const MIN_TOKENS = isOutboundCall ? 200 : 1024;
-    const MAX_TOKENS = isOutboundCall ? 1024 : 2048;
-    const DEFAULT_TOKENS = isOutboundCall ? 400 : 1024;
+    const MIN_TOKENS = 512;
+    const MAX_TOKENS = 2048;
+    const DEFAULT_TOKENS = 1024;
 
     if (!messages || messages.length === 0) return DEFAULT_TOKENS;
 
@@ -1893,8 +1886,6 @@ export class BedrockPollyAudioBridge {
 
     const userText = lastUserMsg.content.trim();
     const wordCount = userText.split(/\s+/).length;
-    const hasQuestionMark = userText.includes('?') || userText.includes('؟');
-    const turnCount = messages.filter(m => m.role === 'user').length;
 
     const shortPhrases = /^(مرحبا|هلا|أهلا|hi|hello|hey|ok|okay|نعم|لا|شكرا|bye|thanks|thank you|يعطيك العافية|تمام|ماشي|good|fine|great|الحمد لله|إن شاء الله|no|nope|yeah|yep|sure)$/i;
     if (shortPhrases.test(userText)) {
@@ -1904,14 +1895,6 @@ export class BedrockPollyAudioBridge {
     const complexPatterns = /(explain|اشرح|compare|قارن|difference|الفرق|how does|كيف يعمل|tell me about|حدثني عن|what are all|ما هي كل|list|اذكر|describe|صف)/i;
     if (complexPatterns.test(userText) || wordCount > 15) {
       return MAX_TOKENS;
-    }
-
-    if (hasQuestionMark && wordCount > 5) {
-      return isOutboundCall ? 512 : 1024;
-    }
-
-    if (turnCount <= 1) {
-      return isOutboundCall ? 512 : 800;
     }
 
     return DEFAULT_TOKENS;
@@ -2071,11 +2054,7 @@ ${toolDescriptions}
 IMPORTANT: After collecting all required information, you MUST call the relevant tool. Do NOT just describe what you would do — actually call the tool. After completing the main task, say a friendly closing message and ask if there's anything else. Only call end_call after the user confirms they are done.`;
     }
 
-    const isOutboundNonStream = agentConfig.systemPrompt.includes('OUTBOUND CALLING INSTRUCTIONS') || agentConfig.systemPrompt.includes('TASK-FIRST FRAMEWORK');
-    const conversationBehavior = isOutboundNonStream
-      ? `\n\nCONVERSATION STYLE: Keep responses to 1-2 sentences MAX. Be direct, natural, and concise. This is an outbound phone call.`
-      : `\n\nCONVERSATION STYLE: Give complete, thorough answers — do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs. If something is unclear, ask ONE specific clarifying question. Do NOT start every response with acknowledgments like "yes", "okay", "sure" — just answer naturally. CRITICAL: After delivering your greeting, you MUST wait for the user to actually speak before responding. Do NOT assume the user has said something if you have not clearly heard their words. If there is silence or unclear noise, do NOT fabricate or guess what the user said — instead, wait patiently or say "Hello, are you there?"`;
-    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions + conversationBehavior;
+    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions;
 
     const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt);
     console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}, maxTokens=${adaptiveTokens}`);

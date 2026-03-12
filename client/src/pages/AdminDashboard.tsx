@@ -17,7 +17,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, CreditCard, Settings, BarChart, Phone, Package, Bell, ListOrdered, Loader2, CheckCircle2, XCircle, ContactRound, DollarSign, RefreshCw, Server, Receipt, Mail, MessageSquare, Headphones, ShieldAlert, Brain, Power, Mic, Sparkles, Building2, Zap } from "lucide-react";
+import { Users, CreditCard, Settings, BarChart, Phone, Package, Bell, ListOrdered, Loader2, CheckCircle2, XCircle, ContactRound, DollarSign, RefreshCw, Server, Receipt, Mail, MessageSquare, Headphones, ShieldAlert, Brain, Power, Mic, Sparkles, Building2, Zap, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,7 @@ import TransactionsManagement from "@/components/admin/TransactionsManagement";
 import EmailSettingsManagement from "@/components/admin/EmailSettingsManagement";
 import CallMonitoring from "@/components/admin/CallMonitoring";
 import BannedWordsManagement from "@/components/admin/BannedWordsManagement";
+import CallErrorLogs from "@/components/admin/CallErrorLogs";
 import OpenAIPoolManagement from "@/components/admin/OpenAIPoolManagement";
 import PlivoSettings from "@/components/admin/PlivoSettings";
 import IntegrationTestPanel from "@/components/admin/IntegrationTestPanel";
@@ -575,6 +576,10 @@ function CallsPanel() {
             <ShieldAlert className="h-4 w-4 mr-2" />
             Banned Words
           </TabsTrigger>
+          <TabsTrigger value="error-logs" data-testid="subtab-error-logs">
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Error Logs
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="monitoring" className="mt-6">
@@ -583,6 +588,10 @@ function CallsPanel() {
         
         <TabsContent value="banned-words" className="mt-6">
           <BannedWordsManagement />
+        </TabsContent>
+
+        <TabsContent value="error-logs" className="mt-6">
+          <CallErrorLogs />
         </TabsContent>
       </Tabs>
     </div>

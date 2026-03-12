@@ -40,6 +40,7 @@ import {
   registerElevenlabsPoolRoutes,
   registerCallsModerationRoutes,
   registerAwsCredentialsRoutes,
+  registerCallErrorRoutes,
 } from './admin/index';
 
 const router = Router();
@@ -59,6 +60,7 @@ registerPhoneNumbersRoutes(router);
 registerElevenlabsPoolRoutes(router);
 registerCallsModerationRoutes(router);
 registerAwsCredentialsRoutes(router);
+registerCallErrorRoutes(router);
 
 async function getStripeClient(): Promise<Stripe | null> {
   try {

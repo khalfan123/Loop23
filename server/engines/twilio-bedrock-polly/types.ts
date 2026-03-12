@@ -83,7 +83,7 @@ export type PollyVoiceId =
 /**
  * Supported AWS Bedrock model aliases (Claude family)
  */
-export type BedrockModel = 'claude-sonnet-4-6';
+export type BedrockModel = 'claude-sonnet-4-6' | 'claude-opus-4-5' | 'claude-opus-4' | 'claude-sonnet-4' | 'claude-3-7-sonnet' | 'claude-3-5-sonnet' | 'claude-3-5-sonnet-v2' | 'claude-3-5-haiku' | 'claude-3-haiku' | 'claude-3-opus';
 
 /**
  * User tier determining model access
@@ -443,11 +443,11 @@ export const POLLY_VOICES: {
  */
 export const MODEL_TIER_CONFIG: Record<ModelTier, { models: BedrockModel[]; description: string }> = {
   free: {
-    models: ['claude-sonnet-4-6'],
-    description: 'Claude Sonnet 4.6 - Primary model for all calls',
+    models: ['claude-3-5-haiku'],
+    description: 'Claude 3.5 Haiku - Fast, cost-effective model for production use',
   },
   pro: {
-    models: ['claude-sonnet-4-6'],
-    description: 'Claude Sonnet 4.6 - Primary model for all calls',
+    models: ['claude-sonnet-4-6', 'claude-opus-4-5', 'claude-sonnet-4', 'claude-opus-4', 'claude-3-7-sonnet', 'claude-3-5-sonnet', 'claude-3-5-sonnet-v2', 'claude-3-5-haiku', 'claude-3-haiku', 'claude-3-opus'],
+    description: 'Full Bedrock model access including Claude Sonnet 4.6, Opus 4.5, and legacy models',
   },
 };

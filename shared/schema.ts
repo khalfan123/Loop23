@@ -4006,3 +4006,23 @@ export const insertBedrockKbFileSchema = createInsertSchema(bedrockKbFiles).omit
 });
 export type InsertBedrockKbFile = z.infer<typeof insertBedrockKbFileSchema>;
 export type BedrockKbFile = typeof bedrockKbFiles.$inferSelect;
+
+export const callErrorLogs = pgTable("call_error_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  callId: varchar("call_id").references(() => calls.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  engineType: text("engine_type").notNull(),
+  errorCategory: text("error_category").notNull(),
+  severity: text("severity").notNull().default("error"),
+  message: text("message").notNull(),
+  latencyMs: integer("latency_ms"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCallErrorLogSchema = createInsertSchema(callErrorLogs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCallErrorLog = z.infer<typeof insertCallErrorLogSchema>;
+export type CallErrorLog = typeof callErrorLogs.$inferSelect;

@@ -85,7 +85,7 @@ export class BedrockPollyCallService {
       }
 
       const [user] = await db
-        .select({ credits: users.credits })
+        .select({ credits: users.credits, planType: users.planType })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
@@ -96,12 +96,14 @@ export class BedrockPollyCallService {
       }
 
       const callId = nanoid();
+      const userTier: 'free' | 'pro' = user.planType === 'pro' ? 'pro' : 'free';
       
       let agentConfig;
       
       const effectiveFlowId = overrideFlowId || agent.flowId;
       const defaultVoice: PollyVoiceId = 'Joanna';
-      const defaultModel: BedrockModel = 'claude-sonnet-4-6';
+      const rawModel = (agent.llmModel as BedrockModel) || 'claude-sonnet-4-6';
+      const defaultModel: BedrockModel = BedrockAgentFactory.validateModel(rawModel, userTier);
 
       const ttsProvider: TtsProvider = agent.voiceProvider === 'elevenlabs' ? 'elevenlabs' : 'aws_polly';
       let elevenLabsApiKey: string | undefined;
@@ -313,6 +315,7 @@ export class BedrockPollyCallService {
           systemPrompt: effectiveSystemPrompt,
           firstMessage: resolveTemplateVariables(localizedFirstMessage),
           temperature: agent.temperature ?? 0.7,
+          userTier,
           ttsProvider,
           elevenLabsVoiceId,
           elevenLabsApiKey,

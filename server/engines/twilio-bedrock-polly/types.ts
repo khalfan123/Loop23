@@ -81,9 +81,15 @@ export type PollyVoiceId =
   | 'Jasmine';
 
 /**
- * Supported AWS Bedrock model aliases (Claude family)
+ * Supported LLM model aliases (Claude via Bedrock + OpenAI GPT)
  */
-export type BedrockModel = 'claude-sonnet-4-6' | 'claude-opus-4-5' | 'claude-opus-4' | 'claude-sonnet-4' | 'claude-3-7-sonnet' | 'claude-3-5-sonnet' | 'claude-3-5-sonnet-v2' | 'claude-3-5-haiku' | 'claude-3-haiku' | 'claude-3-opus';
+export type BedrockModel = 'claude-sonnet-4-6' | 'claude-opus-4-5' | 'claude-opus-4' | 'claude-sonnet-4' | 'claude-3-7-sonnet' | 'claude-3-5-sonnet' | 'claude-3-5-sonnet-v2' | 'claude-3-5-haiku' | 'claude-3-haiku' | 'claude-3-opus' | 'gpt-4o' | 'gpt-4o-mini';
+
+export const OPENAI_MODELS: readonly string[] = ['gpt-4o', 'gpt-4o-mini'];
+
+export function isOpenAIModel(model: string): boolean {
+  return OPENAI_MODELS.includes(model);
+}
 
 /**
  * User tier determining model access
@@ -440,15 +446,15 @@ export const POLLY_VOICES: {
 
 /**
  * Model access configuration per subscription tier.
- * Free tier gets claude-3-5-haiku; pro tier gets full model access including Sonnet 4 and Opus 4.
+ * Free tier gets claude-3-5-haiku and gpt-4o-mini; pro tier gets full model access.
  */
 export const MODEL_TIER_CONFIG: Record<ModelTier, { models: BedrockModel[]; description: string }> = {
   free: {
-    models: ['claude-3-5-haiku'],
-    description: 'Claude 3.5 Haiku - Fast, cost-effective model for production use',
+    models: ['claude-3-5-haiku', 'gpt-4o-mini'],
+    description: 'Claude 3.5 Haiku + GPT-4o Mini - Fast, cost-effective models',
   },
   pro: {
-    models: ['claude-sonnet-4-6', 'claude-opus-4-5', 'claude-sonnet-4', 'claude-opus-4', 'claude-3-7-sonnet', 'claude-3-5-sonnet', 'claude-3-5-sonnet-v2', 'claude-3-5-haiku', 'claude-3-haiku', 'claude-3-opus'],
-    description: 'Full Bedrock model access including Claude Sonnet 4.6, Opus 4.5, and legacy models',
+    models: ['claude-sonnet-4-6', 'claude-opus-4-5', 'claude-sonnet-4', 'claude-opus-4', 'claude-3-7-sonnet', 'claude-3-5-sonnet', 'claude-3-5-sonnet-v2', 'claude-3-5-haiku', 'claude-3-haiku', 'claude-3-opus', 'gpt-4o', 'gpt-4o-mini'],
+    description: 'Full model access: Claude (Bedrock) + GPT-4o (OpenAI)',
   },
 };

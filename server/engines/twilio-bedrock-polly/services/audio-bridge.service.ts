@@ -31,6 +31,8 @@ import type {
   TwilioMediaStreamEvent,
   BedrockConversationMessage,
 } from '../types';
+import { isOpenAIModel } from '../types';
+import { openaiInvokeStream, openaiInvoke } from './openai-llm.service';
 import { humanizeToSSML } from './ssml-humanizer';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { calls } from '@shared/schema';
@@ -1020,7 +1022,8 @@ export class BedrockPollyAudioBridge {
         }
       }
 
-      console.log(`[BedrockPolly Bridge] Calling Bedrock for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
+      const llmProvider = isOpenAIModel(agentConfig.model) ? 'OpenAI' : 'Bedrock';
+      console.log(`[BedrockPolly Bridge] Calling ${llmProvider} for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
       const bedrockStart = Date.now();
       const responseText = await this.streamBedrockAndSpeak(session, sttMs);
@@ -1588,7 +1591,8 @@ export class BedrockPollyAudioBridge {
     }
 
     const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt);
-    console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: adaptive maxTokens=${adaptiveTokens}, messages=${bedrockMessages.length}`);
+    const provider = isOpenAIModel(agentConfig.model) ? 'OpenAI' : 'Bedrock';
+    console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: ${provider} model=${agentConfig.model}, adaptive maxTokens=${adaptiveTokens}, messages=${bedrockMessages.length}`);
 
     try {
       let fullText = '';
@@ -1680,14 +1684,27 @@ export class BedrockPollyAudioBridge {
         }
       };
 
-      try {
-        const stream = awsBedrockService.invokeStream({
-          model: primaryModel,
+      const createLLMStream = (model: string) => {
+        if (isOpenAIModel(model)) {
+          return openaiInvokeStream({
+            model,
+            messages: bedrockMessages,
+            systemPrompt,
+            temperature: 0.3,
+            maxTokens: adaptiveTokens,
+          });
+        }
+        return awsBedrockService.invokeStream({
+          model,
           messages: bedrockMessages,
           systemPrompt,
           temperature: 0.3,
           maxTokens: adaptiveTokens,
         });
+      };
+
+      try {
+        const stream = createLLMStream(primaryModel);
         await consumeStream(stream);
       } catch (streamErr: any) {
         console.warn(`[BedrockPolly Bridge] Stream failed for ${callSid}: ${streamErr.message}. Retrying...`);
@@ -1695,14 +1712,9 @@ export class BedrockPollyAudioBridge {
         sentenceBuffer = '';
         sentencesSent = 0;
         firstTokenTime = 0;
+        const retryModel = isOpenAIModel(primaryModel) ? 'gpt-4o-mini' : 'claude-sonnet-4-6';
         try {
-          const retryStream = awsBedrockService.invokeStream({
-            model: 'claude-sonnet-4-6',
-            messages: bedrockMessages,
-            systemPrompt,
-            temperature: 0.3,
-            maxTokens: adaptiveTokens,
-          });
+          const retryStream = createLLMStream(retryModel);
           await consumeStream(retryStream);
         } catch (retryErr: any) {
           console.error(`[BedrockPolly Bridge] Retry also failed for ${callSid}: ${retryErr.message}`);
@@ -1719,14 +1731,9 @@ export class BedrockPollyAudioBridge {
         sentenceBuffer = '';
         sentencesSent = 0;
         firstTokenTime = 0;
+        const stallRetryModel = isOpenAIModel(primaryModel) ? 'gpt-4o-mini' : 'claude-sonnet-4-6';
         try {
-          const retryStream = awsBedrockService.invokeStream({
-            model: 'claude-sonnet-4-6',
-            messages: bedrockMessages,
-            systemPrompt,
-            temperature: 0.3,
-            maxTokens: adaptiveTokens,
-          });
+          const retryStream = createLLMStream(stallRetryModel);
           await consumeStream(retryStream);
           if (pendingSynthesis) {
             await pendingSynthesis;
@@ -1979,16 +1986,28 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}, maxTokens=${adaptiveTokens}`);
 
     try {
-      const response = await awsBedrockService.invoke({
-        model: agentConfig.model,
-        messages: bedrockMessages,
-        systemPrompt,
-        temperature: agentConfig.temperature ?? 0.7,
-        maxTokens: adaptiveTokens,
-      });
-
-      const content = response.content || '';
-      console.log(`[BedrockPolly Bridge] Bedrock response: ${content.length} chars, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);
+      let content: string;
+      if (isOpenAIModel(agentConfig.model)) {
+        const response = await openaiInvoke({
+          model: agentConfig.model,
+          messages: bedrockMessages,
+          systemPrompt,
+          temperature: agentConfig.temperature ?? 0.7,
+          maxTokens: adaptiveTokens,
+        });
+        content = response.content || '';
+        console.log(`[BedrockPolly Bridge] OpenAI response: ${content.length} chars, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);
+      } else {
+        const response = await awsBedrockService.invoke({
+          model: agentConfig.model,
+          messages: bedrockMessages,
+          systemPrompt,
+          temperature: agentConfig.temperature ?? 0.7,
+          maxTokens: adaptiveTokens,
+        });
+        content = response.content || '';
+        console.log(`[BedrockPolly Bridge] Bedrock response: ${content.length} chars, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);
+      }
 
       if (content.indexOf('[TOOL_CALL]') !== -1) {
         const { jsonStr, textBefore } = this.extractToolCallJson(content);

@@ -22,7 +22,7 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Department Management System**: Manages agents and IVR configurations within departments via a 3-step wizard.
 - **Knowledge Base & AI Intelligence**: Integrated knowledge base for AI-powered topic analysis and content generation, with folder-based navigation. Supports "Knowledge Base Only" mode for AI agents. Dual-pipeline: local RAG (OpenAI embeddings + PostgreSQL cosine similarity) for text, plus per-user AWS Bedrock Knowledge Bases for multimodal content (images, audio, video, PDFs). Each user gets auto-provisioned Bedrock KB ID backed by S3. Agents have `lookup_bedrock_knowledge_base` tool alongside existing local KB tool during calls.
 - **Provider DID Marketplace**: Allows browsing and renting DIDs from various carrier providers.
-- **Bedrock + Polly Engine (RockCenter)**: Utilizes AWS Bedrock (Claude Sonnet 4.6) for AI and multi-provider TTS (AWS Polly or ElevenLabs) with Twilio telephony. Supports both outbound and inbound scenarios with natural agent behavior — no rigid scripted frameworks. System prompts use Anthropic content-block array format (`[{ type: "text", text }]`) for optimal Sonnet 4.6 streaming. KB tool is available but not mandatory — the model decides when to use it.
+- **Bedrock + Polly Engine (RockCenter)**: Multi-LLM engine supporting AWS Bedrock (Claude Sonnet 4.6) and OpenAI (gpt-4o, gpt-4o-mini) for AI, with multi-provider TTS (AWS Polly or ElevenLabs) and Twilio telephony. Model routing via `isOpenAIModel()` in `types.ts`; OpenAI adapter in `openai-llm.service.ts`. Supports both outbound and inbound scenarios with natural agent behavior — no rigid scripted frameworks. System prompts kept as plain strings. KB tool is available but not mandatory — the model decides when to use it.
 - **Outbound Agent Prompt Chain**: Rich system prompt generation for outbound agents, including personalized call scripts with `{{variable}}` placeholders, integrated with a 3-phase no-response handling for call lifecycle.
 - **Deprock Department System**: Replicates the Department Management system specifically for the Bedrock + Polly engine, using AWS Polly voices and separate configuration via `engineType`.
 - **Deprock IVR System (Enterprise-Grade)**: Full Twilio IVR implementation for Bedrock+Polly, supporting dual-input (DTMF + speech), retry logic, fallback departments, and multi-language support. Includes ElevenLabs voice ID to Polly mapping.
@@ -33,7 +33,7 @@ The application uses a client-server architecture with a React 18, Vite, TypeScr
 - **Live Call Monitoring System**: Real-time supervisor dashboard for monitoring active calls, with WebSocket-based updates, transcript streaming, and role-based access.
 
 ## External Dependencies
-- **AI Engines**: ElevenLabs, OpenAI Realtime API, Anthropic Claude, AWS Bedrock Claude Sonnet 4.6 (primary, `us.anthropic.claude-sonnet-4-6`) & Opus 4.5 (fallback, `us.anthropic.claude-opus-4-5-20251101-v1:0`), with legacy Sonnet 4/3.5 Haiku support.
+- **AI Engines**: ElevenLabs, OpenAI Realtime API, OpenAI Chat Completions (gpt-4o, gpt-4o-mini), Anthropic Claude, AWS Bedrock Claude Sonnet 4.6 (primary, `us.anthropic.claude-sonnet-4-6`) & Opus 4.5 (fallback, `us.anthropic.claude-opus-4-5-20251101-v1:0`), with legacy Sonnet 4/3.5 Haiku support.
 - **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly.
 - **Telephony Providers**: Twilio, Plivo, TCXC.
 - **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.

@@ -45,12 +45,19 @@ async function getClient(): Promise<OpenAI> {
   return clientInstance;
 }
 
+export interface OpenAIToolDef {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
 export interface OpenAILLMStreamOptions {
   model: string;
   messages: Array<{ role: string; content: string }>;
   systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
+  tools?: OpenAIToolDef[];
 }
 
 export interface OpenAILLMInvokeResult {
@@ -58,6 +65,26 @@ export interface OpenAILLMInvokeResult {
   inputTokens: number;
   outputTokens: number;
   stopReason: string;
+}
+
+function buildOpenAITools(tools: OpenAIToolDef[]): OpenAI.Chat.Completions.ChatCompletionTool[] {
+  return tools.map(t => ({
+    type: 'function' as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters,
+    },
+  }));
+}
+
+function toolCallToMarker(name: string, args: string): string {
+  try {
+    const parsed = JSON.parse(args);
+    return `[TOOL_CALL] ${JSON.stringify({ name, params: parsed })}`;
+  } catch {
+    return `[TOOL_CALL] ${JSON.stringify({ name, params: {} })}`;
+  }
 }
 
 export async function* openaiInvokeStream(options: OpenAILLMStreamOptions): AsyncGenerator<string> {
@@ -75,18 +102,29 @@ export async function* openaiInvokeStream(options: OpenAILLMStreamOptions): Asyn
   const startMs = Date.now();
   let gotFirstText = false;
 
-  console.log(`[OpenAI LLM] invokeStream: model=${model}, messages=${msgs.length}`);
+  const hasTools = options.tools && options.tools.length > 0;
+  console.log(`[OpenAI LLM] invokeStream: model=${model}, messages=${msgs.length}, tools=${hasTools ? options.tools!.length : 0}`);
 
-  const stream = await client.chat.completions.create({
+  const createParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
     model,
     messages: msgs,
     temperature: options.temperature ?? 0.7,
     max_tokens: options.maxTokens ?? 1024,
     stream: true,
-  });
+  };
+  if (hasTools) {
+    createParams.tools = buildOpenAITools(options.tools!);
+    createParams.tool_choice = 'auto';
+  }
+
+  const stream = await client.chat.completions.create(createParams);
+
+  const pendingToolCalls = new Map<number, { name: string; args: string }>();
 
   for await (const chunk of stream) {
     const delta = chunk.choices?.[0]?.delta;
+    const finishReason = chunk.choices?.[0]?.finish_reason;
+
     if (delta?.content) {
       if (!gotFirstText) {
         gotFirstText = true;
@@ -94,6 +132,41 @@ export async function* openaiInvokeStream(options: OpenAILLMStreamOptions): Asyn
         console.log(`[OpenAI LLM] First text from "${model}" in ${Date.now() - startMs}ms: "${preview}"`);
       }
       yield delta.content;
+    }
+
+    if (delta?.tool_calls) {
+      for (const tc of delta.tool_calls) {
+        const idx = tc.index;
+        if (!pendingToolCalls.has(idx)) {
+          pendingToolCalls.set(idx, { name: '', args: '' });
+        }
+        const entry = pendingToolCalls.get(idx)!;
+        if (tc.function?.name) entry.name += tc.function.name;
+        if (tc.function?.arguments) entry.args += tc.function.arguments;
+      }
+    }
+
+    if (finishReason === 'tool_calls' || (finishReason === 'stop' && pendingToolCalls.size > 0)) {
+      for (const [, entry] of pendingToolCalls) {
+        if (entry.name) {
+          const marker = toolCallToMarker(entry.name, entry.args);
+          console.log(`[OpenAI LLM] Native tool call detected: ${entry.name}`);
+          yield marker;
+          gotFirstText = true;
+        }
+      }
+      pendingToolCalls.clear();
+    }
+  }
+
+  if (pendingToolCalls.size > 0) {
+    for (const [, entry] of pendingToolCalls) {
+      if (entry.name) {
+        const marker = toolCallToMarker(entry.name, entry.args);
+        console.log(`[OpenAI LLM] Native tool call (end of stream): ${entry.name}`);
+        yield marker;
+        gotFirstText = true;
+      }
     }
   }
 
@@ -114,18 +187,39 @@ export async function openaiInvoke(options: OpenAILLMStreamOptions): Promise<Ope
     msgs.push({ role: m.role as 'user' | 'assistant', content: m.content });
   }
 
-  console.log(`[OpenAI LLM] invoke: model=${model}, messages=${msgs.length}`);
+  const hasTools = options.tools && options.tools.length > 0;
+  console.log(`[OpenAI LLM] invoke: model=${model}, messages=${msgs.length}, tools=${hasTools ? options.tools!.length : 0}`);
 
-  const response = await client.chat.completions.create({
+  const createParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
     model,
     messages: msgs,
     temperature: options.temperature ?? 0.7,
     max_tokens: options.maxTokens ?? 1024,
-  });
+  };
+  if (hasTools) {
+    createParams.tools = buildOpenAITools(options.tools!);
+    createParams.tool_choice = 'auto';
+  }
 
+  const response = await client.chat.completions.create(createParams);
   const choice = response.choices?.[0];
+
+  let content = choice?.message?.content || '';
+
+  if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
+    const toolMarkers = choice.message.tool_calls
+      .filter(tc => tc.type === 'function')
+      .map(tc => {
+        console.log(`[OpenAI LLM] Native tool call (non-stream): ${tc.function.name}`);
+        return toolCallToMarker(tc.function.name, tc.function.arguments);
+      });
+    if (toolMarkers.length > 0) {
+      content = content ? content + '\n' + toolMarkers.join('\n') : toolMarkers.join('\n');
+    }
+  }
+
   return {
-    content: choice?.message?.content || '',
+    content,
     inputTokens: response.usage?.prompt_tokens || 0,
     outputTokens: response.usage?.completion_tokens || 0,
     stopReason: choice?.finish_reason || 'unknown',

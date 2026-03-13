@@ -1684,6 +1684,10 @@ export class BedrockPollyAudioBridge {
         }
       };
 
+      const openaiToolDefs = isOpenAIModel(primaryModel) && activeTools.length > 0
+        ? activeTools.map(t => ({ name: t.name, description: t.description, parameters: t.parameters }))
+        : undefined;
+
       const createLLMStream = (model: string) => {
         if (isOpenAIModel(model)) {
           return openaiInvokeStream({
@@ -1692,6 +1696,7 @@ export class BedrockPollyAudioBridge {
             systemPrompt,
             temperature: 0.3,
             maxTokens: adaptiveTokens,
+            tools: openaiToolDefs,
           });
         }
         return awsBedrockService.invokeStream({
@@ -1988,12 +1993,16 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     try {
       let content: string;
       if (isOpenAIModel(agentConfig.model)) {
+        const openaiTools = agentConfig.tools && agentConfig.tools.length > 0
+          ? agentConfig.tools.map(t => ({ name: t.name, description: t.description, parameters: t.parameters }))
+          : undefined;
         const response = await openaiInvoke({
           model: agentConfig.model,
           messages: bedrockMessages,
           systemPrompt,
           temperature: agentConfig.temperature ?? 0.7,
           maxTokens: adaptiveTokens,
+          tools: openaiTools,
         });
         content = response.content || '';
         console.log(`[BedrockPolly Bridge] OpenAI response: ${content.length} chars, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);

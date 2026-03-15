@@ -9,6 +9,46 @@ import { logger } from '../../../utils/logger';
 import { getDomain } from '../../../utils/domain';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { applyArabicPronunciationFixes } from '../services/ssml-humanizer';
+import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
+import { TWILIO_OPENAI_CONFIG } from '../../twilio-openai/config/twilio-openai-config';
+import { liveCallRegistry } from '../../../services/live-call-registry';
+
+function isOpenAIRealtimeAgent(agent: typeof agents.$inferSelect): boolean {
+  return agent.telephonyProvider === 'twilio_openai';
+}
+
+const POLLY_TO_OPENAI_VOICE_MAP: Record<string, string> = {
+  'Joanna': 'alloy',
+  'Matthew': 'echo',
+  'Salli': 'shimmer',
+  'Kendra': 'coral',
+  'Kimberly': 'sage',
+  'Joey': 'ash',
+  'Justin': 'verse',
+  'Ivy': 'alloy',
+  'Ruth': 'shimmer',
+  'Stephen': 'echo',
+  'Zeina': 'alloy',
+  'Hala': 'shimmer',
+  'Zayd': 'ash',
+  'Lupe': 'coral',
+  'Léa': 'shimmer',
+  'Vicki': 'coral',
+  'Bianca': 'sage',
+  'Camila': 'coral',
+  'Zhiyu': 'alloy',
+  'Kajal': 'shimmer',
+  'Tomoko': 'alloy',
+  'Seoyeon': 'shimmer',
+};
+
+function mapPollyVoiceToOpenAI(pollyVoice: string | null | undefined, agentOpenAIVoice: string | null | undefined): string {
+  if (agentOpenAIVoice) return agentOpenAIVoice;
+  if (pollyVoice && POLLY_TO_OPENAI_VOICE_MAP[pollyVoice]) {
+    return POLLY_TO_OPENAI_VOICE_MAP[pollyVoice];
+  }
+  return TWILIO_OPENAI_CONFIG.defaultVoice;
+}
 
 const router = Router();
 
@@ -589,15 +629,17 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
     }
 
     const callId = nanoid();
+    const useOpenAIRealtime = isOpenAIRealtimeAgent(agent);
 
     const agentLanguage = lang || agent.language || 'en';
+    const engineLabel = useOpenAIRealtime ? 'openai-realtime' : 'bedrock-polly';
     const callMetadata: Record<string, unknown> = {
       ivrId: config.id,
       departmentId,
       departmentAgentId: bestAgent.departmentAgent.id,
       language: agentLanguage,
       selectedOption: selectedOption.label,
-      engine: 'bedrock-polly',
+      engine: engineLabel,
       ivrRouted: true,
       systemPrompt: agent.systemPrompt,
       firstMessage: agent.firstMessage,
@@ -636,19 +678,42 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
       callMetadata.elevenLabsApiKey = (agent as any).elevenLabsApiKey;
     }
 
-    const agentVoice = agent.awsPollyVoiceId || langVoice || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
+    let openaiCredentialId: string | null = null;
+    let agentVoice: string;
+    let openaiModel: string;
+
+    if (useOpenAIRealtime) {
+      const credential = await OpenAIPoolService.reserveSlot();
+      if (!credential) {
+        logger.warn(`[Deprock IVR] No OpenAI capacity available, falling back to Bedrock+Polly for call ${callSid}`, undefined, 'DeprockIVR');
+        agentVoice = agent.awsPollyVoiceId || langVoice || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
+        openaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
+        callMetadata.engine = 'bedrock-polly';
+        callMetadata.openaiRealtimeFallback = true;
+      } else {
+        openaiCredentialId = credential.id;
+        agentVoice = mapPollyVoiceToOpenAI(agent.awsPollyVoiceId, agent.openaiVoice);
+        openaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
+        logger.info(`[Deprock IVR] OpenAI Realtime slot reserved (credential: ${credential.id}) for agent ${agent.id}`, undefined, 'DeprockIVR');
+      }
+    } else {
+      agentVoice = agent.awsPollyVoiceId || langVoice || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
+      openaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
+    }
+
+    const actualEngine = callMetadata.engine as string;
 
     await db.insert(twilioOpenaiCalls).values({
       id: callId,
       userId: config.userId,
       agentId: agent.id,
       twilioPhoneNumberId: phoneRecord?.id || null,
-      openaiCredentialId: null,
+      openaiCredentialId,
       twilioCallSid: callSid,
       fromNumber: caller,
       toNumber: To || phoneRecord?.phoneNumber || '',
       openaiVoice: agentVoice,
-      openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
+      openaiModel,
       status: 'in-progress',
       callDirection: 'inbound',
       startedAt: new Date(),
@@ -656,7 +721,7 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
       metadata: callMetadata,
     });
 
-    logger.info(`[Deprock IVR] Call record created: ${callId}, agent: ${agent.id}, flow: ${callMetadata.isFlowAgent ? 'yes' : 'no'}, lang: ${agentLanguage}`, undefined, 'DeprockIVR');
+    logger.info(`[Deprock IVR] Call record created: ${callId}, agent: ${agent.id}, engine: ${actualEngine}, flow: ${callMetadata.isFlowAgent ? 'yes' : 'no'}, lang: ${agentLanguage}`, undefined, 'DeprockIVR');
 
     try {
       const twilioClient = await getTwilioClient();
@@ -671,9 +736,31 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
       logger.error(`[Deprock IVR] Failed to start recording for IVR call ${callId}`, recordError, 'DeprockIVR');
     }
 
+    liveCallRegistry.registerCall({
+      callId,
+      userId: config.userId,
+      twilioCallSid: callSid,
+      direction: 'inbound',
+      status: 'in-progress',
+      fromNumber: caller,
+      toNumber: To || phoneRecord?.phoneNumber || '',
+      agentId: agent.id,
+      agentName: agent.name || undefined,
+      engine: actualEngine === 'openai-realtime' ? 'twilio-openai' : 'bedrock-polly',
+      startedAt: new Date(),
+      answeredAt: new Date(),
+    });
+
     const baseUrl = buildBaseUrl();
     const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');
-    const streamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
+
+    let streamUrl: string;
+    if (actualEngine === 'openai-realtime') {
+      streamUrl = `${wsUrl}/api/twilio-openai/stream/${callSid}`;
+      logger.info(`[Deprock IVR] Routing to OpenAI Realtime stream: ${streamUrl}`, undefined, 'DeprockIVR');
+    } else {
+      streamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
+    }
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -771,33 +858,87 @@ router.post('/fallback', async (req: Request, res: Response) => {
     }
 
     const callId = nanoid();
+    const useOpenAIRealtime = isOpenAIRealtimeAgent(agent);
+
+    let fbOpenaiCredentialId: string | null = null;
+    let fbAgentVoice: string;
+    let fbOpenaiModel: string;
+    let fbEngineLabel = useOpenAIRealtime ? 'openai-realtime' : 'bedrock-polly';
+
+    if (useOpenAIRealtime) {
+      const credential = await OpenAIPoolService.reserveSlot();
+      if (!credential) {
+        logger.warn(`[Deprock IVR] No OpenAI capacity for fallback, using Bedrock+Polly for call ${callSid}`, undefined, 'DeprockIVR');
+        fbAgentVoice = agent.awsPollyVoiceId || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
+        fbOpenaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
+        fbEngineLabel = 'bedrock-polly';
+      } else {
+        fbOpenaiCredentialId = credential.id;
+        fbAgentVoice = mapPollyVoiceToOpenAI(agent.awsPollyVoiceId, agent.openaiVoice);
+        fbOpenaiModel = TWILIO_OPENAI_CONFIG.openaiRealtimeModel;
+        logger.info(`[Deprock IVR] OpenAI Realtime slot reserved for fallback (credential: ${credential.id})`, undefined, 'DeprockIVR');
+      }
+    } else {
+      fbAgentVoice = (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
+      fbOpenaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
+    }
+
+    const fbCallMetadata: Record<string, unknown> = {
+      ivrId: config.id,
+      departmentId: config.fallbackDepartmentId,
+      isFallback: true,
+      language: lang,
+      engine: fbEngineLabel,
+      ivrRouted: true,
+      systemPrompt: agent.systemPrompt,
+      firstMessage: agent.firstMessage,
+      temperature: agent.temperature,
+      knowledgeBaseIds: agent.knowledgeBaseIds || [],
+      transferEnabled: agent.transferEnabled,
+      transferPhoneNumber: agent.transferPhoneNumber,
+      endConversationEnabled: agent.endConversationEnabled,
+      detectLanguageEnabled: agent.detectLanguageEnabled,
+      appointmentBookingEnabled: agent.appointmentBookingEnabled,
+    };
+
+    if (agent.type === 'flow' && agent.flowId) {
+      try {
+        const [flow] = await db
+          .select()
+          .from(flows)
+          .where(eq(flows.id, agent.flowId))
+          .limit(1);
+        if (flow && flow.compiledSystemPrompt && flow.compiledTools) {
+          fbCallMetadata.isFlowAgent = true;
+          fbCallMetadata.flowId = flow.id;
+          fbCallMetadata.systemPrompt = flow.compiledSystemPrompt;
+          fbCallMetadata.firstMessage = flow.compiledFirstMessage || agent.firstMessage;
+          fbCallMetadata.compiledTools = flow.compiledTools;
+        }
+      } catch (flowErr: any) {
+        logger.warn(`[Deprock IVR] Failed to load flow data for fallback: ${flowErr.message}`, undefined, 'DeprockIVR');
+      }
+    }
 
     await db.insert(twilioOpenaiCalls).values({
       id: callId,
       userId: config.userId,
       agentId: agent.id,
       twilioPhoneNumberId: phoneRecord?.id || null,
-      openaiCredentialId: null,
+      openaiCredentialId: fbOpenaiCredentialId,
       twilioCallSid: callSid,
       fromNumber: caller,
       toNumber: phoneRecord?.phoneNumber || '',
-      openaiVoice: (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice,
-      openaiModel: BEDROCK_POLLY_CONFIG.defaultModel,
+      openaiVoice: fbAgentVoice,
+      openaiModel: fbOpenaiModel,
       status: 'in-progress',
       callDirection: 'inbound',
       startedAt: new Date(),
       answeredAt: new Date(),
-      metadata: {
-        ivrId: config.id,
-        departmentId: config.fallbackDepartmentId,
-        isFallback: true,
-        language: lang,
-        engine: 'bedrock-polly',
-        ivrRouted: true,
-      },
+      metadata: fbCallMetadata,
     });
 
-    logger.info(`[Deprock IVR] Fallback call record created: ${callId}, agent: ${agent.id}`, undefined, 'DeprockIVR');
+    logger.info(`[Deprock IVR] Fallback call record created: ${callId}, agent: ${agent.id}, engine: ${fbEngineLabel}`, undefined, 'DeprockIVR');
 
     try {
       const twilioClient = await getTwilioClient();
@@ -812,9 +953,31 @@ router.post('/fallback', async (req: Request, res: Response) => {
       logger.error(`[Deprock IVR] Failed to start recording for fallback call ${callId}`, recordError, 'DeprockIVR');
     }
 
+    liveCallRegistry.registerCall({
+      callId,
+      userId: config.userId,
+      twilioCallSid: callSid,
+      direction: 'inbound',
+      status: 'in-progress',
+      fromNumber: caller,
+      toNumber: phoneRecord?.phoneNumber || '',
+      agentId: agent.id,
+      agentName: agent.name || undefined,
+      engine: fbEngineLabel === 'openai-realtime' ? 'twilio-openai' : 'bedrock-polly',
+      startedAt: new Date(),
+      answeredAt: new Date(),
+    });
+
     const baseUrl = buildBaseUrl();
     const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');
-    const streamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
+
+    let fbStreamUrl: string;
+    if (fbEngineLabel === 'openai-realtime') {
+      fbStreamUrl = `${wsUrl}/api/twilio-openai/stream/${callSid}`;
+      logger.info(`[Deprock IVR] Fallback routing to OpenAI Realtime stream`, undefined, 'DeprockIVR');
+    } else {
+      fbStreamUrl = `${wsUrl}/api/bedrock-polly/stream/${callSid}`;
+    }
 
     const fbLangOpt = langOptions?.find(l => l.language === lang);
     const langVoice = fbLangOpt?.voiceId || voiceId;
@@ -823,7 +986,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
 <Response>
   ${sayOrPlay(langVoice, template.holdMsg, ivrId, false, fallbackSpeed)}
   <Connect>
-    <Stream url="${escapeXml(streamUrl)}">
+    <Stream url="${escapeXml(fbStreamUrl)}">
       <Parameter name="callId" value="${escapeXml(callId)}" />
       <Parameter name="agentId" value="${escapeXml(agent.id)}" />
     </Stream>

@@ -879,7 +879,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
         logger.info(`[Deprock IVR] OpenAI Realtime slot reserved for fallback (credential: ${credential.id})`, undefined, 'DeprockIVR');
       }
     } else {
-      fbAgentVoice = (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
+      fbAgentVoice = agent.awsPollyVoiceId || (agent.openaiVoice as any) || BEDROCK_POLLY_CONFIG.defaultVoice;
       fbOpenaiModel = BEDROCK_POLLY_CONFIG.defaultModel;
     }
 

@@ -1817,23 +1817,62 @@ function DepartmentsStep({
 
   const generateAiNameForNewDept = async (deptId: string, langAgentId: string, langCode: string, deptType: string) => {
     try {
-      const response = await apiRequest("POST", "/api/deprock/generate-name", {
+      // Find the department to get its name
+      const dept = canvasDepartments.find(d => d.id === deptId);
+      if (!dept) return;
+
+      // Generate AI name
+      const nameResponse = await apiRequest("POST", "/api/deprock/generate-name", {
         language: langCode,
         departmentType: deptType,
+        departmentName: dept.name,
       });
-      const data = await response.json();
-      if (data.name) {
+      const nameData = await nameResponse.json();
+      
+      if (nameData.name) {
+        // Update with the generated name first
         setCanvasDepartments((prev) =>
-          prev.map((dept) => {
-            if (dept.id !== deptId) return dept;
+          prev.map((d) => {
+            if (d.id !== deptId) return d;
             return {
-              ...dept,
-              languageAgents: (dept.languageAgents || []).map((la) =>
-                la.id === langAgentId ? { ...la, agentName: data.name } : la
+              ...d,
+              languageAgents: (d.languageAgents || []).map((la) =>
+                la.id === langAgentId ? { ...la, agentName: nameData.name } : la
               ),
             };
           })
         );
+
+        // Then generate the first message with the new name
+        try {
+          const translatedDeptName = translateDeptName(dept.name, dept.type, langCode);
+          const langAgent = dept.languageAgents?.find(la => la.id === langAgentId);
+          
+          const msgResponse = await apiRequest("POST", "/api/deprock/generate-first-message", {
+            language: langCode,
+            departmentType: deptType,
+            departmentName: translatedDeptName,
+            voiceTone: langAgent?.voiceTone || undefined,
+            agentName: nameData.name,
+          });
+          const msgData = await msgResponse.json();
+          
+          if (msgData.firstMessage) {
+            setCanvasDepartments((prev) =>
+              prev.map((d) => {
+                if (d.id !== deptId) return d;
+                return {
+                  ...d,
+                  languageAgents: (d.languageAgents || []).map((la) =>
+                    la.id === langAgentId ? { ...la, firstMessage: msgData.firstMessage } : la
+                  ),
+                };
+              })
+            );
+          }
+        } catch {
+          // If first message generation fails, that's ok - at least we have the name
+        }
       }
     } catch {
     }

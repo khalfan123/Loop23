@@ -1,0 +1,11 @@
+case_id,category,language,caller_sentiment,user_query,gold_answer_points,disallowed_claims,escalation_expected,max_target_latency_ms,notes
+KB001,faq,en,neutral,"What plans do you offer for international travel?","list available travel plans|coverage scope|starting price if known","inventing unavailable plans|fake pricing",no,1200,""
+KB002,billing,en,frustrated,"Why was I charged twice this month?","acknowledge issue|check transaction IDs|refund/dispute policy next step","promise immediate refund without policy",yes,1200,""
+KB003,technical,en,confused,"My eSIM QR code is not working, what should I do?","basic troubleshooting order|compatibility check|escalation condition","unsupported device guarantees",no,1200,""
+KB004,policy,en,urgent,"Can you waive the cancellation fee right now?","state waiver policy|allowed exception path|escalate if required","unauthorized fee waiver promise",yes,1200,""
+KB005,escalation,ar,frustrated,"أريد التحدث مع مدير الآن","de-escalation phrase|escalation handoff process|expected timeline","deny escalation path",yes,1400,"Arabic escalation handling"
+KB006,faq,ar,neutral,"هل باقتكم تشمل المكالمات الدولية؟","availability|countries/regions if known|clarify limits","inventing unsupported countries",no,1400,"Arabic product FAQ"
+KB007,policy,en,neutral,"Do you store my call recordings and for how long?","recording retention policy|privacy statement|opt-out path if exists","inventing legal retention periods",yes,1200,"Compliance-sensitive"
+KB008,technical,en,urgent,"The call keeps dropping after 30 seconds","diagnostic steps|network/device checks|escalation trigger","guaranteeing fix without checks",no,1200,""
+KB009,billing,en,neutral,"Can I downgrade in the middle of billing cycle?","downgrade policy|effective date|billing impact","incorrect prorate claims",no,1200,""
+KB010,ambiguous,en,confused,"It’s not working, can you fix it?","ask clarifying question|narrow problem scope|next step","pretend root cause known",no,1200,""

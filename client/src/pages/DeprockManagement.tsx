@@ -278,7 +278,7 @@ const ELEVENLABS_VOICES = [
   { id: "el_omar", name: "Omar (ElevenLabs)", gender: "male", style: "deep", languages: ["ar"] },
 ];
 
-const ALL_IVR_VOICES = [...POLLY_VOICES, ...ELEVENLABS_VOICES];
+const ALL_IVR_VOICES = [...ELEVENLABS_VOICES];
 
 
 const getVoicesForLanguage = (languageCode: string) => {
@@ -512,12 +512,12 @@ export default function DeprockManagement() {
   const [ivrEnabled, setIvrEnabled] = useState(true);
   const [multiLangEnabled, setMultiLangEnabled] = useState(false);
   const [languageOptions, setLanguageOptions] = useState<LanguageOption[]>([
-    { id: "default", language: "en", voiceId: "Joanna", greeting: DEFAULT_GREETINGS.en }
+    { id: "default", language: "en", voiceId: "el_rachel", greeting: DEFAULT_GREETINGS.en }
   ]);
   const ivrAudioRef = useRef<HTMLAudioElement | null>(null);
   const [ivrPlayingVoiceId, setIvrPlayingVoiceId] = useState<string | null>(null);
   const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
-  const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('Joanna');
+  const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('el_rachel');
   const [ivrVoiceSpeed, setIvrVoiceSpeed] = useState(0.92);
   const isGreetingCustomized = useRef(false);
   
@@ -782,7 +782,7 @@ export default function DeprockManagement() {
         : languageOptions[0]?.greeting || DEFAULT_GREETINGS.en;
 
       const singleLangOptions = [{
-        ...languageOptions[0] || { id: "default", language: "en", voiceId: "Joanna", greeting: DEFAULT_GREETINGS.en },
+        ...languageOptions[0] || { id: "default", language: "en", voiceId: "el_rachel", greeting: DEFAULT_GREETINGS.en },
         speed: languageOptions[0]?.speed ?? ivrVoiceSpeed,
       }];
 
@@ -790,7 +790,7 @@ export default function DeprockManagement() {
         return apiRequest("PATCH", `/api/deprock/ivr/${activeIvr.id}`, {
           isActive: ivrEnabled,
           greetingMessage,
-          voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'Joanna'),
+          voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'el_rachel'),
           languageOptions: multiLangEnabled ? languageOptions : singleLangOptions,
         });
       } else {
@@ -798,7 +798,7 @@ export default function DeprockManagement() {
           name: "Main IVR",
           isActive: ivrEnabled,
           greetingMessage,
-          voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'Joanna'),
+          voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'el_rachel'),
           languageOptions: multiLangEnabled ? languageOptions : singleLangOptions,
         });
       }
@@ -866,7 +866,7 @@ export default function DeprockManagement() {
 
   const getDefaultVoiceForLanguage = (langCode: string) => {
     const voices = getVoicesForLanguage(langCode);
-    return voices[0]?.id || "Joanna";
+    return voices[0]?.id || "el_rachel";
   };
 
   const addLanguageOption = () => {
@@ -1293,7 +1293,7 @@ export default function DeprockManagement() {
                         setLanguageOptions([{
                           id: "default",
                           language: "en",
-                          voiceId: "Joanna",
+                          voiceId: "el_rachel",
                           greeting: activeIvrItem.greetingMessage || DEFAULT_GREETINGS.en,
                         }]);
                       }
@@ -1303,7 +1303,7 @@ export default function DeprockManagement() {
                       setLanguageOptions([{
                         id: "default",
                         language: "en",
-                        voiceId: "Joanna",
+                        voiceId: "el_rachel",
                         greeting: DEFAULT_GREETINGS.en,
                       }]);
                     }
@@ -1779,15 +1779,6 @@ export default function DeprockManagement() {
                                 <SelectValue placeholder="Select voice..." />
                               </SelectTrigger>
                               <SelectContent>
-                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
-                                {POLLY_VOICES.filter(v => v.languages.includes(agent.language)).map(voice => (
-                                  <SelectItem key={voice.id} value={voice.id}>
-                                    {voice.name} - {voice.gender}
-                                  </SelectItem>
-                                ))}
-                                {ELEVENLABS_VOICES.filter(v => v.languages.includes(agent.language)).length > 0 && (
-                                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">ElevenLabs Voices</div>
-                                )}
                                 {ELEVENLABS_VOICES.filter(v => v.languages.includes(agent.language)).map(voice => (
                                   <SelectItem key={voice.id} value={voice.id}>
                                     {voice.name} - {voice.gender}
@@ -1963,7 +1954,6 @@ export default function DeprockManagement() {
                     <SelectValue placeholder="Select a voice..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
                     {ALL_IVR_VOICES.filter(v => v.languages.includes(selectedAgent.language)).map((voice) => (
                       <SelectItem key={voice.id} value={voice.id}>
                         {voice.name} - {voice.gender}, {voice.style}
@@ -2348,7 +2338,6 @@ export default function DeprockManagement() {
                             <SelectValue placeholder="Select a voice..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
                             {getVoicesForLanguage(activeLangAgent.language).map((voice) => (
                               <SelectItem key={voice.id} value={voice.id}>
                                 {voice.name} - {voice.gender}, {voice.style}
@@ -2645,15 +2634,6 @@ export default function DeprockManagement() {
                                 <SelectValue placeholder="Select a voice..." />
                               </SelectTrigger>
                               <SelectContent>
-                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
-                                {POLLY_VOICES.filter(v => v.languages.includes("en")).map((voice) => (
-                                  <SelectItem key={voice.id} value={voice.id}>
-                                    {voice.name} - {voice.gender}, {voice.style}
-                                  </SelectItem>
-                                ))}
-                                {ELEVENLABS_VOICES.filter(v => v.languages.includes("en")).length > 0 && (
-                                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">ElevenLabs Voices</div>
-                                )}
                                 {ELEVENLABS_VOICES.filter(v => v.languages.includes("en")).map((voice) => (
                                   <SelectItem key={voice.id} value={voice.id}>
                                     {voice.name} - {voice.gender}, {voice.style}
@@ -2761,7 +2741,6 @@ export default function DeprockManagement() {
                                     <SelectContent>
                                       {getVoicesForLanguage(opt.language).length > 0 ? (
                                         <>
-                                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
                                           {getVoicesForLanguage(opt.language).map((voice) => (
                                             <SelectItem key={voice.id} value={voice.id}>
                                               {voice.name} - {voice.gender}, {voice.style}
@@ -2887,7 +2866,7 @@ export default function DeprockManagement() {
                               setLanguageOptions([{
                                 id: "default",
                                 language: "en",
-                                voiceId: "Joanna",
+                                voiceId: "el_rachel",
                                 greeting: e.target.value,
                               }]);
                             } else {
@@ -3044,9 +3023,8 @@ export default function DeprockManagement() {
                   {(() => {
                     const currentVoiceId = editAgentDetail.voiceId;
                     const isKnownVoice = ALL_IVR_VOICES.some(v => v.id === currentVoiceId);
-                    const filteredPolly = POLLY_VOICES.filter(v => v.languages.includes(viewAgentDetail.language));
                     const filteredEL = ELEVENLABS_VOICES.filter(v => v.languages.includes(viewAgentDetail.language));
-                    const currentInFiltered = [...filteredPolly, ...filteredEL].some(v => v.id === currentVoiceId);
+                    const currentInFiltered = filteredEL.some(v => v.id === currentVoiceId);
                     return (
                       <Select
                         value={isKnownVoice ? currentVoiceId : ''}
@@ -3064,15 +3042,6 @@ export default function DeprockManagement() {
                             <SelectItem key={currentVoiceId} value={currentVoiceId} data-testid={`deprock-agent-detail-voice-option-${currentVoiceId}`}>
                               {ALL_IVR_VOICES.find(v => v.id === currentVoiceId)?.name || currentVoiceId} (current)
                             </SelectItem>
-                          )}
-                          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
-                          {filteredPolly.map(voice => (
-                            <SelectItem key={voice.id} value={voice.id} data-testid={`deprock-agent-detail-voice-option-${voice.id}`}>
-                              {voice.name} ({voice.gender}, {voice.style})
-                            </SelectItem>
-                          ))}
-                          {filteredEL.length > 0 && (
-                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-t mt-1 pt-1">ElevenLabs Voices</div>
                           )}
                           {filteredEL.map(voice => (
                             <SelectItem key={voice.id} value={voice.id} data-testid={`deprock-agent-detail-voice-option-${voice.id}`}>

@@ -2015,55 +2015,103 @@ Do NOT include any markdown, code blocks, or extra text.`;
           responseText = completion.choices[0]?.message?.content || '[]';
         }
 
-        const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const parseArticles = (raw: string): Array<{ title: string; content: string }> => {
+          const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            console.error(`[KB Gen] JSON parse failed for "${folder.name}":`, cleaned.substring(0, 200));
+            return [];
+          }
+        };
 
-        let articles: Array<{ title: string; content: string }>;
-        try {
-          articles = JSON.parse(cleanedResponse);
-        } catch {
-          console.error(`[KB Gen] Failed to parse response for "${folder.name}":`, cleanedResponse.substring(0, 200));
-          folderResults[folder.name] = 0;
-          continue;
-        }
+        const insertArticles = async (articles: Array<{ title: string; content: string }>): Promise<number> => {
+          let count = 0;
+          for (const article of articles) {
+            if (!article.title || !article.content) continue;
+            const contentText = article.content;
+            const storageSize = Buffer.byteLength(contentText, 'utf8');
+            const [inserted] = await db.insert(knowledgeBase).values({
+              userId: req.userId,
+              folderId: folder.id,
+              type: 'text',
+              title: article.title,
+              content: contentText,
+              url: null,
+              fileUrl: null,
+              elevenLabsDocId: null,
+              metadata: { ragEnabled: true, aiGenerated: true },
+              storageSize,
+            }).returning();
+            allCreatedItems.push({ id: inserted.id, title: inserted.title, folder: folder.name });
+            count++;
+            RAGKnowledgeService.processKnowledgeItem(
+              inserted.id,
+              req.userId!,
+              contentText,
+              { source: 'text' }
+            ).catch(err => console.error(`[KB Gen] RAG error for ${inserted.id}:`, err));
+          }
+          return count;
+        };
 
-        if (!Array.isArray(articles)) {
-          folderResults[folder.name] = 0;
-          continue;
-        }
+        const generateArticleText = async (count: number, extraContext?: string): Promise<string> => {
+          const topUpPrompt = `${prompt}${extraContext ? `\n\nNote: You previously generated some articles. Generate ${count} ADDITIONAL articles on DIFFERENT topics not already covered.` : ''}`;
+          if (bedrockConfigured) {
+            try {
+              const br = await awsBedrockService.invoke({
+                model: "claude-3-5-haiku",
+                messages: [{ role: "user", content: topUpPrompt }],
+                systemPrompt: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations.",
+                maxTokens: 16000,
+                temperature: 0.75,
+              });
+              return br.content;
+            } catch (e: any) {
+              console.warn(`[KB Gen] Bedrock top-up failed, using OpenAI: ${e.message}`);
+            }
+          }
+          if (!openai) {
+            const { getOpenAIClient } = await import("../services/openai-modelfarm");
+            openai = await getOpenAIClient(req.userId);
+          }
+          const c = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations." },
+              { role: "user", content: topUpPrompt }
+            ],
+            temperature: 0.75,
+            max_tokens: 16000,
+          });
+          return c.choices[0]?.message?.content || '[]';
+        };
 
-        let insertedCount = 0;
-        for (const article of articles) {
-          if (!article.title || !article.content) continue;
+        let articles = parseArticles(responseText);
+        let insertedCount = await insertArticles(articles);
 
-          const contentText = article.content;
-          const storageSize = Buffer.byteLength(contentText, 'utf8');
-
-          const [inserted] = await db.insert(knowledgeBase).values({
-            userId: req.userId,
-            folderId: folder.id,
-            type: 'text',
-            title: article.title,
-            content: contentText,
-            url: null,
-            fileUrl: null,
-            elevenLabsDocId: null,
-            metadata: { ragEnabled: true, aiGenerated: true },
-            storageSize,
-          }).returning();
-
-          allCreatedItems.push({ id: inserted.id, title: inserted.title, folder: folder.name });
-          insertedCount++;
-
-          RAGKnowledgeService.processKnowledgeItem(
-            inserted.id,
-            req.userId!,
-            contentText,
-            { source: 'text' }
-          ).catch(err => console.error(`[KB Gen] RAG error for ${inserted.id}:`, err));
+        const MAX_TOPUP_ROUNDS = 2;
+        let topUpRound = 0;
+        while (insertedCount < targetCount && topUpRound < MAX_TOPUP_ROUNDS) {
+          const needed = targetCount - insertedCount;
+          console.log(`[KB Gen] "${folder.name}" under-returned (${insertedCount}/${targetCount}). Top-up round ${topUpRound + 1}: requesting ${needed} more...`);
+          try {
+            const topUpText = await generateArticleText(needed, `already_generated_${insertedCount}`);
+            const topUpArticles = parseArticles(topUpText);
+            if (topUpArticles.length === 0) break;
+            const added = await insertArticles(topUpArticles);
+            insertedCount += added;
+          } catch (topUpErr: any) {
+            console.warn(`[KB Gen] Top-up round ${topUpRound + 1} failed for "${folder.name}": ${topUpErr.message}`);
+            break;
+          }
+          topUpRound++;
         }
 
         folderResults[folder.name] = insertedCount;
-        console.log(`[KB Gen] Created ${insertedCount} articles for "${folder.name}"`);
+        const modelUsed = bedrockConfigured ? 'claude-3-5-haiku (Bedrock)' : 'gpt-4o-mini (OpenAI)';
+        console.log(`[KB Gen] "${folder.name}": ${insertedCount}/${targetCount} articles created (model: ${modelUsed}, top-up rounds: ${topUpRound})`);
       } catch (folderError: any) {
         console.error(`[KB Gen] Error generating for "${folder.name}":`, folderError.message);
         folderResults[folder.name] = 0;

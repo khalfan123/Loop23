@@ -1815,17 +1815,13 @@ function DepartmentsStep({
     return { id: langAgents[0].id, name: langAgents[0].name, systemPrompt: langAgents[0].systemPrompt, voiceTone: langAgents[0].voiceTone };
   };
 
-  const generateAiNameForNewDept = async (deptId: string, langAgentId: string, langCode: string, deptType: string) => {
+  const generateAiNameForNewDept = async (deptId: string, langAgentId: string, langCode: string, deptType: string, deptName: string) => {
     try {
-      // Find the department to get its name
-      const dept = canvasDepartments.find(d => d.id === deptId);
-      if (!dept) return;
-
-      // Generate AI name
+      // Generate AI name with the provided department info
       const nameResponse = await apiRequest("POST", "/api/deprock/generate-name", {
         language: langCode,
         departmentType: deptType,
-        departmentName: dept.name,
+        departmentName: deptName,
       });
       const nameData = await nameResponse.json();
       
@@ -1845,14 +1841,12 @@ function DepartmentsStep({
 
         // Then generate the first message with the new name
         try {
-          const translatedDeptName = translateDeptName(dept.name, dept.type, langCode);
-          const langAgent = dept.languageAgents?.find(la => la.id === langAgentId);
+          const translatedDeptName = translateDeptName(deptName, deptType, langCode);
           
           const msgResponse = await apiRequest("POST", "/api/deprock/generate-first-message", {
             language: langCode,
             departmentType: deptType,
             departmentName: translatedDeptName,
-            voiceTone: langAgent?.voiceTone || undefined,
             agentName: nameData.name,
           });
           const msgData = await msgResponse.json();
@@ -1970,7 +1964,7 @@ function DepartmentsStep({
 
     languageAgents.forEach((la) => {
       if (!la.agentId) {
-        generateAiNameForNewDept(newDeptId, la.id, la.language, deptType);
+        generateAiNameForNewDept(newDeptId, la.id, la.language, deptType, template.name);
       }
     });
 

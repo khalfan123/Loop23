@@ -253,7 +253,7 @@ const ELEVENLABS_VOICES = [
 
 const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_");
 
-const ALL_IVR_VOICES = [...POLLY_VOICES, ...ELEVENLABS_VOICES];
+const ALL_IVR_VOICES = [...ELEVENLABS_VOICES];
 
 const getPollyVoicesForLanguage = (languageCode: string) => {
   return POLLY_VOICES.filter(voice => voice.languages.includes(languageCode));
@@ -269,12 +269,12 @@ const getVoicesForLanguage = (languageCode: string) => {
 
 const getDefaultVoiceForLanguage = (langCode: string) => {
   const voices = getVoicesForLanguage(langCode);
-  return voices[0]?.id || "Joanna";
+  return voices[0]?.id || "el_rachel";
 };
 
 const getBestVoiceForDept = (deptType: string, langCode: string): string => {
   const voices = getVoicesForLanguage(langCode);
-  if (voices.length === 0) return "Joanna";
+  if (voices.length === 0) return "el_rachel";
 
   const stylePreference: Record<string, string[]> = {
     sales: ["warm", "friendly", "expressive"],
@@ -291,7 +291,7 @@ const getBestVoiceForDept = (deptType: string, langCode: string): string => {
     const match = voices.find(v => v.style === style);
     if (match) return match.id;
   }
-  return voices[0]?.id || "Joanna";
+  return voices[0]?.id || "el_rachel";
 };
 
 const getBestToneForDept = (deptType: string): string => {
@@ -1465,26 +1465,11 @@ function DepartmentCard({
                     <SelectContent>
                       {getVoicesForLanguage(activeLangAgent.language).length > 0 ? (
                         <>
-                          {getPollyVoicesForLanguage(activeLangAgent.language).length > 0 && (
-                            <>
-                              <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground">AWS Polly Neural Voices</div>
-                              {getPollyVoicesForLanguage(activeLangAgent.language).map((voice) => (
-                                <SelectItem key={voice.id} value={voice.id}>
-                                  {voice.name} - {voice.gender}, {voice.style}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                          {getElevenLabsVoicesForLanguage(activeLangAgent.language).length > 0 && (
-                            <>
-                              <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground">ElevenLabs Voices</div>
-                              {getElevenLabsVoicesForLanguage(activeLangAgent.language).map((voice) => (
-                                <SelectItem key={voice.id} value={voice.id}>
-                                  {voice.name} - {voice.gender}, {voice.style}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
+                          {getElevenLabsVoicesForLanguage(activeLangAgent.language).map((voice) => (
+                            <SelectItem key={voice.id} value={voice.id}>
+                              {voice.name} - {voice.gender}, {voice.style}
+                            </SelectItem>
+                          ))}
                         </>
                       ) : (
                         <div className="px-2 py-1.5 text-xs text-muted-foreground">No voices for this language</div>
@@ -2349,22 +2334,11 @@ function IVRRouterStep({
                         <SelectValue placeholder="Select a voice..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Neural Voices (English)</div>
-                        {POLLY_VOICES.filter(v => v.languages.includes('en')).map((voice) => (
+                        {ELEVENLABS_VOICES.filter(v => v.languages.includes('en')).map((voice) => (
                           <SelectItem key={voice.id} value={voice.id}>
                             {voice.name} - {voice.gender}, {voice.style}
                           </SelectItem>
                         ))}
-                        {ELEVENLABS_VOICES.filter(v => v.languages.includes('en')).length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">ElevenLabs Voices (English)</div>
-                            {ELEVENLABS_VOICES.filter(v => v.languages.includes('en')).map((voice) => (
-                              <SelectItem key={voice.id} value={voice.id}>
-                                {voice.name} - {voice.gender}, {voice.style}
-                              </SelectItem>
-                            ))}
-                          </>
-                        )}
                       </SelectContent>
                     </Select>
                     <Button
@@ -2462,7 +2436,6 @@ function IVRRouterStep({
                           <SelectContent>
                             {getVoicesForLanguage(opt.language).length > 0 ? (
                               <>
-                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Voices</div>
                                 {getVoicesForLanguage(opt.language).map((voice) => (
                                   <SelectItem key={voice.id} value={voice.id}>
                                     {voice.name} - {voice.gender}, {voice.style}
@@ -2566,7 +2539,7 @@ function IVRRouterStep({
                       setLanguageOptions([{
                         id: "default",
                         language: "en",
-                        voiceId: "Joanna",
+                        voiceId: "el_rachel",
                         greeting: e.target.value,
                       }]);
                     } else {
@@ -2585,7 +2558,7 @@ function IVRRouterStep({
                 <p className="text-xs text-muted-foreground mb-1.5">Select the voice used to speak the greeting to callers</p>
                 <div className="flex items-center gap-2">
                   <Select
-                    value={languageOptions[0]?.voiceId || "Joanna"}
+                    value={languageOptions[0]?.voiceId || "el_rachel"}
                     onValueChange={(val) => {
                       if (languageOptions.length === 0) {
                         setLanguageOptions([{
@@ -2606,31 +2579,15 @@ function IVRRouterStep({
                       {(() => {
                         const lang = languageOptions[0]?.language || 'en';
                         const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === lang)?.label || 'English';
-                        const pollyVoices = POLLY_VOICES.filter(v => v.languages.includes(lang));
                         const elVoices = ELEVENLABS_VOICES.filter(v => v.languages.includes(lang));
                         return (
                           <>
-                            {pollyVoices.length > 0 && (
-                              <>
-                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">AWS Polly Neural Voices ({langLabel})</div>
-                                {pollyVoices.map((voice) => (
-                                  <SelectItem key={voice.id} value={voice.id}>
-                                    {voice.name} - {voice.gender}, {voice.style}
-                                  </SelectItem>
-                                ))}
-                              </>
-                            )}
-                            {elVoices.length > 0 && (
-                              <>
-                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">ElevenLabs Voices ({langLabel})</div>
-                                {elVoices.map((voice) => (
-                                  <SelectItem key={voice.id} value={voice.id}>
-                                    {voice.name} - {voice.gender}, {voice.style}
-                                  </SelectItem>
-                                ))}
-                              </>
-                            )}
-                            {pollyVoices.length === 0 && elVoices.length === 0 && (
+                            {elVoices.map((voice) => (
+                              <SelectItem key={voice.id} value={voice.id}>
+                                {voice.name} - {voice.gender}, {voice.style}
+                              </SelectItem>
+                            ))}
+                            {elVoices.length === 0 && (
                               <div className="px-2 py-1.5 text-xs text-muted-foreground">No voices for this language</div>
                             )}
                           </>
@@ -2642,13 +2599,13 @@ function IVRRouterStep({
                     variant="outline"
                     size="icon"
                     onClick={() => handlePlayVoice(
-                      languageOptions[0]?.voiceId || "Joanna",
+                      languageOptions[0]?.voiceId || "el_rachel",
                       languageOptions[0]?.greeting || DEFAULT_GREETINGS.en,
                       languageOptions[0]?.speed ?? ivrVoiceSpeed
                     )}
                     data-testid="button-preview-default-voice"
                   >
-                    {playingVoiceId === (languageOptions[0]?.voiceId || "Joanna") ? (
+                    {playingVoiceId === (languageOptions[0]?.voiceId || "el_rachel") ? (
                       <Square className="h-4 w-4" />
                     ) : (
                       <Volume2 className="h-4 w-4" />
@@ -2717,10 +2674,10 @@ export default function DeprockCanvas() {
   const [ivrEnabled, setIvrEnabled] = useState(true);
   const [multiLangEnabled, setMultiLangEnabled] = useState(false);
   const [languageOptions, setLanguageOptions] = useState<LanguageOption[]>([
-    { id: "default", language: "en", voiceId: "Joanna", greeting: DEFAULT_GREETINGS.en },
+    { id: "default", language: "en", voiceId: "el_rachel", greeting: DEFAULT_GREETINGS.en },
   ]);
   const [languageSelectionGreetingText, setLanguageSelectionGreetingText] = useState('');
-  const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('Joanna');
+  const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('el_rachel');
   const [ivrVoiceSpeed, setIvrVoiceSpeed] = useState(0.92);
   const isGreetingCustomized = useRef(false);
 
@@ -2883,7 +2840,7 @@ export default function DeprockCanvas() {
             name: "Auto Distribution",
             isActive: ivrEnabled,
             greetingMessage,
-            voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'Joanna'),
+            voiceId: multiLangEnabled ? languageSelectionGreetingVoice : (languageOptions[0]?.voiceId || 'el_rachel'),
             menuOptions,
             languageOptions: (multiLangEnabled ? languageOptions : languageOptions).map(opt => ({
               ...opt,

@@ -50,6 +50,11 @@ Caller sentiment labels:
 
 See `docs/templates/kb-benchmark-cases.csv`.
 
+For SaaS documentation crawl testing, use:
+
+- `docs/templates/kb-benchmark-cases-saas-crawl-url.csv`
+- Replace `{{BASE_URL}}` with your real docs/help domain before running.
+
 Minimum fields:
 
 - `case_id`

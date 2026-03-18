@@ -1963,9 +1963,8 @@ function DepartmentsStep({
     setActiveDeptId(newDeptId);
 
     languageAgents.forEach((la) => {
-      if (!la.agentId) {
-        generateAiNameForNewDept(newDeptId, la.id, la.language, deptType, template.name);
-      }
+      // Always generate unique AI names for new departments
+      generateAiNameForNewDept(newDeptId, la.id, la.language, deptType, template.name);
     });
 
     if (deptType !== "custom") {

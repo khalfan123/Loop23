@@ -566,7 +566,7 @@ export default function DeprockCallSimulator() {
       <div className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
-            <Link href="/app">
+            <Link href="/app/deprock">
               <Button variant="ghost" size="sm" data-testid="link-back">
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back

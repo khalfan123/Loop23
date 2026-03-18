@@ -111,6 +111,99 @@ const NATIVE_NAME_EXAMPLES: Record<string, string[]> = {
   tr: ["Ayşe Yılmaz", "Mehmet Kaya", "Elif Demir", "Burak Çelik", "Zeynep Öztürk"],
 };
 
+function extractNameFromPrompt(prompt: string, language: string): string | null {
+  if (!prompt) return null;
+  
+  // Try to extract name patterns like "named X", "Your name is X", "I am X", "Call me X", etc.
+  const patterns: Record<string, RegExp[]> = {
+    en: [
+      /named\s+(?:as\s+)?["']?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /(?:my\s+)?name\s+is\s+["']?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /(?:you|your\s+(?:name|persona))\s+(?:is|should\s+be)\s+["']?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /call\s+me\s+["']?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
+      /i'm\s+(?:a\s+)?([A-Z][a-z]+)/i,
+      /act\s+as\s+(?:a\s+)?(?:professional\s+)?([A-Z][a-z]+)/i,
+    ],
+    ar: [
+      /اسمي\s+([\\u0600-\\u06FF]+)/,
+      /يمكنك\s+أن\s+تناديني\s+([\\u0600-\\u06FF]+)/,
+      /اسمك\s+([\\u0600-\\u06FF]+)/,
+    ],
+    es: [
+      /(?:me\s+)?llamo\s+([A-ZÁ][a-záéíóúñ]+(?:\\s+[A-ZÁ][a-záéíóúñ]+)?)/i,
+      /soy\s+([A-ZÁ][a-záéíóúñ]+)/i,
+    ],
+    fr: [
+      /(?:je\s+)?m'appelle\s+([A-Z][a-zà-ÿ]+(?:\\s+[A-Z][a-zà-ÿ]+)?)/i,
+      /je\s+suis\s+([A-Z][a-zà-ÿ]+)/i,
+    ],
+  };
+  
+  const langPatterns = patterns[language] || patterns.en;
+  for (const pattern of langPatterns) {
+    const match = prompt.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  
+  return null;
+}
+
+function generateNameFromPrompt(prompt: string, language: string, agentId: string): string {
+  // First try to extract explicit name from prompt
+  const extractedName = extractNameFromPrompt(prompt, language);
+  if (extractedName) {
+    return extractedName;
+  }
+  
+  // If no name found, use role keywords from prompt to generate contextual name
+  const roleKeywords: Record<string, string[][]> = {
+    en: [
+      [["sales", "sales agent", "sell"], "Morgan", "Jordan", "Casey"],
+      [["support", "customer service", "help"], "Alex", "Taylor", "Riley"],
+      [["booking", "schedule", "appointment"], "Sam", "Sidney", "Cameron"],
+      [["billing", "payment", "invoice"], "Morgan", "Drew", "Finley"],
+      [["hr", "human resources", "recruitment"], "Casey", "Morgan", "Riley"],
+      [["marketing", "campaign", "promotion"], "Jordan", "Riley", "Morgan"],
+      [["tech", "technical", "support"], "Alex", "Riley", "Jordan"],
+    ],
+    ar: [
+      [["مبيعات", "مندوب", "بيع"], "خلفان", "نور", "سلطان"],
+      [["دعم", "خدمة", "مساعدة"], "أحمد", "فاطمة", "نور"],
+      [["حجز", "مواعيد", "جدول"], "محمد", "علي", "حسن"],
+      [["فاتورة", "دفع", "رسوم"], "علي", "محمد", "سلطان"],
+      [["موارد بشرية", "توظيف"], "فاطمة", "نور", "ليلى"],
+      [["تسويق", "حملة", "ترويج"], "أحمد", "علي", "حسن"],
+    ],
+  };
+  
+  const langRoles = roleKeywords[language] || roleKeywords.en;
+  const lowerPrompt = prompt.toLowerCase();
+  
+  for (const [keywords, ...names] of langRoles) {
+    for (const keyword of keywords) {
+      if (lowerPrompt.includes(keyword)) {
+        let hash = 0;
+        for (let i = 0; i < agentId.length; i++) {
+          hash = ((hash << 5) - hash) + agentId.charCodeAt(i);
+          hash |= 0;
+        }
+        return names[Math.abs(hash) % names.length];
+      }
+    }
+  }
+  
+  // Fallback to random placeholder name
+  const names = NATIVE_NAME_EXAMPLES[language] || NATIVE_NAME_EXAMPLES.en;
+  let hash = 0;
+  for (let i = 0; i < agentId.length; i++) {
+    hash = ((hash << 5) - hash) + agentId.charCodeAt(i);
+    hash |= 0;
+  }
+  return names[Math.abs(hash) % names.length];
+}
+
 function pickRandomName(language: string, agentId: string): string {
   const names = NATIVE_NAME_EXAMPLES[language] || NATIVE_NAME_EXAMPLES.en;
   let hash = 0;
@@ -958,11 +1051,11 @@ function DepartmentCard({
     const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
     const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
 
-    const placeholderName = pickRandomName(newLangCode, langAgentId);
+    const generatedName = generateNameFromPrompt(systemPrompt, newLangCode, langAgentId);
     const updates: Partial<LanguageAgent> = {
       language: newLangCode,
       agentId: bestAgent?.id || null,
-      agentName: bestAgent?.name || placeholderName,
+      agentName: bestAgent?.name || generatedName,
       firstMessage: DEFAULT_FIRST_MESSAGES[newLangCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
@@ -1045,7 +1138,7 @@ function DepartmentCard({
       id: langAgentId,
       language: langCode,
       agentId: bestAgent?.id || null,
-      agentName: bestAgent?.name || pickRandomName(langCode, langAgentId),
+      agentName: bestAgent?.name || generateNameFromPrompt(systemPrompt, langCode, langAgentId),
       firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
@@ -1805,7 +1898,7 @@ function DepartmentsStep({
         id: langAgentId,
         language: langCode,
         agentId: bestAgent?.id || null,
-        agentName: bestAgent?.name || pickRandomName(langCode, langAgentId),
+        agentName: bestAgent?.name || generateNameFromPrompt(systemPrompt, langCode, langAgentId),
         firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
         systemPrompt,
         voiceId: bestVoice || null,

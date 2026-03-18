@@ -1378,26 +1378,27 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
   router.post("/generate-first-message", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { language, departmentType, departmentName, voiceTone, agentName } = req.body;
+      const { language, departmentType, departmentName, voiceTone, agentName, companyName } = req.body;
       const userId = req.userId!;
       if (!language) {
         return res.status(400).json({ error: "language is required" });
       }
 
       const langLabel = SUPPORTED_LANGUAGES[language] || language;
-      const deptContext = departmentType && departmentType !== 'custom'
-        ? `for a ${departmentType} department called "${departmentName || departmentType}"`
-        : departmentName ? `for the "${departmentName}" department` : '';
+      
+      // Build context with agent name, department, and company
+      const deptDisplay = departmentName || departmentType || 'General';
+      const nameContext = agentName
+        ? `The agent's name is "${agentName}" and they work in the "${deptDisplay}" department.`
+        : `The agent works in the "${deptDisplay}" department.`;
 
       const toneContext = voiceTone
         ? `The tone should be ${voiceTone}.`
         : 'The tone should be professional.';
 
-      const nameContext = agentName
-        ? `The agent's name is "${agentName}" — include a natural self-introduction with this name.`
-        : '';
-
       let companyContext = "";
+      let companyName_resolved = companyName;
+      
       try {
         const kbEntries = await db
           .select({ title: knowledgeBase.title, content: knowledgeBase.content, type: knowledgeBase.type })
@@ -1414,23 +1415,42 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
             if (summaryParts.length >= 5) break;
           }
           companyContext = `\nCOMPANY KNOWLEDGE BASE — use this to personalize the greeting with the company name, services, or brand:\n${summaryParts.join("\n")}`;
+          
+          // Try to extract company name from KB
+          if (!companyName_resolved && kbEntries.length > 0) {
+            const firstTitle = kbEntries[0]?.title;
+            if (firstTitle && !firstTitle.toLowerCase().includes('home') && !firstTitle.toLowerCase().includes('page')) {
+              companyName_resolved = firstTitle;
+            }
+          }
         }
       } catch (kbErr) {
         console.warn("[Deprock] Could not fetch knowledge base for first message generation:", kbErr);
       }
 
+      const companyPart = companyName_resolved 
+        ? ` Include the company name "${companyName_resolved}" naturally in the greeting.`
+        : '';
+
       const openai = await getOpenAIClient();
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         max_completion_tokens: 200,
+        temperature: 0.7,
         messages: [
           {
             role: "system",
-            content: `You generate short, natural first greeting messages for AI phone agents. The message should be 1-2 sentences max. It is the very first thing the agent says when answering a call. ${toneContext} The ENTIRE message MUST be written in ${langLabel}. Output ONLY the greeting message, no explanations or markdown.`
+            content: `You generate short, natural first greeting messages for AI phone agents. The message should be 1-2 sentences max. It is the very first thing the agent says when answering a call. ${toneContext} Include the agent's name naturally in the introduction. The ENTIRE message MUST be written in ${langLabel}. Output ONLY the greeting message, no explanations or markdown.`
           },
           {
             role: "user",
-            content: `Generate a first greeting message ${deptContext}. ${nameContext}${companyContext}\n\nThe message should feel natural, welcoming, and match the ${voiceTone || 'professional'} tone. Write it entirely in ${langLabel}.`
+            content: `Generate a first greeting message. ${nameContext}${companyPart} The message should:
+1. Include the agent's name (${agentName || 'unspecified'})
+2. Mention the department/team (${deptDisplay})
+${companyName_resolved ? `3. Include the company name "${companyName_resolved}"` : ''}
+4. Feel natural, warm, and match the ${voiceTone || 'professional'} tone
+5. Be suitable for answering phone calls
+Write it entirely in ${langLabel}.${companyContext}`
           }
         ],
       });

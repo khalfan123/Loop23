@@ -1051,11 +1051,12 @@ function DepartmentCard({
     const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
     const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
 
-    const generatedName = generateNameFromPrompt(systemPrompt, newLangCode, langAgentId);
+    // Use placeholder name initially, will be replaced by AI generation
+    const placeholderName = bestAgent?.name || "AI Assistant";
     const updates: Partial<LanguageAgent> = {
       language: newLangCode,
       agentId: bestAgent?.id || null,
-      agentName: bestAgent?.name || generatedName,
+      agentName: placeholderName,
       firstMessage: DEFAULT_FIRST_MESSAGES[newLangCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
@@ -1070,6 +1071,7 @@ function DepartmentCard({
         description: `Auto-selected agent "${bestAgent.name}" for ${SUPPORTED_LANGUAGES.find(l => l.code === newLangCode)?.label}`,
       });
     } else {
+      // Generate unique AI name and first message
       generateAiAgentName(langAgentId, newLangCode);
       if (dept.type !== "custom") {
         const updatedList = languageAgents.map(la => la.id === langAgentId ? { ...la, ...updates } : la);
@@ -1138,7 +1140,7 @@ function DepartmentCard({
       id: langAgentId,
       language: langCode,
       agentId: bestAgent?.id || null,
-      agentName: bestAgent?.name || generateNameFromPrompt(systemPrompt, langCode, langAgentId),
+      agentName: bestAgent?.name || "AI Assistant",
       firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
@@ -1150,6 +1152,7 @@ function DepartmentCard({
     setActiveTabIdx(languageAgents.length);
 
     if (!agentFound) {
+      // Generate unique AI name and first message
       generateAiAgentName(langAgentId, langCode);
     }
 
@@ -1190,11 +1193,14 @@ function DepartmentCard({
       const response = await apiRequest("POST", "/api/deprock/generate-name", {
         language: langCode,
         departmentType: dept.type,
+        departmentName: dept.name,
         voiceTone: langAgent?.voiceTone || undefined,
       });
       const data = await response.json();
       if (data.name) {
         updateLanguageAgent(langAgentId, { agentName: data.name });
+        // After generating name, also generate first message with the new name
+        setTimeout(() => generateAiFirstMessage(langAgentId, langCode), 300);
       }
     } catch {
     } finally {
@@ -1898,7 +1904,7 @@ function DepartmentsStep({
         id: langAgentId,
         language: langCode,
         agentId: bestAgent?.id || null,
-        agentName: bestAgent?.name || generateNameFromPrompt(systemPrompt, langCode, langAgentId),
+        agentName: bestAgent?.name || "AI Assistant",
         firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
         systemPrompt,
         voiceId: bestVoice || null,

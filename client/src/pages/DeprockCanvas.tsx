@@ -1816,6 +1816,7 @@ function DepartmentsStep({
   };
 
   const generateAiNameForNewDept = async (deptId: string, langAgentId: string, langCode: string, deptType: string, deptName: string) => {
+    setGeneratingDeptLangIds((prev) => new Set(prev).add(langAgentId));
     try {
       // Generate AI name with the provided department info
       const nameResponse = await apiRequest("POST", "/api/deprock/generate-name", {
@@ -1826,7 +1827,7 @@ function DepartmentsStep({
       const nameData = await nameResponse.json();
       
       if (nameData.name) {
-        // Update with the generated name first
+        // Update with the generated name
         setCanvasDepartments((prev) =>
           prev.map((d) => {
             if (d.id !== deptId) return d;
@@ -1869,6 +1870,12 @@ function DepartmentsStep({
         }
       }
     } catch {
+    } finally {
+      setGeneratingDeptLangIds((prev) => {
+        const next = new Set(prev);
+        next.delete(langAgentId);
+        return next;
+      });
     }
   };
 

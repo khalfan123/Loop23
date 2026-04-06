@@ -1,0 +1,48 @@
+{
+  "family": "agentlabs-app",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::<account-id>:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::<account-id>:role/agentlabsAppTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "web",
+      "image": "<account-id>.dkr.ecr.<region>.amazonaws.com/agentlabs-app:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "hostPort": 5000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "5000" },
+        { "name": "APP_DOMAIN", "value": "https://app.example.com" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "arn:aws:ssm:<region>:<account-id>:parameter/agentlabs/DATABASE_URL" },
+        { "name": "OPENAI_API_KEY", "valueFrom": "arn:aws:ssm:<region>:<account-id>:parameter/agentlabs/OPENAI_API_KEY" },
+        { "name": "JWT_SECRET", "valueFrom": "arn:aws:ssm:<region>:<account-id>:parameter/agentlabs/JWT_SECRET" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/agentlabs-app",
+          "awslogs-region": "<region>",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}

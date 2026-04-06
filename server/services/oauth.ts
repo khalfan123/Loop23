@@ -17,14 +17,36 @@ interface OAuthState {
   timestamp: number;
 }
 
+function normalizeBaseUrl(value: string): string {
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+  return `https://${value}`;
+}
+
 function getBaseUrl(): string {
+  // AWS-first: prefer explicit app URLs/domains.
+  const configuredBase =
+    process.env.APP_BASE_URL ||
+    process.env.APP_DOMAIN ||
+    process.env.PUBLIC_BASE_URL ||
+    process.env.PUBLIC_URL ||
+    process.env.BASE_URL ||
+    process.env.APP_URL ||
+    process.env.DEV_DOMAIN;
+
+  if (configuredBase) {
+    return normalizeBaseUrl(configuredBase);
+  }
+
+  // Keep legacy Replit fallback for backwards compatibility.
   if (process.env.REPLIT_DEV_DOMAIN) {
-    return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+    return normalizeBaseUrl(process.env.REPLIT_DEV_DOMAIN);
   }
   if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
     return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   }
-  return process.env.APP_BASE_URL || 'http://localhost:5000';
+  return 'http://localhost:5000';
 }
 
 export const oauthService = {

@@ -31,12 +31,7 @@ const allowlist = [
   "zod-validation-error",
 ];
 
-const forceExternals = [
-  "@replit/vite-plugin-runtime-error-modal",
-  "@replit/vite-plugin-cartographer",
-  "@replit/vite-plugin-dev-banner",
-  "vite",
-];
+const forceExternals = ["vite"];
 
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });

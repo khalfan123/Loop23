@@ -88,39 +88,6 @@ type IncomingConnectionsResponse = {
   stats: Stats;
 };
 
-// Plivo types
-type PlivoAgent = {
-  id: string;
-  name: string;
-  type: string;
-  telephonyProvider: string;
-};
-
-type PlivoConnection = {
-  phoneNumberId: string;
-  phoneNumber: string;
-  friendlyName: string | null;
-  country: string;
-  agent: PlivoAgent | null;
-};
-
-type PlivoAvailableNumber = {
-  id: string;
-  phoneNumber: string;
-  friendlyName: string | null;
-  country: string;
-  region: string | null;
-  isConflicted: boolean;
-  conflictReason: string | null;
-};
-
-type PlivoIncomingConnectionsResponse = {
-  connections: PlivoConnection[];
-  availablePhoneNumbers: PlivoAvailableNumber[];
-  availableAgents: PlivoAgent[];
-  stats: Stats;
-};
-
 // Twilio + OpenAI types
 type TwilioOpenaiAgent = {
   id: string;
@@ -161,10 +128,9 @@ type TwilioOpenaiIncomingConnectionsResponse = {
   stats: Stats;
 };
 
-type EngineTab = 'twilio-elevenlabs' | 'plivo-openai' | 'twilio-openai';
+type EngineTab = 'twilio-elevenlabs' | 'twilio-openai';
 
 type VoiceEngineSettings = {
-  plivo_openai_engine_enabled: boolean;
   twilio_openai_engine_enabled: boolean;
 };
 
@@ -178,12 +144,6 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [selectedPhoneId, setSelectedPhoneId] = useState("");
 
-  // Plivo state
-  const [plivoCreateDialogOpen, setPlivoCreateDialogOpen] = useState(false);
-  const [plivoDeleteConnection, setPlivoDeleteConnection] = useState<PlivoConnection | null>(null);
-  const [selectedPlivoAgentId, setSelectedPlivoAgentId] = useState("");
-  const [selectedPlivoPhoneId, setSelectedPlivoPhoneId] = useState("");
-
   // Twilio + OpenAI state
   const [twilioOpenaiCreateDialogOpen, setTwilioOpenaiCreateDialogOpen] = useState(false);
   const [twilioOpenaiDeleteConnection, setTwilioOpenaiDeleteConnection] = useState<TwilioOpenaiConnection | null>(null);
@@ -192,11 +152,6 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
 
   const { data, isLoading: connectionsLoading } = useQuery<IncomingConnectionsResponse>({
     queryKey: ["/api/incoming-connections"],
-  });
-
-  // Plivo incoming connections query
-  const { data: plivoData, isLoading: plivoConnectionsLoading } = useQuery<PlivoIncomingConnectionsResponse>({
-    queryKey: ["/api/plivo/incoming-connections"],
   });
 
   // Twilio + OpenAI incoming connections query
@@ -208,26 +163,21 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
   const { data: voiceEngineSettings } = useQuery<VoiceEngineSettings>({
     queryKey: ["/api/settings/voice-engine"],
   });
-  const plivoEnabled = voiceEngineSettings?.plivo_openai_engine_enabled ?? false;
   const twilioOpenaiEnabled = voiceEngineSettings?.twilio_openai_engine_enabled ?? false;
 
   // Calculate enabled engines for tab columns
   const enabledEngineCount = useMemo(() => {
     let count = 1; // Twilio + ElevenLabs is always enabled
-    if (plivoEnabled) count++;
     if (twilioOpenaiEnabled) count++;
     return count;
-  }, [plivoEnabled, twilioOpenaiEnabled]);
+  }, [twilioOpenaiEnabled]);
 
   // Reset activeTab to always-enabled engine if current tab becomes disabled
   useEffect(() => {
-    if (activeTab === 'plivo-openai' && !plivoEnabled) {
-      setActiveTab('twilio-elevenlabs');
-    }
     if (activeTab === 'twilio-openai' && !twilioOpenaiEnabled) {
       setActiveTab('twilio-elevenlabs');
     }
-  }, [activeTab, plivoEnabled, twilioOpenaiEnabled]);
+  }, [activeTab, twilioOpenaiEnabled]);
 
   const connections = data?.connections || [];
   const availablePhoneNumbers = data?.availablePhoneNumbers || [];
@@ -276,75 +226,6 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
       });
     },
   });
-
-  // Plivo mutations
-  const plivoConnections = plivoData?.connections || [];
-  const plivoAvailablePhoneNumbers = plivoData?.availablePhoneNumbers || [];
-  const plivoAvailableAgents = plivoData?.availableAgents || [];
-  const plivoStats = {
-    totalConnections: plivoData?.stats?.totalConnections || 0,
-    availableNumbers: plivoData?.stats?.availableNumbers || 0,
-    totalAgents: plivoData?.stats?.totalAgents || 0,
-  };
-
-  const plivoCreateMutation = useMutation({
-    mutationFn: async (data: { agentId: string; phoneNumberId: string }) => {
-      return apiRequest("POST", "/api/plivo/incoming-connections", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/plivo/incoming-connections"] });
-      toast({
-        title: "Connection Created",
-        description: "Plivo incoming connection has been created successfully.",
-      });
-      setPlivoCreateDialogOpen(false);
-      setSelectedPlivoAgentId("");
-      setSelectedPlivoPhoneId("");
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Failed to Create Connection",
-        description: error.message || "Could not create the incoming connection.",
-      });
-    },
-  });
-
-  const plivoDeleteMutation = useMutation({
-    mutationFn: async (phoneNumberId: string) => {
-      return apiRequest("DELETE", `/api/plivo/incoming-connections/${phoneNumberId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/plivo/incoming-connections"] });
-      toast({
-        title: "Connection Removed",
-        description: "Plivo incoming connection has been removed successfully.",
-      });
-      setPlivoDeleteConnection(null);
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Failed to Remove Connection",
-        description: error.message || "Could not remove the incoming connection.",
-      });
-    },
-  });
-
-  const handlePlivoCreate = () => {
-    if (!selectedPlivoAgentId || !selectedPlivoPhoneId) {
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Please select both an agent and a phone number.",
-      });
-      return;
-    }
-    plivoCreateMutation.mutate({
-      agentId: selectedPlivoAgentId,
-      phoneNumberId: selectedPlivoPhoneId,
-    });
-  };
 
   // Twilio + OpenAI data extraction
   const twilioOpenaiConnections = twilioOpenaiData?.connections || [];
@@ -437,9 +318,6 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
       case 'twilio-elevenlabs':
         setCreateDialogOpen(true);
         break;
-      case 'plivo-openai':
-        setPlivoCreateDialogOpen(true);
-        break;
       case 'twilio-openai':
         setTwilioOpenaiCreateDialogOpen(true);
         break;
@@ -447,7 +325,7 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
   };
 
   // Calculate total stats
-  const totalConnections = connections.length + plivoStats.totalConnections + twilioOpenaiStats.totalConnections;
+  const totalConnections = connections.length + twilioOpenaiStats.totalConnections;
 
   return (
     <div className="space-y-6">
@@ -514,32 +392,6 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
             </div>
           </Button>
 
-          {/* Plivo + OpenAI Summary - Only shown when enabled */}
-          {plivoEnabled && (
-            <Button 
-              variant="ghost"
-              className={`flex items-center gap-3 rounded-2xl transition-all border ${
-                activeTab === 'plivo-openai' 
-                  ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20 toggle-elevate toggle-elevated' 
-                  : 'border-border/30 bg-foreground/[0.03]'
-              }`}
-              onClick={() => setActiveTab('plivo-openai')}
-              data-testid="engine-card-plivo-openai"
-            >
-              <div className="flex items-center gap-1.5">
-                <Phone className="h-4 w-4 text-green-600" />
-                <span className="text-muted-foreground">+</span>
-                <SiOpenai className="h-4 w-4 text-emerald-600" />
-              </div>
-              <div className="text-left">
-                <p className="font-medium text-sm">Plivo + OpenAI</p>
-                <p className="text-xs text-muted-foreground">
-                  <strong className="text-emerald-600">{plivoStats.totalConnections}</strong> active
-                </p>
-              </div>
-            </Button>
-          )}
-
           {/* Twilio + OpenAI Summary - Only shown when enabled */}
           {twilioOpenaiEnabled && (
             <Button 
@@ -575,13 +427,6 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
             <ElevenLabsIcon className="h-3.5 w-3.5 text-violet-600" />
             <span className="hidden sm:inline">Twilio + ElevenLabs</span>
           </TabsTrigger>
-          {plivoEnabled && (
-            <TabsTrigger value="plivo-openai" className="flex items-center gap-2" data-testid="tab-plivo-openai">
-              <Phone className="h-3.5 w-3.5 text-green-600" />
-              <SiOpenai className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="hidden sm:inline">Plivo + OpenAI</span>
-            </TabsTrigger>
-          )}
           {twilioOpenaiEnabled && (
             <TabsTrigger value="twilio-openai" className="flex items-center gap-2" data-testid="tab-twilio-openai">
               <SiTwilio className="h-3.5 w-3.5 text-red-500" />
@@ -658,81 +503,6 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
           </Card>
         </TabsContent>
 
-        {/* Plivo + OpenAI Content */}
-        {plivoEnabled && (
-        <TabsContent value="plivo-openai">
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              {plivoConnectionsLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
-                  ))}
-                </div>
-              ) : plivoConnections.length === 0 && plivoAvailablePhoneNumbers.length === 0 ? (
-                <div className="text-center py-12" data-testid="plivo-empty-state">
-                  <Bot className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Plivo Phone Numbers</h3>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Purchase Plivo phone numbers first to set up incoming connections with OpenAI agents.
-                  </p>
-                </div>
-              ) : plivoConnections.length === 0 ? (
-                <div className="text-center py-12" data-testid="plivo-no-connections">
-                  <LinkIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Connections Yet</h3>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Connect your Plivo phone numbers to OpenAI-powered agents.
-                  </p>
-                  <Button 
-                    onClick={() => setPlivoCreateDialogOpen(true)}
-                    disabled={plivoAvailablePhoneNumbers.length === 0 || plivoAvailableAgents.length === 0}
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                    data-testid="button-create-first-plivo-connection"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create First Connection
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {plivoConnections.map((connection) => (
-                    <div
-                      key={connection.phoneNumberId}
-                      className="flex items-center justify-between p-4 border rounded-lg hover-elevate bg-card"
-                      data-testid={`plivo-connection-card-${connection.phoneNumberId}`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <Badge variant="secondary" className="font-mono text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                          {connection.phoneNumber}
-                        </Badge>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <SiOpenai className="h-4 w-4 text-emerald-600" />
-                            <span className="font-medium">{connection.agent?.name || 'Unknown Agent'}</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {connection.friendlyName && `${connection.friendlyName} • `}
-                            Country: {connection.country}
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setPlivoDeleteConnection(connection)}
-                        data-testid={`button-delete-plivo-${connection.phoneNumberId}`}
-                      >
-                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>)}
 
         {/* Twilio + OpenAI Content */}
         {twilioOpenaiEnabled && (
@@ -932,117 +702,6 @@ export default function IncomingConnectionsPage({ embedded = false }: { embedded
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? t("incomingConnections.actions.deleting") : t("incomingConnections.actions.deleteConnection")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Plivo Create Connection Dialog */}
-      <Dialog open={plivoCreateDialogOpen} onOpenChange={setPlivoCreateDialogOpen}>
-        <DialogContent data-testid="dialog-create-plivo-connection">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5 text-green-600" />
-              <SiOpenai className="h-5 w-5 text-emerald-600" />
-              Create Plivo + OpenAI Connection
-            </DialogTitle>
-            <DialogDescription>
-              Connect a Plivo phone number to an OpenAI-powered agent for incoming calls.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="plivo-agent">OpenAI Agent <span className="text-destructive">*</span></Label>
-              <Select value={selectedPlivoAgentId} onValueChange={setSelectedPlivoAgentId}>
-                <SelectTrigger id="plivo-agent" data-testid="select-plivo-agent">
-                  <SelectValue placeholder="Select an OpenAI agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {plivoAvailableAgents.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No OpenAI agents available.</div>
-                  ) : (
-                    plivoAvailableAgents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        <div className="flex items-center gap-2">
-                          <SiOpenai className="h-3 w-3 text-emerald-600" />
-                          <span>{agent.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="plivo-phone">Plivo Phone Number <span className="text-destructive">*</span></Label>
-              <Select value={selectedPlivoPhoneId} onValueChange={setSelectedPlivoPhoneId}>
-                <SelectTrigger id="plivo-phone" data-testid="select-plivo-phone">
-                  <SelectValue placeholder="Select a Plivo phone number" />
-                </SelectTrigger>
-                <SelectContent>
-                  {plivoAvailablePhoneNumbers.length === 0 ? (
-                    <div className="p-2 text-sm text-muted-foreground">No available Plivo phone numbers.</div>
-                  ) : (
-                    plivoAvailablePhoneNumbers.map((phone) => (
-                      phone.isConflicted ? (
-                        <TooltipProvider key={phone.id}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="relative flex w-full cursor-not-allowed select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none opacity-50">
-                                <span className="font-mono">{phone.phoneNumber}</span>
-                                <span className="text-xs text-destructive font-medium ml-2">(In Use)</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent><p>{phone.conflictReason}</p></TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <SelectItem key={phone.id} value={phone.id}>
-                          <span className="font-mono">{phone.phoneNumber}</span>
-                          <span className="text-xs text-muted-foreground ml-2">({phone.country})</span>
-                        </SelectItem>
-                      )
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setPlivoCreateDialogOpen(false); setSelectedPlivoAgentId(""); setSelectedPlivoPhoneId(""); }}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePlivoCreate}
-              disabled={plivoCreateMutation.isPending || !selectedPlivoAgentId || !selectedPlivoPhoneId}
-              className="bg-emerald-600 hover:bg-emerald-700"
-            >
-              {plivoCreateMutation.isPending ? "Creating..." : "Create Connection"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Plivo Delete Dialog */}
-      <AlertDialog open={!!plivoDeleteConnection} onOpenChange={() => setPlivoDeleteConnection(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Connection</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will disconnect <span className="font-mono font-semibold">{plivoDeleteConnection?.phoneNumber}</span>{" "}
-              from <span className="font-semibold">{plivoDeleteConnection?.agent?.name}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => plivoDeleteConnection && plivoDeleteMutation.mutate(plivoDeleteConnection.phoneNumberId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {plivoDeleteMutation.isPending ? "Removing..." : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

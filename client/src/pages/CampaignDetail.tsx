@@ -197,7 +197,7 @@ export default function CampaignDetail() {
       setIsLoadingVoice(false);
       audio.onended = () => { setIsPlayingVoice(false); setVoiceAudioRef(null); URL.revokeObjectURL(url); };
       audio.onerror = () => { setIsPlayingVoice(false); setVoiceAudioRef(null); URL.revokeObjectURL(url); };
-      audio.play();
+      audio.play().catch(() => {});
     } catch (err: any) {
       toast({ title: "Voice preview failed", description: err.message, variant: "destructive" });
       setIsPlayingVoice(false);

@@ -44,7 +44,7 @@ export function getStatusWebhookUrl(): string {
 
 export function getStreamWebhookUrl(callSid: string): string {
   const baseUrl = getWebhookBaseUrl();
-  const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+  const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'wss://');
   return `${wsUrl}/api/twilio-openai/stream/${callSid}`;
 }
 
@@ -87,7 +87,7 @@ export function generateTwiML(options: {
 export function generateTransferTwiML(phoneNumber: string, callerId: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial callerId="${escapeXml(callerId)}">
+  <Dial callerId="${escapeXml(callerId)}" timeout="30" hangupOnStar="false">
     <Number>${escapeXml(phoneNumber)}</Number>
   </Dial>
 </Response>`;

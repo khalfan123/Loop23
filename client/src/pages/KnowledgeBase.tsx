@@ -58,9 +58,14 @@ import {
   Square,
   Phone,
   Activity,
-  Wand2
+  Wand2,
+  ShoppingBag,
+  Package,
+  DollarSign,
+  ExternalLink
 } from "lucide-react";
 import KnowledgeIntelligence from "@/components/knowledge-intelligence";
+import ProductsInventoryView from "@/components/ProductsInventoryView";
 import { AuthStorage } from "@/lib/auth-storage";
 import {
   Dialog,
@@ -270,7 +275,8 @@ export default function KnowledgeBase() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "ml-operations" | "ml-insights" | "bedrock-kb">("dashboard");
+  const [isKnowledgeSourcesExpanded, setIsKnowledgeSourcesExpanded] = useState(true);
+  const [viewMode, setViewMode] = useState<"dashboard" | "folder" | "web-crawler" | "ai-insights" | "content-studio" | "entities" | "topic-clusters" | "faqs" | "content-gaps" | "ml-conversations" | "ml-operations" | "ml-insights" | "bedrock-kb" | "products">("dashboard");
   
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -361,22 +367,64 @@ export default function KnowledgeBase() {
     overallProgress: number;
     stageProgress: number;
     estimatedTimeRemaining: number | null;
+    stageDetails?: {
+      crawling?: { pagesDiscovered: number; pagesCrawled: number; completedAt?: string };
+      analyzing?: {
+        itemsProcessed: number;
+        itemsTotal: number;
+        completedAt?: string;
+        businessType?: string;
+        businessIndustry?: string;
+        businessDescription?: string;
+        isUrlEnrichment?: boolean;
+        sourceUrl?: string;
+      };
+      generating?: {
+        articlesPlanned: number;
+        articlesGenerated: number;
+        currentArticleTitle?: string;
+        currentCategory?: string;
+        completedAt?: string;
+        isUrlEnrichment?: boolean;
+        folderResults?: Record<string, number>;
+      };
+    };
   }
 
   const { data: intelligenceStats } = useQuery<IntelligenceStats>({
     queryKey: ["/api/knowledge-intelligence/intelligence-stats"],
   });
 
+  const prevPipelineJobRef = useRef<PipelineJob | null | undefined>(undefined);
+
   const { data: activePipelineJob } = useQuery<PipelineJob | null>({
     queryKey: ["/api/knowledge-intelligence/pipeline-jobs/active"],
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (data && ["pending", "crawling", "analyzing", "generating"].includes(data.status)) {
-        return 2000;
-      }
+      if (!data) return 30000;
+      // Poll frequently while running or while showing completion banner (done/error stage)
+      if (["pending", "crawling", "analyzing", "generating"].includes(data.status)) return 2000;
+      if (data.currentStage === "done" || data.currentStage === "error") return 5000;
       return 30000;
     },
   });
+
+  useEffect(() => {
+    const prev = prevPipelineJobRef.current;
+    const cur = activePipelineJob;
+
+    // Invalidate KB list when an active job transitions to done/null
+    const wasActive = prev && ["pending", "crawling", "analyzing", "generating"].includes(prev.status);
+    const isNowDoneOrNull = !cur || cur.currentStage === "done";
+
+    if (wasActive && isNowDoneOrNull) {
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
+    }
+
+    prevPipelineJobRef.current = cur;
+  }, [activePipelineJob]);
 
   interface BedrockKBStatus {
     provisioned: boolean;
@@ -497,14 +545,6 @@ export default function KnowledgeBase() {
     return <FileType className="h-4 w-4 text-blue-500" />;
   };
 
-  const formatTimeRemaining = (seconds: number | null): string => {
-    if (!seconds) return "calculating...";
-    if (seconds < 60) return `${seconds}s remaining`;
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s remaining`;
-  };
-
   const uploadFileMutation = useMutation({
     mutationFn: async (data: { file: File; name?: string; folderId?: string }) => {
       const formData = new FormData();
@@ -559,40 +599,6 @@ export default function KnowledgeBase() {
     },
   });
 
-  const startPipelineMutation = useMutation({
-    mutationFn: async (data: { url?: string }) => {
-      const payload = data.url 
-        ? {
-            name: `Analyze: ${new URL(data.url).hostname}`,
-            startUrl: data.url,
-            crawlType: 'single',
-            maxPages: 10
-          }
-        : {
-            name: 'Analyze All Content',
-            crawlType: 'existing',
-            maxPages: 0
-          };
-      const res = await apiRequest('POST', '/api/knowledge-intelligence/pipeline-jobs', payload);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/pipeline-jobs/active'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/intelligence-stats'] });
-      toast({
-        title: "Pipeline Started",
-        description: "Analyzing your content. Progress is saved automatically.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Pipeline Failed",
-        description: error.message || "Failed to start the analysis pipeline.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const addUrlMutation = useMutation({
     mutationFn: async (data: { url: string; name?: string; folderId?: string }) => {
       const res = await apiRequest('POST', '/api/rag-knowledge/url', data);
@@ -603,8 +609,8 @@ export default function KnowledgeBase() {
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/storage'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/folders/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/rag-knowledge/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/knowledge-intelligence/pipeline-jobs/active'] });
       
-      const savedUrl = urlInput;
       setUrlDialogOpen(false);
       setUrlInput('');
       setUrlName('');
@@ -612,12 +618,8 @@ export default function KnowledgeBase() {
       
       toast({
         title: t('knowledgeBase.toast.urlAdded'),
-        description: "Starting AI analysis pipeline...",
+        description: "Analyzing content and generating knowledge articles…",
       });
-      
-      if (savedUrl) {
-        startPipelineMutation.mutate({ url: savedUrl });
-      }
     },
     onError: (error: any) => {
       toast({
@@ -1195,199 +1197,141 @@ export default function KnowledgeBase() {
           label="Library Overview"
           isActive={viewMode === "dashboard"}
           onClick={() => { setViewMode("dashboard"); setSelectedFolderId(null); }}
-          data-testid="button-dashboard"
+          data-testid="sidebar-library-overview"
         />
-        <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="ML Insights" isActive={viewMode === "ml-insights"} onClick={() => { setViewMode("ml-insights"); setSelectedFolderId(null); }} data-testid="folder-ml-insights" />
-        <SubPanelItem icon={<Activity className="h-4 w-4" />} label="ML Operations" isActive={viewMode === "ml-operations"} onClick={() => { setViewMode("ml-operations"); setSelectedFolderId(null); }} data-testid="folder-ml-operations" />
+        <SubPanelItem
+          icon={<BarChart3 className="h-4 w-4" />}
+          label="ML Conversations"
+          isActive={viewMode === "ml-conversations"}
+          onClick={() => { setViewMode("ml-conversations"); setSelectedFolderId(null); }}
+          data-testid="sidebar-ml-conversations"
+        />
+        <SubPanelItem
+          icon={<ShoppingBag className="h-4 w-4" />}
+          label="Products & Pricing"
+          isActive={viewMode === "products"}
+          onClick={() => { setViewMode("products"); setSelectedFolderId(null); }}
+          data-testid="sidebar-products"
+        />
+      </SubPanelSection>
 
-        <div className="mt-3 mb-1.5 px-3 flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">Knowledge Sources</span>
-          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700/50" />
-        </div>
-
-          {folders.map((folder) => {
-            const isExpanded = expandedFolderIds.has(folder.id);
-            const isActive = selectedFolderId === folder.id && viewMode === "folder";
-            const folderItems = knowledgeBase.filter(item => item.folderId === folder.id);
-            const itemCount = folderStats?.folders[folder.id] || 0;
-            return (
-              <div key={folder.id}>
-                <div className="group relative flex items-center">
-                  <button
-                    onClick={() => {
-                      setExpandedFolderIds(prev => {
-                        const next = new Set(prev);
-                        if (next.has(folder.id)) next.delete(folder.id);
-                        else next.add(folder.id);
-                        return next;
-                      });
-                    }}
-                    className="flex-shrink-0 p-1 ml-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                    data-testid={`button-toggle-folder-${folder.id}`}
-                  >
-                    <ChevronRight className={cn("h-3 w-3 transition-transform duration-150", isExpanded && "rotate-90")} />
-                  </button>
-                  <button
-                    onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
-                    className={cn(
-                      "flex-1 flex items-center gap-2 px-1.5 py-1.5 text-[13px] text-left transition-colors rounded-lg",
-                      isActive
-                        ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
-                        : "text-zinc-600 dark:text-zinc-400 hover-elevate"
-                    )}
-                    data-testid={`folder-${folder.id}`}
-                  >
-                    <Folder className="h-3.5 w-3.5 flex-shrink-0" style={{ color: folder.color || 'var(--muted-foreground)' }} />
-                    <span className="flex-1 truncate">{folder.name}</span>
-                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{itemCount}</span>
-                  </button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 flex-shrink-0 mr-1 invisible group-hover:visible"
-                      >
-                        <MoreHorizontal className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => {
-                        setEditingFolder(folder);
-                        setFolderName(folder.name);
-                        setFolderColor(folder.color || '#3b82f6');
-                        setFolderDialogOpen(true);
-                      }}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => setDeletingFolder(folder)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                {isExpanded && (
-                  <div className="ml-5 border-l border-zinc-200 dark:border-zinc-700/50">
-                    {folderItems.length === 0 ? (
-                      <p className="px-3 py-1.5 text-[11px] text-zinc-400 dark:text-zinc-500 italic">No items</p>
-                    ) : (
-                      folderItems.map(item => (
-                        <button
-                          key={item.id}
-                          onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); setExpandedItemId(item.id); }}
-                          className="w-full flex items-center gap-2 px-3 py-1 text-[12px] text-left text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors truncate"
-                          data-testid={`folder-item-${item.id}`}
-                        >
-                          <FileText className="h-3 w-3 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
-                          <span className="truncate">{item.title}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {folderStats && folderStats.uncategorized > 0 && (() => {
-            const isExpanded = expandedFolderIds.has("__uncategorized__");
-            const isActive = selectedFolderId === null && viewMode === "folder";
-            const uncategorizedItems = knowledgeBase.filter(item => !item.folderId);
-            return (
-              <div>
-                <div className="flex items-center">
-                  <button
-                    onClick={() => {
-                      setExpandedFolderIds(prev => {
-                        const next = new Set(prev);
-                        if (next.has("__uncategorized__")) next.delete("__uncategorized__");
-                        else next.add("__uncategorized__");
-                        return next;
-                      });
-                    }}
-                    className="flex-shrink-0 p-1 ml-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                    data-testid="button-toggle-folder-uncategorized"
-                  >
-                    <ChevronRight className={cn("h-3 w-3 transition-transform duration-150", isExpanded && "rotate-90")} />
-                  </button>
-                  <button
-                    onClick={() => { setViewMode("folder"); setSelectedFolderId(null); }}
-                    className={cn(
-                      "flex-1 flex items-center gap-2 px-1.5 py-1.5 text-[13px] text-left transition-colors rounded-lg",
-                      isActive
-                        ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
-                        : "text-zinc-600 dark:text-zinc-400 hover-elevate"
-                    )}
-                    data-testid="folder-uncategorized"
-                  >
-                    <Folder className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
-                    <span className="flex-1 truncate">Uncategorized</span>
-                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">{folderStats.uncategorized}</span>
-                  </button>
-                </div>
-                {isExpanded && (
-                  <div className="ml-5 border-l border-zinc-200 dark:border-zinc-700/50">
-                    {uncategorizedItems.length === 0 ? (
-                      <p className="px-3 py-1.5 text-[11px] text-zinc-400 dark:text-zinc-500 italic">No items</p>
-                    ) : (
-                      uncategorizedItems.map(item => (
-                        <button
-                          key={item.id}
-                          onClick={() => { setViewMode("folder"); setSelectedFolderId(null); setExpandedItemId(item.id); }}
-                          className="w-full flex items-center gap-2 px-3 py-1 text-[12px] text-left text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors truncate"
-                          data-testid={`folder-item-${item.id}`}
-                        >
-                          <FileText className="h-3 w-3 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
-                          <span className="truncate">{item.title}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          <button
-            onClick={() => {
-              setEditingFolder(null);
-              setFolderName('');
-              setFolderColor('#3b82f6');
-              setFolderDialogOpen(true);
-            }}
-            className="w-full flex items-center justify-center gap-1.5 py-1 text-[11px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-            data-testid="button-new-folder"
+      {/* Knowledge Sources Section */}
+      <SubPanelSection>
+        <div className="mt-0 mb-2">
+          <div
+            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-zinc-600 dark:text-zinc-400 font-semibold"
+            data-testid="knowledge-sources-header"
           >
-            <Plus className="h-3 w-3" />
-            New Folder
-          </button>
+            <Database className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="flex-1 text-left uppercase tracking-wider">Knowledge Base Sources</span>
+          </div>
 
-        <div className="mt-3 mb-1.5 px-3 flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">AI Engine</span>
-          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700/50" />
+          <div className="mt-2 space-y-1 px-2">
+            {folders.filter((folder) => !['Integrations', 'Troubleshooting', 'Getting Started'].includes(folder.name)).map((folder) => {
+              const isExpanded = expandedFolderIds.has(folder.id);
+              const isActive = selectedFolderId === folder.id && viewMode === "folder";
+              const folderItems = knowledgeBase.filter(item => item.folderId === folder.id);
+              const itemCount = folderStats?.folders[folder.id] || 0;
+              return (
+                <div key={folder.id}>
+                  <div className="group relative flex items-center">
+                    <button
+                      onClick={() => {
+                        setExpandedFolderIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(folder.id)) next.delete(folder.id);
+                          else next.add(folder.id);
+                          return next;
+                        });
+                      }}
+                      className="flex-shrink-0 p-0.5 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                      data-testid={`button-toggle-folder-${folder.id}`}
+                    >
+                      <ChevronRight className={cn("h-2.5 w-2.5 transition-transform duration-150", isExpanded && "rotate-90")} />
+                    </button>
+                    <button
+                      onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); }}
+                      className={cn(
+                        "flex-1 flex items-center gap-1.5 px-1 py-1 text-[12px] text-left transition-colors rounded-md",
+                        isActive
+                          ? "bg-blue-500/10 font-medium text-blue-600 dark:text-blue-400"
+                          : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30"
+                      )}
+                      data-testid={`folder-${folder.id}`}
+                    >
+                      <Folder className="h-3 w-3 flex-shrink-0" style={{ color: folder.color || 'var(--muted-foreground)' }} />
+                      <span className="flex-1 truncate">{folder.name}</span>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 tabular-nums shrink-0">{itemCount}</span>
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 flex-shrink-0 invisible group-hover:visible"
+                        >
+                          <MoreHorizontal className="h-2.5 w-2.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="text-xs">
+                        <DropdownMenuItem onClick={() => {
+                          setEditingFolder(folder);
+                          setFolderName(folder.name);
+                          setFolderColor(folder.color || '#3b82f6');
+                          setFolderDialogOpen(true);
+                        }}>
+                          <Pencil className="h-3 w-3 mr-1.5" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setDeletingFolder(folder)}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1.5" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  {isExpanded && (
+                    <div className="ml-4 border-l border-zinc-200 dark:border-zinc-700/50">
+                      {folderItems.length === 0 ? (
+                        <p className="px-2 py-1 text-[10px] text-zinc-400 dark:text-zinc-500 italic">No items</p>
+                      ) : (
+                        folderItems.map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => { setViewMode("folder"); setSelectedFolderId(folder.id); setExpandedItemId(item.id); }}
+                            className="w-full flex items-center gap-1.5 px-2 py-0.5 text-[11px] text-left text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors truncate"
+                            data-testid={`folder-item-${item.id}`}
+                          >
+                            <FileText className="h-2.5 w-2.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" />
+                            <span className="truncate">{item.title}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <button
+              onClick={() => {
+                setEditingFolder(null);
+                setFolderName('');
+                setFolderColor('#3b82f6');
+                setFolderDialogOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-1 py-1 text-[11px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors rounded-md hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 mt-1"
+              data-testid="button-new-folder"
+            >
+              <Plus className="h-3 w-3" />
+              <span>New Folder</span>
+            </button>
+          </div>
         </div>
-
-        <SubPanelItem icon={<Globe className="h-4 w-4" />} label="Web Crawler" isActive={viewMode === "web-crawler"} onClick={() => { setViewMode("web-crawler"); setSelectedFolderId(null); }} data-testid="folder-web-crawler" />
-        <SubPanelItem icon={<Brain className="h-4 w-4" />} label="AI Insights" isActive={viewMode === "ai-insights"} onClick={() => { setViewMode("ai-insights"); setSelectedFolderId(null); }} data-testid="folder-ai-insights" />
-        <SubPanelItem icon={<Sparkles className="h-4 w-4" />} label="Content Studio" isActive={viewMode === "content-studio"} onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }} data-testid="folder-content-studio" />
-        <SubPanelItem icon={<Tags className="h-4 w-4" />} label="Entities" isActive={viewMode === "entities"} onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }} data-testid="folder-entities" />
-        <SubPanelItem icon={<Layers className="h-4 w-4" />} label="Topics" isActive={viewMode === "topic-clusters"} onClick={() => { setViewMode("topic-clusters"); setSelectedFolderId(null); }} data-testid="folder-topic-clusters" />
-        <SubPanelItem icon={<HelpCircle className="h-4 w-4" />} label="FAQs" isActive={viewMode === "faqs"} onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }} data-testid="folder-faqs" />
-        <SubPanelItem icon={<Lightbulb className="h-4 w-4" />} label="Content Gaps" isActive={viewMode === "content-gaps"} onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }} data-testid="folder-content-gaps" />
-        <SubPanelItem icon={<BarChart3 className="h-4 w-4" />} label="ML Conversations" isActive={viewMode === "ml-conversations"} onClick={() => { setViewMode("ml-conversations"); setSelectedFolderId(null); }} data-testid="folder-ml-conversations" />
-
-        <div className="mt-3 mb-1.5 px-3 flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-400 dark:text-zinc-500 font-semibold">Bedrock AI</span>
-          <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700/50" />
-        </div>
-
-        <SubPanelItem icon={<Database className="h-4 w-4" />} label="AI Knowledge Base" isActive={viewMode === "bedrock-kb"} onClick={() => { setViewMode("bedrock-kb"); setSelectedFolderId(null); }} data-testid="folder-bedrock-kb" />
       </SubPanelSection>
 
       {storageUsage && (
@@ -1416,42 +1360,152 @@ export default function KnowledgeBase() {
         {/* Header */}
         <div className="border-b">
           <div className="flex items-center justify-between p-4 gap-4">
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">
-                {dashboardStats?.totalResources || 0} knowledge sources · {dashboardStats?.totalChunks || 0} knowledge chunks indexed
-              </p>
-            </div>
+            {viewMode === "dashboard" && (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {dashboardStats?.totalResources || 0} knowledge sources · {dashboardStats?.totalChunks || 0} knowledge chunks indexed
+                </p>
+              </div>
+            )}
 
-          {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            <Button 
-              size="sm" 
-              className="gap-1.5"
-              onClick={() => setUrlDialogOpen(true)}
-              data-testid="button-add-url"
-            >
-              <Link className="h-4 w-4" />
-              URL
-              <ChevronDown className="h-3 w-3 opacity-50" />
-            </Button>
+            {viewMode === "dashboard" && (
+              <>
+                <Button 
+                  size="sm" 
+                  className="gap-1.5"
+                  onClick={() => setUrlDialogOpen(true)}
+                  data-testid="button-add-url"
+                >
+                  <Link className="h-4 w-4" />
+                  URL
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-1.5"
+                  onClick={() => setFileDialogOpen(true)}
+                  data-testid="button-add-files"
+                >
+                  <FileText className="h-4 w-4" />
+                  Files
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-1.5"
+                  onClick={() => setTextDialogOpen(true)}
+                  data-testid="button-add-text"
+                >
+                  <Type className="h-4 w-4" />
+                  Text
+                </Button>
+                {knowledgeBase.length > 0 && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="gap-1.5"
+                    onClick={() => setPurgeDialogOpen(true)}
+                    data-testid="button-delete-all"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete All
+                  </Button>
+                )}
+              </>
+            )}
 
-            {/* Pipeline Progress - Next to URL button */}
-            {activePipelineJob && ["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) && (
-              <div className="flex items-center gap-2 text-sm whitespace-nowrap bg-primary/10 px-3 py-1.5 rounded-md border border-primary/20">
-                <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                <span className="font-medium text-primary">{activePipelineJob.name}</span>
-                <span className="text-muted-foreground">•</span>
-                <span className="text-muted-foreground">{formatTimeRemaining(activePipelineJob.estimatedTimeRemaining)}</span>
-                <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+            {/* Pipeline Progress */}
+            {activePipelineJob && activePipelineJob.currentStage === "done" ? (
+              <div className="flex items-start gap-2 text-sm bg-green-500/10 px-3 py-2 rounded-md border border-green-500/30 min-w-0 max-w-xl" data-testid="banner-pipeline-done">
+                <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center shrink-0 mt-0.5">
+                  <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                  <span className="text-xs font-semibold text-green-700 dark:text-green-400 leading-tight">
+                    {activePipelineJob.stageDetails?.analyzing?.businessType
+                      ? `${activePipelineJob.stageDetails.analyzing.businessType} — Knowledge Base Ready`
+                      : 'Knowledge Base Ready'}
+                  </span>
+                  {activePipelineJob.stageDetails?.generating?.folderResults && (
+                    <span className="text-xs text-muted-foreground leading-snug" data-testid="text-category-summary">
+                      {Object.entries(activePipelineJob.stageDetails.generating.folderResults)
+                        .filter(([, n]) => n > 0)
+                        .map(([cat, n]) => `${cat}: ${n}`)
+                        .join(' · ')}
+                    </span>
+                  )}
+                  {!activePipelineJob.stageDetails?.generating?.folderResults && (
+                    <span className="text-xs text-muted-foreground leading-tight">
+                      {activePipelineJob.stageDetails?.generating?.articlesGenerated ?? 0} articles generated
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-muted-foreground shrink-0"
+                  onClick={() => queryClient.setQueryData(['/api/knowledge-intelligence/pipeline-jobs/active'], null)}
+                  data-testid="button-dismiss-done-banner"
+                >
+                  ✕
+                </Button>
+              </div>
+            ) : activePipelineJob && ["pending", "crawling", "analyzing", "generating"].includes(activePipelineJob.status) && (
+              <div className="flex items-center gap-2 text-sm bg-primary/10 px-3 py-1.5 rounded-md border border-primary/20 min-w-0 max-w-md">
+                <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+                <div className="flex flex-col min-w-0 flex-1">
+                  {activePipelineJob.currentStage === "generating_articles" && activePipelineJob.stageDetails?.generating?.isUrlEnrichment ? (
+                    <>
+                      {activePipelineJob.stageDetails.analyzing?.businessType && (
+                        <span className="text-xs font-semibold text-primary truncate leading-tight">
+                          {activePipelineJob.stageDetails.analyzing.businessType}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground truncate leading-tight">
+                        {activePipelineJob.stageDetails.generating.currentCategory
+                          ? `Generating articles — ${activePipelineJob.stageDetails.generating.currentCategory}`
+                          : 'Generating articles…'}
+                      </span>
+                    </>
+                  ) : activePipelineJob.currentStage === "generating" && activePipelineJob.stageDetails?.generating?.currentArticleTitle ? (
+                    <>
+                      <span className="text-xs font-medium text-primary truncate leading-tight">
+                        {activePipelineJob.stageDetails.generating.currentCategory}
+                      </span>
+                      <span className="text-xs text-muted-foreground italic truncate leading-tight">
+                        {activePipelineJob.stageDetails.generating.currentArticleTitle}
+                      </span>
+                    </>
+                  ) : activePipelineJob.currentStage === "fetching" ? (
+                    <span className="text-xs font-medium text-primary truncate">Fetching URL content…</span>
+                  ) : activePipelineJob.currentStage === "analyzing_content" ? (
+                    <span className="text-xs font-medium text-primary truncate">Analyzing content…</span>
+                  ) : activePipelineJob.currentStage === "detecting_business" ? (
+                    <span className="text-xs font-medium text-primary truncate">Detecting business type…</span>
+                  ) : activePipelineJob.currentStage === "analyzing" && activePipelineJob.stageDetails?.analyzing?.isUrlEnrichment ? (
+                    <span className="text-xs font-medium text-primary truncate">Detecting business type…</span>
+                  ) : activePipelineJob.currentStage === "analyzing" ? (
+                    <span className="text-xs font-medium text-primary truncate">Analyzing content…</span>
+                  ) : activePipelineJob.currentStage === "crawling" ? (
+                    <span className="text-xs font-medium text-primary truncate">
+                      Crawling{activePipelineJob.stageDetails?.crawling?.pagesCrawled ? ` • ${activePipelineJob.stageDetails.crawling.pagesCrawled} pages` : '…'}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium text-primary truncate">{activePipelineJob.name}</span>
+                  )}
+                </div>
+                <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
                   <div 
                     className="h-full bg-primary transition-all" 
                     style={{ width: `${activePipelineJob.overallProgress}%` }}
                   />
                 </div>
+                <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{activePipelineJob.overallProgress}%</span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  className="h-7 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                   onClick={() => cancelPipelineMutation.mutate(activePipelineJob.id)}
                   disabled={cancelPipelineMutation.isPending}
                   title="Stop pipeline"
@@ -1462,100 +1516,171 @@ export default function KnowledgeBase() {
                 </Button>
               </div>
             )}
-
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-1.5"
-              onClick={() => setFileDialogOpen(true)}
-              data-testid="button-add-files"
-            >
-              <FileText className="h-4 w-4" />
-              Files
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-1.5"
-              onClick={() => setTextDialogOpen(true)}
-              data-testid="button-add-text"
-            >
-              <Type className="h-4 w-4" />
-              Text
-            </Button>
-            {knowledgeBase.length > 0 && (
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                className="gap-1.5"
-                onClick={() => setPurgeDialogOpen(true)}
-                data-testid="button-delete-all"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete All
-              </Button>
-            )}
           </div>
           </div>
 
-          {/* Intelligence Stats Bar */}
-          <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 flex-wrap">
-            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-              <Brain className="h-3.5 w-3.5 text-primary" />
-              <span className="font-medium text-foreground">AI Readiness:</span>
+          {viewMode === "dashboard" && (
+            <div className="px-4 py-3 bg-muted/30 border-b">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain className="h-4 w-4 text-primary" />
+                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">AI Readiness</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Crawl Jobs</span>
+                  <span className="text-base font-bold text-foreground">{intelligenceStats?.crawlJobs || 0}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Entities</span>
+                  <span className="text-base font-bold text-blue-600 dark:text-blue-400">{intelligenceStats?.entities || 0}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Topics</span>
+                  <span className="text-base font-bold text-green-600 dark:text-green-400">{intelligenceStats?.topics || 0}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">FAQs</span>
+                  <span className="text-base font-bold text-orange-600 dark:text-orange-400">{intelligenceStats?.faqs || 0}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Articles</span>
+                  <span className="text-base font-bold text-purple-600 dark:text-purple-400">{intelligenceStats?.articles || 0}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Graph Nodes</span>
+                  <span className="text-base font-bold text-cyan-600 dark:text-cyan-400">{intelligenceStats?.graphNodes || 0}</span>
+                </div>
+              </div>
             </div>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-muted-foreground">Crawl Jobs</span>
-              <span className="font-semibold">{intelligenceStats?.crawlJobs || 0}</span>
-            </div>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-              <Tags className="h-3.5 w-3.5 text-blue-500" />
-              <span className="text-muted-foreground">Entities</span>
-              <span className="font-semibold">{intelligenceStats?.entities || 0}</span>
-            </div>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-              <Layers className="h-3.5 w-3.5 text-green-500" />
-              <span className="text-muted-foreground">Topics</span>
-              <span className="font-semibold">{intelligenceStats?.topics || 0}</span>
-            </div>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-              <HelpCircle className="h-3.5 w-3.5 text-orange-500" />
-              <span className="text-muted-foreground">FAQs</span>
-              <span className="font-semibold">{intelligenceStats?.faqs || 0}</span>
-            </div>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-              <FileText className="h-3.5 w-3.5 text-purple-500" />
-              <span className="text-muted-foreground">Articles</span>
-              <span className="font-semibold">{intelligenceStats?.articles || 0}</span>
-            </div>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-1.5 text-sm whitespace-nowrap">
-              <Database className="h-3.5 w-3.5 text-cyan-500" />
-              <span className="text-muted-foreground">Graph Nodes</span>
-              <span className="font-semibold">{intelligenceStats?.graphNodes || 0}</span>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Search Bar */}
-        <div className="p-4 border-b">
-          <div className="relative max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search knowledge sources..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search"
-            />
+        {/* Tab Navigation Bar - hidden for Products, ML Conversations, Folders, and Bedrock KB */}
+        {viewMode !== "products" && viewMode !== "ml-conversations" && viewMode !== "folder" && viewMode !== "bedrock-kb" && (
+        <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-x-auto">
+          <div className="flex items-center gap-0 px-3 py-0 h-11">
+            <button
+              onClick={() => { setViewMode("ml-insights"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "ml-insights"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-ml-insights"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              ML Insights
+            </button>
+            <button
+              onClick={() => { setViewMode("ml-operations"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "ml-operations"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-ml-operations"
+            >
+              <Activity className="h-3.5 w-3.5" />
+              ML Ops
+            </button>
+            <div className="h-3 w-px bg-border mx-0.5" />
+            <button
+              onClick={() => { setViewMode("web-crawler"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "web-crawler"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-web-crawler"
+            >
+              <Globe className="h-3.5 w-3.5" />
+              Crawler
+            </button>
+            <button
+              onClick={() => { setViewMode("ai-insights"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "ai-insights"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-ai-insights"
+            >
+              <Brain className="h-3.5 w-3.5" />
+              AI
+            </button>
+            <button
+              onClick={() => { setViewMode("content-studio"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "content-studio"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-content-studio"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Studio
+            </button>
+            <button
+              onClick={() => { setViewMode("entities"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "entities"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-entities"
+            >
+              <Tags className="h-3.5 w-3.5" />
+              Entities
+            </button>
+            <button
+              onClick={() => { setViewMode("topic-clusters"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "topic-clusters"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-topics"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Topics
+            </button>
+            <button
+              onClick={() => { setViewMode("faqs"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "faqs"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-faqs"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              FAQs
+            </button>
+            <button
+              onClick={() => { setViewMode("content-gaps"); setSelectedFolderId(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap rounded-t transition-colors border-b-2",
+                viewMode === "content-gaps"
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="tab-content-gaps"
+            >
+              <Lightbulb className="h-3.5 w-3.5" />
+              Gaps
+            </button>
           </div>
         </div>
+        )}
+
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
@@ -1580,6 +1705,8 @@ export default function KnowledgeBase() {
               <KnowledgeIntelligence section="ml-operations" />
             ) : viewMode === "ml-insights" ? (
               <KnowledgeIntelligence section="ml-insights" />
+            ) : viewMode === "products" ? (
+              <ProductsInventoryView />
             ) : viewMode === "bedrock-kb" ? (
               <div className="space-y-6">
                 {bedrockStatusLoading ? (
@@ -2203,16 +2330,6 @@ export default function KnowledgeBase() {
                       {(dashboardStats?.totalResources || 0) === 0 && (
                         <div className="text-center py-2">
                           <p className="text-sm text-muted-foreground">Add content to build the AI's expertise</p>
-                          <div className="flex items-center justify-center gap-2 mt-2">
-                            <Button variant="outline" size="sm" onClick={() => setUrlDialogOpen(true)} data-testid="button-expertise-add-url">
-                              <Link className="h-3.5 w-3.5 mr-1.5" />
-                              Add URL
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => setTextDialogOpen(true)} data-testid="button-expertise-add-text">
-                              <Type className="h-3.5 w-3.5 mr-1.5" />
-                              Add Text
-                            </Button>
-                          </div>
                         </div>
                       )}
                     </div>
@@ -2424,37 +2541,11 @@ export default function KnowledgeBase() {
                       </div>
                       <h3 className="text-xl font-semibold mb-2" data-testid="text-empty-library">No Knowledge Sources Yet</h3>
                       <p className="text-muted-foreground mb-2 max-w-lg">
-                        No knowledge sources added yet. Upload documents, add URLs,
-                        or paste content to build your AI's knowledge base.
+                        No knowledge sources added yet. Use the ML Library tools to build your AI's knowledge base.
                       </p>
                       <p className="text-xs text-muted-foreground mb-6 max-w-md">
                         The AI will only answer questions based on these sources -- never from general knowledge.
                       </p>
-                      <div className="flex flex-wrap items-center justify-center gap-3">
-                        <Button 
-                          onClick={() => setUrlDialogOpen(true)}
-                          data-testid="button-empty-add-url"
-                        >
-                          <Globe className="h-4 w-4 mr-2" />
-                          Add Web Content
-                        </Button>
-                        <Button 
-                          variant="outline"
-                          onClick={() => setFileDialogOpen(true)}
-                          data-testid="button-empty-upload-file"
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Documents
-                        </Button>
-                        <Button 
-                          variant="outline"
-                          onClick={() => setTextDialogOpen(true)}
-                          data-testid="button-empty-add-text"
-                        >
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Add Lecture Notes
-                        </Button>
-                      </div>
                     </div>
                   </Card>
                 )}
@@ -2740,13 +2831,13 @@ export default function KnowledgeBase() {
             </Button>
             <Button 
               onClick={handleAddUrl} 
-              disabled={addUrlMutation.isPending || startPipelineMutation.isPending}
+              disabled={addUrlMutation.isPending}
               data-testid="button-submit-url"
             >
               <Sparkles className="h-4 w-4 mr-2" />
-              {addUrlMutation.isPending || startPipelineMutation.isPending 
+              {addUrlMutation.isPending
                 ? 'Adding & Analyzing...' 
-                : 'Add URL & Start Pipeline'}
+                : 'Add URL & Analyze'}
             </Button>
           </DialogFooter>
         </DialogContent>

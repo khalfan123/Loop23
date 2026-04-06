@@ -18,7 +18,7 @@
 
 import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { eq, and, inArray, type SQL } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { 
   campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows, forms, formFields, knowledgeBase, generatedUseCases 
 } from "@shared/schema";
@@ -1272,12 +1272,13 @@ OUTPUT RULES:
       }
 
       const newContacts = validContacts.map((c) => ({
+        id: nanoid(),
         campaignId,
         firstName: c.firstName,
         lastName: c.lastName,
         phone: c.phone,
         email: c.email,
-        customFields: c.customFields as SQL<unknown> | Record<string, unknown> | unknown[] | null | undefined,
+        customFields: c.customFields,
         status: "pending" as const,
       }));
 
@@ -1387,12 +1388,11 @@ OUTPUT RULES:
 
       const batchJobId = campaign.batchJobId;
       const provider = batchJobId.startsWith('bedrock-polly-') ? 'bedrock-polly'
-        : agent.telephonyProvider === 'plivo' ? 'plivo'
         : agent.telephonyProvider === 'twilio_openai' ? 'twilio-openai'
         : (agent.telephonyProvider === 'elevenlabs-sip' || agent.telephonyProvider === 'openai-sip') ? 'sip'
         : 'elevenlabs';
 
-      if (provider === 'bedrock-polly' || provider === 'plivo' || provider === 'twilio-openai' || provider === 'sip') {
+      if (provider === 'bedrock-polly' || provider === 'twilio-openai' || provider === 'sip') {
         const completedCalls = campaign.completedCalls || 0;
         const successfulCalls = campaign.successfulCalls || 0;
         const totalContacts = campaign.totalContacts || 0;

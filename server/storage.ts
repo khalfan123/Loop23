@@ -25,11 +25,13 @@ import {
   incomingConnections, emailTemplates, appointments, forms, formSubmissions,
   promptTemplates, agentVersions, seoSettings, analyticsScripts,
   paymentTransactions, refunds, invoices, paymentWebhookQueue, emailNotificationSettings,
-  bannedWords, contentViolations, twilioOpenaiCalls, plivoCalls, demoSessions, websiteWidgets,
-  agentPresets, bedrockKbFiles,
+  bannedWords, contentViolations, twilioOpenaiCalls, demoSessions, websiteWidgets,
+  agentPresets, bedrockKbFiles, opsTasks, opsAnalysisRuns, products,
   type User, type InsertUser,
   type AgentPreset,
   type BedrockKbFile, type InsertBedrockKbFile,
+  type OpsTask, type InsertOpsTask,
+  type OpsAnalysisRun, type InsertOpsAnalysisRun,
   type Agent, type InsertAgent,
   type KnowledgeBase as KnowledgeBaseType, type InsertKnowledgeBase,
   type Campaign, type InsertCampaign,
@@ -61,9 +63,12 @@ import {
   type BannedWord, type InsertBannedWord,
   type ContentViolation, type InsertContentViolation,
   type DemoSession, type InsertDemoSession,
-  type CallResponse, type InsertCallResponse
+  type CallResponse, type InsertCallResponse,
+  type Product, type InsertProduct,
+  userSmtpSettings,
+  type UserSmtpSettings, type InsertUserSmtpSettings
 } from "@shared/schema";
-import { eq, sql, and, gte, lte, lt, desc, asc, isNull, isNotNull, or, inArray } from "drizzle-orm";
+import { eq, sql, and, gte, lte, lt, desc, asc, isNull, isNotNull, or, inArray, notInArray } from "drizzle-orm";
 import { calculateGlobalAnalytics, calculateUserAnalytics, calculateDashboardData } from "./storage/analytics-helpers";
 
 // Effective limits type - merges plan limits with per-user subscription overrides
@@ -390,6 +395,44 @@ export interface IStorage {
   // Agent Presets
   getAgentPresets(): Promise<AgentPreset[]>;
   getAgentPreset(id: string): Promise<AgentPreset | undefined>;
+
+  // Callpilot Tasks
+  getOpsTask(id: string): Promise<OpsTask | undefined>;
+  getUserOpsTasks(userId: string, filters?: { status?: string; taskType?: string; priority?: string; startDate?: Date; endDate?: Date }): Promise<OpsTask[]>;
+  getCallOpsTasks(callId: string): Promise<OpsTask[]>;
+  getRecentUnanalyzedCalls(userId: string, limit: number): Promise<any[]>;
+  getAllUnanalyzedCalls(limit: number): Promise<any[]>;
+  createOpsTask(data: InsertOpsTask): Promise<OpsTask>;
+  createOpsTasks(data: InsertOpsTask[]): Promise<OpsTask[]>;
+  updateOpsTask(id: string, data: Partial<InsertOpsTask>): Promise<OpsTask | undefined>;
+  deleteOpsTask(id: string): Promise<void>;
+  deleteOpsTasksByCallId(callId: string, userId: string): Promise<number>;
+  deleteOpsAnalysisRun(callId: string): Promise<void>;
+  recordOpsAnalysisRun(userId: string, callId: string, tasksCreated: number): Promise<void>;
+  getOpsTaskStats(userId: string): Promise<{ pending: number; in_progress: number; completed: number; cancelled: number; total: number }>;
+  getOpsMetrics(userId: string, startDate?: Date, endDate?: Date): Promise<{
+    aht: number;
+    fcrRate: number;
+    taskCompletionRate: number;
+    sentimentBreakdown: Record<string, number>;
+    agentProductivity: number;
+    totalCallsAnalyzed: number;
+    totalTasksCreated: number;
+  }>;
+
+  // Products
+  getProduct(id: string): Promise<Product | undefined>;
+  getUserProducts(userId: string): Promise<Product[]>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  createProducts(items: InsertProduct[]): Promise<Product[]>;
+  updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<void>;
+
+  // User SMTP Settings
+  getUserSmtpSettings(userId: string): Promise<UserSmtpSettings | undefined>;
+  upsertUserSmtpSettings(settings: InsertUserSmtpSettings): Promise<UserSmtpSettings>;
+  deleteUserSmtpSettings(userId: string): Promise<void>;
+  updateUserSmtpVerified(userId: string, isVerified: boolean): Promise<void>;
 }
 
 export class DbStorage implements IStorage {
@@ -760,7 +803,7 @@ export class DbStorage implements IStorage {
       return {
         ...r.call,
         status: normalizedStatus,
-        engine: engine as 'elevenlabs' | 'openai' | 'twilio-openai' | 'plivo-openai',
+        engine: engine as 'elevenlabs' | 'openai' | 'twilio-openai',
         campaign: r.campaign ? { id: r.campaign.id, name: r.campaign.name } : null,
         contact: r.contact ? { id: r.contact.id, firstName: r.contact.firstName, lastName: r.contact.lastName, phone: r.contact.phone } : null,
         incomingConnection: r.incomingConnection ? { id: r.incomingConnection.id, agentId: r.incomingConnection.agentId } : null,
@@ -816,68 +859,6 @@ export class DbStorage implements IStorage {
         createdAt: r.call.createdAt,
         metadata: r.call.metadata,
         engine: 'twilio-openai' as const,
-        openaiSessionId: r.call.openaiSessionId,
-        openaiVoice: r.call.openaiVoice,
-        openaiModel: r.call.openaiModel,
-        campaign: r.campaign ? { id: r.campaign.id, name: r.campaign.name } : null,
-        contact: r.contact ? { id: r.contact.id, firstName: r.contact.firstName, lastName: r.contact.lastName, phone: r.contact.phone } : null,
-        incomingConnection: null,
-        agent: r.agent ? { id: r.agent.id, name: r.agent.name } : null,
-      };
-    }
-
-    // If not found, check Plivo+OpenAI calls table
-    const plivoResults = await db.select({
-      call: plivoCalls,
-      campaign: campaigns,
-      contact: contacts,
-      agent: agents,
-    })
-      .from(plivoCalls)
-      .leftJoin(campaigns, eq(plivoCalls.campaignId, campaigns.id))
-      .leftJoin(contacts, eq(plivoCalls.contactId, contacts.id))
-      .leftJoin(agents, eq(plivoCalls.agentId, agents.id))
-      .where(eq(plivoCalls.id, id));
-
-    if (plivoResults.length > 0) {
-      const r = plivoResults[0];
-      let normalizedStatus = r.call.status;
-      if (normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
-        if (r.call.endedAt) {
-          normalizedStatus = 'completed';
-        } else if (r.call.createdAt && (now - new Date(r.call.createdAt).getTime() > staleThresholdMs)) {
-          normalizedStatus = 'completed';
-        }
-      }
-      return {
-        id: r.call.id,
-        userId: r.call.userId,
-        campaignId: r.call.campaignId,
-        contactId: r.call.contactId,
-        agentId: r.call.agentId,
-        phoneNumber: r.call.fromNumber,
-        fromNumber: r.call.fromNumber,
-        toNumber: r.call.toNumber,
-        plivoCallUuid: r.call.plivoCallUuid,
-        status: normalizedStatus,
-        callDirection: r.call.callDirection === 'inbound' ? 'incoming' : (r.call.callDirection === 'outbound' ? 'outgoing' : r.call.callDirection),
-        duration: r.call.duration,
-        recordingUrl: r.call.recordingUrl,
-        transcript: r.call.transcript,
-        aiSummary: r.call.aiSummary,
-        sentiment: r.call.sentiment,
-        leadQualityScore: r.call.leadQualityScore,
-        keyPoints: r.call.keyPoints,
-        nextActions: r.call.nextActions,
-        wasTransferred: r.call.wasTransferred,
-        transferredTo: r.call.transferredTo,
-        transferredAt: r.call.transferredAt,
-        startedAt: r.call.startedAt,
-        answeredAt: r.call.answeredAt,
-        endedAt: r.call.endedAt,
-        createdAt: r.call.createdAt,
-        metadata: r.call.metadata,
-        engine: 'plivo-openai' as const,
         openaiSessionId: r.call.openaiSessionId,
         openaiVoice: r.call.openaiVoice,
         openaiModel: r.call.openaiModel,
@@ -954,7 +935,7 @@ export class DbStorage implements IStorage {
       return {
         ...r.call,
         status: normalizedStatus,
-        engine: engine as 'elevenlabs' | 'openai' | 'twilio-openai' | 'plivo-openai',
+        engine: engine as 'elevenlabs' | 'openai' | 'twilio-openai',
         campaign: r.campaign ? { id: r.campaign.id, name: r.campaign.name } : null,
         contact: r.contact ? { id: r.contact.id, firstName: r.contact.firstName, lastName: r.contact.lastName, phone: r.contact.phone } : null,
         incomingConnection: r.incomingConnection ? { id: r.incomingConnection.id, agentId: r.incomingConnection.agentId } : null,
@@ -1019,76 +1000,36 @@ export class DbStorage implements IStorage {
       agent: r.agent ? { id: r.agent.id, name: r.agent.name } : null,
     }});
 
-    // Fetch Plivo+OpenAI calls - user ownership only (strict isolation)
-    const plivoResults = await db.select({
-      call: plivoCalls,
-      campaign: campaigns,
-      contact: contacts,
-      agent: agents,
-    })
-      .from(plivoCalls)
-      .leftJoin(campaigns, eq(plivoCalls.campaignId, campaigns.id))
-      .leftJoin(contacts, eq(plivoCalls.contactId, contacts.id))
-      .leftJoin(agents, eq(plivoCalls.agentId, agents.id))
-      .where(eq(plivoCalls.userId, userId))
-      .orderBy(sql`${plivoCalls.createdAt} DESC`);
+    const deduped: typeof elevenLabsCalls = [];
+    const seenIds = new Set<string>();
 
-    const plivoOpenAICalls = plivoResults.map(r => {
-      let normalizedStatus = r.call.status;
-      if (normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
-        if (r.call.endedAt) {
-          normalizedStatus = 'completed';
-        } else if (r.call.createdAt && (now - new Date(r.call.createdAt).getTime() > staleThresholdMs)) {
-          normalizedStatus = 'completed';
+    for (const call of twilioOpenAICalls) {
+      seenIds.add(call.id);
+      if (call.campaignId && call.contactId) {
+        const dupIdx = elevenLabsCalls.findIndex(
+          el => el.campaignId === call.campaignId && el.contactId === call.contactId &&
+                Math.abs(new Date(el.createdAt!).getTime() - new Date(call.createdAt!).getTime()) < 5 * 60 * 1000
+        );
+        if (dupIdx !== -1) {
+          seenIds.add(elevenLabsCalls[dupIdx].id);
         }
       }
-      return {
-      id: r.call.id,
-      userId: r.call.userId,
-      campaignId: r.call.campaignId,
-      contactId: r.call.contactId,
-      agentId: r.call.agentId,
-      phoneNumber: r.call.fromNumber,
-      fromNumber: r.call.fromNumber,
-      toNumber: r.call.toNumber,
-      plivoCallUuid: r.call.plivoCallUuid,
-      status: normalizedStatus,
-      callDirection: r.call.callDirection === 'inbound' ? 'incoming' : 'outgoing',
-      duration: r.call.duration,
-      recordingUrl: r.call.recordingUrl,
-      transcript: r.call.transcript,
-      aiSummary: r.call.aiSummary,
-      sentiment: r.call.sentiment,
-      leadQualityScore: r.call.leadQualityScore,
-      keyPoints: r.call.keyPoints,
-      nextActions: r.call.nextActions,
-      wasTransferred: r.call.wasTransferred,
-      transferredTo: r.call.transferredTo,
-      transferredAt: r.call.transferredAt,
-      startedAt: r.call.startedAt,
-      answeredAt: r.call.answeredAt,
-      endedAt: r.call.endedAt,
-      createdAt: r.call.createdAt,
-      metadata: r.call.metadata,
-      engine: 'plivo-openai' as const,
-      openaiSessionId: r.call.openaiSessionId,
-      openaiVoice: r.call.openaiVoice,
-      openaiModel: r.call.openaiModel,
-      campaign: r.campaign ? { id: r.campaign.id, name: r.campaign.name } : null,
-      contact: r.contact ? { id: r.contact.id, firstName: r.contact.firstName, lastName: r.contact.lastName, phone: r.contact.phone } : null,
-      incomingConnection: null,
-      agent: r.agent ? { id: r.agent.id, name: r.agent.name } : null,
-    }});
+      deduped.push(call as any);
+    }
 
-    // Merge and sort by createdAt descending
-    const allCalls = [...elevenLabsCalls, ...twilioOpenAICalls, ...plivoOpenAICalls];
-    allCalls.sort((a, b) => {
+    for (const call of elevenLabsCalls) {
+      if (!seenIds.has(call.id)) {
+        deduped.push(call);
+      }
+    }
+
+    deduped.sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
 
-    return allCalls;
+    return deduped;
   }
 
   async createCall(insertCall: InsertCall): Promise<Call> {
@@ -2671,6 +2612,243 @@ export class DbStorage implements IStorage {
 
   async deleteBedrockKBFile(fileId: string): Promise<void> {
     await db.delete(bedrockKbFiles).where(eq(bedrockKbFiles.id, fileId));
+  }
+
+  // Callpilot Tasks
+  async getOpsTask(id: string): Promise<OpsTask | undefined> {
+    const [task] = await db.select().from(opsTasks).where(eq(opsTasks.id, id));
+    return task;
+  }
+
+  async getUserOpsTasks(userId: string, filters?: { status?: string; taskType?: string; priority?: string; startDate?: Date; endDate?: Date }): Promise<OpsTask[]> {
+    const conditions = [eq(opsTasks.userId, userId), eq(opsTasks.isDeleted, false)];
+    if (filters?.status) conditions.push(eq(opsTasks.status, filters.status));
+    if (filters?.taskType) conditions.push(eq(opsTasks.taskType, filters.taskType));
+    if (filters?.priority) conditions.push(eq(opsTasks.priority, filters.priority));
+    if (filters?.startDate) conditions.push(gte(opsTasks.createdAt, filters.startDate));
+    if (filters?.endDate) conditions.push(lte(opsTasks.createdAt, filters.endDate));
+    return db.select().from(opsTasks).where(and(...conditions)).orderBy(desc(opsTasks.createdAt));
+  }
+
+  async getCallOpsTasks(callId: string): Promise<OpsTask[]> {
+    return db.select().from(opsTasks).where(
+      and(eq(opsTasks.callId, callId), eq(opsTasks.isDeleted, false))
+    ).orderBy(desc(opsTasks.createdAt));
+  }
+
+  async getRecentUnanalyzedCalls(userId: string, limit: number): Promise<any[]> {
+    const analyzedRuns = await db
+      .select({ callId: opsAnalysisRuns.callId })
+      .from(opsAnalysisRuns)
+      .where(eq(opsAnalysisRuns.userId, userId));
+    const analyzedIds = analyzedRuns.map((r) => r.callId);
+
+    const baseConditions = and(
+      eq(twilioOpenaiCalls.userId, userId),
+      isNotNull(twilioOpenaiCalls.transcript)
+    );
+
+    const whereClause = analyzedIds.length > 0
+      ? and(baseConditions, notInArray(twilioOpenaiCalls.id, analyzedIds))
+      : baseConditions;
+
+    return db.select().from(twilioOpenaiCalls)
+      .where(whereClause)
+      .orderBy(desc(twilioOpenaiCalls.createdAt))
+      .limit(limit);
+  }
+
+  async getAllUnanalyzedCalls(limit: number): Promise<any[]> {
+    const analyzedIds = await db
+      .select({ callId: opsAnalysisRuns.callId })
+      .from(opsAnalysisRuns);
+    const ids = analyzedIds.map((r) => r.callId);
+
+    const whereClause = ids.length > 0
+      ? and(isNotNull(twilioOpenaiCalls.transcript), isNotNull(twilioOpenaiCalls.userId), notInArray(twilioOpenaiCalls.id, ids))
+      : and(isNotNull(twilioOpenaiCalls.transcript), isNotNull(twilioOpenaiCalls.userId));
+
+    return db.select().from(twilioOpenaiCalls)
+      .where(whereClause)
+      .orderBy(desc(twilioOpenaiCalls.createdAt))
+      .limit(limit);
+  }
+
+  async recordOpsAnalysisRun(userId: string, callId: string, tasksCreated: number): Promise<void> {
+    await db.insert(opsAnalysisRuns)
+      .values({ userId, callId, tasksCreated })
+      .onConflictDoNothing();
+  }
+
+  async createOpsTask(data: InsertOpsTask): Promise<OpsTask> {
+    const [task] = await db.insert(opsTasks).values(data).returning();
+    return task;
+  }
+
+  async createOpsTasks(data: InsertOpsTask[]): Promise<OpsTask[]> {
+    if (data.length === 0) return [];
+    return db.insert(opsTasks).values(data).returning();
+  }
+
+  async updateOpsTask(id: string, data: Partial<InsertOpsTask>): Promise<OpsTask | undefined> {
+    const [task] = await db.update(opsTasks).set({ ...data, updatedAt: new Date() }).where(eq(opsTasks.id, id)).returning();
+    return task;
+  }
+
+  async deleteOpsTask(id: string): Promise<void> {
+    await db.update(opsTasks).set({ isDeleted: true, updatedAt: new Date() }).where(eq(opsTasks.id, id));
+  }
+
+  async deleteOpsTasksByCallId(callId: string, userId: string): Promise<number> {
+    const deleted = await db.update(opsTasks)
+      .set({ isDeleted: true, updatedAt: new Date() })
+      .where(and(eq(opsTasks.callId, callId), eq(opsTasks.userId, userId)))
+      .returning();
+    return deleted.length;
+  }
+
+  async deleteOpsAnalysisRun(callId: string): Promise<void> {
+    await db.delete(opsAnalysisRuns).where(eq(opsAnalysisRuns.callId, callId));
+  }
+
+  async getOpsTaskStats(userId: string): Promise<{ pending: number; in_progress: number; completed: number; cancelled: number; total: number }> {
+    const tasks = await db.select().from(opsTasks).where(
+      and(eq(opsTasks.userId, userId), eq(opsTasks.isDeleted, false))
+    );
+    const stats = { pending: 0, in_progress: 0, completed: 0, cancelled: 0, total: tasks.length };
+    for (const t of tasks) {
+      const s = t.status as keyof typeof stats;
+      if (s in stats) (stats[s] as number)++;
+    }
+    return stats;
+  }
+
+  async getOpsMetrics(userId: string, startDate?: Date, endDate?: Date): Promise<{
+    aht: number;
+    fcrRate: number;
+    taskCompletionRate: number;
+    sentimentBreakdown: Record<string, number>;
+    agentProductivity: number;
+    totalCallsAnalyzed: number;
+    totalTasksCreated: number;
+  }> {
+    const callConditions = [eq(calls.userId, userId), isNotNull(calls.transcript)];
+    if (startDate) callConditions.push(gte(calls.createdAt, startDate));
+    if (endDate) callConditions.push(lte(calls.createdAt, endDate));
+
+    const userCalls = await db.select({
+      id: calls.id,
+      duration: calls.duration,
+      sentiment: calls.sentiment,
+      sessionOutcome: calls.sessionOutcome,
+    }).from(calls).where(and(...callConditions));
+
+    const taskConditions = [eq(opsTasks.userId, userId), eq(opsTasks.isDeleted, false)];
+    if (startDate) taskConditions.push(gte(opsTasks.createdAt, startDate));
+    if (endDate) taskConditions.push(lte(opsTasks.createdAt, endDate));
+
+    const userTasks = await db.select({
+      status: opsTasks.status,
+      callId: opsTasks.callId,
+    }).from(opsTasks).where(and(...taskConditions));
+
+    // AHT: average handle time in seconds from calls with duration
+    const callsWithDuration = userCalls.filter((c) => c.duration && c.duration > 0);
+    const aht = callsWithDuration.length > 0
+      ? Math.round(callsWithDuration.reduce((sum, c) => sum + (c.duration || 0), 0) / callsWithDuration.length)
+      : 0;
+
+    // FCR: calls where sessionOutcome indicates positive resolution
+    const resolvedKeywords = ['resolved', 'completed', 'success', 'done', 'satisfied'];
+    const fcrCalls = userCalls.filter((c) =>
+      c.sessionOutcome && resolvedKeywords.some((kw) => c.sessionOutcome!.toLowerCase().includes(kw))
+    );
+    const fcrRate = userCalls.length > 0 ? Math.round((fcrCalls.length / userCalls.length) * 100) : 0;
+
+    // Task completion rate
+    const completedTasks = userTasks.filter((t) => t.status === 'completed');
+    const taskCompletionRate = userTasks.length > 0
+      ? Math.round((completedTasks.length / userTasks.length) * 100)
+      : 0;
+
+    // Sentiment breakdown
+    const sentimentBreakdown: Record<string, number> = {};
+    for (const c of userCalls) {
+      const s = (c.sentiment || 'unknown').toLowerCase();
+      sentimentBreakdown[s] = (sentimentBreakdown[s] || 0) + 1;
+    }
+
+    // Agent productivity: unique calls that have been analyzed (have tasks)
+    const analyzedCallIds = new Set(userTasks.map((t) => t.callId).filter(Boolean));
+    const agentProductivity = analyzedCallIds.size;
+
+    return {
+      aht,
+      fcrRate,
+      taskCompletionRate,
+      sentimentBreakdown,
+      agentProductivity,
+      totalCallsAnalyzed: analyzedCallIds.size,
+      totalTasksCreated: userTasks.length,
+    };
+  }
+
+  // Products
+  async getProduct(id: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product;
+  }
+
+  async getUserProducts(userId: string): Promise<Product[]> {
+    return db.select().from(products).where(eq(products.userId, userId)).orderBy(desc(products.createdAt));
+  }
+
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [created] = await db.insert(products).values(product).returning();
+    return created;
+  }
+
+  async createProducts(items: InsertProduct[]): Promise<Product[]> {
+    if (items.length === 0) return [];
+    return db.insert(products).values(items).returning();
+  }
+
+  async updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined> {
+    const [updated] = await db.update(products).set({ ...product, updatedAt: new Date() }).where(eq(products.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await db.delete(products).where(eq(products.id, id));
+  }
+
+  // User SMTP Settings
+  async getUserSmtpSettings(userId: string): Promise<UserSmtpSettings | undefined> {
+    const [settings] = await db.select().from(userSmtpSettings).where(eq(userSmtpSettings.userId, userId));
+    return settings;
+  }
+
+  async upsertUserSmtpSettings(settings: InsertUserSmtpSettings): Promise<UserSmtpSettings> {
+    const existing = await this.getUserSmtpSettings(settings.userId);
+    if (existing) {
+      const [updated] = await db.update(userSmtpSettings)
+        .set({ ...settings, isVerified: false, updatedAt: new Date() })
+        .where(eq(userSmtpSettings.userId, settings.userId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(userSmtpSettings).values(settings).returning();
+    return created;
+  }
+
+  async deleteUserSmtpSettings(userId: string): Promise<void> {
+    await db.delete(userSmtpSettings).where(eq(userSmtpSettings.userId, userId));
+  }
+
+  async updateUserSmtpVerified(userId: string, isVerified: boolean): Promise<void> {
+    await db.update(userSmtpSettings)
+      .set({ isVerified, updatedAt: new Date() })
+      .where(eq(userSmtpSettings.userId, userId));
   }
 }
 

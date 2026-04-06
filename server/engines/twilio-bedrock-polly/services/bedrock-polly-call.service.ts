@@ -98,6 +98,9 @@ export class BedrockPollyCallService {
       const callId = nanoid();
       const userTier: 'free' | 'pro' = user.planType === 'pro' ? 'pro' : 'free';
       
+      const { enrichKnowledgeBaseIdsWithProducts } = await import('../../../utils/product-kb-enrichment');
+      const enrichedKbIds = await enrichKnowledgeBaseIdsWithProducts(agent.knowledgeBaseIds || [], userId);
+      
       let agentConfig;
       
       const effectiveFlowId = overrideFlowId || agent.flowId;
@@ -105,9 +108,10 @@ export class BedrockPollyCallService {
       const rawModel = (agent.llmModel as BedrockModel) || 'claude-sonnet-4-6';
       const defaultModel: BedrockModel = BedrockAgentFactory.validateModel(rawModel, userTier);
 
-      const ttsProvider: TtsProvider = agent.voiceProvider === 'elevenlabs' ? 'elevenlabs' : 'aws_polly';
+      const ttsProvider: TtsProvider = agent.voiceProvider === 'elevenlabs' ? 'elevenlabs' : agent.voiceProvider === 'cartesia' ? 'cartesia' : 'aws_polly';
       let elevenLabsApiKey: string | undefined;
       const elevenLabsVoiceId = agent.elevenLabsVoiceId || undefined;
+      const cartesiaVoiceId = ttsProvider === 'cartesia' ? (agent.openaiVoice || undefined) : undefined;
 
       if (ttsProvider === 'elevenlabs') {
         if (agent.elevenLabsCredentialId) {
@@ -149,7 +153,7 @@ export class BedrockPollyCallService {
               userId,
               agentId,
               callId,
-              knowledgeBaseIds: agent.knowledgeBaseIds || [],
+              knowledgeBaseIds: enrichedKbIds,
               transferPhoneNumber: agent.transferPhoneNumber || undefined,
             });
             
@@ -163,6 +167,7 @@ export class BedrockPollyCallService {
               ttsProvider,
               elevenLabsVoiceId,
               elevenLabsApiKey,
+              cartesiaVoiceId,
             };
           } else {
             logger.info(`Flow loaded with ${(flow.nodes as any[]).length} nodes, language: ${language}, compiling at runtime`, undefined, 'BedrockPollyCall');
@@ -174,7 +179,7 @@ export class BedrockPollyCallService {
                 language,
                 voice: (agent.openaiVoice as string) || defaultVoice,
                 model: defaultModel,
-                knowledgeBaseIds: agent.knowledgeBaseIds || [],
+                knowledgeBaseIds: enrichedKbIds,
                 transferEnabled: agent.transferEnabled || false,
                 transferPhoneNumber: agent.transferPhoneNumber || undefined,
                 endConversationEnabled: agent.endConversationEnabled ?? true,
@@ -200,7 +205,7 @@ export class BedrockPollyCallService {
                 callId,
               },
               language,
-              knowledgeBaseIds: agent.knowledgeBaseIds || [],
+              knowledgeBaseIds: enrichedKbIds,
               transferPhoneNumber: agent.transferPhoneNumber || undefined,
               transferEnabled: agent.transferEnabled || false,
             });
@@ -209,6 +214,7 @@ export class BedrockPollyCallService {
               ttsProvider,
               elevenLabsVoiceId,
               elevenLabsApiKey,
+              cartesiaVoiceId,
             };
           }
         }
@@ -240,7 +246,8 @@ export class BedrockPollyCallService {
             lastName: contactLastName || '',
             email: contactEmail || '',
             phone: contactPhone || '',
-            name: contactName || '',
+            name: contactFirstName || contactName?.split(' ')[0] || '',
+            contact_name: contactFirstName || contactName?.split(' ')[0] || '',
             company: contactCustomFields.company || contactCustomFields.organization || '',
             organization: contactCustomFields.organization || contactCustomFields.company || '',
             industry: contactCustomFields.industry || '',
@@ -313,12 +320,13 @@ export class BedrockPollyCallService {
           voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,
           model: defaultModel,
           systemPrompt: effectiveSystemPrompt,
-          firstMessage: resolveTemplateVariables(localizedFirstMessage || ''),
+          firstMessage: resolveTemplateVariables(localizedFirstMessage),
           temperature: agent.temperature ?? 0.7,
           userTier,
           ttsProvider,
           elevenLabsVoiceId,
           elevenLabsApiKey,
+          cartesiaVoiceId,
           language: agentLanguage,
           agentName: agent.name || undefined,
           toolContext: {
@@ -328,10 +336,10 @@ export class BedrockPollyCallService {
           },
         });
 
-        if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
+        if (enrichedKbIds.length > 0) {
           naturalConfig = BedrockAgentFactory.addKnowledgeBaseTool(
             naturalConfig, 
-            agent.knowledgeBaseIds, 
+            enrichedKbIds, 
             userId
           );
         }
@@ -452,6 +460,7 @@ export class BedrockPollyCallService {
           ttsProvider,
           elevenLabsVoiceId: elevenLabsVoiceId || null,
           elevenLabsApiKey: elevenLabsApiKey || null,
+          cartesiaVoiceId: cartesiaVoiceId || null,
         },
       });
 

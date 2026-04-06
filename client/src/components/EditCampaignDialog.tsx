@@ -36,12 +36,11 @@ interface Agent {
   name: string;
   personality: string;
   type: 'incoming' | 'natural' | 'flow';
-  telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | null;
+  telephonyProvider: 'twilio' | 'twilio_openai' | null;
 }
 
 const getEngineLabel = (provider: string | null): string => {
   switch (provider) {
-    case 'plivo': return 'Plivo+OpenAI';
     case 'twilio_openai': return 'Twilio+OpenAI';
     default: return 'Twilio+ElevenLabs';
   }

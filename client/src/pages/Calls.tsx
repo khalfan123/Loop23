@@ -78,7 +78,7 @@ interface Call {
   campaign?: { id: string; name: string } | null;
   contact?: { id: string; firstName: string; lastName?: string; phone: string } | null;
   incomingConnection?: { id: string; agentId: string } | null;
-  engine?: 'elevenlabs' | 'twilio-openai' | 'plivo-openai' | 'openai';
+  engine?: 'elevenlabs' | 'twilio-openai' | 'openai';
   agent?: { id: string; name: string } | null;
   widgetId?: string | null;
   widget?: { id: string; name: string } | null;
@@ -413,9 +413,6 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
   const getEngineBadge = (engine?: string) => {
     if (engine === 'twilio-openai') {
       return <Badge className="rounded-xl bg-violet-500/[0.08] dark:bg-violet-500/[0.15] text-violet-700 dark:text-violet-400 border-violet-500/20">Twilio+OpenAI</Badge>;
-    }
-    if (engine === 'plivo-openai') {
-      return <Badge className="rounded-xl bg-orange-500/[0.08] dark:bg-orange-500/[0.15] text-orange-700 dark:text-orange-400 border-orange-500/20">Plivo+OpenAI</Badge>;
     }
     if (engine === 'openai') {
       return <Badge className="rounded-xl bg-emerald-500/[0.08] dark:bg-emerald-500/[0.15] text-emerald-700 dark:text-emerald-400 border-emerald-500/20">OpenAI</Badge>;
@@ -837,7 +834,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
     </div>
   );
 
-  const renderCallsTable = (callList: Call[], pagination: ReturnType<typeof usePagination<Call>>, testIdPrefix: string = "") => (
+  const renderCallsTable = (callList: Call[], pagination: ReturnType<typeof usePagination>, testIdPrefix: string = "") => (
     <div className="border rounded-2xl overflow-hidden glass-surface">
       <div className="overflow-x-auto">
         <Table>

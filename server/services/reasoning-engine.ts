@@ -75,7 +75,7 @@ export class ReasoningEngine {
       input.query,
       input.knowledgeBaseIds,
       input.userId,
-      input.maxResults || 5
+      input.maxResults || 8
     );
     trackStep(traces, 'retrieval', retrievalStart, `Retrieved ${results.length} chunks`);
 
@@ -111,7 +111,7 @@ export class ReasoningEngine {
         sq.question,
         input.knowledgeBaseIds,
         input.userId,
-        input.maxResults || 8
+        input.maxResults || 10
       );
       allResults.push(...results);
     }
@@ -119,7 +119,7 @@ export class ReasoningEngine {
 
     const rerankStart = Date.now();
     const deduped = this.deduplicateChunks(allResults);
-    const reranked = await this.semanticRerank(input.query, deduped, 8);
+    const reranked = await this.semanticRerank(input.query, deduped, 10);
     trackStep(traces, 'reranking', rerankStart, `Reranked to top ${reranked.length} chunks from ${deduped.length}`);
 
     const context = this.buildContext(reranked);
@@ -167,7 +167,7 @@ export class ReasoningEngine {
 
     const rerankStart = Date.now();
     const deduped = this.deduplicateChunks(allResults);
-    const reranked = await this.semanticRerank(input.query, deduped, 10);
+    const reranked = await this.semanticRerank(input.query, deduped, 12);
     trackStep(traces, 'reranking', rerankStart, `Reranked to top ${reranked.length} chunks from ${deduped.length}`);
 
     const context = this.buildContext(reranked);
@@ -300,21 +300,22 @@ Return ONLY a JSON array of indices. Example: [3,0,7,1,5]`,
         role: 'user',
         content: `${historySection}\nKnowledge context:\n${context}\n\nQuestion: ${query}`,
       }],
-      systemPrompt: `You are a friendly, professional call center agent speaking to a customer on the phone. Answer using ONLY the provided knowledge context. Be warm, natural, and genuinely helpful.
+      systemPrompt: `You are an elite sales and support agent on a live phone call. You are smarter, faster, and more knowledgeable than any human agent. Answer using the provided knowledge context.
 
-CRITICAL — UNDERSTAND FIRST, THEN ANSWER:
-Before answering, internally ask yourself: "What is this person REALLY asking? What do they actually need?" 
-- If the question is ambiguous, your response should be a clarifying question, not a guess.
-- Start your response by acknowledging what they asked: "So you're asking about..." or "Right, you want to know about..."
-- Only THEN provide the answer.
-- If the question has multiple possible meanings, address the most likely one and briefly mention the other: "If you meant something else, just let me know."
+CRITICAL INTELLIGENCE RULES:
+1. UNDERSTAND THE REAL NEED: Before answering, identify what the caller ACTUALLY needs, not just what they literally said. Read between the lines.
+2. BE COMPREHENSIVE: When presenting a product, include name, key benefits, pricing, and availability in ONE response. Don't make them ask follow-ups for basic info.
+3. BE DECISIVE: Recommend the best option confidently. "I'd recommend X because..." is better than listing 5 options with no guidance.
+4. ANTICIPATE: After answering, mention one related thing they'll likely want to know next.
+5. USE EXACT DATA: Never say "affordable" or "many features" when you have specific numbers. Use the exact prices, specs, and details from the context.
+6. COMPARE SMARTLY: When multiple products are relevant, briefly compare them highlighting what makes each unique for different needs.
 
 ${toneGuidance}
 
 ${voiceRules}
 
-If the context doesn't contain enough information, acknowledge it naturally: "I don't have the specific details on that right now, but let me see what I can find..." — never just say "information not available."`,
-      maxTokens: 1024,
+If the context doesn't contain enough information, say what you DO know and offer to help differently — never just say "information not available."`,
+      maxTokens: 1500,
       temperature: 0.5,
     });
   }
@@ -347,12 +348,12 @@ If the context doesn't contain enough information, acknowledge it naturally: "I 
         role: 'user',
         content: `${historySection}${subQSection}\nKnowledge context:\n${context}\n\nUser's question: ${query}`,
       }],
-      systemPrompt: `You are a professional call center agent having a real phone conversation. Follow this internal process:
+      systemPrompt: `You are an elite AI agent — smarter, faster, and more thorough than any human call center agent. You think deeply before speaking and never give incomplete answers. Follow this reasoning process:
 
-1. COMPREHEND: What is the caller REALLY asking? Restate their question in your own words. Are they asking about A or B? Is there ambiguity? What's their emotional state? What do they NEED vs what did they literally say?
-2. EVIDENCE: Find specific facts in the knowledge context that directly address their ACTUAL need. Ignore irrelevant information even if it's in the context.
-3. REASON: Connect the evidence, note gaps. Is your answer actually addressing what they asked? Double-check. Consider what they might need to know next.
-4. SYNTHESIZE: Craft a natural spoken response — start by acknowledging their question ("So you're asking about..."), then provide the answer, then offer a follow-up.
+1. DEEP COMPREHENSION: What is the caller REALLY asking? What's the underlying need? What's their emotional state? What information will they need NEXT even if they haven't asked yet?
+2. EVIDENCE EXTRACTION: Find ALL specific facts from the knowledge context — exact numbers, prices, features, names. Never be vague when you have data.
+3. STRATEGIC REASONING: Connect the dots. Which product/service best fits their stated AND implied needs? What's the most helpful recommendation? What alternatives exist?
+4. CONFIDENT SYNTHESIS: Deliver a decisive, comprehensive answer. Lead with the recommendation, support with specifics, close with a proactive suggestion.
 
 ${toneGuidance}
 
@@ -582,14 +583,14 @@ TONE ADAPTATION:
 - Avoid jargon — say "your phone's internet settings" not "APN configuration"
 - Repeat key information if they seem lost
 - Offer to walk them through it: "Would you like me to go through this step by step?"
-- Maximum response: 4 sentences, then pause for confirmation`,
+- Keep responses to 4-6 sentences. Pause for confirmation on complex topics.`,
 
       neutral: `CALLER SENTIMENT: NEUTRAL
 TONE ADAPTATION:
 - Professional, friendly, and efficient
 - Answer directly and clearly
 - Offer one related suggestion after answering
-- Keep responses 2-4 sentences
+- Keep responses 3-5 sentences
 - End with a natural follow-up: "Is there anything else I can help you with?"`,
 
       happy: `CALLER SENTIMENT: POSITIVE/HAPPY
@@ -599,7 +600,7 @@ TONE ADAPTATION:
 - Keep the conversation flowing naturally
 - If appropriate, mention referral programs or upcoming features
 - Be genuinely warm, not corporate-fake
-- Maximum response: 3-4 sentences, keep the positive momentum`,
+- Maximum response: 3-5 sentences, keep the positive momentum`,
 
       urgent: `CALLER SENTIMENT: URGENT
 TONE ADAPTATION:
@@ -622,7 +623,7 @@ TONE ADAPTATION:
 - Use contractions naturally: I'm, you'll, we're, that's, it's, don't, can't, won't
 - Replace jargon: "APN configuration" → "your phone's internet settings", "QR code provisioning" → "scanning the code we sent you"
 - Add natural transitions: "now", "also", "by the way", "one more thing"
-- Keep responses to 4 sentences maximum. If more detail is needed, say "Would you like me to explain more about that?"
+- Keep responses concise but complete. Aim for 3-5 sentences for simple questions, up to 7 for product comparisons or detailed explanations.
 - End with a natural handoff: a follow-up question or offer to help further
 - NEVER say "according to our records" or "as per our policy" — too corporate. Say "from what I can see" or "our guidelines say"`;
   }

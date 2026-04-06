@@ -16,7 +16,7 @@
 import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { TwilioOpenAIAudioBridge } from '../services/audio-bridge.service';
-import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
+import { OpenAIPoolService } from '../../../services/openai-pool.service';
 import { OpenAIAgentFactory } from '../services/openai-agent-factory';
 import { hydrateCompiledTools, type CompiledFunctionTool } from '../../../services/openai-voice-agent';
 import { db } from '../../../db';
@@ -27,7 +27,6 @@ import { logger } from '../../../utils/logger';
 import { TWILIO_OPENAI_CONFIG } from '../config/twilio-openai-config';
 import { CallInsightsService } from '../../../services/call-insights.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
-import { QaAnalysisService } from '../../../services/qa-analysis.service';
 import type { TwilioMediaStreamEvent } from '../types';
 import type { OpenAIVoice, OpenAIRealtimeModel, AgentTool } from '../types';
 
@@ -283,10 +282,6 @@ async function initializeSession(
         transferPhoneNumber: metadata?.transferPhoneNumber as string || undefined,
       });
       
-      const callerPhoneNumber = (callRecord.callDirection as string) === 'inbound'
-        ? callRecord.fromNumber
-        : callRecord.toNumber;
-
       // Build agent config with hydrated flow tools
       agentConfig = {
         voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
@@ -298,12 +293,6 @@ async function initializeSession(
       };
       
       logger.info(`Flow agent initialized with ${hydratedTools.length} tools including play_audio support`, undefined, 'TwilioOpenAI Stream');
-      if (callRecord.userId) {
-        agentConfig = await OpenAIAgentFactory.injectCallerMemoryContext(agentConfig as any, {
-          userId: callRecord.userId,
-          callerPhoneNumber,
-        });
-      }
     } else {
       // Natural agent - build agent config from scratch
       agentConfig = OpenAIAgentFactory.createAgentConfig({
@@ -320,8 +309,12 @@ async function initializeSession(
         language: (metadata?.language as string) || 'en',
       });
 
-      // Add knowledge base tool if configured
-      const knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
+      // Add knowledge base tool if configured (enriched with product KB entries)
+      let knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
+      if (callRecord.userId) {
+        const { enrichKnowledgeBaseIdsWithProducts } = await import('../../../utils/product-kb-enrichment');
+        knowledgeBaseIds = await enrichKnowledgeBaseIdsWithProducts(knowledgeBaseIds || [], callRecord.userId);
+      }
       if (knowledgeBaseIds && knowledgeBaseIds.length > 0 && callRecord.userId) {
         agentConfig = OpenAIAgentFactory.addKnowledgeBaseTool(
           agentConfig,
@@ -364,16 +357,6 @@ async function initializeSession(
       if (dataSchema && dataSchema.length > 0) {
         agentConfig = OpenAIAgentFactory.addDataCollectionTool(agentConfig, dataSchema, callRecord.id);
       }
-
-      const callerPhoneNumber = (callRecord.callDirection as string) === 'inbound'
-        ? callRecord.fromNumber
-        : callRecord.toNumber;
-      if (callRecord.userId) {
-        agentConfig = await OpenAIAgentFactory.injectCallerMemoryContext(agentConfig as any, {
-          userId: callRecord.userId,
-          callerPhoneNumber,
-        });
-      }
     }
 
     // ALWAYS ensure end_call tool is available for flow agents
@@ -396,7 +379,6 @@ async function initializeSession(
       fromNumber: callRecord.fromNumber || undefined,
       toNumber: callRecord.toNumber || undefined,
       callDirection: callRecord.callDirection as 'inbound' | 'outbound' || 'inbound',
-      credentialId: callRecord.openaiCredentialId || undefined,
     });
 
     logger.info(`Session created for incoming call ${callSid}`, undefined, 'TwilioOpenAI Stream');
@@ -535,25 +517,6 @@ async function initializeSession(
             }
           } catch (crmError: any) {
             logger.error(`Failed to create CRM lead: ${crmError.message}`, crmError, 'TwilioOpenAI Stream');
-          }
-        }
-
-        // Automatically generate Retell-style benchmark scorecard for completed Twilio OpenAI calls.
-        if (callUserId) {
-          try {
-            const qaAnalysis = await QaAnalysisService.analyzeTwilioOpenAIBenchmarkCall(callId, callUserId, openaiApiKey);
-            if (qaAnalysis) {
-              const retellScore = Number(((qaAnalysis.diagnostics as any)?.retellBenchmark?.weightedScore) || 0);
-              logger.info(
-                `Generated Twilio OpenAI benchmark for call ${callId}`,
-                { retellReadinessScore: retellScore },
-                'TwilioOpenAI Stream'
-              );
-            } else {
-              logger.warn(`Benchmark generation skipped for call ${callId}`, undefined, 'TwilioOpenAI Stream');
-            }
-          } catch (qaError: any) {
-            logger.error(`Failed to auto-generate benchmark for call ${callId}: ${qaError.message}`, qaError, 'TwilioOpenAI Stream');
           }
         }
       } catch (error: any) {

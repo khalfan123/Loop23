@@ -1,0 +1,105 @@
+All "Route not yet active" endpoints (26 total)
+#	Method	Path (under /api/internal/admin/)	Used by
+1	GET	system/status	Dashboard home
+2	GET	subscriptions	Billing → Subscriptions
+3	GET	subscriptions/stats	Billing → Subscriptions
+4	PATCH	subscriptions/:id	Cancel / Reactivate
+5	GET	billing/overview	Billing → Overview
+6	GET	payment-transactions/revenue	Billing → Overview
+7	GET	credentials/status	System → Credentials
+8	GET	credentials/:service	Per-service credential
+9	PUT	credentials/:service	Save credential
+10	DELETE	credentials/:service	Clear credential
+11	POST	credentials/:service/test	Test credential
+12	GET	notifications	Notifications list
+13	POST	notifications/broadcast	Send broadcast
+14	DELETE	notifications/:id	Delete notification
+15	GET	users/kyc-queue	KYC Queue page
+16	GET	calls/errors	Calling → Errors
+17	GET	calls/errors/summary	Error summary card
+18	GET	elevenlabs/pool	AI → ElevenLabs
+19	GET	elevenlabs/pool/stats	ElevenLabs stats
+20	GET	openai/pool	AI → OpenAI
+21	GET	openai/pool/stats	OpenAI stats
+22	GET	admin-users	System → Auth
+23	GET	auth/sessions	System → Auth
+24	GET	settings/smtp	Settings → Email
+25	GET	plugins	Settings → Plugins
+26	GET	integrations	System → Integrations
+Prompt to paste to your main app developer
+
+    Please add the following admin API routes to looop23.replit.app.
+    All routes go under the /api/internal/admin/ prefix and must be protected by the X-Internal-API-Key middleware that already exists on all working admin routes.
+
+    Priority 1 — Highest impact (dashboard home + billing)
+
+    GET  /api/internal/admin/system/status
+         → return platform health: { db, redis, queues, services }
+    GET  /api/internal/admin/billing/overview
+         → return { totalRevenue, mrr, activeSubscriptions, totalUsers, creditsIssued }
+    GET  /api/internal/admin/payment-transactions/revenue
+         → return revenue time-series data
+    GET  /api/internal/admin/subscriptions
+         → return list of all user subscriptions
+    GET  /api/internal/admin/subscriptions/stats
+         → return { active, cancelled, trialing, pastDue }
+    PATCH /api/internal/admin/subscriptions/:id
+          body: { action: "cancel" | "reactivate" }
+
+    Priority 2 — Credentials management
+
+    GET    /api/internal/admin/credentials/status
+           → return [{ service, isConfigured, lastTestedAt, status }]
+           services: twilio, elevenlabs, openai, stripe, razorpay, paypal, paystack, mercadopago, n8n, smtp
+    GET    /api/internal/admin/credentials/:service
+    PUT    /api/internal/admin/credentials/:service
+           body: service-specific key/value fields
+    DELETE /api/internal/admin/credentials/:service
+    POST   /api/internal/admin/credentials/:service/test
+           → test connectivity, return { success, message }
+
+    Priority 3 — Notifications & KYC
+
+    GET    /api/internal/admin/notifications
+           → paginated list of sent broadcasts
+    POST   /api/internal/admin/notifications/broadcast
+           body: { title, message, type: "info"|"system"|"warning"|"success"|"error", link? }
+           → return { recipientCount }
+    DELETE /api/internal/admin/notifications/:id
+    GET    /api/internal/admin/users/kyc-queue
+           → return users who have submitted KYC
+           format: [{ id, name, email, kyc: { status, submittedAt, rejectionReason } }]
+
+    Priority 4 — Call errors & AI pools
+
+    GET  /api/internal/admin/calls/errors
+         → paginated call error log
+    GET  /api/internal/admin/calls/errors/summary
+         → error breakdown by type
+    GET    /api/internal/admin/elevenlabs/pool
+    GET    /api/internal/admin/elevenlabs/pool/stats
+    POST   /api/internal/admin/elevenlabs/pool
+    PUT    /api/internal/admin/elevenlabs/pool/:id
+    DELETE /api/internal/admin/elevenlabs/pool/:id
+    GET    /api/internal/admin/openai/pool
+    GET    /api/internal/admin/openai/pool/stats
+    POST   /api/internal/admin/openai/pool
+    PUT    /api/internal/admin/openai/pool/:id
+    DELETE /api/internal/admin/openai/pool/:id
+
+    Priority 5 — Admin users, sessions, email, plugins, integrations
+
+    GET    /api/internal/admin/admin-users
+    POST   /api/internal/admin/admin-users
+    PATCH  /api/internal/admin/admin-users/:id
+    DELETE /api/internal/admin/admin-users/:id
+    GET    /api/internal/admin/auth/sessions
+    DELETE /api/internal/admin/auth/sessions/:id
+    GET    /api/internal/admin/settings/smtp
+    PUT    /api/internal/admin/settings/smtp
+    GET    /api/internal/admin/plugins
+    GET    /api/internal/admin/plugins/discover
+    POST   /api/internal/admin/plugins/:id/install
+    POST   /api/internal/admin/plugins/:id/uninstall
+    GET    /api/internal/admin/integrations
+    POST   /api/internal/admin/integrations/:type/test

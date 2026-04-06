@@ -18,7 +18,6 @@ export type ErrorSeverity = 'info' | 'warning' | 'error' | 'critical';
 export type EngineType =
   | 'bedrock-polly'
   | 'twilio-openai'
-  | 'plivo'
   | 'elevenlabs';
 
 interface LogCallErrorParams {

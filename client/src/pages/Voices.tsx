@@ -14,18 +14,19 @@
  * Respect the author's rights and Envato licensing terms.
  * ============================================================
  */
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, Play, Mic, Square, AlertCircle } from "lucide-react";
+import { Search, Play, Mic, Square, AlertCircle, Globe, Pause, Volume2, PanelLeft, Languages, Users, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OpenAIVoicePreviewButton from "@/components/OpenAIVoicePreviewButton";
+import CartesiaVoicePreviewButton from "@/components/CartesiaVoicePreviewButton";
+import { cn } from "@/lib/utils";
 
 interface AccountVoice {
   voice_id: string;
@@ -41,6 +42,15 @@ interface OpenAIVoiceInfo {
   description: string;
   gender: string;
   style: string;
+}
+
+interface CartesiaVoice {
+  id: string;
+  name: string;
+  description: string;
+  language: string;
+  gender?: string;
+  isPublic: boolean;
 }
 
 const OPENAI_VOICES: OpenAIVoiceInfo[] = [
@@ -68,20 +78,185 @@ export const VOICE_LANGUAGES = [
   { value: 'en', label: 'English', code: 'en' },
   { value: 'es', label: 'Spanish', code: 'es' },
   { value: 'fr', label: 'French', code: 'fr' },
-  { value: 'de', label: 'German', code: 'de' },
   { value: 'it', label: 'Italian', code: 'it' },
-  { value: 'pt', label: 'Portuguese', code: 'pt' },
-  { value: 'ja', label: 'Japanese', code: 'ja' },
-  { value: 'ko', label: 'Korean', code: 'ko' },
   { value: 'zh', label: 'Chinese', code: 'zh' },
-  { value: 'ru', label: 'Russian', code: 'ru' },
   { value: 'ar', label: 'Arabic', code: 'ar' },
   { value: 'hi', label: 'Hindi', code: 'hi' },
-  { value: 'nl', label: 'Dutch', code: 'nl' },
-  { value: 'pl', label: 'Polish', code: 'pl' },
-  { value: 'sv', label: 'Swedish', code: 'sv' },
-  { value: 'tr', label: 'Turkish', code: 'tr' },
 ];
+
+const GENDER_COLORS: Record<string, string> = {
+  male: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  female: "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
+  neutral: "bg-gray-100 text-gray-600 dark:bg-gray-800/60 dark:text-gray-400",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  professional: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  premade: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  cloned: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  generated: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+};
+
+function getGenderColor(gender?: string) {
+  if (!gender) return GENDER_COLORS.neutral;
+  return GENDER_COLORS[gender.toLowerCase()] || GENDER_COLORS.neutral;
+}
+
+function getCategoryColor(category?: string) {
+  if (!category) return "bg-muted text-muted-foreground";
+  return CATEGORY_COLORS[category.toLowerCase()] || "bg-muted text-muted-foreground";
+}
+
+function VoiceAvatar({ name, gender }: { name: string; gender?: string }) {
+  const initial = name.charAt(0).toUpperCase();
+  const gradients: Record<string, string> = {
+    male: "from-blue-500 to-indigo-600",
+    female: "from-pink-500 to-rose-600",
+    neutral: "from-gray-400 to-slate-600",
+  };
+  const gradient = gradients[gender?.toLowerCase() || "neutral"] || gradients.neutral;
+
+  return (
+    <div className={cn(
+      "h-10 w-10 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0 shadow-sm",
+      gradient
+    )}>
+      <span className="text-white font-semibold text-sm">{initial}</span>
+    </div>
+  );
+}
+
+function WaveformBars({ isPlaying }: { isPlaying: boolean }) {
+  return (
+    <div className="flex items-end gap-[2px] h-4">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div
+          key={i}
+          className={cn(
+            "w-[3px] rounded-full bg-primary transition-all duration-300",
+            isPlaying ? "animate-pulse" : "opacity-40"
+          )}
+          style={{
+            height: isPlaying
+              ? `${8 + Math.sin(i * 1.2) * 8}px`
+              : `${4 + (i % 3) * 2}px`,
+            animationDelay: `${i * 100}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function FilterSidebar({
+  selectedLanguage,
+  setSelectedLanguage,
+  selectedGender,
+  setSelectedGender,
+  availableLanguages,
+  activeProvider,
+  activeFilterCount,
+  clearFilters,
+}: {
+  selectedLanguage: string;
+  setSelectedLanguage: (v: string) => void;
+  selectedGender: string;
+  setSelectedGender: (v: string) => void;
+  availableLanguages: typeof VOICE_LANGUAGES;
+  activeProvider: string;
+  activeFilterCount: number;
+  clearFilters: () => void;
+}) {
+  const genderOptions = [
+    { value: "all", label: "All" },
+    { value: "male", label: "Male" },
+    { value: "female", label: "Female" },
+    { value: "neutral", label: "Neutral" },
+  ];
+
+  return (
+    <nav className="flex flex-col h-full">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+        <h2 className="text-sm font-semibold text-foreground">Filters</h2>
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearFilters}
+            className="text-[11px] text-primary hover:text-primary/80 font-medium"
+            data-testid="button-clear-sidebar-filters"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+
+      {(activeProvider === "elevenlabs" || activeProvider === "cartesia") && (
+        <div className="px-3 py-4 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <div className="flex items-center gap-2 px-1 mb-3">
+            <Languages className="h-3.5 w-3.5 text-muted-foreground/60" />
+            <span className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">Language</span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {availableLanguages.map((lang) => (
+              <button
+                key={lang.value}
+                onClick={() => setSelectedLanguage(lang.value)}
+                data-testid={`filter-lang-${lang.value}`}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors text-left w-full",
+                  selectedLanguage === lang.value
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {lang.value !== 'all' && (
+                  <Globe className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                )}
+                {lang.value === 'all' && (
+                  <span className="h-3.5 w-3.5 shrink-0 text-center text-[10px] font-bold opacity-50">∞</span>
+                )}
+                <span className="truncate">{lang.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="px-3 py-4">
+        <div className="flex items-center gap-2 px-1 mb-3">
+          <Users className="h-3.5 w-3.5 text-muted-foreground/60" />
+          <span className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider">Gender</span>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {genderOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setSelectedGender(opt.value)}
+              data-testid={`filter-gender-${opt.value}`}
+              className={cn(
+                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors text-left w-full",
+                selectedGender === opt.value
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              {opt.value !== "all" ? (
+                <span className={cn(
+                  "h-2.5 w-2.5 rounded-full shrink-0",
+                  opt.value === "male" && "bg-blue-500",
+                  opt.value === "female" && "bg-pink-500",
+                  opt.value === "neutral" && "bg-gray-400"
+                )} />
+              ) : (
+                <span className="h-2.5 w-2.5 rounded-full shrink-0 bg-gradient-to-r from-blue-500 via-pink-500 to-gray-400" />
+              )}
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </nav>
+  );
+}
 
 export default function Voices({ externalProvider, externalLanguage, hideHeader, hideProviderTabs }: VoicesProps = {}) {
   const { t } = useTranslation();
@@ -89,34 +264,82 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("elevenlabs");
+  const [selectedLanguage, setSelectedLanguage] = useState("all");
+  const [selectedGender, setSelectedGender] = useState("all");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const cartesiaStopRef = useRef<(() => void) | null>(null);
+
+  const VOICES_PER_PAGE = 10;
 
   const effectiveProvider = externalProvider || activeTab;
-  const effectiveLanguage = externalLanguage || 'all';
+  const effectiveLanguage = externalLanguage || selectedLanguage;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, selectedLanguage, selectedGender]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const { data: accountVoices, isLoading, isError, error } = useQuery<AccountVoice[]>({
     queryKey: ["/api/elevenlabs/voices"],
     staleTime: 60000,
   });
 
+  const { data: cartesiaVoices, isLoading: cartesiaLoading, isError: cartesiaError, error: cartesiaErr } = useQuery<CartesiaVoice[]>({
+    queryKey: ["/api/deprock/cartesia-voices"],
+    staleTime: 60000,
+  });
+
+  const availableLanguages = useMemo(() => {
+    if (effectiveProvider === 'cartesia') {
+      if (!cartesiaVoices) return [];
+      const langs = new Set<string>();
+      cartesiaVoices.forEach(v => {
+        if (v.language) langs.add(v.language.toLowerCase().split(/[-_]/)[0]);
+      });
+      return VOICE_LANGUAGES.filter(l => l.value === 'all' || langs.has(l.code));
+    }
+    if (!accountVoices) return [];
+    const langs = new Set<string>();
+    accountVoices.forEach(v => {
+      if (v.labels?.language) langs.add(v.labels.language.toLowerCase());
+    });
+    return VOICE_LANGUAGES.filter(l => l.value === 'all' || langs.has(l.code));
+  }, [accountVoices, cartesiaVoices, effectiveProvider]);
+
   const filteredVoices = useMemo(() => {
     if (!accountVoices) return [];
     let result = accountVoices;
     if (effectiveLanguage && effectiveLanguage !== 'all') {
-      result = result.filter(v => 
+      result = result.filter(v =>
         v.labels?.language?.toLowerCase() === effectiveLanguage.toLowerCase()
+      );
+    }
+    if (selectedGender !== 'all') {
+      result = result.filter(v =>
+        v.labels?.gender?.toLowerCase() === selectedGender.toLowerCase()
       );
     }
     if (debouncedSearch) {
       const searchLower = debouncedSearch.toLowerCase();
-      result = result.filter(v => 
+      result = result.filter(v =>
         v.name.toLowerCase().includes(searchLower) ||
         v.labels?.language?.toLowerCase().includes(searchLower) ||
         v.labels?.gender?.toLowerCase().includes(searchLower) ||
@@ -125,22 +348,63 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
       );
     }
     return result;
-  }, [accountVoices, debouncedSearch, effectiveLanguage]);
+  }, [accountVoices, debouncedSearch, effectiveLanguage, selectedGender]);
 
   const filteredOpenAIVoices = useMemo(() => {
-    if (!debouncedSearch) return OPENAI_VOICES;
-    const searchLower = debouncedSearch.toLowerCase();
-    return OPENAI_VOICES.filter(v => 
-      v.name.toLowerCase().includes(searchLower) ||
-      v.description.toLowerCase().includes(searchLower) ||
-      v.gender.toLowerCase().includes(searchLower) ||
-      v.style.toLowerCase().includes(searchLower)
-    );
-  }, [debouncedSearch]);
+    let result = OPENAI_VOICES;
+    if (selectedGender !== 'all') {
+      result = result.filter(v => v.gender.toLowerCase() === selectedGender.toLowerCase());
+    }
+    if (debouncedSearch) {
+      const searchLower = debouncedSearch.toLowerCase();
+      result = result.filter(v =>
+        v.name.toLowerCase().includes(searchLower) ||
+        v.description.toLowerCase().includes(searchLower) ||
+        v.gender.toLowerCase().includes(searchLower) ||
+        v.style.toLowerCase().includes(searchLower)
+      );
+    }
+    return result;
+  }, [debouncedSearch, selectedGender]);
 
-  const handlePlayPreview = (voiceId: string, previewUrl?: string) => {
+  const normalizeLanguageCode = (lang: string): string => {
+    if (!lang) return '';
+    return lang.toLowerCase().split(/[-_]/)[0];
+  };
+
+  const filteredCartesiaVoices = useMemo(() => {
+    if (!cartesiaVoices) return [];
+    let result = cartesiaVoices;
+    if (effectiveLanguage && effectiveLanguage !== 'all') {
+      result = result.filter(v =>
+        normalizeLanguageCode(v.language) === effectiveLanguage.toLowerCase()
+      );
+    }
+    if (selectedGender !== 'all') {
+      result = result.filter(v =>
+        v.gender?.toLowerCase() === selectedGender.toLowerCase()
+      );
+    }
+    if (debouncedSearch) {
+      const searchLower = debouncedSearch.toLowerCase();
+      result = result.filter(v =>
+        v.name.toLowerCase().includes(searchLower) ||
+        v.description?.toLowerCase().includes(searchLower) ||
+        v.language?.toLowerCase().includes(searchLower) ||
+        v.gender?.toLowerCase().includes(searchLower)
+      );
+    }
+    return result;
+  }, [cartesiaVoices, debouncedSearch, effectiveLanguage, selectedGender]);
+
+  const handlePlayPreview = useCallback((voiceId: string, previewUrl?: string) => {
     if (!previewUrl) return;
-    
+
+    if (cartesiaStopRef.current) {
+      cartesiaStopRef.current();
+      cartesiaStopRef.current = null;
+    }
+
     if (playingVoice === voiceId) {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -158,69 +422,378 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
 
     const audio = new Audio(previewUrl);
     audioRef.current = audio;
-    audio.play();
+    audio.play().catch(() => {});
     setPlayingVoice(voiceId);
     audio.onended = () => {
       setPlayingVoice(null);
       audioRef.current = null;
     };
-  };
+  }, [playingVoice]);
 
   const formatLanguageName = (code: string) => {
     const languageNames: Record<string, string> = {
-      en: "English",
-      es: "Spanish",
-      fr: "French",
-      de: "German",
-      it: "Italian",
-      pt: "Portuguese",
-      ja: "Japanese",
-      ko: "Korean",
-      zh: "Chinese",
-      ru: "Russian",
-      ar: "Arabic",
-      hi: "Hindi",
-      nl: "Dutch",
-      pl: "Polish",
-      sv: "Swedish",
-      tr: "Turkish",
-      id: "Indonesian",
-      th: "Thai",
-      vi: "Vietnamese",
-      cs: "Czech",
-      el: "Greek",
-      hu: "Hungarian",
-      ro: "Romanian",
-      uk: "Ukrainian",
-      he: "Hebrew",
-      ms: "Malay",
-      fil: "Filipino",
-      da: "Danish",
-      fi: "Finnish",
-      no: "Norwegian",
-      sk: "Slovak",
-      bg: "Bulgarian",
-      hr: "Croatian",
-      lt: "Lithuanian",
-      lv: "Latvian",
-      sl: "Slovenian",
+      en: "English", es: "Spanish", fr: "French", de: "German",
+      it: "Italian", pt: "Portuguese", ja: "Japanese", ko: "Korean",
+      zh: "Chinese", ru: "Russian", ar: "Arabic", hi: "Hindi",
+      nl: "Dutch", pl: "Polish", sv: "Swedish", tr: "Turkish",
+      id: "Indonesian", th: "Thai", vi: "Vietnamese", cs: "Czech",
+      el: "Greek", hu: "Hungarian", ro: "Romanian", uk: "Ukrainian",
+      he: "Hebrew", ms: "Malay", fil: "Filipino", da: "Danish",
+      fi: "Finnish", no: "Norwegian", sk: "Slovak", bg: "Bulgarian",
+      hr: "Croatian", lt: "Lithuanian", lv: "Latvian", sl: "Slovenian",
       et: "Estonian",
     };
     return languageNames[code?.toLowerCase()] || code?.toUpperCase() || "Unknown";
   };
 
-  const getTotalVoiceCount = () => {
-    if (effectiveProvider === "elevenlabs") {
-      return accountVoices?.length || 0;
-    }
+  const getFilteredCount = () => {
+    if (effectiveProvider === "elevenlabs") return filteredVoices.length;
+    if (effectiveProvider === "cartesia") return filteredCartesiaVoices.length;
+    return filteredOpenAIVoices.length;
+  };
+
+  const getTotalCount = () => {
+    if (effectiveProvider === "elevenlabs") return accountVoices?.length || 0;
+    if (effectiveProvider === "cartesia") return cartesiaVoices?.length || 0;
     return OPENAI_VOICES.length;
   };
 
-  const getFilteredCount = () => {
-    if (effectiveProvider === "elevenlabs") {
-      return filteredVoices.length;
+  const activeFilterCount =
+    (selectedLanguage !== 'all' ? 1 : 0) +
+    (selectedGender !== 'all' ? 1 : 0);
+
+  const hasActiveFilters = !!debouncedSearch || activeFilterCount > 0;
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setDebouncedSearch("");
+    setSelectedLanguage("all");
+    setSelectedGender("all");
+  };
+
+  const renderVoiceCard = (voice: AccountVoice) => {
+    const isPlaying = playingVoice === voice.voice_id;
+    return (
+      <div
+        key={voice.voice_id}
+        className={cn(
+          "group relative rounded-2xl border transition-all duration-200 p-4",
+          "bg-card hover:bg-accent/50 dark:hover:bg-accent/30",
+          "border-border/60 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5",
+          isPlaying && "border-primary/50 bg-primary/[0.03] dark:bg-primary/[0.06] shadow-md shadow-primary/10"
+        )}
+        data-testid={`card-voice-${voice.voice_id}`}
+      >
+        <div className="flex items-start gap-3">
+          <VoiceAvatar name={voice.name} gender={voice.labels?.gender} />
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-sm font-semibold truncate text-foreground" data-testid="text-voice-name">
+                {voice.name}
+              </h3>
+              {voice.category && (
+                <span className={cn(
+                  "text-[10px] font-medium px-1.5 py-0.5 rounded-full capitalize shrink-0",
+                  getCategoryColor(voice.category)
+                )}>
+                  {voice.category}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {voice.labels?.language && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 dark:bg-muted/30 px-1.5 py-0.5 rounded-md">
+                  <Globe className="h-2.5 w-2.5" />
+                  {formatLanguageName(voice.labels.language)}
+                </span>
+              )}
+              {voice.labels?.gender && (
+                <span className={cn(
+                  "text-[11px] px-1.5 py-0.5 rounded-md capitalize font-medium",
+                  getGenderColor(voice.labels.gender)
+                )}>
+                  {voice.labels.gender}
+                </span>
+              )}
+              {voice.labels?.accent && (
+                <span className="text-[11px] text-muted-foreground/70 bg-muted/40 dark:bg-muted/20 px-1.5 py-0.5 rounded-md capitalize">
+                  {voice.labels.accent}
+                </span>
+              )}
+              {voice.labels?.age && (
+                <span className="text-[11px] text-muted-foreground/60 bg-muted/30 dark:bg-muted/15 px-1.5 py-0.5 rounded-md capitalize">
+                  {voice.labels.age}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-2">
+            {isPlaying && <WaveformBars isPlaying={true} />}
+            {voice.preview_url && (
+              <button
+                onClick={() => handlePlayPreview(voice.voice_id, voice.preview_url)}
+                className={cn(
+                  "h-9 w-9 rounded-full flex items-center justify-center transition-all duration-200",
+                  isPlaying
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-105"
+                    : "bg-muted/60 dark:bg-muted/30 text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:shadow-md hover:shadow-primary/20 hover:scale-105"
+                )}
+                data-testid="button-play-voice"
+              >
+                {isPlaying ? (
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                ) : (
+                  <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderOpenAICard = (voice: OpenAIVoiceInfo) => {
+    return (
+      <div
+        key={voice.id}
+        className={cn(
+          "group relative rounded-2xl border transition-all duration-200 p-4",
+          "bg-card hover:bg-accent/50 dark:hover:bg-accent/30",
+          "border-border/60 hover:border-violet-400/30 hover:shadow-md hover:shadow-violet-500/5"
+        )}
+        data-testid={`card-openai-voice-${voice.id}`}
+      >
+        <div className="flex items-start gap-3">
+          <VoiceAvatar name={voice.name} gender={voice.gender} />
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-sm font-semibold truncate text-foreground" data-testid="text-openai-voice-name">
+                {voice.name}
+              </h3>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 shrink-0">
+                OpenAI
+              </span>
+            </div>
+
+            <p className="text-xs text-muted-foreground/80 line-clamp-1 mb-1.5">
+              {voice.description}
+            </p>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={cn(
+                "text-[11px] px-1.5 py-0.5 rounded-md capitalize font-medium",
+                getGenderColor(voice.gender)
+              )}>
+                {voice.gender}
+              </span>
+              <span className="text-[11px] text-muted-foreground/70 bg-muted/40 dark:bg-muted/20 px-1.5 py-0.5 rounded-md">
+                {voice.style}
+              </span>
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            <OpenAIVoicePreviewButton
+              voiceId={voice.id}
+              voiceName={voice.name}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const paginateItems = <T,>(items: T[]): { paged: T[]; totalPages: number } => {
+    const totalPages = Math.max(1, Math.ceil(items.length / VOICES_PER_PAGE));
+    const start = (currentPage - 1) * VOICES_PER_PAGE;
+    return { paged: items.slice(start, start + VOICES_PER_PAGE), totalPages };
+  };
+
+  const renderPagination = (totalItems: number) => {
+    const totalPages = Math.max(1, Math.ceil(totalItems / VOICES_PER_PAGE));
+    if (totalPages <= 1) return null;
+
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-    return filteredOpenAIVoices.length;
+    const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+
+    return (
+      <div className="flex items-center justify-center gap-1.5 pt-6" data-testid="pagination-controls">
+        <button
+          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+          className={cn(
+            "h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
+            currentPage === 1
+              ? "text-muted-foreground/30 cursor-not-allowed"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+          data-testid="button-page-prev"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        {startPage > 1 && (
+          <>
+            <button
+              onClick={() => setCurrentPage(1)}
+              className="h-8 min-w-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              data-testid="button-page-1"
+            >
+              1
+            </button>
+            {startPage > 2 && <span className="text-xs text-muted-foreground/50 px-1">...</span>}
+          </>
+        )}
+
+        {pages.map(page => (
+          <button
+            key={page}
+            onClick={() => setCurrentPage(page)}
+            className={cn(
+              "h-8 min-w-8 px-2 rounded-lg text-xs font-medium transition-colors",
+              currentPage === page
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+            data-testid={`button-page-${page}`}
+          >
+            {page}
+          </button>
+        ))}
+
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <span className="text-xs text-muted-foreground/50 px-1">...</span>}
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              className="h-8 min-w-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              data-testid={`button-page-${totalPages}`}
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+
+        <button
+          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+          className={cn(
+            "h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
+            currentPage === totalPages
+              ? "text-muted-foreground/30 cursor-not-allowed"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+          data-testid="button-page-next"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  };
+
+  const renderCartesiaCard = (voice: CartesiaVoice) => {
+    const isPlaying = playingVoice === voice.id;
+
+    return (
+      <div
+        key={voice.id}
+        className={cn(
+          "group relative rounded-2xl border transition-all duration-200 p-4",
+          "bg-card hover:bg-accent/50 dark:hover:bg-accent/30",
+          "border-border/60 hover:border-orange-400/30 hover:shadow-md hover:shadow-orange-500/5"
+        )}
+        data-testid={`card-cartesia-voice-${voice.id}`}
+      >
+        <div className="flex items-start gap-3">
+          <VoiceAvatar name={voice.name} gender={voice.gender} />
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-sm font-semibold truncate text-foreground" data-testid="text-cartesia-voice-name">
+                {voice.name}
+              </h3>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 shrink-0">
+                Cartesia
+              </span>
+            </div>
+
+            {voice.description && (
+              <p className="text-xs text-muted-foreground/80 line-clamp-1 mb-1.5">
+                {voice.description}
+              </p>
+            )}
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {voice.language && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 dark:bg-muted/30 px-1.5 py-0.5 rounded-md">
+                  <Globe className="h-2.5 w-2.5" />
+                  {formatLanguageName(normalizeLanguageCode(voice.language))}
+                </span>
+              )}
+              {voice.gender && (
+                <span className={cn(
+                  "text-[11px] px-1.5 py-0.5 rounded-md capitalize font-medium",
+                  getGenderColor(voice.gender)
+                )}>
+                  {voice.gender}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="shrink-0 flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-2">
+              {isPlaying && <WaveformBars isPlaying={true} />}
+              <CartesiaVoicePreviewButton
+                voiceId={voice.id}
+                voiceName={voice.name}
+                compact
+                stopOthersRef={cartesiaStopRef}
+                onPlayingChange={(playing) => {
+                  if (playing) {
+                    if (audioRef.current) {
+                      audioRef.current.pause();
+                      audioRef.current.currentTime = 0;
+                      audioRef.current = null;
+                    }
+                    setPlayingVoice(voice.id);
+                  } else if (playingVoice === voice.id) {
+                    setPlayingVoice(null);
+                  }
+                }}
+              />
+            </div>
+            <CartesiaVoicePreviewButton
+              voiceId={voice.id}
+              voiceName={voice.name}
+              stopOthersRef={cartesiaStopRef}
+              onPlayingChange={(playing) => {
+                if (playing) {
+                  if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current.currentTime = 0;
+                    audioRef.current = null;
+                  }
+                  setPlayingVoice(voice.id);
+                } else if (playingVoice === voice.id) {
+                  setPlayingVoice(null);
+                }
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderElevenLabsContent = () => {
@@ -235,211 +808,299 @@ export default function Voices({ externalProvider, externalLanguage, hideHeader,
         </Alert>
       );
     }
+
     if (isLoading) {
       return (
-        <div className="space-y-0 divide-y divide-border/40">
+        <div className="grid grid-cols-1 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="py-3 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-8 w-8 rounded-md" />
-              </div>
-              <div className="flex gap-2">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-3 w-12" />
+            <div key={i} className="rounded-2xl border border-border/60 p-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <div className="flex gap-1.5">
+                    <Skeleton className="h-5 w-16 rounded-md" />
+                    <Skeleton className="h-5 w-14 rounded-md" />
+                  </div>
+                </div>
+                <Skeleton className="h-9 w-9 rounded-full shrink-0" />
               </div>
             </div>
           ))}
         </div>
       );
     }
+
     if (filteredVoices.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-3">
-            <Mic className="h-6 w-6 text-muted-foreground/50" />
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="h-16 w-16 rounded-2xl bg-muted/30 flex items-center justify-center mb-4">
+            <Mic className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <h3 className="text-sm font-medium text-foreground/80 mb-1">
-            {debouncedSearch 
-              ? t('voices.noVoicesMatch', 'No voices match your search')
+          <h3 className="text-base font-semibold text-foreground/80 mb-1">
+            {hasActiveFilters
+              ? t('voices.noVoicesMatch', 'No voices match your filters')
               : t('voices.noVoicesAvailable', 'No voices available')}
           </h3>
-          <p className="text-xs text-muted-foreground text-center max-w-xs">
-            {debouncedSearch 
-              ? t('voices.tryDifferentSearch', 'Try a different search term')
+          <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
+            {hasActiveFilters
+              ? t('voices.tryDifferentSearch', 'Try adjusting your search or filters')
               : t('voices.voicesWillAppear', 'Your ElevenLabs account voices will appear here')}
           </p>
+          {hasActiveFilters && (
+            <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-full" data-testid="button-clear-filters">
+              Clear all filters
+            </Button>
+          )}
         </div>
       );
     }
+
+    const { paged } = paginateItems(filteredVoices);
     return (
-      <div className="space-y-0 divide-y divide-border/40">
-        {filteredVoices.map((voice) => (
-          <div
-            key={voice.voice_id}
-            className="group py-3 hover-elevate transition-colors duration-150 rounded-md px-2 -mx-2"
-            data-testid={`card-voice-${voice.voice_id}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="text-sm font-medium truncate" data-testid="text-voice-name">
-                    {voice.name}
-                  </h3>
-                  {voice.category && (
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium capitalize">{voice.category}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {voice.labels?.language && (
-                    <span className="text-[11px] text-muted-foreground/70">{formatLanguageName(voice.labels.language)}</span>
-                  )}
-                  {voice.labels?.gender && (
-                    <span className="text-[11px] text-muted-foreground/50 capitalize">{voice.labels.gender}</span>
-                  )}
-                  {voice.labels?.accent && (
-                    <span className="text-[11px] text-muted-foreground/50 capitalize">{voice.labels.accent}</span>
-                  )}
-                  {voice.labels?.age && (
-                    <span className="text-[11px] text-muted-foreground/40 capitalize">{voice.labels.age}</span>
-                  )}
-                </div>
-              </div>
-              <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150" style={{ visibility: 'visible' }}>
-                {voice.preview_url && (
-                  <Button
-                    variant={playingVoice === voice.voice_id ? "default" : "ghost"}
-                    size="icon"
-                    onClick={() => handlePlayPreview(voice.voice_id, voice.preview_url)}
-                    data-testid="button-play-voice"
-                  >
-                    {playingVoice === voice.voice_id ? (
-                      <Square className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <>
+        <div className="grid grid-cols-1 gap-3">
+          {paged.map(renderVoiceCard)}
+        </div>
+        {renderPagination(filteredVoices.length)}
+      </>
     );
   };
 
   const renderOpenAIContent = () => {
     if (filteredOpenAIVoices.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-3">
-            <Mic className="h-6 w-6 text-muted-foreground/50" />
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="h-16 w-16 rounded-2xl bg-muted/30 flex items-center justify-center mb-4">
+            <Mic className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <h3 className="text-sm font-medium text-foreground/80 mb-1">
-            {t('voices.noVoicesMatch', 'No voices match your search')}
+          <h3 className="text-base font-semibold text-foreground/80 mb-1">
+            {t('voices.noVoicesMatch', 'No voices match your filters')}
           </h3>
-          <p className="text-xs text-muted-foreground text-center max-w-xs">
-            {t('voices.tryDifferentSearch', 'Try a different search term')}
+          <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
+            {t('voices.tryDifferentSearch', 'Try adjusting your search or filters')}
           </p>
+          {hasActiveFilters && (
+            <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-full" data-testid="button-clear-filters-openai">
+              Clear all filters
+            </Button>
+          )}
         </div>
       );
     }
+
+    const { paged } = paginateItems(filteredOpenAIVoices);
     return (
-      <div className="space-y-0 divide-y divide-border/40">
-        {filteredOpenAIVoices.map((voice) => (
-          <div
-            key={voice.id}
-            className="group py-3 hover-elevate transition-colors duration-150 rounded-md px-2 -mx-2"
-            data-testid={`card-openai-voice-${voice.id}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="text-sm font-medium truncate" data-testid="text-openai-voice-name">
-                    {voice.name}
-                  </h3>
-                  <span className="text-[11px] text-violet-600 dark:text-violet-400 font-medium">OpenAI</span>
-                </div>
-                <p className="text-xs text-muted-foreground/70 line-clamp-1 mb-1">
-                  {voice.description}
-                </p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[11px] text-muted-foreground/50">{voice.gender}</span>
-                  <span className="text-[11px] text-muted-foreground/40">{voice.style}</span>
-                </div>
-              </div>
-              <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150" style={{ visibility: 'visible' }}>
-                <OpenAIVoicePreviewButton
-                  voiceId={voice.id}
-                  voiceName={voice.name}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <>
+        <div className="grid grid-cols-1 gap-3">
+          {paged.map(renderOpenAICard)}
+        </div>
+        {renderPagination(filteredOpenAIVoices.length)}
+      </>
     );
   };
 
-  return (
-    <div className="space-y-4">
-      {!hideHeader && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-50 via-rose-100/50 to-fuchsia-50 dark:from-pink-950/40 dark:via-rose-900/30 dark:to-fuchsia-950/40 border border-pink-100 dark:border-pink-900/50 p-6 md:p-8">
-          <div className="absolute inset-0 bg-grid-slate-200/50 dark:bg-grid-slate-700/20 [mask-image:linear-gradient(0deg,transparent,rgba(255,255,255,0.5))]" />
-          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg shadow-pink-500/25">
-                <Mic className="h-7 w-7 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t('voices.title')}</h1>
-                <p className="text-muted-foreground mt-0.5">
-                  {t('voices.subtitleBrowse', 'Browse and preview available voices')}
-                </p>
+  const renderCartesiaContent = () => {
+    if (cartesiaError) {
+      return (
+        <Alert variant="destructive" data-testid="alert-cartesia-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{t('common.error')}</AlertTitle>
+          <AlertDescription>
+            {(cartesiaErr as Error)?.message || 'Failed to load Cartesia voices. Please check your Cartesia API key configuration.'}
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    if (cartesiaLoading) {
+      return (
+        <div className="grid grid-cols-1 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border border-border/60 p-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                  <div className="flex gap-1.5">
+                    <Skeleton className="h-5 w-16 rounded-md" />
+                    <Skeleton className="h-5 w-14 rounded-md" />
+                  </div>
+                </div>
+                <Skeleton className="h-9 w-9 rounded-full shrink-0" />
               </div>
             </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (filteredCartesiaVoices.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="h-16 w-16 rounded-2xl bg-muted/30 flex items-center justify-center mb-4">
+            <Mic className="h-8 w-8 text-muted-foreground/40" />
           </div>
+          <h3 className="text-base font-semibold text-foreground/80 mb-1">
+            {hasActiveFilters
+              ? t('voices.noVoicesMatch', 'No voices match your filters')
+              : 'No Cartesia voices available'}
+          </h3>
+          <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
+            {hasActiveFilters
+              ? t('voices.tryDifferentSearch', 'Try adjusting your search or filters')
+              : 'Configure your Cartesia API key to see available voices'}
+          </p>
+          {hasActiveFilters && (
+            <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-full" data-testid="button-clear-filters-cartesia">
+              Clear all filters
+            </Button>
+          )}
         </div>
-      )}
+      );
+    }
 
-      {/* Search - iOS 8 style */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-        <Input
-          placeholder="Search voices..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 bg-muted/30 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
-          data-testid="input-search-voices"
-        />
+    const { paged } = paginateItems(filteredCartesiaVoices);
+    return (
+      <>
+        <div className="grid grid-cols-1 gap-3">
+          {paged.map(renderCartesiaCard)}
+        </div>
+        {renderPagination(filteredCartesiaVoices.length)}
+      </>
+    );
+  };
+
+  const sidebarProps = {
+    selectedLanguage: effectiveLanguage,
+    setSelectedLanguage: (v: string) => { setSelectedLanguage(v); setMobileOpen(false); },
+    selectedGender,
+    setSelectedGender: (v: string) => { setSelectedGender(v); setMobileOpen(false); },
+    availableLanguages,
+    activeProvider: effectiveProvider,
+    activeFilterCount,
+    clearFilters,
+  };
+
+  return (
+    <div className="flex w-full min-h-[calc(100vh-80px)] -mx-4 md:-mx-8 lg:-mx-12 -my-4 md:-my-6">
+      <aside className="hidden md:flex flex-col w-[240px] shrink-0 border-r border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900">
+        <FilterSidebar {...sidebarProps} />
+      </aside>
+
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex md:hidden items-center gap-2 px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-zinc-900">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" data-testid="voices-mobile-filter-toggle">
+                <PanelLeft className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[240px] p-0 bg-white dark:bg-zinc-900">
+              <FilterSidebar {...sidebarProps} />
+            </SheetContent>
+          </Sheet>
+          <span className="text-sm font-medium">Filters</span>
+          {activeFilterCount > 0 && (
+            <span className="h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-auto bg-zinc-50/80 dark:bg-zinc-950/50 px-4 md:px-8 lg:px-10 py-4 md:py-6">
+          {!hideHeader && (
+            <div className="space-y-1 mb-5">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground" data-testid="text-page-title">
+                Voices
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Browse and preview available voices
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-5">
+            <div className="relative flex-1 w-full sm:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+              <Input
+                placeholder="Search by name, language, or style..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-10 rounded-xl bg-white dark:bg-zinc-900 border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/30"
+                data-testid="input-search-voices"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              {activeFilterCount > 0 && (
+                <div className="hidden md:flex items-center gap-1.5">
+                  {selectedLanguage !== 'all' && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
+                      {VOICE_LANGUAGES.find(l => l.value === selectedLanguage)?.label || selectedLanguage}
+                      <button onClick={() => setSelectedLanguage('all')} className="hover:text-primary/70" data-testid="remove-lang-filter">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                  {selectedGender !== 'all' && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium capitalize">
+                      {selectedGender}
+                      <button onClick={() => setSelectedGender('all')} className="hover:text-primary/70" data-testid="remove-gender-filter">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
+              {!isLoading && (
+                <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap" data-testid="text-voice-count">
+                  {hasActiveFilters
+                    ? `${getFilteredCount()} of ${getTotalCount()} voices`
+                    : `${getTotalCount()} voices`}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {!hideProviderTabs ? (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+              <TabsList className="bg-white dark:bg-zinc-900 border border-border/50 rounded-xl p-1" data-testid="tabs-voice-provider">
+                <TabsTrigger
+                  value="elevenlabs"
+                  className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none text-xs"
+                  data-testid="tab-elevenlabs"
+                >
+                  ElevenLabs
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">({accountVoices?.length || 0})</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="openai"
+                  className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none text-xs"
+                  data-testid="tab-openai"
+                >
+                  OpenAI
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">({OPENAI_VOICES.length})</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="cartesia"
+                  className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none text-xs"
+                  data-testid="tab-cartesia"
+                >
+                  Cartesia
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">({cartesiaVoices?.length || 0})</span>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="elevenlabs">{renderElevenLabsContent()}</TabsContent>
+              <TabsContent value="openai">{renderOpenAIContent()}</TabsContent>
+              <TabsContent value="cartesia">{renderCartesiaContent()}</TabsContent>
+            </Tabs>
+          ) : (
+            effectiveProvider === "elevenlabs" ? renderElevenLabsContent() : effectiveProvider === "cartesia" ? renderCartesiaContent() : renderOpenAIContent()
+          )}
+        </div>
       </div>
-
-      {(effectiveProvider === "openai" || !isLoading) && (
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-muted-foreground/60">
-            {debouncedSearch 
-              ? `${getFilteredCount()} of ${getTotalVoiceCount()} voices`
-              : `${getTotalVoiceCount()} voices`}
-          </span>
-        </div>
-      )}
-
-      {!hideProviderTabs ? (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList data-testid="tabs-voice-provider">
-            <TabsTrigger value="elevenlabs" data-testid="tab-elevenlabs">
-              ElevenLabs ({accountVoices?.length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="openai" data-testid="tab-openai">
-              OpenAI ({OPENAI_VOICES.length})
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="elevenlabs">{renderElevenLabsContent()}</TabsContent>
-          <TabsContent value="openai">{renderOpenAIContent()}</TabsContent>
-        </Tabs>
-      ) : (
-        effectiveProvider === "elevenlabs" ? renderElevenLabsContent() : renderOpenAIContent()
-      )}
     </div>
   );
 }

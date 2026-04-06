@@ -78,12 +78,6 @@ export default function IntegrationsPage() {
       category: "Telephony"
     },
     {
-      icon: <Phone className="w-6 h-6 text-green-500" />,
-      name: "Plivo",
-      description: "Cost-effective global telephony provider for AI voice calls.",
-      category: "Telephony"
-    },
-    {
       icon: <SiOpenai className="w-6 h-6 text-slate-900 dark:text-white" />,
       name: "OpenAI",
       description: "Power AI agents with GPT-4o for natural, intelligent conversations.",

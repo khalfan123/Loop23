@@ -1,3 +1,3 @@
 export { registerImageRoutes } from "./routes";
-export { generateImageBuffer, editImages } from "./client";
+export { openai, generateImageBuffer, editImages } from "./client";
 

@@ -1,9 +1,9 @@
 /**
  * Team Member Sidebar
  * Shows navigation based on granted permissions for team members
- * Supports both user team members and admin sub-admins
+ * Supports user team members
  */
-import { Users, BookOpen, Mic, Link as LinkIcon, Phone, Settings, ChevronsUpDown, Plus, BarChart3, Home, Target, LogOut, Coins, Shield, CreditCard, TrendingUp, UserCheck, Workflow, Webhook, ClipboardList, Calendar, Layout, FileText, Wrench, Globe, Building2, Key, Puzzle, MessageSquare, Headphones, ListOrdered, ContactRound, Package, DollarSign, Brain, Bot } from "lucide-react";
+import { Users, BookOpen, Mic, Link as LinkIcon, Phone, Settings, ChevronsUpDown, Plus, BarChart3, Home, Target, LogOut, Coins, Shield, CreditCard, TrendingUp, UserCheck, Workflow, Webhook, ClipboardList, Calendar, Layout, FileText, Wrench, Globe, Building2, Key, Puzzle, MessageSquare, Headphones, ListOrdered, ContactRound, Package, DollarSign, Brain, Bot, Cpu } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -62,7 +62,7 @@ interface TeamMemberData {
 interface TeamData {
   id: string;
   name: string;
-  type: 'user' | 'admin';
+  type: 'user';
   parentUserId?: string;
 }
 
@@ -83,7 +83,6 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
   agents: [
     { url: "/app/agents", icon: Bot, label: "Agents", group: "build", iconColor: "text-blue-500" },
     { url: "/app/prompt-templates", icon: FileText, label: "Prompt Templates", group: "build", iconColor: "text-green-500" },
-    { url: "/app/voices", icon: Mic, label: "Voices", group: "build", iconColor: "text-pink-500" },
   ],
   knowledge_base: [
     { url: "/app/knowledge-base", icon: BookOpen, label: "Knowledge Base", group: "build", iconColor: "text-violet-500" },
@@ -94,9 +93,7 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
   contacts: [
     { url: "/app/contacts", icon: UserCheck, label: "All Contacts", group: "evaluate", iconColor: "text-teal-500" },
   ],
-  crm: [
-    { url: "/app/crm", icon: ContactRound, label: "Leads", group: "evaluate", iconColor: "text-cyan-500" },
-  ],
+  crm: [],
   calls: [
     { url: "/app/calls", icon: Phone, label: "Call History", group: "evaluate", iconColor: "text-blue-500" },
     { url: "/app/live-monitoring", icon: Phone, label: "Live Monitoring", group: "evaluate", iconColor: "text-red-500" },
@@ -118,44 +115,12 @@ const USER_SECTION_ROUTES: Record<string, { url: string; icon: any; label: strin
   ],
 };
 
-// Admin section mappings to tab values
-const ADMIN_SECTION_TABS: Record<string, { tabValue: string; icon: any; label: string }[]> = {
-  user_management: [
-    { tabValue: "users", icon: Users, label: "Users" },
-    { tabValue: "contacts", icon: ContactRound, label: "Contacts" },
-  ],
-  billing_management: [
-    { tabValue: "billing", icon: CreditCard, label: "Billing" },
-  ],
-  platform_settings: [
-    { tabValue: "settings", icon: Settings, label: "Settings" },
-    { tabValue: "communications", icon: MessageSquare, label: "Communications" },
-  ],
-  api_credentials: [
-    { tabValue: "voice-ai", icon: Brain, label: "Voice AI" },
-  ],
-  team_oversight: [
-    { tabValue: "teams", icon: Building2, label: "Teams" },
-  ],
-  analytics_reports: [
-    { tabValue: "analytics", icon: BarChart3, label: "Analytics" },
-    { tabValue: "calls", icon: Headphones, label: "Call Monitoring" },
-    { tabValue: "queue", icon: ListOrdered, label: "Batch Jobs" },
-  ],
-  plugins: [
-    { tabValue: "settings", icon: Puzzle, label: "Plugins" },
-  ],
-  admin_team: [
-    { tabValue: "teams", icon: Building2, label: "Admin Team" },
-  ],
-};
-
 // Flow automation available if agents.flow_builder permission exists
 const FLOW_AUTOMATION_ROUTES = [
   { url: "/app/flows", icon: Workflow, label: "Flow Builder", iconColor: "text-indigo-500" },
   { url: "/app/flows/execution", icon: BarChart3, label: "Execution Logs", iconColor: "text-slate-500" },
-  { url: "/app/flows/forms", icon: ClipboardList, label: "Forms", iconColor: "text-cyan-500" },
-  { url: "/app/appointments", icon: Calendar, label: "Appointments", iconColor: "text-rose-500" },
+  { url: "/app/ops", icon: Cpu, label: "Operations", iconColor: "text-orange-500" },
+  { url: "/app/voices", icon: Mic, label: "Voices", iconColor: "text-pink-500" },
 ];
 
 export function TeamMemberSidebar() {
@@ -195,7 +160,6 @@ export function TeamMemberSidebar() {
   }
 
   const { member, team, permissions } = authData;
-  const isAdminTeam = team.type === 'admin';
   const memberName = member.firstName && member.lastName 
     ? `${member.firstName} ${member.lastName}` 
     : member.email;
@@ -257,29 +221,7 @@ export function TeamMemberSidebar() {
     return groups;
   };
 
-  // Build admin tab items for admin team members
-  const buildAdminTabs = (): { tabValue: string; icon: any; label: string }[] => {
-    if (!isAdminTeam) return [];
-    
-    const tabs: { tabValue: string; icon: any; label: string }[] = [];
-    const addedTabs = new Set<string>();
-
-    Object.entries(ADMIN_SECTION_TABS).forEach(([sectionId, sectionTabs]) => {
-      if (hasSectionAccess(sectionId)) {
-        sectionTabs.forEach(tab => {
-          if (!addedTabs.has(tab.tabValue)) {
-            tabs.push(tab);
-            addedTabs.add(tab.tabValue);
-          }
-        });
-      }
-    });
-
-    return tabs;
-  };
-
   const navGroups = buildNavItems();
-  const adminTabs = buildAdminTabs();
 
   return (
     <Sidebar collapsible="icon">
@@ -321,7 +263,7 @@ export function TeamMemberSidebar() {
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
             <Shield className="h-4 w-4 text-primary" />
             <div className="flex flex-col">
-              <span className="text-xs font-medium">{isAdminTeam ? 'Admin Team' : 'Team Member'}</span>
+              <span className="text-xs font-medium">Team Member</span>
               <span className="text-[10px] text-muted-foreground">{team.name}</span>
             </div>
           </div>
@@ -523,31 +465,6 @@ export function TeamMemberSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Admin Section - For admin team members */}
-        {isAdminTeam && adminTabs.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="px-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              {t('nav.administration')}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.startsWith("/admin")}
-                    tooltip={t('nav.adminDashboard')}
-                    data-testid="link-admin-dashboard"
-                  >
-                    <Link href="/admin" onClick={handleNavClick}>
-                      <Shield className="h-4 w-4" />
-                      <span>{t('nav.adminDashboard')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       {/* Footer */}

@@ -667,50 +667,41 @@ export class TwilioService {
    * Configure phone number to route incoming calls to ElevenLabs native integration
    * This is used when a phone number is assigned to an incoming agent
    */
-  async configurePhoneWebhookForElevenLabs(sid: string, phoneNumber: string): Promise<void> {
+  async configurePhoneWebhookForElevenLabs(sid: string, phoneNumber: string, agentId?: string): Promise<void> {
     if (this.shouldMock) {
       console.log("Mock mode: Simulating ElevenLabs webhook configuration");
       return;
     }
     
-    // ElevenLabs native Twilio inbound endpoint
-    const elevenLabsInboundUrl = 'https://api.elevenlabs.io/twilio/inbound_call';
+    // Route ALL incoming calls through our server webhook.
+    // Our server will proxy to ElevenLabs' native endpoint and relay the TwiML response.
+    // This gives us full control: logging, error handling, and fallback without
+    // depending on ElevenLabs' plan-level support for direct Twilio-to-ElevenLabs routing.
+    const domain = getDomain();
+    const voiceWebhookUrl = `${domain}/api/webhooks/twilio/incoming`;
     
     // Mask SID in logs (show last 8 chars only)
     const maskedSid = `***${sid.slice(-8)}`;
-    console.log(`📞 [Twilio Config] Configuring ElevenLabs native inbound for SID ${maskedSid}`);
+    console.log(`📞 [Twilio Config] Configuring inbound webhook for SID ${maskedSid}`);
+    console.log(`   Webhook URL: ${voiceWebhookUrl}`);
+    if (agentId) {
+      console.log(`   ElevenLabs Agent: ${agentId}`);
+    }
     
     const client = await this.getTwilioClientInstance();
     
-    // Step 1: Set regional routing to US1 via Twilio Routes API
-    // This ensures Twilio routes the call to US region where ElevenLabs config exists
-    // Note: If no explicit route exists, Twilio defaults to us1, so 404 is acceptable
-    try {
-      console.log(`📞 [Twilio Routes] Setting voice region to 'us1' for ${phoneNumber}`);
-      await client.routes.v2.phoneNumbers(phoneNumber).update({
-        voiceRegion: 'us1'
-      });
-      console.log(`✅ [Twilio Routes] Voice region set to 'us1'`);
-    } catch (routeError: any) {
-      // Routes API may return 404 if no explicit routing exists - this means it defaults to us1
-      // which is what we want, so we can safely ignore this error
-      if (routeError.status === 404) {
-        console.log(`📞 [Twilio Routes] No explicit route exists - defaulting to 'us1' (OK)`);
-      } else {
-        console.warn(`⚠️ [Twilio Routes] Could not set voice region: ${routeError.message}`);
-        // Continue anyway - the webhook config is more important
-      }
-    }
+    const statusCallbackUrl = `${domain}/api/webhooks/twilio/status`;
     
-    // Step 2: Configure the webhook URL to point to ElevenLabs endpoint
     await client.incomingPhoneNumbers(sid).update({
-      voiceUrl: elevenLabsInboundUrl,
+      voiceUrl: voiceWebhookUrl,
       voiceMethod: 'POST',
-      voiceFallbackUrl: elevenLabsInboundUrl,
+      voiceFallbackUrl: voiceWebhookUrl,
       voiceFallbackMethod: 'POST',
+      statusCallback: statusCallbackUrl,
+      statusCallbackMethod: 'POST',
     });
     
-    console.log(`✅ [Twilio Config] ElevenLabs native inbound configured for SID ${maskedSid}`);
+    console.log(`✅ [Twilio Config] Inbound webhook configured for SID ${maskedSid}`);
   }
 
   /**

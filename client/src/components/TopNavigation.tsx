@@ -77,7 +77,7 @@ interface NavSection {
 }
 
 interface TopNavigationProps {
-  variant?: 'user' | 'admin' | 'team' | 'admin-team';
+  variant?: 'user' | 'team';
   showNotifications?: boolean;
 }
 
@@ -89,13 +89,12 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
   const [appLauncherOpen, setAppLauncherOpen] = useState(false);
 
   const topItems: NavItem[] = [
-    { title: t('nav.home'), url: variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app", icon: Home },
+    { title: t('nav.home'), url: "/app", icon: Home },
   ];
 
   const evaluateItems: NavItem[] = [
     { title: t('nav.allContacts'), url: "/app/contacts", icon: UserCheck, iconColor: "text-teal-500", description: "Contact management" },
     { title: t('nav.callHistory', 'Call History'), url: "/app/calls", icon: Phone, iconColor: "text-blue-500", description: "Call history & logs" },
-    { title: t('nav.crm'), url: "/app/crm", icon: ContactRound, iconColor: "text-cyan-500", description: "Customer relationships" },
     { title: t('nav.analytics'), url: "/app/analytics", icon: BarChart3, iconColor: "text-purple-500", description: "Performance insights" },
     { title: t('nav.qualityAssurance', 'Quality Assurance'), url: "/app/quality-assurance", icon: ShieldCheck, iconColor: "text-green-500", description: "Call quality monitoring" },
   ];
@@ -118,10 +117,9 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
     { title: t('nav.settings', 'Settings'), url: "/app/settings", icon: Settings, iconColor: "text-slate-500", description: "App settings" },
   ];
 
-  const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [] : [
+  const navSections: NavSection[] = [
     { label: t('sidebar.setup', 'Setup'), items: setupItems },
     { label: t('sidebar.evaluate'), items: evaluateItems },
-    { label: t('sidebar.formsAppointments', 'Forms & Appointments'), items: formsAppointmentsItems },
     { label: '', items: settingsItems },
   ];
 
@@ -162,7 +160,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
   };
 
   const isActive = (url: string) => {
-    if (url === '/app' || url === '/admin') {
+    if (url === '/app') {
       return location === url || location === url + '/dashboard';
     }
     return location === url || location.startsWith(url + '/');
@@ -305,7 +303,7 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
 
           {/* Logo Section */}
           <Link 
-            href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"} 
+            href="/app" 
             className="flex items-center gap-3 px-4 h-full hover:bg-accent/30 transition-colors"
             data-testid="link-logo"
           >
@@ -356,22 +354,6 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
             <NavDropdown key={section.label} section={section} />
           ))}
 
-          {/* Admin Link for admin users */}
-          {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-            <Link
-              href="/admin"
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors",
-                isActive('/admin') 
-                  ? "text-foreground bg-accent" 
-                  : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
-              )}
-              data-testid="link-admin-dashboard"
-            >
-              <Shield className="h-4 w-4" />
-              {t('nav.adminDashboard')}
-            </Link>
-          )}
         </nav>
 
         <PhoneNumberDropdown />
@@ -554,33 +536,6 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
                   <MobileNavSection key={section.label} section={section} />
                 ))}
 
-                {/* Admin Link */}
-                {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-                  <div className="py-2 border-t">
-                    <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                      {t('nav.administration')}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                      className={cn(
-                        "w-full justify-start gap-3",
-                        isActive('/admin') && "bg-accent"
-                      )}
-                    >
-                      <Link
-                        href="/admin"
-                        onClick={handleNavClick}
-                        data-testid="mobile-link-admin"
-                      >
-                        <Shield className="h-4 w-4" />
-                        <span>{t('nav.adminDashboard')}</span>
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-
                 {/* Settings & Logout */}
                 <div className="py-2 border-t mt-2">
                   <Button
@@ -618,14 +573,6 @@ export function TopNavigation({ variant = 'user', showNotifications = true }: To
   );
 }
 
-export function AdminTopNavigation() {
-  return <TopNavigation variant="admin" showNotifications={true} />;
-}
-
 export function TeamTopNavigation() {
   return <TopNavigation variant="team" showNotifications={false} />;
-}
-
-export function AdminTeamTopNavigation() {
-  return <TopNavigation variant="admin-team" showNotifications={false} />;
 }

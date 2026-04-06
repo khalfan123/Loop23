@@ -1,16 +1,18 @@
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows, incomingConnections, humanIncomingConnections, knowledgeBase } from "@shared/schema";
+import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows, incomingConnections, humanIncomingConnections, knowledgeBase, agentNames } from "@shared/schema";
 import type { FlowNode, FlowEdge } from "@shared/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray } from "drizzle-orm";
 import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/schema";
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
 import { awsPollyService } from "../services/aws-polly";
 import { awsBedrockService } from "../services/aws-bedrock";
 import { ElevenLabsService } from "../services/elevenlabs";
+import { cartesiaTTSService } from "../services/cartesia-tts";
 import { nanoid } from "nanoid";
 import { getOpenAIClient } from "../services/openai-modelfarm";
+import { generateAgentAvatar } from "../services/avatar-generator";
 import { deprockIvrRouter } from "../engines/twilio-bedrock-polly/routes/ivr-webhooks";
 import { applyArabicPronunciationFixes } from "../engines/twilio-bedrock-polly/services/ssml-humanizer";
 
@@ -327,21 +329,59 @@ const DEPT_TEMPLATES: Record<string, { pressKey: string; greeting: string; noInp
   fr: { pressKey: 'appuyez sur', greeting: 'Veuillez écouter les options suivantes.', noInputMsg: 'Nous n\'avons reçu aucune réponse.', repeatMsg: 'Pour répéter ces options, appuyez sur 0.' },
 };
 
+function isElevenLabsVoiceId(vid: string | undefined): boolean {
+  if (!vid) return false;
+  if (vid.startsWith('el_')) return true;
+  if (vid.startsWith('cartesia_')) return false;
+  if (/^[a-zA-Z0-9]{10,}$/.test(vid)) return true;
+  return false;
+}
+
+function isCartesiaVoiceId(vid: string | undefined): boolean {
+  if (!vid) return false;
+  if (vid.startsWith('cartesia_')) return true;
+  return false;
+}
+
+function getCartesiaVoiceId(vid: string): string {
+  return vid.replace(/^cartesia_/, '');
+}
+
+function createWavHeader(dataLength: number, sampleRate: number, bitsPerSample: number, channels: number): Buffer {
+  const byteRate = sampleRate * channels * (bitsPerSample / 8);
+  const blockAlign = channels * (bitsPerSample / 8);
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataLength, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataLength, 40);
+  return header;
+}
+
 async function generateDeptIvrTwiml(config: any, step: string, digits?: string, lang?: string): Promise<string> {
   const menuOptions = config.menuOptions as Array<{ key: string; label: string; departmentId: string }> || [];
   const langOptions = config.languageOptions as Array<{ id: string; language: string; voiceId: string; greeting: string; selectedDepartments?: string[] }> | null;
   const rawVoiceId = config.voiceId || 'Joanna';
-  const isElVoice = rawVoiceId.startsWith('el_');
+  const isElVoice = isElevenLabsVoiceId(rawVoiceId);
   const voiceId = (isElVoice || ['alloy','echo','fable','onyx','nova','shimmer'].includes(rawVoiceId)) ? 'Joanna' : rawVoiceId;
   const pollyVoice = `Polly.${voiceId}`;
 
   function isElevenLabsVid(vid: string | undefined): boolean {
-    return !!vid && vid.startsWith('el_');
+    return isElevenLabsVoiceId(vid);
   }
 
   function safePollyVoice(vid: string | undefined): string {
     if (!vid) return pollyVoice;
-    if (vid.startsWith('el_') || ['alloy','echo','fable','onyx','nova','shimmer'].includes(vid)) return 'Polly.Joanna';
+    if (isElevenLabsVoiceId(vid) || ['alloy','echo','fable','onyx','nova','shimmer'].includes(vid)) return 'Polly.Joanna';
     return `Polly.${vid}`;
   }
 
@@ -473,8 +513,131 @@ async function generateDeptIvrTwiml(config: any, step: string, digits?: string, 
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Unknown step. Goodbye.</Say><Hangup/></Response>`;
 }
 
-export function createDeprockRoutes(authenticateToken: (req: Request, res: Response, next: NextFunction) => void) {
+export function createDeprockRoutes(authenticateToken: (req: Request, res: Response, next: Function) => void) {
   const router = Router();
+
+  router.post("/backfill-avatars", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userAgents = await db
+        .select({ id: agents.id, name: agents.name, avatarUrl: agents.avatarUrl, type: agents.type })
+        .from(agents)
+        .where(and(eq(agents.userId, req.userId!), sql`${agents.type} IN ('inbound', 'incoming')`));
+
+      const missing = userAgents.filter(a => !a.avatarUrl && a.name);
+      if (missing.length === 0) {
+        return res.json({ message: "All inbound agents already have avatars", count: 0 });
+      }
+
+      let generated = 0;
+      for (const agent of missing) {
+        try {
+          console.log(`🎨 [Deprock Backfill] Generating avatar for "${agent.name}"`);
+          const avatarUrl = await generateAgentAvatar(agent.name);
+          if (avatarUrl) {
+            await db.update(agents).set({ avatarUrl }).where(eq(agents.id, agent.id));
+            generated++;
+            console.log(`✅ [Deprock Backfill] Avatar saved for "${agent.name}": ${avatarUrl}`);
+          }
+        } catch (err) {
+          console.warn(`⚠️ [Deprock Backfill] Failed for "${agent.name}":`, err);
+        }
+      }
+
+      res.json({ message: `Generated ${generated} avatars for ${missing.length} agents`, count: generated });
+    } catch (error: any) {
+      console.error("[Deprock Backfill] Error:", error);
+      res.status(500).json({ error: "Failed to backfill avatars" });
+    }
+  });
+
+  router.get("/cartesia-voices", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      if (!cartesiaTTSService.isConfigured()) {
+        return res.json([]);
+      }
+      const voices = await cartesiaTTSService.listVoices();
+      res.json(voices);
+    } catch (error: any) {
+      console.error("[Deprock] Error fetching Cartesia voices:", error.message);
+      res.json([]);
+    }
+  });
+
+  router.post("/cartesia-voices/preview", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      if (!cartesiaTTSService.isConfigured()) {
+        return res.status(400).json({ error: "Cartesia is not configured" });
+      }
+
+      const { voiceId, text, speed, emotion } = req.body;
+
+      if (!voiceId) {
+        return res.status(400).json({ error: "Voice ID is required" });
+      }
+
+      const previewText = text || "Hello! This is a preview of how I'll sound. I can adjust my tone and style based on your preferences.";
+
+      if (previewText.length > 500) {
+        return res.status(400).json({ error: "Preview text cannot exceed 500 characters" });
+      }
+
+      const validSpeed = typeof speed === 'number' && speed >= 0.5 && speed <= 2.0 ? speed : 1.0;
+
+      let validEmotion = undefined;
+      if (Array.isArray(emotion) && emotion.length > 0) {
+        const validEmotionNames = ['anger', 'positivity', 'surprise', 'sadness', 'curiosity'];
+        const validLevels = ['lowest', 'low', 'medium', 'high', 'highest'];
+        validEmotion = emotion.filter((e: any) =>
+          e && typeof e.name === 'string' && typeof e.level === 'string' &&
+          validEmotionNames.includes(e.name) && validLevels.includes(e.level)
+        );
+        if (validEmotion.length === 0) validEmotion = undefined;
+      }
+
+      const result = await cartesiaTTSService.synthesizeSpeech({
+        text: previewText,
+        voiceId,
+        sampleRate: 24000,
+        outputContainer: 'raw',
+        speed: validSpeed,
+        emotion: validEmotion,
+      });
+
+      const pcmData = result.audioStream;
+      const wavHeader = Buffer.alloc(44);
+      const sampleRate = 24000;
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+      const blockAlign = numChannels * (bitsPerSample / 8);
+      const dataSize = pcmData.length;
+      const fileSize = 36 + dataSize;
+
+      wavHeader.write('RIFF', 0);
+      wavHeader.writeUInt32LE(fileSize, 4);
+      wavHeader.write('WAVE', 8);
+      wavHeader.write('fmt ', 12);
+      wavHeader.writeUInt32LE(16, 16);
+      wavHeader.writeUInt16LE(1, 20);
+      wavHeader.writeUInt16LE(numChannels, 22);
+      wavHeader.writeUInt32LE(sampleRate, 24);
+      wavHeader.writeUInt32LE(byteRate, 28);
+      wavHeader.writeUInt16LE(blockAlign, 32);
+      wavHeader.writeUInt16LE(bitsPerSample, 34);
+      wavHeader.write('data', 36);
+      wavHeader.writeUInt32LE(dataSize, 40);
+
+      const wavBuffer = Buffer.concat([wavHeader, pcmData]);
+
+      res.setHeader('Content-Type', 'audio/wav');
+      res.setHeader('Content-Length', wavBuffer.length);
+      res.setHeader('Cache-Control', 'no-cache');
+      res.send(wavBuffer);
+    } catch (error: any) {
+      console.error("[Deprock] Cartesia voice preview error:", error.message);
+      res.status(500).json({ error: error.message || "Failed to generate Cartesia voice preview" });
+    }
+  });
 
   router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
@@ -697,11 +860,30 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         return res.status(404).json({ error: "Department not found" });
       }
 
-      await db
-        .delete(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
+      const linkedAgents = await db
+        .select({ agentId: departmentAgents.agentId })
+        .from(departmentAgents)
+        .where(eq(departmentAgents.departmentId, id));
 
-      res.json({ success: true });
+      const linkedAgentIds = [...new Set(linkedAgents.map(a => a.agentId))];
+
+      await db.transaction(async (tx) => {
+        if (linkedAgentIds.length > 0) {
+          await tx
+            .delete(agents)
+            .where(and(inArray(agents.id, linkedAgentIds), eq(agents.userId, req.userId!)));
+        }
+
+        await tx
+          .delete(departments)
+          .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
+      });
+
+      if (linkedAgentIds.length > 0) {
+        console.log(`[Deprock] Deleted ${linkedAgentIds.length} linked agent(s) for department ${id}`);
+      }
+
+      res.json({ success: true, deletedAgents: linkedAgentIds.length });
     } catch (error: any) {
       console.error("[Deprock] Delete error:", error);
       res.status(500).json({ error: "Failed to delete department" });
@@ -711,7 +893,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
   router.post("/:id/agents", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const { agentId, agentName, language, isPrimary, systemPrompt, voiceTone, voiceId } = req.body;
+      const { agentId, agentName, language, isPrimary, systemPrompt, firstMessage, voiceTone, voiceId, ttsProvider } = req.body;
 
       const trimmedAgentName = agentName?.trim();
       if (!agentId && !trimmedAgentName) {
@@ -738,7 +920,10 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           .limit(1);
 
         if (existingAgent.length === 0) {
-          return res.status(404).json({ error: "Agent not found" });
+          resolvedAgentId = undefined;
+        } else if (trimmedAgentName && existingAgent[0].name !== trimmedAgentName) {
+          resolvedAgentId = undefined;
+          console.log(`[Deprock] Agent name mismatch: existing="${existingAgent[0].name}" vs provided="${trimmedAgentName}" — creating new agent`);
         }
       }
 
@@ -749,7 +934,8 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           .where(eq(knowledgeBase.userId, req.userId!));
         const kbIds = userKBs.map(kb => kb.id);
 
-        const isElVoice = voiceId && voiceId.startsWith('el_');
+        const isElVoice = isElevenLabsVoiceId(voiceId);
+        const isCartesiaVoice = isCartesiaVoiceId(voiceId);
         const agentValues: Record<string, any> = {
           userId: req.userId!,
           name: trimmedAgentName,
@@ -759,10 +945,14 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           systemPrompt: systemPrompt || null,
           openaiVoice: voiceId || null,
           voiceTone: voiceTone || null,
+          firstMessage: firstMessage || null,
           knowledgeBaseOnly: kbIds.length > 0,
           knowledgeBaseIds: kbIds.length > 0 ? kbIds : null,
         };
-        if (isElVoice) {
+        if (ttsProvider === 'cartesia' || isCartesiaVoice) {
+          agentValues.voiceProvider = 'cartesia';
+          agentValues.openaiVoice = isCartesiaVoice ? getCartesiaVoiceId(voiceId) : voiceId;
+        } else if (isElVoice) {
           agentValues.voiceProvider = 'elevenlabs';
           agentValues.elevenLabsVoiceId = getElevenLabsVoiceId(voiceId) || voiceId;
         } else if (voiceId) {
@@ -772,10 +962,23 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
         const [newAgent] = await db
           .insert(agents)
-          .values(agentValues as any)
+          .values(agentValues)
           .returning();
         resolvedAgentId = newAgent.id;
-        console.log(`[Deprock] Created new agent "${trimmedAgentName}" (${newAgent.id}) for language ${language}, linked ${kbIds.length} knowledge bases, voiceProvider=${isElVoice ? 'elevenlabs' : 'aws_polly'}`);
+        console.log(`[Deprock] Created new agent "${trimmedAgentName}" (${newAgent.id}) for language ${language}, linked ${kbIds.length} knowledge bases, voiceProvider=${agentValues.voiceProvider || 'aws_polly'}`);
+
+        setImmediate(async () => {
+          try {
+            console.log(`🎨 [Deprock] Generating avatar for inbound agent "${trimmedAgentName}"`);
+            const generatedAvatarUrl = await generateAgentAvatar(trimmedAgentName);
+            if (generatedAvatarUrl) {
+              await db.update(agents).set({ avatarUrl: generatedAvatarUrl }).where(eq(agents.id, newAgent.id));
+              console.log(`✅ [Deprock] Avatar generated and saved for "${trimmedAgentName}": ${generatedAvatarUrl}`);
+            }
+          } catch (avatarError) {
+            console.warn(`⚠️ [Deprock] Avatar generation failed (non-fatal):`, avatarError);
+          }
+        });
       }
 
       const newDeptAgent = await db
@@ -790,12 +993,16 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         })
         .returning();
 
-      if (systemPrompt || voiceId || voiceTone) {
+      if (systemPrompt || voiceId || voiceTone || firstMessage) {
         const agentUpdate: Record<string, any> = {};
         if (systemPrompt) agentUpdate.systemPrompt = systemPrompt;
+        if (firstMessage) agentUpdate.firstMessage = firstMessage;
         if (voiceId) {
           agentUpdate.openaiVoice = voiceId;
-          if (voiceId.startsWith('el_')) {
+          if (ttsProvider === 'cartesia' || isCartesiaVoiceId(voiceId)) {
+            agentUpdate.voiceProvider = 'cartesia';
+            agentUpdate.openaiVoice = isCartesiaVoiceId(voiceId) ? getCartesiaVoiceId(voiceId) : voiceId;
+          } else if (isElevenLabsVoiceId(voiceId)) {
             agentUpdate.voiceProvider = 'elevenlabs';
             agentUpdate.elevenLabsVoiceId = getElevenLabsVoiceId(voiceId) || voiceId;
           } else {
@@ -810,7 +1017,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           .set(agentUpdate)
           .where(and(eq(agents.id, resolvedAgentId), eq(agents.userId, req.userId!)));
 
-        console.log(`[Deprock] Synced agent ${resolvedAgentId} with canvas config: prompt=${!!systemPrompt}, voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}`);
+        console.log(`[Deprock] Synced agent ${resolvedAgentId} with canvas config: prompt=${!!systemPrompt}, voice=${voiceId || 'unchanged'}, tone=${voiceTone || 'unchanged'}, firstMessage=${!!firstMessage}`);
       }
 
       const deptData = existingDept[0];
@@ -935,13 +1142,17 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
       const agentUpdate: Record<string, any> = {};
       if (voiceId !== undefined) {
-        agentUpdate.openaiVoice = voiceId;
-        if (voiceId.startsWith('el_')) {
+        if (isCartesiaVoiceId(voiceId)) {
+          agentUpdate.voiceProvider = 'cartesia';
+          agentUpdate.openaiVoice = getCartesiaVoiceId(voiceId);
+        } else if (isElevenLabsVoiceId(voiceId)) {
           agentUpdate.voiceProvider = 'elevenlabs';
           agentUpdate.elevenLabsVoiceId = getElevenLabsVoiceId(voiceId) || voiceId;
+          agentUpdate.openaiVoice = voiceId;
         } else {
           agentUpdate.voiceProvider = 'aws_polly';
           agentUpdate.awsPollyVoiceId = voiceId;
+          agentUpdate.openaiVoice = voiceId;
         }
       }
       if (voiceTone !== undefined) agentUpdate.voiceTone = voiceTone;
@@ -1241,23 +1452,51 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
   router.delete("/all/clear", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      await db
-        .delete(incomingConnections)
-        .where(eq(incomingConnections.userId, req.userId!));
-
-      await db
-        .delete(humanIncomingConnections)
-        .where(eq(humanIncomingConnections.userId, req.userId!));
-
-      await db
-        .delete(departments)
+      const userDepts = await db
+        .select({ id: departments.id })
+        .from(departments)
         .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
 
-      await db
-        .delete(ivrConfigurations)
-        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')));
+      const deptIds = userDepts.map(d => d.id);
 
-      res.json({ success: true });
+      let deletedAgentCount = 0;
+
+      await db.transaction(async (tx) => {
+        if (deptIds.length > 0) {
+          const linkedAgents = await tx
+            .select({ agentId: departmentAgents.agentId })
+            .from(departmentAgents)
+            .where(inArray(departmentAgents.departmentId, deptIds));
+
+          const linkedAgentIds = [...new Set(linkedAgents.map(a => a.agentId))];
+
+          if (linkedAgentIds.length > 0) {
+            await tx
+              .delete(agents)
+              .where(and(inArray(agents.id, linkedAgentIds), eq(agents.userId, req.userId!)));
+            deletedAgentCount = linkedAgentIds.length;
+          }
+        }
+
+        await tx
+          .delete(incomingConnections)
+          .where(eq(incomingConnections.userId, req.userId!));
+
+        await tx
+          .delete(humanIncomingConnections)
+          .where(eq(humanIncomingConnections.userId, req.userId!));
+
+        await tx
+          .delete(departments)
+          .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
+
+        await tx
+          .delete(ivrConfigurations)
+          .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'bedrock-polly')));
+      });
+
+      console.log(`[Deprock] Cleared all departments and ${deletedAgentCount} linked agent(s)`);
+      res.json({ success: true, deletedAgents: deletedAgentCount });
     } catch (error: any) {
       console.error("[Deprock] Delete all error:", error);
       res.status(500).json({ error: "Failed to delete all departments" });
@@ -1266,15 +1505,38 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
   router.post("/voice-preview", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { voiceId, text, speed } = req.body;
+      const { voiceId, text, speed, language } = req.body;
       if (!voiceId || !text) {
         return res.status(400).json({ error: "voiceId and text are required" });
       }
 
-      const voiceSpeed = typeof speed === 'number' ? Math.max(0.5, Math.min(1.5, speed)) : 1.0;
-      const isElevenLabsVoice = voiceId.startsWith("el_");
+      const isElVoice = isElevenLabsVoiceId(voiceId);
+      const isCartesia = isCartesiaVoiceId(voiceId);
+      const CARTESIA_UNSUPPORTED_LANGS = new Set(['ar']);
+      const cartesiaLangUnsupported = isCartesia && language && CARTESIA_UNSUPPORTED_LANGS.has(language);
+      const voiceSpeed = typeof speed === 'number'
+        ? (isElVoice
+            ? Math.max(0.7, Math.min(1.2, speed))
+            : Math.max(0.5, Math.min(1.5, speed)))
+        : 1.0;
 
-      if (isElevenLabsVoice) {
+      if (isCartesia && !cartesiaLangUnsupported) {
+        if (!cartesiaTTSService.isConfigured()) {
+          return res.status(400).json({ error: "Cartesia API key not configured" });
+        }
+        const realCartesiaId = getCartesiaVoiceId(voiceId);
+        const result = await cartesiaTTSService.synthesizeSpeech({
+          text,
+          voiceId: realCartesiaId,
+          language: language || 'en',
+          sampleRate: 24000,
+          speed: voiceSpeed !== 1.0 ? voiceSpeed : undefined,
+          outputContainer: 'wav',
+        });
+        res.setHeader("Content-Type", "audio/wav");
+        res.setHeader("Content-Disposition", "inline; filename=preview.wav");
+        res.send(result.audioStream);
+      } else if (isElVoice) {
         const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
         if (!elevenLabsApiKey) {
           return res.status(400).json({ error: "ElevenLabs API key not configured" });
@@ -1296,11 +1558,13 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         res.setHeader("Content-Disposition", "inline; filename=preview.mp3");
         res.send(audioBuffer);
       } else {
+        const LANG_POLLY_FALLBACK: Record<string, string> = { ar: 'Hala', hi: 'Kajal', zh: 'Zhiyu', es: 'Lupe', fr: 'Lea' };
+        const pollyVoice = cartesiaLangUnsupported ? (LANG_POLLY_FALLBACK[language!] || 'Joanna') : voiceId;
         const prosodyRate = `${Math.round(voiceSpeed * 100)}%`;
         const ssmlText = `<speak><prosody rate="${prosodyRate}">${applyArabicPronunciationFixes(text)}</prosody></speak>`;
         const result = await awsPollyService.synthesizeSpeech({
           text: ssmlText,
-          voiceId,
+          voiceId: pollyVoice,
           engine: 'neural',
           outputFormat: 'mp3',
           textType: 'ssml',
@@ -1324,6 +1588,21 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         return res.status(400).json({ error: "language is required" });
       }
 
+      try {
+        const [randomName] = await db
+          .select({ name: agentNames.name })
+          .from(agentNames)
+          .where(eq(agentNames.language, language))
+          .orderBy(sql`RANDOM()`)
+          .limit(1);
+
+        if (randomName) {
+          return res.json({ name: randomName.name });
+        }
+      } catch (poolErr) {
+        console.warn("[Deprock] Agent names pool lookup failed, falling back to OpenAI:", poolErr);
+      }
+
       const langLabel = SUPPORTED_LANGUAGES[language] || language;
       const deptContext = departmentType && departmentType !== 'custom'
         ? ` who works in a ${departmentType} department`
@@ -1341,15 +1620,22 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           .where(eq(knowledgeBase.userId, userId));
 
         if (kbEntries.length > 0) {
+          const excludedTerms = ['home', 'page', 'sign in', 'signin', 'sign up', 'signup', 'login', 'log in', 'register', 'contact', 'about', 'faq', 'search', 'checkout', 'cart', 'privacy', 'terms'];
           const summaryParts: string[] = [];
           for (const entry of kbEntries) {
+            const entryTitle = (entry.title || '').toLowerCase().trim();
+            if (excludedTerms.some(ex => entryTitle.includes(ex))) {
+              continue;
+            }
             const snippet = entry.content ? entry.content.substring(0, 200) : "";
             if (snippet) {
               summaryParts.push(`- ${entry.title}: ${snippet}`);
             }
             if (summaryParts.length >= 5) break;
           }
-          companyContext = ` The agent represents a company with this background: ${summaryParts.join("; ")}. Choose a name that fits the company's brand and culture.`;
+          if (summaryParts.length > 0) {
+            companyContext = ` The agent represents a company with this background: ${summaryParts.join("; ")}. Choose a name that fits the company's brand and culture.`;
+          }
         }
       } catch (kbErr) {
         console.warn("[Deprock] Could not fetch knowledge base for name generation:", kbErr);
@@ -1363,7 +1649,14 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         messages: [
           {
             role: "user",
-            content: `Generate exactly one realistic full name (first name and last name) for a person${deptContext} who is a native ${langLabel} speaker.${toneContext}${companyContext} The name MUST be written in the native script/alphabet of ${langLabel} (e.g. Arabic script for Arabic, Kanji/Hiragana for Japanese, Hangul for Korean, Devanagari for Hindi, Chinese characters for Chinese). Do NOT transliterate into Latin/English letters. Output ONLY the name, nothing else.`,
+            content: (() => {
+              const latinScriptLangs = ['english', 'spanish', 'french', 'german', 'italian', 'portuguese', 'dutch', 'swedish', 'norwegian', 'finnish', 'polish', 'turkish'];
+              const isLatinScript = latinScriptLangs.some(l => langLabel.toLowerCase().includes(l));
+              const scriptInstruction = isLatinScript
+                ? `The name must use standard Latin/English letters as appropriate for a ${langLabel} speaker.`
+                : `The name MUST be written in the native script/alphabet of ${langLabel} (e.g. Arabic script for Arabic, Kanji/Hiragana for Japanese, Hangul for Korean, Devanagari for Hindi, Chinese characters for Chinese). Do NOT transliterate into Latin/English letters.`;
+              return `Generate exactly one realistic full name (first name and last name) for a person${deptContext} who is a native ${langLabel} speaker.${toneContext}${companyContext} ${scriptInstruction} Output ONLY the name, nothing else.`;
+            })(),
           },
         ],
       });
@@ -1396,31 +1689,42 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         ? `The tone should be ${voiceTone}.`
         : 'The tone should be professional.';
 
-      let companyContext = "";
       let companyName_resolved = companyName;
+      if (companyName_resolved) {
+        companyName_resolved = companyName_resolved
+          .replace(/^https?:\/\//i, '')
+          .replace(/^www\./i, '')
+          .replace(/\.[a-z]{2,10}(\/.*)?$/i, '')
+          .replace(/[-_]/g, ' ')
+          .trim();
+        if (companyName_resolved) {
+          companyName_resolved = companyName_resolved.charAt(0).toUpperCase() + companyName_resolved.slice(1);
+        }
+      }
       
       try {
-        const kbEntries = await db
-          .select({ title: knowledgeBase.title, content: knowledgeBase.content, type: knowledgeBase.type })
-          .from(knowledgeBase)
-          .where(eq(knowledgeBase.userId, userId));
+        if (!companyName_resolved) {
+          const kbEntries = await db
+            .select({ title: knowledgeBase.title, type: knowledgeBase.type })
+            .from(knowledgeBase)
+            .where(eq(knowledgeBase.userId, userId));
 
-        if (kbEntries.length > 0) {
-          const summaryParts: string[] = [];
-          for (const entry of kbEntries) {
-            const snippet = entry.content ? entry.content.substring(0, 200) : "";
-            if (snippet) {
-              summaryParts.push(`- ${entry.title}: ${snippet}`);
-            }
-            if (summaryParts.length >= 5) break;
-          }
-          companyContext = `\nCOMPANY KNOWLEDGE BASE — use this to personalize the greeting with the company name, services, or brand:\n${summaryParts.join("\n")}`;
-          
-          // Try to extract company name from KB
-          if (!companyName_resolved && kbEntries.length > 0) {
-            const firstTitle = kbEntries[0]?.title;
-            if (firstTitle && !firstTitle.toLowerCase().includes('home') && !firstTitle.toLowerCase().includes('page')) {
-              companyName_resolved = firstTitle;
+          if (kbEntries.length > 0) {
+            const excludedTerms = ['home', 'page', 'sign in', 'signin', 'sign up', 'signup', 'login', 'log in', 'register', 'contact', 'about', 'faq', 'search', 'checkout', 'cart', 'privacy', 'terms', 'product', 'plan', 'package', 'bundle', 'price', 'offer', 'gb', 'days', 'sim'];
+            const companyEntry = kbEntries.find(e => {
+              const t = (e.title || '').toLowerCase().trim();
+              return t && !excludedTerms.some(ex => t.includes(ex));
+            });
+            if (companyEntry?.title) {
+              let resolved = companyEntry.title
+                .replace(/^https?:\/\//i, '')
+                .replace(/^www\./i, '')
+                .replace(/\.[a-z]{2,10}(\/.*)?$/i, '')
+                .replace(/[-_]/g, ' ')
+                .trim();
+              if (resolved) {
+                companyName_resolved = resolved.charAt(0).toUpperCase() + resolved.slice(1);
+              }
             }
           }
         }
@@ -1440,7 +1744,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
         messages: [
           {
             role: "system",
-            content: `You generate short, natural first greeting messages for AI phone agents. The message should be 1-2 sentences max. It is the very first thing the agent says when answering a call. ${toneContext} Include the agent's name naturally in the introduction. The ENTIRE message MUST be written in ${langLabel}. Output ONLY the greeting message, no explanations or markdown.`
+            content: `You generate short, natural first greeting messages for AI phone agents. The message should be 1-2 sentences max. It is the very first thing the agent says when answering a call. ${toneContext} Include the agent's name naturally in the introduction. NEVER mention any specific products, plans, packages, prices, or offers — the greeting is purely a welcome message. The ENTIRE message MUST be written in ${langLabel}. Output ONLY the greeting message, no explanations or markdown.`
           },
           {
             role: "user",
@@ -1450,7 +1754,8 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 ${companyName_resolved ? `3. Include the company name "${companyName_resolved}"` : ''}
 4. Feel natural, warm, and match the ${voiceTone || 'professional'} tone
 5. Be suitable for answering phone calls
-Write it entirely in ${langLabel}.${companyContext}`
+6. NEVER mention any specific products, plans, packages, prices, SKUs, or offers
+Write it entirely in ${langLabel}.`
           }
         ],
       });
@@ -1727,7 +2032,7 @@ export function createDeprockIvrAudioRoutes() {
       }
 
       let audioBuffer: Buffer;
-      const isElVoice = voiceId.startsWith('el_');
+      const isElVoice = isElevenLabsVoiceId(voiceId);
 
       if (isElVoice) {
         const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
@@ -1812,7 +2117,9 @@ function getElevenLabsVoiceId(internalId: string): string | null {
     el_fatima: "u0TsaWvt0v8migutHM3M",
     el_omar: "G1HOkzin3NMwRHSq60UI",
   };
-  return voiceMap[internalId] || null;
+  if (voiceMap[internalId]) return voiceMap[internalId];
+  if (!internalId.startsWith("el_") && /^[a-zA-Z0-9]{10,}$/.test(internalId)) return internalId;
+  return null;
 }
 
 function hashText(text: string): string {

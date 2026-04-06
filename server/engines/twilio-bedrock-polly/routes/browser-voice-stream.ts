@@ -313,7 +313,11 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
       elevenLabsApiKey: elApiKey,
     });
 
-    const knowledgeBaseIds = agent.knowledgeBaseIds as string[] | null;
+    let knowledgeBaseIds = agent.knowledgeBaseIds as string[] | null;
+    if (agent.userId) {
+      const { enrichKnowledgeBaseIdsWithProducts } = await import('../../../utils/product-kb-enrichment');
+      knowledgeBaseIds = await enrichKnowledgeBaseIdsWithProducts(knowledgeBaseIds || [], agent.userId);
+    }
     if (knowledgeBaseIds && knowledgeBaseIds.length > 0 && agent.userId) {
       agentConfig = BedrockAgentFactory.addKnowledgeBaseTool(
         agentConfig,

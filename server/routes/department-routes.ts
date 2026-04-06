@@ -1,8 +1,8 @@
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Request, Response } from "express";
 import { db } from "../db";
 import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows, incomingConnections, humanIncomingConnections, knowledgeBase } from "@shared/schema";
 import type { FlowNode, FlowEdge } from "@shared/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, inArray } from "drizzle-orm";
 import { insertDepartmentSchema, insertIvrConfigurationSchema } from "@shared/schema";
 import { twilioService } from "../services/twilio";
 import { getDomain } from "../utils/domain";
@@ -142,7 +142,7 @@ function generateDefaultFlowNodes(departmentName: string, agentName: string = "y
   return { nodes, edges };
 }
 
-export function createDepartmentRoutes(authenticateToken: (req: Request, res: Response, next: NextFunction) => void) {
+export function createDepartmentRoutes(authenticateToken: (req: Request, res: Response, next: Function) => void) {
   const router = Router();
 
   /**
@@ -369,11 +369,30 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         return res.status(404).json({ error: "Department not found" });
       }
 
-      await db
-        .delete(departments)
-        .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')));
+      const linkedAgents = await db
+        .select({ agentId: departmentAgents.agentId })
+        .from(departmentAgents)
+        .where(eq(departmentAgents.departmentId, id));
 
-      res.json({ success: true });
+      const linkedAgentIds = [...new Set(linkedAgents.map(a => a.agentId))];
+
+      await db.transaction(async (tx) => {
+        if (linkedAgentIds.length > 0) {
+          await tx
+            .delete(agents)
+            .where(and(inArray(agents.id, linkedAgentIds), eq(agents.userId, req.userId!)));
+        }
+
+        await tx
+          .delete(departments)
+          .where(and(eq(departments.id, id), eq(departments.userId, req.userId!), eq(departments.engineType, 'default')));
+      });
+
+      if (linkedAgentIds.length > 0) {
+        console.log(`[Departments] Deleted ${linkedAgentIds.length} linked agent(s) for department ${id}`);
+      }
+
+      res.json({ success: true, deletedAgents: linkedAgentIds.length });
     } catch (error: any) {
       console.error("[Departments] Delete error:", error);
       res.status(500).json({ error: "Failed to delete department" });
@@ -829,23 +848,51 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
    */
   router.delete("/all/clear", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      await db
-        .delete(incomingConnections)
-        .where(eq(incomingConnections.userId, req.userId!));
-
-      await db
-        .delete(humanIncomingConnections)
-        .where(eq(humanIncomingConnections.userId, req.userId!));
-
-      await db
-        .delete(departments)
+      const userDepts = await db
+        .select({ id: departments.id })
+        .from(departments)
         .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'default')));
 
-      await db
-        .delete(ivrConfigurations)
-        .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'default')));
+      const deptIds = userDepts.map(d => d.id);
 
-      res.json({ success: true });
+      let deletedAgentCount = 0;
+
+      await db.transaction(async (tx) => {
+        if (deptIds.length > 0) {
+          const linkedAgents = await tx
+            .select({ agentId: departmentAgents.agentId })
+            .from(departmentAgents)
+            .where(inArray(departmentAgents.departmentId, deptIds));
+
+          const linkedAgentIds = [...new Set(linkedAgents.map(a => a.agentId))];
+
+          if (linkedAgentIds.length > 0) {
+            await tx
+              .delete(agents)
+              .where(and(inArray(agents.id, linkedAgentIds), eq(agents.userId, req.userId!)));
+            deletedAgentCount = linkedAgentIds.length;
+          }
+        }
+
+        await tx
+          .delete(incomingConnections)
+          .where(eq(incomingConnections.userId, req.userId!));
+
+        await tx
+          .delete(humanIncomingConnections)
+          .where(eq(humanIncomingConnections.userId, req.userId!));
+
+        await tx
+          .delete(departments)
+          .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'default')));
+
+        await tx
+          .delete(ivrConfigurations)
+          .where(and(eq(ivrConfigurations.userId, req.userId!), eq(ivrConfigurations.engineType, 'default')));
+      });
+
+      console.log(`[Departments] Cleared all departments and ${deletedAgentCount} linked agent(s)`);
+      res.json({ success: true, deletedAgents: deletedAgentCount });
     } catch (error: any) {
       console.error("[Departments] Delete all error:", error);
       res.status(500).json({ error: "Failed to delete all departments" });
@@ -864,8 +911,12 @@ export function createDepartmentRoutes(authenticateToken: (req: Request, res: Re
         return res.status(400).json({ error: "voiceId and text are required" });
       }
       
-      const voiceSpeed = typeof speed === 'number' ? Math.max(0.5, Math.min(1.5, speed)) : 1.0;
-      const isElevenLabsVoice = voiceId.startsWith("el_");
+      const isElevenLabsVoice = isElevenLabsVoiceId(voiceId);
+      const voiceSpeed = typeof speed === 'number'
+        ? (isElevenLabsVoice
+            ? Math.max(0.7, Math.min(1.2, speed))
+            : Math.max(0.5, Math.min(1.5, speed)))
+        : 1.0;
       
       if (isElevenLabsVoice) {
         const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
@@ -1040,7 +1091,7 @@ export function createIvrAudioRoutes() {
       }
 
       let audioBuffer: Buffer;
-      const isElevenLabsVoice = voiceId.startsWith("el_");
+      const isElevenLabsVoice = isElevenLabsVoiceId(voiceId);
 
       if (isElevenLabsVoice) {
         const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
@@ -1104,9 +1155,13 @@ function hashText(text: string): string {
   return hash.toString(36);
 }
 
-/**
- * Map internal ElevenLabs voice IDs to actual ElevenLabs voice IDs
- */
+function isElevenLabsVoiceId(vid: string | undefined): boolean {
+  if (!vid) return false;
+  if (vid.startsWith('el_')) return true;
+  if (/^[a-zA-Z0-9]{10,}$/.test(vid)) return true;
+  return false;
+}
+
 function getElevenLabsVoiceId(internalId: string): string | null {
   const voiceMap: Record<string, string> = {
     el_rachel: "21m00Tcm4TlvDq8ikWAM",
@@ -1130,5 +1185,7 @@ function getElevenLabsVoiceId(internalId: string): string | null {
     el_fatima: "u0TsaWvt0v8migutHM3M",
     el_omar: "G1HOkzin3NMwRHSq60UI",
   };
-  return voiceMap[internalId] || null;
+  if (voiceMap[internalId]) return voiceMap[internalId];
+  if (!internalId.startsWith("el_") && /^[a-zA-Z0-9]{10,}$/.test(internalId)) return internalId;
+  return null;
 }

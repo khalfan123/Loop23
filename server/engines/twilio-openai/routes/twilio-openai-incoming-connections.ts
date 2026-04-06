@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { db } from "../../../db";
-import { incomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, campaigns } from "@shared/schema";
-import { eq, and, isNull, inArray } from "drizzle-orm";
+import { incomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 import { authenticateToken, type AuthRequest } from "../../../middleware/auth";
 import { getDomain } from "../../../utils/domain";
 
@@ -75,46 +75,15 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       (pn) => !allConnectedPhoneIds.includes(pn.id)
     );
 
-    const activeStatuses = ['pending', 'running', 'scheduled', 'paused'];
-    const phoneIdsToCheck = availablePhoneNumbers.map(pn => pn.id);
-    
-    const activeCampaigns = phoneIdsToCheck.length > 0 ? await db
-      .select({
-        phoneNumberId: campaigns.phoneNumberId,
-        campaignName: campaigns.name,
-        campaignStatus: campaigns.status,
-      })
-      .from(campaigns)
-      .where(
-        and(
-          inArray(campaigns.phoneNumberId, phoneIdsToCheck),
-          inArray(campaigns.status, activeStatuses),
-          isNull(campaigns.deletedAt)
-        )
-      ) : [];
-
-    const conflictMap = new Map<string, { campaignName: string; campaignStatus: string }>();
-    for (const campaign of activeCampaigns) {
-      if (campaign.phoneNumberId && !conflictMap.has(campaign.phoneNumberId)) {
-        conflictMap.set(campaign.phoneNumberId, {
-          campaignName: campaign.campaignName,
-          campaignStatus: campaign.campaignStatus,
-        });
-      }
-    }
-
-    const availablePhoneNumbersWithConflict = availablePhoneNumbers.map(pn => {
-      const conflict = conflictMap.get(pn.id);
-      return {
-        ...pn,
-        isConflicted: !!conflict,
-        conflictReason: conflict 
-          ? `Used by campaign "${conflict.campaignName}" (${conflict.campaignStatus})`
-          : null,
-        conflictCampaignName: conflict?.campaignName || null,
-        conflictCampaignStatus: conflict?.campaignStatus || null,
-      };
-    });
+    // NOTE: Campaign usage (outbound) does NOT block inbound routing assignment —
+    // a number can simultaneously run outbound campaigns and receive inbound calls.
+    const availablePhoneNumbersWithConflict = availablePhoneNumbers.map(pn => ({
+      ...pn,
+      isConflicted: false,
+      conflictReason: null,
+      conflictCampaignName: null,
+      conflictCampaignStatus: null,
+    }));
 
     const twilioOpenaiAgents = await db
       .select()
@@ -134,7 +103,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
       availableAgents: twilioOpenaiAgents,
       stats: {
         totalConnections: connections.length,
-        availableNumbers: availablePhoneNumbersWithConflict.filter(pn => !pn.isConflicted).length,
+        availableNumbers: availablePhoneNumbersWithConflict.length,
         totalAgents: twilioOpenaiAgents.length,
       },
     });

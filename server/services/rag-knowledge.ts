@@ -32,6 +32,7 @@
  */
 
 import OpenAI from "openai";
+import { createHash } from "crypto";
 import { db } from "../db";
 import { 
   knowledgeBase, 
@@ -46,23 +47,184 @@ import {
 import { eq, and, inArray, sql, or, ilike } from "drizzle-orm";
 import { awsBedrockService } from "./aws-bedrock";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025
-// Using text-embedding-3-small for cost-effective embeddings
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIMENSIONS = 1536;
 
-// Chunking configuration
-const CHUNK_SIZE = 500; // tokens (roughly 2000 chars)
-const CHUNK_OVERLAP = 50; // tokens overlap between chunks
-const MAX_CHUNK_CHARS = 2000; // approximate chars per chunk
+const CHUNK_SIZE = 500;
+const CHUNK_OVERLAP = 50;
+const MAX_CHUNK_CHARS = 2000;
 
-// Default storage limit per user (20MB)
 const DEFAULT_STORAGE_LIMIT_BYTES = 20 * 1024 * 1024;
 
-// Minimum relevance thresholds for filtering low-quality results
-const MIN_VECTOR_RELEVANCE = 0.65; // Minimum cosine similarity for vector search results
-const MIN_FAQ_RELEVANCE = 0.50; // FAQs can have lower threshold (keyword-based)
-const MIN_FALLBACK_RELEVANCE = 0.40; // Direct content fallback threshold
+const MIN_VECTOR_RELEVANCE = 0.45;
+const MIN_FAQ_RELEVANCE = 0.50;
+const MIN_FALLBACK_RELEVANCE = 0.30;
+
+class LRUCache<K, V> {
+  private cache = new Map<K, { value: V; expiresAt: number }>();
+  private maxSize: number;
+  private ttlMs: number;
+
+  constructor(maxSize: number = 500, ttlMs: number = 300_000) {
+    this.maxSize = maxSize;
+    this.ttlMs = ttlMs;
+  }
+
+  get(key: K): V | undefined {
+    const entry = this.cache.get(key);
+    if (!entry) return undefined;
+    if (Date.now() > entry.expiresAt) {
+      this.cache.delete(key);
+      return undefined;
+    }
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return entry.value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, { value, expiresAt: Date.now() + this.ttlMs });
+  }
+
+  get size(): number { return this.cache.size; }
+}
+
+function hashKey(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+const embeddingCache = new LRUCache<string, number[]>(1000, 600_000);
+const queryExpansionCache = new LRUCache<string, string[]>(200, 300_000);
+const searchResultCache = new LRUCache<string, Array<{ chunk: KnowledgeChunk; score: number; source: string }>>(100, 60_000);
+
+type QueryIntent = 'faq' | 'product' | 'support' | 'general';
+
+function classifyQueryIntent(query: string): QueryIntent {
+  const q = query.toLowerCase().trim();
+  
+  const faqPatterns = [
+    /^(what|how|can|do|is|are|does|will|should|would)\s/,
+    /\?$/,
+    /^(tell me|explain|describe)\s/,
+  ];
+  const isFaqStyle = faqPatterns.some(p => p.test(q));
+  
+  if (isProductServiceQuery(query)) return 'product';
+  
+  const supportPatterns = [
+    /\b(not working|broken|error|issue|problem|help|fix|trouble|fail|crash|bug)\b/,
+    /\b(can't|cannot|unable|won't|doesn't work)\b/,
+  ];
+  if (supportPatterns.some(p => p.test(q))) return 'support';
+  
+  if (isFaqStyle && q.length < 100) return 'faq';
+  
+  return 'general';
+}
+
+function computeBM25Score(query: string, text: string): number {
+  const k1 = 1.5;
+  const b = 0.75;
+  const avgDocLength = 500;
+  
+  const queryTerms = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  const docTerms = text.toLowerCase().split(/\s+/);
+  const docLength = docTerms.length;
+  
+  if (queryTerms.length === 0 || docLength === 0) return 0;
+  
+  const termFreqs = new Map<string, number>();
+  for (const t of docTerms) {
+    termFreqs.set(t, (termFreqs.get(t) || 0) + 1);
+  }
+  
+  let score = 0;
+  for (const qt of queryTerms) {
+    const tf = termFreqs.get(qt) || 0;
+    if (tf === 0) {
+      for (const [term, freq] of termFreqs) {
+        if (term.includes(qt) || qt.includes(term)) {
+          const partialTf = freq * 0.5;
+          const numerator = partialTf * (k1 + 1);
+          const denominator = partialTf + k1 * (1 - b + b * (docLength / avgDocLength));
+          score += (numerator / denominator) * 0.5;
+          break;
+        }
+      }
+      continue;
+    }
+    const numerator = tf * (k1 + 1);
+    const denominator = tf + k1 * (1 - b + b * (docLength / avgDocLength));
+    score += numerator / denominator;
+  }
+  
+  return score / queryTerms.length;
+}
+
+function reciprocalRankFusion(
+  vectorResults: Array<{ id: string; score: number }>,
+  keywordResults: Array<{ id: string; score: number }>,
+  k: number = 60
+): Map<string, number> {
+  const fusedScores = new Map<string, number>();
+  
+  for (let i = 0; i < vectorResults.length; i++) {
+    const { id } = vectorResults[i];
+    fusedScores.set(id, (fusedScores.get(id) || 0) + 1 / (k + i + 1));
+  }
+  
+  for (let i = 0; i < keywordResults.length; i++) {
+    const { id } = keywordResults[i];
+    fusedScores.set(id, (fusedScores.get(id) || 0) + 1 / (k + i + 1));
+  }
+  
+  return fusedScores;
+}
+
+async function generateEmbeddingBatch(texts: string[]): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  
+  const results: number[][] = new Array(texts.length);
+  const uncachedIndices: number[] = [];
+  const uncachedTexts: string[] = [];
+  
+  for (let i = 0; i < texts.length; i++) {
+    const cacheKey = hashKey(texts[i]);
+    const cached = embeddingCache.get(cacheKey);
+    if (cached) {
+      results[i] = cached;
+    } else {
+      uncachedIndices.push(i);
+      uncachedTexts.push(texts[i]);
+    }
+  }
+  
+  if (uncachedTexts.length > 0) {
+    const openai = await getOpenAIClient();
+    const BATCH_SIZE = 100;
+    
+    for (let batchStart = 0; batchStart < uncachedTexts.length; batchStart += BATCH_SIZE) {
+      const batch = uncachedTexts.slice(batchStart, batchStart + BATCH_SIZE);
+      const response = await openai.embeddings.create({
+        model: EMBEDDING_MODEL,
+        input: batch,
+      });
+      
+      for (let j = 0; j < response.data.length; j++) {
+        const globalIdx = uncachedIndices[batchStart + j];
+        const embedding = response.data[j].embedding;
+        results[globalIdx] = embedding;
+        embeddingCache.set(hashKey(texts[globalIdx]), embedding);
+      }
+    }
+  }
+  
+  return results;
+}
 
 const HR_CAREER_INDICATORS = [
   'career progression', 'open positions', 'view open positions', 'join us',
@@ -81,7 +243,18 @@ const PRODUCT_SERVICE_KEYWORDS = [
   'sell', 'what do you', 'what does', 'tell me about', 'how much',
   'how does', 'how do i', 'can i', 'do you have', 'what is',
   'international', 'travel', 'country', 'countries', 'activate',
-  'installation', 'compatible', 'device', 'phone', 'mobile'
+  'installation', 'compatible', 'device', 'phone', 'mobile',
+  'سعر', 'أسعار', 'منتج', 'منتجات', 'خدمة', 'خدمات', 'باقة', 'باقات',
+  'شراء', 'اشتراك', 'تكلفة', 'كم', 'عرض', 'عروض', 'متاح', 'توفر',
+  'تفعيل', 'جهاز', 'هاتف', 'موبايل', 'تغطية', 'شبكة', 'بيانات',
+  'سفر', 'دولي', 'دول', 'بلد', 'شريحة', 'ميزة', 'مميزات',
+  'prix', 'produit', 'acheter', 'abonnement', 'coût', 'forfait',
+  'precio', 'producto', 'comprar', 'costo', 'paquete',
+  '价格', '产品', '服务', '套餐', '购买', '订阅', '费用', '多少钱',
+  '优惠', '可用', '激活', '设备', '手机', '覆盖', '网络', '数据', '流量',
+  'कीमत', 'उत्पाद', 'सेवा', 'पैकेज', 'खरीद', 'सदस्यता', 'लागत',
+  'कितना', 'ऑफर', 'उपलब्ध', 'सक्रिय', 'डिवाइस', 'फोन', 'मोबाइल',
+  'नेटवर्क', 'डेटा', 'प्लान', 'योजना'
 ];
 
 function isProductServiceQuery(query: string): boolean {
@@ -341,18 +514,20 @@ function splitIntoSections(text: string): Array<{ heading: string; content: stri
   return sections;
 }
 
-/**
- * Generate embedding for text using OpenAI
- */
 async function generateEmbedding(text: string): Promise<number[]> {
+  const cacheKey = hashKey(text);
+  const cached = embeddingCache.get(cacheKey);
+  if (cached) return cached;
+
   const openai = await getOpenAIClient();
-  
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: text,
   });
   
-  return response.data[0].embedding;
+  const embedding = response.data[0].embedding;
+  embeddingCache.set(cacheKey, embedding);
+  return embedding;
 }
 
 /**
@@ -364,6 +539,13 @@ function estimateTokens(text: string): number {
 }
 
 async function expandQuery(query: string): Promise<string[]> {
+  const cacheKey = query.toLowerCase().trim();
+  const cached = queryExpansionCache.get(cacheKey);
+  if (cached) {
+    console.log(`[RAG] Query expansion cache hit for: "${query.substring(0, 50)}..."`);
+    return cached;
+  }
+
   try {
     const openai = await getOpenAIClient();
     const response = await openai.chat.completions.create({
@@ -371,9 +553,14 @@ async function expandQuery(query: string): Promise<string[]> {
       messages: [
         {
           role: "system",
-          content: `You are a query expansion assistant. Given a user's casual/incomplete question, generate 2-3 focused search queries that would help find relevant information in a knowledge base about products and services.
+          content: `You are an expert query expansion assistant for a product/service knowledge base. Given any user question in ANY language:
 
-Return ONLY the search queries, one per line. No numbering, no explanations. Focus on extracting the user's intent and adding relevant product/service terms.`
+1. ALWAYS translate the query to English first if it's not in English.
+2. Generate 3-4 focused English search queries covering different angles of the user's intent.
+3. Include specific product/service terms, synonyms, and related concepts.
+4. One query should be broad (category-level), one specific (exact match attempt), and one intent-based.
+
+Return ONLY the search queries in ENGLISH, one per line. No numbering, no explanations.`
         },
         {
           role: "user",
@@ -381,7 +568,7 @@ Return ONLY the search queries, one per line. No numbering, no explanations. Foc
         }
       ],
       temperature: 0.3,
-      max_tokens: 150,
+      max_tokens: 200,
     });
 
     const content = response.choices[0]?.message?.content?.trim();
@@ -394,6 +581,7 @@ Return ONLY the search queries, one per line. No numbering, no explanations. Foc
 
     if (expandedQueries.length === 0) return [query];
 
+    queryExpansionCache.set(cacheKey, expandedQueries);
     console.log(`[RAG] Expanded query "${query}" into ${expandedQueries.length} queries: ${expandedQueries.join(' | ')}`);
     return expandedQueries;
   } catch (error: any) {
@@ -403,19 +591,23 @@ Return ONLY the search queries, one per line. No numbering, no explanations. Foc
 }
 
 function needsQueryExpansion(query: string): boolean {
-  if (query.length > 80) return false;
+  if (query.length > 200) return false;
   const words = query.split(/\s+/).filter(w => w.length > 1);
-  if (words.length > 15) return false;
+  if (words.length > 25) return false;
   const hasProductTerms = PRODUCT_SERVICE_KEYWORDS.some(kw => query.toLowerCase().includes(kw));
+  if (hasProductTerms) return true;
+  const hasNonLatinChars = /[^\u0000-\u007F]/.test(query);
+  if (hasNonLatinChars) return true;
   const conversationalPatterns = [
     /^i('m| am| want| need| would)/i,
     /^(hey|hi|hello|can you|could you|please)/i,
     /^(tell me|show me|help me|i('d| would) like)/i,
     /^(looking for|interested in|thinking about)/i,
+    /^(what|how|which|where|when|why|is there|are there|do you)/i,
   ];
   const isConversational = conversationalPatterns.some(p => p.test(query.trim()));
   if (isConversational) return true;
-  if (words.length <= 6 && !hasProductTerms) return true;
+  if (words.length <= 10) return true;
   return false;
 }
 
@@ -509,41 +701,57 @@ export class RAGKnowledgeService {
         .set({ totalChunks: chunks.length })
         .where(eq(knowledgeProcessingQueue.id, queueEntry.id));
       
-      // Process each chunk
       let processedCount = 0;
-      for (let i = 0; i < chunks.length; i++) {
-        const chunkText = chunks[i];
+      const EMBED_BATCH_SIZE = 50;
+      
+      for (let batchStart = 0; batchStart < chunks.length; batchStart += EMBED_BATCH_SIZE) {
+        const batchChunks = chunks.slice(batchStart, batchStart + EMBED_BATCH_SIZE);
         
         try {
-          // Generate embedding
-          const embedding = await generateEmbedding(chunkText);
+          const embeddings = await generateEmbeddingBatch(batchChunks);
           
-          // Store chunk with embedding
-          await db.insert(knowledgeChunks).values({
-            knowledgeBaseId,
-            userId,
-            chunkIndex: i,
-            chunkText,
-            embedding: embedding as any, // Store as JSON array
-            tokenCount: estimateTokens(chunkText),
-            metadata: { ...metadata, chunkIndex: i, totalChunks: chunks.length },
-          });
-          
-          processedCount++;
-          
-          // Update progress
+          for (let j = 0; j < batchChunks.length; j++) {
+            const globalIdx = batchStart + j;
+            try {
+              await db.insert(knowledgeChunks).values({
+                knowledgeBaseId,
+                userId,
+                chunkIndex: globalIdx,
+                chunkText: batchChunks[j],
+                embedding: embeddings[j] as any,
+                tokenCount: estimateTokens(batchChunks[j]),
+                metadata: { ...metadata, chunkIndex: globalIdx, totalChunks: chunks.length },
+              });
+              processedCount++;
+            } catch (chunkError: any) {
+              console.error(`[RAG] Error storing chunk ${globalIdx}:`, chunkError.message);
+            }
+          }
+
           await db
             .update(knowledgeProcessingQueue)
             .set({ processedChunks: processedCount, updatedAt: new Date() })
             .where(eq(knowledgeProcessingQueue.id, queueEntry.id));
           
-        } catch (chunkError: any) {
-          console.error(`[RAG] Error processing chunk ${i}:`, chunkError.message);
-        }
-        
-        // Small delay to avoid rate limits
-        if (i < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (batchError: any) {
+          console.error(`[RAG] Batch embedding error at chunk ${batchStart}:`, batchError.message);
+          for (let j = 0; j < batchChunks.length; j++) {
+            try {
+              const embedding = await generateEmbedding(batchChunks[j]);
+              await db.insert(knowledgeChunks).values({
+                knowledgeBaseId,
+                userId,
+                chunkIndex: batchStart + j,
+                chunkText: batchChunks[j],
+                embedding: embedding as any,
+                tokenCount: estimateTokens(batchChunks[j]),
+                metadata: { ...metadata, chunkIndex: batchStart + j, totalChunks: chunks.length },
+              });
+              processedCount++;
+            } catch (fallbackErr: any) {
+              console.error(`[RAG] Fallback error for chunk ${batchStart + j}:`, fallbackErr.message);
+            }
+          }
         }
       }
       
@@ -573,14 +781,11 @@ export class RAGKnowledgeService {
     }
   }
   
-  /**
-   * Search knowledge base using semantic similarity
-   */
   static async searchKnowledge(
     query: string,
     knowledgeBaseIds: string[],
     userId: string,
-    maxResults: number = 5
+    maxResults: number = 8
   ): Promise<Array<{ chunk: KnowledgeChunk; score: number; source: string }>> {
     try {
       if (typeof knowledgeBaseIds === 'string') {
@@ -594,63 +799,211 @@ export class RAGKnowledgeService {
         return [];
       }
 
+      const cacheKey = `${query.toLowerCase().trim()}|${knowledgeBaseIds.sort().join(',')}|${userId}|${maxResults}`;
+      const cachedResults = searchResultCache.get(cacheKey);
+      if (cachedResults) {
+        console.log(`[RAG] Search cache hit (${cachedResults.length} results)`);
+        return cachedResults;
+      }
+
+      const intent = classifyQueryIntent(query);
+      console.log(`[RAG] Query intent: ${intent}`);
+
+      let faqResults: Array<{ chunk: KnowledgeChunk; score: number; source: string }> = [];
+      if (intent === 'faq' || intent === 'product' || intent === 'support') {
+        faqResults = await this.searchFAQs(query, knowledgeBaseIds, userId);
+        if (faqResults.length > 0) {
+          console.log(`[RAG] Found ${faqResults.length} FAQ matches`);
+        }
+        if (intent === 'faq' && faqResults.length >= 2 && faqResults[0].score > 0.75) {
+          console.log(`[RAG] Strong FAQ match found (score: ${faqResults[0].score.toFixed(3)}), skipping vector+expansion`);
+          searchResultCache.set(cacheKey, faqResults.slice(0, maxResults));
+          return faqResults.slice(0, maxResults);
+        }
+      }
+
       let expandedQueries: string[] | null = null;
       if (needsQueryExpansion(query)) {
         expandedQueries = await expandQuery(query);
       }
-
-      const faqResults = await this.searchFAQs(query, knowledgeBaseIds, userId);
-      if (faqResults.length > 0) {
-        console.log(`[RAG] Found ${faqResults.length} FAQ matches`);
-      }
       
       let chunkResults: Array<{ chunk: KnowledgeChunk; score: number; source: string }> = [];
-      
-      const chunks = await db
-        .select()
-        .from(knowledgeChunks)
-        .where(
-          and(
-            inArray(knowledgeChunks.knowledgeBaseId, knowledgeBaseIds),
-            eq(knowledgeChunks.userId, userId)
-          )
-        );
-      
-      if (chunks.length > 0) {
-        console.log(`[RAG] Searching ${chunks.length} chunks via vector similarity`);
-        
-        const allQueries = [query, ...(expandedQueries || [])];
-        const queryEmbeddings = await Promise.all(
-          allQueries.map(q => generateEmbedding(q))
-        );
-        
-        const chunksWithEmbeddings = chunks.filter(chunk => chunk.embedding && Array.isArray(chunk.embedding));
-        
-        const scoreMap = new Map<string, { chunk: KnowledgeChunk; score: number; source: string }>();
-        
-        for (const embedding of queryEmbeddings) {
-          for (const chunk of chunksWithEmbeddings) {
-            const score = cosineSimilarity(embedding, chunk.embedding as number[]);
-            const existing = scoreMap.get(chunk.id);
-            if (!existing || score > existing.score) {
-              scoreMap.set(chunk.id, {
-                chunk,
-                score,
-                source: chunk.knowledgeBaseId
-              });
+
+      const allQueries = [query, ...(expandedQueries || [])];
+      const queryEmbeddings = await generateEmbeddingBatch(allQueries);
+
+      let usedSqlSearch = false;
+      if (this.sqlSearchMode !== 'disabled') {
+        try {
+          const vectorScoreMap = new Map<string, { chunk: KnowledgeChunk; score: number; source: string }>();
+          for (const embedding of queryEmbeddings) {
+            const sqlResults = await this.sqlCosineSearch(
+              embedding,
+              knowledgeBaseIds,
+              userId,
+              maxResults * 3
+            );
+            for (const r of sqlResults) {
+              const existing = vectorScoreMap.get(r.chunk.id);
+              if (!existing || r.score > existing.score) {
+                vectorScoreMap.set(r.chunk.id, r);
+              }
             }
           }
+
+          if (vectorScoreMap.size > 0) {
+            usedSqlSearch = true;
+
+            const keywordChunks = await this.sqlKeywordSearch(
+              query,
+              knowledgeBaseIds,
+              userId,
+              maxResults * 2
+            );
+
+            const allChunks = new Map<string, { chunk: KnowledgeChunk; source: string }>();
+            for (const [id, r] of vectorScoreMap) {
+              allChunks.set(id, { chunk: r.chunk, source: r.source });
+            }
+            for (const kc of keywordChunks) {
+              if (!allChunks.has(kc.id)) {
+                allChunks.set(kc.id, { chunk: kc, source: kc.knowledgeBaseId });
+              }
+            }
+
+            const vectorResults = Array.from(vectorScoreMap.entries())
+              .map(([id, r]) => ({ id, score: r.score }))
+              .sort((a, b) => b.score - a.score);
+
+            const keywordResults = Array.from(allChunks.entries())
+              .map(([id, { chunk }]) => ({
+                id,
+                score: computeBM25Score(query, chunk.chunkText),
+              }))
+              .filter(r => r.score > 0.1)
+              .sort((a, b) => b.score - a.score);
+
+            const fusedScores = reciprocalRankFusion(vectorResults, keywordResults);
+            const maxRRFSql = Math.max(...Array.from(fusedScores.values()), 0.001);
+
+            chunkResults = Array.from(fusedScores.entries())
+              .map(([id, rrfScore]) => {
+                const vectorEntry = vectorScoreMap.get(id);
+                const chunkEntry = allChunks.get(id)!;
+                const vectorScore = vectorEntry?.score || 0;
+                const normalizedRRF = rrfScore / maxRRFSql;
+                const hasBM25 = keywordResults.some(kr => kr.id === id);
+                let finalScore: number;
+                if (vectorScore > 0 && hasBM25) {
+                  finalScore = vectorScore * 0.55 + normalizedRRF * 0.45;
+                } else if (vectorScore > 0) {
+                  finalScore = vectorScore * 0.85 + normalizedRRF * 0.15;
+                } else {
+                  finalScore = normalizedRRF * 0.7;
+                }
+                return { chunk: chunkEntry.chunk, score: Math.min(finalScore, 0.99), source: chunkEntry.source };
+              })
+              .filter(r => r.score >= MIN_FALLBACK_RELEVANCE)
+              .sort((a, b) => b.score - a.score)
+              .slice(0, maxResults);
+
+            console.log(`[RAG] SQL hybrid search: ${chunkResults.length} results (vector: ${vectorScoreMap.size}, keyword: ${keywordChunks.length}, fused: ${fusedScores.size})`);
+          }
+        } catch (e: any) {
+          console.log(`[RAG] SQL search failed, falling back to JS-based search: ${e.message}`);
+          if (this.sqlSearchMode === 'jsonb') {
+            this.sqlSearchMode = 'disabled';
+            console.log(`[RAG] SQL JSONB search disabled for this session, using JS fallback`);
+          }
         }
-        
-        const allScoredChunks = Array.from(scoreMap.values())
-          .sort((a, b) => b.score - a.score);
-        
-        const preFilterCount = allScoredChunks.length;
-        chunkResults = allScoredChunks
-          .filter(r => r.score >= MIN_VECTOR_RELEVANCE)
-          .slice(0, maxResults);
-        
-        console.log(`[RAG] Found ${chunkResults.length}/${preFilterCount} chunks above ${MIN_VECTOR_RELEVANCE} threshold (top score: ${allScoredChunks[0]?.score.toFixed(3) || 'N/A'}, cutoff filtered: ${preFilterCount - chunkResults.length}, expanded: ${expandedQueries ? 'yes' : 'no'})`);
+      }
+
+      if (!usedSqlSearch) {
+        const chunks = await db
+          .select()
+          .from(knowledgeChunks)
+          .where(
+            and(
+              inArray(knowledgeChunks.knowledgeBaseId, knowledgeBaseIds),
+              eq(knowledgeChunks.userId, userId)
+            )
+          );
+
+        if (chunks.length > 0) {
+          console.log(`[RAG] Searching ${chunks.length} chunks via JS hybrid search (vector + BM25)`);
+
+          const chunksWithEmbeddings = chunks.filter(chunk => chunk.embedding && Array.isArray(chunk.embedding));
+
+          const vectorScoreMap = new Map<string, { chunk: KnowledgeChunk; score: number; source: string }>();
+
+          for (const embedding of queryEmbeddings) {
+            for (const chunk of chunksWithEmbeddings) {
+              const score = cosineSimilarity(embedding, chunk.embedding as number[]);
+              const existing = vectorScoreMap.get(chunk.id);
+              if (!existing || score > existing.score) {
+                vectorScoreMap.set(chunk.id, {
+                  chunk,
+                  score,
+                  source: chunk.knowledgeBaseId
+                });
+              }
+            }
+          }
+
+          const vectorResults = Array.from(vectorScoreMap.entries())
+            .map(([id, r]) => ({ id, score: r.score }))
+            .filter(r => r.score >= MIN_VECTOR_RELEVANCE * 0.8)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, maxResults * 3);
+
+          const keywordResults = chunks
+            .map(chunk => ({
+              id: chunk.id,
+              score: computeBM25Score(query, chunk.chunkText),
+            }))
+            .filter(r => r.score > 0.1)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, maxResults * 3);
+
+          const fusedScores = reciprocalRankFusion(vectorResults, keywordResults);
+
+          const chunkMap = new Map<string, KnowledgeChunk>();
+          for (const chunk of chunks) {
+            chunkMap.set(chunk.id, chunk);
+          }
+
+          const maxRRF = Math.max(...Array.from(fusedScores.values()), 0.001);
+
+          const allScoredChunks = Array.from(fusedScores.entries())
+            .map(([id, rrfScore]) => {
+              const vectorEntry = vectorScoreMap.get(id);
+              const chunk = vectorEntry?.chunk || chunkMap.get(id)!;
+              const vectorScore = vectorEntry?.score || 0;
+              const normalizedRRF = rrfScore / maxRRF;
+              const hasVector = vectorScore > 0;
+              const hasBM25 = keywordResults.some(kr => kr.id === id);
+              let finalScore: number;
+              if (hasVector && hasBM25) {
+                finalScore = vectorScore * 0.55 + normalizedRRF * 0.45;
+              } else if (hasVector) {
+                finalScore = vectorScore * 0.85 + normalizedRRF * 0.15;
+              } else {
+                finalScore = normalizedRRF * 0.7;
+              }
+              return {
+                chunk,
+                score: Math.min(finalScore, 0.99),
+                source: chunk.knowledgeBaseId,
+              };
+            })
+            .filter(r => r.chunk && r.score >= MIN_FALLBACK_RELEVANCE)
+            .sort((a, b) => b.score - a.score);
+
+          const preFilterCount = allScoredChunks.length;
+          chunkResults = allScoredChunks.slice(0, maxResults);
+
+          console.log(`[RAG] JS hybrid search: ${chunkResults.length}/${preFilterCount} chunks above threshold (top: ${allScoredChunks[0]?.score.toFixed(3) || 'N/A'}, vector: ${vectorResults.length}, keyword: ${keywordResults.length}, expanded: ${expandedQueries ? 'yes' : 'no'})`);
+        }
       }
       
       let combined = [...faqResults, ...chunkResults]
@@ -667,6 +1020,7 @@ export class RAGKnowledgeService {
       
       if (combined.length > 0) {
         console.log(`[RAG] Returning ${combined.length} combined results (${faqResults.length} FAQs + ${chunkResults.length} chunks)`);
+        searchResultCache.set(cacheKey, combined);
         return combined;
       }
       
@@ -711,6 +1065,14 @@ export class RAGKnowledgeService {
           for (const word of queryWords) {
             if (contentLower.includes(word)) relevanceScore += 0.15;
             if (titleLower.includes(word)) relevanceScore += 0.25;
+          }
+          
+          if (isProductQuery && relevanceScore < MIN_FALLBACK_RELEVANCE) {
+            const hasPrice = /\$|€|£|price|cost|sar|ريال|سعر/i.test(contentLower);
+            const hasProduct = /product|plan|package|service|offer|باقة|منتج/i.test(contentLower);
+            if ((hasPrice || hasProduct) && (entry.content || '').length > 20) {
+              relevanceScore = Math.max(relevanceScore, MIN_FALLBACK_RELEVANCE);
+            }
           }
           
           relevanceScore = Math.min(relevanceScore, 0.95);
@@ -870,43 +1232,81 @@ export class RAGKnowledgeService {
     results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
     topK: number = 5
   ): Promise<Array<{ chunk: KnowledgeChunk; score: number; source: string }>> {
-    if (results.length <= topK || !awsBedrockService.isConfigured()) {
+    if (results.length <= topK) {
       return results.slice(0, topK);
     }
     
+    const candidateTexts = results.map((r, i) => `[${i}] ${r.chunk.chunkText.substring(0, 500)}`).join('\n\n');
+    const rerankPrompt = `You are a search relevance ranker. Given a query and numbered candidate passages, return a JSON array of the indices of the ${topK} most relevant passages, ordered by relevance (most relevant first). Return ONLY a JSON array of numbers. Example: [3, 0, 7, 1, 5]`;
+    const userContent = `Query: "${query}"\n\nCandidate passages:\n${candidateTexts}`;
+
+    if (awsBedrockService.isConfigured()) {
+      try {
+        const response = await awsBedrockService.invoke({
+          model: awsBedrockService.selectModelForTask('rerank'),
+          messages: [{ role: "user", content: userContent }],
+          systemPrompt: rerankPrompt,
+          maxTokens: 100,
+          temperature: 0,
+        });
+        
+        const parsed = this.parseRerankResponse(response.content, results, topK);
+        if (parsed) return parsed;
+      } catch (e: any) {
+        console.log(`[RAG] Bedrock re-ranking failed, trying GPT-4o-mini: ${e.message}`);
+      }
+    }
+
     try {
-      const candidateTexts = results.map((r, i) => `[${i}] ${r.chunk.chunkText.substring(0, 500)}`).join('\n\n');
-      
-      const response = await awsBedrockService.invoke({
-        model: awsBedrockService.selectModelForTask('rerank'),
-        messages: [{ role: "user", content: `Query: "${query}"\n\nCandidate passages:\n${candidateTexts}` }],
-        systemPrompt: `You are a search relevance ranker. Given a query and numbered candidate passages, return a JSON array of the indices of the ${topK} most relevant passages, ordered by relevance (most relevant first). Return ONLY a JSON array of numbers. Example: [3, 0, 7, 1, 5]`,
-        maxTokens: 100,
+      const openai = await getOpenAIClient();
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: rerankPrompt },
+          { role: "user", content: userContent },
+        ],
         temperature: 0,
+        max_tokens: 100,
       });
-      
-      const ranked = JSON.parse(response.content.trim());
-      if (Array.isArray(ranked)) {
-        const reranked: typeof results = [];
-        for (const idx of ranked) {
-          if (typeof idx === 'number' && idx >= 0 && idx < results.length) {
-            const result = results[idx];
-            reranked.push({
-              ...result,
-              score: Math.min(result.score + 0.1, 0.99),
-            });
-          }
-        }
-        if (reranked.length > 0) {
-          console.log(`[RAG] Semantic re-ranking: ${results.length} → ${reranked.length} results`);
-          return reranked.slice(0, topK);
-        }
+
+      const content = response.choices[0]?.message?.content?.trim();
+      if (content) {
+        const parsed = this.parseRerankResponse(content, results, topK);
+        if (parsed) return parsed;
       }
     } catch (e: any) {
-      console.log(`[RAG] Semantic re-ranking failed (non-critical): ${e.message}`);
+      console.log(`[RAG] GPT-4o-mini re-ranking failed (non-critical): ${e.message}`);
     }
     
     return results.slice(0, topK);
+  }
+
+  private static parseRerankResponse(
+    content: string,
+    results: Array<{ chunk: KnowledgeChunk; score: number; source: string }>,
+    topK: number
+  ): Array<{ chunk: KnowledgeChunk; score: number; source: string }> | null {
+    try {
+      const jsonMatch = content.match(/\[[\d\s,]+\]/);
+      if (!jsonMatch) return null;
+      const ranked = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(ranked)) return null;
+      
+      const reranked: typeof results = [];
+      for (const idx of ranked) {
+        if (typeof idx === 'number' && idx >= 0 && idx < results.length) {
+          reranked.push({
+            ...results[idx],
+            score: Math.min(results[idx].score + 0.1, 0.99),
+          });
+        }
+      }
+      if (reranked.length > 0) {
+        console.log(`[RAG] Semantic re-ranking: ${results.length} → ${reranked.length} results`);
+        return reranked.slice(0, topK);
+      }
+    } catch {}
+    return null;
   }
 
   static async extractAnswer(
@@ -1026,12 +1426,66 @@ Only suggest if genuinely relevant. Don't force it.`,
       allResults = allResults.slice(0, maxResults);
     }
 
+    const avgScore = allResults.length > 0
+      ? allResults.reduce((sum, r) => sum + r.score, 0) / allResults.length
+      : 0;
+    const LOW_CONFIDENCE_THRESHOLD = 0.5;
+
+    if (avgScore < LOW_CONFIDENCE_THRESHOLD && allResults.length > 0 && reasoningMode !== 'quick') {
+      console.log(`[RAG Enhanced] Low confidence (avg: ${avgScore.toFixed(3)}), attempting reformulated search`);
+      try {
+        const openai = await getOpenAIClient();
+        const reformulateResponse = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "The original search query returned low-relevance results. Reformulate it into 2 simpler, more specific keyword-based queries. Return ONLY the queries, one per line."
+            },
+            { role: "user", content: query }
+          ],
+          temperature: 0.2,
+          max_tokens: 100,
+        });
+
+        const reformulated = reformulateResponse.choices[0]?.message?.content?.trim()
+          ?.split('\n')
+          .map(l => l.trim())
+          .filter(l => l.length > 3 && l.length < 150) || [];
+
+        if (reformulated.length > 0) {
+          const retryResults = await Promise.all(
+            reformulated.map(q => this.searchKnowledge(q, knowledgeBaseIds, userId, maxResults))
+          );
+          const retryFlat = retryResults.flat();
+          const retryBest = retryFlat.filter(r => r.score > avgScore);
+          if (retryBest.length > 0) {
+            console.log(`[RAG Enhanced] Reformulated search found ${retryBest.length} better results`);
+            const combined = [...retryBest, ...allResults];
+            const dedupRetry = new Map<string, typeof combined[0]>();
+            for (const r of combined) {
+              const k = r.chunk.id || r.chunk.chunkText.substring(0, 100);
+              const existing = dedupRetry.get(k);
+              if (!existing || r.score > existing.score) {
+                dedupRetry.set(k, r);
+              }
+            }
+            allResults = Array.from(dedupRetry.values())
+              .sort((a, b) => b.score - a.score)
+              .slice(0, maxResults);
+          }
+        }
+      } catch (e: any) {
+        console.log(`[RAG Enhanced] Reformulation failed (non-critical): ${e.message}`);
+      }
+    }
+
     let extractedAnswer: string | undefined;
     if (useAnswerExtraction && allResults.length > 0 && reasoningMode !== 'quick') {
       extractedAnswer = await this.extractAnswer(query, allResults);
     }
 
-    console.log(`[RAG Enhanced] Final: ${allResults.length} results, answer extracted: ${!!extractedAnswer}`);
+    console.log(`[RAG Enhanced] Final: ${allResults.length} results (avg score: ${avgScore.toFixed(3)}), answer extracted: ${!!extractedAnswer}`);
 
     return { results: allResults, extractedAnswer };
   }
@@ -1380,6 +1834,271 @@ ${formattedResults}`
       .where(eq(knowledgeChunks.knowledgeBaseId, knowledgeBaseId));
     
     return Number(result[0]?.count || 0);
+  }
+
+  private static sqlSearchMode: 'jsonb' | 'pgvector' | 'disabled' | undefined = undefined;
+
+  private static pgvectorReady: boolean | null = null;
+  private static pgvectorLastAttempt: number = 0;
+  private static readonly PGVECTOR_RETRY_INTERVAL_MS = 60000;
+
+  private static async ensurePgvectorColumn(): Promise<boolean> {
+    if (this.pgvectorReady === true) return true;
+    if (this.pgvectorReady === false) {
+      const now = Date.now();
+      if (now - this.pgvectorLastAttempt < this.PGVECTOR_RETRY_INTERVAL_MS) return false;
+      this.pgvectorReady = null;
+    }
+    try {
+      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
+      await db.execute(sql`ALTER TABLE knowledge_chunks ADD COLUMN IF NOT EXISTS embedding_vec vector(1536)`);
+      const migrated = await db.execute(sql`
+        UPDATE knowledge_chunks
+        SET embedding_vec = (
+          SELECT array_agg(elem::float)::vector(1536)
+          FROM jsonb_array_elements_text(embedding) AS elem
+        )
+        WHERE embedding IS NOT NULL
+          AND embedding_vec IS NULL
+          AND jsonb_typeof(embedding) = 'array'
+          AND jsonb_array_length(embedding) = 1536
+      `);
+      const migratedCount = (migrated as any).rowCount || 0;
+      if (migratedCount > 0) console.log(`[RAG] Migrated ${migratedCount} embeddings to pgvector column`);
+      try {
+        await db.execute(sql`
+          CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_embedding_vec
+          ON knowledge_chunks USING hnsw (embedding_vec vector_cosine_ops)
+          WITH (m = 16, ef_construction = 64)
+        `);
+      } catch (idxErr: any) {
+        console.warn(`[RAG] HNSW index creation failed (will use sequential scan): ${idxErr.message}`);
+        try {
+          await db.execute(sql`
+            CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_embedding_vec_ivf
+            ON knowledge_chunks USING ivfflat (embedding_vec vector_cosine_ops)
+            WITH (lists = 50)
+          `);
+        } catch (ivfErr: any) {
+          console.warn(`[RAG] IVFFlat index also failed: ${ivfErr.message}`);
+        }
+      }
+      await db.execute(sql`
+        CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_user_kb
+        ON knowledge_chunks (user_id, knowledge_base_id)
+      `);
+      try {
+        await db.execute(sql`
+          CREATE OR REPLACE FUNCTION sync_embedding_vec()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            IF NEW.embedding IS NOT NULL AND jsonb_typeof(NEW.embedding) = 'array' AND jsonb_array_length(NEW.embedding) = 1536 THEN
+              NEW.embedding_vec := (
+                SELECT array_agg(elem::float)::vector(1536)
+                FROM jsonb_array_elements_text(NEW.embedding) AS elem
+              );
+            ELSE
+              NEW.embedding_vec := NULL;
+            END IF;
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql
+        `);
+        await db.execute(sql`
+          DROP TRIGGER IF EXISTS trg_sync_embedding_vec ON knowledge_chunks
+        `);
+        await db.execute(sql`
+          CREATE TRIGGER trg_sync_embedding_vec
+          BEFORE INSERT OR UPDATE OF embedding ON knowledge_chunks
+          FOR EACH ROW EXECUTE FUNCTION sync_embedding_vec()
+        `);
+        console.log(`[RAG] Created trigger for auto-syncing embedding_vec`);
+      } catch (trigErr: any) {
+        console.warn(`[RAG] Trigger creation failed (manual backfill needed): ${trigErr.message}`);
+      }
+      this.pgvectorReady = true;
+      return true;
+    } catch (e: any) {
+      console.error(`[RAG] pgvector setup failed: ${e.message}`);
+      this.pgvectorReady = false;
+      this.pgvectorLastAttempt = Date.now();
+      return false;
+    }
+  }
+
+  static async backfillPgvectorEmbeddings(): Promise<number> {
+    const hasPgvector = await this.ensurePgvectorColumn();
+    if (!hasPgvector) return 0;
+    const result = await db.execute(sql`
+      UPDATE knowledge_chunks
+      SET embedding_vec = (
+        SELECT array_agg(elem::float)::vector(1536)
+        FROM jsonb_array_elements_text(embedding) AS elem
+      )
+      WHERE embedding IS NOT NULL
+        AND embedding_vec IS NULL
+        AND jsonb_typeof(embedding) = 'array'
+        AND jsonb_array_length(embedding) = 1536
+    `);
+    const count = (result as any).rowCount || 0;
+    if (count > 0) console.log(`[RAG] Backfilled ${count} pgvector embeddings`);
+    return count;
+  }
+
+  private static async sqlCosineSearch(
+    queryEmbedding: number[],
+    knowledgeBaseIds: string[],
+    userId: string,
+    limit: number
+  ): Promise<Array<{ chunk: KnowledgeChunk; score: number; source: string }>> {
+    if (this.sqlSearchMode === 'disabled') {
+      throw new Error('SQL search permanently disabled after repeated failures');
+    }
+
+    const hasPgvector = await this.ensurePgvectorColumn();
+
+    if (hasPgvector) {
+      if (this.sqlSearchMode !== 'pgvector') {
+        this.sqlSearchMode = 'pgvector';
+        console.log(`[RAG] Using pgvector cosine distance for vector search`);
+      }
+
+      try {
+        const kbIdsArray = `{${knowledgeBaseIds.join(',')}}`;
+        const embeddingStr = `[${queryEmbedding.join(',')}]`;
+
+        const results = await db.execute(sql`
+          SELECT kc.id, kc.knowledge_base_id, kc.user_id, kc.chunk_index,
+                 kc.chunk_text, kc.token_count, kc.metadata, kc.created_at,
+                 1 - (kc.embedding_vec <=> ${embeddingStr}::vector) AS cosine_score
+          FROM knowledge_chunks kc
+          WHERE kc.user_id = ${userId}
+            AND kc.knowledge_base_id = ANY(${kbIdsArray}::text[])
+            AND kc.embedding_vec IS NOT NULL
+          ORDER BY kc.embedding_vec <=> ${embeddingStr}::vector ASC
+          LIMIT ${limit}
+        `);
+
+        const rows = (results as any).rows || results;
+        if (!Array.isArray(rows) || rows.length === 0) return [];
+
+        return rows
+          .filter((row: any) => row.cosine_score != null && parseFloat(row.cosine_score) >= MIN_VECTOR_RELEVANCE * 0.8)
+          .map((row: any) => ({
+            chunk: {
+              id: row.id,
+              knowledgeBaseId: row.knowledge_base_id,
+              userId: row.user_id,
+              chunkIndex: row.chunk_index,
+              chunkText: row.chunk_text,
+              embedding: null,
+              tokenCount: row.token_count,
+              metadata: row.metadata,
+              createdAt: row.created_at,
+            } as KnowledgeChunk,
+            score: parseFloat(row.cosine_score),
+            source: row.knowledge_base_id,
+          }));
+      } catch (pgvecErr: any) {
+        console.warn(`[RAG] pgvector query failed, falling back to JSONB: ${pgvecErr.message}`);
+      }
+    }
+
+    if (this.sqlSearchMode === undefined) {
+      this.sqlSearchMode = 'jsonb';
+      console.log(`[RAG] Using SQL JSONB cosine similarity for vector search (slow fallback)`);
+    }
+
+    const kbIdsArray = `{${knowledgeBaseIds.join(',')}}`;
+    const embeddingJson = JSON.stringify(queryEmbedding);
+
+    await db.execute(sql`SET LOCAL statement_timeout = '3000'`);
+    const results = await db.execute(sql`
+      SELECT kc.*,
+        (
+          SELECT sum(qe.val::float * de.val::float)
+          FROM jsonb_array_elements_text(${embeddingJson}::jsonb) WITH ORDINALITY AS qe(val, idx),
+               jsonb_array_elements_text(kc.embedding) WITH ORDINALITY AS de(val, idx)
+          WHERE qe.idx = de.idx
+        ) / NULLIF(
+          sqrt((SELECT sum(power(v::float, 2)) FROM jsonb_array_elements_text(${embeddingJson}::jsonb) AS t(v))) *
+          sqrt((SELECT sum(power(v::float, 2)) FROM jsonb_array_elements_text(kc.embedding) AS t(v))),
+          0
+        ) AS cosine_score
+      FROM knowledge_chunks kc
+      WHERE kc.user_id = ${userId}
+        AND kc.knowledge_base_id = ANY(${kbIdsArray}::text[])
+        AND kc.embedding IS NOT NULL
+        AND jsonb_typeof(kc.embedding) = 'array'
+        AND jsonb_array_length(kc.embedding) > 0
+      ORDER BY cosine_score DESC NULLS LAST
+      LIMIT ${limit}
+    `);
+
+    const rows = (results as any).rows || results;
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    return rows
+      .filter((row: any) => row.cosine_score != null && parseFloat(row.cosine_score) >= MIN_VECTOR_RELEVANCE * 0.8)
+      .map((row: any) => ({
+        chunk: {
+          id: row.id,
+          knowledgeBaseId: row.knowledge_base_id,
+          userId: row.user_id,
+          chunkIndex: row.chunk_index,
+          chunkText: row.chunk_text,
+          embedding: row.embedding,
+          tokenCount: row.token_count,
+          metadata: row.metadata,
+          createdAt: row.created_at,
+        } as KnowledgeChunk,
+        score: parseFloat(row.cosine_score),
+        source: row.knowledge_base_id,
+      }));
+  }
+
+  private static async sqlKeywordSearch(
+    query: string,
+    knowledgeBaseIds: string[],
+    userId: string,
+    limit: number
+  ): Promise<KnowledgeChunk[]> {
+    const queryTerms = query.toLowerCase().split(/\s+/)
+      .filter(w => w.length > 2 && /^[\w\-]+$/i.test(w))
+      .slice(0, 5);
+    if (queryTerms.length === 0) return [];
+
+    const searchPattern = `%${queryTerms.join('%')}%`;
+    const kbIdsArray = `{${knowledgeBaseIds.join(',')}}`;
+
+    try {
+      const results = await db.execute(sql`
+        SELECT kc.*
+        FROM knowledge_chunks kc
+        WHERE kc.user_id = ${userId}
+          AND kc.knowledge_base_id = ANY(${kbIdsArray}::text[])
+          AND kc.chunk_text ILIKE ${searchPattern}
+        LIMIT ${limit}
+      `);
+
+      const rows = (results as any).rows || results;
+      if (!Array.isArray(rows)) return [];
+
+      return rows.map((row: any) => ({
+        id: row.id,
+        knowledgeBaseId: row.knowledge_base_id,
+        userId: row.user_id,
+        chunkIndex: row.chunk_index,
+        chunkText: row.chunk_text,
+        embedding: row.embedding,
+        tokenCount: row.token_count,
+        metadata: row.metadata,
+        createdAt: row.created_at,
+      } as KnowledgeChunk));
+    } catch (e: any) {
+      console.log(`[RAG] SQL keyword search failed: ${e.message}`);
+      return [];
+    }
   }
 
   private static processingKBs = new Set<string>();

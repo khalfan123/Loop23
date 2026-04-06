@@ -715,7 +715,16 @@ IMPORTANT: Write in plain, natural language only. This is customer-facing conten
 
     for (let i = 0; i < topicsToGenerate.length; i++) {
       const topic = topicsToGenerate[i];
-      
+      const inProgressTitle = topic.topic.title;
+      const inProgressCategory = topic.topic.category || 'General';
+
+      await this.updatePipelineProgress(pipelineJobId, 'generating', Math.round((i / topicsToGenerate.length) * 100), {
+        articlesGenerated,
+        articlesPlanned: topicsToGenerate.length,
+        currentArticleTitle: inProgressTitle,
+        currentCategory: inProgressCategory,
+      });
+
       try {
         const { title, content, articleType } = await this.generateArticleFromTopic(topic, sourceContent);
         
@@ -744,7 +753,9 @@ IMPORTANT: Write in plain, natural language only. This is customer-facing conten
         const progress = Math.round(((i + 1) / topicsToGenerate.length) * 100);
         await this.updatePipelineProgress(pipelineJobId, 'generating', progress, {
           articlesGenerated,
-          articlesPlanned: topicsToGenerate.length
+          articlesPlanned: topicsToGenerate.length,
+          currentArticleTitle: title,
+          currentCategory: inProgressCategory,
         });
 
         console.log(`[TopicIntelligence] Generated article ${i + 1}/${topicsToGenerate.length}: ${title}`);
@@ -807,6 +818,8 @@ IMPORTANT: Write in plain, natural language only. This is customer-facing conten
       generating: {
         articlesPlanned: details.articlesPlanned || existingDetails.generating?.articlesPlanned || 0,
         articlesGenerated: details.articlesGenerated || existingDetails.generating?.articlesGenerated || 0,
+        currentArticleTitle: details.currentArticleTitle || existingDetails.generating?.currentArticleTitle,
+        currentCategory: details.currentCategory || existingDetails.generating?.currentCategory,
         startedAt: existingDetails.generating?.startedAt,
         completedAt: existingDetails.generating?.completedAt
       },

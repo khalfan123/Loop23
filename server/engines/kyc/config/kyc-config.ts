@@ -8,13 +8,14 @@
 import type { KycDocumentType } from '../types';
 
 export const KycEngineConfig = {
-  documentTypes: ['photo_id', 'company_registration', 'gst_certificate', 'authorization_letter'] as KycDocumentType[],
+  documentTypes: ['photo_id', 'company_registration', 'gst_certificate', 'authorization_letter', 'trade_license'] as KycDocumentType[],
   
   documentLabels: {
     photo_id: 'Photo ID',
     company_registration: 'Company Registration Certificate',
     gst_certificate: 'GST Certificate',
     authorization_letter: 'Authorization Letter',
+    trade_license: 'Trade License',
   } as Record<KycDocumentType, string>,
   
   allowedMimeTypes: [

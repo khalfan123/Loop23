@@ -151,14 +151,15 @@ export function AppSidebar() {
 
   const setupItems = [
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
-    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
+    { title: t('nav.inbound', 'Inbound'), url: "/app/deprock" },
+    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns" },
   ];
 
   const manageItems = [
-    { title: t('nav.leads', 'Leads'), url: "/app/crm" },
-    { title: t('nav.appointments'), url: "/app/appointments" },
+    { title: t('nav.operations', 'Operations'), url: "/app/ops" },
+    { title: t('nav.voices', 'Voices'), url: "/app/voices" },
   ];
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -258,16 +259,6 @@ export function AppSidebar() {
             isCollapsed={isCollapsed}
           />
         </div>
-
-        {user.role === 'admin' && (
-          <NavSection
-            label={t('nav.administration')}
-            items={[{ title: t('nav.adminDashboard'), url: "/admin" }]}
-            location={location}
-            onNavClick={handleNavClick}
-            isCollapsed={isCollapsed}
-          />
-        )}
 
         {!isCollapsed && (
           <div className="mx-1 mt-2">

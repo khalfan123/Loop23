@@ -39,7 +39,8 @@ import {
   handleIncomingCallWebhook,
   handleIvrSelection,
   handleIvrLanguageSelection,
-  handleTwilioStatusWebhook, 
+  handleTwilioStatusWebhook,
+  handleHumanDialStatusWebhook,
   handleTwilioRecordingWebhook, 
   handleTwilioStreamWebSocket,
   handleFlowVoiceAnswer,
@@ -52,20 +53,22 @@ import {
   handleRAGToolWebhook,
   handleAppointmentToolWebhook,
   handleFormSubmissionWebhook,
+  handleDynamicFormSubmissionWebhook,
+  handleDynamicFormListWebhook,
   handlePlayAudioToolWebhook
 } from "./routes/webhook-routes";
 // Flow Agent WebSocket handler removed - all agents now execute through ElevenLabs
 import { getDomain } from "./utils/domain";
-import { adminRouter } from "./routes/admin-routes";
-import adminTeamAccessRoutes from "./routes/admin-team-access.routes";
 import { createPublicRoutes } from "./routes/public-routes";
 import { createAuthRoutes } from "./routes/auth-routes";
 import { createAgentRoutes } from "./routes/agent-routes";
 import { createCampaignRoutes } from "./routes/campaign-routes";
 import { createQaRoutes } from "./routes/qa-routes";
+import { createOpsRoutes } from "./routes/ops-routes";
 import { createPhoneRoutes } from "./routes/phone-routes";
 import { createUserAddressRoutes } from "./routes/user-address-routes";
 import { createAnalyticsRoutes } from "./routes/analytics-routes";
+import { createCallIntelligenceRoutes } from "./routes/call-intelligence-routes";
 import { createRouteContext } from "./routes/common";
 // Payment Engine v1.0.0 - All payment gateway routers
 import {
@@ -76,11 +79,7 @@ import {
   mercadopagoRouter,
   PAYMENT_ENGINE_VERSION,
 } from "./engines/payment";
-// Plivo + OpenAI Realtime Engine
-import { createPlivoApiRoutes, setupPlivoWebhooks, setupPlivoStream } from "./engines/plivo";
-// Plivo-ElevenLabs SIP Trunk Engine (ISOLATED from Twilio+ElevenLabs)
-import { initPlivoElevenLabsEngine, initPlivoElevenLabsStream } from "./engines/plivo-elevenlabs";
-// Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
+// Twilio + OpenAI Realtime Engine
 import { twilioOpenaiWebhookRoutes, setupTwilioOpenAIStreamHandler, twilioOpenaiIncomingConnectionsRoutes } from "./engines/twilio-openai";
 // Twilio + Bedrock + Polly Engine (ISOLATED from other engines)
 import { bedrockPollyWebhookRoutes, setupBedrockPollyStreamHandler, setupBrowserVoiceStreamHandler } from "./engines/twilio-bedrock-polly";
@@ -91,14 +90,15 @@ import flowAutomationRouter from "./routes/flow-automation-routes";
 import { flows, FlowNode, FlowEdge, insertPromptTemplateSchema } from "@shared/schema";
 import { ElevenLabsFlowCompiler } from "./services/elevenlabs-flow-compiler";
 import incomingConnectionsRouter from "./routes/incoming-connections-routes";
-import llmModelsRouter from "./routes/llm-models-routes";
-import platformLanguagesRouter, { platformLanguagesPublicRouter } from "./routes/platform-languages-routes";
+import { platformLanguagesPublicRouter } from "./routes/platform-languages-routes";
 import transactionsRouter from "./routes/transactions-routes";
-import refundRouter from "./routes/refund-routes";
 import invoiceRouter from "./routes/invoice-routes";
-import emailSettingsRouter from "./routes/email-settings-routes";
+import internalApiRouter from "./routes/internal-api-routes";
 import audioRoutes from "./routes/audio-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
+import { createProductRoutes } from "./routes/product-routes";
+import { createUserSmtpRoutes } from "./routes/user-smtp-routes";
+import { createUserApiKeysRoutes } from "./routes/user-api-keys-routes";
 import { registerBedrockKBRoutes } from "./routes/bedrock-kb-routes";
 import { createKnowledgeIntelligenceRoutes } from "./routes/knowledge-intelligence-routes";
 import { createDepartmentRoutes, createIvrAudioRoutes } from "./routes/department-routes";
@@ -107,12 +107,12 @@ import { createNotificationRoutes } from "./routes/notification-routes";
 import { createUserWebhookRoutes } from "./routes/user-webhook-routes";
 import { createTemplateRoutes } from "./routes/template-routes";
 import { createSubscriptionRoutes } from "./routes/subscription-routes";
+import { createSupportTicketRoutes, createPublicSupportRoutes } from "./routes/support-ticket-routes";
 import crmRoutes from "./routes/crm-routes";
 import searchRoutes from "./routes/search-routes";
 import { createLiveMonitoringRoutes } from "./routes/live-monitoring-routes";
 import { liveMonitoringWs } from "./services/live-monitoring-ws";
 import integrationRoutes from "./routes/integration-routes";
-import adminIntegrationTestsRouter from "./routes/admin-integration-tests";
 import integrationOAuthCallback from "./routes/integration-oauth-callback";
 import contactImportRoutes from "./routes/contact-import-routes";
 import { widgetRoutes, publicWidgetRoutes } from "./modules/widget";
@@ -133,7 +133,7 @@ import { webhookTestService } from "./services/webhook-test-service";
 import { contactUploadService, PlanLimitExceededError } from "./services/contact-upload-service";
 import { recordingService } from "./services/recording-service";
 import { TwilioOpenAIAudioBridge } from "./engines/twilio-openai/services/audio-bridge.service";
-import { OpenAIPoolService } from "./engines/plivo/services/openai-pool.service";
+import { OpenAIPoolService } from "./services/openai-pool.service";
 import { OpenAIAgentFactory } from "./engines/twilio-openai/services/openai-agent-factory";
 import { CampaignScheduler } from "./services/campaign-scheduler";
 import { emailService } from "./services/email-service";
@@ -159,9 +159,8 @@ function escapeCSV(value: string | number): string {
   return stringValue;
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Create HTTP server first
-  const httpServer = createServer(app);
+export async function registerRoutes(app: Express, existingServer?: Server): Promise<Server> {
+  const httpServer = existingServer ?? createServer(app);
   
   // Create shared route context for dependency injection
   const routeContext = createRouteContext();
@@ -208,6 +207,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const qaRoutes = createQaRoutes(routeContext);
   app.use(qaRoutes);
 
+  // Register call intelligence routes (external call analysis storage & retrieval)
+  const callIntelligenceRoutes = createCallIntelligenceRoutes(routeContext);
+  app.use(callIntelligenceRoutes);
+
+  // Register Callpilot routes (AI task extraction from call transcripts)
+  const opsRoutes = createOpsRoutes(routeContext);
+  app.use(opsRoutes);
+
   // Register notification routes
   const notificationRoutes = createNotificationRoutes(routeContext);
   app.use(notificationRoutes);
@@ -224,42 +231,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const subscriptionRoutes = createSubscriptionRoutes(routeContext);
   app.use(subscriptionRoutes);
 
+  // Register support ticket routes (authenticated user routes)
+  const supportTicketRoutes = createSupportTicketRoutes(authenticateToken);
+  app.use('/api/support', supportTicketRoutes);
+
+  // Register public support API routes (for loopcp admin access via API key)
+  const publicSupportRoutes = createPublicSupportRoutes();
+  app.use('/api/public/support', publicSupportRoutes);
+
   // Register global search routes
   app.use(searchRoutes);
 
-  // Register Plivo + OpenAI Realtime Engine routes
-  // Apply authenticateToken middleware only to user-facing Plivo API routes (not webhooks/stream)
-  // Webhooks need to remain unauthenticated for Plivo callbacks
-  // TODO: Express middleware type compatibility - authenticateToken uses AuthRequest (extends Request)
-  // but app.use() expects RequestHandler<Request>. Fixing requires refactoring all middleware to use
-  // generics or a wrapper function. Using 'as unknown as RequestHandler' for explicit type unsafety.
-  app.use('/api/plivo/openai', authenticateToken as unknown as import('express').RequestHandler);
-  app.use('/api/plivo/phone-numbers', authenticateToken as unknown as import('express').RequestHandler);
-  app.use('/api/plivo/admin', authenticateToken as unknown as import('express').RequestHandler);
-  app.use('/api/plivo/incoming-connections', authenticateToken as unknown as import('express').RequestHandler);
-  const plivoApiRoutes = createPlivoApiRoutes();
-  app.use(plivoApiRoutes);
-  
-  // Setup Plivo webhooks for voice calls
-  const plivoBaseUrl = getDomain();
-  setupPlivoWebhooks(app, plivoBaseUrl);
-  // Plivo WebSocket stream is set up on httpServer below (after other upgrade handlers)
-  
-  // Start the stuck calls cleanup scheduler for Plivo engine
-  import("./engines/plivo/services/plivo-call.service").then(({ PlivoCallService }) => {
-    PlivoCallService.startStuckCallsScheduler();
-  }).catch((error) => {
-    console.error('❌ Failed to start Plivo stuck calls scheduler:', error.message);
-  });
-  
-  console.log('✅ Plivo + OpenAI Realtime Engine initialized');
-  
-  // Initialize Plivo-ElevenLabs SIP Trunk Engine (ISOLATED from Twilio+ElevenLabs)
-  // This provides Plivo SIP trunk to ElevenLabs connection for Indian phone numbers
-  initPlivoElevenLabsEngine(app);
-  console.log('✅ Plivo-ElevenLabs SIP Trunk Engine initialized');
-
-  // Initialize Twilio + OpenAI Realtime Engine (ISOLATED from Twilio+ElevenLabs and Plivo+OpenAI)
+  // Initialize Twilio + OpenAI Realtime Engine
   // This provides Twilio telephony with OpenAI Realtime API for international calling
   app.use('/api/twilio-openai', twilioOpenaiWebhookRoutes);
   // TODO: Express middleware type compatibility - see note above about authenticateToken
@@ -279,23 +262,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   })();
 
-  // Register KYC Engine routes
-  // TODO: Express middleware type compatibility - KYC engine accepts generic middleware types
-  // but authenticateToken/checkAdmin use extended Request types. Fixing requires updating the
-  // KYC engine interface to accept properly typed middleware.
   registerKycRoutes(
     app,
-    authenticateToken as unknown as import('express').RequestHandler,
-    checkAdmin as unknown as import('express').RequestHandler
+    authenticateToken as unknown as import('express').RequestHandler
   );
 
-  // Register Plugin Management Routes (Admin only)
-  // Allows viewing and managing installed plugins
   const pluginRoutes = await import('./routes/plugin-routes');
-  app.use('/api/admin/plugins', authenticateToken, requireRole("admin", "superadmin"), pluginRoutes.default);
-  // Public plugin bundle endpoint (no auth required - bundles are just JS code)
   app.use('/api/plugins', pluginRoutes.publicPluginRouter);
-  // User-accessible plugin capabilities endpoint (requires auth for user-specific data)
   app.use('/api/plugins', authenticateToken, pluginRoutes.userPluginRouter);
   console.log('✅ Plugin Management routes initialized');
 
@@ -355,186 +328,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Get available LLM models error:", error);
       res.status(500).json({ error: "Failed to get available LLM models" });
-    }
-  });
-
-  app.post("/api/admin/users/:id/credits", authenticateToken, requireRole("admin", "manager"), async (req: AuthRequest, res: Response) => {
-    try {
-      const { amount, description } = req.body;
-
-      if (typeof amount !== "number") {
-        return res.status(400).json({ error: "Amount is required and must be a number" });
-      }
-
-      const user = await storage.getUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const newCredits = user.credits + amount;
-      await storage.updateUserCredits(user.id, newCredits);
-
-      await storage.createCreditTransaction({
-        userId: user.id,
-        type: amount > 0 ? "credit" : "debit",
-        amount,
-        description: description || (amount > 0 ? "Credit added by admin" : "Credit deducted by admin"),
-        reference: null,
-        stripePaymentId: null,
-      });
-
-      res.json({ success: true, newCredits });
-    } catch (error: any) {
-      console.error("Update user credits error:", error);
-      res.status(500).json({ error: "Failed to update user credits" });
-    }
-  });
-
-  // Admin: Get user's effective limits and overrides
-  app.get("/api/admin/users/:id/limits", authenticateToken, requireRole("admin", "manager"), async (req: AuthRequest, res: Response) => {
-    try {
-      const user = await storage.getUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const limits = await storage.getUserEffectiveLimits(req.params.id);
-      
-      // Get subscription overrides if any
-      const subscription = await storage.getUserSubscription(req.params.id);
-      
-      // Get current usage counts
-      const webhookCount = await storage.getUserWebhookCount(req.params.id);
-      const kbCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(knowledgeBase)
-        .where(eq(knowledgeBase.userId, req.params.id));
-      const flowCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(flows)
-        .where(eq(flows.userId, req.params.id));
-      const phoneCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(phoneNumbers)
-        .where(eq(phoneNumbers.userId, req.params.id));
-
-      res.json({
-        userId: req.params.id,
-        effectiveLimits: limits,
-        overrides: subscription ? {
-          overrideMaxWebhooks: subscription.overrideMaxWebhooks,
-          overrideMaxKnowledgeBases: subscription.overrideMaxKnowledgeBases,
-          overrideMaxFlows: subscription.overrideMaxFlows,
-          overrideMaxPhoneNumbers: subscription.overrideMaxPhoneNumbers
-        } : null,
-        currentUsage: {
-          webhooks: webhookCount,
-          knowledgeBases: Number(kbCount[0]?.count || 0),
-          flows: Number(flowCount[0]?.count || 0),
-          phoneNumbers: Number(phoneCount[0]?.count || 0)
-        }
-      });
-    } catch (error: any) {
-      console.error("Get user limits error:", error);
-      res.status(500).json({ error: "Failed to get user limits" });
-    }
-  });
-
-  // Admin: Update user's limit overrides
-  app.patch("/api/admin/users/:id/limits", authenticateToken, requireRole("admin", "manager"), async (req: AuthRequest, res: Response) => {
-    try {
-      const user = await storage.getUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const body = req.body;
-
-      // Coerce and validate limit values: accept null, undefined (no change), or valid integers
-      // Empty strings and "null" strings are coerced to null for convenience
-      const coerceAndValidate = (value: any, name: string): number | null | undefined => {
-        // undefined means don't change existing value
-        if (value === undefined) return undefined;
-        // null, empty string, or "null" string means inherit from plan
-        if (value === null || value === '' || value === 'null') return null;
-        // Coerce string numbers to integers
-        const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
-        if (typeof numValue !== 'number' || isNaN(numValue) || numValue < 0 || !Number.isInteger(numValue)) {
-          throw new Error(`${name} must be null (inherit from plan) or a non-negative integer (use 999 for unlimited)`);
-        }
-        return numValue;
-      };
-      
-      const overrideMaxWebhooks = coerceAndValidate(body.overrideMaxWebhooks, 'overrideMaxWebhooks');
-      const overrideMaxKnowledgeBases = coerceAndValidate(body.overrideMaxKnowledgeBases, 'overrideMaxKnowledgeBases');
-      const overrideMaxFlows = coerceAndValidate(body.overrideMaxFlows, 'overrideMaxFlows');
-      const overrideMaxPhoneNumbers = coerceAndValidate(body.overrideMaxPhoneNumbers, 'overrideMaxPhoneNumbers');
-
-      // Get or create subscription
-      let subscription = await storage.getUserSubscription(req.params.id);
-      
-      if (!subscription) {
-        // Create a free subscription with overrides
-        subscription = await storage.createUserSubscription({
-          userId: req.params.id,
-          planId: 'free',
-          status: 'active',
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
-          overrideMaxWebhooks: overrideMaxWebhooks ?? null,
-          overrideMaxKnowledgeBases: overrideMaxKnowledgeBases ?? null,
-          overrideMaxFlows: overrideMaxFlows ?? null,
-          overrideMaxPhoneNumbers: overrideMaxPhoneNumbers ?? null
-        });
-      } else {
-        // Update existing subscription with new overrides
-        await db.update(userSubscriptions)
-          .set({
-            overrideMaxWebhooks: overrideMaxWebhooks !== undefined ? overrideMaxWebhooks : subscription.overrideMaxWebhooks,
-            overrideMaxKnowledgeBases: overrideMaxKnowledgeBases !== undefined ? overrideMaxKnowledgeBases : subscription.overrideMaxKnowledgeBases,
-            overrideMaxFlows: overrideMaxFlows !== undefined ? overrideMaxFlows : subscription.overrideMaxFlows,
-            overrideMaxPhoneNumbers: overrideMaxPhoneNumbers !== undefined ? overrideMaxPhoneNumbers : subscription.overrideMaxPhoneNumbers
-          })
-          .where(eq(userSubscriptions.id, subscription.id));
-      }
-
-      // Return updated limits
-      const newLimits = await storage.getUserEffectiveLimits(req.params.id);
-      res.json({ success: true, effectiveLimits: newLimits });
-    } catch (error: any) {
-      console.error("Update user limits error:", error);
-      res.status(500).json({ error: error.message || "Failed to update user limits" });
-    }
-  });
-
-  // Admin: Reset user's limit overrides to plan defaults
-  app.delete("/api/admin/users/:id/limits", authenticateToken, requireRole("admin", "manager"), async (req: AuthRequest, res: Response) => {
-    try {
-      const user = await storage.getUser(req.params.id);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const subscription = await storage.getUserSubscription(req.params.id);
-      
-      if (subscription) {
-        // Reset all overrides to null (inherit from plan)
-        await db.update(userSubscriptions)
-          .set({
-            overrideMaxWebhooks: null,
-            overrideMaxKnowledgeBases: null,
-            overrideMaxFlows: null,
-            overrideMaxPhoneNumbers: null
-          })
-          .where(eq(userSubscriptions.id, subscription.id));
-      }
-
-      // Return updated limits
-      const newLimits = await storage.getUserEffectiveLimits(req.params.id);
-      res.json({ success: true, effectiveLimits: newLimits, message: "User limits reset to plan defaults" });
-    } catch (error: any) {
-      console.error("Reset user limits error:", error);
-      res.status(500).json({ error: "Failed to reset user limits" });
     }
   });
 
@@ -635,7 +428,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           importCampaign = await storage.createCampaign({
             name: 'Imported Contacts',
             userId: req.userId!,
-            type: 'outbound',
             status: 'active',
           });
         }
@@ -1639,6 +1431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/webhooks/ivr/handle-language", validateTwilioWebhook, handleIvrLanguageSelection); // IVR language selection
   app.post("/api/webhooks/ivr/handle-selection", validateTwilioWebhook, handleIvrSelection); // IVR department selection
   app.post("/api/webhooks/twilio/status", validateTwilioWebhook, handleTwilioStatusWebhook);
+  app.post("/api/webhooks/twilio/human-dial-status", validateTwilioWebhook, handleHumanDialStatusWebhook);
   app.post("/api/webhooks/twilio/recording", validateTwilioWebhook, handleTwilioRecordingWebhook);
   
   // Flow-based execution webhooks (validated with Twilio signature verification)
@@ -1657,6 +1450,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/webhooks/elevenlabs/appointment/:token/:agentId", handleAppointmentToolWebhook);
   // Form submission tool webhook - called by ElevenLabs when form node executes
   app.post("/api/webhooks/elevenlabs/form/:token/:formId/:agentId", handleFormSubmissionWebhook);
+  // Dynamic form submission webhook - called by ElevenLabs when no pre-assigned form exists
+  app.post("/api/webhooks/elevenlabs/dynamic-form/:token/:userId/:agentId", handleDynamicFormSubmissionWebhook);
+  app.get("/api/webhooks/elevenlabs/dynamic-form-list/:token/:userId/:agentId", handleDynamicFormListWebhook);
   // Play audio tool webhook - called by ElevenLabs when play_audio node executes
   app.post("/api/elevenlabs/tools/play-audio/:agentId", handlePlayAudioToolWebhook);
 
@@ -1675,30 +1471,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MercadoPago routes (Latin America payment gateway - BRL, MXN, ARS, CLP, COP)
   app.use("/api/mercadopago", mercadopagoRouter);
 
-  // Admin routes accessible by admin team members (read-only analytics)
-  // Must be before main admin router to take precedence
-  app.use("/api/admin", adminTeamAccessRoutes);
-  
-  // Admin routes (super admin only)
-  app.use("/api/admin", adminRouter);
-
-  // LLM Models admin routes
-  app.use("/api/admin/llm-models", llmModelsRouter);
-
-  // Platform Languages admin routes (UI translations management)
-  app.use("/api/admin/platform-languages", platformLanguagesRouter);
-
-  // Payment Transactions admin routes
-  app.use("/api/admin/transactions", transactionsRouter);
-  
-  // User-accessible transaction routes (non-admin)
   app.use("/api/transactions", transactionsRouter);
 
-  // Admin Refunds routes
-  app.use("/api/admin/refunds", refundRouter);
-
-  // Admin Integration Tests routes
-  app.use("/api/admin/integration-tests", authenticateToken, requireRole("admin", "superadmin"), adminIntegrationTestsRouter);
+  app.use("/api/internal", internalApiRouter);
 
   // User-accessible refund note download (separate from admin routes)
   app.get("/api/refunds/:id/download", authenticateToken, async (req: AuthRequest, res: Response) => {
@@ -1746,9 +1521,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to download refund note", error: error.message });
     }
   });
-
-  // Admin Email Settings routes
-  app.use("/api/admin/email-settings", emailSettingsRouter);
 
   // Audio upload routes
   app.use("/api/audio", audioRoutes);
@@ -1803,26 +1575,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const ragKnowledgeRoutes = createRAGKnowledgeRoutes(routeContext.authenticateHybrid);
   app.use("/api/rag-knowledge", ragKnowledgeRoutes);
 
+  // Product Inventory routes
+  const productRoutes = createProductRoutes(routeContext.authenticateHybrid);
+  app.use("/api/products", productRoutes);
+
+  const userSmtpRoutes = createUserSmtpRoutes(routeContext.authenticateHybrid);
+  app.use("/api/user-smtp", userSmtpRoutes);
+
+  const userApiKeysRoutes = createUserApiKeysRoutes(routeContext.authenticateHybrid);
+  app.use("/api/user/api-keys", userApiKeysRoutes);
+
+  app.post("/api/api-keys/regenerate", routeContext.authenticateHybrid as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      const newKey = "agl_" + crypto.randomBytes(32).toString("hex");
+      await db.update(users).set({ apiKey: newKey }).where(eq(users.id, userId));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to regenerate API key" });
+    }
+  });
+
   registerBedrockKBRoutes(app, routeContext.authenticateHybrid);
 
   // Knowledge Intelligence routes (crawling, AI analysis, content generation)
   const knowledgeIntelligenceRoutes = createKnowledgeIntelligenceRoutes();
-  app.use(
-    "/api/knowledge-intelligence",
-    routeContext.authenticateHybrid as unknown as import("express").RequestHandler,
-    knowledgeIntelligenceRoutes
-  );
+  app.use("/api/knowledge-intelligence", routeContext.authenticateHybrid, knowledgeIntelligenceRoutes);
 
   // Department Management routes
-  const departmentRoutes = createDepartmentRoutes(
-    routeContext.authenticateHybrid as unknown as import("express").RequestHandler
-  );
+  const departmentRoutes = createDepartmentRoutes(routeContext.authenticateHybrid);
   app.use("/api/departments", departmentRoutes);
 
   // Deprock (Bedrock + Polly) Department Management routes
-  const deprockRoutes = createDeprockRoutes(
-    routeContext.authenticateHybrid as unknown as import("express").RequestHandler
-  );
+  const deprockRoutes = createDeprockRoutes(routeContext.authenticateHybrid);
   app.use("/api/deprock", deprockRoutes);
 
   // Live Call Monitoring routes
@@ -2025,7 +1811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     console.log(`✅ [WebSocket] Reserved OpenAI credential: ${credential.name} (ID: ${credential.id})`);
                   }
                   
-                  const openaiModel = (agent as any).openaiModel || (agent as any).llmModel || 'gpt-4o-realtime-preview';
+                  const openaiModel = agent.openaiModel || 'gpt-4o-realtime-preview';
                   const openaiVoice = agent.openaiVoice || 'alloy';
                   
                   const [twilioOpenaiCall] = await db.insert(twilioOpenaiCalls).values({
@@ -2076,12 +1862,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       agent.userId
                     );
                   }
-                  if (agent.userId && fromPhone) {
-                    agentConfig = await OpenAIAgentFactory.injectCallerMemoryContext(agentConfig, {
-                      userId: agent.userId,
-                      callerPhoneNumber: fromPhone,
-                    });
-                  }
                   
                   if (agent.appointmentBookingEnabled && agent.userId) {
                     agentConfig = OpenAIAgentFactory.addAppointmentTool(
@@ -2130,7 +1910,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     fromNumber: fromPhone || '',
                     toNumber: customParams.toNumber || '',
                     callDirection: 'inbound',
-                    credentialId: credential?.id || undefined,
                   });
                   
                   console.log(`✅ [WebSocket] OpenAI Realtime session created for call ${callId}`);
@@ -2342,76 +2121,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Dismiss notification error:", error);
       res.status(500).json({ error: "Failed to dismiss notification" });
-    }
-  });
-
-  app.post("/api/admin/notifications/broadcast", authenticateToken, async (req: AuthRequest, res: Response) => {
-    try {
-      const user = await storage.getUser(req.userId!);
-      if (user?.role !== 'admin') {
-        return res.status(403).json({ error: "Only admins can send broadcast notifications" });
-      }
-
-      const { 
-        title, 
-        message, 
-        link, 
-        type = 'system',
-        icon,
-        displayType = 'bell',
-        priority = 0,
-        dismissible = true,
-        expiresAt
-      } = req.body;
-      
-      if (!title || !message) {
-        return res.status(400).json({ error: "Title and message are required" });
-      }
-
-      if (displayType && !['bell', 'banner', 'both'].includes(displayType)) {
-        return res.status(400).json({ error: "displayType must be 'bell', 'banner', or 'both'" });
-      }
-
-      if (priority !== undefined && (typeof priority !== 'number' || priority < 0)) {
-        return res.status(400).json({ error: "priority must be a non-negative number" });
-      }
-
-      if (dismissible !== undefined && typeof dismissible !== 'boolean') {
-        return res.status(400).json({ error: "dismissible must be a boolean" });
-      }
-
-      let parsedExpiresAt: Date | null = null;
-      if (expiresAt) {
-        parsedExpiresAt = new Date(expiresAt);
-        if (isNaN(parsedExpiresAt.getTime())) {
-          return res.status(400).json({ error: "expiresAt must be a valid date" });
-        }
-      }
-
-      const users = await storage.getAllUsers();
-      const notifications = await Promise.all(
-        users.map(u => storage.createNotification({
-          userId: u.id,
-          type,
-          title,
-          message,
-          link: link || null,
-          icon: icon || null,
-          displayType,
-          priority,
-          dismissible,
-          expiresAt: parsedExpiresAt,
-        }))
-      );
-
-      res.json({ 
-        success: true, 
-        recipientCount: notifications.length,
-        message: `Broadcast sent to ${notifications.length} users` 
-      });
-    } catch (error: any) {
-      console.error("Broadcast notification error:", error);
-      res.status(500).json({ error: "Failed to send broadcast notification" });
     }
   });
 
@@ -2666,532 +2375,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin: Create/manage system templates
-  app.post("/api/admin/prompt-templates/system", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const { 
-        name, 
-        description, 
-        category, 
-        systemPrompt, 
-        firstMessage, 
-        variables,
-        suggestedVoiceTone,
-        suggestedPersonality
-      } = req.body;
 
-      if (!name || !systemPrompt) {
-        return res.status(400).json({ error: "Name and system prompt are required" });
-      }
-
-      const template = await storage.createPromptTemplate({
-        userId: null, // System templates have no owner
-        name,
-        description: description || null,
-        category: category || 'general',
-        systemPrompt,
-        firstMessage: firstMessage || null,
-        variables: variables || null,
-        suggestedVoiceTone: suggestedVoiceTone || null,
-        suggestedPersonality: suggestedPersonality || null,
-        isSystemTemplate: true,
-        isPublic: true, // System templates are always public
-      });
-
-      res.json(template);
-    } catch (error: any) {
-      console.error("Create system prompt template error:", error);
-      res.status(500).json({ error: "Failed to create system prompt template" });
-    }
-  });
-
-  // Admin Email Templates Routes
-  app.get("/api/admin/email-templates", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const templates = await storage.getEmailTemplates();
-      res.json(templates);
-    } catch (error: any) {
-      console.error("Get email templates error:", error);
-      res.status(500).json({ error: "Failed to get email templates" });
-    }
-  });
-
-  app.get("/api/admin/email-templates/:templateType", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const template = await storage.getEmailTemplate(req.params.templateType);
-      if (!template) {
-        return res.status(404).json({ error: "Email template not found" });
-      }
-      res.json(template);
-    } catch (error: any) {
-      console.error("Get email template error:", error);
-      res.status(500).json({ error: "Failed to get email template" });
-    }
-  });
-
-  app.put("/api/admin/email-templates/:id", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const { name, subject, htmlBody, textBody, variables, isActive } = req.body;
-      await storage.updateEmailTemplate(req.params.id, {
-        name,
-        subject,
-        htmlBody,
-        textBody,
-        variables,
-        isActive,
-      });
-      res.json({ success: true, message: "Email template updated successfully" });
-    } catch (error: any) {
-      console.error("Update email template error:", error);
-      res.status(500).json({ error: "Failed to update email template" });
-    }
-  });
-
-  app.post("/api/admin/email-templates", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const { templateType, name, subject, htmlBody, textBody, variables, isActive } = req.body;
-      
-      if (!templateType || !name || !subject || !htmlBody || !textBody) {
-        return res.status(400).json({ error: "templateType, name, subject, htmlBody, and textBody are required" });
-      }
-
-      const existingTemplate = await storage.getEmailTemplate(templateType);
-      if (existingTemplate) {
-        return res.status(400).json({ error: "Email template with this type already exists" });
-      }
-
-      const template = await storage.createEmailTemplate({
-        templateType,
-        name,
-        subject,
-        htmlBody,
-        textBody,
-        variables: variables || [],
-        isActive: isActive !== undefined ? isActive : true,
-      });
-      
-      res.json(template);
-    } catch (error: any) {
-      console.error("Create email template error:", error);
-      res.status(500).json({ error: "Failed to create email template" });
-    }
-  });
-
-  // Admin Batch Jobs Routes (All Providers: ElevenLabs, Bedrock-Polly, Plivo, Twilio-OpenAI)
-  app.get("/api/admin/batch-jobs", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const campaignsWithBatches = await db
-        .select({
-          campaign: campaigns,
-          agent: agents,
-        })
-        .from(campaigns)
-        .leftJoin(agents, eq(campaigns.agentId, agents.id))
-        .where(sql`${campaigns.batchJobId} IS NOT NULL`)
-        .orderBy(desc(campaigns.startedAt));
-
-      const batchJobs = await Promise.all(
-        campaignsWithBatches.map(async (item) => {
-          try {
-            if (!item.agent || !item.campaign.batchJobId) {
-              return {
-                campaignId: item.campaign.id,
-                campaignName: item.campaign.name,
-                batchJobId: item.campaign.batchJobId,
-                batchJobStatus: item.campaign.batchJobStatus || 'unknown',
-                totalContacts: item.campaign.totalContacts,
-                completedCalls: item.campaign.completedCalls,
-                provider: 'unknown',
-                error: 'Missing agent or batch job ID'
-              };
-            }
-
-            const batchJobId = item.campaign.batchJobId;
-            const provider = batchJobId.startsWith('bedrock-polly-') ? 'bedrock-polly'
-              : item.agent.telephonyProvider === 'plivo' ? 'plivo'
-              : item.agent.telephonyProvider === 'twilio_openai' ? 'twilio-openai'
-              : (item.agent.telephonyProvider === 'elevenlabs-sip' || item.agent.telephonyProvider === 'openai-sip') ? 'sip'
-              : 'elevenlabs';
-
-            if (provider === 'bedrock-polly' || provider === 'plivo' || provider === 'twilio-openai' || provider === 'sip') {
-              const completedCalls = item.campaign.completedCalls || 0;
-              const successfulCalls = item.campaign.successfulCalls || 0;
-              const totalContacts = item.campaign.totalContacts || 0;
-              const failedCalls = completedCalls - successfulCalls;
-              const activeCalls = totalContacts - completedCalls;
-              const progress = totalContacts > 0 ? Math.round((completedCalls / totalContacts) * 100) : 0;
-
-              return {
-                campaignId: item.campaign.id,
-                campaignName: item.campaign.name,
-                batchJobId: batchJobId,
-                batchJobStatus: item.campaign.batchJobStatus || item.campaign.status || 'unknown',
-                agentName: item.agent.name,
-                totalContacts: totalContacts,
-                completedCalls: completedCalls,
-                provider,
-                stats: {
-                  pending: Math.max(0, activeCalls),
-                  scheduled: 0,
-                  dispatched: completedCalls,
-                  in_progress: item.campaign.status === 'running' ? Math.max(0, activeCalls) : 0,
-                  completed: successfulCalls,
-                  failed: Math.max(0, failedCalls),
-                  total: totalContacts,
-                  progress,
-                },
-                createdAt: item.campaign.startedAt?.toISOString(),
-                lastUpdatedAt: item.campaign.createdAt?.toISOString(),
-              };
-            }
-
-            const credential = await ElevenLabsPoolService.getCredentialForAgent(item.agent.id);
-            if (!credential) {
-              return {
-                campaignId: item.campaign.id,
-                campaignName: item.campaign.name,
-                batchJobId: batchJobId,
-                batchJobStatus: item.campaign.batchJobStatus || 'unknown',
-                totalContacts: item.campaign.totalContacts,
-                completedCalls: item.campaign.completedCalls,
-                provider,
-                error: 'No credential found'
-              };
-            }
-
-            const batchService = new BatchCallingService(credential.apiKey);
-            const batchJob = await batchService.getBatch(batchJobId);
-            const stats = BatchCallingService.getBatchStats(batchJob);
-
-            return {
-              campaignId: item.campaign.id,
-              campaignName: item.campaign.name,
-              batchJobId: batchJob.id,
-              batchJobStatus: batchJob.status,
-              agentName: batchJob.agent_name,
-              totalContacts: item.campaign.totalContacts,
-              totalCallsScheduled: batchJob.total_calls_scheduled,
-              totalCallsDispatched: batchJob.total_calls_dispatched,
-              createdAt: new Date(batchJob.created_at_unix * 1000).toISOString(),
-              lastUpdatedAt: new Date(batchJob.last_updated_at_unix * 1000).toISOString(),
-              provider,
-              stats: stats,
-            };
-          } catch (error: any) {
-            return {
-              campaignId: item.campaign.id,
-              campaignName: item.campaign.name,
-              batchJobId: item.campaign.batchJobId,
-              batchJobStatus: item.campaign.batchJobStatus || 'unknown',
-              totalContacts: item.campaign.totalContacts,
-              completedCalls: item.campaign.completedCalls,
-              provider: 'unknown',
-              error: error.message
-            };
-          }
-        })
-      );
-
-      res.json({ batchJobs });
-    } catch (error: any) {
-      console.error("Get batch jobs error:", error);
-      res.status(500).json({ error: "Failed to fetch batch jobs" });
-    }
-  });
-
-  // Get detailed batch job info
-  app.get("/api/admin/batch-jobs/:batchId", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const { batchId } = req.params;
-
-      const [campaignRow] = await db
-        .select()
-        .from(campaigns)
-        .where(eq(campaigns.batchJobId, batchId))
-        .limit(1);
-
-      if (!campaignRow || !campaignRow.agentId) {
-        return res.status(404).json({ error: "Batch job not found" });
-      }
-
-      const [agent] = await db
-        .select()
-        .from(agents)
-        .where(eq(agents.id, campaignRow.agentId))
-        .limit(1);
-
-      if (!agent) {
-        return res.status(404).json({ error: "Agent not found" });
-      }
-
-      const provider = batchId.startsWith('bedrock-polly-') ? 'bedrock-polly'
-        : agent.telephonyProvider === 'plivo' ? 'plivo'
-        : agent.telephonyProvider === 'twilio_openai' ? 'twilio-openai'
-        : (agent.telephonyProvider === 'elevenlabs-sip' || agent.telephonyProvider === 'openai-sip') ? 'sip'
-        : 'elevenlabs';
-
-      if (provider === 'bedrock-polly' || provider === 'plivo' || provider === 'twilio-openai' || provider === 'sip') {
-        return res.json({
-          batchJob: {
-            id: batchId,
-            status: campaignRow.batchJobStatus || campaignRow.status,
-            totalContacts: campaignRow.totalContacts,
-            completedCalls: campaignRow.completedCalls,
-            successfulCalls: campaignRow.successfulCalls,
-          },
-          campaign: { id: campaignRow.id, name: campaignRow.name, status: campaignRow.status },
-          provider,
-        });
-      }
-
-      const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
-      if (!credential) {
-        return res.status(500).json({ error: "No credential found for agent" });
-      }
-
-      const batchService = new BatchCallingService(credential.apiKey);
-      const batchJob = await batchService.getBatch(batchId);
-
-      res.json({ 
-        batchJob,
-        campaign: { id: campaignRow.id, name: campaignRow.name, status: campaignRow.status },
-        provider,
-      });
-    } catch (error: any) {
-      console.error("Get batch job detail error:", error);
-      res.status(500).json({ error: "Failed to fetch batch job details" });
-    }
-  });
-
-  // Admin Campaign View Routes (allows admins to view any user's campaign)
-  app.get("/api/admin/campaigns/:id", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const campaign = await storage.getCampaign(req.params.id);
-      if (!campaign) {
-        return res.status(404).json({ error: "Campaign not found" });
-      }
-
-      // Include owner info for admin context
-      const [owner] = await db.select({ 
-        id: users.id, 
-        name: users.name, 
-        email: users.email 
-      }).from(users).where(eq(users.id, campaign.userId)).limit(1);
-
-      res.json({ ...campaign, owner: owner || null });
-    } catch (error: any) {
-      console.error("Admin get campaign error:", error);
-      res.status(500).json({ error: "Failed to get campaign" });
-    }
-  });
-
-  app.get("/api/admin/campaigns/:id/contacts", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const campaign = await storage.getCampaign(req.params.id);
-      if (!campaign) {
-        return res.status(404).json({ error: "Campaign not found" });
-      }
-
-      const contactList = await storage.getCampaignContacts(campaign.id);
-      
-      res.json(contactList);
-    } catch (error: any) {
-      console.error("Admin get campaign contacts error:", error);
-      res.status(500).json({ error: "Failed to get campaign contacts" });
-    }
-  });
-
-  app.get("/api/admin/campaigns/:id/calls", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const campaign = await storage.getCampaign(req.params.id);
-      if (!campaign) {
-        return res.status(404).json({ error: "Campaign not found" });
-      }
-
-      const callList = await storage.getCampaignCalls(campaign.id);
-      res.json(callList);
-    } catch (error: any) {
-      console.error("Admin get campaign calls error:", error);
-      res.status(500).json({ error: "Failed to get campaign calls" });
-    }
-  });
-
-  app.get("/api/admin/campaigns/:id/batch", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const campaign = await storage.getCampaign(req.params.id);
-      if (!campaign) {
-        return res.status(404).json({ error: "Campaign not found" });
-      }
-
-      if (!campaign.batchJobId || !campaign.agentId) {
-        return res.json({ batchJob: null, stats: null });
-      }
-
-      const [agent] = await db.select().from(agents).where(eq(agents.id, campaign.agentId)).limit(1);
-      if (!agent) {
-        return res.json({ batchJob: null, stats: null });
-      }
-
-      const credential = await ElevenLabsPoolService.getCredentialForAgent(agent.id);
-      if (!credential) {
-        return res.json({ batchJob: null, stats: null });
-      }
-
-      const batchService = new BatchCallingService(credential.apiKey);
-      const batchJob = await batchService.getBatch(campaign.batchJobId);
-      const stats = BatchCallingService.getBatchStats(batchJob);
-
-      res.json({ batchJob, stats });
-    } catch (error: any) {
-      console.error("Admin get campaign batch error:", error);
-      res.json({ batchJob: null, stats: null });
-    }
-  });
-
-  // Admin endpoint to migrate userId for orphaned calls
-  // This populates userId for existing calls based on campaign/connection ownership
-  // Uses batched processing to handle any number of orphaned calls
-  app.post("/api/admin/migrate-call-user-ids", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      console.log(`📊 [Admin] Starting call userId migration`);
-      
-      let totalProcessed = 0;
-      let migrated = 0;
-      let failed = 0;
-      const errors: string[] = [];
-      const unresolvedCallIds: string[] = [];
-      const BATCH_SIZE = 500;
-      
-      // Process in batches until no orphaned calls remain
-      while (true) {
-        // Find next batch of orphaned calls, ordered by id for consistent processing
-        // Exclude calls already marked as orphaned in metadata to prevent infinite loop
-        // Handle null metadata by treating it as not orphaned (needs processing)
-        const orphanedCalls = await db
-          .select({
-            id: calls.id,
-            campaignId: calls.campaignId,
-            incomingConnectionId: calls.incomingConnectionId,
-            callDirection: calls.callDirection,
-          })
-          .from(calls)
-          .where(and(
-            isNull(calls.userId),
-            sql`NOT COALESCE((COALESCE(metadata, '{}')::jsonb->>'orphaned')::boolean, false)`
-          ))
-          .orderBy(calls.id)
-          .limit(BATCH_SIZE);
-        
-        if (orphanedCalls.length === 0) {
-          console.log(`   No more orphaned calls to process`);
-          break;
-        }
-        
-        console.log(`   Processing batch of ${orphanedCalls.length} orphaned calls`);
-        totalProcessed += orphanedCalls.length;
-        
-        for (const call of orphanedCalls) {
-          let resolvedUserId: string | null = null;
-          
-          try {
-            // Try to resolve userId from campaign
-            if (call.campaignId) {
-              const [campaign] = await db
-                .select({ userId: campaigns.userId })
-                .from(campaigns)
-                .where(eq(campaigns.id, call.campaignId))
-                .limit(1);
-              
-              if (campaign?.userId) {
-                resolvedUserId = campaign.userId;
-              }
-            }
-            
-            // Try to resolve from incoming connection
-            if (!resolvedUserId && call.incomingConnectionId) {
-              const [connection] = await db
-                .select({ userId: incomingConnections.userId })
-                .from(incomingConnections)
-                .where(eq(incomingConnections.id, call.incomingConnectionId))
-                .limit(1);
-              
-              if (connection?.userId) {
-                resolvedUserId = connection.userId;
-              }
-            }
-            
-            if (resolvedUserId) {
-              await db
-                .update(calls)
-                .set({ userId: resolvedUserId })
-                .where(eq(calls.id, call.id));
-              migrated++;
-            } else {
-              // Mark call with a special "ORPHANED" flag in metadata to prevent reprocessing
-              // Set userId to empty string to mark as processed but unresolved
-              // These calls have no resolvable owner and need manual review
-              const currentMetadata = call.campaignId || call.incomingConnectionId 
-                ? { orphaned: true, reason: 'Owner reference exists but owner not found' }
-                : { orphaned: true, reason: 'No campaign or connection reference' };
-              
-              await db
-                .update(calls)
-                .set({ 
-                  metadata: sql`COALESCE(metadata, '{}')::jsonb || ${JSON.stringify(currentMetadata)}::jsonb`
-                })
-                .where(eq(calls.id, call.id));
-              
-              failed++;
-              if (unresolvedCallIds.length < 500) {
-                unresolvedCallIds.push(call.id);
-              }
-              if (errors.length < 100) {
-                errors.push(`Call ${call.id}: No ownership source found (campaign: ${call.campaignId}, connection: ${call.incomingConnectionId})`);
-              }
-            }
-          } catch (err: any) {
-            failed++;
-            if (errors.length < 100) {
-              errors.push(`Call ${call.id}: ${err.message}`);
-            }
-          }
-        }
-        
-        // Safety check - if we've processed many calls without finding resolvable owners
-        // and the same orphaned calls keep appearing, prevent infinite loop
-        if (totalProcessed > 10000 && migrated === 0) {
-          console.warn(`   Breaking - processed ${totalProcessed} calls but none could be migrated`);
-          break;
-        }
-      }
-      
-      console.log(`✅ [Admin] Migration complete: ${migrated} migrated, ${failed} unresolvable, ${totalProcessed} total processed`);
-      
-      res.json({
-        success: true,
-        totalProcessed,
-        migrated,
-        unresolvable: failed,
-        unresolvedCallIds: unresolvedCallIds.slice(0, 100), // Return first 100 unresolved IDs for manual review
-        errors: errors.slice(0, 50), // Return first 50 errors
-        message: failed > 0 
-          ? `${migrated} calls migrated, ${failed} calls have no resolvable owner (missing campaign/connection reference)`
-          : `Successfully migrated all ${migrated} calls`
-      });
-    } catch (error: any) {
-      console.error("Migration error:", error);
-      res.status(500).json({ error: "Failed to migrate call user IDs" });
-    }
-  });
-  
   // Start the campaign scheduler for automatic pause/resume based on time windows
   CampaignScheduler.startBackgroundScheduler();
-  
-  // Setup Plivo WebSocket stream on httpServer for OpenAI Realtime audio streaming
-  setupPlivoStream(httpServer);
-  
-  // Setup Plivo-ElevenLabs WebSocket stream (ISOLATED from Plivo+OpenAI)
-  initPlivoElevenLabsStream(httpServer);
   
   // Setup Twilio-OpenAI WebSocket stream for Media Streams audio bridging
   setupTwilioOpenAIStreamHandler(httpServer);

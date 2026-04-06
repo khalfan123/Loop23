@@ -4,8 +4,3 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
-.npm-cache
-.cache/agent-env
-.env
-.env.local
-.env.production

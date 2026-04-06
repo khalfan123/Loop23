@@ -584,11 +584,7 @@ ${options.systemPrompt}`;
     while (!done) {
       const timeout = gotFirstText ? INTER_CHUNK_TIMEOUT_MS : FIRST_TEXT_TIMEOUT_MS;
       const label = gotFirstText ? 'Bedrock inter-chunk timeout' : 'Bedrock first-text timeout';
-      const result: IteratorResult<any> = await timeoutRace<IteratorResult<any>>(
-        streamIterator.next() as Promise<IteratorResult<any>>,
-        timeout,
-        label
-      );
+      const result = await timeoutRace(streamIterator.next(), timeout, label);
 
       if (result.done) {
         done = true;

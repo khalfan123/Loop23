@@ -181,7 +181,52 @@
   "landing": {
     "features": "विशेषताएं",
     "useCases": "उपयोग के मामले",
-    "pricing": "मूल्य निर्धारण",
+    "pricing": {
+      "title": "सरल,",
+      "titleHighlight": "पारदर्शी",
+      "titleEnd": "मूल्य निर्धारण",
+      "description": "मुफ्त शुरू करें, तैयार होने पर अपग्रेड करें",
+      "monthly": "मासिक",
+      "yearly": "वार्षिक",
+      "save20": "20% बचाएं",
+      "popular": "लोकप्रिय",
+      "free": "मुफ्त",
+      "perMonth": "/महीना",
+      "perYear": "/वर्ष",
+      "getStarted": "शुरू करें",
+      "startFreeTrial": "मुफ्त ट्रायल शुरू करें",
+      "guarantee": "सभी प्लान में 14-दिन की मनी-बैक गारंटी शामिल है। मुफ्त प्लान के लिए क्रेडिट कार्ड की आवश्यकता नहीं।",
+      "features": {
+        "aiAgent": "{{count}} AI एजेंट",
+        "aiAgents": "{{count}} AI एजेंट",
+        "unlimitedAgents": "असीमित AI एजेंट",
+        "campaign": "{{count}} अभियान",
+        "campaigns": "{{count}} अभियान",
+        "unlimitedCampaigns": "असीमित अभियान",
+        "maxContacts": "अधिकतम {{count}} संपर्क प्रति अभियान",
+        "contactsPerCampaign": "{{count}} संपर्क/अभियान",
+        "unlimitedContacts": "असीमित संपर्क",
+        "flowAutomation": "{{count}} फ्लो ऑटोमेशन",
+        "flowAutomations": "{{count}} फ्लो ऑटोमेशन",
+        "unlimitedFlows": "असीमित फ्लो ऑटोमेशन",
+        "knowledgeBase": "{{count}} नॉलेज बेस",
+        "knowledgeBases": "{{count}} नॉलेज बेस",
+        "unlimitedKnowledgeBases": "असीमित नॉलेज बेस",
+        "webhook": "{{count}} वेबहुक",
+        "webhooks": "{{count}} वेबहुक",
+        "unlimitedWebhooks": "असीमित वेबहुक",
+        "phoneNumber": "{{count}} फोन नंबर",
+        "phoneNumbers": "{{count}} फोन नंबर",
+        "unlimitedPhoneNumbers": "असीमित फोन नंबर",
+        "purchaseNumbers": "अपने फोन नंबर खरीदें",
+        "systemPhone": "सिस्टम-असाइन्ड फोन नंबर",
+        "freeCredits": "{{count}} मुफ्त क्रेडिट",
+        "creditCalling": "क्रेडिट-आधारित कॉलिंग",
+        "prioritySupport": "प्राथमिकता समर्थन",
+        "chooseLlm": "अपना LLM मॉडल चुनें",
+        "advancedAnalytics": "उन्नत एनालिटिक्स"
+      }
+    },
     "customers": "ग्राहक",
     "poweredBy": "ElevenLabs और Twilio AI द्वारा संचालित",
     "heroTitle1": "अपने",
@@ -578,52 +623,6 @@
     "integrations": {
       "title": "इंटीग्रेशन",
       "description": "अपने पसंदीदा टूल्स से कनेक्ट करें और अपने {{appName}} अनुभव को अपग्रेड करें।"
-    },
-    "pricing": {
-      "title": "सरल,",
-      "titleHighlight": "पारदर्शी",
-      "titleEnd": "मूल्य निर्धारण",
-      "description": "मुफ्त शुरू करें, तैयार होने पर अपग्रेड करें",
-      "monthly": "मासिक",
-      "yearly": "वार्षिक",
-      "save20": "20% बचाएं",
-      "popular": "लोकप्रिय",
-      "free": "मुफ्त",
-      "perMonth": "/महीना",
-      "perYear": "/वर्ष",
-      "getStarted": "शुरू करें",
-      "startFreeTrial": "मुफ्त ट्रायल शुरू करें",
-      "guarantee": "सभी प्लान में 14-दिन की मनी-बैक गारंटी शामिल है। मुफ्त प्लान के लिए क्रेडिट कार्ड की आवश्यकता नहीं।",
-      "features": {
-        "aiAgent": "{{count}} AI एजेंट",
-        "aiAgents": "{{count}} AI एजेंट",
-        "unlimitedAgents": "असीमित AI एजेंट",
-        "campaign": "{{count}} अभियान",
-        "campaigns": "{{count}} अभियान",
-        "unlimitedCampaigns": "असीमित अभियान",
-        "maxContacts": "अधिकतम {{count}} संपर्क प्रति अभियान",
-        "contactsPerCampaign": "{{count}} संपर्क/अभियान",
-        "unlimitedContacts": "असीमित संपर्क",
-        "flowAutomation": "{{count}} फ्लो ऑटोमेशन",
-        "flowAutomations": "{{count}} फ्लो ऑटोमेशन",
-        "unlimitedFlows": "असीमित फ्लो ऑटोमेशन",
-        "knowledgeBase": "{{count}} नॉलेज बेस",
-        "knowledgeBases": "{{count}} नॉलेज बेस",
-        "unlimitedKnowledgeBases": "असीमित नॉलेज बेस",
-        "webhook": "{{count}} वेबहुक",
-        "webhooks": "{{count}} वेबहुक",
-        "unlimitedWebhooks": "असीमित वेबहुक",
-        "phoneNumber": "{{count}} फोन नंबर",
-        "phoneNumbers": "{{count}} फोन नंबर",
-        "unlimitedPhoneNumbers": "असीमित फोन नंबर",
-        "purchaseNumbers": "अपने फोन नंबर खरीदें",
-        "systemPhone": "सिस्टम-असाइन्ड फोन नंबर",
-        "freeCredits": "{{count}} मुफ्त क्रेडिट",
-        "creditCalling": "क्रेडिट-आधारित कॉलिंग",
-        "prioritySupport": "प्राथमिकता समर्थन",
-        "chooseLlm": "अपना LLM मॉडल चुनें",
-        "advancedAnalytics": "उन्नत एनालिटिक्स"
-      }
     },
     "contact": {
       "badge": "संपर्क करें",
@@ -1223,7 +1222,7 @@
     "integrationsPage": {
       "seo": {
         "title": "इंटीग्रेशन - AI वॉयस एजेंट्स प्लेटफॉर्म",
-        "description": "अपने AI वॉयस एजेंट को Twilio, Plivo, OpenAI, ElevenLabs, Zapier और अधिक के साथ कनेक्ट करें।"
+        "description": "अपने AI वॉयस एजेंट को Twilio, OpenAI, ElevenLabs, Zapier और अधिक के साथ कनेक्ट करें।"
       },
       "hero": {
         "badge": "शक्तिशाली इंटीग्रेशन",
@@ -1244,10 +1243,6 @@
         "twilio": {
           "name": "Twilio",
           "description": "वॉयस कॉल, SMS, और फोन नंबर मैनेजमेंट के लिए ग्लोबल टेलीफोनी प्रोवाइडर।"
-        },
-        "plivo": {
-          "name": "Plivo",
-          "description": "भारत और अंतरराष्ट्रीय बाजारों में उत्कृष्ट कवरेज के साथ वैकल्पिक टेलीफोनी प्रोवाइडर।"
         },
         "openai": {
           "name": "OpenAI",
@@ -1764,20 +1759,86 @@
   },
   "admin": {
     "settings": {
-      "title": "सेटिंग्स",
+      "title": "वैश्विक सेटिंग्स",
       "description": "प्लेटफ़ॉर्म सेटिंग्स, SEO और इंटीग्रेशन कॉन्फ़िगर करें",
       "tabs": {
-        "master": "मुख्य सेटिंग्स",
+        "master": "मास्टर सेटिंग्स",
         "elevenlabs": "ElevenLabs",
         "seo": "SEO मॉड्यूल",
         "analytics": "एनालिटिक्स",
         "languages": "भाषाएं",
         "system": "सिस्टम"
-      }
+      },
+      "autoRestart": {
+        "title": "ऑटो रीस्टार्ट सिस्टम",
+        "description": "संसाधन सीमाएं पार होने पर स्वचालित पुनरारंभ कॉन्फ़िगर करें",
+        "enabled": "सक्षम",
+        "disabled": "अक्षम",
+        "enableToggle": "ऑटो रीस्टार्ट सक्षम करें",
+        "enableToggleDesc": "संसाधन थ्रेशहोल्ड पार होने पर स्वचालित रूप से पुनरारंभ करें",
+        "loadingStatus": "संसाधन स्थिति लोड हो रही है...",
+        "statusError": "संसाधन स्थिति लोड करने में विफल।",
+        "currentRam": "वर्तमान RAM उपयोग",
+        "currentCpu": "वर्तमान CPU उपयोग",
+        "processMemory": "प्रोसेस",
+        "ramLimit": "RAM सीमा (%)",
+        "ramLimitTooltip": "जब सिस्टम RAM उपयोग इस प्रतिशत से अधिक हो तो पुनरारंभ करें (50-95%)",
+        "ramLimitHint": "अनुशंसित: 75-85%",
+        "cpuLimit": "CPU सीमा (%)",
+        "cpuLimitTooltip": "जब CPU उपयोग इस प्रतिशत से अधिक हो तो पुनरारंभ करें (20-95%)",
+        "cpuLimitHint": "अनुशंसित: 80-90%",
+        "activeMessage": "ऑटो-रीस्टार्ट सक्रिय है। RAM या CPU सीमाएं 3 लगातार जांचों (90 सेकंड) के लिए पार होने पर सिस्टम धीरे से पुनरारंभ होगा।",
+        "refreshStatus": "स्थिति रीफ्रेश करें",
+        "refreshing": "रीफ्रेश हो रहा है...",
+        "configuredLimits": "कॉन्फ़िगर की गई सीमाएं",
+        "ramLimitValue": "RAM: {{value}}%",
+        "cpuLimitValue": "CPU: {{value}}%",
+        "watchdogStatus": "वॉचडॉग स्थिति",
+        "watchdogActive": "सक्रिय",
+        "watchdogInactive": "निष्क्रिय",
+        "cores": "कोर",
+        "loadAvg": "लोड औसत",
+        "envProduction": "प्रोडक्शन",
+        "envDevelopment": "डेवलपमेंट",
+        "envDocsTitle": "वातावरण और सीमाएं",
+        "ramMonitoringTitle": "RAM मॉनिटरिंग",
+        "ramMonitoringDesc": "Node.js APIs के माध्यम से वास्तविक सिस्टम मेमोरी रीडिंग का उपयोग करता है। सर्वर पर कुल और फ्री मेमोरी को सटीक रूप से मापता है। सभी वातावरणों में विश्वसनीय रूप से काम करता है।",
+        "cpuMonitoringTitle": "CPU मॉनिटरिंग",
+        "cpuMonitoringDesc": "अधिक सटीक रीडिंग के लिए प्रोसेस CPU समय को सिस्टम लोड औसत के साथ जोड़ता है। CPU कोर और 1-मिनट लोड औसत दिखाता है। डेवलपमेंट/सैंडबॉक्स वातावरण में, रीडिंग भिन्न हो सकती हैं।",
+        "restartBehaviorTitle": "ऑटो-रिस्टार्ट व्यवहार",
+        "restartBehaviorDesc": "3 लगातार थ्रेशोल्ड उल्लंघनों के बाद ग्रेसफुल शटडाउन ट्रिगर करता है (90 सेकंड)। एप्लिकेशन को पुनरारंभ करने के लिए प्रोसेस मैनेजर (PM2, systemd) की आवश्यकता है। डेवलपमेंट वातावरण में, ऐप बिना पुनरारंभ के बस बंद हो सकता है।",
+        "productionNote": "सर्वोत्तम परिणामों के लिए, PM2 या समान प्रोसेस मैनेजर के साथ डिप्लॉय करें जो शटडाउन के बाद स्वचालित रूप से एप्लिकेशन को पुनरारंभ करता है।"
+      },
+      "connectionStatus": {
+        "refreshAll": "सभी रिफ्रेश करें",
+        "connected": "कनेक्टेड",
+        "disconnected": "डिस्कनेक्टेड",
+        "checking": "जाँच हो रही है...",
+        "verifying": "API कनेक्शन सत्यापित हो रहा है...",
+        "telephony": "वॉइस और SMS टेलीफोनी",
+        "aiVoice": "AI वॉइस सिंथेसिस",
+        "twilioReady": "Twilio कॉन्फ़िगर है और कॉल के लिए तैयार है",
+        "twilioSetup": "कॉलिंग सक्षम करने के लिए नीचे Twilio क्रेडेंशियल कॉन्फ़िगर करें",
+        "elevenLabsReady": "ElevenLabs AI वॉइस एजेंट्स के लिए कॉन्फ़िगर है",
+        "elevenLabsSetup": "AI वॉइस सक्षम करने के लिए कुंजी पूल के माध्यम से API कुंजियाँ जोड़ें",
+        "embeddings": "एम्बेडिंग्स और RAG",
+        "openaiReady": "OpenAI RAG एम्बेडिंग्स के लिए कॉन्फ़िगर है",
+        "openaiSetup": "एम्बेडिंग्स के लिए OpenAI API कुंजी कॉन्फ़िगर करें",
+        "edit": "संपादित करें",
+        "manageKeys": "कुंजियाँ प्रबंधित करें"
+      },
+      "apiKeys": "API कुंजियां",
+      "stripeKey": "Stripe कुंजी",
+      "twilioKey": "Twilio कुंजी",
+      "elevenLabsKey": "ElevenLabs कुंजी",
+      "openaiKey": "OpenAI कुंजी",
+      "systemSettings": "सिस्टम सेटिंग्स",
+      "maxPhoneNumbers": "अधिकतम फोन नंबर",
+      "maxAgents": "अधिकतम एजेंट"
     },
     "analytics": {
       "title": "प्लेटफ़ॉर्म एनालिटिक्स",
-      "description": "प्लेटफ़ॉर्म प्रदर्शन और विकास मेट्रिक्स की निगरानी करें",
+      "description": "विवरण",
       "scriptsTitle": "एनालिटिक्स और ट्रैकिंग स्क्रिप्ट",
       "scriptsDescription": "तीसरे पक्ष की एनालिटिक्स और ट्रैकिंग स्क्रिप्ट प्रबंधित करें जो आपकी वेबसाइट के सभी पृष्ठों में इंजेक्ट की जाती हैं।",
       "addScript": "स्क्रिप्ट जोड़ें",
@@ -1805,7 +1866,6 @@
       "priority": "प्राथमिकता",
       "name": "नाम",
       "type": "प्रकार",
-      "description": "विवरण",
       "descriptionPlaceholder": "इस स्क्रिप्ट के बारे में वैकल्पिक नोट्स...",
       "noScripts": "अभी तक कोई एनालिटिक्स स्क्रिप्ट कॉन्फ़िगर नहीं की गई।",
       "noScriptsHint": "अपनी वेबसाइट विज़िटर को ट्रैक करने के लिए Google Analytics, Facebook Pixel या अन्य एनालिटिक्स टूल जैसी ट्रैकिंग स्क्रिप्ट जोड़ें।",
@@ -2052,84 +2112,6 @@
       "updateFailed": "SMTP सेटिंग्स अपडेट करने में विफल",
       "testSuccess": "कनेक्शन परीक्षण सफल! ईमेल भेजना काम कर रहा है।",
       "testFailed": "कनेक्शन परीक्षण विफल"
-    },
-    "settings": {
-      "title": "वैश्विक सेटिंग्स",
-      "description": "प्लेटफ़ॉर्म सेटिंग्स, SEO और इंटीग्रेशन कॉन्फ़िगर करें",
-      "tabs": {
-        "master": "मास्टर सेटिंग्स",
-        "elevenlabs": "ElevenLabs",
-        "seo": "SEO मॉड्यूल",
-        "analytics": "एनालिटिक्स",
-        "languages": "भाषाएं",
-        "system": "सिस्टम"
-      },
-      "autoRestart": {
-        "title": "ऑटो रीस्टार्ट सिस्टम",
-        "description": "संसाधन सीमाएं पार होने पर स्वचालित पुनरारंभ कॉन्फ़िगर करें",
-        "enabled": "सक्षम",
-        "disabled": "अक्षम",
-        "enableToggle": "ऑटो रीस्टार्ट सक्षम करें",
-        "enableToggleDesc": "संसाधन थ्रेशहोल्ड पार होने पर स्वचालित रूप से पुनरारंभ करें",
-        "loadingStatus": "संसाधन स्थिति लोड हो रही है...",
-        "statusError": "संसाधन स्थिति लोड करने में विफल।",
-        "currentRam": "वर्तमान RAM उपयोग",
-        "currentCpu": "वर्तमान CPU उपयोग",
-        "processMemory": "प्रोसेस",
-        "ramLimit": "RAM सीमा (%)",
-        "ramLimitTooltip": "जब सिस्टम RAM उपयोग इस प्रतिशत से अधिक हो तो पुनरारंभ करें (50-95%)",
-        "ramLimitHint": "अनुशंसित: 75-85%",
-        "cpuLimit": "CPU सीमा (%)",
-        "cpuLimitTooltip": "जब CPU उपयोग इस प्रतिशत से अधिक हो तो पुनरारंभ करें (20-95%)",
-        "cpuLimitHint": "अनुशंसित: 80-90%",
-        "activeMessage": "ऑटो-रीस्टार्ट सक्रिय है। RAM या CPU सीमाएं 3 लगातार जांचों (90 सेकंड) के लिए पार होने पर सिस्टम धीरे से पुनरारंभ होगा।",
-        "refreshStatus": "स्थिति रीफ्रेश करें",
-        "refreshing": "रीफ्रेश हो रहा है...",
-        "configuredLimits": "कॉन्फ़िगर की गई सीमाएं",
-        "ramLimitValue": "RAM: {{value}}%",
-        "cpuLimitValue": "CPU: {{value}}%",
-        "watchdogStatus": "वॉचडॉग स्थिति",
-        "watchdogActive": "सक्रिय",
-        "watchdogInactive": "निष्क्रिय",
-        "cores": "कोर",
-        "loadAvg": "लोड औसत",
-        "envProduction": "प्रोडक्शन",
-        "envDevelopment": "डेवलपमेंट",
-        "envDocsTitle": "वातावरण और सीमाएं",
-        "ramMonitoringTitle": "RAM मॉनिटरिंग",
-        "ramMonitoringDesc": "Node.js APIs के माध्यम से वास्तविक सिस्टम मेमोरी रीडिंग का उपयोग करता है। सर्वर पर कुल और फ्री मेमोरी को सटीक रूप से मापता है। सभी वातावरणों में विश्वसनीय रूप से काम करता है।",
-        "cpuMonitoringTitle": "CPU मॉनिटरिंग",
-        "cpuMonitoringDesc": "अधिक सटीक रीडिंग के लिए प्रोसेस CPU समय को सिस्टम लोड औसत के साथ जोड़ता है। CPU कोर और 1-मिनट लोड औसत दिखाता है। डेवलपमेंट/सैंडबॉक्स वातावरण में, रीडिंग भिन्न हो सकती हैं।",
-        "restartBehaviorTitle": "ऑटो-रिस्टार्ट व्यवहार",
-        "restartBehaviorDesc": "3 लगातार थ्रेशोल्ड उल्लंघनों के बाद ग्रेसफुल शटडाउन ट्रिगर करता है (90 सेकंड)। एप्लिकेशन को पुनरारंभ करने के लिए प्रोसेस मैनेजर (PM2, systemd) की आवश्यकता है। डेवलपमेंट वातावरण में, ऐप बिना पुनरारंभ के बस बंद हो सकता है।",
-        "productionNote": "सर्वोत्तम परिणामों के लिए, PM2 या समान प्रोसेस मैनेजर के साथ डिप्लॉय करें जो शटडाउन के बाद स्वचालित रूप से एप्लिकेशन को पुनरारंभ करता है।"
-      },
-      "connectionStatus": {
-        "refreshAll": "सभी रिफ्रेश करें",
-        "connected": "कनेक्टेड",
-        "disconnected": "डिस्कनेक्टेड",
-        "checking": "जाँच हो रही है...",
-        "verifying": "API कनेक्शन सत्यापित हो रहा है...",
-        "telephony": "वॉइस और SMS टेलीफोनी",
-        "aiVoice": "AI वॉइस सिंथेसिस",
-        "twilioReady": "Twilio कॉन्फ़िगर है और कॉल के लिए तैयार है",
-        "twilioSetup": "कॉलिंग सक्षम करने के लिए नीचे Twilio क्रेडेंशियल कॉन्फ़िगर करें",
-        "elevenLabsReady": "ElevenLabs AI वॉइस एजेंट्स के लिए कॉन्फ़िगर है",
-        "elevenLabsSetup": "AI वॉइस सक्षम करने के लिए कुंजी पूल के माध्यम से API कुंजियाँ जोड़ें",
-        "embeddings": "एम्बेडिंग्स और RAG",
-        "openaiReady": "OpenAI RAG एम्बेडिंग्स के लिए कॉन्फ़िगर है",
-        "openaiSetup": "एम्बेडिंग्स के लिए OpenAI API कुंजी कॉन्फ़िगर करें",
-        "edit": "संपादित करें",
-        "manageKeys": "कुंजियाँ प्रबंधित करें"
-      },
-      "apiKeys": "API कुंजियां",
-      "stripeKey": "Stripe कुंजी",
-      "twilioKey": "Twilio कुंजी",
-      "elevenLabsKey": "ElevenLabs कुंजी",
-      "openaiKey": "OpenAI कुंजी",
-      "systemSettings": "सिस्टम सेटिंग्स",
-      "maxPhoneNumbers": "अधिकतम फोन नंबर",
-      "maxAgents": "अधिकतम एजेंट"
     },
     "seo": {
       "title": "SEO सेटिंग्स",
@@ -2443,12 +2425,3360 @@
   },
   "integrations": {
     "title": "एकीकरण",
-    "description": "बाहरी सेवाएं कनेक्ट करें",
-    "connected": "कनेक्ट",
-    "notConnected": "कनेक्ट नहीं",
-    "connect": "कनेक्ट करें",
-    "disconnect": "डिस्कनेक्ट करें",
-    "configure": "कॉन्फ़िगर करें"
+    "panel": {
+      "title": "इंटीग्रेशन",
+      "tabs": {
+        "marketplace": "मार्केटप्लेस",
+        "myIntegrations": "मेरे इंटीग्रेशन",
+        "apiWebhooks": "API और वेबहुक"
+      },
+      "sidebar": {
+        "quickAccess": "त्वरित पहुँच",
+        "categories": "श्रेणियाँ",
+        "overview": "अवलोकन",
+        "total": "कुल उपलब्ध",
+        "connected": "कनेक्टेड",
+        "available": "उपलब्ध"
+      },
+      "categories": {
+        "all": "सभी इंटीग्रेशन",
+        "crm": "CRM",
+        "telephony": "टेलीफोनी",
+        "aiLlm": "AI और LLM",
+        "voiceSpeech": "वॉइस और स्पीच",
+        "marketing": "मार्केटिंग",
+        "communication": "संचार",
+        "support": "सहायता",
+        "calendar": "कैलेंडर",
+        "ecommerce": "ई-कॉमर्स",
+        "analytics": "एनालिटिक्स",
+        "automation": "ऑटोमेशन",
+        "dataStorage": "डेटा और स्टोरेज",
+        "hrRecruiting": "HR और भर्ती",
+        "other": "अन्य"
+      },
+      "marketplace": {
+        "searchPlaceholder": "इंटीग्रेशन खोजें...",
+        "connectedCount": "कनेक्टेड",
+        "clearFilters": "फ़िल्टर साफ़ करें",
+        "popular": "लोकप्रिय इंटीग्रेशन",
+        "popularBadge": "लोकप्रिय",
+        "noResults": "कोई इंटीग्रेशन नहीं मिला",
+        "noSearchResults": "\"{{query}}\" से मेल खाने वाला कोई इंटीग्रेशन नहीं। अलग शब्द आज़माएं।",
+        "noFilterResults": "इस श्रेणी में अभी तक कोई इंटीग्रेशन नहीं।",
+        "connect": "कनेक्ट करें",
+        "manage": "प्रबंधित करें"
+      },
+      "myIntegrations": {
+        "emptyTitle": "कोई इंटीग्रेशन कनेक्टेड नहीं",
+        "emptyDescription": "शुरू करने के लिए मार्केटप्लेस टैब से अपना पहला इंटीग्रेशन कनेक्ट करें।",
+        "active": "सक्रिय",
+        "pending": "लंबित",
+        "errors": "त्रुटियाँ",
+        "inactive": "निष्क्रिय",
+        "lastSync": "अंतिम सिंक",
+        "configure": "कॉन्फ़िगर करें",
+        "resync": "पुन: समन्वय",
+        "resyncSuccess": "समन्वय शुरू हुआ",
+        "resyncSuccessDesc": "एकीकरण समन्वय सफलतापूर्वक शुरू किया गया",
+        "resyncFailed": "समन्वय विफल",
+        "resyncFailedDesc": "एकीकरण समन्वय शुरू करने में विफल",
+        "disconnect": "डिस्कनेक्ट",
+        "disconnected": "एकीकरण डिस्कनेक्ट हुआ",
+        "disconnectedDesc": "एकीकरण सफलतापूर्वक डिस्कनेक्ट हो गया है",
+        "disconnectFailed": "डिस्कनेक्ट विफल",
+        "disconnectTitle": "एकीकरण डिस्कनेक्ट करें",
+        "disconnectConfirm": "क्या आप वाकई {{name}} को डिस्कनेक्ट करना चाहते हैं? इससे सभी डेटा समन्वय रुक जाएगा और संबंधित वर्कफ़्लो प्रभावित हो सकते हैं।",
+        "cancel": "रद्द करें"
+      },
+      "webhooks": {
+        "title": "वेबहुक और API कुंजियाँ",
+        "subtitle": "बाहरी सिस्टम को कॉल डेटा भेजने के लिए वेबहुक कॉन्फ़िगर करें"
+      },
+      "status": {
+        "connected": "कनेक्टेड",
+        "pendingAuth": "प्रमाणीकरण लंबित",
+        "error": "त्रुटि",
+        "inactive": "निष्क्रिय"
+      },
+      "breadcrumb": {
+        "backToIntegrations": "इंटीग्रेशन"
+      }
+    },
+    "detail": {
+      "notFound": "एकीकरण नहीं मिला",
+      "backToMarketplace": "मार्केटप्लेस पर वापस जाएं",
+      "syncNow": "अभी सिंक करें",
+      "activate": "सक्रिय करें",
+      "waitingAuth": "प्राधिकरण की प्रतीक्षा कर रहा है...",
+      "addTestConnection": "टेस्ट कनेक्शन जोड़ें",
+      "tabs": {
+        "functions": "फ़ंक्शन",
+        "useCases": "उपयोग के मामले",
+        "settings": "सेटिंग्स",
+        "setupGuide": "API सेटअप गाइड",
+        "logs": "लॉग"
+      },
+      "functions": {
+        "connectFirst": "फ़ंक्शन सक्षम और कॉन्फ़िगर करने के लिए पहले {{name}} कनेक्ट करें।",
+        "actions": "क्रियाएं",
+        "syncs": "सिंक",
+        "howToUse": "{{type}} का उपयोग कैसे करें",
+        "name": "नाम",
+        "type": "प्रकार",
+        "enabled": "सक्षम",
+        "template": "टेम्पलेट",
+        "noActions": "इस एकीकरण के लिए अभी तक कोई {{type}} कॉन्फ़िगर नहीं है।",
+        "categories": {
+          "contacts": "संपर्क",
+          "leads": "लीड्स",
+          "deals": "सौदे",
+          "files": "फाइलें",
+          "activities": "गतिविधियाँ",
+          "notifications": "सूचनाएँ",
+          "others": "अन्य"
+        }
+      },
+      "useCases": {
+        "header": "{{name}} के लिए उपयोग के मामले",
+        "trigger": "ट्रिगर",
+        "outcome": "परिणाम",
+        "connectFirst": "पहले कनेक्ट करें",
+        "executing": "निष्पादन हो रहा है...",
+        "executeTemplate": "टेम्पलेट निष्पादित करें",
+        "empty": "{{name}} के लिए अभी तक कोई उपयोग के मामले उपलब्ध नहीं हैं।"
+      },
+      "settings": {
+        "connectFirst": "सेटिंग्स देखने के लिए पहले {{name}} कनेक्ट करें।",
+        "connectedAccount": "कनेक्टेड खाता",
+        "authenticated": "प्रमाणित",
+        "account": "खाता",
+        "email": "ईमेल",
+        "authorizedOn": "अधिकृत तिथि",
+        "fieldMapping": "फ़ील्ड मैपिंग",
+        "fieldMappingDesc": "कॉन्फ़िगर करें कि Loop9 से {{name}} में डेटा फ़ील्ड कैसे मैप होते हैं।",
+        "contactName": "संपर्क नाम",
+        "phoneNumber": "फ़ोन नंबर",
+        "company": "कंपनी",
+        "callSummary": "कॉल सारांश",
+        "integrationDetails": "एकीकरण विवरण",
+        "authMethod": "प्रमाणीकरण विधि",
+        "apiKey": "API कुंजी",
+        "oauth2": "OAuth 2.0",
+        "displayName": "प्रदर्शन नाम",
+        "integrationId": "एकीकरण ID",
+        "category": "श्रेणी",
+        "integration": "एकीकरण",
+        "reconnect": "पुनः कनेक्ट करें",
+        "dangerZone": "खतरे का क्षेत्र",
+        "dangerDesc": "डिस्कनेक्ट करने से आपके {{name}} खाते तक पहुंच रद्द हो जाएगी, सभी स्वचालित सिंकिंग बंद हो जाएगी, और एकीकरण कॉन्फ़िगरेशन हटा दिया जाएगा। यह क्रिया पूर्ववत नहीं की जा सकती।",
+        "disconnect": "{{name}} डिस्कनेक्ट करें",
+        "placeholderContactName": "उदा. contact_name",
+        "placeholderPhoneNumber": "उदा. phone_number",
+        "placeholderCompany": "उदा. company",
+        "placeholderCallSummary": "उदा. call_summary"
+      },
+      "setupGuide": {
+        "oauth": {
+          "createApp": "डेवलपर ऐप बनाएं",
+          "createAppDesc": "{{provider}} पर जाएं और एक नया एप्लिकेशन बनाएं। एप्लिकेशन प्रकार के रूप में \"वेब एप्लिकेशन\" चुनें।",
+          "configureRedirect": "रीडायरेक्ट URI कॉन्फ़िगर करें",
+          "configureRedirectDesc": "अपने ऐप की सेटिंग्स में निम्नलिखित रीडायरेक्ट URL जोड़ें। OAuth प्रवाह के लिए यह आवश्यक है।",
+          "setScopes": "आवश्यक अनुमतियाँ सेट करें",
+          "setScopesDesc": "सुनिश्चित करें कि आपके एप्लिकेशन के लिए निम्नलिखित अनुमतियाँ सक्षम हैं।",
+          "enterCredentials": "क्रेडेंशियल दर्ज करें",
+          "enterCredentialsDesc": "अपने ऐप सेटिंग्स से {{field1}} और {{field2}} कॉपी करें।",
+          "authorizeAccess": "एक्सेस अधिकृत करें",
+          "authorizeAccessDesc": "आपको प्रदाता की सहमति स्क्रीन पर रीडायरेक्ट किया जाएगा। अनुमतियाँ समीक्षा करें और \"अनुमति दें\" पर क्लिक करें।",
+          "verifyConnection": "कनेक्शन सत्यापित करें",
+          "verifyConnectionDesc": "सेटिंग्स टैब में जाँचें कि आपका खाता जुड़ा हुआ है।"
+        },
+        "apiKey": {
+          "findKey": "अपनी API कुंजी खोजें",
+          "findKeyDesc": "अपने खाते की सेटिंग्स पेज पर जाएं। \"API कुंजी\" अनुभाग खोजें। कुंजी कॉपी करें।",
+          "noteDomain": "अपना डोमेन नोट करें",
+          "noteDomainDesc": "आपका डोमेन वह URL है जिसका उपयोग आप सेवा तक पहुँचने के लिए करते हैं।",
+          "enterCredentials": "क्रेडेंशियल दर्ज करें",
+          "enterCredentialsDesc": "\"Connect\" पर क्लिक करें और {{field1}} और {{field2}} दर्ज करें।",
+          "verifyConnection": "कनेक्शन सत्यापित करें",
+          "verifyConnectionDesc": "सेटिंग्स टैब में जाँचें कि आपका खाता जुड़ा हुआ है।"
+        },
+        "header": "{{name}} के लिए सेटअप गाइड",
+        "redirectUri": "रीडायरेक्ट URI",
+        "requiredScopes": "आवश्यक अनुमतियाँ"
+      },
+      "logs": {
+        "connectFirst": "सिंक लॉग देखने के लिए पहले {{name}} कनेक्ट करें।",
+        "syncHistory": "सिंक इतिहास",
+        "entries": "प्रविष्टियाँ",
+        "all": "सभी",
+        "success": "सफल",
+        "failed": "विफल",
+        "inProgress": "प्रगति में",
+        "event": "इवेंट",
+        "status": "स्थिति",
+        "records": "रिकॉर्ड",
+        "duration": "अवधि",
+        "date": "तिथि",
+        "errorDetails": "त्रुटि विवरण",
+        "noHistory": "अभी तक कोई सिंक इतिहास नहीं"
+      },
+      "sidebar": {
+        "authMethod": "प्रमाणीकरण विधि",
+        "apiKey": "API कुंजी",
+        "oauth2": "OAuth 2",
+        "displayName": "प्रदर्शन नाम",
+        "integrationId": "एकीकरण ID",
+        "apiDocs": "API दस्तावेज़ीकरण",
+        "created": "बनाया गया"
+      },
+      "disconnect": {
+        "title": "{{name}} डिस्कनेक्ट करें?",
+        "description": "यह एकीकरण हटा देगा, आपके {{name}} खाते तक पहुंच रद्द कर देगा, सभी स्वचालित सिंकिंग बंद कर देगा, और वर्कफ़्लो हटा देगा। यह क्रिया पूर्ववत नहीं की जा सकती।",
+        "cancel": "रद्द करें",
+        "confirm": "डिस्कनेक्ट करें"
+      },
+      "connect": {
+        "title": "{{name}} कनेक्ट करें",
+        "redirectUri": "रीडायरेक्ट / कॉलबैक URL (इसे अपने {{name}} ऐप में जोड़ें)",
+        "requiredScopes": "आवश्यक स्कोप / अनुमतियाँ",
+        "securityNoteApiKey": "आपका {{field1}} और {{field2}} एन्क्रिप्टेड और सुरक्षित रूप से संग्रहीत हैं। इनका उपयोग केवल आपकी ओर से {{name}} के साथ प्रमाणित करने के लिए किया जाता है।",
+        "securityNoteOAuth": "आपकी क्रेडेंशियल एन्क्रिप्टेड और सुरक्षित रूप से संग्रहीत हैं। इन्हें दर्ज करने के बाद, आपको अपने खाते तक पहुंच अधिकृत करने के लिए {{name}} पर रीडायरेक्ट किया जाएगा।",
+        "cancel": "रद्द करें",
+        "connecting": "कनेक्ट हो रहा है...",
+        "connectButton": "कनेक्ट करें",
+        "connectAuthorize": "कनेक्ट करें और अधिकृत करें"
+      },
+      "copied": "कॉपी किया गया",
+      "copiedDesc": "{{label}} क्लिपबोर्ड पर कॉपी किया गया।",
+      "toast": {
+        "accountConnected": "खाता कनेक्ट हो गया",
+        "accountConnectedDesc": "आपका खाता प्रमाणित हो गया है और अब डेटा सिंक कर रहा है।",
+        "authFailed": "प्रमाणीकरण विफल",
+        "authFailedDefault": "प्रमाणीकरण के दौरान एक त्रुटि हुई।",
+        "authErrors": {
+          "accessDenied": "आपने अपने खाते तक पहुंच से इनकार कर दिया। कृपया पुनः प्रयास करें।",
+          "missingParams": "प्रमाणीकरण प्रतिक्रिया अपूर्ण थी। कृपया पुनः प्रयास करें।",
+          "invalidState": "प्रमाणीकरण सत्र समाप्त हो गया या अमान्य था। कृपया पुनः प्रयास करें।",
+          "integrationNotFound": "एकीकरण रिकॉर्ड नहीं मिला। कृपया पुनः कनेक्ट करें।",
+          "tokenExchangeFailed": "सेवा के साथ प्रमाणीकरण पूरा करने में विफल। अपनी क्रेडेंशियल जांचें और पुनः प्रयास करें।",
+          "missingCredentials": "आपकी संग्रहीत क्रेडेंशियल नहीं मिलीं। कृपया पुनः कनेक्ट करें।",
+          "credentialError": "आपकी संग्रहीत क्रेडेंशियल में कोई समस्या थी। कृपया पुनः कनेक्ट करें।",
+          "serverError": "प्रमाणीकरण के दौरान एक अप्रत्याशित त्रुटि हुई। कृपया पुनः प्रयास करें।"
+        },
+        "signIn": "अपने खाते में साइन इन करें",
+        "signInDesc": "आपके {{name}} खाते तक पहुंच अधिकृत करने के लिए एक नई विंडो खुली है।",
+        "connected": "एकीकरण कनेक्ट हो गया",
+        "connectedDesc": "{{name}} अब कनेक्ट और सक्रिय है।",
+        "connectionFailed": "कनेक्शन विफल",
+        "connectionFailedDefault": "एकीकरण कनेक्ट करने में विफल",
+        "missingCredentials": "क्रेडेंशियल गायब हैं",
+        "missingCredentialsDesc": "कृपया {{field1}} और {{field2}} दोनों दर्ज करें।",
+        "activated": "एकीकरण सक्रिय हो गया",
+        "activatedDesc": "एकीकरण अब सक्रिय है और डेटा सिंक कर रहा है।",
+        "activationFailed": "सक्रियण विफल",
+        "activationFailedDefault": "एकीकरण सक्रिय करने में विफल",
+        "disconnected": "एकीकरण डिस्कनेक्ट हो गया",
+        "disconnectedDesc": "एकीकरण हटा दिया गया है।",
+        "disconnectFailed": "डिस्कनेक्ट विफल",
+        "disconnectFailedDefault": "डिस्कनेक्ट करने में विफल",
+        "syncCompleted": "सिंक पूरा हुआ",
+        "syncCompletedDesc": "डेटा सफलतापूर्वक सिंक हो गया।",
+        "syncFailed": "सिंक विफल",
+        "syncFailedDesc": "सिंक में एक त्रुटि आई।",
+        "syncFailedDefault": "सिंक ट्रिगर करने में विफल",
+        "templateExecuted": "टेम्पलेट निष्पादित",
+        "templateExecutedDesc": "n8n वर्कफ़्लो टेम्पलेट सफलतापूर्वक ट्रिगर हुआ।",
+        "executionFailed": "निष्पादन विफल",
+        "executionFailedDesc": "टेम्पलेट निष्पादित करने में विफल।",
+        "executionFailedDefault": "उपयोग केस टेम्पलेट निष्पादित करने में विफल"
+      },
+      "providers": {
+        "salesforce": {
+          "field1Label": "कंज्यूमर कुंजी",
+          "field1Placeholder": "दर्ज करें Salesforce Consumer Key",
+          "field2Label": "कंज्यूमर सीक्रेट",
+          "field2Placeholder": "दर्ज करें Salesforce Consumer Secret",
+          "helpText": "Create a Connected App in Salesforce: go to Setup > App Manager > New Connected App. Enable OAuth settings and add the callback URL below. Copy the Consumer Key and Consumer Secret from the app details.",
+          "setupLinkText": "खोलें Salesforce Setup",
+          "actions": {
+            "sync-contacts": {
+              "name": "सिंक करें Contacts",
+              "description": "सिंक करें संपर्क से Salesforce"
+            },
+            "push-call-summary": {
+              "name": "भेजें सारांश de कॉल",
+              "description": "भेजें सारांश de कॉल को Salesforce गतिविधियां"
+            },
+            "sync-leads": {
+              "name": "सिंक करें Leads",
+              "description": "सिंक करें लीड्स से Salesforce"
+            },
+            "update-contact-status": {
+              "name": "अपडेट करें स्थिति de संपर्क",
+              "description": "अपडेट करें स्थिति de संपर्क के बाद call"
+            }
+          },
+          "useCases": {
+            "sf-log-calls": {
+              "title": "स्वचालित रूप से-लॉग करें कॉल्स के रूप में गतिविधियां",
+              "description": "बनाएं स्वचालित रूप से रिकॉर्ड्स de गतिविधियां में Salesforce के लिए हर पूर्ण call के साथ पूर्ण ट्रांसक्रिप्ट और outcome डेटा.",
+              "n8nTemplateName": "Salesforce लॉग करें de कॉल्स",
+              "n8nTemplateDescription": "लॉग करता है डेटा de कॉल के रूप में Salesforce Task गतिविधियां",
+              "expectedOutcome": "नया Task गतिविधियां बनाया गया में Salesforce के साथ विवरण de कॉल"
+            },
+            "sf-create-leads": {
+              "title": "बनाएं लीड्स से नया कॉलर्स",
+              "description": "बनाएं स्वचालित रूप से नया रिकॉर्ड्स de लीड जब कॉलर्स अज्ञात are पहचाने गए के दौरान बातचीत.",
+              "n8nTemplateName": "Salesforce बनाएं de लीड्स",
+              "n8nTemplateDescription": "बनाता है लीड्स से अपरिचित फोन नंबर",
+              "expectedOutcome": "नया रिकॉर्ड्स de लीड बनाया गया के साथ जानकारी del कॉलर्स"
+            },
+            "sf-sync-contacts": {
+              "title": "सिंक करें डेटा de संपर्क के बाद बातचीत",
+              "description": "अपडेट करें Salesforce संपर्क रिकॉर्ड्स के साथ नवीनतम अंतर्दृष्टि de बातचीत और निकाला गया डेटा points.",
+              "n8nTemplateName": "Salesforce सिंक करें de संपर्क",
+              "n8nTemplateDescription": "सिंक करता है डेटा de बातचीत को रिकॉर्ड्स de संपर्क",
+              "expectedOutcome": "रिकॉर्ड्स de संपर्क अपडेट किया गया के साथ नवीनतम डेटा de बातचीत"
+            },
+            "sf-update-opps": {
+              "title": "अपडेट करें स्थिति de oportunidad",
+              "description": "अपडेट करें स्वचालित रूप से या update Oportunidad stages के आधार पर परिणाम de कॉल और AI विश्लेषण.",
+              "n8nTemplateName": "Salesforce अपडेट करें de सौदे",
+              "n8nTemplateDescription": "अपडेट करता है स्थिति de oportunidad से call परिणाम",
+              "expectedOutcome": "Oportunidad stage अपडेट किया गया के आधार पर call विश्लेषण"
+            }
+          }
+        },
+        "hubspot": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your HubSpot Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your HubSpot Client Secret",
+          "helpText": "Create an app in the HubSpot Developer Portal. Go to your app's Auth settings, add the redirect URL below, and select the required scopes. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open HubSpot Developer Portal",
+          "actions": {
+            "sync-contacts": {
+              "name": "सिंक करें Contacts",
+              "description": "सिंक करें संपर्क से HubSpot"
+            },
+            "sync-deals": {
+              "name": "सिंक करें Deals",
+              "description": "सिंक करें सौदे से HubSpot"
+            },
+            "create-engagement": {
+              "name": "बनाएं Engagement",
+              "description": "बनाएं call engagement रिकॉर्ड्स"
+            },
+            "push-call-notes": {
+              "name": "भेजें नोट्स de कॉल",
+              "description": "भेजें नोट्स de कॉल को contact timeline"
+            }
+          },
+          "useCases": {
+            "hs-create-deals": {
+              "title": "बनाएं सौदे से qualified कॉल्स",
+              "description": "Automatically create new deals in HubSpot when calls are identified as sales-qualified opportunities.",
+              "n8nTemplateName": "HubSpot निर्माता de सौदे",
+              "n8nTemplateDescription": "बनाता है सौदे से qualified परिणाम de कॉल",
+              "expectedOutcome": "नया deal बनाया गया में HubSpot पाइपलाइन"
+            },
+            "hs-push-notes": {
+              "title": "भेजें नोट्स de कॉल को timeline",
+              "description": "जोड़ें detailed नोट्स de कॉल और ट्रांसक्रिप्ट को  HubSpot contact timeline के लिए complete interaction इतिहास.",
+              "n8nTemplateName": "HubSpot Timeline लॉगर",
+              "n8nTemplateDescription": "भेजता है नोट्स de कॉल को contact timeline",
+              "expectedOutcome": "Call नोट्स added को contact timeline में HubSpot"
+            },
+            "hs-sync-contacts": {
+              "title": "सिंक करें संपर्क bi-directionally",
+              "description": "Keep contact information synchronized between your calling platform and HubSpot in both directions.",
+              "n8nTemplateName": "HubSpot सिंक करें de संपर्क",
+              "n8nTemplateDescription": "Bi-directional contact synchronization",
+              "expectedOutcome": "Contact data synced between platforms"
+            },
+            "hs-followup": {
+              "title": "ट्रिगर करें अनुक्रम de फॉलो-अप",
+              "description": "Automatically enroll संपर्क में HubSpot अनुक्रम de correo के आधार पर परिणाम de कॉल और qualification स्थिति.",
+              "n8nTemplateName": "HubSpot Sequence ट्रिगर",
+              "n8nTemplateDescription": "Enrolls संपर्क में अनुक्रम de फॉलो-अप",
+              "expectedOutcome": "संपर्क enrolled में appropriate फॉलो-अप sequence"
+            }
+          }
+        },
+        "zoho": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Zoho Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Zoho Client Secret",
+          "helpText": "Register a Server-based Application in the Zoho API Console. Add the redirect URL below as an authorized redirect URI. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Zoho API Console",
+          "actions": {
+            "sync-contacts": {
+              "name": "सिंक करें Contacts",
+              "description": "सिंक करें संपर्क से Zoho CRM"
+            },
+            "sync-leads": {
+              "name": "सिंक करें Leads",
+              "description": "सिंक करें लीड्स से Zoho"
+            },
+            "push-call-log": {
+              "name": "भेजें Call Log",
+              "description": "भेजें रिकॉर्ड्स de कॉल को Zoho"
+            },
+            "update-lead-status": {
+              "name": "अपडेट करें लीड Status",
+              "description": "अपडेट करें lead स्थिति के बाद call"
+            }
+          },
+          "useCases": {
+            "zoho-log-calls": {
+              "title": "लॉग करें call गतिविधियां",
+              "description": "बनाएं गतिविधियां de कॉल रिकॉर्ड्स में Zoho CRM के साथ complete बातचीत विवरण और परिणाम.",
+              "n8nTemplateName": "Zoho लॉग करें de कॉल्स",
+              "n8nTemplateDescription": "लॉग करता है कॉल्स के रूप में Zoho गतिविधियां",
+              "expectedOutcome": "Call गतिविधियां logged में Zoho CRM"
+            },
+            "zoho-sync-leads": {
+              "title": "सिंक करें लीड्स के बाद बातचीत",
+              "description": "Synchronize lead डेटा और अंतर्दृष्टि de बातचीत को Zoho CRM रिकॉर्ड्स de लीड.",
+              "n8nTemplateName": "Zoho लीड Sync",
+              "n8nTemplateDescription": "सिंक करता है lead डेटा post-बातचीत",
+              "expectedOutcome": "रिकॉर्ड्स de लीड अपडेट किया गया में Zoho CRM"
+            },
+            "zoho-update-deals": {
+              "title": "अपडेट करें deal stages",
+              "description": "Advance deal stages में Zoho CRM के आधार पर परिणाम de कॉल और qualification criteria.",
+              "n8nTemplateName": "Zoho अपडेट करें de सौदे",
+              "n8nTemplateDescription": "अपडेट करता है deal stages से call परिणाम",
+              "expectedOutcome": "Deal stage अपडेट किया गया में Zoho CRM"
+            },
+            "zoho-create-tasks": {
+              "title": "बनाएं फॉलो-अप कार्य",
+              "description": "बनाएं स्वचालित रूप से फॉलो-अप कार्य में Zoho CRM के आधार पर action items से कॉल्स.",
+              "n8nTemplateName": "Zoho निर्माता de कार्य",
+              "n8nTemplateDescription": "बनाता है कार्य से call action items",
+              "expectedOutcome": "फॉलो-अप task बनाया गया में Zoho CRM"
+            }
+          }
+        },
+        "google-sheets": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Google Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Google Client Secret",
+          "helpText": "In Google Cloud Console, create an OAuth 2.0 Client ID (Web application type). Add the redirect URL below as an authorized redirect URI. Enable the Google Sheets API and Google People API for your project.",
+          "setupLinkText": "Open Google Cloud Console",
+          "actions": {
+            "export-call-data": {
+              "name": "एक्सपोर्ट करें डेटा de कॉल",
+              "description": "एक्सपोर्ट करें डेटा de कॉल को Google Sheets"
+            },
+            "read-contact-list": {
+              "name": "Read संपर्क List",
+              "description": "Read contact list से Google Sheets"
+            },
+            "sync-campaign-results": {
+              "name": "सिंक करें Campaign Results",
+              "description": "सिंक करें अभियान परिणाम को sheets"
+            }
+          },
+          "useCases": {
+            "gsheets-export": {
+              "title": "एक्सपोर्ट करें डेटा de कॉल",
+              "description": "एक्सपोर्ट करें डेटा de कॉल और मेट्रिक्स को Google Sheets.",
+              "n8nTemplateName": "Google Sheets एक्सपोर्टर de डेटा",
+              "n8nTemplateDescription": "Exports डेटा de कॉल",
+              "expectedOutcome": "Call डेटा exported को Google Sheets"
+            },
+            "gsheets-import": {
+              "title": "इम्पोर्ट करें contact lists",
+              "description": "इम्पोर्ट करें contact lists से Google Sheets के लिए अभियान.",
+              "n8nTemplateName": "Google Sheets संपर्क Importer",
+              "n8nTemplateDescription": "Imports संपर्क",
+              "expectedOutcome": "Contacts imported से Google Sheets"
+            },
+            "gsheets-reports": {
+              "title": "रिपोर्टिंग de अभियान",
+              "description": "जनरेट करें अभियान reports में Google Sheets.",
+              "n8nTemplateName": "Google Sheets Report जनरेटर",
+              "n8nTemplateDescription": "जनरेट करता है reports",
+              "expectedOutcome": "Report जनरेट किया गया में Google Sheets"
+            },
+            "gsheets-dashboards": {
+              "title": "एनालिटिक्स डैशबोर्ड",
+              "description": "बनाएं एनालिटिक्स dashboards में Google Sheets.",
+              "n8nTemplateName": "Google Sheets डैशबोर्ड",
+              "n8nTemplateDescription": "बनाता है dashboards",
+              "expectedOutcome": "डैशबोर्ड बनाया गया में Google Sheets"
+            }
+          }
+        },
+        "pipedrive": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Pipedrive Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Pipedrive Client Secret",
+          "helpText": "Create an app in the Pipedrive Developer Hub (Marketplace Manager). Set the callback URL to the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Pipedrive Developer Hub",
+          "actions": {
+            "sync-contacts": {
+              "name": "सिंक करें Persons",
+              "description": "सिंक करें persons से Pipedrive"
+            },
+            "sync-deals": {
+              "name": "सिंक करें Deals",
+              "description": "सिंक करें सौदे से Pipedrive"
+            },
+            "create-activity": {
+              "name": "बनाएं Activity",
+              "description": "बनाएं गतिविधियां de कॉल रिकॉर्ड्स"
+            },
+            "push-call-outcome": {
+              "name": "भेजें Call Outcome",
+              "description": "भेजें call outcome को deal"
+            }
+          },
+          "useCases": {
+            "pd-create-activities": {
+              "title": "बनाएं गतिविधियां से कॉल्स",
+              "description": "लॉग करें call गतिविधियां में Pipedrive के साथ detailed नोट्स और outcome tracking.",
+              "n8nTemplateName": "Pipedrive निर्माता de गतिविधि",
+              "n8nTemplateDescription": "बनाता है गतिविधियां से पूर्ण कॉल्स",
+              "expectedOutcome": "Activity बनाया गया में Pipedrive"
+            },
+            "pd-update-deals": {
+              "title": "अपडेट करें deal प्रगति",
+              "description": "Move सौदे के माध्यम से पाइपलाइन stages के आधार पर परिणाम de कॉल और buyer signals.",
+              "n8nTemplateName": "Pipedrive अपडेट करें de सौदे",
+              "n8nTemplateDescription": "अपडेट करता है deal stages से call विश्लेषण",
+              "expectedOutcome": "Deal stage अपडेट किया गया में Pipedrive"
+            },
+            "pd-sync-persons": {
+              "title": "सिंक करें person डेटा",
+              "description": "Keep person records in Pipedrive synchronized with caller information.",
+              "n8nTemplateName": "Pipedrive Person सिंक",
+              "n8nTemplateDescription": "सिंक करता है डेटा del कॉलर्स को person रिकॉर्ड्स",
+              "expectedOutcome": "Person रिकॉर्ड्स अपडेट किया गया में Pipedrive"
+            },
+            "pd-push-outcomes": {
+              "title": "भेजें परिणाम de कॉल",
+              "description": "रिकॉर्ड करें परिणाम de कॉल और dispositions directly को Pipedrive deal और रिकॉर्ड्स de गतिविधियां.",
+              "n8nTemplateName": "Pipedrive Outcome लॉगर",
+              "n8nTemplateDescription": "भेजता है परिणाम de कॉल को Pipedrive",
+              "expectedOutcome": "Call outcome recorded में Pipedrive"
+            }
+          }
+        },
+        "dynamics365": {
+          "field1Label": "एप्लिकेशन (क्लाइंट) ID",
+          "field1Placeholder": "Enter your Azure Application (Client) ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Azure Client Secret value",
+          "helpText": "Register an application in Azure Portal > App Registrations. Under Authentication, add the redirect URL below as a Web redirect URI. Under Certificates & secrets, create a new Client Secret and copy the value. Grant Dynamics CRM API permissions.",
+          "setupLinkText": "Open Azure Portal",
+          "actions": {
+            "sync-contacts": {
+              "name": "सिंक करें Contacts",
+              "description": "सिंक करें संपर्क से Dynamics 365"
+            },
+            "sync-leads": {
+              "name": "सिंक करें Leads",
+              "description": "सिंक करें लीड्स से Dynamics"
+            },
+            "create-phone-call": {
+              "name": "बनाएं Phone Call",
+              "description": "बनाएं phone गतिविधियां de कॉल"
+            },
+            "update-lead-qualification": {
+              "name": "अपडेट करें लीड Qualification",
+              "description": "अपडेट करें lead qualification"
+            }
+          },
+          "useCases": {
+            "d365-create-calls": {
+              "title": "बनाएं phone call गतिविधियां",
+              "description": "बनाएं Phone Call रिकॉर्ड्स de गतिविधियां में Dynamics 365 के लिए हर पूर्ण बातचीत.",
+              "n8nTemplateName": "Dynamics 365 निर्माता de कॉल",
+              "n8nTemplateDescription": "बनाता है phone call गतिविधियां",
+              "expectedOutcome": "Phone Call गतिविधियां बनाया गया में Dynamics 365"
+            },
+            "d365-sync-leads": {
+              "title": "सिंक करें लीड्स",
+              "description": "Synchronize lead data between your calling platform and Dynamics 365.",
+              "n8nTemplateName": "Dynamics 365 लीड Sync",
+              "n8nTemplateDescription": "सिंक करता है रिकॉर्ड्स de लीड",
+              "expectedOutcome": "लीड synced में Dynamics 365"
+            },
+            "d365-update-quals": {
+              "title": "अपडेट करें lead qualifications",
+              "description": "अपडेट करें lead qualification स्थिति में Dynamics 365 के आधार पर call विश्लेषण परिणाम.",
+              "n8nTemplateName": "Dynamics 365 Qualification अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है lead qualification से कॉल्स",
+              "expectedOutcome": "लीड qualification अपडेट किया गया में Dynamics 365"
+            },
+            "d365-log-outcomes": {
+              "title": "लॉग करें बातचीत परिणाम",
+              "description": "रिकॉर्ड करें detailed बातचीत परिणाम और नोट्स में Dynamics 365 रिकॉर्ड्स de गतिविधियां.",
+              "n8nTemplateName": "Dynamics 365 Outcome लॉगर",
+              "n8nTemplateDescription": "लॉग करता है बातचीत परिणाम",
+              "expectedOutcome": "Outcome logged में Dynamics 365"
+            }
+          }
+        },
+        "freshsales": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Freshsales API Key",
+          "field2Label": "डोमेन",
+          "field2Placeholder": "उदा. yourcompany.freshsales.io",
+          "helpText": "Find your API Key in Freshsales: go to Settings > API Settings > Your API Key. Your domain is the URL you use to access Freshsales (e.g., yourcompany.freshsales.io).",
+          "setupLinkText": "खोलें Freshsales",
+          "actions": {
+            "sync-contacts": {
+              "name": "सिंक करें Contacts",
+              "description": "सिंक करें संपर्क से Freshsales"
+            },
+            "sync-leads": {
+              "name": "सिंक करें Leads",
+              "description": "सिंक करें लीड्स से Freshsales"
+            },
+            "log-call-activity": {
+              "name": "लॉग करें गतिविधियां de कॉल",
+              "description": "लॉग करें call गतिविधियां"
+            },
+            "update-lead-score": {
+              "name": "अपडेट करें लीड Score",
+              "description": "अपडेट करें lead score के आधार पर call"
+            }
+          },
+          "useCases": {
+            "fs-log-outcomes": {
+              "title": "लॉग करें परिणाम de कॉल",
+              "description": "रिकॉर्ड करें परिणाम de कॉल और dispositions में Freshsales के लिए complete गतिविधियां tracking.",
+              "n8nTemplateName": "Freshsales लॉग करें de कॉल्स",
+              "n8nTemplateDescription": "लॉग करता है परिणाम de कॉल में Freshsales",
+              "expectedOutcome": "Call outcome logged में Freshsales"
+            },
+            "fs-update-scores": {
+              "title": "अपडेट करें lead स्कोर",
+              "description": "Automatically adjust lead स्कोर में Freshsales के आधार पर call engagement और परिणाम.",
+              "n8nTemplateName": "Freshsales Score अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है lead स्कोर से डेटा de कॉल",
+              "expectedOutcome": "लीड score अपडेट किया गया में Freshsales"
+            },
+            "fs-create-tasks": {
+              "title": "बनाएं कार्य से कॉल्स",
+              "description": "जनरेट करें फॉलो-अप कार्य में Freshsales से action items identified के दौरान कॉल्स.",
+              "n8nTemplateName": "Freshsales निर्माता de कार्य",
+              "n8nTemplateDescription": "बनाता है कार्य से call action items",
+              "expectedOutcome": "Task बनाया गया में Freshsales"
+            },
+            "fs-sync-contacts": {
+              "title": "सिंक करें डेटा de संपर्क",
+              "description": "Synchronize contact information between your calling platform and Freshsales.",
+              "n8nTemplateName": "Freshsales सिंक करें de संपर्क",
+              "n8nTemplateDescription": "सिंक करता है डेटा de संपर्क bi-directionally",
+              "expectedOutcome": "संपर्क synced में Freshsales"
+            }
+          }
+        },
+        "monday-com": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Monday.com Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Monday.com Client Secret",
+          "helpText": "Create an app at monday.com Developers. Under OAuth settings, add the redirect URL below. Copy the Client ID and Client Secret from the app's Basic Information section.",
+          "setupLinkText": "खोलें Monday.com Developers",
+          "actions": {
+            "sync-board-items": {
+              "name": "सिंक करें Board Items",
+              "description": "सिंक करें items से Monday.com boards"
+            },
+            "update-item-status": {
+              "name": "अपडेट करें Item Status",
+              "description": "अपडेट करें item स्थिति के बाद call"
+            },
+            "push-call-summary": {
+              "name": "भेजें सारांश de कॉल",
+              "description": "भेजें सारांश de कॉल को items"
+            }
+          }
+        },
+        "airtable": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Airtable Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Airtable Client Secret",
+          "helpText": "Register an OAuth integration at the Airtable Developer Hub. Add the redirect URL below. Select the required scopes (data.records:read, data.records:write, schema.bases:read). Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Airtable Developer Hub",
+          "actions": {
+            "sync-records": {
+              "name": "सिंक करें Records",
+              "description": "सिंक करें रिकॉर्ड्स से Airtable base"
+            },
+            "export-call-data": {
+              "name": "एक्सपोर्ट करें डेटा de कॉल",
+              "description": "एक्सपोर्ट करें डेटा de कॉल को Airtable"
+            },
+            "update-record-status": {
+              "name": "अपडेट करें Record Status",
+              "description": "अपडेट करें रिकॉर्ड्स स्थिति"
+            }
+          },
+          "useCases": {
+            "at-sync": {
+              "title": "सिंक करें call रिकॉर्ड्स",
+              "description": "सिंक करें call रिकॉर्ड्स को Airtable bases.",
+              "n8nTemplateName": "Airtable Record सिंक",
+              "n8nTemplateDescription": "सिंक करता है call रिकॉर्ड्स",
+              "expectedOutcome": "Records synced को Airtable"
+            },
+            "at-update": {
+              "title": "अपडेट करें bases",
+              "description": "अपडेट करें Airtable bases के साथ डेटा de कॉल और परिणाम.",
+              "n8nTemplateName": "Airtable Base अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है bases",
+              "expectedOutcome": "Base अपडेट किया गया में Airtable"
+            },
+            "at-campaigns": {
+              "title": "अभियान ट्रैकिंग",
+              "description": "ट्रैक करें अभियान performance में Airtable.",
+              "n8nTemplateName": "Airtable ट्रैकर de अभियान",
+              "n8nTemplateDescription": "ट्रैक करता है अभियान",
+              "expectedOutcome": "Campaign tracked में Airtable"
+            },
+            "at-contacts": {
+              "title": "संपर्क management",
+              "description": "प्रबंधित करें संपर्क में Airtable से call इंटरैक्शन.",
+              "n8nTemplateName": "Airtable संपर्क Manager",
+              "n8nTemplateDescription": "Manages संपर्क",
+              "expectedOutcome": "संपर्क managed में Airtable"
+            }
+          }
+        },
+        "slack": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Slack Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Slack Client Secret",
+          "helpText": "Create a Slack App at api.slack.com/apps. Under OAuth & Permissions, add the redirect URL below. Add the required Bot Token Scopes (chat:write, channels:read, users:read). Copy the Client ID and Client Secret from Basic Information.",
+          "setupLinkText": "खोलें Slack API",
+          "actions": {
+            "send-call-notification": {
+              "name": "भेजें Call Notification",
+              "description": "भेजें call completion सूचनाएं"
+            },
+            "send-campaign-summary": {
+              "name": "भेजें Campaign Summary",
+              "description": "भेजें अभियान सारांश reports"
+            },
+            "send-alert": {
+              "name": "भेजें Alert",
+              "description": "भेजें रीयल-टाइम अलर्ट के लिए important कॉल्स"
+            }
+          },
+          "useCases": {
+            "slack-summaries": {
+              "title": "पोस्ट करें सारांश de कॉल को चैनल",
+              "description": "पोस्ट करें स्वचालित रूप से AI-जनरेट किया गया सारांश de कॉल को designated Slack चैनल.",
+              "n8nTemplateName": "Slack सारांश de कॉल Poster",
+              "n8nTemplateDescription": "Posts सारांश de कॉल को Slack",
+              "expectedOutcome": "Call सारांश posted को Slack channel"
+            },
+            "slack-alerts": {
+              "title": "Alert on high-priority calls",
+              "description": "भेजें instant Slack अलर्ट के लिए high-priority या escalated कॉल्स.",
+              "n8nTemplateName": "Slack Priority अलर्ट",
+              "n8nTemplateDescription": "Alerts on priority calls",
+              "expectedOutcome": "Priority alert भेजा गया को Slack"
+            },
+            "slack-reports": {
+              "title": "Daily अभियान reports",
+              "description": "भेजें daily अभियान performance reports को Slack चैनल.",
+              "n8nTemplateName": "Slack Daily रिपोर्ट",
+              "n8nTemplateDescription": "Daily अभियान reports",
+              "expectedOutcome": "Daily report posted को Slack"
+            },
+            "slack-realtime": {
+              "title": "रीयल-टाइम call सूचनाएं",
+              "description": "भेजें रीयल-टाइम सूचनाएं को Slack के लिए इवेंट्स de कॉल.",
+              "n8nTemplateName": "Slack रीयल-टाइम Notifier",
+              "n8nTemplateDescription": "रीयल-टाइम call सूचनाएं",
+              "expectedOutcome": "रीयल-टाइम सूचना भेजा गया"
+            }
+          }
+        },
+        "mailchimp": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Mailchimp Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Mailchimp Client Secret",
+          "helpText": "Register an app in the Mailchimp Developer Portal. Add the redirect URL below as a redirect URI. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Mailchimp Developer Portal",
+          "actions": {
+            "sync-audience": {
+              "name": "सिंक करें Audience",
+              "description": "सिंक करें audience/subscriber lists"
+            },
+            "update-tags": {
+              "name": "अपडेट करें Tags",
+              "description": "अपडेट करें subscriber टैग्स के आधार पर परिणाम de कॉल"
+            },
+            "push-campaign-results": {
+              "name": "भेजें Campaign Results",
+              "description": "भेजें calling अभियान परिणाम"
+            }
+          },
+          "useCases": {
+            "mc-add-contacts": {
+              "title": "जोड़ें संपर्क को lists",
+              "description": "जोड़ें caller संपर्क को Mailchimp audience lists.",
+              "n8nTemplateName": "Mailchimp संपर्क Adder",
+              "n8nTemplateDescription": "जोड़ता है संपर्क को lists",
+              "expectedOutcome": "संपर्क added को Mailchimp list"
+            },
+            "mc-tag": {
+              "title": "Tag के आधार पर call outcome",
+              "description": "Tag Mailchimp संपर्क के आधार पर परिणाम de कॉल.",
+              "n8nTemplateName": "Mailchimp Outcome टैगर",
+              "n8nTemplateDescription": "Tags contacts by outcome",
+              "expectedOutcome": "संपर्क tagged में Mailchimp"
+            },
+            "mc-sequences": {
+              "title": "ट्रिगर करें अनुक्रम de correo",
+              "description": "ट्रिगर करें Mailchimp email automation अनुक्रम से कॉल्स.",
+              "n8nTemplateName": "Mailchimp Sequence ट्रिगर",
+              "n8nTemplateDescription": "ट्रिगर करता है अनुक्रम de correo",
+              "expectedOutcome": "Email sequence triggered में Mailchimp"
+            },
+            "mc-sync": {
+              "title": "सिंक करें subscriber डेटा",
+              "description": "Sync subscriber data between platforms and Mailchimp.",
+              "n8nTemplateName": "Mailchimp Subscriber सिंक",
+              "n8nTemplateDescription": "सिंक करता है subscriber डेटा",
+              "expectedOutcome": "Subscriber डेटा synced में Mailchimp"
+            }
+          }
+        },
+        "intercom": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Intercom Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Intercom Client Secret",
+          "helpText": "Create an app in the Intercom Developer Hub. Under Authentication, add the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Intercom Developer Hub",
+          "actions": {
+            "sync-contacts": {
+              "name": "सिंक करें Contacts",
+              "description": "सिंक करें संपर्क से Intercom"
+            },
+            "create-conversation-note": {
+              "name": "बनाएं Conversation Note",
+              "description": "जोड़ें नोट्स de कॉल को बातचीत"
+            },
+            "update-contact-attributes": {
+              "name": "अपडेट करें संपर्क Attributes",
+              "description": "अपडेट करें contact attributes"
+            }
+          },
+          "useCases": {
+            "ic-create-convs": {
+              "title": "बनाएं बातचीत",
+              "description": "बनाएं Intercom बातचीत से inbound कॉल्स.",
+              "n8nTemplateName": "Intercom Conversation निर्माता",
+              "n8nTemplateDescription": "बनाता है बातचीत",
+              "expectedOutcome": "Conversation बनाया गया में Intercom"
+            },
+            "ic-update-contacts": {
+              "title": "अपडेट करें डेटा de संपर्क",
+              "description": "अपडेट करें Intercom डेटा de संपर्क के साथ call अंतर्दृष्टि.",
+              "n8nTemplateName": "Intercom संपर्क Updater",
+              "n8nTemplateDescription": "अपडेट करता है डेटा de संपर्क",
+              "expectedOutcome": "संपर्क डेटा अपडेट किया गया में Intercom"
+            },
+            "ic-trigger": {
+              "title": "ट्रिगर करें वर्कफ़्लो",
+              "description": "ट्रिगर करें Intercom वर्कफ़्लो के आधार पर परिणाम de कॉल.",
+              "n8nTemplateName": "Intercom Workflow ट्रिगर",
+              "n8nTemplateDescription": "ट्रिगर करता है वर्कफ़्लो",
+              "expectedOutcome": "Workflow triggered में Intercom"
+            },
+            "ic-notes": {
+              "title": "लॉग करें नोट्स de कॉल",
+              "description": "जोड़ें नोट्स de कॉल को Intercom बातचीत रिकॉर्ड्स.",
+              "n8nTemplateName": "Intercom Note लॉगर",
+              "n8nTemplateDescription": "लॉग करता है नोट्स de कॉल",
+              "expectedOutcome": "Notes logged में Intercom"
+            }
+          }
+        },
+        "twilio": {
+          "field1Label": "खाता SID",
+          "field1Placeholder": "दर्ज करें Twilio Account SID",
+          "field2Label": "प्रमाणीकरण टोकन",
+          "field2Placeholder": "Enter your Twilio Auth Token",
+          "helpText": "Find your Account SID and Auth Token in the Twilio Console dashboard under Account Info.",
+          "setupLinkText": "Open Twilio Console",
+          "actions": {
+            "check-number": {
+              "name": "जांचें फोन नंबर",
+              "description": "Verify फोन नंबर availability"
+            },
+            "send-sms": {
+              "name": "भेजें SMS फॉलो-अप",
+              "description": "भेजें SMS के बाद call completion"
+            }
+          },
+          "useCases": {
+            "twilio-sms-followup": {
+              "title": "भेजें SMS फॉलो-अप के बाद कॉल्स",
+              "description": "भेजें स्वचालित रूप से SMS फॉलो-अप संदेश के जरिए Twilio के बाद call completion.",
+              "n8nTemplateName": "Twilio SMS फॉलो-अप",
+              "n8nTemplateDescription": "भेजता है post-call SMS संदेश",
+              "expectedOutcome": "SMS फॉलो-अप भेजा गया के जरिए Twilio"
+            },
+            "twilio-route-calls": {
+              "title": "रूट करें कॉल्स के आधार पर AI विश्लेषण",
+              "description": "Intelligently route incoming calls using AI analysis of caller intent.",
+              "n8nTemplateName": "Twilio राउटर de कॉल",
+              "n8nTemplateDescription": "Routes कॉल्स के साथ AI विश्लेषण",
+              "expectedOutcome": "Call routed को appropriate destination"
+            },
+            "twilio-track-metrics": {
+              "title": "ट्रैक करें मेट्रिक्स de कॉल",
+              "description": "ट्रैक करें और aggregate मेट्रिक्स de कॉल और एनालिटिक्स के जरिए Twilio.",
+              "n8nTemplateName": "Twilio Metrics ट्रैकर",
+              "n8nTemplateDescription": "ट्रैक करता है call performance मेट्रिक्स",
+              "expectedOutcome": "Call मेट्रिक्स recorded और aggregated"
+            },
+            "twilio-verify": {
+              "title": "Verify फोन नंबर",
+              "description": "Verify caller फोन नंबर का उपयोग करके Twilio Lookup API.",
+              "n8nTemplateName": "Twilio Number वेरिफायर",
+              "n8nTemplateDescription": "Verifies फोन नंबर",
+              "expectedOutcome": "फोन नंबर verified के जरिए Twilio"
+            }
+          }
+        },
+        "openai": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें OpenAI API Key (sk-...)",
+          "field2Label": "संगठन ID",
+          "field2Placeholder": "दर्ज करें Organization ID (optional)",
+          "helpText": "Find your API key at platform.openai.com/api-keys. Organization ID is optional and found in Settings > Organization.",
+          "setupLinkText": "खोलें OpenAI Platform",
+          "actions": {
+            "generate-summary": {
+              "name": "जनरेट करें सारांश de कॉल",
+              "description": "जनरेट करें AI सारांश of ट्रांसक्रिप्ट de कॉल"
+            },
+            "sentiment-analysis": {
+              "name": "विश्लेषण de भावना",
+              "description": "विश्लेषण करें caller भावना से ट्रांसक्रिप्ट"
+            }
+          },
+          "useCases": {
+            "oai-summaries": {
+              "title": "जनरेट करें सारांश de कॉल",
+              "description": "Use OpenAI to generate concise, structured summaries of call transcripts.",
+              "n8nTemplateName": "OpenAI Call सारांशकर्ता",
+              "n8nTemplateDescription": "जनरेट करता है AI सारांश de कॉल",
+              "expectedOutcome": "AI-जनरेट किया गया सारांश de कॉल बनाया गया"
+            },
+            "oai-sentiment": {
+              "title": "Sentiment विश्लेषण of ट्रांसक्रिप्ट",
+              "description": "विश्लेषण करें caller भावना throughout  बातचीत का उपयोग करके OpenAI.",
+              "n8nTemplateName": "OpenAI विश्लेषण de भावना",
+              "n8nTemplateDescription": "Analyzes ट्रांसक्रिप्ट भावना",
+              "expectedOutcome": "Sentiment स्कोर जनरेट किया गया के लिए call"
+            },
+            "oai-action-items": {
+              "title": "कार्य आइटम निकालें",
+              "description": "Extract और categorize action items से ट्रांसक्रिप्ट de कॉल का उपयोग करके OpenAI.",
+              "n8nTemplateName": "OpenAI Action एक्सट्रैक्टर",
+              "n8nTemplateDescription": "Extracts action items से कॉल्स",
+              "expectedOutcome": "Action items निकाला गया और categorized"
+            },
+            "oai-classify": {
+              "title": "कॉल इंटेंट वर्गीकृत करें",
+              "description": "Classify caller intent और call purpose का उपयोग करके OpenAI models.",
+              "n8nTemplateName": "OpenAI Intent क्लासिफायर",
+              "n8nTemplateDescription": "Classifies call intents",
+              "expectedOutcome": "कॉल इंटेंट वर्गीकृत"
+            }
+          }
+        },
+        "anthropic": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Anthropic API Key",
+          "field2Label": "संगठन ID",
+          "field2Placeholder": "दर्ज करें Organization ID (optional)",
+          "helpText": "Generate an API key in the Anthropic Console under API Keys.",
+          "setupLinkText": "Open Anthropic Console",
+          "useCases": {
+            "anth-summarize": {
+              "title": "Summarize बातचीत",
+              "description": "Use Anthropic Claude to create detailed conversation summaries.",
+              "n8nTemplateName": "Anthropic सारांशकर्ता",
+              "n8nTemplateDescription": "Summarizes बातचीत",
+              "expectedOutcome": "Conversation सारांश जनरेट किया गया"
+            },
+            "anth-intent": {
+              "title": "विश्लेषण करें caller intent",
+              "description": "विश्लेषण करें और categorize caller intent का उपयोग करके Anthropic Claude.",
+              "n8nTemplateName": "Anthropic Intent विश्लेषक",
+              "n8nTemplateDescription": "Analyzes caller intent",
+              "expectedOutcome": "कॉलर इंटेंट विश्लेषित"
+            },
+            "anth-emails": {
+              "title": "जनरेट करें फॉलो-अप emails",
+              "description": "जनरेट करें personalized फॉलो-अप emails के आधार पर call सामग्री.",
+              "n8nTemplateName": "Anthropic Email जनरेटर",
+              "n8nTemplateDescription": "जनरेट करता है फॉलो-अप emails",
+              "expectedOutcome": "फॉलो-अप email draft जनरेट किया गया"
+            },
+            "anth-quality": {
+              "title": "गुणवत्ता स्कोरिंग",
+              "description": "Score call quality और agent performance का उपयोग करके Anthropic.",
+              "n8nTemplateName": "Anthropic Quality स्कोरर",
+              "n8nTemplateDescription": "Scores call quality",
+              "expectedOutcome": "Quality score जनरेट किया गया"
+            }
+          }
+        },
+        "google-gemini": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Google AI API Key",
+          "field2Label": "प्रोजेक्ट ID",
+          "field2Placeholder": "दर्ज करें Google Cloud Project ID (optional)",
+          "helpText": "Get your API key from Google AI Studio or Google Cloud Console with the Generative AI API enabled.",
+          "setupLinkText": "खोलें Google AI Studio",
+          "useCases": {
+            "gemini-transcript": {
+              "title": "Transcript विश्लेषण",
+              "description": "विश्लेषण करें ट्रांसक्रिप्ट de कॉल का उपयोग करके Google Gemini के लिए अंतर्दृष्टि.",
+              "n8nTemplateName": "Gemini Transcript विश्लेषक",
+              "n8nTemplateDescription": "Analyzes ट्रांसक्रिप्ट",
+              "expectedOutcome": "Transcript विश्लेषण पूर्ण"
+            },
+            "gemini-multilang": {
+              "title": "बहुभाषी सारांश",
+              "description": "Summarize कॉल्स में multiple languages का उपयोग करके Gemini.",
+              "n8nTemplateName": "Gemini Multi-lang सारांशकर्ता",
+              "n8nTemplateDescription": "Multi-language सारांश",
+              "expectedOutcome": "Multi-language सारांश जनरेट किया गया"
+            },
+            "gemini-intent": {
+              "title": "इंटेंट निष्कर्षण",
+              "description": "Extract caller intents से बातचीत का उपयोग करके Gemini.",
+              "n8nTemplateName": "Gemini Intent एक्सट्रैक्टर",
+              "n8nTemplateDescription": "Extracts caller intents",
+              "expectedOutcome": "Intents निकाला गया से call"
+            },
+            "gemini-knowledge": {
+              "title": "ज्ञान पुनर्प्राप्ति",
+              "description": "Retrieve relevant knowledge base articles का उपयोग करके Gemini.",
+              "n8nTemplateName": "Gemini रिट्रीवर de ज्ञान",
+              "n8nTemplateDescription": "Retrieves knowledge articles",
+              "expectedOutcome": "प्रासंगिक ज्ञान प्राप्त"
+            }
+          }
+        },
+        "elevenlabs": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें ElevenLabs API Key",
+          "field2Label": "डिफ़ॉल्ट वॉइस ID",
+          "field2Placeholder": "Enter default voice ID (optional)",
+          "helpText": "Find your API key in ElevenLabs Profile Settings. Voice IDs are found in the Voices section.",
+          "setupLinkText": "Open ElevenLabs Settings",
+          "useCases": {
+            "el-clone-voice": {
+              "title": "Clone brand आवाज",
+              "description": "Clone and use your brand voice for consistent AI agent responses.",
+              "n8nTemplateName": "ElevenLabs वॉइस क्लोनर",
+              "n8nTemplateDescription": "Clones brand आवाज",
+              "expectedOutcome": "Brand आवाज cloned और ready"
+            },
+            "el-multilang": {
+              "title": "Multi-language TTS",
+              "description": "जनरेट करें speech में multiple languages का उपयोग करके ElevenLabs.",
+              "n8nTemplateName": "ElevenLabs बहुभाषी TTS",
+              "n8nTemplateDescription": "Multi-language speech",
+              "expectedOutcome": "Multi-language speech जनरेट किया गया"
+            },
+            "el-quality": {
+              "title": "आवाज गुणवत्ता अनुकूलन",
+              "description": "Optimize voice output quality settings for ElevenLabs.",
+              "n8nTemplateName": "ElevenLabs Quality ऑप्टिमाइज़र",
+              "n8nTemplateDescription": "Optimizes आवाज quality",
+              "expectedOutcome": "Voice quality optimized"
+            },
+            "el-pronunciations": {
+              "title": "कस्टम उच्चारण",
+              "description": "Configure custom pronunciations के लिए names और terms.",
+              "n8nTemplateName": "ElevenLabs Pronunciation कॉन्फ़िगरेटर",
+              "n8nTemplateDescription": "Configures pronunciations",
+              "expectedOutcome": "कस्टम उच्चारण configured"
+            }
+          }
+        },
+        "deepgram": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Deepgram API Key",
+          "field2Label": "प्रोजेक्ट ID",
+          "field2Placeholder": "दर्ज करें Deepgram Project ID",
+          "helpText": "Create an API key in the Deepgram Console under your project settings.",
+          "setupLinkText": "Open Deepgram Console",
+          "useCases": {
+            "dg-realtime": {
+              "title": "रीयल-टाइम ट्रांसक्रिप्शन",
+              "description": "Transcribe कॉल्स में रीयल-टाइम का उपयोग करके Deepgram speech-को-text.",
+              "n8nTemplateName": "Deepgram रीयल-टाइम STT",
+              "n8nTemplateDescription": "रीयल-टाइम ट्रांसक्रिप्शन",
+              "expectedOutcome": "रीयल-टाइम ट्रांसक्रिप्ट जनरेट किया गया"
+            },
+            "dg-diarization": {
+              "title": "स्पीकर डायराइज़ेशन",
+              "description": "Identify और separate speakers में रिकॉर्डिंग de कॉल का उपयोग करके Deepgram.",
+              "n8nTemplateName": "Deepgram Speaker डायराइज़र",
+              "n8nTemplateDescription": "Identifies speakers",
+              "expectedOutcome": "Speakers identified और separated"
+            },
+            "dg-keywords": {
+              "title": "कीवर्ड पहचान",
+              "description": "पहचानें specific keywords और phrases में रीयल-टाइम.",
+              "n8nTemplateName": "Deepgram Keyword डिटेक्टर",
+              "n8nTemplateDescription": "Detects keywords",
+              "expectedOutcome": "Keywords पहचाने गए में बातचीत"
+            },
+            "dg-sentiment": {
+              "title": "Sentiment से आवाज",
+              "description": "विश्लेषण करें भावना से आवाज tone का उपयोग करके Deepgram.",
+              "n8nTemplateName": "Deepgram वॉइस सेंटिमेंट",
+              "n8nTemplateDescription": "Analyzes आवाज भावना",
+              "expectedOutcome": "Voice भावना analyzed"
+            }
+          }
+        },
+        "zendesk": {
+          "field1Label": "API टोकन",
+          "field1Placeholder": "Enter your Zendesk API Token",
+          "field2Label": "सबडोमेन",
+          "field2Placeholder": "e.g. yourcompany (से yourcompany.zendesk.com)",
+          "helpText": "Generate an API token in Zendesk Admin > Apps and Integrations > APIs > Zendesk API.",
+          "setupLinkText": "खोलें Zendesk Admin",
+          "actions": {
+            "create-ticket": {
+              "name": "बनाएं Ticket",
+              "description": "बनाएं support ticket से call"
+            },
+            "update-ticket": {
+              "name": "अपडेट करें Ticket",
+              "description": "अपडेट करें existing ticket के साथ नोट्स de कॉल"
+            }
+          },
+          "useCases": {
+            "zd-create-tickets": {
+              "title": "बनाएं टिकट से कॉल्स",
+              "description": "बनाएं स्वचालित रूप से Zendesk support टिकट से customer कॉल्स.",
+              "n8nTemplateName": "Zendesk निर्माता de टिकट",
+              "n8nTemplateDescription": "बनाता है टिकट से कॉल्स",
+              "expectedOutcome": "Support ticket बनाया गया में Zendesk"
+            },
+            "zd-update-status": {
+              "title": "अपडेट करें ticket स्थिति",
+              "description": "अपडेट करें Zendesk ticket स्थिति के आधार पर call resolution.",
+              "n8nTemplateName": "Zendesk Status अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है ticket स्थिति",
+              "expectedOutcome": "Ticket स्थिति अपडेट किया गया में Zendesk"
+            },
+            "zd-escalate": {
+              "title": "समस्याएं एस्कलेट करें",
+              "description": "Escalate high-priority issues को Zendesk support teams.",
+              "n8nTemplateName": "Zendesk Issue एस्कलेटर",
+              "n8nTemplateDescription": "Escalates issues",
+              "expectedOutcome": "Issue escalated में Zendesk"
+            },
+            "zd-transcripts": {
+              "title": "लॉग करें ट्रांसक्रिप्ट de कॉल",
+              "description": "Attach ट्रांसक्रिप्ट de कॉल को Zendesk टिकट.",
+              "n8nTemplateName": "Zendesk Transcript लॉगर",
+              "n8nTemplateDescription": "लॉग करता है ट्रांसक्रिप्ट को टिकट",
+              "expectedOutcome": "Transcript attached को Zendesk ticket"
+            }
+          }
+        },
+        "freshdesk": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Freshdesk API Key",
+          "field2Label": "डोमेन",
+          "field2Placeholder": "उदा. yourcompany.freshdesk.com",
+          "helpText": "Find your API key in Freshdesk: Profile Settings > Your API Key.",
+          "setupLinkText": "खोलें Freshdesk",
+          "actions": {
+            "create-ticket": {
+              "name": "बनाएं Ticket",
+              "description": "बनाएं Freshdesk ticket से call"
+            },
+            "sync-contacts": {
+              "name": "सिंक करें Contacts",
+              "description": "सिंक करें संपर्क से Freshdesk"
+            }
+          },
+          "useCases": {
+            "fd-create-tickets": {
+              "title": "स्वचालित रूप से-बनाएं टिकट",
+              "description": "बनाएं स्वचालित रूप से Freshdesk टिकट से support कॉल्स.",
+              "n8nTemplateName": "Freshdesk निर्माता de टिकट",
+              "n8nTemplateDescription": "बनाता है टिकट स्वचालित रूप से",
+              "expectedOutcome": "Ticket बनाया गया में Freshdesk"
+            },
+            "fd-update-status": {
+              "title": "अपडेट करें support स्थिति",
+              "description": "अपडेट करें Freshdesk ticket स्थिति के बाद call resolution.",
+              "n8nTemplateName": "Freshdesk Status अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है support स्थिति",
+              "expectedOutcome": "Support स्थिति अपडेट किया गया"
+            },
+            "fd-assign": {
+              "title": "असाइन करें agents",
+              "description": "असाइन करें agents को Freshdesk टिकट के आधार पर call routing.",
+              "n8nTemplateName": "Freshdesk एजेंट असाइनर",
+              "n8nTemplateDescription": "Assigns agents",
+              "expectedOutcome": "Agent assigned को ticket"
+            },
+            "fd-log": {
+              "title": "लॉग करें इंटरैक्शन",
+              "description": "लॉग करें call इंटरैक्शन में Freshdesk बातचीत इतिहास.",
+              "n8nTemplateName": "Freshdesk Interaction लॉगर",
+              "n8nTemplateDescription": "लॉग करता है इंटरैक्शन",
+              "expectedOutcome": "Interaction logged में Freshdesk"
+            }
+          }
+        },
+        "google-calendar": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Google Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Google Client Secret",
+          "helpText": "In Google Cloud Console, create an OAuth 2.0 Client ID. Enable the Google Calendar API for your project and add the redirect URL below.",
+          "setupLinkText": "Open Google Cloud Console",
+          "actions": {
+            "create-event": {
+              "name": "Book Appointment",
+              "description": "बनाएं calendar event के दौरान call"
+            },
+            "check-availability": {
+              "name": "जांचें Availability",
+              "description": "जांचें calendar availability"
+            }
+          },
+          "useCases": {
+            "gcal-book": {
+              "title": "Book appointments के दौरान कॉल्स",
+              "description": "Book appointments on Google Calendar during live calls.",
+              "n8nTemplateName": "Google Calendar बुकर",
+              "n8nTemplateDescription": "Books appointments",
+              "expectedOutcome": "अपॉइंटमेंट बुक किया Google Calendar"
+            },
+            "gcal-availability": {
+              "title": "जांचें availability",
+              "description": "जांचें Google Calendar availability के दौरान scheduling कॉल्स.",
+              "n8nTemplateName": "Google Calendar Availability चेकर",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "उपलब्धता जांची गई Google Calendar"
+            },
+            "gcal-reminders": {
+              "title": "भेजें reminders",
+              "description": "भेजें appointment reminders के जरिए Google Calendar.",
+              "n8nTemplateName": "Google Calendar रिमाइंडर",
+              "n8nTemplateDescription": "भेजता है reminders",
+              "expectedOutcome": "Reminder भेजा गया के जरिए Google Calendar"
+            },
+            "gcal-block": {
+              "title": "समय स्लॉट ब्लॉक करें",
+              "description": "Block time slots on Google Calendar after booking.",
+              "n8nTemplateName": "Google Calendar ब्लॉकर",
+              "n8nTemplateDescription": "Blocks time slots",
+              "expectedOutcome": "Time slot blocked on Google Calendar"
+            }
+          }
+        },
+        "calendly": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "Enter your Calendly Personal Access Token",
+          "field2Label": "संगठन URI",
+          "field2Placeholder": "दर्ज करें Calendly Organization URI",
+          "helpText": "Generate a Personal Access Token in Calendly: Integrations > API & Webhooks. Find your Organization URI in the API response.",
+          "setupLinkText": "खोलें Calendly Integrations",
+          "actions": {
+            "create-scheduling-link": {
+              "name": "भेजें Scheduling Link",
+              "description": "जनरेट करें और share Calendly link"
+            },
+            "check-availability": {
+              "name": "जांचें Availability",
+              "description": "जांचें available time slots"
+            }
+          },
+          "useCases": {
+            "calendly-links": {
+              "title": "जनरेट करें scheduling links",
+              "description": "जनरेट करें Calendly scheduling links के दौरान कॉल्स.",
+              "n8nTemplateName": "Calendly Link जनरेटर",
+              "n8nTemplateDescription": "जनरेट करता है scheduling links",
+              "expectedOutcome": "Scheduling link जनरेट किया गया"
+            },
+            "calendly-availability": {
+              "title": "जांचें availability",
+              "description": "जांचें Calendly availability के लिए scheduling.",
+              "n8nTemplateName": "Calendly Availability चेकर",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "उपलब्धता जांची गई Calendly"
+            },
+            "calendly-confirm": {
+              "title": "बुकिंग पुष्टि करें",
+              "description": "Confirm Calendly bookings के बाद call scheduling.",
+              "n8nTemplateName": "Calendly Booking कन्फ़र्मर",
+              "n8nTemplateDescription": "Confirms bookings",
+              "expectedOutcome": "Booking confirmed on Calendly"
+            },
+            "calendly-reminders": {
+              "title": "भेजें reminders",
+              "description": "भेजें appointment reminders के माध्यम से Calendly.",
+              "n8nTemplateName": "Calendly रिमाइंडर",
+              "n8nTemplateDescription": "भेजता है reminders",
+              "expectedOutcome": "Reminder भेजा गया के जरिए Calendly"
+            }
+          }
+        },
+        "stripe": {
+          "field1Label": "गुप्त कुंजी",
+          "field1Placeholder": "दर्ज करें Stripe Secret Key (sk_...)",
+          "field2Label": "Webhook Secret",
+          "field2Placeholder": "Enter your Stripe Webhook Secret (whsec_...)",
+          "helpText": "Find your API keys in the Stripe Dashboard > Developers > API Keys. Create a webhook endpoint and copy the signing secret.",
+          "setupLinkText": "खोलें Stripe Dashboard",
+          "actions": {
+            "lookup-customer": {
+              "name": "Lookup Customer",
+              "description": "Look up customer payment info"
+            },
+            "create-invoice": {
+              "name": "बनाएं Invoice",
+              "description": "बनाएं invoice के बाद call"
+            }
+          },
+          "useCases": {
+            "stripe-payments": {
+              "title": "भुगतान प्रोसेस करें",
+              "description": "Process payments के दौरान कॉल्स का उपयोग करके Stripe.",
+              "n8nTemplateName": "Stripe Payment प्रोसेसर",
+              "n8nTemplateDescription": "Processes payments",
+              "expectedOutcome": "Payment processed के जरिए Stripe"
+            },
+            "stripe-invoices": {
+              "title": "बनाएं invoices",
+              "description": "बनाएं और send invoices के माध्यम से Stripe के बाद कॉल्स.",
+              "n8nTemplateName": "Stripe Invoice निर्माता",
+              "n8nTemplateDescription": "बनाता है invoices",
+              "expectedOutcome": "Invoice बनाया गया में Stripe"
+            },
+            "stripe-subscriptions": {
+              "title": "Look up subscriptions",
+              "description": "Look up customer subscription details during calls.",
+              "n8nTemplateName": "Stripe Subscription खोज",
+              "n8nTemplateDescription": "Looks up subscriptions",
+              "expectedOutcome": "Subscription विवरण retrieved"
+            },
+            "stripe-refunds": {
+              "title": "रिफंड प्रबंधित करें",
+              "description": "Process refund requests के दौरान support कॉल्स.",
+              "n8nTemplateName": "Stripe Refund हैंडलर",
+              "n8nTemplateDescription": "Handles refunds",
+              "expectedOutcome": "Refund processed के जरिए Stripe"
+            }
+          }
+        },
+        "shopify": {
+          "field1Label": "एक्सेस टोकन",
+          "field1Placeholder": "Enter your Shopify Admin API Access Token",
+          "field2Label": "स्टोर डोमेन",
+          "field2Placeholder": "उदा. yourstore.myshopify.com",
+          "helpText": "Create a Custom App in Shopify Admin > Settings > Apps and sales channels > Develop apps. Install and copy the Admin API access token.",
+          "setupLinkText": "खोलें Shopify Admin",
+          "actions": {
+            "lookup-order": {
+              "name": "Lookup Order",
+              "description": "Look up customer order details"
+            },
+            "lookup-product": {
+              "name": "Lookup Product",
+              "description": "जांचें product availability"
+            }
+          },
+          "useCases": {
+            "shopify-orders": {
+              "title": "ऑर्डर खोजें",
+              "description": "Look up customer orders in Shopify during calls.",
+              "n8nTemplateName": "Shopify Order खोज",
+              "n8nTemplateDescription": "Looks up orders",
+              "expectedOutcome": "Order विवरण retrieved से Shopify"
+            },
+            "shopify-inventory": {
+              "title": "जांचें inventory",
+              "description": "जांचें product inventory levels में Shopify.",
+              "n8nTemplateName": "Shopify Inventory चेकर",
+              "n8nTemplateDescription": "Checks inventory",
+              "expectedOutcome": "Inventory checked में Shopify"
+            },
+            "shopify-returns": {
+              "title": "रिटर्न प्रोसेस करें",
+              "description": "Process return requests के माध्यम से Shopify.",
+              "n8nTemplateName": "Shopify Return प्रोसेसर",
+              "n8nTemplateDescription": "Processes returns",
+              "expectedOutcome": "Return processed में Shopify"
+            },
+            "shopify-customers": {
+              "title": "ग्राहक खाता खोज",
+              "description": "Look up customer account details in Shopify.",
+              "n8nTemplateName": "Shopify Customer खोज",
+              "n8nTemplateDescription": "Looks up customers",
+              "expectedOutcome": "Customer विवरण retrieved से Shopify"
+            }
+          }
+        },
+        "activecampaign": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें ActiveCampaign API Key",
+          "field2Label": "खाता URL",
+          "field2Placeholder": "उदा. yourcompany.api-us1.com",
+          "helpText": "Find your API Key and URL in ActiveCampaign: Settings > Developer > API Access.",
+          "setupLinkText": "खोलें ActiveCampaign",
+          "actions": {
+            "add-contact": {
+              "name": "जोड़ें संपर्क",
+              "description": "जोड़ें contact को ActiveCampaign"
+            },
+            "add-tag": {
+              "name": "जोड़ें Tag",
+              "description": "Tag contact के आधार पर call outcome"
+            }
+          },
+          "useCases": {
+            "ac-add-contacts": {
+              "title": "जोड़ें संपर्क",
+              "description": "जोड़ें नया संपर्क को ActiveCampaign से कॉल्स.",
+              "n8nTemplateName": "ActiveCampaign संपर्क Adder",
+              "n8nTemplateDescription": "जोड़ता है संपर्क",
+              "expectedOutcome": "संपर्क added को ActiveCampaign"
+            },
+            "ac-tags": {
+              "title": "Apply टैग्स",
+              "description": "Apply टैग्स को ActiveCampaign संपर्क के आधार पर डेटा de कॉल.",
+              "n8nTemplateName": "ActiveCampaign Tag अप्लायर",
+              "n8nTemplateDescription": "Applies टैग्स",
+              "expectedOutcome": "Tags applied में ActiveCampaign"
+            },
+            "ac-automations": {
+              "title": "ट्रिगर करें automations",
+              "description": "ट्रिगर करें ActiveCampaign automations से इवेंट्स de कॉल.",
+              "n8nTemplateName": "ActiveCampaign Automation ट्रिगर",
+              "n8nTemplateDescription": "ट्रिगर करता है automations",
+              "expectedOutcome": "Automation triggered में ActiveCampaign"
+            },
+            "ac-deals": {
+              "title": "अपडेट करें deal stages",
+              "description": "अपडेट करें deal stages में ActiveCampaign के आधार पर परिणाम de कॉल.",
+              "n8nTemplateName": "ActiveCampaign अपडेट करें de सौदे",
+              "n8nTemplateDescription": "अपडेट करता है deal stages",
+              "expectedOutcome": "Deal stage अपडेट किया गया में ActiveCampaign"
+            }
+          }
+        },
+        "sendgrid": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें SendGrid API Key",
+          "field2Label": "प्रेषक ईमेल",
+          "field2Placeholder": "दर्ज करें verified sender email",
+          "helpText": "Create an API key in SendGrid: Settings > API Keys > Create API Key. Verify a sender identity first.",
+          "setupLinkText": "Open SendGrid Settings",
+          "useCases": {
+            "sg-transactional": {
+              "title": "भेजें transactional emails",
+              "description": "भेजें transactional emails के जरिए SendGrid के बाद कॉल्स.",
+              "n8nTemplateName": "SendGrid Transactional ईमेल",
+              "n8nTemplateDescription": "भेजता है transactional emails",
+              "expectedOutcome": "Transactional email भेजा गया के जरिए SendGrid"
+            },
+            "sg-followup": {
+              "title": "अनुक्रम de फॉलो-अप",
+              "description": "ट्रिगर करें फॉलो-अप अनुक्रम de correo के माध्यम से SendGrid.",
+              "n8nTemplateName": "SendGrid फॉलो-अप Sequence",
+              "n8nTemplateDescription": "अनुक्रम de फॉलो-अप",
+              "expectedOutcome": "फॉलो-अप sequence started"
+            },
+            "sg-notifications": {
+              "title": "Email सूचनाएं",
+              "description": "भेजें सूचनाएं por correo के लिए इवेंट्स de कॉल के जरिए SendGrid.",
+              "n8nTemplateName": "SendGrid Email नोटिफायर",
+              "n8nTemplateDescription": "Email सूचनाएं",
+              "expectedOutcome": "Email सूचना भेजा गया"
+            },
+            "sg-templates": {
+              "title": "टेम्पलेट प्रबंधन",
+              "description": "Manage and use SendGrid email templates for communications.",
+              "n8nTemplateName": "SendGrid Template प्रबंधक",
+              "n8nTemplateDescription": "Manages टेम्पलेट",
+              "expectedOutcome": "Template configured में SendGrid"
+            }
+          }
+        },
+        "microsoft-teams": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Azure Application Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Azure Client Secret",
+          "helpText": "Register an app in Azure Portal > App Registrations. Under API Permissions, add Microsoft Graph permissions for Teams. Add the redirect URL below.",
+          "setupLinkText": "Open Azure Portal",
+          "actions": {
+            "send-notification": {
+              "name": "भेजें Notification",
+              "description": "पोस्ट करें call alert को Teams channel"
+            }
+          },
+          "useCases": {
+            "teams-outcomes": {
+              "title": "Share परिणाम de कॉल",
+              "description": "Share परिणाम de कॉल और सारांश में Microsoft Teams चैनल.",
+              "n8nTemplateName": "Teams Outcome शेयरर",
+              "n8nTemplateDescription": "Shares परिणाम de कॉल",
+              "expectedOutcome": "Call outcome shared में Teams"
+            },
+            "teams-alerts": {
+              "title": "Campaign अलर्ट",
+              "description": "भेजें अभियान performance अलर्ट को Teams चैनल.",
+              "n8nTemplateName": "Teams Campaign अलर्ट",
+              "n8nTemplateDescription": "Campaign performance अलर्ट",
+              "expectedOutcome": "Campaign alert भेजा गया को Teams"
+            },
+            "teams-notifications": {
+              "title": "Team सूचनाएं",
+              "description": "भेजें team-wide सूचनाएं के लिए important इवेंट्स de कॉल.",
+              "n8nTemplateName": "Teams नोटिफायर",
+              "n8nTemplateDescription": "Team सूचनाएं",
+              "expectedOutcome": "Team सूचना भेजा गया"
+            },
+            "teams-followups": {
+              "title": "बैठक फॉलो-अप",
+              "description": "भेजें meeting फॉलो-अप संदेश के बाद कॉल्स.",
+              "n8nTemplateName": "Teams Meeting फॉलो-अप",
+              "n8nTemplateDescription": "बैठक फॉलो-अप",
+              "expectedOutcome": "फॉलो-अप message भेजा गया में Teams"
+            }
+          }
+        },
+        "telegram": {
+          "field1Label": "बॉट टोकन",
+          "field1Placeholder": "Enter your Telegram Bot Token",
+          "field2Label": "चैट ID",
+          "field2Placeholder": "Enter the target Chat/Group ID",
+          "helpText": "Create a bot via @BotFather on Telegram. Use @userinfobot or the getUpdates API method to find your Chat ID.",
+          "setupLinkText": "खोलें BotFather",
+          "actions": {
+            "send-notification": {
+              "name": "भेजें Notification",
+              "description": "भेजें call alert को Telegram"
+            },
+            "send-report": {
+              "name": "भेजें Campaign Report",
+              "description": "भेजें अभियान सारांश को Telegram"
+            }
+          },
+          "useCases": {
+            "tg-alerts": {
+              "title": "भेजें call अलर्ट",
+              "description": "भेजें instant call अलर्ट को Telegram groups या चैनल.",
+              "n8nTemplateName": "Telegram Call अलर्ट",
+              "n8nTemplateDescription": "भेजता है call अलर्ट",
+              "expectedOutcome": "Call alert भेजा गया को Telegram"
+            },
+            "tg-status": {
+              "title": "Campaign स्थिति updates",
+              "description": "भेजें अभियान स्थिति updates को Telegram.",
+              "n8nTemplateName": "Telegram Status अपडेटर",
+              "n8nTemplateDescription": "Campaign स्थिति updates",
+              "expectedOutcome": "Status update भेजा गया को Telegram"
+            },
+            "tg-leads": {
+              "title": "लीड सूचनाएं",
+              "description": "सूचित करें team about नया लीड्स के जरिए Telegram.",
+              "n8nTemplateName": "Telegram लीड Notifier",
+              "n8nTemplateDescription": "लीड सूचनाएं",
+              "expectedOutcome": "लीड सूचना भेजा गया को Telegram"
+            },
+            "tg-reports": {
+              "title": "दैनिक रिपोर्ट",
+              "description": "भेजें daily performance reports को Telegram.",
+              "n8nTemplateName": "Telegram Daily रिपोर्ट",
+              "n8nTemplateDescription": "दैनिक रिपोर्ट",
+              "expectedOutcome": "Daily report भेजा गया को Telegram"
+            }
+          }
+        },
+        "whatsapp": {
+          "field1Label": "एक्सेस टोकन",
+          "field1Placeholder": "Enter your WhatsApp Business API Access Token",
+          "field2Label": "फोन नंबर ID",
+          "field2Placeholder": "दर्ज करें WhatsApp Phone Number ID",
+          "helpText": "Set up WhatsApp Business API through Meta for Developers. Create an app, add the WhatsApp product, and generate a permanent access token.",
+          "setupLinkText": "Open Meta for Developers",
+          "actions": {
+            "send-followup": {
+              "name": "भेजें फॉलो-अप",
+              "description": "भेजें WhatsApp फॉलो-अप message"
+            },
+            "send-template": {
+              "name": "भेजें Template Message",
+              "description": "भेजें pre-approved template message"
+            }
+          },
+          "useCases": {
+            "wa-followup": {
+              "title": "भेजें फॉलो-अप संदेश",
+              "description": "भेजें personalized फॉलो-अप संदेश के जरिए WhatsApp के बाद कॉल्स.",
+              "n8nTemplateName": "WhatsApp फॉलो-अप",
+              "n8nTemplateDescription": "भेजता है फॉलो-अप संदेश",
+              "expectedOutcome": "फॉलो-अप message भेजा गया के जरिए WhatsApp"
+            },
+            "wa-recordings": {
+              "title": "Share रिकॉर्डिंग de कॉल",
+              "description": "Share call recording सारांश के जरिए WhatsApp.",
+              "n8nTemplateName": "WhatsApp Recording शेयरर",
+              "n8nTemplateDescription": "Shares रिकॉर्डिंग de कॉल",
+              "expectedOutcome": "Recording सारांश shared के जरिए WhatsApp"
+            },
+            "wa-appointments": {
+              "title": "अपॉइंटमेंट पुष्टि",
+              "description": "भेजें appointment confirmation संदेश के जरिए WhatsApp.",
+              "n8nTemplateName": "WhatsApp Appointment कन्फ़र्मर",
+              "n8nTemplateDescription": "Confirms appointments",
+              "expectedOutcome": "Appointment confirmation भेजा गया के जरिए WhatsApp"
+            },
+            "wa-nurture": {
+              "title": "लीड nurture संदेश",
+              "description": "भेजें lead nurture संदेश के जरिए WhatsApp.",
+              "n8nTemplateName": "WhatsApp लीड Nurturer",
+              "n8nTemplateDescription": "Nurtures लीड्स",
+              "expectedOutcome": "Nurture message भेजा गया के जरिए WhatsApp"
+            }
+          }
+        },
+        "discord": {
+          "field1Label": "बॉट टोकन",
+          "field1Placeholder": "Enter your Discord Bot Token",
+          "field2Label": "चैनल ID",
+          "field2Placeholder": "Enter the target Channel ID",
+          "helpText": "Create a bot in the Discord Developer Portal. Enable Developer Mode in Discord settings to copy Channel IDs.",
+          "setupLinkText": "Open Discord Developer Portal",
+          "actions": {
+            "send-notification": {
+              "name": "भेजें Notification",
+              "description": "पोस्ट करें call update को Discord channel"
+            }
+          },
+          "useCases": {
+            "discord-updates": {
+              "title": "पोस्ट करें call updates",
+              "description": "पोस्ट करें call updates और सारांश को Discord चैनल.",
+              "n8nTemplateName": "Discord अपडेटर de कॉल",
+              "n8nTemplateDescription": "Posts call updates",
+              "expectedOutcome": "Call update posted को Discord"
+            },
+            "discord-campaign": {
+              "title": "Campaign अलर्ट",
+              "description": "भेजें अभियान performance अलर्ट को Discord.",
+              "n8nTemplateName": "Discord Campaign अलर्ट",
+              "n8nTemplateDescription": "Campaign अलर्ट",
+              "expectedOutcome": "Campaign alert posted को Discord"
+            },
+            "discord-team": {
+              "title": "Team सूचनाएं",
+              "description": "भेजें team सूचनाएं के लिए important इवेंट्स को Discord.",
+              "n8nTemplateName": "Discord Team नोटिफायर",
+              "n8nTemplateDescription": "Team सूचनाएं",
+              "expectedOutcome": "Team सूचना भेजा गया को Discord"
+            },
+            "discord-leads": {
+              "title": "लीड अलर्ट",
+              "description": "Alert team about नया लीड्स में Discord चैनल.",
+              "n8nTemplateName": "Discord लीड Alert",
+              "n8nTemplateDescription": "लीड अलर्ट",
+              "expectedOutcome": "लीड alert posted को Discord"
+            }
+          }
+        },
+        "zapier": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Zapier Webhook URL",
+          "field2Label": "गुप्त कुंजी",
+          "field2Placeholder": "Enter a shared secret key (optional)",
+          "helpText": "Create a Zap with a 'Webhooks by Zapier' trigger. Copy the webhook URL provided and paste it here.",
+          "setupLinkText": "खोलें Zapier",
+          "actions": {
+            "trigger-webhook": {
+              "name": "Trigger Webhook",
+              "description": "Send call data to Zapier webhook"
+            }
+          },
+          "useCases": {
+            "zapier-trigger": {
+              "title": "ट्रिगर करें zaps से कॉल्स",
+              "description": "ट्रिगर करें Zapier zaps के साथ डेटा de कॉल के लिए cross-app automation.",
+              "n8nTemplateName": "Zapier Zap ट्रिगर",
+              "n8nTemplateDescription": "ट्रिगर करता है zaps",
+              "expectedOutcome": "Zap triggered में Zapier"
+            },
+            "zapier-multi": {
+              "title": "Multi-step वर्कफ़्लो",
+              "description": "Execute multi-step Zapier वर्कफ़्लो से इवेंट्स de कॉल.",
+              "n8nTemplateName": "Zapier Multi-step Workflow",
+              "n8nTemplateDescription": "Multi-step वर्कफ़्लो",
+              "expectedOutcome": "Multi-step वर्कफ़्लो executed"
+            },
+            "zapier-cross": {
+              "title": "क्रॉस-ऐप ऑटोमेशन",
+              "description": "Automate cross-app वर्कफ़्लो triggered by कॉल्स.",
+              "n8nTemplateName": "Zapier Cross-app Automation",
+              "n8nTemplateDescription": "क्रॉस-ऐप ऑटोमेशन",
+              "expectedOutcome": "क्रॉस-ऐप ऑटोमेशन triggered"
+            },
+            "zapier-routing": {
+              "title": "सशर्त रूटिंग",
+              "description": "रूट करें डेटा de कॉल conditionally के माध्यम से Zapier paths.",
+              "n8nTemplateName": "Zapier Conditional राउटर",
+              "n8nTemplateDescription": "सशर्त रूटिंग",
+              "expectedOutcome": "Data routed conditionally"
+            }
+          }
+        },
+        "make": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Make.com Webhook URL",
+          "field2Label": "गुप्त कुंजी",
+          "field2Placeholder": "Enter a shared secret key (optional)",
+          "helpText": "Create a scenario in Make with a Webhooks module. Copy the webhook URL and paste it here.",
+          "setupLinkText": "खोलें Make.com",
+          "useCases": {
+            "make-scenarios": {
+              "title": "ट्रिगर करें scenarios",
+              "description": "ट्रिगर करें Make (Integromat) scenarios से इवेंट्स de कॉल.",
+              "n8nTemplateName": "Make Scenario ट्रिगर",
+              "n8nTemplateDescription": "ट्रिगर करता है scenarios",
+              "expectedOutcome": "Scenario triggered में Make"
+            },
+            "make-complex": {
+              "title": "Complex वर्कफ़्लो",
+              "description": "Execute complex multi-module वर्कफ़्लो में Make.",
+              "n8nTemplateName": "Make Complex Workflow",
+              "n8nTemplateDescription": "Complex वर्कफ़्लो",
+              "expectedOutcome": "Complex वर्कफ़्लो executed"
+            },
+            "make-transform": {
+              "title": "डेटा परिवर्तन",
+              "description": "Transform डेटा de कॉल का उपयोग करके Make डेटा processing modules.",
+              "n8nTemplateName": "Make डेटा Transformer",
+              "n8nTemplateDescription": "Transforms डेटा",
+              "expectedOutcome": "Data transformed में Make"
+            },
+            "make-multi": {
+              "title": "मल्टी-ऐप एकीकरण",
+              "description": "Integrate multiple apps के माध्यम से Make scenarios.",
+              "n8nTemplateName": "Make Multi-app Integration",
+              "n8nTemplateDescription": "मल्टी-ऐप एकीकरण",
+              "expectedOutcome": "मल्टी-ऐप एकीकरण executed"
+            }
+          }
+        },
+        "notion": {
+          "field1Label": "एकीकरण टोकन",
+          "field1Placeholder": "Enter your Notion Integration Token",
+          "field2Label": "डेटाबेस ID",
+          "field2Placeholder": "Enter the target Notion Database ID",
+          "helpText": "Create an integration at notion.so/my-integrations. Share the target database with your integration. Find the Database ID in the database URL.",
+          "setupLinkText": "खोलें Notion Integrations",
+          "actions": {
+            "create-page": {
+              "name": "बनाएं Page",
+              "description": "बनाएं Notion page के साथ नोट्स de कॉल"
+            },
+            "update-database": {
+              "name": "अपडेट करें Database",
+              "description": "जोड़ें call रिकॉर्ड्स को Notion database"
+            }
+          },
+          "useCases": {
+            "notion-pages": {
+              "title": "बनाएं pages से नोट्स de कॉल",
+              "description": "बनाएं Notion pages से नोट्स de कॉल और ट्रांसक्रिप्ट.",
+              "n8nTemplateName": "Notion Page निर्माता",
+              "n8nTemplateDescription": "बनाता है pages से कॉल्स",
+              "expectedOutcome": "Page बनाया गया में Notion"
+            },
+            "notion-databases": {
+              "title": "अपडेट करें databases",
+              "description": "अपडेट करें Notion databases के साथ call रिकॉर्ड्स और डेटा.",
+              "n8nTemplateName": "Notion Database अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है databases",
+              "expectedOutcome": "Database अपडेट किया गया में Notion"
+            },
+            "notion-meetings": {
+              "title": "लॉग करें meetings",
+              "description": "लॉग करें meeting नोट्स और सारांश de कॉल में Notion.",
+              "n8nTemplateName": "Notion लॉगर de बैठक",
+              "n8nTemplateDescription": "लॉग करता है meetings",
+              "expectedOutcome": "Meeting logged में Notion"
+            },
+            "notion-kb": {
+              "title": "ज्ञान आधार अपडेट",
+              "description": "अपडेट करें Notion knowledge base के साथ अंतर्दृष्टि से कॉल्स.",
+              "n8nTemplateName": "Notion KB अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है knowledge base",
+              "expectedOutcome": "Knowledge base अपडेट किया गया में Notion"
+            }
+          }
+        },
+        "helpscout": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Help Scout API Key",
+          "field2Label": "मेलबॉक्स ID",
+          "field2Placeholder": "दर्ज करें Help Scout Mailbox ID",
+          "helpText": "Generate an API key in Help Scout: Your Profile > API Keys. Find your Mailbox ID in Mailbox settings.",
+          "setupLinkText": "खोलें Help Scout",
+          "useCases": {
+            "hs-create-convs": {
+              "title": "बनाएं बातचीत",
+              "description": "बनाएं Help Scout बातचीत से support कॉल्स.",
+              "n8nTemplateName": "Help Scout Conversation निर्माता",
+              "n8nTemplateDescription": "बनाता है बातचीत",
+              "expectedOutcome": "Conversation बनाया गया में Help Scout"
+            },
+            "hs-add-notes": {
+              "title": "जोड़ें नोट्स de कॉल",
+              "description": "जोड़ें नोट्स de कॉल और ट्रांसक्रिप्ट को Help Scout बातचीत.",
+              "n8nTemplateName": "Help Scout Note एडर",
+              "n8nTemplateDescription": "जोड़ता है नोट्स de कॉल",
+              "expectedOutcome": "Notes added को Help Scout"
+            },
+            "hs-update-mailbox": {
+              "title": "अपडेट करें mailbox",
+              "description": "अपडेट करें Help Scout mailbox के साथ call-related जानकारी.",
+              "n8nTemplateName": "Help Scout Mailbox अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है mailbox",
+              "expectedOutcome": "Mailbox अपडेट किया गया में Help Scout"
+            },
+            "hs-followup": {
+              "title": "Customer फॉलो-अप",
+              "description": "भेजें customer फॉलो-अप संदेश के माध्यम से Help Scout.",
+              "n8nTemplateName": "Help Scout फॉलो-अप",
+              "n8nTemplateDescription": "Customer फॉलो-अप",
+              "expectedOutcome": "फॉलो-अप भेजा गया के जरिए Help Scout"
+            }
+          }
+        },
+        "google-analytics": {
+          "field1Label": "मापन ID",
+          "field1Placeholder": "दर्ज करें GA4 Measurement ID (G-...)",
+          "field2Label": "API सीक्रेट",
+          "field2Placeholder": "दर्ज करें Measurement Protocol API Secret",
+          "helpText": "Find your Measurement ID in GA4: Admin > Data Streams > Web. Create an API Secret under the same stream's Measurement Protocol API secrets.",
+          "setupLinkText": "खोलें Google Analytics",
+          "useCases": {
+            "ga-events": {
+              "title": "ट्रैक करें इवेंट्स de कॉल",
+              "description": "ट्रैक करें इवेंट्स de कॉल में Google Analytics के लिए attribution.",
+              "n8nTemplateName": "GA Call ट्रैकर de इवेंट",
+              "n8nTemplateDescription": "ट्रैक करता है इवेंट्स de कॉल",
+              "expectedOutcome": "Call event tracked में GA"
+            },
+            "ga-attribution": {
+              "title": "Conversion attribution",
+              "description": "Attribute conversions को specific कॉल्स में Google Analytics.",
+              "n8nTemplateName": "GA Conversion Attributor",
+              "n8nTemplateDescription": "Attributes conversions",
+              "expectedOutcome": "Conversion attributed में GA"
+            },
+            "ga-campaigns": {
+              "title": "Campaign एनालिटिक्स",
+              "description": "ट्रैक करें अभियान performance एनालिटिक्स में Google Analytics.",
+              "n8nTemplateName": "GA विश्लेषक de अभियान",
+              "n8nTemplateDescription": "Campaign एनालिटिक्स",
+              "expectedOutcome": "Campaign एनालिटिक्स अपडेट किया गया में GA"
+            },
+            "ga-behavior": {
+              "title": "User व्यवहार",
+              "description": "ट्रैक करें user व्यवहार पैटर्न related को कॉल्स.",
+              "n8nTemplateName": "GA Behavior ट्रैकर",
+              "n8nTemplateDescription": "ट्रैक करता है user व्यवहार",
+              "expectedOutcome": "Behavior tracked में GA"
+            }
+          }
+        },
+        "aws-s3": {
+          "field1Label": "एक्सेस कुंजी ID",
+          "field1Placeholder": "दर्ज करें AWS Access Key ID",
+          "field2Label": "सीक्रेट एक्सेस कुंजी",
+          "field2Placeholder": "दर्ज करें AWS Secret Access Key",
+          "helpText": "Create an IAM user with S3 permissions in AWS Console. Generate access keys under Security Credentials.",
+          "setupLinkText": "Open AWS IAM Console",
+          "useCases": {
+            "s3-recordings": {
+              "title": "स्टोर करें रिकॉर्डिंग",
+              "description": "स्टोर करें रिकॉर्डिंग de कॉल में AWS S3 buckets.",
+              "n8nTemplateName": "S3 Recording स्टोर",
+              "n8nTemplateDescription": "Stores रिकॉर्डिंग",
+              "expectedOutcome": "Recording stored में S3"
+            },
+            "s3-transcripts": {
+              "title": "Archive ट्रांसक्रिप्ट",
+              "description": "Archive ट्रांसक्रिप्ट de कॉल में AWS S3.",
+              "n8nTemplateName": "S3 Transcript आर्काइवर",
+              "n8nTemplateDescription": "Archives ट्रांसक्रिप्ट",
+              "expectedOutcome": "Transcript archived में S3"
+            },
+            "s3-backup": {
+              "title": "Backup डेटा",
+              "description": "Backup डेटा de कॉल और configurations को AWS S3.",
+              "n8nTemplateName": "S3 डेटा बैकअप",
+              "n8nTemplateDescription": "Backs up डेटा",
+              "expectedOutcome": "Data backed up को S3"
+            },
+            "s3-media": {
+              "title": "मीडिया प्रबंधन",
+              "description": "प्रबंधित करें media फाइलें और assets में AWS S3.",
+              "n8nTemplateName": "S3 Media प्रबंधक",
+              "n8nTemplateDescription": "Manages media",
+              "expectedOutcome": "Media managed में S3"
+            }
+          }
+        },
+        "bamboohr": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें BambooHR API Key",
+          "field2Label": "सबडोमेन",
+          "field2Placeholder": "e.g. yourcompany (से yourcompany.bamboohr.com)",
+          "helpText": "जनरेट करें एक API key में BambooHR: Account > API Keys.",
+          "setupLinkText": "खोलें BambooHR",
+          "useCases": {
+            "bamboo-sync": {
+              "title": "सिंक करें employee डेटा",
+              "description": "सिंक करें employee डेटा से BambooHR के लिए internal कॉल्स.",
+              "n8nTemplateName": "BambooHR Employee सिंक",
+              "n8nTemplateDescription": "सिंक करता है employee डेटा",
+              "expectedOutcome": "Employee डेटा synced से BambooHR"
+            },
+            "bamboo-interviews": {
+              "title": "लॉग करें interviews",
+              "description": "लॉग करें interview विवरण de कॉल में BambooHR.",
+              "n8nTemplateName": "BambooHR Interview लॉगर",
+              "n8nTemplateDescription": "लॉग करता है interviews",
+              "expectedOutcome": "Interview logged में BambooHR"
+            },
+            "bamboo-candidates": {
+              "title": "अपडेट करें candidate स्थिति",
+              "description": "अपडेट करें candidate स्थिति में BambooHR के बाद interview कॉल्स.",
+              "n8nTemplateName": "BambooHR Candidate अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है candidate स्थिति",
+              "expectedOutcome": "Candidate स्थिति अपडेट किया गया"
+            },
+            "bamboo-followups": {
+              "title": "Schedule follow-ups",
+              "description": "शेड्यूल करें फॉलो-अप गतिविधियां में BambooHR.",
+              "n8nTemplateName": "BambooHR फॉलो-अप Scheduler",
+              "n8nTemplateDescription": "Schedules follow-ups",
+              "expectedOutcome": "फॉलो-अप scheduled में BambooHR"
+            }
+          }
+        },
+        "acuity-scheduling": {
+          "field1Label": "उपयोगकर्ता ID",
+          "field1Placeholder": "दर्ज करें Acuity Scheduling User ID",
+          "field2Label": "API कुंजी",
+          "field2Placeholder": "दर्ज करें Acuity Scheduling API Key",
+          "helpText": "Find your API credentials in Acuity: Integrations > API. Copy your User ID and API Key.",
+          "setupLinkText": "खोलें Acuity Scheduling",
+          "useCases": {
+            "acuity-book": {
+              "title": "बुक करें appointments",
+              "description": "Book appointments के माध्यम से Acuity Scheduling के दौरान कॉल्स.",
+              "n8nTemplateName": "Acuity Appointment बुकर",
+              "n8nTemplateDescription": "Books appointments",
+              "expectedOutcome": "अपॉइंटमेंट बुक किया Acuity"
+            },
+            "acuity-openings": {
+              "title": "जांचें openings",
+              "description": "Check available openings on Acuity Scheduling.",
+              "n8nTemplateName": "Acuity Opening चेकर",
+              "n8nTemplateDescription": "Checks openings",
+              "expectedOutcome": "Openings checked on Acuity"
+            },
+            "acuity-confirm": {
+              "title": "भेजें confirmations",
+              "description": "भेजें booking confirmations के माध्यम से Acuity.",
+              "n8nTemplateName": "Acuity Confirmation प्रेषक",
+              "n8nTemplateDescription": "भेजता है confirmations",
+              "expectedOutcome": "Confirmation भेजा गया के जरिए Acuity"
+            },
+            "acuity-reschedule": {
+              "title": "प्रबंधित करें reschedules",
+              "description": "Handle appointment reschedules के माध्यम से Acuity.",
+              "n8nTemplateName": "Acuity Reschedule प्रबंधक",
+              "n8nTemplateDescription": "Manages reschedules",
+              "expectedOutcome": "Reschedule managed on Acuity"
+            }
+          }
+        },
+        "amazon-connect": {
+          "field1Label": "एक्सेस कुंजी ID",
+          "field1Placeholder": "दर्ज करें AWS Access Key ID",
+          "field2Label": "सीक्रेट एक्सेस कुंजी",
+          "field2Placeholder": "दर्ज करें AWS Secret Access Key",
+          "helpText": "Create an IAM user with Amazon Connect permissions. Generate access keys under Security Credentials. Note your Instance ID from the Amazon Connect console.",
+          "setupLinkText": "Open Amazon Connect Console",
+          "useCases": {
+            "ac-route-agents": {
+              "title": "रूट करें को live agents",
+              "description": "रूट करें कॉल्स को live agents में Amazon Connect के आधार पर AI विश्लेषण.",
+              "n8nTemplateName": "Amazon Connect Agent राउटर",
+              "n8nTemplateDescription": "Routes को live agents",
+              "expectedOutcome": "Call routed को live agent"
+            },
+            "ac-track-metrics": {
+              "title": "ट्रैक करें मेट्रिक्स de कॉल",
+              "description": "Track and report on call center metrics through Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect मेट्रिक्स",
+              "n8nTemplateDescription": "ट्रैक करता है मेट्रिक्स de कॉल",
+              "expectedOutcome": "Metrics tracked में Amazon Connect"
+            },
+            "ac-queue": {
+              "title": "कतार प्रबंधन",
+              "description": "प्रबंधित करें call queues और routing में Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect Queue प्रबंधक",
+              "n8nTemplateDescription": "Manages call queues",
+              "expectedOutcome": "Queue managed में Amazon Connect"
+            },
+            "ac-surveys": {
+              "title": "Post-call surveys",
+              "description": "ट्रिगर करें post-call surveys के माध्यम से Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect सर्वे",
+              "n8nTemplateDescription": "भेजता है post-call surveys",
+              "expectedOutcome": "Survey triggered के जरिए Amazon Connect"
+            }
+          }
+        },
+        "amazon-polly": {
+          "field1Label": "एक्सेस कुंजी ID",
+          "field1Placeholder": "दर्ज करें AWS Access Key ID",
+          "field2Label": "सीक्रेट एक्सेस कुंजी",
+          "field2Placeholder": "दर्ज करें AWS Secret Access Key",
+          "helpText": "Create an IAM user with Amazon Polly permissions in AWS Console. Generate access keys under Security Credentials.",
+          "setupLinkText": "Open Amazon Polly Console",
+          "useCases": {
+            "polly-prompts": {
+              "title": "जनरेट करें आवाज prompts",
+              "description": "जनरेट करें आवाज prompts और IVR संदेश का उपयोग करके Amazon Polly.",
+              "n8nTemplateName": "Amazon Polly Prompt जनरेटर",
+              "n8nTemplateDescription": "जनरेट करता है आवाज prompts",
+              "expectedOutcome": "Voice prompts जनरेट किया गया"
+            },
+            "polly-multilang": {
+              "title": "Multi-language support",
+              "description": "Support multiple languages के लिए आवाज synthesis.",
+              "n8nTemplateName": "Amazon Polly बहुभाषी",
+              "n8nTemplateDescription": "Multi-language TTS",
+              "expectedOutcome": "Multi-language audio जनरेट किया गया"
+            },
+            "polly-neural": {
+              "title": "Neural आवाज synthesis",
+              "description": "Use neural voice models for natural-sounding speech.",
+              "n8nTemplateName": "Amazon Polly Neural वॉइस",
+              "n8nTemplateDescription": "Neural आवाज synthesis",
+              "expectedOutcome": "Neural आवाज audio जनरेट किया गया"
+            },
+            "polly-lexicons": {
+              "title": "Custom lexicons",
+              "description": "Configure custom lexicons के लिए pronunciation rules.",
+              "n8nTemplateName": "Amazon Polly Lexicon कॉन्फ़िगरेटर",
+              "n8nTemplateDescription": "Configures lexicons",
+              "expectedOutcome": "Custom lexicon configured"
+            }
+          }
+        },
+        "azure-speech": {
+          "field1Label": "सब्सक्रिप्शन कुंजी",
+          "field1Placeholder": "दर्ज करें Azure Speech Services Key",
+          "field2Label": "क्षेत्र",
+          "field2Placeholder": "उदा. eastus, westeurope",
+          "helpText": "Create a Speech Services resource in Azure Portal. Find your key and region under Keys and Endpoint.",
+          "setupLinkText": "Open Azure Portal",
+          "useCases": {
+            "azure-neural": {
+              "title": "Custom neural voices",
+              "description": "Create and use custom neural voice models via Azure.",
+              "n8nTemplateName": "Azure Custom Neural वॉइस",
+              "n8nTemplateDescription": "Custom neural voices",
+              "expectedOutcome": "Custom neural आवाज बनाया गया"
+            },
+            "azure-translate": {
+              "title": "रीयल-टाइम translation",
+              "description": "Translate speech में रीयल-टाइम के दौरान कॉल्स.",
+              "n8nTemplateName": "Azure रीयल-टाइम Translator",
+              "n8nTemplateDescription": "रीयल-टाइम translation",
+              "expectedOutcome": "रीयल-टाइम translation सक्रिय"
+            },
+            "azure-pronunciation": {
+              "title": "Pronunciation tuning",
+              "description": "Fine-tune pronunciation के लिए specific terms और names.",
+              "n8nTemplateName": "Azure Pronunciation Tuner",
+              "n8nTemplateDescription": "Tunes pronunciation",
+              "expectedOutcome": "Pronunciation tuning applied"
+            },
+            "azure-profiles": {
+              "title": "Voice प्रोफाइल",
+              "description": "बनाएं और manage आवाज प्रोफाइल के लिए different scenarios.",
+              "n8nTemplateName": "Azure वॉइस Profiles",
+              "n8nTemplateDescription": "Manages आवाज प्रोफाइल",
+              "expectedOutcome": "Voice profile configured"
+            }
+          }
+        },
+        "bandwidth": {
+          "field1Label": "API टोकन",
+          "field1Placeholder": "Enter your Bandwidth API Token",
+          "field2Label": "API सीक्रेट",
+          "field2Placeholder": "दर्ज करें Bandwidth API Secret",
+          "helpText": "Find your API credentials in the Bandwidth Dashboard under Account > API Credentials.",
+          "setupLinkText": "खोलें Bandwidth Dashboard",
+          "useCases": {
+            "bw-sms": {
+              "title": "SMS फॉलो-अप",
+              "description": "भेजें SMS फॉलो-अप संदेश के जरिए Bandwidth के बाद कॉल्स.",
+              "n8nTemplateName": "Bandwidth प्रेषक de SMS",
+              "n8nTemplateDescription": "भेजता है फॉलो-अप SMS",
+              "expectedOutcome": "SMS भेजा गया के जरिए Bandwidth"
+            },
+            "bw-tracking": {
+              "title": "कॉल ट्रैकिंग",
+              "description": "ट्रैक करें इवेंट्स de कॉल और मेट्रिक्स के माध्यम से Bandwidth.",
+              "n8nTemplateName": "Bandwidth ट्रैकर de कॉल",
+              "n8nTemplateDescription": "ट्रैक करता है डेटा de कॉल",
+              "expectedOutcome": "Call डेटा tracked में Bandwidth"
+            },
+            "bw-numbers": {
+              "title": "नंबर प्रबंधन",
+              "description": "प्रबंधित करें फोन नंबर और provisioning के माध्यम से Bandwidth.",
+              "n8nTemplateName": "Bandwidth प्रबंधक de नंबर",
+              "n8nTemplateDescription": "Manages फोन नंबर",
+              "expectedOutcome": "Numbers managed के जरिए Bandwidth"
+            },
+            "bw-routing": {
+              "title": "कॉल रूटिंग",
+              "description": "रूट करें कॉल्स के माध्यम से Bandwidth network के साथ custom logic.",
+              "n8nTemplateName": "Bandwidth राउटर de कॉल",
+              "n8nTemplateDescription": "Routes कॉल्स",
+              "expectedOutcome": "Call routed के जरिए Bandwidth"
+            }
+          }
+        },
+        "bitrix24": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Bitrix24 Webhook URL",
+          "field2Label": "उपयोगकर्ता ID",
+          "field2Placeholder": "दर्ज करें Bitrix24 User ID",
+          "helpText": "Create an inbound webhook in Bitrix24: Developer resources > Other > Inbound webhook. Copy the webhook URL.",
+          "setupLinkText": "खोलें Bitrix24",
+          "useCases": {
+            "bitrix-push-calls": {
+              "title": "भेजें डेटा de कॉल",
+              "description": "भेजें डेटा de कॉल और रिकॉर्डिंग को Bitrix24 CRM गतिविधियां.",
+              "n8nTemplateName": "Bitrix24 कॉल Pusher",
+              "n8nTemplateDescription": "भेजता है डेटा de कॉल को Bitrix24",
+              "expectedOutcome": "Call डेटा pushed को Bitrix24"
+            },
+            "bitrix-sync-leads": {
+              "title": "सिंक करें लीड्स",
+              "description": "Synchronize lead records between your platform and Bitrix24.",
+              "n8nTemplateName": "Bitrix24 लीड Sync",
+              "n8nTemplateDescription": "सिंक करता है lead डेटा",
+              "expectedOutcome": "लीड synced में Bitrix24"
+            },
+            "bitrix-create-activities": {
+              "title": "बनाएं गतिविधियां",
+              "description": "बनाएं रिकॉर्ड्स de गतिविधियां में Bitrix24 से इवेंट्स de कॉल.",
+              "n8nTemplateName": "Bitrix24 निर्माता de गतिविधि",
+              "n8nTemplateDescription": "बनाता है गतिविधियां से कॉल्स",
+              "expectedOutcome": "Activity बनाया गया में Bitrix24"
+            },
+            "bitrix-update-deals": {
+              "title": "अपडेट करें सौदे",
+              "description": "अपडेट करें deal stages में Bitrix24 के आधार पर परिणाम de कॉल.",
+              "n8nTemplateName": "Bitrix24 अपडेट करें de सौदे",
+              "n8nTemplateDescription": "अपडेट करता है सौदे से call परिणाम",
+              "expectedOutcome": "Deal अपडेट किया गया में Bitrix24"
+            }
+          }
+        },
+        "brevo": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Brevo API Key",
+          "field2Label": "प्रेषक ईमेल",
+          "field2Placeholder": "दर्ज करें verified sender email",
+          "helpText": "Generate an API key in Brevo: Settings > SMTP & API > API Keys. Verify a sender identity first.",
+          "setupLinkText": "Open Brevo Settings",
+          "useCases": {
+            "brevo-contacts": {
+              "title": "जोड़ें संपर्क",
+              "description": "जोड़ें संपर्क को Brevo से call इंटरैक्शन.",
+              "n8nTemplateName": "Brevo संपर्क Adder",
+              "n8nTemplateDescription": "जोड़ता है संपर्क",
+              "expectedOutcome": "संपर्क added को Brevo"
+            },
+            "brevo-emails": {
+              "title": "भेजें emails",
+              "description": "भेजें emails के माध्यम से Brevo के बाद कॉल्स.",
+              "n8nTemplateName": "Brevo Email प्रेषक",
+              "n8nTemplateDescription": "भेजता है emails",
+              "expectedOutcome": "Email भेजा गया के जरिए Brevo"
+            },
+            "brevo-workflows": {
+              "title": "ट्रिगर करें वर्कफ़्लो",
+              "description": "ट्रिगर करें Brevo automation वर्कफ़्लो से इवेंट्स de कॉल.",
+              "n8nTemplateName": "Brevo Workflow ट्रिगर",
+              "n8nTemplateDescription": "ट्रिगर करता है वर्कफ़्लो",
+              "expectedOutcome": "Workflow triggered में Brevo"
+            },
+            "brevo-segments": {
+              "title": "Segment संपर्क",
+              "description": "Segment संपर्क में Brevo के आधार पर परिणाम de कॉल.",
+              "n8nTemplateName": "Brevo संपर्क Segmenter",
+              "n8nTemplateDescription": "Segments संपर्क",
+              "expectedOutcome": "संपर्क segmented में Brevo"
+            }
+          }
+        },
+        "cal-com": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Cal.com API Key",
+          "field2Label": "इवेंट प्रकार ID",
+          "field2Placeholder": "दर्ज करें default Event Type ID",
+          "helpText": "Generate an API key in Cal.com: Settings > Developer > API Keys. Find Event Type IDs in your event type settings.",
+          "setupLinkText": "Open Cal.com Settings",
+          "useCases": {
+            "calcom-book": {
+              "title": "बनाएं bookings",
+              "description": "बनाएं Cal.com bookings से call बातचीत.",
+              "n8nTemplateName": "Cal.com Booking निर्माता",
+              "n8nTemplateDescription": "बनाता है bookings",
+              "expectedOutcome": "Booking created on Cal.com"
+            },
+            "calcom-slots": {
+              "title": "जांचें slots",
+              "description": "Check available time slots on Cal.com.",
+              "n8nTemplateName": "Cal.com Slot चेकर",
+              "n8nTemplateDescription": "Checks time slots",
+              "expectedOutcome": "Available slots checked on Cal.com"
+            },
+            "calcom-confirm": {
+              "title": "भेजें confirmations",
+              "description": "भेजें booking confirmations के माध्यम से Cal.com.",
+              "n8nTemplateName": "Cal.com Confirmation प्रेषक",
+              "n8nTemplateDescription": "भेजता है confirmations",
+              "expectedOutcome": "Confirmation भेजा गया के जरिए Cal.com"
+            },
+            "calcom-sync": {
+              "title": "सिंक करें calendars",
+              "description": "सिंक करें Cal.com bookings के साथ external calendars.",
+              "n8nTemplateName": "Cal.com Calendar सिंक",
+              "n8nTemplateDescription": "सिंक करता है calendars",
+              "expectedOutcome": "Calendars synced के साथ Cal.com"
+            }
+          }
+        },
+        "close-crm": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Close CRM API Key",
+          "field2Label": "संगठन ID",
+          "field2Placeholder": "दर्ज करें Close Organization ID (optional)",
+          "helpText": "Find your API key in Close: Settings > Your API Keys. Generate a new key if needed.",
+          "setupLinkText": "Open Close Settings",
+          "useCases": {
+            "close-log-calls": {
+              "title": "स्वचालित रूप से-लॉग करें कॉल्स",
+              "description": "लॉग करें स्वचालित रूप से सभी call गतिविधियां में Close CRM के साथ ट्रांसक्रिप्ट और परिणाम.",
+              "n8nTemplateName": "Close CRM लॉग करें de कॉल्स",
+              "n8nTemplateDescription": "लॉग करता है कॉल्स में Close CRM",
+              "expectedOutcome": "Call logged में Close CRM"
+            },
+            "close-update-leads": {
+              "title": "अपडेट करें lead statuses",
+              "description": "अपडेट करें lead स्थिति में Close CRM के आधार पर परिणाम de कॉल और engagement levels.",
+              "n8nTemplateName": "Close CRM लीड Updater",
+              "n8nTemplateDescription": "अपडेट करता है lead statuses से कॉल्स",
+              "expectedOutcome": "लीड स्थिति अपडेट किया गया में Close CRM"
+            },
+            "close-sync-contacts": {
+              "title": "सिंक करें contact info",
+              "description": "Keep contact information synchronized between your calling platform and Close CRM.",
+              "n8nTemplateName": "Close CRM सिंक करें de संपर्क",
+              "n8nTemplateDescription": "सिंक करता है डेटा de संपर्क",
+              "expectedOutcome": "संपर्क synced में Close CRM"
+            },
+            "close-create-tasks": {
+              "title": "बनाएं कार्य",
+              "description": "जनरेट करें फॉलो-अप कार्य में Close CRM से call action items.",
+              "n8nTemplateName": "Close CRM निर्माता de कार्य",
+              "n8nTemplateDescription": "बनाता है कार्य से कॉल्स",
+              "expectedOutcome": "Task बनाया गया में Close CRM"
+            }
+          }
+        },
+        "cohere": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Cohere API Key",
+          "field2Label": "मॉडल ID",
+          "field2Placeholder": "उदा. command-r-plus (वैकल्पिक)",
+          "helpText": "Generate an API key in the Cohere Dashboard under API Keys.",
+          "setupLinkText": "खोलें Cohere Dashboard",
+          "useCases": {
+            "cohere-search": {
+              "title": "Semantic search over ट्रांसक्रिप्ट",
+              "description": "खोजें across ट्रांसक्रिप्ट de कॉल का उपयोग करके Cohere semantic search.",
+              "n8nTemplateName": "Cohere Transcript सर्च",
+              "n8nTemplateDescription": "Semantic ट्रांसक्रिप्ट search",
+              "expectedOutcome": "Relevant ट्रांसक्रिप्ट found"
+            },
+            "cohere-cluster": {
+              "title": "Topic clustering",
+              "description": "Cluster calls by topic using Cohere embedding models.",
+              "n8nTemplateName": "Cohere Topic क्लस्टरर",
+              "n8nTemplateDescription": "Clusters call topics",
+              "expectedOutcome": "Calls clustered by topic"
+            },
+            "cohere-summarize": {
+              "title": "सारांश",
+              "description": "Summarize ट्रांसक्रिप्ट de कॉल का उपयोग करके Cohere summarization models.",
+              "n8nTemplateName": "Cohere सारांशकर्ता",
+              "n8nTemplateDescription": "Summarizes ट्रांसक्रिप्ट",
+              "expectedOutcome": "ट्रांसक्रिप्ट सारांशित"
+            },
+            "cohere-classify": {
+              "title": "वर्गीकरण",
+              "description": "Classify कॉल्स का उपयोग करके Cohere classification models.",
+              "n8nTemplateName": "Cohere क्लासिफायर",
+              "n8nTemplateDescription": "Classifies कॉल्स",
+              "expectedOutcome": "कॉल वर्गीकृत"
+            }
+          }
+        },
+        "convertkit": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें ConvertKit API Key",
+          "field2Label": "API सीक्रेट",
+          "field2Placeholder": "दर्ज करें ConvertKit API Secret",
+          "helpText": "Find your API credentials in ConvertKit: Settings > Advanced > API.",
+          "setupLinkText": "Open ConvertKit Settings",
+          "useCases": {
+            "ck-subscribers": {
+              "title": "जोड़ें subscribers",
+              "description": "जोड़ें नया subscribers को ConvertKit से कॉल्स.",
+              "n8nTemplateName": "ConvertKit Subscriber एडर",
+              "n8nTemplateDescription": "जोड़ता है subscribers",
+              "expectedOutcome": "Subscriber added को ConvertKit"
+            },
+            "ck-tags": {
+              "title": "Apply टैग्स",
+              "description": "Apply टैग्स को ConvertKit subscribers के आधार पर डेटा de कॉल.",
+              "n8nTemplateName": "ConvertKit Tag अप्लायर",
+              "n8nTemplateDescription": "Applies टैग्स",
+              "expectedOutcome": "Tags applied में ConvertKit"
+            },
+            "ck-sequences": {
+              "title": "ट्रिगर करें अनुक्रम",
+              "description": "ट्रिगर करें ConvertKit अनुक्रम de correo से इवेंट्स de कॉल.",
+              "n8nTemplateName": "ConvertKit Sequence ट्रिगर",
+              "n8nTemplateDescription": "ट्रिगर करता है अनुक्रम",
+              "expectedOutcome": "Sequence triggered में ConvertKit"
+            },
+            "ck-fields": {
+              "title": "अपडेट करें custom fields",
+              "description": "Update custom fields on ConvertKit subscribers.",
+              "n8nTemplateName": "ConvertKit Field अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है custom fields",
+              "expectedOutcome": "Custom fields अपडेट किया गया में ConvertKit"
+            }
+          }
+        },
+        "copper-crm": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Copper API Key",
+          "field2Label": "ईमेल",
+          "field2Placeholder": "दर्ज करें Copper account email",
+          "helpText": "Find your API key in Copper: Settings > Integrations > API Keys.",
+          "setupLinkText": "खोलें Copper CRM",
+          "useCases": {
+            "copper-push-summaries": {
+              "title": "भेजें सारांश de कॉल",
+              "description": "भेजें AI-जनरेट किया गया सारांश de कॉल को Copper CRM contact और opportunity रिकॉर्ड्स.",
+              "n8nTemplateName": "Copper सारांश de कॉल Pusher",
+              "n8nTemplateDescription": "भेजता है सारांश de कॉल को Copper",
+              "expectedOutcome": "Call सारांश added को Copper रिकॉर्ड्स"
+            },
+            "copper-create-contacts": {
+              "title": "बनाएं संपर्क से कॉलर्स",
+              "description": "बनाएं स्वचालित रूप से नया संपर्क में Copper CRM से अपरिचित कॉलर्स.",
+              "n8nTemplateName": "Copper संपर्क Creator",
+              "n8nTemplateDescription": "बनाता है संपर्क से नया कॉलर्स",
+              "expectedOutcome": "संपर्क बनाया गया में Copper CRM"
+            },
+            "copper-sync-activities": {
+              "title": "सिंक करें गतिविधियां",
+              "description": "Synchronize call activities between your platform and Copper CRM.",
+              "n8nTemplateName": "Copper सिंक de गतिविधि",
+              "n8nTemplateDescription": "सिंक करता है call गतिविधियां",
+              "expectedOutcome": "Activity synced में Copper CRM"
+            },
+            "copper-update-opps": {
+              "title": "अपडेट करें opportunities",
+              "description": "अपडेट करें opportunity रिकॉर्ड्स में Copper CRM के आधार पर परिणाम de कॉल.",
+              "n8nTemplateName": "Copper अपडेट करें de सौदे",
+              "n8nTemplateDescription": "अपडेट करता है opportunities से कॉल्स",
+              "expectedOutcome": "Oportunidad अपडेट किया गया में Copper CRM"
+            }
+          }
+        },
+        "firebase": {
+          "field1Label": "प्रोजेक्ट ID",
+          "field1Placeholder": "दर्ज करें Firebase Project ID",
+          "field2Label": "सर्विस अकाउंट कुंजी",
+          "field2Placeholder": "Paste your Firebase service account JSON key",
+          "helpText": "In Firebase Console, go to Project Settings > Service Accounts > Generate New Private Key. Copy the JSON contents.",
+          "setupLinkText": "Open Firebase Console",
+          "useCases": {
+            "fb-store": {
+              "title": "स्टोर करें डेटा de कॉल",
+              "description": "स्टोर करें डेटा de कॉल और ट्रांसक्रिप्ट में Firebase.",
+              "n8nTemplateName": "Firebase डेटा स्टोर",
+              "n8nTemplateDescription": "Stores डेटा de कॉल",
+              "expectedOutcome": "Data stored में Firebase"
+            },
+            "fb-realtime": {
+              "title": "रीयल-टाइम sync",
+              "description": "सिंक करें डेटा de कॉल में रीयल-टाइम का उपयोग करके Firebase.",
+              "n8nTemplateName": "Firebase रीयल-टाइम Sync",
+              "n8nTemplateDescription": "रीयल-टाइम डेटा sync",
+              "expectedOutcome": "Data synced में रीयल-टाइम"
+            },
+            "fb-analytics": {
+              "title": "User एनालिटिक्स",
+              "description": "ट्रैक करें user एनालिटिक्स और मेट्रिक्स de कॉल में Firebase.",
+              "n8nTemplateName": "Firebase Analytics ट्रैकर",
+              "n8nTemplateDescription": "ट्रैक करता है एनालिटिक्स",
+              "expectedOutcome": "Analytics tracked में Firebase"
+            },
+            "fb-push": {
+              "title": "भेजें सूचनाएं",
+              "description": "भेजें push सूचनाएं के लिए इवेंट्स de कॉल के जरिए Firebase.",
+              "n8nTemplateName": "Firebase Push नोटिफायर",
+              "n8nTemplateDescription": "भेजता है push सूचनाएं",
+              "expectedOutcome": "भेजें सूचना भेजा गया"
+            }
+          }
+        },
+        "front": {
+          "field1Label": "API टोकन",
+          "field1Placeholder": "Enter your Front API Token",
+          "field2Label": "चैनल ID",
+          "field2Placeholder": "दर्ज करें Front Channel ID",
+          "helpText": "Generate an API token in Front: Settings > Developers > API Tokens. Find Channel IDs in your channel settings.",
+          "setupLinkText": "Open Front Settings",
+          "useCases": {
+            "front-create-convs": {
+              "title": "बनाएं बातचीत",
+              "description": "बनाएं Front बातचीत से call इंटरैक्शन.",
+              "n8nTemplateName": "Front Conversation निर्माता",
+              "n8nTemplateDescription": "बनाता है बातचीत",
+              "expectedOutcome": "Conversation बनाया गया में Front"
+            },
+            "front-route": {
+              "title": "रूट करें संदेश",
+              "description": "रूट करें call-related संदेश को appropriate Front inboxes.",
+              "n8nTemplateName": "Front Message राउटर",
+              "n8nTemplateDescription": "Routes संदेश",
+              "expectedOutcome": "Message routed में Front"
+            },
+            "front-context": {
+              "title": "जोड़ें सामग्री de कॉल",
+              "description": "जोड़ें सामग्री de कॉल और नोट्स को Front बातचीत.",
+              "n8nTemplateName": "Front Context एडर",
+              "n8nTemplateDescription": "जोड़ता है सामग्री de कॉल",
+              "expectedOutcome": "Call context added को Front"
+            },
+            "front-assign": {
+              "title": "Team assignments",
+              "description": "असाइन करें Front बातचीत को टीम सदस्य के आधार पर call routing.",
+              "n8nTemplateName": "Front Team असाइनर",
+              "n8nTemplateDescription": "Assigns को teams",
+              "expectedOutcome": "Conversation assigned में Front"
+            }
+          }
+        },
+        "gohighlevel": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें GoHighLevel API Key",
+          "field2Label": "स्थान ID",
+          "field2Placeholder": "दर्ज करें GoHighLevel Location ID",
+          "helpText": "Find your API key in GoHighLevel: Settings > Business Profile > API Key. The Location ID is in your account URL.",
+          "setupLinkText": "खोलें GoHighLevel",
+          "useCases": {
+            "ghl-trigger-workflows": {
+              "title": "ट्रिगर करें फॉलो-अप वर्कफ़्लो",
+              "description": "ट्रिगर करें automated फॉलो-अप वर्कफ़्लो में GoHighLevel के आधार पर परिणाम de कॉल.",
+              "n8nTemplateName": "GHL Workflow ट्रिगर",
+              "n8nTemplateDescription": "ट्रिगर करता है फॉलो-अप वर्कफ़्लो",
+              "expectedOutcome": "फॉलो-अप वर्कफ़्लो triggered में GoHighLevel"
+            },
+            "ghl-sync-contacts": {
+              "title": "सिंक करें संपर्क",
+              "description": "Synchronize contact data between your calling platform and GoHighLevel.",
+              "n8nTemplateName": "GHL सिंक करें de संपर्क",
+              "n8nTemplateDescription": "सिंक करता है रिकॉर्ड्स de संपर्क",
+              "expectedOutcome": "संपर्क synced में GoHighLevel"
+            },
+            "ghl-update-pipeline": {
+              "title": "अपडेट करें पाइपलाइन stages",
+              "description": "Move opportunities के माध्यम से GoHighLevel पाइपलाइन stages के आधार पर call विश्लेषण.",
+              "n8nTemplateName": "GHL Pipeline अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है पाइपलाइन stages",
+              "expectedOutcome": "Pipeline stage अपडेट किया गया में GoHighLevel"
+            },
+            "ghl-send-sms": {
+              "title": "भेजें फॉलो-अप SMS",
+              "description": "Send automated SMS follow-ups via GoHighLevel after call completion.",
+              "n8nTemplateName": "GHL प्रेषक de SMS",
+              "n8nTemplateDescription": "भेजता है फॉलो-अप SMS संदेश",
+              "expectedOutcome": "फॉलो-अप SMS भेजा गया के जरिए GoHighLevel"
+            }
+          }
+        },
+        "google-cloud-tts": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Google Cloud API Key",
+          "field2Label": "प्रोजेक्ट ID",
+          "field2Placeholder": "दर्ज करें Google Cloud Project ID",
+          "helpText": "Enable the Cloud Text-to-Speech API in Google Cloud Console. Create an API key under APIs & Services > Credentials.",
+          "setupLinkText": "Open Google Cloud Console",
+          "useCases": {
+            "gctts-multilang": {
+              "title": "Multi-language synthesis",
+              "description": "Synthesize speech में multiple languages का उपयोग करके Google Cloud TTS.",
+              "n8nTemplateName": "Google TTS बहुभाषी",
+              "n8nTemplateDescription": "Multi-language synthesis",
+              "expectedOutcome": "Multi-language speech synthesized"
+            },
+            "gctts-profiles": {
+              "title": "Custom आवाज प्रोफाइल",
+              "description": "Create custom voice profiles for different use cases.",
+              "n8nTemplateName": "Google TTS वॉइस Profiles",
+              "n8nTemplateDescription": "बनाता है आवाज प्रोफाइल",
+              "expectedOutcome": "Voice profile बनाया गया"
+            },
+            "gctts-ssml": {
+              "title": "SSML formatting",
+              "description": "Use SSML formatting for advanced speech control.",
+              "n8nTemplateName": "Google TTS SSML Formatter",
+              "n8nTemplateDescription": "SSML speech control",
+              "expectedOutcome": "SSML-formatted speech जनरेट किया गया"
+            },
+            "gctts-adapt": {
+              "title": "Voice adaptation",
+              "description": "Adapt आवाज output को different contexts और scenarios.",
+              "n8nTemplateName": "Google TTS वॉइस Adapter",
+              "n8nTemplateDescription": "Adapts आवाज output",
+              "expectedOutcome": "Voice adapted को context"
+            }
+          }
+        },
+        "greenhouse": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Greenhouse Harvest API Key",
+          "field2Label": "प्रतिनिधि उपयोगकर्ता ID",
+          "field2Placeholder": "Enter the user ID for API actions",
+          "helpText": "Generate a Harvest API key in Greenhouse: Configure > Dev Center > API Credential Management.",
+          "setupLinkText": "खोलें Greenhouse",
+          "useCases": {
+            "gh-log-interviews": {
+              "title": "लॉग करें interview कॉल्स",
+              "description": "लॉग करें interview विवरण de कॉल और स्कोर में Greenhouse.",
+              "n8nTemplateName": "Greenhouse Interview लॉगर",
+              "n8nTemplateDescription": "लॉग करता है interview कॉल्स",
+              "expectedOutcome": "Interview logged में Greenhouse"
+            },
+            "gh-update-stage": {
+              "title": "अपडेट करें candidate stage",
+              "description": "अपडेट करें candidate पाइपलाइन stage में Greenhouse के बाद interviews.",
+              "n8nTemplateName": "Greenhouse Stage अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है candidate stage",
+              "expectedOutcome": "Candidate stage अपडेट किया गया"
+            },
+            "gh-sync-jobs": {
+              "title": "सिंक करें job डेटा",
+              "description": "सिंक करें job डेटा और requirements से Greenhouse.",
+              "n8nTemplateName": "Greenhouse Job सिंक",
+              "n8nTemplateDescription": "सिंक करता है job डेटा",
+              "expectedOutcome": "Job डेटा synced से Greenhouse"
+            },
+            "gh-schedule": {
+              "title": "शेड्यूल करें interviews",
+              "description": "शेड्यूल करें interview कॉल्स के माध्यम से Greenhouse.",
+              "n8nTemplateName": "Greenhouse Interview शेड्यूलर",
+              "n8nTemplateDescription": "Schedules interviews",
+              "expectedOutcome": "Interview scheduled में Greenhouse"
+            }
+          }
+        },
+        "groq": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Groq API Key",
+          "field2Label": "मॉडल ID",
+          "field2Placeholder": "उदा. llama-3.1-70b-versatile (वैकल्पिक)",
+          "helpText": "Generate an API key at console.groq.com under API Keys.",
+          "setupLinkText": "Open Groq Console",
+          "useCases": {
+            "groq-realtime": {
+              "title": "रीयल-टाइम ट्रांसक्रिप्ट processing",
+              "description": "Process ट्रांसक्रिप्ट में रीयल-टाइम का उपयोग करके Groq के लिए ultra-fast inference.",
+              "n8nTemplateName": "Groq रीयल-टाइम Processor",
+              "n8nTemplateDescription": "रीयल-टाइम ट्रांसक्रिप्ट processing",
+              "expectedOutcome": "Transcript processed में रीयल-टाइम"
+            },
+            "groq-sentiment": {
+              "title": "Fast विश्लेषण de भावना",
+              "description": "Perform instant विश्लेषण de भावना on कॉल्स का उपयोग करके Groq.",
+              "n8nTemplateName": "Groq विश्लेषण de भावना",
+              "n8nTemplateDescription": "Fast विश्लेषण de भावना",
+              "expectedOutcome": "Sentiment analyzed instantly"
+            },
+            "groq-classify": {
+              "title": "Intent classification",
+              "description": "Classify call intents at high speed using Groq inference.",
+              "n8nTemplateName": "Groq Intent क्लासिफायर",
+              "n8nTemplateDescription": "Classifies intents quickly",
+              "expectedOutcome": "Intent classified"
+            },
+            "groq-summarize": {
+              "title": "Quick summarization",
+              "description": "जनरेट करें rapid सारांश de कॉल का उपयोग करके Groq models.",
+              "n8nTemplateName": "Groq Quick सारांशकर्ता",
+              "n8nTemplateDescription": "Quick सारांश de कॉल",
+              "expectedOutcome": "Summary जनरेट किया गया quickly"
+            }
+          }
+        },
+        "insightly": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Insightly API Key",
+          "field2Label": "पॉड URL",
+          "field2Placeholder": "उदा. api.na1.insightly.com",
+          "helpText": "Find your API key in Insightly: User Settings > API. Your pod URL depends on your data center region.",
+          "setupLinkText": "खोलें Insightly",
+          "useCases": {
+            "insightly-create-leads": {
+              "title": "बनाएं लीड्स से कॉल्स",
+              "description": "बनाएं नया रिकॉर्ड्स de लीड में Insightly से आने वाला डेटा de कॉल.",
+              "n8nTemplateName": "Insightly बनाएं de लीड्स",
+              "n8nTemplateDescription": "बनाता है लीड्स से कॉल्स",
+              "expectedOutcome": "लीड बनाया गया में Insightly"
+            },
+            "insightly-log-notes": {
+              "title": "लॉग करें नोट्स de कॉल",
+              "description": "जोड़ें नोट्स de कॉल और ट्रांसक्रिप्ट को Insightly रिकॉर्ड्स de संपर्क.",
+              "n8nTemplateName": "Insightly Note लॉगर",
+              "n8nTemplateDescription": "लॉग करता है नोट्स de कॉल",
+              "expectedOutcome": "Notes logged में Insightly"
+            },
+            "insightly-sync-contacts": {
+              "title": "सिंक करें संपर्क",
+              "description": "Synchronize contact information between platforms and Insightly.",
+              "n8nTemplateName": "Insightly सिंक करें de संपर्क",
+              "n8nTemplateDescription": "सिंक करता है डेटा de संपर्क",
+              "expectedOutcome": "संपर्क synced में Insightly"
+            },
+            "insightly-update-pipelines": {
+              "title": "अपडेट करें pipelines",
+              "description": "अपडेट करें पाइपलाइन stages में Insightly के आधार पर call विश्लेषण.",
+              "n8nTemplateName": "Insightly Pipeline अपडेटर",
+              "n8nTemplateDescription": "अपडेट करता है pipelines से कॉल्स",
+              "expectedOutcome": "Pipeline अपडेट किया गया में Insightly"
+            }
+          }
+        },
+        "keap": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Keap Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Keap Client Secret",
+          "helpText": "Create an app in the Keap Developer Portal. Add the redirect URL below. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Keap Developer Portal",
+          "useCases": {
+            "keap-tag-leads": {
+              "title": "Tag लीड्स के आधार पर call outcome",
+              "description": "Automatically apply टैग्स को Keap संपर्क के आधार पर call disposition और परिणाम.",
+              "n8nTemplateName": "Keap लीड Tagger",
+              "n8nTemplateDescription": "Tags संपर्क से परिणाम de कॉल",
+              "expectedOutcome": "Tags applied को contact में Keap"
+            },
+            "keap-create-contacts": {
+              "title": "बनाएं संपर्क",
+              "description": "बनाएं नया संपर्क में Keap से अपरिचित कॉलर्स.",
+              "n8nTemplateName": "Keap संपर्क Creator",
+              "n8nTemplateDescription": "बनाता है संपर्क से नया कॉलर्स",
+              "expectedOutcome": "संपर्क बनाया गया में Keap"
+            },
+            "keap-trigger-campaigns": {
+              "title": "ट्रिगर करें अभियान",
+              "description": "ट्रिगर करें Keap marketing अभियान के आधार पर परिणाम de कॉल और lead qualification.",
+              "n8nTemplateName": "Keap ट्रिगर de अभियान",
+              "n8nTemplateDescription": "ट्रिगर करता है अभियान से call परिणाम",
+              "expectedOutcome": "Campaign triggered में Keap"
+            },
+            "keap-log-activities": {
+              "title": "लॉग करें call गतिविधियां",
+              "description": "लॉग करें call गतिविधियां में Keap रिकॉर्ड्स de संपर्क के लिए complete interaction इतिहास.",
+              "n8nTemplateName": "Keap लॉगर de गतिविधि",
+              "n8nTemplateDescription": "लॉग करता है call गतिविधियां",
+              "expectedOutcome": "Activity logged में Keap"
+            }
+          }
+        },
+        "lever": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Lever API Key",
+          "field2Label": "एनवायरनमेंट",
+          "field2Placeholder": "e.g. sandbox या production",
+          "helpText": "Generate an API key in Lever: Settings > Integrations and API > API Credentials.",
+          "setupLinkText": "Open Lever Settings"
+        },
+        "microsoft-outlook": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Azure Application Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Azure Client Secret",
+          "helpText": "Register an app in Azure Portal > App Registrations. Under API Permissions, add Microsoft Graph permissions for Mail and Calendar. Add the redirect URL below.",
+          "setupLinkText": "Open Azure Portal",
+          "useCases": {
+            "outlook-schedule": {
+              "title": "शेड्यूल करें meetings",
+              "description": "शेड्यूल करें meetings में Microsoft Outlook के दौरान कॉल्स.",
+              "n8nTemplateName": "Outlook शेड्यूलर de बैठक",
+              "n8nTemplateDescription": "Schedules meetings",
+              "expectedOutcome": "Meeting scheduled में Outlook"
+            },
+            "outlook-availability": {
+              "title": "जांचें availability",
+              "description": "जांचें Outlook calendar availability.",
+              "n8nTemplateName": "Outlook Availability चेकर",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "Availability checked में Outlook"
+            },
+            "outlook-invites": {
+              "title": "भेजें invites",
+              "description": "भेजें meeting invitations के जरिए Outlook.",
+              "n8nTemplateName": "Outlook Invite प्रेषक",
+              "n8nTemplateDescription": "भेजता है meeting invites",
+              "expectedOutcome": "Meeting invite भेजा गया के जरिए Outlook"
+            },
+            "outlook-sync": {
+              "title": "कैलेंडर सिंक",
+              "description": "सिंक करें calendar इवेंट्स के साथ Microsoft Outlook.",
+              "n8nTemplateName": "Outlook Calendar सिंक",
+              "n8nTemplateDescription": "सिंक करता है calendar इवेंट्स",
+              "expectedOutcome": "Calendar synced के साथ Outlook"
+            }
+          }
+        },
+        "mistral": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Mistral AI API Key",
+          "field2Label": "मॉडल ID",
+          "field2Placeholder": "e.g. mistral-large-नवीनतम (optional)",
+          "helpText": "Generate an API key in the Mistral AI platform under API Keys.",
+          "setupLinkText": "Open Mistral Console",
+          "useCases": {
+            "mistral-summarize": {
+              "title": "कॉल सारांश",
+              "description": "जनरेट करें concise सारांश de कॉल का उपयोग करके Mistral AI models.",
+              "n8nTemplateName": "Mistral सारांशकर्ता",
+              "n8nTemplateDescription": "Summarizes कॉल्स",
+              "expectedOutcome": "Call सारांश जनरेट किया गया"
+            },
+            "mistral-topics": {
+              "title": "Topic extraction",
+              "description": "Extract key topics और themes से बातचीत का उपयोग करके Mistral.",
+              "n8nTemplateName": "Mistral Topic एक्सट्रैक्टर",
+              "n8nTemplateDescription": "Extracts बातचीत topics",
+              "expectedOutcome": "Topics निकाला गया से call"
+            },
+            "mistral-sentiment": {
+              "title": "Sentiment scoring",
+              "description": "Score call भावना का उपयोग करके Mistral AI विश्लेषण.",
+              "n8nTemplateName": "Mistral Sentiment स्कोरर",
+              "n8nTemplateDescription": "Scores भावना",
+              "expectedOutcome": "Sentiment score जनरेट किया गया"
+            },
+            "mistral-suggestions": {
+              "title": "Response suggestions",
+              "description": "जनरेट करें रीयल-टाइम response suggestions का उपयोग करके Mistral.",
+              "n8nTemplateName": "Mistral Response सजेस्टर",
+              "n8nTemplateDescription": "Suggests प्रतिक्रियाएं",
+              "expectedOutcome": "Response suggestions जनरेट किया गया"
+            }
+          }
+        },
+        "mixpanel": {
+          "field1Label": "प्रोजेक्ट टोकन",
+          "field1Placeholder": "Enter your Mixpanel Project Token",
+          "field2Label": "API सीक्रेट",
+          "field2Placeholder": "दर्ज करें Mixpanel API Secret",
+          "helpText": "Find your Project Token and API Secret in Mixpanel: Settings > Project Settings.",
+          "setupLinkText": "Open Mixpanel Settings",
+          "useCases": {
+            "mp-events": {
+              "title": "ट्रैक करें इवेंट्स de कॉल",
+              "description": "ट्रैक करें इवेंट्स de कॉल और user कार्रवाइयां में Mixpanel.",
+              "n8nTemplateName": "Mixpanel ट्रैकर de इवेंट",
+              "n8nTemplateDescription": "ट्रैक करता है इवेंट्स de कॉल",
+              "expectedOutcome": "Event tracked में Mixpanel"
+            },
+            "mp-funnels": {
+              "title": "Funnel विश्लेषण",
+              "description": "विश्लेषण करें call-को-conversion funnels में Mixpanel.",
+              "n8nTemplateName": "Mixpanel Funnel विश्लेषक",
+              "n8nTemplateDescription": "Analyzes funnels",
+              "expectedOutcome": "Funnel विश्लेषण अपडेट किया गया में Mixpanel"
+            },
+            "mp-segments": {
+              "title": "User segmentation",
+              "description": "Segment users के आधार पर call व्यवहार में Mixpanel.",
+              "n8nTemplateName": "Mixpanel उपयोगकर्ता सेगमेंटर",
+              "n8nTemplateDescription": "Segments users",
+              "expectedOutcome": "Users segmented में Mixpanel"
+            },
+            "mp-ab": {
+              "title": "A/B testing",
+              "description": "ट्रैक करें A/B test परिणाम के लिए call scripts में Mixpanel.",
+              "n8nTemplateName": "Mixpanel A/B ट्रैकर",
+              "n8nTemplateDescription": "A/B test tracking",
+              "expectedOutcome": "A/B परिणाम tracked में Mixpanel"
+            }
+          }
+        },
+        "murf": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Murf AI API Key",
+          "field2Label": "डिफ़ॉल्ट वॉइस ID",
+          "field2Placeholder": "Enter default voice ID (optional)",
+          "helpText": "Generate an API key in Murf Studio: Account Settings > API. Browse available voices in the Voice Library.",
+          "setupLinkText": "खोलें Murf Studio",
+          "useCases": {
+            "murf-voiceovers": {
+              "title": "Studio-quality voiceovers",
+              "description": "जनरेट करें studio-quality voiceovers का उपयोग करके Murf AI.",
+              "n8nTemplateName": "Murf Studio Voiceover",
+              "n8nTemplateDescription": "Studio-quality voiceovers",
+              "expectedOutcome": "Studio-quality voiceover जनरेट किया गया"
+            },
+            "murf-brand": {
+              "title": "Brand आवाज creation",
+              "description": "बनाएं consistent brand voices का उपयोग करके Murf.",
+              "n8nTemplateName": "Murf Brand निर्माता de आवाज",
+              "n8nTemplateDescription": "बनाता है brand आवाज",
+              "expectedOutcome": "Brand आवाज बनाया गया"
+            },
+            "murf-script": {
+              "title": "Script को speech",
+              "description": "कन्वर्ट करें scripts को natural-sounding speech.",
+              "n8nTemplateName": "Murf Script को Speech",
+              "n8nTemplateDescription": "Converts scripts को speech",
+              "expectedOutcome": "Script converted को speech"
+            },
+            "murf-pronunciation": {
+              "title": "Pronunciation editor",
+              "description": "Edit और customize pronunciation के लिए specific terms.",
+              "n8nTemplateName": "Murf Pronunciation एडिटर",
+              "n8nTemplateDescription": "Edits pronunciation",
+              "expectedOutcome": "Pronunciation customized"
+            }
+          }
+        },
+        "n8n": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your n8n Webhook URL",
+          "field2Label": "हेडर प्रमाणीकरण मान",
+          "field2Placeholder": "Enter authentication header value (optional)",
+          "helpText": "Create a workflow in n8n with a Webhook trigger node. Copy the Production Webhook URL. Optionally set up Header Auth for security.",
+          "setupLinkText": "खोलें n8n",
+          "useCases": {
+            "n8n-templates": {
+              "title": "Execute वर्कफ़्लो टेम्पलेट",
+              "description": "Execute pre-built n8n वर्कफ़्लो टेम्पलेट के लिए common कार्य.",
+              "n8nTemplateName": "n8n Template एक्सीक्यूटर",
+              "n8nTemplateDescription": "Executes वर्कफ़्लो टेम्पलेट",
+              "expectedOutcome": "Workflow template executed"
+            },
+            "n8n-custom": {
+              "title": "Custom automation flows",
+              "description": "Run custom n8n automation flows triggered by इवेंट्स de कॉल.",
+              "n8nTemplateName": "n8n Custom फ्लो",
+              "n8nTemplateDescription": "Custom automation flows",
+              "expectedOutcome": "Custom flow executed"
+            },
+            "n8n-processing": {
+              "title": "डेटा प्रोसेसिंग",
+              "description": "Process डेटा de कॉल के माध्यम से n8n डेटा transformation nodes.",
+              "n8nTemplateName": "n8n Data प्रोसेसर",
+              "n8nTemplateDescription": "डेटा processing",
+              "expectedOutcome": "Data processed में n8n"
+            },
+            "n8n-multi": {
+              "title": "Multi-step integrations",
+              "description": "Execute multi-step integration वर्कफ़्लो में n8n.",
+              "n8nTemplateName": "n8n Multi-step Integration",
+              "n8nTemplateDescription": "Multi-step integrations",
+              "expectedOutcome": "Multi-step integration पूर्ण"
+            }
+          }
+        },
+        "perplexity": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Perplexity API Key",
+          "field2Label": "मॉडल ID",
+          "field2Placeholder": "उदा. llama-3.1-sonar-large-128k-online (वैकल्पिक)",
+          "helpText": "Generate an API key in Perplexity Settings under API.",
+          "setupLinkText": "Open Perplexity Settings",
+          "useCases": {
+            "pplx-research": {
+              "title": "Research caller background",
+              "description": "Research caller और company background का उपयोग करके Perplexity.",
+              "n8nTemplateName": "Perplexity Caller रिसर्चर",
+              "n8nTemplateDescription": "Researches caller background",
+              "expectedOutcome": "Caller background research पूर्ण"
+            },
+            "pplx-insights": {
+              "title": "Industry अंतर्दृष्टि",
+              "description": "प्राप्त करें रीयल-टाइम industry अंतर्दृष्टि के लिए बातचीत का उपयोग करके Perplexity.",
+              "n8nTemplateName": "Perplexity Industry इनसाइट्स",
+              "n8nTemplateDescription": "Provides industry अंतर्दृष्टि",
+              "expectedOutcome": "Industry अंतर्दृष्टि जनरेट किया गया"
+            },
+            "pplx-competitive": {
+              "title": "Competitive विश्लेषण",
+              "description": "Perform competitive विश्लेषण के दौरान sales कॉल्स का उपयोग करके Perplexity.",
+              "n8nTemplateName": "Perplexity Competitive एनालिसिस",
+              "n8nTemplateDescription": "Analyzes competition",
+              "expectedOutcome": "Competitive विश्लेषण delivered"
+            },
+            "pplx-factcheck": {
+              "title": "रीयल-टाइम fact checking",
+              "description": "Fact-check claims made during calls using Perplexity.",
+              "n8nTemplateName": "Perplexity Fact चेकर",
+              "n8nTemplateDescription": "Fact-checks में रीयल-टाइम",
+              "expectedOutcome": "Facts verified में रीयल-टाइम"
+            }
+          }
+        },
+        "playht": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें PlayHT API Key",
+          "field2Label": "उपयोगकर्ता ID",
+          "field2Placeholder": "दर्ज करें PlayHT User ID",
+          "helpText": "Find your API Key and User ID in PlayHT: Settings > API Access.",
+          "setupLinkText": "Open PlayHT Settings",
+          "useCases": {
+            "playht-realistic": {
+              "title": "Ultra-realistic voices",
+              "description": "जनरेट करें ultra-realistic आवाज output का उपयोग करके PlayHT.",
+              "n8nTemplateName": "PlayHT Realistic वॉइस",
+              "n8nTemplateDescription": "Ultra-realistic TTS",
+              "expectedOutcome": "Realistic आवाज audio जनरेट किया गया"
+            },
+            "playht-clone": {
+              "title": "Voice cloning",
+              "description": "Clone voices के लिए personalized AI agent प्रतिक्रियाएं.",
+              "n8nTemplateName": "PlayHT वॉइस क्लोनर",
+              "n8nTemplateDescription": "Clones voices",
+              "expectedOutcome": "आवाज क्लोन की गई successfully"
+            },
+            "playht-emotion": {
+              "title": "Emotion control",
+              "description": "Control emotional tone में आवाज synthesis.",
+              "n8nTemplateName": "PlayHT Emotion कंट्रोलर",
+              "n8nTemplateDescription": "Controls आवाज emotion",
+              "expectedOutcome": "Emotional tone applied को आवाज"
+            },
+            "playht-accents": {
+              "title": "Multi-accent support",
+              "description": "Support multiple accents और speaking styles.",
+              "n8nTemplateName": "PlayHT Accent सेलेक्टर",
+              "n8nTemplateDescription": "Multi-accent support",
+              "expectedOutcome": "Accent configured के लिए आवाज"
+            }
+          }
+        },
+        "segment": {
+          "field1Label": "राइट कुंजी",
+          "field1Placeholder": "दर्ज करें Segment Source Write Key",
+          "field2Label": "वर्कस्पेस स्लग",
+          "field2Placeholder": "दर्ज करें Segment workspace slug (optional)",
+          "helpText": "Find your Write Key in Segment: Sources > Your Source > Settings > API Keys.",
+          "setupLinkText": "खोलें Segment",
+          "useCases": {
+            "seg-events": {
+              "title": "Event tracking",
+              "description": "ट्रैक करें इवेंट्स de कॉल के माध्यम से Segment के लिए डेटा routing.",
+              "n8nTemplateName": "Segment ट्रैकर de इवेंट",
+              "n8nTemplateDescription": "ट्रैक करता है इवेंट्स",
+              "expectedOutcome": "Event tracked में Segment"
+            },
+            "seg-identify": {
+              "title": "उपयोगकर्ता पहचान",
+              "description": "Identify और track users के माध्यम से Segment.",
+              "n8nTemplateName": "Segment उपयोगकर्ता आइडेंटिफायर",
+              "n8nTemplateDescription": "Identifies users",
+              "expectedOutcome": "User identified में Segment"
+            },
+            "seg-cross": {
+              "title": "Cross-platform एनालिटिक्स",
+              "description": "रूट करें call एनालिटिक्स across platforms के जरिए Segment.",
+              "n8nTemplateName": "Segment Cross-platform राउटर",
+              "n8nTemplateDescription": "Cross-platform routing",
+              "expectedOutcome": "Analytics routed के जरिए Segment"
+            },
+            "seg-routing": {
+              "title": "डेटा रूटिंग",
+              "description": "रूट करें डेटा de कॉल को multiple destinations के माध्यम से Segment.",
+              "n8nTemplateName": "Segment राउटर de डेटा",
+              "n8nTemplateDescription": "Routes डेटा",
+              "expectedOutcome": "Data routed के माध्यम से Segment"
+            }
+          }
+        },
+        "sugarcrm": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your SugarCRM OAuth Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your SugarCRM OAuth Client Secret",
+          "helpText": "Create an OAuth Key in SugarCRM: Administration > OAuth Keys. Enter your instance URL during setup.",
+          "setupLinkText": "खोलें SugarCRM",
+          "useCases": {
+            "sugar-log-calls": {
+              "title": "लॉग करें call गतिविधियां",
+              "description": "बनाएं गतिविधियां de कॉल रिकॉर्ड्स में SugarCRM के साथ बातचीत विवरण.",
+              "n8nTemplateName": "SugarCRM लॉग करें de कॉल्स",
+              "n8nTemplateDescription": "लॉग करता है कॉल्स में SugarCRM",
+              "expectedOutcome": "Call गतिविधियां logged में SugarCRM"
+            },
+            "sugar-sync-leads": {
+              "title": "सिंक करें लीड्स",
+              "description": "Synchronize lead data between your calling platform and SugarCRM.",
+              "n8nTemplateName": "SugarCRM लीड Sync",
+              "n8nTemplateDescription": "सिंक करता है रिकॉर्ड्स de लीड",
+              "expectedOutcome": "लीड synced में SugarCRM"
+            },
+            "sugar-update-opps": {
+              "title": "अपडेट करें opportunities",
+              "description": "अपडेट करें स्थिति de oportunidad में SugarCRM के आधार पर परिणाम de कॉल.",
+              "n8nTemplateName": "SugarCRM अपडेट करें de सौदे",
+              "n8nTemplateDescription": "अपडेट करता है opportunities से कॉल्स",
+              "expectedOutcome": "Oportunidad अपडेट किया गया में SugarCRM"
+            },
+            "sugar-create-tasks": {
+              "title": "बनाएं फॉलो-अप कार्य",
+              "description": "जनरेट करें फॉलो-अप कार्य में SugarCRM से call action items.",
+              "n8nTemplateName": "SugarCRM निर्माता de कार्य",
+              "n8nTemplateDescription": "बनाता है कार्य से कॉल्स",
+              "expectedOutcome": "Task बनाया गया में SugarCRM"
+            }
+          }
+        },
+        "supabase": {
+          "field1Label": "API URL",
+          "field1Placeholder": "दर्ज करें Supabase Project URL",
+          "field2Label": "सर्विस रोल कुंजी",
+          "field2Placeholder": "दर्ज करें Supabase Service Role Key",
+          "helpText": "Find your Project URL and Service Role Key in Supabase: Project Settings > API.",
+          "setupLinkText": "खोलें Supabase Dashboard",
+          "useCases": {
+            "supa-transcripts": {
+              "title": "स्टोर करें ट्रांसक्रिप्ट",
+              "description": "स्टोर करें ट्रांसक्रिप्ट de कॉल में Supabase database.",
+              "n8nTemplateName": "Supabase Transcript स्टोर",
+              "n8nTemplateDescription": "Stores ट्रांसक्रिप्ट",
+              "expectedOutcome": "Transcript stored में Supabase"
+            },
+            "supa-realtime": {
+              "title": "रीयल-टाइम डेटा",
+              "description": "सिंक करें डेटा de कॉल में रीयल-टाइम का उपयोग करके Supabase.",
+              "n8nTemplateName": "Supabase रीयल-टाइम Sync",
+              "n8nTemplateDescription": "रीयल-टाइम डेटा sync",
+              "expectedOutcome": "Data synced में Supabase"
+            },
+            "supa-users": {
+              "title": "उपयोगकर्ता प्रबंधन",
+              "description": "प्रबंधित करें user डेटा और preferences में Supabase.",
+              "n8nTemplateName": "Supabase User प्रबंधक",
+              "n8nTemplateDescription": "Manages users",
+              "expectedOutcome": "User डेटा managed में Supabase"
+            },
+            "supa-analytics": {
+              "title": "Analytics storage",
+              "description": "स्टोर करें एनालिटिक्स और मेट्रिक्स डेटा में Supabase.",
+              "n8nTemplateName": "Supabase Analytics स्टोर",
+              "n8nTemplateDescription": "Stores एनालिटिक्स",
+              "expectedOutcome": "Analytics stored में Supabase"
+            }
+          }
+        },
+        "telnyx": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Telnyx API Key (KEY...)",
+          "field2Label": "कनेक्शन ID",
+          "field2Placeholder": "दर्ज करें Telnyx SIP Connection ID",
+          "helpText": "Generate an API key in the Telnyx Portal: Auth > API Keys. Find your Connection ID under SIP Connections.",
+          "setupLinkText": "Open Telnyx Portal",
+          "useCases": {
+            "telnyx-messaging": {
+              "title": "Post-call messaging",
+              "description": "भेजें post-call संदेश के जरिए Telnyx messaging API.",
+              "n8nTemplateName": "Telnyx मेसेंजर",
+              "n8nTemplateDescription": "भेजता है post-call संदेश",
+              "expectedOutcome": "Message भेजा गया के जरिए Telnyx"
+            },
+            "telnyx-analytics": {
+              "title": "Call एनालिटिक्स",
+              "description": "ट्रैक करें call एनालिटिक्स और performance के माध्यम से Telnyx.",
+              "n8nTemplateName": "Telnyx एनालिटिक्स",
+              "n8nTemplateDescription": "ट्रैक करता है call एनालिटिक्स",
+              "expectedOutcome": "Analytics recorded में Telnyx"
+            },
+            "telnyx-provision": {
+              "title": "Number provisioning",
+              "description": "Provision और manage फोन नंबर के माध्यम से Telnyx.",
+              "n8nTemplateName": "Telnyx Number प्रोविज़नर",
+              "n8nTemplateDescription": "Provisions numbers",
+              "expectedOutcome": "Numbers provisioned के जरिए Telnyx"
+            },
+            "telnyx-sip": {
+              "title": "SIP routing",
+              "description": "Configure SIP routing के माध्यम से Telnyx के लिए advanced call handling.",
+              "n8nTemplateName": "Telnyx SIP राउटर",
+              "n8nTemplateDescription": "Configures SIP routing",
+              "expectedOutcome": "SIP routing configured के जरिए Telnyx"
+            }
+          }
+        },
+        "vonage": {
+          "field1Label": "API कुंजी",
+          "field1Placeholder": "दर्ज करें Vonage API Key",
+          "field2Label": "API सीक्रेट",
+          "field2Placeholder": "दर्ज करें Vonage API Secret",
+          "helpText": "Find your API Key and Secret on the Vonage Dashboard under API Settings.",
+          "setupLinkText": "खोलें Vonage Dashboard",
+          "useCases": {
+            "vonage-sms": {
+              "title": "भेजें SMS सूचनाएं",
+              "description": "भेजें SMS सूचनाएं के जरिए Vonage के लिए इवेंट्स de कॉल और परिणाम.",
+              "n8nTemplateName": "Vonage नोटिफायर de SMS",
+              "n8nTemplateDescription": "भेजता है SMS सूचनाएं",
+              "expectedOutcome": "SMS सूचना भेजा गया के जरिए Vonage"
+            },
+            "vonage-quality": {
+              "title": "ट्रैक करें call quality",
+              "description": "Monitor और track call quality मेट्रिक्स के माध्यम से Vonage.",
+              "n8nTemplateName": "Vonage Quality ट्रैकर",
+              "n8nTemplateDescription": "ट्रैक करता है call quality",
+              "expectedOutcome": "Quality मेट्रिक्स recorded"
+            },
+            "vonage-route": {
+              "title": "रूट करें कॉल्स",
+              "description": "रूट करें कॉल्स के माध्यम से Vonage के साथ intelligent call distribution.",
+              "n8nTemplateName": "Vonage राउटर de कॉल",
+              "n8nTemplateDescription": "Routes कॉल्स",
+              "expectedOutcome": "Call routed के जरिए Vonage"
+            },
+            "vonage-lookup": {
+              "title": "Number lookup",
+              "description": "Look up फोन नंबर विवरण का उपयोग करके Vonage Number Insight.",
+              "n8nTemplateName": "Vonage Number खोज",
+              "n8nTemplateDescription": "Looks up number info",
+              "expectedOutcome": "Number विवरण retrieved"
+            }
+          }
+        },
+        "woocommerce": {
+          "field1Label": "कंज्यूमर कुंजी",
+          "field1Placeholder": "दर्ज करें WooCommerce Consumer Key (ck_...)",
+          "field2Label": "कंज्यूमर सीक्रेट",
+          "field2Placeholder": "दर्ज करें WooCommerce Consumer Secret (cs_...)",
+          "helpText": "Generate REST API keys in WooCommerce: Settings > Advanced > REST API > Add Key. Set permissions to Read/Write.",
+          "setupLinkText": "खोलें WooCommerce",
+          "useCases": {
+            "woo-orders": {
+              "title": "ऑर्डर ट्रैकिंग",
+              "description": "Track and look up orders in WooCommerce during calls.",
+              "n8nTemplateName": "WooCommerce Order ट्रैकर",
+              "n8nTemplateDescription": "ट्रैक करता है orders",
+              "expectedOutcome": "Order tracked में WooCommerce"
+            },
+            "woo-products": {
+              "title": "Product availability",
+              "description": "जांचें product availability में WooCommerce.",
+              "n8nTemplateName": "WooCommerce Product चेकर",
+              "n8nTemplateDescription": "Checks products",
+              "expectedOutcome": "Product availability checked"
+            },
+            "woo-process": {
+              "title": "Process orders",
+              "description": "Process नया orders के माध्यम से WooCommerce.",
+              "n8nTemplateName": "WooCommerce Order प्रोसेसर",
+              "n8nTemplateDescription": "Processes orders",
+              "expectedOutcome": "Order processed में WooCommerce"
+            },
+            "woo-customers": {
+              "title": "ग्राहक खोज",
+              "description": "Look up customer information in WooCommerce.",
+              "n8nTemplateName": "WooCommerce Customer खोज",
+              "n8nTemplateDescription": "Looks up customers",
+              "expectedOutcome": "Customer info retrieved"
+            }
+          }
+        },
+        "default": {
+          "field1Label": "क्लाइंट ID",
+          "field1Placeholder": "Enter your Client ID",
+          "field2Label": "क्लाइंट सीक्रेट",
+          "field2Placeholder": "Enter your Client Secret",
+          "helpText": "Enter your OAuth app credentials. You can find these in the provider's developer console or admin settings.",
+          "setupLinkText": "Open Developer Console"
+        }
+      },
+      "never": "कभी नहीं",
+      "notAvailable": "उपलब्ध नहीं",
+      "status": {
+        "connected": "कनेक्टेड",
+        "pendingAuth": "प्रमाणीकरण लंबित",
+        "error": "त्रुटि",
+        "inactive": "निष्क्रिय"
+      }
+    },
+    "subtitle": "कॉल डेटा को CRM जैसे बाहरी सिस्टम में भेजने के लिए वेबहुक कॉन्फ़िगर करें",
+    "createWebhook": "वेबहुक बनाएं",
+    "loading": "लोड हो रहा है...",
+    "loadingWebhooks": "वेबहुक लोड हो रहे हैं...",
+    "error": {
+      "title": "लोड करने में त्रुटि",
+      "description": "वेबहुक लोड नहीं हो सके। कृपया पुनः प्रयास करें।"
+    },
+    "dialog": {
+      "createTitle": "नया वेबहुक बनाएं",
+      "createDescription": "कॉल डेटा भेजने के लिए एक नया वेबहुक कॉन्फ़िगर करें।",
+      "deleteTitle": "वेबहुक हटाएं",
+      "deleteDescription": "क्या आप सुनिश्चित हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
+      "logsTitle": "डिलीवरी लॉग",
+      "logsDescription": "हाल के डिलीवरी प्रयासों का इतिहास।"
+    },
+    "form": {
+      "nameLabel": "वेबहुक नाम",
+      "namePlaceholder": "उदा., CRM अपडेट",
+      "urlLabel": "गंतव्य URL",
+      "urlPlaceholder": "https://your-api.com/webhook",
+      "campaignLabel": "अभियान",
+      "allCampaigns": "सभी अभियान"
+    },
+    "actions": {
+      "creating": "बना रहा है...",
+      "testWebhook": "वेबहुक परीक्षण",
+      "viewLogs": "लॉग देखें"
+    },
+    "empty": {
+      "title": "कोई वेबहुक कॉन्फ़िगर नहीं",
+      "description": "बाहरी सिस्टम को डेटा भेजने के लिए अपना पहला वेबहुक बनाएं।"
+    },
+    "status": {
+      "active": "सक्रिय",
+      "inactive": "निष्क्रिय"
+    },
+    "logs": {
+      "noLogs": "अभी तक कोई लॉग नहीं।",
+      "success": "सफल",
+      "failed": "विफल",
+      "http": "HTTP",
+      "attempt": "प्रयास",
+      "viewResponse": "प्रतिक्रिया देखें"
+    },
+    "webhook": {
+      "campaign": "अभियान",
+      "secret": "गुप्त कुंजी"
+    },
+    "unlock": {
+      "title": "शक्तिशाली वेबहुक अनलॉक करें",
+      "description": "रीयल-टाइम वेबहुक के साथ वर्कफ़्लो स्वचालित करें",
+      "proFeaturesTitle": "प्रो सुविधाएं",
+      "realTimeEvents": "रीयल-टाइम इवेंट",
+      "realTimeEventsDesc": "कॉल पूरी होने पर तुरंत सूचनाएं",
+      "crmAutoSync": "CRM ऑटो-सिंक",
+      "crmAutoSyncDesc": "स्वचालित रूप से अपने CRM में डेटा भेजें",
+      "customWorkflows": "कस्टम वर्कफ़्लो",
+      "customWorkflowsDesc": "परिणामों के आधार पर कार्रवाई ट्रिगर करें",
+      "secureReliable": "सुरक्षित और विश्वसनीय",
+      "secureReliableDesc": "HMAC हस्ताक्षर और स्वचालित पुनः प्रयास",
+      "upgradeButton": "प्रो में अपग्रेड करें",
+      "upgradeDesc": "वेबहुक प्रो प्लान और उससे ऊपर में उपलब्ध हैं"
+    },
+    "toast": {
+      "created": "वेबहुक बना",
+      "createdDesc": "वेबहुक सफलतापूर्वक बनाया गया।",
+      "createFailed": "बनाने में त्रुटि",
+      "createFailedDesc": "वेबहुक नहीं बनाया जा सका।",
+      "updated": "वेबहुक अपडेट",
+      "updatedDesc": "वेबहुक सफलतापूर्वक अपडेट किया गया।",
+      "updateFailed": "अपडेट में त्रुटि",
+      "updateFailedDesc": "वेबहुक अपडेट नहीं हो सका।",
+      "deleted": "वेबहुक हटाया",
+      "deletedDesc": "वेबहुक सफलतापूर्वक हटाया गया।",
+      "deleteFailed": "हटाने में त्रुटि",
+      "deleteFailedDesc": "वेबहुक नहीं हटाया जा सका।",
+      "testSent": "परीक्षण भेजा",
+      "testSentDesc": "वेबहुक पर परीक्षण ईवेंट भेजा गया।",
+      "testFailed": "परीक्षण में त्रुटि",
+      "testFailedDesc": "परीक्षण ईवेंट नहीं भेजा जा सका।",
+      "missingFields": "आवश्यक फ़ील्ड",
+      "missingFieldsDesc": "सभी आवश्यक फ़ील्ड भरें।",
+      "copied": "कॉपी किया",
+      "copiedDesc": "क्लिपबोर्ड पर कॉपी किया गया।"
+    },
+    "apiKeys": {
+      "title": "API कुंजी प्रबंधन",
+      "description": "प्लेटफ़ॉर्म तक प्रोग्रामेटिक पहुँच के लिए अपनी API कुंजियाँ प्रबंधित करें",
+      "keyLabel": "API कुंजी",
+      "noKey": "कोई API कुंजी जनरेट नहीं हुई",
+      "warning": "अपनी API कुंजी सुरक्षित रखें। इसे सार्वजनिक रूप से साझा न करें।",
+      "regenerate": "कुंजी पुन: उत्पन्न करें",
+      "regenerateTitle": "API कुंजी पुन: उत्पन्न करें",
+      "regenerateConfirm": "यह आपकी वर्तमान API कुंजी को अमान्य कर देगा और एक नई कुंजी उत्पन्न करेगा। पुरानी कुंजी का उपयोग करने वाले मौजूदा एकीकरण काम करना बंद कर देंगे। यह क्रिया पूर्ववत नहीं की जा सकती।",
+      "regenerated": "API कुंजी पुन: उत्पन्न हुई",
+      "regeneratedDesc": "आपकी नई API कुंजी सफलतापूर्वक उत्पन्न हो गई है",
+      "regenerateFailed": "API कुंजी पुन: उत्पन्न करने में विफल"
+    }
   },
   "campaignDetail": {
     "sections": {

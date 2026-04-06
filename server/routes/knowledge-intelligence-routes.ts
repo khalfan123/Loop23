@@ -35,6 +35,7 @@ import { createContentProcessor } from "../services/content-processor";
 import { createKnowledgeAIAnalyzer } from "../services/knowledge-ai-analyzer";
 import { createContentGenerator } from "../services/content-generator";
 import { createTopicIntelligence, type WebsiteNature, type TopicCluster } from "../services/topic-intelligence";
+import { createBedrockClaudeGenerator } from "../services/bedrock-claude-generator";
 
 interface AuthRequest extends Request {
   userId?: string;
@@ -729,7 +730,8 @@ async function runPipeline(pipelineJobId: string, userId: string) {
     await updateProgress("analyzing", 100, 66, 30, stageDetails);
 
     // ========== STAGE 3: INTELLIGENT CONTENT GENERATION ==========
-    // Use Topic Intelligence to automatically mine topics, score them, and generate articles
+    // Primary: Use AWS Bedrock Claude for fold-based article generation (10-20 articles)
+    // Fallback: Use Topic Intelligence (Anthropic Claude) if Bedrock is not configured
     await db.update(knowledgePipelineJobs)
       .set({ status: "generating", updatedAt: new Date() })
       .where(eq(knowledgePipelineJobs.id, pipelineJobId));
@@ -737,68 +739,122 @@ async function runPipeline(pipelineJobId: string, userId: string) {
     stageDetails.generating.startedAt = new Date().toISOString();
     await updateProgress("generating", 0, 68, 120, stageDetails);
 
-    const topicIntelligence = createTopicIntelligence(userId);
-    
-    try {
-      // Run the intelligent auto-generation pipeline
-      // This analyzes website nature, mines topics, expands them, scores them, and generates articles
-      const autoGenResult = await topicIntelligence.runAutoGeneration(
-        pipelineJobId,
-        pipelineJob.crawlJobId,
-        15 // Max articles to generate
-      );
+    // Try Bedrock Claude first
+    const bedrockGenerator = createBedrockClaudeGenerator(userId);
 
-      // Update stage details with topic intelligence results
-      stageDetails.websiteNature = {
-        industry: autoGenResult.websiteNature.industryDomain,
-        productCategory: autoGenResult.websiteNature.productCategory,
-        features: autoGenResult.websiteNature.productFeatures.length,
-        personas: autoGenResult.websiteNature.customerPersonas.length
-      };
-      stageDetails.topicMining = {
-        topicsDiscovered: autoGenResult.topicsDiscovered,
-        topicsExpanded: autoGenResult.topicsExpanded,
-        topicsSelected: autoGenResult.topicsSelected,
-        clusters: autoGenResult.clusters.length
-      };
-      stageDetails.generating.articlesPlanned = autoGenResult.topicsSelected;
-      stageDetails.generating.articlesGenerated = autoGenResult.articlesGenerated;
+    if (bedrockGenerator) {
+      try {
+        console.log("[Pipeline] Using AWS Bedrock Claude for fold-based article generation");
 
-      console.log(`[Pipeline] Topic Intelligence completed:`, {
-        websiteNature: autoGenResult.websiteNature.industryDomain,
-        topicsDiscovered: autoGenResult.topicsDiscovered,
-        topicsSelected: autoGenResult.topicsSelected,
-        articlesGenerated: autoGenResult.articlesGenerated
-      });
-    } catch (error) {
-      console.error("[Pipeline] Topic Intelligence failed, falling back to basic generation:", error);
-      
-      // Fallback to basic topic-based generation
-      const topics = await db.select().from(knowledgeTopics)
-        .where(eq(knowledgeTopics.userId, userId))
-        .limit(10);
+        const bedrockResult = await bedrockGenerator.runFoldArticleGeneration(
+          pipelineJob.crawlJobId,
+          15, // max articles (10-20)
+          async (generated: number, total: number) => {
+            const progress = Math.round((generated / total) * 100);
+            stageDetails.generating.articlesPlanned = total;
+            stageDetails.generating.articlesGenerated = generated;
+            await updateProgress(
+              "generating",
+              progress,
+              68 + Math.round(progress * 0.32),
+              Math.max(0, (total - generated) * 6),
+              stageDetails
+            );
+          }
+        );
 
-      const articleTypes = ["guide", "how-to", "overview", "faq", "tutorial"];
-      const generator = createContentGenerator(userId);
-      let generated = 0;
+        stageDetails.generating.articlesPlanned = bedrockResult.foldsDiscovered * 3;
+        stageDetails.generating.articlesGenerated = bedrockResult.articlesGenerated;
+        stageDetails.bedrockFolds = {
+          foldsDiscovered: bedrockResult.foldsDiscovered,
+          foldNames: bedrockResult.folds.map((f) => f.name),
+          articlesGenerated: bedrockResult.articlesGenerated,
+          generator: "aws-bedrock-claude",
+        };
 
-      stageDetails.generating.articlesPlanned = topics.length;
+        console.log(`[Pipeline] Bedrock Claude generation completed:`, {
+          foldsDiscovered: bedrockResult.foldsDiscovered,
+          articlesGenerated: bedrockResult.articlesGenerated,
+        });
+      } catch (bedrockError) {
+        console.error("[Pipeline] Bedrock Claude generation failed, falling back to Topic Intelligence:", bedrockError);
 
-      for (let i = 0; i < topics.length; i++) {
-        const topic = topics[i];
-        const articleType = articleTypes[i % articleTypes.length];
-        
+        // Fallback to Topic Intelligence
+        const topicIntelligence = createTopicIntelligence(userId);
         try {
-          const brief = await generator.generateBrief(topic.name, articleType);
-          await generator.generateArticle(brief, { articleType });
-          generated++;
-          stageDetails.generating.articlesGenerated = generated;
+          const autoGenResult = await topicIntelligence.runAutoGeneration(
+            pipelineJobId,
+            pipelineJob.crawlJobId,
+            15
+          );
+          stageDetails.generating.articlesPlanned = autoGenResult.topicsSelected;
+          stageDetails.generating.articlesGenerated = autoGenResult.articlesGenerated;
+        } catch (fallbackError) {
+          console.error("[Pipeline] Topic Intelligence fallback also failed:", fallbackError);
+        }
+      }
+    } else {
+      // Bedrock not configured — use Topic Intelligence (Anthropic Claude)
+      console.log("[Pipeline] AWS Bedrock not configured, using Topic Intelligence (Anthropic Claude)");
+      const topicIntelligence = createTopicIntelligence(userId);
+      
+      try {
+        const autoGenResult = await topicIntelligence.runAutoGeneration(
+          pipelineJobId,
+          pipelineJob.crawlJobId,
+          15
+        );
+
+        stageDetails.websiteNature = {
+          industry: autoGenResult.websiteNature.industryDomain,
+          productCategory: autoGenResult.websiteNature.productCategory,
+          features: autoGenResult.websiteNature.productFeatures.length,
+          personas: autoGenResult.websiteNature.customerPersonas.length
+        };
+        stageDetails.topicMining = {
+          topicsDiscovered: autoGenResult.topicsDiscovered,
+          topicsExpanded: autoGenResult.topicsExpanded,
+          topicsSelected: autoGenResult.topicsSelected,
+          clusters: autoGenResult.clusters.length
+        };
+        stageDetails.generating.articlesPlanned = autoGenResult.topicsSelected;
+        stageDetails.generating.articlesGenerated = autoGenResult.articlesGenerated;
+
+        console.log(`[Pipeline] Topic Intelligence completed:`, {
+          websiteNature: autoGenResult.websiteNature.industryDomain,
+          topicsDiscovered: autoGenResult.topicsDiscovered,
+          topicsSelected: autoGenResult.topicsSelected,
+          articlesGenerated: autoGenResult.articlesGenerated
+        });
+      } catch (error) {
+        console.error("[Pipeline] Topic Intelligence failed, falling back to basic generation:", error);
+        
+        const topics = await db.select().from(knowledgeTopics)
+          .where(eq(knowledgeTopics.userId, userId))
+          .limit(10);
+
+        const articleTypes = ["guide", "how-to", "overview", "faq", "tutorial"];
+        const generator = createContentGenerator(userId);
+        let generated = 0;
+
+        stageDetails.generating.articlesPlanned = topics.length;
+
+        for (let i = 0; i < topics.length; i++) {
+          const topic = topics[i];
+          const articleType = articleTypes[i % articleTypes.length];
           
-          const progress = Math.round((generated / topics.length) * 100);
-          await updateProgress("generating", progress, 66 + Math.round(progress * 0.34), 
-            Math.max(0, (topics.length - generated) * 8), stageDetails);
-        } catch (genError) {
-          console.error(`Failed to generate ${articleType} for topic ${topic.name}:`, genError);
+          try {
+            const brief = await generator.generateBrief(topic.name, articleType);
+            await generator.generateArticle(brief, { articleType });
+            generated++;
+            stageDetails.generating.articlesGenerated = generated;
+            
+            const progress = Math.round((generated / topics.length) * 100);
+            await updateProgress("generating", progress, 66 + Math.round(progress * 0.34), 
+              Math.max(0, (topics.length - generated) * 8), stageDetails);
+          } catch (genError) {
+            console.error(`Failed to generate ${articleType} for topic ${topic.name}:`, genError);
+          }
         }
       }
     }
@@ -851,7 +907,8 @@ router.get("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Get active pipeline job (most recent running job)
+// Get active pipeline job — returns running jobs OR recently-completed URL enrichment jobs
+// (done/error stage within the last 2 minutes so the frontend can render the completion banner)
 router.get("/pipeline-jobs/active", async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) {
@@ -861,7 +918,14 @@ router.get("/pipeline-jobs/active", async (req: AuthRequest, res: Response) => {
     const [activeJob] = await db.select().from(knowledgePipelineJobs)
       .where(and(
         eq(knowledgePipelineJobs.userId, req.userId),
-        sql`${knowledgePipelineJobs.status} IN ('pending', 'crawling', 'analyzing', 'generating')`
+        sql`(
+          ${knowledgePipelineJobs.status} IN ('pending', 'crawling', 'analyzing', 'generating')
+          OR (
+            ${knowledgePipelineJobs.status} IN ('completed', 'failed')
+            AND ${knowledgePipelineJobs.currentStage} IN ('done', 'error')
+            AND ${knowledgePipelineJobs.completedAt} > NOW() - INTERVAL '2 minutes'
+          )
+        )`
       ))
       .orderBy(desc(knowledgePipelineJobs.createdAt))
       .limit(1);
@@ -949,31 +1013,6 @@ router.get("/intelligence-stats", async (req: AuthRequest, res: Response) => {
 // PIPELINE JOBS
 // ============================================================
 
-router.get("/pipeline-jobs/active", async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const [job] = await db.select().from(knowledgePipelineJobs)
-      .where(and(
-        eq(knowledgePipelineJobs.userId, req.userId),
-        sql`${knowledgePipelineJobs.status} IN ('pending', 'crawling', 'analyzing', 'generating', 'completed', 'failed')`
-      ))
-      .orderBy(desc(knowledgePipelineJobs.createdAt))
-      .limit(1);
-
-    if (!job) {
-      return res.json(null);
-    }
-
-    res.json(job);
-  } catch (error) {
-    console.error("Error fetching active pipeline job:", error);
-    res.status(500).json({ error: "Failed to fetch active pipeline job" });
-  }
-});
-
 router.get("/pipeline-jobs/:id", async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) {
@@ -1036,6 +1075,9 @@ router.post("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
     const [job] = await db.insert(knowledgePipelineJobs).values({
       userId: req.userId,
       name,
+      startUrl,
+      crawlType,
+      maxPages,
       crawlJobId: crawlJob.id,
       status: "pending",
       currentStage: "crawling",
@@ -1049,9 +1091,8 @@ router.post("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
     }).returning();
 
     // Run pipeline asynchronously (non-blocking)
-    const pipelineUserId = req.userId;
     setImmediate(() => {
-      runPipeline(job.id, pipelineUserId as string).catch(err => {
+      runPipeline(job.id, req.userId).catch(err => {
         console.error(`Pipeline ${job.id} failed:`, err);
       });
     });
@@ -1402,13 +1443,15 @@ router.get("/ml-conversations/samples", async (req: AuthRequest, res: Response) 
     const status = req.query.status as string;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
 
-    const filters = [eq(mlTrainingSamples.userId, req.userId)];
-    if (status && status !== "all") {
-      filters.push(eq(mlTrainingSamples.status, status));
-    }
+    let query = db.select().from(mlTrainingSamples)
+      .where(eq(mlTrainingSamples.userId, req.userId));
 
-    const query = db.select().from(mlTrainingSamples)
-      .where(and(...filters));
+    if (status && status !== "all") {
+      query = query.where(and(
+        eq(mlTrainingSamples.userId, req.userId),
+        eq(mlTrainingSamples.status, status)
+      ));
+    }
 
     const samples = await query.orderBy(desc(mlTrainingSamples.createdAt)).limit(limit);
 
@@ -2029,7 +2072,7 @@ Do NOT include any markdown, code blocks, or extra text.`;
             const contentText = article.content;
             const storageSize = Buffer.byteLength(contentText, 'utf8');
             const [inserted] = await db.insert(knowledgeBase).values({
-              userId: req.userId!,
+              userId: req.userId,
               folderId: folder.id,
               type: 'text',
               title: article.title,
@@ -2248,6 +2291,7 @@ Requirements:
         generatedWithoutSource: !websiteContent,
       },
       storageSize,
+      ragStatus: 'pending',
     }).returning();
 
     try {

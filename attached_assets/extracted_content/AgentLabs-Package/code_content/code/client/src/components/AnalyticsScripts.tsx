@@ -18,6 +18,7 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import type { AnalyticsScript } from "@shared/schema";
+import DOMPurify from "dompurify";
 
 interface AnalyticsScriptsProps {
   placement?: "head" | "body" | "all";
@@ -313,7 +314,7 @@ function injectScript(script: AnalyticsScript, targetPlacement: "head" | "body")
 
   try {
     const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = codeToInject;
+    tempDiv.innerHTML = DOMPurify.sanitize(codeToInject, { ADD_TAGS: ['script', 'noscript', 'link', 'style', 'meta', 'iframe', 'img'], FORCE_BODY: true });
 
     const elements = Array.from(tempDiv.children);
 
@@ -352,7 +353,7 @@ function injectScript(script: AnalyticsScript, targetPlacement: "head" | "body")
           return;
         }
         const newNoscript = document.createElement("noscript");
-        newNoscript.innerHTML = element.innerHTML;
+        newNoscript.innerHTML = DOMPurify.sanitize(element.innerHTML, { ADD_TAGS: ['img', 'iframe'] });
         newNoscript.setAttribute("data-analytics-id", script.id);
         newNoscript.setAttribute("data-analytics-placement", targetPlacement);
         document.body.appendChild(newNoscript);

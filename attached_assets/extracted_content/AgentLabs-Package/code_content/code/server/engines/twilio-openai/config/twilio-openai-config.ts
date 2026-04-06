@@ -44,7 +44,7 @@ export function getStatusWebhookUrl(): string {
 
 export function getStreamWebhookUrl(callSid: string): string {
   const baseUrl = getWebhookBaseUrl();
-  const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+  const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'wss://');
   return `${wsUrl}/api/twilio-openai/stream/${callSid}`;
 }
 

@@ -89,20 +89,6 @@ interface Department {
   flowId?: string | null;
   agentCount?: number;
   languages?: string[];
-  assignedAgents?: Array<{
-    id: string;
-    agentId: string;
-    agentName: string;
-    language: string;
-    systemPrompt: string | null;
-    voiceTone: string | null;
-    voiceId: string | null;
-    voiceProvider: string | null;
-    knowledgeBaseIds: string[] | null;
-    isPrimary: boolean;
-    agentType: string;
-    firstMessage: string | null;
-  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,8 +113,6 @@ interface IvrConfiguration {
   name: string;
   isActive: boolean;
   voiceName: string | null;
-  greetingMessage?: string | null;
-  languageOptions?: LanguageOption[] | null;
   menuOptions: { key: string; label: string; departmentId: string }[] | null;
 }
 
@@ -392,6 +376,7 @@ export default function DepartmentManagement() {
   const [showIvrSettingsDialog, setShowIvrSettingsDialog] = useState(false);
   const [showAddAgentDialog, setShowAddAgentDialog] = useState(false);
   const [showConfigSheet, setShowConfigSheet] = useState(false);
+  const [creatingDepartment, setCreatingDepartment] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set());
   
@@ -463,7 +448,7 @@ export default function DepartmentManagement() {
     queryKey: ["/api/auth/me"],
   });
 
-  const { data: statsData, isLoading: statsLoading } = useQuery<{
+  const { data: statsData, isLoading: statsLoading, isFetching: statsRefetching } = useQuery<{
     departments: Department[];
     totalDepartments: number;
     activeIvrCount: number;
@@ -487,6 +472,7 @@ export default function DepartmentManagement() {
 
   const createDepartmentMutation = useMutation({
     mutationFn: async (data: typeof newDepartment) => {
+      setCreatingDepartment(true);
       const response = await apiRequest("POST", "/api/departments", data);
       return response.json();
     },
@@ -506,15 +492,17 @@ export default function DepartmentManagement() {
           }
         }
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
       setShowCreateDialog(false);
       setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
       setNewAgents([]);
       setExpandedNewAgents(new Set());
+      await queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/departments/stats/overview"] });
+      setCreatingDepartment(false);
       toast({ title: "Department created successfully" });
     },
     onError: (error: any) => {
+      setCreatingDepartment(false);
       toast({ title: "Failed to create department", variant: "destructive" });
     },
   });
@@ -809,7 +797,7 @@ export default function DepartmentManagement() {
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
       ivrAudioRef.current.src = audioUrl;
-      ivrAudioRef.current.play();
+      ivrAudioRef.current.play().catch(() => {});
       ivrAudioRef.current.onended = () => {
         setIvrPlayingVoiceId(null);
         URL.revokeObjectURL(audioUrl);
@@ -1009,7 +997,7 @@ export default function DepartmentManagement() {
         const blob = await response.blob();
         const audioUrl = URL.createObjectURL(blob);
         audioRef.current.src = audioUrl;
-        audioRef.current.play();
+        audioRef.current.play().catch(() => {});
         audioRef.current.onended = () => {
           setPlayingVoiceId(null);
           URL.revokeObjectURL(audioUrl);
@@ -1032,7 +1020,7 @@ export default function DepartmentManagement() {
     }
     
     audioRef.current.src = previewUrl;
-    audioRef.current.play();
+    audioRef.current.play().catch(() => {});
     setPlayingVoiceId(voiceId);
     audioRef.current.onended = () => setPlayingVoiceId(null);
     audioRef.current.onerror = () => setPlayingVoiceId(null);
@@ -1096,7 +1084,7 @@ export default function DepartmentManagement() {
     return (phoneNumbers || []).filter(p => assignedPhoneIds.has(p.id));
   }, [phoneNumbers, assignedPhoneIds]);
 
-  if (statsLoading) {
+  if (statsLoading && !statsData) {
     return (
       <div className="flex items-center justify-center py-16" data-testid="loading-spinner">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1149,6 +1137,12 @@ export default function DepartmentManagement() {
       subPanelHeader={<span className="font-medium text-sm">Department Management</span>}
     >
       <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="department-management-page">
+        {(creatingDepartment || (statsRefetching && !statsLoading)) && (
+          <div className="flex items-center gap-2 px-4 pt-3 pb-0" data-testid="refetch-spinner">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">{creatingDepartment ? "Creating department..." : "Updating..."}</span>
+          </div>
+        )}
         {activeTab === 'org-map' && (
           <div className="space-y-6 p-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1372,7 +1366,7 @@ export default function DepartmentManagement() {
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs font-medium tracking-wide text-muted-foreground/60 uppercase">Departments & AI Agents</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[200px]">
                 {departments.map((dept, idx) => (
                   <DepartmentCard
                     key={dept.id}
@@ -1392,6 +1386,13 @@ export default function DepartmentManagement() {
                     }}
                   />
                 ))}
+
+                {creatingDepartment && (
+                  <div className="rounded-2xl border border-border/60 min-h-[200px] flex flex-col items-center justify-center bg-muted/20 animate-pulse" data-testid="creating-department-placeholder">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                    <span className="text-xs text-muted-foreground">Creating department...</span>
+                  </div>
+                )}
 
                 <div 
                   className="rounded-2xl border border-dashed border-border/60 hover-elevate cursor-pointer min-h-[200px] flex flex-col items-center justify-center"

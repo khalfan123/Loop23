@@ -20,7 +20,7 @@ import {
   getRecordingWebhookUrl,
   TWILIO_OPENAI_CONFIG
 } from '../config/twilio-openai-config';
-import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
+import { OpenAIPoolService } from '../../../services/openai-pool.service';
 import { OpenAIAgentFactory } from '../services/openai-agent-factory';
 import { TwilioOpenAIAudioBridge } from '../services/audio-bridge.service';
 import { getTwilioClient } from '../../../services/twilio-connector';

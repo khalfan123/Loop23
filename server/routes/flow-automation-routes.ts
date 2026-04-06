@@ -29,7 +29,6 @@ import {
   flowExecutions,
   phoneNumbers, calls, agents, contacts,
   incomingConnections, campaigns,
-  plivoPhoneNumbers, plivoCalls,
   sipPhoneNumbers, sipCalls, twilioOpenaiCalls,
   departments, departmentAgents
 } from "@shared/schema";
@@ -44,9 +43,8 @@ import { FlowAgentService } from "../services/flow-agent";
 import { OutboundCallService } from "../services/outbound-call-service";
 import { PhoneMigrator } from "../engines/elevenlabs-migration";
 import { TwilioOpenAICallService } from "../engines/twilio-openai/services/twilio-openai-call.service";
-import { PlivoCallService } from "../engines/plivo/services/plivo-call.service";
-import { OpenAIAgentFactory } from "../engines/plivo/services/openai-agent-factory";
-import type { CompiledFlowConfig } from "../engines/plivo/types";
+import { OpenAIAgentFactory } from "../services/openai-agent-factory";
+import type { CompiledFlowConfig } from "../types/openai-types";
 import { OpenAIVoiceAgentCompiler } from "../services/openai-voice-agent";
 import type { FlowNode, FlowEdge } from "../services/openai-voice-agent";
 import { getPluginStatus } from "../plugins/loader";
@@ -306,8 +304,7 @@ router.patch("/flows/:id", async (req: AuthRequest, res: Response) => {
           .where(eq(agents.id, flowAgentId));
         
         if (agent && agent.type === 'flow') {
-          // Check if this is an OpenAI-based flow agent (Plivo or Twilio+OpenAI)
-          const isOpenAIProvider = agent.telephonyProvider === 'plivo' || agent.telephonyProvider === 'twilio_openai';
+          const isOpenAIProvider = agent.telephonyProvider === 'twilio_openai';
           
           if (isOpenAIProvider) {
             // OpenAI-based flow agents - compile flow using shared OpenAI Voice Agent service
@@ -751,6 +748,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
       }
       
       try {
+        // Use the plugin's ElevenLabsSipService.makeOutboundCall
         const { ElevenLabsSipService } = await import('../../plugins/sip-engine/services/elevenlabs-sip.service');
         
         console.log(`📞 [Flow Test] Initiating SIP test call via ElevenLabs SIP Trunk API`);
@@ -758,16 +756,29 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
         console.log(`   To: ${phoneNumber}`);
         console.log(`   Agent (ElevenLabs ID): ${agent.elevenLabsAgentId}`);
         
-        const result = await ElevenLabsSipService.initiateOutboundCall({
-          sipPhoneNumberId: sipPhone.id,
-          toNumber: phoneNumber,
-          agentId: agent.id,
+        const result = await ElevenLabsSipService.makeOutboundCall(
           userId,
-        });
+          sipPhone as any,
+          phoneNumber,
+          agent.id,
+          {
+            source: 'flow_test',
+            flowId: flow.id,
+            flowName: flow.name,
+            testCall: true,
+          }
+        );
+        
+        if (!result.success) {
+          return res.status(400).json({
+            error: "SIP call initiation failed",
+            message: result.error || "Failed to initiate call via ElevenLabs SIP Trunk"
+          });
+        }
         
         console.log(`✅ [Flow Test] ElevenLabs SIP outbound call initiated`);
-        console.log(`   External Call ID: ${result.externalCallId || 'n/a'}`);
-        console.log(`   Internal Call ID: ${result.id}`);
+        console.log(`   Conversation ID: ${result.conversationId}`);
+        console.log(`   Call ID: ${result.callId}`);
         
         // Create SIP call record
         const sipCallId = nanoid();
@@ -780,7 +791,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
           engine: 'elevenlabs-sip',
           toNumber: phoneNumber,
           fromNumber: sipPhone.phoneNumber,
-          externalCallId: result.externalCallId || null,
+          externalCallId: result.conversationId || result.callId || null,
           status: 'initiated',
           startedAt: new Date(),
           conversationData: {
@@ -788,7 +799,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
             flowId: flow.id,
             flowName: flow.name,
             testCall: true,
-            conversationId: result.externalCallId,
+            conversationId: result.conversationId,
           },
         });
         
@@ -809,15 +820,15 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
             nativeExecution: true,
             telephonyProvider: 'elevenlabs-sip',
             testCall: true,
-            conversationId: result.externalCallId,
+            conversationId: result.conversationId,
           },
         });
         
         return res.json({
           success: true,
           callId: sipCallId,
-          conversationId: result.externalCallId,
-          callSid: result.externalCallId,
+          conversationId: result.conversationId,
+          callSid: result.callId,
           flowId: flow.id,
           flowName: flow.name,
           fromNumber: sipPhone.phoneNumber,
@@ -939,9 +950,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
       console.log(`⚠️ [Flow Test] Phone ${fromPhone.phoneNumber} is attached to active campaign(s): ${campaignNames}`);
     }
     
-    // Check if this is an OpenAI-based flow agent (Plivo or Twilio+OpenAI)
-    // OpenAI providers use twilioOpenaiCalls table, ElevenLabs uses calls table
-    const isOpenAIProvider = agent.telephonyProvider === 'plivo' || agent.telephonyProvider === 'twilio_openai';
+    const isOpenAIProvider = agent.telephonyProvider === 'twilio_openai';
     
     // Only create calls table record for ElevenLabs provider
     // OpenAI provider creates its own record in twilioOpenaiCalls table via TwilioOpenAICallService
@@ -1046,155 +1055,6 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
     console.log(`   Edges: ${flow.edges.length}`);
     
     // Route to appropriate call service based on agent's telephonyProvider
-    if (agent.telephonyProvider === 'plivo') {
-      // ========================================
-      // PLIVO + OPENAI REALTIME PATH
-      // Uses PlivoCallService with OpenAI Realtime for voice AI
-      // ========================================
-      console.log(`   Using Plivo + OpenAI Realtime API`);
-      
-      try {
-        // Get a Plivo phone number for this user
-        const [plivoPhone] = await db
-          .select()
-          .from(plivoPhoneNumbers)
-          .where(and(
-            eq(plivoPhoneNumbers.userId, userId),
-            eq(plivoPhoneNumbers.status, 'active')
-          ))
-          .limit(1);
-        
-        if (!plivoPhone) {
-          return res.status(400).json({
-            error: "No Plivo phone number available",
-            message: "Please purchase a Plivo phone number first in the Phone Numbers section."
-          });
-        }
-        
-        // Use pre-compiled flow data if available, otherwise compile at runtime
-        const validatedVoice = OpenAIAgentFactory.validateVoice(agent.openaiVoice || 'sage');
-        const validatedModel = OpenAIAgentFactory.validateModel(
-          (agent.config as any)?.openaiModel || 'gpt-4o-realtime-preview',
-          'pro'
-        );
-        
-        let compiledConfig: any;
-        
-        // Generate a temporary call ID for tool context (will be replaced by actual call ID after initiation)
-        const tempCallId = nanoid();
-        
-        if (flow.compiledSystemPrompt && flow.compiledTools && flow.compiledStates) {
-          // Use pre-compiled flow data (compiled at save time)
-          console.log(`   Using pre-compiled flow data (${(flow.compiledTools as any[]).length} tools, ${(flow.compiledStates as any[]).length} states)`);
-          
-          const { hydrateCompiledFlow } = await import('../services/openai-voice-agent/hydrator');
-          compiledConfig = await hydrateCompiledFlow({
-            compiledSystemPrompt: flow.compiledSystemPrompt,
-            compiledFirstMessage: flow.compiledFirstMessage || null,
-            compiledTools: flow.compiledTools as any[],
-            compiledStates: flow.compiledStates as any[],
-            voice: validatedVoice,
-            model: validatedModel,
-            temperature: agent.temperature ?? 0.7,
-            toolContext: {
-              userId,
-              agentId: agent.id,
-              callId: tempCallId,
-            },
-            language: agent.language || 'en',
-            knowledgeBaseIds: agent.knowledgeBaseIds || [],
-            transferPhoneNumber: agent.transferPhoneNumber || undefined,
-            transferEnabled: agent.transferEnabled || false,
-          });
-        } else {
-          // Fall back to runtime compilation (legacy flows)
-          console.log(`   Compiling flow at runtime (no pre-compiled data)`);
-          
-          const flowConfig: CompiledFlowConfig = {
-            nodes: flow.nodes as any[],
-            edges: flow.edges as any[],
-            variables: {},
-          };
-          
-          compiledConfig = await OpenAIAgentFactory.compileFlow(flowConfig, {
-            voice: validatedVoice,
-            model: validatedModel,
-            userId,
-            agentId: agent.id,
-            temperature: agent.temperature ?? 0.7,
-          });
-        }
-        
-        const { callUuid, plivoCall } = await PlivoCallService.initiateCall({
-          fromNumber: plivoPhone.phoneNumber,
-          toNumber: phoneNumber,
-          userId,
-          agentId: agent.id,
-          plivoPhoneNumberId: plivoPhone.id,
-          flowId: flow.id, // Pass the tested flowId (not agent's default flow)
-          agentConfig: {
-            voice: compiledConfig.voice,
-            model: compiledConfig.model,
-            systemPrompt: compiledConfig.systemPrompt,
-            firstMessage: compiledConfig.firstMessage,
-            tools: compiledConfig.tools,
-          },
-        });
-        
-        console.log(`✅ [Flow Test] Plivo outbound call initiated`);
-        console.log(`   Call ID: ${plivoCall.id}`);
-        console.log(`   Plivo UUID: ${callUuid}`);
-        console.log(`   Flow: ${flow.name} (${flow.id})`);
-        console.log(`   From: ${plivoPhone.phoneNumber} -> To: ${phoneNumber}`);
-        
-        // Create flow execution record for test call
-        try {
-          await db.insert(flowExecutions).values({
-            id: nanoid(),
-            callId: plivoCall.id,
-            flowId: flow.id,
-            currentNodeId: null,
-            status: 'running',
-            variables: {},
-            pathTaken: [],
-            startedAt: new Date(),
-            metadata: {
-              campaignId: null,
-              campaignName: null,
-              contactPhone: phoneNumber,
-              nativeExecution: true,
-              telephonyProvider: 'plivo',
-              testCall: true,
-            },
-          });
-          console.log(`🔀 [Flow Test] Created flow execution for Plivo test call`);
-        } catch (flowExecError: any) {
-          console.warn(`⚠️ [Flow Test] Error creating flow execution:`, flowExecError.message);
-        }
-        
-        return res.json({
-          success: true,
-          callId: plivoCall.id,
-          conversationId: plivoCall.id,
-          plivoUuid: callUuid,
-          flowId: flow.id,
-          flowName: flow.name,
-          fromNumber: plivoPhone.phoneNumber,
-          toNumber: phoneNumber,
-          message: "Test call initiated successfully via Plivo + OpenAI Realtime. The agent will execute the workflow.",
-          engine: 'plivo_openai',
-          ...(activeCampaignWarning && { warning: activeCampaignWarning })
-        });
-        
-      } catch (plivoError: any) {
-        console.error(`❌ [Flow Test] Plivo call error:`, plivoError);
-        return res.status(400).json({
-          error: "Call initiation failed",
-          message: plivoError.message || "Failed to initiate call via Plivo"
-        });
-      }
-    }
-    
     if (agent.telephonyProvider === 'twilio_openai') {
       // ========================================
       // TWILIO + OPENAI REALTIME PATH
@@ -2600,6 +2460,14 @@ router.delete("/forms/:id", async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     
     await db
+      .delete(formSubmissions)
+      .where(eq(formSubmissions.formId, id));
+    
+    await db
+      .delete(formFields)
+      .where(eq(formFields.formId, id));
+    
+    await db
       .delete(forms)
       .where(and(eq(forms.id, id), eq(forms.userId, userId)));
     
@@ -2804,7 +2672,6 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
       }
     }
     
-    // Second pass: Sync from Plivo calls table for executions still showing "running"
     const stillRunningExecs = executionsWithDetails.filter(
       e => e.status === 'running' && !e.callStatus
     );
@@ -2812,15 +2679,6 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
     if (stillRunningExecs.length > 0) {
       const stillRunningCallIds = stillRunningExecs.map(e => e.callId);
       
-      // Check plivoCalls table
-      const plivoCallStatuses = await db
-        .select({ id: plivoCalls.id, status: plivoCalls.status, endedAt: plivoCalls.endedAt })
-        .from(plivoCalls)
-        .where(inArray(plivoCalls.id, stillRunningCallIds));
-      
-      const plivoCallMap = new Map(plivoCallStatuses.map(c => [c.id, c]));
-      
-      // Check twilioOpenaiCalls table
       const twilioOpenaiStatuses = await db
         .select({ id: twilioOpenaiCalls.id, status: twilioOpenaiCalls.status, endedAt: twilioOpenaiCalls.endedAt })
         .from(twilioOpenaiCalls)
@@ -2837,11 +2695,10 @@ router.get("/executions", async (req: AuthRequest, res: Response) => {
       const sipCallMap = new Map(sipCallStatuses.map(c => [c.id, c]));
       
       for (const exec of stillRunningExecs) {
-        const plivoCall = plivoCallMap.get(exec.callId);
         const twilioCall = twilioOpenaiMap.get(exec.callId);
         const sipCall = sipCallMap.get(exec.callId);
         
-        const callInfo = plivoCall || twilioCall || sipCall;
+        const callInfo = twilioCall || sipCall;
         
         if (callInfo && ['completed', 'failed', 'busy', 'no-answer', 'canceled', 'cancelled'].includes(callInfo.status)) {
           const execStatus = callInfo.status === 'completed' ? 'completed' : 'failed';

@@ -1,0 +1,43 @@
+How to Connect from loopcp
+Every request needs the header:
+
+X-API-Key: 980f4aa892ac10edec08028eda910a5f5f825bd190adb053e16af46435dbd163
+(or Authorization: Bearer <key>)
+
+The Flow
+looop23.replit.app (Admin Dashboard)          loopcp.replit.app (Your App)
+────────────────────────────────              ──────────────────────────
+1. User creates a ticket
+   on looop23 admin dashboard
+   (via the Support page UI)
+         │
+         ▼
+   Ticket stored in DB ─────────────────►  2. loopcp fetches tickets
+                                              GET /api/public/support/tickets
+                                                   │
+                                                   ▼
+                                           3. Admin sees tickets on loopcp
+                                              and responds:
+                                              POST /api/public/support/tickets/:id/messages
+                                              { senderName, senderType: "agent", body }
+                                                   │
+         ◄─────────────────────────────────────────┘
+         │
+   4. User sees admin's reply
+      on looop23 ticket detail page
+Endpoints Available
+Method	Endpoint	Purpose
+POST	/api/public/support/tickets	Create a ticket
+GET	/api/public/support/tickets	List tickets (filters: status, email, page, limit)
+GET	/api/public/support/tickets/:id	Get ticket + all messages
+PATCH	/api/public/support/tickets/:id	Update status or priority
+POST	/api/public/support/tickets/:id/messages	Add a reply
+GET	/api/public/support/tickets/:id/messages	Get messages only
+Example: loopcp fetching open tickets
+curl https://looop23.replit.app/api/public/support/tickets?status=open \
+  -H "X-API-Key: 980f4aa892ac10edec08028eda910a5f5f825bd190adb053e16af46435dbd163"
+Example: loopcp posting a reply
+curl -X POST https://looop23.replit.app/api/public/support/tickets/1/messages \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: 980f4aa892ac10edec08028eda910a5f5f825bd190adb053e16af46435dbd163" \
+  -d '{"senderName":"Support Team","senderType":"agent","body":"We are looking into this."}'

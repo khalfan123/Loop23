@@ -18,14 +18,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("JWT_SECRET environment variable must be set in production");
-  }
-  console.warn("⚠️  WARNING: Using insecure default JWT_SECRET in development. Set JWT_SECRET environment variable for production!");
-  return "insecure-dev-secret-CHANGE-ME";
-})();
+import { JWT_SECRET } from "./jwt-config";
 
 // Refresh token settings
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
@@ -330,6 +323,19 @@ export function getRefreshTokenFromCookie(req: Request): string | undefined {
 /**
  * Export constants for use elsewhere
  */
+export function requireInternalOrUser(req: AuthRequest, res: Response, next: NextFunction) {
+  const internalSecret = process.env.INTERNAL_API_SECRET;
+  if (
+    internalSecret &&
+    req.headers['x-internal-api-key'] &&
+    req.headers['x-internal-api-key'] === internalSecret
+  ) {
+    req.userId = (req.headers['x-user-id'] as string) || undefined;
+    return next();
+  }
+  return authenticateToken(req, res, next);
+}
+
 export const AUTH_CONSTANTS = {
   REFRESH_TOKEN_EXPIRY_DAYS,
   ACTIVITY_TIMEOUT_MINUTES,

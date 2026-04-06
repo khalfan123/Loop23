@@ -1,0 +1,74 @@
+Endpoints
+1. Create a Ticket
+POST /api/admin/support/tickets
+
+This is the main endpoint your user-facing backend would call when a customer raises a ticket.
+
+Request body:
+
+{
+  "requesterName": "John Doe",          // required
+  "requesterEmail": "john@example.com", // required
+  "subject": "Can't access my agent",   // required
+  "priority": "normal",                 // optional: low | normal | high | urgent
+  "category": "support",               // optional: free text
+  "assignedAgent": "agent@team.com",   // optional
+  "body": "I'm having trouble..."      // optional: first message content
+}
+Response (201): Returns the created ticket object.
+
+2. List Tickets
+GET /api/admin/support/tickets
+
+Query params: page, limit, search, status, priority, agent, category, view (all/urgent/unassigned/my), sortBy, sortDir
+
+3. Get Ticket Stats
+GET /api/admin/support/tickets/stats
+
+Returns counts by status, priority, category, agents, total, unassigned.
+
+4. Get Single Ticket + Messages
+GET /api/admin/support/tickets/:id
+
+Returns the ticket details plus all conversation messages.
+
+5. Update Ticket
+PATCH /api/admin/support/tickets/:id
+
+Body can include: status, priority, assignedAgent, subject, category
+
+6. Delete Ticket
+DELETE /api/admin/support/tickets/:id
+
+7. Get Messages
+GET /api/admin/support/tickets/:id/messages
+
+8. Add Message (Reply)
+POST /api/admin/support/tickets/:id/messages
+
+{
+  "senderName": "John Doe",       // required
+  "senderType": "customer",       // optional: customer | agent | system
+  "body": "Thanks for the help!"  // required
+}
+The Flow Map
+User's App (your other backend)          Admin Dashboard
+─────────────────────────────           ────────────────
+                                        
+Customer clicks "Submit Ticket"          
+        │                                
+        ▼                                
+POST /api/admin/support/tickets  ──────► Ticket appears in
+  { name, email, subject, body }         ticket list (admin UI)
+        │                                      │
+        ▼                                      ▼
+   Returns ticket ID                    Admin sees & responds
+                                        via the detail page
+                                               │
+                                               ▼
+                                        POST .../tickets/:id/messages
+                                          { senderType: "agent" }
+                                               │
+Customer checks status  ◄─────────────────────┘
+GET /api/admin/support/tickets/:id       
+   (returns ticket + all messages)

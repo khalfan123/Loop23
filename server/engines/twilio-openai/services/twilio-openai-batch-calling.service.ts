@@ -17,7 +17,7 @@ import { campaigns, contacts, twilioOpenaiCalls, agents, phoneNumbers } from "@s
 import { eq, inArray, ne, and, sql } from "drizzle-orm";
 import { TwilioOpenAICallService } from "./twilio-openai-call.service";
 import { logger } from '../../../utils/logger';
-import { OpenAIPoolService } from "../../plivo/services/openai-pool.service";
+import { OpenAIPoolService } from "../../../services/openai-pool.service";
 import { TWILIO_OPENAI_CONFIG } from "../config/twilio-openai-config";
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
 import { storage } from '../../../storage';
@@ -488,7 +488,7 @@ export class TwilioOpenAIBatchCallingService {
         contactId: contact.id,
         metadata: {
           batchCall: true,
-          contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
+          contactName: contact.firstName || '',
           customSystemPrompt: systemPrompt,
           customFirstMessage: firstMessage,
         },

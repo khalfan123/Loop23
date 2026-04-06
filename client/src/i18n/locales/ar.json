@@ -196,7 +196,52 @@
   "landing": {
     "features": "الميزات",
     "useCases": "حالات الاستخدام",
-    "pricing": "الأسعار",
+    "pricing": {
+      "title": "بسيط،",
+      "titleHighlight": "شفاف",
+      "titleEnd": "التسعير",
+      "description": "ابدأ مجاناً، قم بالترقية عندما تكون جاهزاً",
+      "monthly": "شهري",
+      "yearly": "سنوي",
+      "save20": "وفر 20%",
+      "popular": "الأكثر شعبية",
+      "free": "مجاني",
+      "perMonth": "/شهر",
+      "perYear": "/سنة",
+      "getStarted": "ابدأ الآن",
+      "startFreeTrial": "ابدأ التجربة المجانية",
+      "guarantee": "جميع الخطط تشمل ضمان استرداد المال لمدة 14 يوماً. لا حاجة لبطاقة ائتمان للخطة المجانية.",
+      "features": {
+        "aiAgent": "{{count}} وكيل ذكاء اصطناعي",
+        "aiAgents": "{{count}} وكلاء ذكاء اصطناعي",
+        "unlimitedAgents": "وكلاء ذكاء اصطناعي غير محدودين",
+        "campaign": "{{count}} حملة",
+        "campaigns": "{{count}} حملات",
+        "unlimitedCampaigns": "حملات غير محدودة",
+        "maxContacts": "حد أقصى {{count}} جهة اتصال لكل حملة",
+        "contactsPerCampaign": "{{count}} جهة اتصال/حملة",
+        "unlimitedContacts": "جهات اتصال غير محدودة",
+        "flowAutomation": "{{count}} أتمتة تدفق",
+        "flowAutomations": "{{count}} أتمتة تدفق",
+        "unlimitedFlows": "أتمتة تدفق غير محدودة",
+        "knowledgeBase": "{{count}} قاعدة معرفة",
+        "knowledgeBases": "{{count}} قواعد معرفة",
+        "unlimitedKnowledgeBases": "قواعد معرفة غير محدودة",
+        "webhook": "{{count}} ويب هوك",
+        "webhooks": "{{count}} ويب هوك",
+        "unlimitedWebhooks": "ويب هوك غير محدود",
+        "phoneNumber": "{{count}} رقم هاتف",
+        "phoneNumbers": "{{count}} أرقام هاتف",
+        "unlimitedPhoneNumbers": "أرقام هاتف غير محدودة",
+        "purchaseNumbers": "شراء أرقام هاتف خاصة",
+        "systemPhone": "رقم هاتف مخصص من النظام",
+        "freeCredits": "{{count}} رصيد مجاني",
+        "creditCalling": "الاتصال بالرصيد",
+        "prioritySupport": "دعم ذو أولوية",
+        "chooseLlm": "اختر نموذج LLM الخاص بك",
+        "advancedAnalytics": "تحليلات متقدمة"
+      }
+    },
     "customers": "العملاء",
     "poweredBy": "مدعوم من ElevenLabs و Twilio AI",
     "heroTitle1": "عزز عمليات",
@@ -593,52 +638,6 @@
     "integrations": {
       "title": "التكاملات",
       "description": "اتصل بأدواتك المفضلة وقم بترقية تجربة {{appName}} الخاصة بك."
-    },
-    "pricing": {
-      "title": "بسيط،",
-      "titleHighlight": "شفاف",
-      "titleEnd": "التسعير",
-      "description": "ابدأ مجاناً، قم بالترقية عندما تكون جاهزاً",
-      "monthly": "شهري",
-      "yearly": "سنوي",
-      "save20": "وفر 20%",
-      "popular": "الأكثر شعبية",
-      "free": "مجاني",
-      "perMonth": "/شهر",
-      "perYear": "/سنة",
-      "getStarted": "ابدأ الآن",
-      "startFreeTrial": "ابدأ التجربة المجانية",
-      "guarantee": "جميع الخطط تشمل ضمان استرداد المال لمدة 14 يوماً. لا حاجة لبطاقة ائتمان للخطة المجانية.",
-      "features": {
-        "aiAgent": "{{count}} وكيل ذكاء اصطناعي",
-        "aiAgents": "{{count}} وكلاء ذكاء اصطناعي",
-        "unlimitedAgents": "وكلاء ذكاء اصطناعي غير محدودين",
-        "campaign": "{{count}} حملة",
-        "campaigns": "{{count}} حملات",
-        "unlimitedCampaigns": "حملات غير محدودة",
-        "maxContacts": "حد أقصى {{count}} جهة اتصال لكل حملة",
-        "contactsPerCampaign": "{{count}} جهة اتصال/حملة",
-        "unlimitedContacts": "جهات اتصال غير محدودة",
-        "flowAutomation": "{{count}} أتمتة تدفق",
-        "flowAutomations": "{{count}} أتمتة تدفق",
-        "unlimitedFlows": "أتمتة تدفق غير محدودة",
-        "knowledgeBase": "{{count}} قاعدة معرفة",
-        "knowledgeBases": "{{count}} قواعد معرفة",
-        "unlimitedKnowledgeBases": "قواعد معرفة غير محدودة",
-        "webhook": "{{count}} ويب هوك",
-        "webhooks": "{{count}} ويب هوك",
-        "unlimitedWebhooks": "ويب هوك غير محدود",
-        "phoneNumber": "{{count}} رقم هاتف",
-        "phoneNumbers": "{{count}} أرقام هاتف",
-        "unlimitedPhoneNumbers": "أرقام هاتف غير محدودة",
-        "purchaseNumbers": "شراء أرقام هاتف خاصة",
-        "systemPhone": "رقم هاتف مخصص من النظام",
-        "freeCredits": "{{count}} رصيد مجاني",
-        "creditCalling": "الاتصال بالرصيد",
-        "prioritySupport": "دعم ذو أولوية",
-        "chooseLlm": "اختر نموذج LLM الخاص بك",
-        "advancedAnalytics": "تحليلات متقدمة"
-      }
     },
     "contact": {
       "badge": "تواصل معنا",
@@ -1238,7 +1237,7 @@
     "integrationsPage": {
       "seo": {
         "title": "التكاملات - منصة وكلاء الصوت الذكي",
-        "description": "اربط وكلاء الصوت الذكي مع Twilio وPlivo وOpenAI وElevenLabs وZapier والمزيد."
+        "description": "اربط وكلاء الصوت الذكي مع Twilio وOpenAI وElevenLabs وZapier والمزيد."
       },
       "hero": {
         "badge": "تكاملات قوية",
@@ -1259,10 +1258,6 @@
         "twilio": {
           "name": "Twilio",
           "description": "مزود اتصالات هاتفية عالمي للمكالمات الصوتية والرسائل القصيرة وإدارة أرقام الهاتف."
-        },
-        "plivo": {
-          "name": "Plivo",
-          "description": "مزود اتصالات هاتفية بديل مع تغطية ممتازة في الهند والأسواق الدولية."
         },
         "openai": {
           "name": "OpenAI",
@@ -2697,74 +2692,164 @@
   },
   "admin": {
     "settings": {
-      "title": "الإعدادات",
-      "description": "تكوين إعدادات المنصة وتحسين محركات البحث والتكاملات",
+      "title": "الإعدادات العامة",
+      "description": "تكوين الإعدادات والافتراضيات على مستوى المنصة",
       "tabs": {
         "master": "الإعدادات الرئيسية",
-        "elevenlabs": "ElevenLabs",
+        "elevenlabs": "إليفن لابز",
         "seo": "وحدة SEO",
         "analytics": "التحليلات",
         "languages": "اللغات",
         "system": "النظام"
-      }
+      },
+      "autoRestart": {
+        "title": "نظام إعادة التشغيل التلقائي",
+        "description": "تكوين إعادة التشغيل التلقائي عند تجاوز حدود الموارد",
+        "enabled": "مفعّل",
+        "disabled": "معطّل",
+        "enableToggle": "تفعيل إعادة التشغيل التلقائي",
+        "enableToggleDesc": "إعادة التشغيل تلقائياً عند تجاوز عتبات الموارد",
+        "loadingStatus": "جاري تحميل حالة الموارد...",
+        "statusError": "فشل تحميل حالة الموارد.",
+        "currentRam": "استخدام الذاكرة الحالي",
+        "currentCpu": "استخدام المعالج الحالي",
+        "processMemory": "العملية",
+        "ramLimit": "حد الذاكرة (%)",
+        "ramLimitTooltip": "إعادة التشغيل عندما يتجاوز استخدام ذاكرة النظام هذه النسبة (50-95%)",
+        "ramLimitHint": "موصى به: 75-85%",
+        "cpuLimit": "حد المعالج (%)",
+        "cpuLimitTooltip": "إعادة التشغيل عندما يتجاوز استخدام المعالج هذه النسبة (20-95%)",
+        "cpuLimitHint": "موصى به: 80-90%",
+        "activeMessage": "إعادة التشغيل التلقائي نشطة. سيتم إعادة تشغيل النظام بسلاسة عند تجاوز حدود الذاكرة أو المعالج لـ 3 فحوصات متتالية (90 ثانية).",
+        "refreshStatus": "تحديث الحالة",
+        "refreshing": "جاري التحديث...",
+        "configuredLimits": "الحدود المُكوّنة",
+        "ramLimitValue": "الذاكرة: {{value}}%",
+        "cpuLimitValue": "المعالج: {{value}}%",
+        "watchdogStatus": "حالة المراقب",
+        "watchdogActive": "نشط",
+        "watchdogInactive": "غير نشط",
+        "cores": "أنوية",
+        "loadAvg": "متوسط التحميل",
+        "envProduction": "إنتاج",
+        "envDevelopment": "تطوير",
+        "envDocsTitle": "البيئة والقيود",
+        "ramMonitoringTitle": "مراقبة الذاكرة",
+        "ramMonitoringDesc": "يستخدم قراءات ذاكرة النظام الحقيقية عبر واجهات Node.js. يقيس بدقة الذاكرة الإجمالية والمتاحة على الخادم. يعمل بشكل موثوق في جميع البيئات.",
+        "cpuMonitoringTitle": "مراقبة المعالج",
+        "cpuMonitoringDesc": "يجمع بين وقت معالج العملية ومتوسط تحميل النظام لقراءات أكثر دقة. يعرض أنوية المعالج ومتوسط التحميل لدقيقة واحدة. في بيئات التطوير، قد تختلف القراءات.",
+        "restartBehaviorTitle": "سلوك إعادة التشغيل التلقائي",
+        "restartBehaviorDesc": "يُفعّل الإغلاق السلس بعد 3 تجاوزات متتالية للحد (90 ثانية). يتطلب مدير عمليات (PM2، systemd) لإعادة تشغيل التطبيق. في بيئات التطوير، قد يتوقف التطبيق فقط دون إعادة التشغيل.",
+        "productionNote": "للحصول على أفضل النتائج، انشر مع PM2 أو مدير عمليات مماثل يعيد تشغيل التطبيق تلقائياً بعد الإغلاق."
+      },
+      "apiKeys": "مفاتيح API",
+      "stripeKey": "مفتاح Stripe",
+      "twilioKey": "مفتاح Twilio",
+      "elevenLabsKey": "مفتاح ElevenLabs",
+      "openaiKey": "مفتاح OpenAI",
+      "systemSettings": "إعدادات النظام",
+      "maxPhoneNumbers": "الحد الأقصى لأرقام الهاتف",
+      "maxAgents": "الحد الأقصى للوكلاء",
+      "connectionStatus": {
+        "refreshAll": "تحديث الكل",
+        "connected": "متصل",
+        "disconnected": "غير متصل",
+        "checking": "جاري التحقق...",
+        "verifying": "جاري التحقق من اتصال API...",
+        "telephony": "الاتصالات الهاتفية الصوتية والنصية",
+        "aiVoice": "تركيب الصوت الذكي",
+        "embeddings": "التضمينات و RAG",
+        "twilioReady": "تم تكوين Twilio وجاهز للمكالمات",
+        "twilioSetup": "قم بتكوين بيانات اعتماد Twilio أدناه لتمكين الاتصال",
+        "elevenLabsReady": "تم تكوين ElevenLabs لوكلاء الصوت الذكي",
+        "elevenLabsSetup": "أضف مفاتيح API عبر مجموعة المفاتيح لتمكين الأصوات الذكية",
+        "openaiReady": "تم تكوين OpenAI لتضمينات RAG",
+        "openaiSetup": "قم بتكوين مفتاح API لـ OpenAI للتضمينات",
+        "edit": "تعديل",
+        "manageKeys": "إدارة المفاتيح"
+      },
+      "elevenlabs": {
+        "title": "ElevenLabs"
+      },
+      "twilio": {
+        "title": "بيانات اعتماد Twilio API",
+        "description": "أدخل بيانات اعتماد Twilio لإدارة أرقام الهاتف ومعالجة المكالمات",
+        "accountSid": "معرف حساب Twilio",
+        "accountSidTooltip": "معرف حساب Twilio الخاص بك - موجود في لوحة تحكم Twilio Console",
+        "accountSidPlaceholder": "أدخل معرف حساب Twilio",
+        "accountSidFormat": "التنسيق: ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "authToken": "رمز مصادقة Twilio",
+        "authTokenTooltip": "رمز مصادقة Twilio الخاص بك - احتفظ به سرياً وآمناً",
+        "authTokenPlaceholder": "أدخل رمز مصادقة Twilio",
+        "authTokenFormat": "رمز مصادقة مكون من 32 حرفاً",
+        "configured": "تم تكوين بيانات اعتماد Twilio وهي نشطة"
+      },
+      "openai": {
+        "title": "بيانات اعتماد OpenAI API",
+        "description": "أدخل مفتاح API لـ OpenAI لتضمينات قاعدة المعرفة ووظائف RAG",
+        "apiKey": "مفتاح API لـ OpenAI",
+        "apiKeyTooltip": "مفتاح API لـ OpenAI الخاص بك - يُستخدم لتوليد التضمينات في نظام قاعدة المعرفة RAG. احصل على واحد من platform.openai.com",
+        "apiKeyPlaceholder": "أدخل مفتاح API لـ OpenAI",
+        "apiKeyFormat": "التنسيق: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "configuredViaDb": "تم تكوين مفتاح API لـ OpenAI وهو نشط (عبر قاعدة البيانات)",
+        "configuredViaEnv": "تم تكوين مفتاح API لـ OpenAI وهو نشط (عبر متغير البيئة)"
+      },
+      "planSettings": {
+        "title": "إعدادات الخطة",
+        "description": "الإعدادات الافتراضية لخطط الاشتراك",
+        "defaultLlm": "نموذج LLM الافتراضي للخطة المجانية",
+        "defaultLlmTooltip": "نموذج الذكاء الاصطناعي الافتراضي (مثل GPT-4o Mini) المخصص للوكلاء التي ينشئها مستخدمو الخطة المجانية. يمكن لمستخدمي الخطة الاحترافية اختيار أي نموذج متاح.",
+        "defaultLlmPlaceholder": "مثال: GPT-4o Mini",
+        "bonusCredits": "رصيد مكافأة الخطة الاحترافية",
+        "bonusCreditsTooltip": "عدد الرصيد المجاني الذي يُضاف تلقائياً لحساب المستخدم عند اشتراكه في الخطة الاحترافية. هذه مكافأة لمرة واحدة.",
+        "bonusCreditsHint": "الرصيد الممنوح عند الاشتراك في الخطة الاحترافية"
+      },
+      "pricing": {
+        "title": "إعدادات التسعير",
+        "description": "تكوين التسعير وهوامش الربح",
+        "creditPrice": "سعر الرصيد لكل دقيقة ($)",
+        "creditPriceTooltip": "المضاعف لحساب تكاليف المكالمات. يتم تقريب مدة المكالمة لأعلى إلى أقرب دقيقة، ثم تُضرب في هذه القيمة. مثال: 64 ثانية = 2 دقيقة × هذا المعدل. يُستخدم لحسابات التكلفة الداخلية فقط.",
+        "creditPriceHint": "التكلفة لكل دقيقة اتصال",
+        "phoneMonthly": "تكلفة رقم الهاتف الشهرية (رصيد)",
+        "phoneMonthlyTooltip": "عدد الرصيد المخصوم شهرياً لاستئجار رقم هاتف. يدفع المستخدمون هذا المبلغ عند الشراء ثم شهرياً بعد ذلك. الافتراضي 50 رصيد.",
+        "phoneMonthlyHint": "الرصيد المخصوم لاستئجار رقم الهاتف (شهرياً)",
+        "minPurchase": "الحد الأدنى لشراء الرصيد",
+        "minPurchaseTooltip": "الحد الأدنى لعدد الرصيد الذي يجب على المستخدمين شراؤه دفعة واحدة. يساعد هذا في ضمان عدم استهلاك رسوم المعاملات للمشتريات الصغيرة.",
+        "llmMargin": "هامش LLM (%)",
+        "llmMarginTooltip": "للعرض فقط: يُظهر تكاليف معالجة الذكاء الاصطناعي المقدرة على شاشة إنشاء الوكيل للشفافية. يأتي هامش ربحك الفعلي من استراتيجية تسعير حزم الرصيد (مثال: بيع 100 رصيد بـ 50$ مقابل تكاليفك).",
+        "llmMarginHint": "نسبة هامش الربح المضافة لتكاليف LLM المعروضة للمستخدمين"
+      },
+      "resources": {
+        "title": "موارد النظام",
+        "description": "تكوين مجموعات موارد النظام",
+        "poolSize": "حجم مجموعة هواتف النظام",
+        "poolSizeTooltip": "عدد أرقام الهاتف المشتركة المحتفظ بها لمستخدمي الخطة المجانية. تتم مشاركة هذه الأرقام بين جميع المستخدمين المجانيين لتقليل تكاليف البنية التحتية مع السماح لهم باختبار المنصة.",
+        "poolSizeHint": "عدد أرقام الهاتف للاحتفاظ بها في المجموعة للمستخدمين المجانيين"
+      },
+      "tools": {
+        "title": "أدوات النظام",
+        "description": "أدوات الصيانة والإدارة",
+        "syncAllCalls": "مزامنة جميع المكالمات",
+        "syncAllCallsDesc": "جلب ومزامنة بيانات المكالمات من كل من ElevenLabs و Twilio. يحصل على النصوص والتسجيلات وأرقام الهاتف والمدة من كلا المصدرين لتوفير معلومات مكالمات كاملة.",
+        "syncingFromSources": "جاري المزامنة من ElevenLabs + Twilio...",
+        "callSyncComplete": "اكتملت مزامنة المكالمات",
+        "syncedCalls": "تمت مزامنة {{success}} من {{total}} مكالمة بنجاح.",
+        "syncSkipped": "تم تخطي: {{count}}",
+        "syncFailed": "فشل: {{count}}",
+        "syncIncomingWebhooks": "مزامنة ويب هوك الوارد",
+        "syncIncomingWebhooksDesc": "تكوين ويب هوك ElevenLabs لجميع الاتصالات الواردة لتمكين تسجيل المكالمات التلقائي",
+        "syncing": "جاري المزامنة...",
+        "webhookSyncComplete": "اكتملت مزامنة الويب هوك",
+        "webhooksConfigured": "تم تكوين {{success}} من {{total}} ويب هوك وكيل وارد بنجاح."
+      },
+      "saveSettings": "حفظ الإعدادات",
+      "saving": "جاري الحفظ...",
+      "settingsUpdated": "تم تحديث الإعدادات بنجاح",
+      "updateFailed": "فشل تحديث الإعداد"
     },
     "analytics": {
       "title": "تحليلات المنصة",
-      "description": "مراقبة أداء المنصة ومقاييس النمو",
-      "scriptsTitle": "سكريبتات التحليلات والتتبع",
-      "scriptsDescription": "إدارة سكريبتات التحليلات والتتبع من طرف ثالث التي يتم حقنها في جميع صفحات موقعك.",
-      "addScript": "إضافة سكريبت",
-      "editScript": "تعديل السكريبت",
-      "addScriptDesc": "أضف سكريبت تحليلات أو تتبع جديد لموقعك. تساعدك هذه السكريبتات على تتبع سلوك الزوار والتحويلات.",
-      "editScriptDesc": "تعديل إعدادات سكريبت التحليلات.",
-      "scriptName": "اسم السكريبت",
-      "scriptNamePlaceholder": "مثال: Google Analytics",
-      "scriptType": "نوع السكريبت",
-      "scriptCode": "كود السكريبت",
-      "scriptCodePlaceholder": "الصق كود التتبع هنا...",
-      "scriptCodeHint": "الصق كود التتبع الكامل المقدم من خدمة التحليلات. تأكد من تضمين جميع علامات السكريبت.",
-      "placement": "الموضع",
-      "placementHead": "قسم الرأس",
-      "placementBody": "قسم الجسم",
-      "headDesc": "يتم التحميل قبل محتوى الصفحة - الأفضل لسكريبتات التتبع التي تحتاج للتشغيل مبكراً",
-      "bodyDesc": "يتم التحميل بعد محتوى الصفحة - أفضل للسكريبتات التي لا تحتاج للتشغيل فوراً",
-      "placementRequired": "يرجى اختيار موقع واحد على الأقل",
-      "loadPriority": "أولوية التحميل",
-      "priorityHint": "السكريبتات ذات الأولوية الأعلى تُحمّل أولاً (0-100). استخدم قيماً أعلى للتتبع الحرج.",
-      "scriptOptions": "خيارات السكريبت",
-      "asyncOption": "غير متزامن",
-      "deferOption": "مؤجل",
-      "enabled": "مفعّل",
-      "priority": "الأولوية",
-      "name": "الاسم",
-      "type": "النوع",
-      "description": "الوصف",
-      "descriptionPlaceholder": "ملاحظات اختيارية حول هذا السكريبت للرجوع إليها...",
-      "noScripts": "لم يتم تكوين أي سكريبتات تحليلات بعد.",
-      "noScriptsHint": "أضف سكريبتات تتبع مثل Google Analytics أو Facebook Pixel أو أدوات تحليلات أخرى لتتبع زوار موقعك.",
-      "scriptCreated": "تم إنشاء السكريبت",
-      "scriptCreatedDesc": "تمت إضافة سكريبت التحليلات وسيبدأ التتبع فوراً.",
-      "scriptUpdated": "تم تحديث السكريبت",
-      "scriptUpdatedDesc": "تم حفظ تغييرات سكريبت التحليلات.",
-      "scriptDeleted": "تم حذف السكريبت",
-      "scriptDeletedDesc": "تمت إزالة سكريبت التحليلات من موقعك.",
-      "deleteTitle": "حذف السكريبت؟",
-      "deleteDesc": "سيؤدي هذا إلى إزالة سكريبت التتبع نهائياً من موقعك. سيتوقف تتبع الزوار لهذا السكريبت فوراً.",
-      "scriptLabel": "السكريبت",
-      "nameRequired": "يرجى إدخال اسم لهذا السكريبت.",
-      "codeRequired": "يرجى لصق كود التتبع لهذا السكريبت.",
-      "tooltips": {
-        "name": "أعطِ سكريبتك اسماً ودياً حتى تتمكن من التعرف عليه بسهولة لاحقاً. مثال: 'Google Analytics' أو 'تتبع إعلانات Facebook'.",
-        "type": "اختر نوع خدمة التتبع. يساعد هذا في ملء قالب الكود الصحيح. اختر 'سكريبت مخصص' إذا لم تكن خدمتك مدرجة.",
-        "code": "هذا هو كود التتبع المقدم من خدمة التحليلات. يمكنك عادةً العثور عليه في لوحة التحليلات تحت 'الإعداد' أو 'التثبيت'.",
-        "placement": "اختر أين يجب إضافة السكريبت في صفحاتك. معظم سكريبتات التتبع تعمل بشكل أفضل في قسم الرأس. بعض السكريبتات مثل Google Tag Manager تحتاج كلاً من الرأس والجسم.",
-        "priority": "يتحكم في أي السكريبتات تُحمّل أولاً. الأرقام الأعلى تُحمّل أولاً. استخدم 100 للسكريبتات الحرجة و0 للأقل أهمية.",
-        "options": "إعدادات متقدمة لكيفية تحميل السكريبت. معظم المستخدمين لا يحتاجون لتغيير هذه.",
-        "async": "يحمّل السكريبت في الخلفية دون إبطاء صفحتك. موصى به لمعظم سكريبتات التتبع.",
-        "defer": "ينتظر حتى يتم تحميل الصفحة بالكامل قبل تشغيل السكريبت. جيد للتتبع غير الحرج.",
-        "enabled": "تشغيل أو إيقاف التتبع. عند التعطيل، لن يعمل السكريبت على موقعك.",
-        "description": "أضف ملاحظات لنفسك حول هذا السكريبت، مثل ما يتتبعه أو متى تمت إضافته."
-      }
+      "description": "مراقبة أداء المنصة ومقاييس النمو"
     },
     "title": "لوحة تحكم المدير",
     "description": "إدارة المنصة",
@@ -2928,162 +3013,6 @@
       "testSuccess": "نجح اختبار الاتصال! إرسال البريد الإلكتروني يعمل.",
       "testFailed": "فشل اختبار الاتصال"
     },
-    "settings": {
-      "title": "الإعدادات العامة",
-      "description": "تكوين الإعدادات والافتراضيات على مستوى المنصة",
-      "tabs": {
-        "master": "الإعدادات الرئيسية",
-        "elevenlabs": "إليفن لابز",
-        "seo": "وحدة SEO",
-        "analytics": "التحليلات",
-        "languages": "اللغات",
-        "system": "النظام"
-      },
-      "autoRestart": {
-        "title": "نظام إعادة التشغيل التلقائي",
-        "description": "تكوين إعادة التشغيل التلقائي عند تجاوز حدود الموارد",
-        "enabled": "مفعّل",
-        "disabled": "معطّل",
-        "enableToggle": "تفعيل إعادة التشغيل التلقائي",
-        "enableToggleDesc": "إعادة التشغيل تلقائياً عند تجاوز عتبات الموارد",
-        "loadingStatus": "جاري تحميل حالة الموارد...",
-        "statusError": "فشل تحميل حالة الموارد.",
-        "currentRam": "استخدام الذاكرة الحالي",
-        "currentCpu": "استخدام المعالج الحالي",
-        "processMemory": "العملية",
-        "ramLimit": "حد الذاكرة (%)",
-        "ramLimitTooltip": "إعادة التشغيل عندما يتجاوز استخدام ذاكرة النظام هذه النسبة (50-95%)",
-        "ramLimitHint": "موصى به: 75-85%",
-        "cpuLimit": "حد المعالج (%)",
-        "cpuLimitTooltip": "إعادة التشغيل عندما يتجاوز استخدام المعالج هذه النسبة (20-95%)",
-        "cpuLimitHint": "موصى به: 80-90%",
-        "activeMessage": "إعادة التشغيل التلقائي نشطة. سيتم إعادة تشغيل النظام بسلاسة عند تجاوز حدود الذاكرة أو المعالج لـ 3 فحوصات متتالية (90 ثانية).",
-        "refreshStatus": "تحديث الحالة",
-        "refreshing": "جاري التحديث...",
-        "configuredLimits": "الحدود المُكوّنة",
-        "ramLimitValue": "الذاكرة: {{value}}%",
-        "cpuLimitValue": "المعالج: {{value}}%",
-        "watchdogStatus": "حالة المراقب",
-        "watchdogActive": "نشط",
-        "watchdogInactive": "غير نشط",
-        "cores": "أنوية",
-        "loadAvg": "متوسط التحميل",
-        "envProduction": "إنتاج",
-        "envDevelopment": "تطوير",
-        "envDocsTitle": "البيئة والقيود",
-        "ramMonitoringTitle": "مراقبة الذاكرة",
-        "ramMonitoringDesc": "يستخدم قراءات ذاكرة النظام الحقيقية عبر واجهات Node.js. يقيس بدقة الذاكرة الإجمالية والمتاحة على الخادم. يعمل بشكل موثوق في جميع البيئات.",
-        "cpuMonitoringTitle": "مراقبة المعالج",
-        "cpuMonitoringDesc": "يجمع بين وقت معالج العملية ومتوسط تحميل النظام لقراءات أكثر دقة. يعرض أنوية المعالج ومتوسط التحميل لدقيقة واحدة. في بيئات التطوير، قد تختلف القراءات.",
-        "restartBehaviorTitle": "سلوك إعادة التشغيل التلقائي",
-        "restartBehaviorDesc": "يُفعّل الإغلاق السلس بعد 3 تجاوزات متتالية للحد (90 ثانية). يتطلب مدير عمليات (PM2، systemd) لإعادة تشغيل التطبيق. في بيئات التطوير، قد يتوقف التطبيق فقط دون إعادة التشغيل.",
-        "productionNote": "للحصول على أفضل النتائج، انشر مع PM2 أو مدير عمليات مماثل يعيد تشغيل التطبيق تلقائياً بعد الإغلاق."
-      },
-      "apiKeys": "مفاتيح API",
-      "stripeKey": "مفتاح Stripe",
-      "twilioKey": "مفتاح Twilio",
-      "elevenLabsKey": "مفتاح ElevenLabs",
-      "openaiKey": "مفتاح OpenAI",
-      "systemSettings": "إعدادات النظام",
-      "maxPhoneNumbers": "الحد الأقصى لأرقام الهاتف",
-      "maxAgents": "الحد الأقصى للوكلاء",
-      "connectionStatus": {
-        "refreshAll": "تحديث الكل",
-        "connected": "متصل",
-        "disconnected": "غير متصل",
-        "checking": "جاري التحقق...",
-        "verifying": "جاري التحقق من اتصال API...",
-        "telephony": "الاتصالات الهاتفية الصوتية والنصية",
-        "aiVoice": "تركيب الصوت الذكي",
-        "embeddings": "التضمينات و RAG",
-        "twilioReady": "تم تكوين Twilio وجاهز للمكالمات",
-        "twilioSetup": "قم بتكوين بيانات اعتماد Twilio أدناه لتمكين الاتصال",
-        "elevenLabsReady": "تم تكوين ElevenLabs لوكلاء الصوت الذكي",
-        "elevenLabsSetup": "أضف مفاتيح API عبر مجموعة المفاتيح لتمكين الأصوات الذكية",
-        "openaiReady": "تم تكوين OpenAI لتضمينات RAG",
-        "openaiSetup": "قم بتكوين مفتاح API لـ OpenAI للتضمينات",
-        "edit": "تعديل",
-        "manageKeys": "إدارة المفاتيح"
-      },
-      "elevenlabs": {
-        "title": "ElevenLabs"
-      },
-      "twilio": {
-        "title": "بيانات اعتماد Twilio API",
-        "description": "أدخل بيانات اعتماد Twilio لإدارة أرقام الهاتف ومعالجة المكالمات",
-        "accountSid": "معرف حساب Twilio",
-        "accountSidTooltip": "معرف حساب Twilio الخاص بك - موجود في لوحة تحكم Twilio Console",
-        "accountSidPlaceholder": "أدخل معرف حساب Twilio",
-        "accountSidFormat": "التنسيق: ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "authToken": "رمز مصادقة Twilio",
-        "authTokenTooltip": "رمز مصادقة Twilio الخاص بك - احتفظ به سرياً وآمناً",
-        "authTokenPlaceholder": "أدخل رمز مصادقة Twilio",
-        "authTokenFormat": "رمز مصادقة مكون من 32 حرفاً",
-        "configured": "تم تكوين بيانات اعتماد Twilio وهي نشطة"
-      },
-      "openai": {
-        "title": "بيانات اعتماد OpenAI API",
-        "description": "أدخل مفتاح API لـ OpenAI لتضمينات قاعدة المعرفة ووظائف RAG",
-        "apiKey": "مفتاح API لـ OpenAI",
-        "apiKeyTooltip": "مفتاح API لـ OpenAI الخاص بك - يُستخدم لتوليد التضمينات في نظام قاعدة المعرفة RAG. احصل على واحد من platform.openai.com",
-        "apiKeyPlaceholder": "أدخل مفتاح API لـ OpenAI",
-        "apiKeyFormat": "التنسيق: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        "configuredViaDb": "تم تكوين مفتاح API لـ OpenAI وهو نشط (عبر قاعدة البيانات)",
-        "configuredViaEnv": "تم تكوين مفتاح API لـ OpenAI وهو نشط (عبر متغير البيئة)"
-      },
-      "planSettings": {
-        "title": "إعدادات الخطة",
-        "description": "الإعدادات الافتراضية لخطط الاشتراك",
-        "defaultLlm": "نموذج LLM الافتراضي للخطة المجانية",
-        "defaultLlmTooltip": "نموذج الذكاء الاصطناعي الافتراضي (مثل GPT-4o Mini) المخصص للوكلاء التي ينشئها مستخدمو الخطة المجانية. يمكن لمستخدمي الخطة الاحترافية اختيار أي نموذج متاح.",
-        "defaultLlmPlaceholder": "مثال: GPT-4o Mini",
-        "bonusCredits": "رصيد مكافأة الخطة الاحترافية",
-        "bonusCreditsTooltip": "عدد الرصيد المجاني الذي يُضاف تلقائياً لحساب المستخدم عند اشتراكه في الخطة الاحترافية. هذه مكافأة لمرة واحدة.",
-        "bonusCreditsHint": "الرصيد الممنوح عند الاشتراك في الخطة الاحترافية"
-      },
-      "pricing": {
-        "title": "إعدادات التسعير",
-        "description": "تكوين التسعير وهوامش الربح",
-        "creditPrice": "سعر الرصيد لكل دقيقة ($)",
-        "creditPriceTooltip": "المضاعف لحساب تكاليف المكالمات. يتم تقريب مدة المكالمة لأعلى إلى أقرب دقيقة، ثم تُضرب في هذه القيمة. مثال: 64 ثانية = 2 دقيقة × هذا المعدل. يُستخدم لحسابات التكلفة الداخلية فقط.",
-        "creditPriceHint": "التكلفة لكل دقيقة اتصال",
-        "phoneMonthly": "تكلفة رقم الهاتف الشهرية (رصيد)",
-        "phoneMonthlyTooltip": "عدد الرصيد المخصوم شهرياً لاستئجار رقم هاتف. يدفع المستخدمون هذا المبلغ عند الشراء ثم شهرياً بعد ذلك. الافتراضي 50 رصيد.",
-        "phoneMonthlyHint": "الرصيد المخصوم لاستئجار رقم الهاتف (شهرياً)",
-        "minPurchase": "الحد الأدنى لشراء الرصيد",
-        "minPurchaseTooltip": "الحد الأدنى لعدد الرصيد الذي يجب على المستخدمين شراؤه دفعة واحدة. يساعد هذا في ضمان عدم استهلاك رسوم المعاملات للمشتريات الصغيرة.",
-        "llmMargin": "هامش LLM (%)",
-        "llmMarginTooltip": "للعرض فقط: يُظهر تكاليف معالجة الذكاء الاصطناعي المقدرة على شاشة إنشاء الوكيل للشفافية. يأتي هامش ربحك الفعلي من استراتيجية تسعير حزم الرصيد (مثال: بيع 100 رصيد بـ 50$ مقابل تكاليفك).",
-        "llmMarginHint": "نسبة هامش الربح المضافة لتكاليف LLM المعروضة للمستخدمين"
-      },
-      "resources": {
-        "title": "موارد النظام",
-        "description": "تكوين مجموعات موارد النظام",
-        "poolSize": "حجم مجموعة هواتف النظام",
-        "poolSizeTooltip": "عدد أرقام الهاتف المشتركة المحتفظ بها لمستخدمي الخطة المجانية. تتم مشاركة هذه الأرقام بين جميع المستخدمين المجانيين لتقليل تكاليف البنية التحتية مع السماح لهم باختبار المنصة.",
-        "poolSizeHint": "عدد أرقام الهاتف للاحتفاظ بها في المجموعة للمستخدمين المجانيين"
-      },
-      "tools": {
-        "title": "أدوات النظام",
-        "description": "أدوات الصيانة والإدارة",
-        "syncAllCalls": "مزامنة جميع المكالمات",
-        "syncAllCallsDesc": "جلب ومزامنة بيانات المكالمات من كل من ElevenLabs و Twilio. يحصل على النصوص والتسجيلات وأرقام الهاتف والمدة من كلا المصدرين لتوفير معلومات مكالمات كاملة.",
-        "syncingFromSources": "جاري المزامنة من ElevenLabs + Twilio...",
-        "callSyncComplete": "اكتملت مزامنة المكالمات",
-        "syncedCalls": "تمت مزامنة {{success}} من {{total}} مكالمة بنجاح.",
-        "syncSkipped": "تم تخطي: {{count}}",
-        "syncFailed": "فشل: {{count}}",
-        "syncIncomingWebhooks": "مزامنة ويب هوك الوارد",
-        "syncIncomingWebhooksDesc": "تكوين ويب هوك ElevenLabs لجميع الاتصالات الواردة لتمكين تسجيل المكالمات التلقائي",
-        "syncing": "جاري المزامنة...",
-        "webhookSyncComplete": "اكتملت مزامنة الويب هوك",
-        "webhooksConfigured": "تم تكوين {{success}} من {{total}} ويب هوك وكيل وارد بنجاح."
-      },
-      "saveSettings": "حفظ الإعدادات",
-      "saving": "جاري الحفظ...",
-      "settingsUpdated": "تم تحديث الإعدادات بنجاح",
-      "updateFailed": "فشل تحديث الإعداد"
-    },
     "seo": {
       "title": "إعدادات SEO",
       "settingsSaved": "تم حفظ إعدادات SEO",
@@ -3214,10 +3143,6 @@
         "productCurrency": "العملة",
         "productCurrencyPlaceholder": "USD"
       }
-    },
-    "analytics": {
-      "title": "تحليلات المنصة",
-      "description": "مراقبة أداء المنصة ومقاييس النمو"
     },
     "creditPackages": {
       "title": "حزم الرصيد",
@@ -3966,12 +3891,6 @@
   "integrations": {
     "title": "التكاملات",
     "subtitle": "تكوين الويب هوك لإرسال بيانات المكالمات إلى أنظمة خارجية مثل CRM",
-    "description": "ربط الخدمات الخارجية",
-    "connected": "متصل",
-    "notConnected": "غير متصل",
-    "connect": "ربط",
-    "disconnect": "قطع الاتصال",
-    "configure": "تكوين",
     "createWebhook": "إنشاء ويب هوك",
     "loading": "جاري التحميل...",
     "loadingWebhooks": "جاري تحميل الويب هوك...",
@@ -4056,6 +3975,3274 @@
       "missingFieldsDesc": "يرجى ملء جميع الحقول المطلوبة.",
       "copied": "تم النسخ",
       "copiedDesc": "تم نسخ الرمز السري إلى الحافظة."
+    },
+    "panel": {
+      "title": "التكاملات",
+      "tabs": {
+        "marketplace": "السوق",
+        "myIntegrations": "تكاملاتي",
+        "apiWebhooks": "API والويب هوك"
+      },
+      "sidebar": {
+        "quickAccess": "وصول سريع",
+        "categories": "الفئات",
+        "overview": "نظرة عامة",
+        "total": "الإجمالي المتاح",
+        "connected": "المتصلة",
+        "available": "المتاحة"
+      },
+      "categories": {
+        "all": "جميع التكاملات",
+        "crm": "إدارة العلاقات",
+        "telephony": "الاتصالات الهاتفية",
+        "aiLlm": "الذكاء الاصطناعي",
+        "voiceSpeech": "الصوت والكلام",
+        "marketing": "التسويق",
+        "communication": "التواصل",
+        "support": "الدعم",
+        "calendar": "التقويم",
+        "ecommerce": "التجارة الإلكترونية",
+        "analytics": "التحليلات",
+        "automation": "الأتمتة",
+        "dataStorage": "البيانات والتخزين",
+        "hrRecruiting": "الموارد البشرية والتوظيف",
+        "other": "أخرى"
+      },
+      "marketplace": {
+        "searchPlaceholder": "البحث في التكاملات...",
+        "connectedCount": "متصلة",
+        "clearFilters": "مسح الفلاتر",
+        "popular": "التكاملات الشائعة",
+        "popularBadge": "شائع",
+        "noResults": "لم يتم العثور على تكاملات",
+        "noSearchResults": "لا توجد تكاملات تطابق \"{{query}}\". جرب مصطلح بحث مختلف.",
+        "noFilterResults": "لا توجد تكاملات في هذه الفئة بعد.",
+        "connect": "اتصال",
+        "manage": "إدارة"
+      },
+      "myIntegrations": {
+        "emptyTitle": "لا توجد تكاملات متصلة",
+        "emptyDescription": "قم بتوصيل تكاملك الأول من تبويب السوق للبدء.",
+        "active": "نشطة",
+        "pending": "قيد الانتظار",
+        "errors": "أخطاء",
+        "inactive": "غير نشطة",
+        "lastSync": "آخر مزامنة",
+        "configure": "تكوين",
+        "resync": "إعادة المزامنة",
+        "resyncSuccess": "بدأت المزامنة",
+        "resyncSuccessDesc": "تم تفعيل مزامنة التكامل بنجاح",
+        "resyncFailed": "فشلت المزامنة",
+        "resyncFailedDesc": "فشل تفعيل مزامنة التكامل",
+        "disconnect": "قطع الاتصال",
+        "disconnected": "تم قطع اتصال التكامل",
+        "disconnectedDesc": "تم قطع اتصال التكامل بنجاح",
+        "disconnectFailed": "فشل قطع الاتصال",
+        "disconnectTitle": "قطع اتصال التكامل",
+        "disconnectConfirm": "هل أنت متأكد من رغبتك في قطع اتصال {{name}}؟ سيؤدي ذلك إلى إيقاف جميع عمليات مزامنة البيانات وقد يؤثر على سير العمل المرتبط.",
+        "cancel": "إلغاء"
+      },
+      "webhooks": {
+        "title": "الويب هوك ومفاتيح API",
+        "subtitle": "قم بتكوين الويب هوك لإرسال بيانات المكالمات إلى أنظمة خارجية"
+      },
+      "status": {
+        "connected": "متصل",
+        "pendingAuth": "في انتظار المصادقة",
+        "error": "خطأ",
+        "inactive": "غير نشط"
+      },
+      "breadcrumb": {
+        "backToIntegrations": "التكاملات"
+      }
+    },
+    "detail": {
+      "notFound": "التكامل غير موجود",
+      "backToMarketplace": "العودة إلى السوق",
+      "syncNow": "مزامنة الآن",
+      "activate": "تفعيل",
+      "waitingAuth": "في انتظار التفويض...",
+      "addTestConnection": "إضافة اتصال تجريبي",
+      "tabs": {
+        "functions": "الوظائف",
+        "useCases": "حالات الاستخدام",
+        "settings": "الإعدادات",
+        "setupGuide": "دليل إعداد API",
+        "logs": "السجلات"
+      },
+      "functions": {
+        "connectFirst": "قم بتوصيل {{name}} أولاً لتمكين وتكوين الوظائف.",
+        "actions": "الإجراءات",
+        "syncs": "المزامنات",
+        "howToUse": "كيفية استخدام {{type}}",
+        "name": "الاسم",
+        "type": "النوع",
+        "enabled": "مفعّل",
+        "template": "قالب",
+        "noActions": "لا توجد {{type}} مكوّنة لهذا التكامل بعد.",
+        "categories": {
+          "contacts": "جهات الاتصال",
+          "leads": "العملاء المحتملون",
+          "deals": "الصفقات",
+          "files": "الملفات",
+          "activities": "الأنشطة",
+          "notifications": "الإشعارات",
+          "others": "أخرى"
+        }
+      },
+      "useCases": {
+        "header": "حالات الاستخدام لـ {{name}}",
+        "trigger": "المحفّز",
+        "outcome": "النتيجة",
+        "connectFirst": "اتصل أولاً",
+        "executing": "جارٍ التنفيذ...",
+        "executeTemplate": "تنفيذ القالب",
+        "empty": "لا توجد حالات استخدام متاحة لـ {{name}} بعد."
+      },
+      "settings": {
+        "connectFirst": "قم بتوصيل {{name}} أولاً لعرض الإعدادات.",
+        "connectedAccount": "الحساب المتصل",
+        "authenticated": "مصادق عليه",
+        "account": "الحساب",
+        "email": "البريد الإلكتروني",
+        "authorizedOn": "تم التفويض في",
+        "fieldMapping": "تعيين الحقول",
+        "fieldMappingDesc": "قم بتكوين كيفية تعيين حقول البيانات من Loop9 إلى {{name}}.",
+        "contactName": "اسم جهة الاتصال",
+        "phoneNumber": "رقم الهاتف",
+        "company": "الشركة",
+        "callSummary": "ملخص المكالمة",
+        "integrationDetails": "تفاصيل التكامل",
+        "authMethod": "طريقة المصادقة",
+        "apiKey": "مفتاح API",
+        "oauth2": "OAuth 2.0",
+        "displayName": "اسم العرض",
+        "integrationId": "معرّف التكامل",
+        "category": "الفئة",
+        "integration": "تكامل",
+        "reconnect": "إعادة الاتصال",
+        "dangerZone": "منطقة الخطر",
+        "dangerDesc": "سيؤدي قطع الاتصال إلى إلغاء الوصول إلى حسابك في {{name}}، وإيقاف جميع عمليات المزامنة التلقائية، وحذف تكوين التكامل. لا يمكن التراجع عن هذا الإجراء.",
+        "disconnect": "قطع اتصال {{name}}",
+        "placeholderContactName": "مثال: contact_name",
+        "placeholderPhoneNumber": "مثال: phone_number",
+        "placeholderCompany": "مثال: company",
+        "placeholderCallSummary": "مثال: call_summary"
+      },
+      "setupGuide": {
+        "oauth": {
+          "createApp": "إنشاء تطبيق مطور",
+          "createAppDesc": "انتقل إلى {{provider}} وأنشئ تطبيقًا جديدًا. اختر \"تطبيق ويب\" كنوع التطبيق.",
+          "configureRedirect": "تكوين عنوان إعادة التوجيه",
+          "configureRedirectDesc": "In your app settings, add the following redirect/callback URL. This is required for the OAuth authorization flow to work correctly.",
+          "setScopes": "تعيين الأذونات المطلوبة",
+          "setScopesDesc": "تأكد من تفعيل الأذونات التالية لتطبيقك.",
+          "enterCredentials": "إدخال بيانات الاعتماد",
+          "enterCredentialsDesc": "انسخ {{field1}} و {{field2}} من صفحة إعدادات تطبيقك.",
+          "authorizeAccess": "تفويض الوصول",
+          "authorizeAccessDesc": "سيتم إعادة توجيهك إلى شاشة موافقة المزود. راجع الأذونات وانقر \"السماح\".",
+          "verifyConnection": "التحقق من الاتصال",
+          "verifyConnectionDesc": "تحقق من علامة التبويب الإعدادات للتأكد من اتصال حسابك."
+        },
+        "apiKey": {
+          "findKey": "البحث عن مفتاح API",
+          "findKeyDesc": "انتقل إلى إعدادات حسابك. ابحث عن قسم \"API\". انسخ المفتاح.",
+          "noteDomain": "ملاحظة النطاق",
+          "noteDomainDesc": "نطاقك هو عنوان URL للوصول إلى الخدمة. ستحتاجه مع مفتاح API.",
+          "enterCredentials": "إدخال بيانات الاعتماد",
+          "enterCredentialsDesc": "انقر \"ربط\" وأدخل {{field1}} و {{field2}}. سيتم تخزينها بشكل آمن.",
+          "verifyConnection": "التحقق من الاتصال",
+          "verifyConnectionDesc": "تحقق من علامة التبويب الإعدادات للتأكد من ربط حسابك."
+        },
+        "header": "دليل الإعداد لـ {{name}}",
+        "redirectUri": "عنوان إعادة التوجيه",
+        "requiredScopes": "الأذونات المطلوبة"
+      },
+      "logs": {
+        "connectFirst": "قم بتوصيل {{name}} أولاً لعرض سجلات المزامنة.",
+        "syncHistory": "سجل المزامنة",
+        "entries": "إدخالات",
+        "all": "الكل",
+        "success": "ناجح",
+        "failed": "فشل",
+        "inProgress": "قيد التقدم",
+        "event": "الحدث",
+        "status": "الحالة",
+        "records": "السجلات",
+        "duration": "المدة",
+        "date": "التاريخ",
+        "errorDetails": "تفاصيل الخطأ",
+        "noHistory": "لا يوجد سجل مزامنة بعد"
+      },
+      "sidebar": {
+        "authMethod": "طريقة المصادقة",
+        "apiKey": "مفتاح API",
+        "oauth2": "OAuth 2",
+        "displayName": "اسم العرض",
+        "integrationId": "معرّف التكامل",
+        "apiDocs": "وثائق API",
+        "created": "تاريخ الإنشاء"
+      },
+      "disconnect": {
+        "title": "قطع اتصال {{name}}؟",
+        "description": "سيؤدي هذا إلى إزالة التكامل وإلغاء الوصول إلى حسابك في {{name}} وإيقاف جميع عمليات المزامنة التلقائية وحذف سير العمل. لا يمكن التراجع عن هذا الإجراء.",
+        "cancel": "إلغاء",
+        "confirm": "قطع الاتصال"
+      },
+      "connect": {
+        "title": "توصيل {{name}}",
+        "redirectUri": "عنوان URL لإعادة التوجيه / رد الاتصال (أضف هذا إلى تطبيق {{name}} الخاص بك)",
+        "requiredScopes": "النطاقات / الأذونات المطلوبة",
+        "securityNoteApiKey": "{{field1}} و {{field2}} الخاصان بك مشفران ومخزنان بشكل آمن. يتم استخدامهما فقط للمصادقة مع {{name}} نيابة عنك.",
+        "securityNoteOAuth": "بيانات اعتمادك مشفرة ومخزنة بشكل آمن. بعد إدخالها، سيتم إعادة توجيهك إلى {{name}} لتفويض الوصول إلى حسابك.",
+        "cancel": "إلغاء",
+        "connecting": "جارٍ الاتصال...",
+        "connectButton": "اتصال",
+        "connectAuthorize": "اتصال وتفويض"
+      },
+      "copied": "تم النسخ",
+      "copiedDesc": "تم نسخ {{label}} إلى الحافظة.",
+      "toast": {
+        "accountConnected": "تم توصيل الحساب",
+        "accountConnectedDesc": "تمت مصادقة حسابك وهو الآن يقوم بمزامنة البيانات.",
+        "authFailed": "فشلت المصادقة",
+        "authFailedDefault": "حدث خطأ أثناء المصادقة.",
+        "authErrors": {
+          "accessDenied": "لقد رفضت الوصول إلى حسابك. يرجى المحاولة مرة أخرى.",
+          "missingParams": "كانت استجابة المصادقة غير مكتملة. يرجى المحاولة مرة أخرى.",
+          "invalidState": "انتهت صلاحية جلسة المصادقة أو كانت غير صالحة. يرجى المحاولة مرة أخرى.",
+          "integrationNotFound": "لم يتم العثور على سجل التكامل. يرجى إعادة الاتصال.",
+          "tokenExchangeFailed": "فشل إكمال المصادقة مع الخدمة. تحقق من بيانات اعتمادك وحاول مرة أخرى.",
+          "missingCredentials": "لم يتم العثور على بيانات الاعتماد المخزنة. يرجى إعادة الاتصال.",
+          "credentialError": "حدثت مشكلة في بيانات الاعتماد المخزنة. يرجى إعادة الاتصال.",
+          "serverError": "حدث خطأ غير متوقع أثناء المصادقة. يرجى المحاولة مرة أخرى."
+        },
+        "signIn": "سجّل الدخول إلى حسابك",
+        "signInDesc": "تم فتح نافذة جديدة لتفويض الوصول إلى حساب {{name}} الخاص بك.",
+        "connected": "تم توصيل التكامل",
+        "connectedDesc": "{{name}} متصل الآن ونشط.",
+        "connectionFailed": "فشل الاتصال",
+        "connectionFailedDefault": "فشل توصيل التكامل",
+        "missingCredentials": "بيانات اعتماد مفقودة",
+        "missingCredentialsDesc": "يرجى إدخال كل من {{field1}} و {{field2}}.",
+        "activated": "تم تفعيل التكامل",
+        "activatedDesc": "التكامل نشط الآن ويقوم بمزامنة البيانات.",
+        "activationFailed": "فشل التفعيل",
+        "activationFailedDefault": "فشل تفعيل التكامل",
+        "disconnected": "تم قطع اتصال التكامل",
+        "disconnectedDesc": "تمت إزالة التكامل.",
+        "disconnectFailed": "فشل قطع الاتصال",
+        "disconnectFailedDefault": "فشل قطع الاتصال",
+        "syncCompleted": "اكتملت المزامنة",
+        "syncCompletedDesc": "تمت مزامنة البيانات بنجاح.",
+        "syncFailed": "فشلت المزامنة",
+        "syncFailedDesc": "واجهت المزامنة خطأ.",
+        "syncFailedDefault": "فشل تشغيل المزامنة",
+        "templateExecuted": "تم تنفيذ القالب",
+        "templateExecutedDesc": "تم تشغيل قالب سير عمل n8n بنجاح.",
+        "executionFailed": "فشل التنفيذ",
+        "executionFailedDesc": "فشل تنفيذ القالب.",
+        "executionFailedDefault": "فشل تنفيذ قالب حالة الاستخدام"
+      },
+      "providers": {
+        "salesforce": {
+          "field1Label": "مفتاح المستهلك",
+          "field1Placeholder": "أدخل Salesforce Consumer Key",
+          "field2Label": "سر المستهلك",
+          "field2Placeholder": "أدخل Salesforce Consumer Secret",
+          "helpText": "Create a Connected App in Salesforce: go to Setup > App Manager > New Connected App. Enable OAuth settings and add the callback URL below. Copy the Consumer Key and Consumer Secret from the app details.",
+          "setupLinkText": "فتح Salesforce Setup",
+          "actions": {
+            "sync-contacts": {
+              "name": "مزامنة Contacts",
+              "description": "مزامنة جهات الاتصال من Salesforce"
+            },
+            "push-call-summary": {
+              "name": "إرسال ملخص مكالمة",
+              "description": "إرسال ملخصات المكالمة إلى Salesforce activities"
+            },
+            "sync-leads": {
+              "name": "مزامنة Leads",
+              "description": "مزامنة عملاء محتملون من Salesforce"
+            },
+            "update-contact-status": {
+              "name": "تحديث حالة جهة اتصال",
+              "description": "تحديث حالة contact بعد المكالمة"
+            }
+          },
+          "useCases": {
+            "sf-log-calls": {
+              "title": "تلقائياً-تسجيل مكالمات كـ أنشطة",
+              "description": "إنشاء تلقائياً سجلات أنشطة في Salesforce لـ كل مكتملة call مع كامل نص و outcome بيانات.",
+              "n8nTemplateName": "Salesforce مسجل المكالمات",
+              "n8nTemplateDescription": "يسجل بيانات مكالمة كـ Salesforce Task أنشطة",
+              "expectedOutcome": "جديد Task أنشطة تم إنشاؤه في Salesforce مع تفاصيل مكالمة"
+            },
+            "sf-create-leads": {
+              "title": "إنشاء عملاء محتملون من جديد المتصلون",
+              "description": "إنشاء تلقائياً جديد سجلات عميل محتمل عند المتصلون غير معروفين are تم كشفهم أثناء محادثات.",
+              "n8nTemplateName": "Salesforce منشئ العملاء المحتملين",
+              "n8nTemplateDescription": "ينشئ عملاء محتملون من غير معرفين رقم الهاتف",
+              "expectedOutcome": "جديد سجلات عميل محتمل تم إنشاؤه مع معلومات المتصلون"
+            },
+            "sf-sync-contacts": {
+              "title": "مزامنة بيانات جهات الاتصال بعد المحادثات",
+              "description": "تحديث Salesforce جهة اتصال سجلات مع أحدث رؤى محادثة و مستخرج بيانات points.",
+              "n8nTemplateName": "Salesforce مزامنة جهات الاتصال",
+              "n8nTemplateDescription": "يزامن بيانات محادثة إلى سجلات جهة اتصال",
+              "expectedOutcome": "سجلات جهة اتصال تم تحديثه مع أحدث بيانات محادثة"
+            },
+            "sf-update-opps": {
+              "title": "تحديث حالة فرصة",
+              "description": "تحديث تلقائياً أو update فرصة stages بناءً على نتائج مكالمة و AI تحليل.",
+              "n8nTemplateName": "Salesforce تحديث صفقات",
+              "n8nTemplateDescription": "يحدث حالة فرصة من call نتائج",
+              "expectedOutcome": "فرصة stage تم تحديثه بناءً على call تحليل"
+            }
+          }
+        },
+        "hubspot": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your HubSpot Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your HubSpot Client Secret",
+          "helpText": "Create an app in the HubSpot Developer Portal. Go to your app's Auth settings, add the redirect URL below, and select the required scopes. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open HubSpot Developer Portal",
+          "actions": {
+            "sync-contacts": {
+              "name": "مزامنة Contacts",
+              "description": "مزامنة جهات الاتصال من HubSpot"
+            },
+            "sync-deals": {
+              "name": "مزامنة Deals",
+              "description": "مزامنة صفقات من HubSpot"
+            },
+            "create-engagement": {
+              "name": "إنشاء Engagement",
+              "description": "إنشاء call engagement سجلات"
+            },
+            "push-call-notes": {
+              "name": "إرسال ملاحظات مكالمة",
+              "description": "إرسال ملاحظات المكالمة إلى contact timeline"
+            }
+          },
+          "useCases": {
+            "hs-create-deals": {
+              "title": "إنشاء صفقات من qualified مكالمات",
+              "description": "Automatically create new deals in HubSpot when calls are identified as sales-qualified opportunities.",
+              "n8nTemplateName": "HubSpot منشئ الصفقات",
+              "n8nTemplateDescription": "ينشئ صفقات من qualified نتائج مكالمة",
+              "expectedOutcome": "جديد deal تم إنشاؤه في HubSpot خط الأنابيب"
+            },
+            "hs-push-notes": {
+              "title": "إرسال ملاحظات المكالمة إلى timeline",
+              "description": "إضافة detailed ملاحظات مكالمة و نصوص إلى ال HubSpot contact timeline لـ complete interaction سجل.",
+              "n8nTemplateName": "HubSpot مسجل الجدول الزمني",
+              "n8nTemplateDescription": "يرسل ملاحظات مكالمة إلى contact timeline",
+              "expectedOutcome": "Call ملاحظات added إلى contact timeline في HubSpot"
+            },
+            "hs-sync-contacts": {
+              "title": "مزامنة جهات الاتصال bi-directionally",
+              "description": "Keep contact information synchronized between your calling platform and HubSpot in both directions.",
+              "n8nTemplateName": "HubSpot مزامنة جهات الاتصال",
+              "n8nTemplateDescription": "مزامنة جهات اتصال ثنائية الاتجاه",
+              "expectedOutcome": "Contact data synced between platforms"
+            },
+            "hs-followup": {
+              "title": "تفعيل سلاسل المتابعة",
+              "description": "Automatically enroll جهات الاتصال في HubSpot تسلسلات بريد إلكتروني بناءً على نتائج مكالمة و qualification حالة.",
+              "n8nTemplateName": "HubSpot محفز التسلسل",
+              "n8nTemplateDescription": "Enrolls جهات الاتصال في تسلسلات متابعة",
+              "expectedOutcome": "جهة اتصال enrolled في appropriate متابعة sequence"
+            }
+          }
+        },
+        "zoho": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Zoho Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Zoho Client Secret",
+          "helpText": "Register a Server-based Application in the Zoho API Console. Add the redirect URL below as an authorized redirect URI. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Zoho API Console",
+          "actions": {
+            "sync-contacts": {
+              "name": "مزامنة Contacts",
+              "description": "مزامنة جهات الاتصال من Zoho CRM"
+            },
+            "sync-leads": {
+              "name": "مزامنة Leads",
+              "description": "مزامنة عملاء محتملون من Zoho"
+            },
+            "push-call-log": {
+              "name": "إرسال Call Log",
+              "description": "إرسال سجلات المكالمة إلى Zoho"
+            },
+            "update-lead-status": {
+              "name": "تحديث عميل محتمل Status",
+              "description": "تحديث lead حالة بعد call"
+            }
+          },
+          "useCases": {
+            "zoho-log-calls": {
+              "title": "تسجيل call أنشطة",
+              "description": "إنشاء أنشطة مكالمة سجلات في Zoho CRM مع complete محادثة تفاصيل و نتائج.",
+              "n8nTemplateName": "Zoho مسجل المكالمات",
+              "n8nTemplateDescription": "يسجل مكالمات كـ Zoho أنشطة",
+              "expectedOutcome": "Call أنشطة logged في Zoho CRM"
+            },
+            "zoho-sync-leads": {
+              "title": "مزامنة عملاء محتملون بعد محادثات",
+              "description": "Synchronize lead بيانات و رؤى محادثة إلى Zoho CRM سجلات عميل محتمل.",
+              "n8nTemplateName": "Zoho عميل محتمل Sync",
+              "n8nTemplateDescription": "يزامن lead بيانات post-محادثة",
+              "expectedOutcome": "سجلات عميل محتمل تم تحديثه في Zoho CRM"
+            },
+            "zoho-update-deals": {
+              "title": "تحديث deal stages",
+              "description": "Advance deal stages في Zoho CRM بناءً على نتائج مكالمة و qualification criteria.",
+              "n8nTemplateName": "Zoho محدث الصفقات",
+              "n8nTemplateDescription": "يحدث deal stages من call نتائج",
+              "expectedOutcome": "Deal stage تم تحديثه في Zoho CRM"
+            },
+            "zoho-create-tasks": {
+              "title": "إنشاء متابعة مهام",
+              "description": "إنشاء تلقائياً متابعة مهام في Zoho CRM بناءً على action items من مكالمات.",
+              "n8nTemplateName": "Zoho منشئ المهام",
+              "n8nTemplateDescription": "ينشئ مهام من call action items",
+              "expectedOutcome": "متابعة task تم إنشاؤه في Zoho CRM"
+            }
+          }
+        },
+        "google-sheets": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Google Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Google Client Secret",
+          "helpText": "In Google Cloud Console, create an OAuth 2.0 Client ID (Web application type). Add the redirect URL below as an authorized redirect URI. Enable the Google Sheets API and Google People API for your project.",
+          "setupLinkText": "Open Google Cloud Console",
+          "actions": {
+            "export-call-data": {
+              "name": "تصدير بيانات المكالمة",
+              "description": "تصدير بيانات المكالمة إلى Google Sheets"
+            },
+            "read-contact-list": {
+              "name": "Read جهة اتصال List",
+              "description": "Read contact list من Google Sheets"
+            },
+            "sync-campaign-results": {
+              "name": "مزامنة Campaign Results",
+              "description": "مزامنة حملة نتائج إلى sheets"
+            }
+          },
+          "useCases": {
+            "gsheets-export": {
+              "title": "تصدير بيانات المكالمة",
+              "description": "تصدير بيانات مكالمة و مقاييس إلى Google Sheets.",
+              "n8nTemplateName": "Google Sheets مصدر البيانات",
+              "n8nTemplateDescription": "Exports بيانات مكالمة",
+              "expectedOutcome": "Call بيانات exported إلى Google Sheets"
+            },
+            "gsheets-import": {
+              "title": "استيراد contact lists",
+              "description": "استيراد contact lists من Google Sheets لـ حملات.",
+              "n8nTemplateName": "Google Sheets جهة اتصال Importer",
+              "n8nTemplateDescription": "Imports جهات الاتصال",
+              "expectedOutcome": "Contacts imported من Google Sheets"
+            },
+            "gsheets-reports": {
+              "title": "تقارير حملة",
+              "description": "توليد حملة reports في Google Sheets.",
+              "n8nTemplateName": "Google Sheets Report مولد",
+              "n8nTemplateDescription": "يولد reports",
+              "expectedOutcome": "Report تم توليده في Google Sheets"
+            },
+            "gsheets-dashboards": {
+              "title": "لوحات التحليلات",
+              "description": "إنشاء تحليلات dashboards في Google Sheets.",
+              "n8nTemplateName": "Google Sheets لوحة التحكم",
+              "n8nTemplateDescription": "ينشئ dashboards",
+              "expectedOutcome": "لوحة التحكم تم إنشاؤه في Google Sheets"
+            }
+          }
+        },
+        "pipedrive": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Pipedrive Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Pipedrive Client Secret",
+          "helpText": "Create an app in the Pipedrive Developer Hub (Marketplace Manager). Set the callback URL to the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Pipedrive Developer Hub",
+          "actions": {
+            "sync-contacts": {
+              "name": "مزامنة Persons",
+              "description": "مزامنة persons من Pipedrive"
+            },
+            "sync-deals": {
+              "name": "مزامنة Deals",
+              "description": "مزامنة صفقات من Pipedrive"
+            },
+            "create-activity": {
+              "name": "إنشاء Activity",
+              "description": "إنشاء سجلات نشاط call"
+            },
+            "push-call-outcome": {
+              "name": "إرسال Call Outcome",
+              "description": "إرسال call outcome إلى deal"
+            }
+          },
+          "useCases": {
+            "pd-create-activities": {
+              "title": "إنشاء أنشطة من مكالمات",
+              "description": "تسجيل call أنشطة في Pipedrive مع detailed ملاحظات و outcome tracking.",
+              "n8nTemplateName": "Pipedrive منشئ الأنشطة",
+              "n8nTemplateDescription": "ينشئ أنشطة من مكتملة مكالمات",
+              "expectedOutcome": "Activity تم إنشاؤه في Pipedrive"
+            },
+            "pd-update-deals": {
+              "title": "تحديث deal تقدم",
+              "description": "Move صفقات عبر خط الأنابيب stages بناءً على نتائج مكالمة و buyer signals.",
+              "n8nTemplateName": "Pipedrive محدث الصفقات",
+              "n8nTemplateDescription": "يحدث deal stages من call تحليل",
+              "expectedOutcome": "Deal stage تم تحديثه في Pipedrive"
+            },
+            "pd-sync-persons": {
+              "title": "مزامنة person بيانات",
+              "description": "Keep person records in Pipedrive synchronized with caller information.",
+              "n8nTemplateName": "Pipedrive Person مزامنة",
+              "n8nTemplateDescription": "يزامن بيانات المتصلون إلى person سجلات",
+              "expectedOutcome": "Person سجلات تم تحديثه في Pipedrive"
+            },
+            "pd-push-outcomes": {
+              "title": "إرسال نتائج المكالمة",
+              "description": "تسجيل نتائج مكالمة و dispositions directly إلى Pipedrive deal و سجلات أنشطة.",
+              "n8nTemplateName": "Pipedrive Outcome مسجل",
+              "n8nTemplateDescription": "يرسل نتائج مكالمة إلى Pipedrive",
+              "expectedOutcome": "Call outcome recorded في Pipedrive"
+            }
+          }
+        },
+        "dynamics365": {
+          "field1Label": "معرف التطبيق (العميل)",
+          "field1Placeholder": "Enter your Azure Application (Client) ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Azure Client Secret value",
+          "helpText": "Register an application in Azure Portal > App Registrations. Under Authentication, add the redirect URL below as a Web redirect URI. Under Certificates & secrets, create a new Client Secret and copy the value. Grant Dynamics CRM API permissions.",
+          "setupLinkText": "Open Azure Portal",
+          "actions": {
+            "sync-contacts": {
+              "name": "مزامنة Contacts",
+              "description": "مزامنة جهات الاتصال من Dynamics 365"
+            },
+            "sync-leads": {
+              "name": "مزامنة Leads",
+              "description": "مزامنة عملاء محتملون من Dynamics"
+            },
+            "create-phone-call": {
+              "name": "إنشاء Phone Call",
+              "description": "إنشاء phone أنشطة مكالمة"
+            },
+            "update-lead-qualification": {
+              "name": "تحديث عميل محتمل Qualification",
+              "description": "تحديث lead qualification"
+            }
+          },
+          "useCases": {
+            "d365-create-calls": {
+              "title": "إنشاء phone call أنشطة",
+              "description": "إنشاء Phone Call سجلات أنشطة في Dynamics 365 لـ كل مكتملة محادثة.",
+              "n8nTemplateName": "Dynamics 365 منشئ مكالمات",
+              "n8nTemplateDescription": "ينشئ phone call أنشطة",
+              "expectedOutcome": "Phone Call أنشطة تم إنشاؤه في Dynamics 365"
+            },
+            "d365-sync-leads": {
+              "title": "مزامنة عملاء محتملون",
+              "description": "Synchronize lead data between your calling platform and Dynamics 365.",
+              "n8nTemplateName": "Dynamics 365 عميل محتمل Sync",
+              "n8nTemplateDescription": "يزامن سجلات عميل محتمل",
+              "expectedOutcome": "عميل محتمل synced في Dynamics 365"
+            },
+            "d365-update-quals": {
+              "title": "تحديث lead qualifications",
+              "description": "تحديث lead qualification حالة في Dynamics 365 بناءً على call تحليل نتائج.",
+              "n8nTemplateName": "Dynamics 365 Qualification محدث",
+              "n8nTemplateDescription": "يحدث lead qualification من مكالمات",
+              "expectedOutcome": "عميل محتمل qualification تم تحديثه في Dynamics 365"
+            },
+            "d365-log-outcomes": {
+              "title": "تسجيل محادثة نتائج",
+              "description": "تسجيل detailed محادثة نتائج و ملاحظات في Dynamics 365 سجلات أنشطة.",
+              "n8nTemplateName": "Dynamics 365 Outcome مسجل",
+              "n8nTemplateDescription": "يسجل محادثة نتائج",
+              "expectedOutcome": "Outcome logged في Dynamics 365"
+            }
+          }
+        },
+        "freshsales": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Freshsales API Key",
+          "field2Label": "النطاق",
+          "field2Placeholder": "مثال: yourcompany.freshsales.io",
+          "helpText": "Find your API Key in Freshsales: go to Settings > API Settings > Your API Key. Your domain is the URL you use to access Freshsales (e.g., yourcompany.freshsales.io).",
+          "setupLinkText": "فتح Freshsales",
+          "actions": {
+            "sync-contacts": {
+              "name": "مزامنة Contacts",
+              "description": "مزامنة جهات الاتصال من Freshsales"
+            },
+            "sync-leads": {
+              "name": "مزامنة Leads",
+              "description": "مزامنة عملاء محتملون من Freshsales"
+            },
+            "log-call-activity": {
+              "name": "تسجيل نشاط المكالمة",
+              "description": "تسجيل call أنشطة"
+            },
+            "update-lead-score": {
+              "name": "تحديث عميل محتمل Score",
+              "description": "تحديث lead score بناءً على call"
+            }
+          },
+          "useCases": {
+            "fs-log-outcomes": {
+              "title": "تسجيل نتائج المكالمة",
+              "description": "تسجيل نتائج مكالمة و dispositions في Freshsales لـ complete أنشطة tracking.",
+              "n8nTemplateName": "Freshsales مسجل المكالمات",
+              "n8nTemplateDescription": "يسجل نتائج مكالمة في Freshsales",
+              "expectedOutcome": "Call outcome logged في Freshsales"
+            },
+            "fs-update-scores": {
+              "title": "تحديث lead درجات",
+              "description": "Automatically adjust lead درجات في Freshsales بناءً على call engagement و نتائج.",
+              "n8nTemplateName": "Freshsales Score محدث",
+              "n8nTemplateDescription": "يحدث lead درجات من بيانات مكالمة",
+              "expectedOutcome": "عميل محتمل score تم تحديثه في Freshsales"
+            },
+            "fs-create-tasks": {
+              "title": "إنشاء مهام من مكالمات",
+              "description": "توليد متابعة مهام في Freshsales من action items identified أثناء مكالمات.",
+              "n8nTemplateName": "Freshsales منشئ المهام",
+              "n8nTemplateDescription": "ينشئ مهام من call action items",
+              "expectedOutcome": "Task تم إنشاؤه في Freshsales"
+            },
+            "fs-sync-contacts": {
+              "title": "مزامنة بيانات جهات الاتصال",
+              "description": "Synchronize contact information between your calling platform and Freshsales.",
+              "n8nTemplateName": "Freshsales مزامنة جهات الاتصال",
+              "n8nTemplateDescription": "يزامن بيانات جهة اتصال bi-directionally",
+              "expectedOutcome": "جهة اتصال synced في Freshsales"
+            }
+          }
+        },
+        "monday-com": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Monday.com Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Monday.com Client Secret",
+          "helpText": "Create an app at monday.com Developers. Under OAuth settings, add the redirect URL below. Copy the Client ID and Client Secret from the app's Basic Information section.",
+          "setupLinkText": "فتح Monday.com Developers",
+          "actions": {
+            "sync-board-items": {
+              "name": "مزامنة Board Items",
+              "description": "مزامنة items من Monday.com boards"
+            },
+            "update-item-status": {
+              "name": "تحديث Item Status",
+              "description": "تحديث item حالة بعد call"
+            },
+            "push-call-summary": {
+              "name": "إرسال ملخص مكالمة",
+              "description": "إرسال ملخصات المكالمة إلى items"
+            }
+          }
+        },
+        "airtable": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Airtable Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Airtable Client Secret",
+          "helpText": "Register an OAuth integration at the Airtable Developer Hub. Add the redirect URL below. Select the required scopes (data.records:read, data.records:write, schema.bases:read). Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Airtable Developer Hub",
+          "actions": {
+            "sync-records": {
+              "name": "مزامنة Records",
+              "description": "مزامنة سجلات من Airtable base"
+            },
+            "export-call-data": {
+              "name": "تصدير بيانات المكالمة",
+              "description": "تصدير بيانات المكالمة إلى Airtable"
+            },
+            "update-record-status": {
+              "name": "تحديث Record Status",
+              "description": "تحديث سجلات حالة"
+            }
+          },
+          "useCases": {
+            "at-sync": {
+              "title": "مزامنة call سجلات",
+              "description": "مزامنة call سجلات إلى Airtable bases.",
+              "n8nTemplateName": "Airtable Record مزامنة",
+              "n8nTemplateDescription": "يزامن call سجلات",
+              "expectedOutcome": "Records synced إلى Airtable"
+            },
+            "at-update": {
+              "title": "تحديث bases",
+              "description": "تحديث Airtable bases مع بيانات مكالمة و نتائج.",
+              "n8nTemplateName": "Airtable Base محدث",
+              "n8nTemplateDescription": "يحدث bases",
+              "expectedOutcome": "Base تم تحديثه في Airtable"
+            },
+            "at-campaigns": {
+              "title": "تتبع الحملات",
+              "description": "تتبع حملة performance في Airtable.",
+              "n8nTemplateName": "Airtable متتبع الحملات",
+              "n8nTemplateDescription": "يتتبع حملات",
+              "expectedOutcome": "Campaign tracked في Airtable"
+            },
+            "at-contacts": {
+              "title": "جهة اتصال management",
+              "description": "إدارة جهات الاتصال في Airtable من call تفاعلات.",
+              "n8nTemplateName": "Airtable Contact Manager",
+              "n8nTemplateDescription": "Manages جهات الاتصال",
+              "expectedOutcome": "جهة اتصال managed في Airtable"
+            }
+          }
+        },
+        "slack": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Slack Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Slack Client Secret",
+          "helpText": "Create a Slack App at api.slack.com/apps. Under OAuth & Permissions, add the redirect URL below. Add the required Bot Token Scopes (chat:write, channels:read, users:read). Copy the Client ID and Client Secret from Basic Information.",
+          "setupLinkText": "فتح Slack API",
+          "actions": {
+            "send-call-notification": {
+              "name": "إرسال Call Notification",
+              "description": "إرسال call completion إشعارات"
+            },
+            "send-campaign-summary": {
+              "name": "إرسال Campaign Summary",
+              "description": "إرسال حملة ملخص reports"
+            },
+            "send-alert": {
+              "name": "إرسال Alert",
+              "description": "إرسال الوقت الفعلي تنبيهات لـ important مكالمات"
+            }
+          },
+          "useCases": {
+            "slack-summaries": {
+              "title": "نشر ملخصات المكالمة في القنوات",
+              "description": "نشر تلقائياً AI-تم توليده ملخصات مكالمة إلى designated Slack قنوات.",
+              "n8nTemplateName": "Slack ناشر ملخصات المكالمات",
+              "n8nTemplateDescription": "Posts ملخصات مكالمة إلى Slack",
+              "expectedOutcome": "Call ملخص posted إلى Slack channel"
+            },
+            "slack-alerts": {
+              "title": "Alert on high-priority calls",
+              "description": "إرسال instant Slack تنبيهات لـ high-priority أو escalated مكالمات.",
+              "n8nTemplateName": "Slack Priority تنبيه",
+              "n8nTemplateDescription": "Alerts on priority calls",
+              "expectedOutcome": "Priority alert تم إرساله إلى Slack"
+            },
+            "slack-reports": {
+              "title": "Daily حملة reports",
+              "description": "إرسال daily حملة performance reports إلى Slack قنوات.",
+              "n8nTemplateName": "Slack Daily تقرير",
+              "n8nTemplateDescription": "Daily حملة reports",
+              "expectedOutcome": "Daily report posted إلى Slack"
+            },
+            "slack-realtime": {
+              "title": "الوقت الفعلي call إشعارات",
+              "description": "إرسال الوقت الفعلي إشعارات إلى Slack لـ أحداث مكالمة.",
+              "n8nTemplateName": "Slack الوقت الفعلي Notifier",
+              "n8nTemplateDescription": "الوقت الفعلي call إشعارات",
+              "expectedOutcome": "الوقت الفعلي إشعار تم إرساله"
+            }
+          }
+        },
+        "mailchimp": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Mailchimp Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Mailchimp Client Secret",
+          "helpText": "Register an app in the Mailchimp Developer Portal. Add the redirect URL below as a redirect URI. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Mailchimp Developer Portal",
+          "actions": {
+            "sync-audience": {
+              "name": "مزامنة Audience",
+              "description": "مزامنة audience/subscriber lists"
+            },
+            "update-tags": {
+              "name": "تحديث Tags",
+              "description": "تحديث علامات المشتركين بناءً على نتائج المكالمة"
+            },
+            "push-campaign-results": {
+              "name": "إرسال Campaign Results",
+              "description": "إرسال calling حملة نتائج"
+            }
+          },
+          "useCases": {
+            "mc-add-contacts": {
+              "title": "إضافة جهات الاتصال إلى lists",
+              "description": "إضافة caller جهات الاتصال إلى Mailchimp audience lists.",
+              "n8nTemplateName": "Mailchimp جهة اتصال Adder",
+              "n8nTemplateDescription": "يضيف جهات الاتصال إلى lists",
+              "expectedOutcome": "جهة اتصال added إلى Mailchimp list"
+            },
+            "mc-tag": {
+              "title": "Tag بناءً على call outcome",
+              "description": "Tag Mailchimp جهات الاتصال بناءً على نتائج مكالمة.",
+              "n8nTemplateName": "Mailchimp Outcome مصنّف",
+              "n8nTemplateDescription": "Tags contacts by outcome",
+              "expectedOutcome": "جهة اتصال tagged في Mailchimp"
+            },
+            "mc-sequences": {
+              "title": "تفعيل سلاسل البريد الإلكتروني",
+              "description": "تفعيل Mailchimp email automation تسلسلات من مكالمات.",
+              "n8nTemplateName": "Mailchimp محفز التسلسل",
+              "n8nTemplateDescription": "يفعل تسلسلات بريد إلكتروني",
+              "expectedOutcome": "Email sequence triggered في Mailchimp"
+            },
+            "mc-sync": {
+              "title": "مزامنة subscriber بيانات",
+              "description": "Sync subscriber data between platforms and Mailchimp.",
+              "n8nTemplateName": "Mailchimp Subscriber مزامنة",
+              "n8nTemplateDescription": "يزامن subscriber بيانات",
+              "expectedOutcome": "Subscriber بيانات synced في Mailchimp"
+            }
+          }
+        },
+        "intercom": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Intercom Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Intercom Client Secret",
+          "helpText": "Create an app in the Intercom Developer Hub. Under Authentication, add the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Intercom Developer Hub",
+          "actions": {
+            "sync-contacts": {
+              "name": "مزامنة Contacts",
+              "description": "مزامنة جهات الاتصال من Intercom"
+            },
+            "create-conversation-note": {
+              "name": "إنشاء Conversation Note",
+              "description": "إضافة ملاحظات المكالمة إلى conversations"
+            },
+            "update-contact-attributes": {
+              "name": "تحديث جهة اتصال Attributes",
+              "description": "تحديث contact attributes"
+            }
+          },
+          "useCases": {
+            "ic-create-convs": {
+              "title": "إنشاء محادثات",
+              "description": "إنشاء Intercom محادثات من inbound مكالمات.",
+              "n8nTemplateName": "Intercom منشئ المحادثات",
+              "n8nTemplateDescription": "ينشئ محادثات",
+              "expectedOutcome": "Conversation تم إنشاؤه في Intercom"
+            },
+            "ic-update-contacts": {
+              "title": "تحديث بيانات جهة الاتصال",
+              "description": "تحديث Intercom بيانات جهة اتصال مع call رؤى.",
+              "n8nTemplateName": "Intercom جهة اتصال Updater",
+              "n8nTemplateDescription": "يحدث بيانات جهة اتصال",
+              "expectedOutcome": "جهة اتصال بيانات تم تحديثه في Intercom"
+            },
+            "ic-trigger": {
+              "title": "تفعيل سير العمل",
+              "description": "تفعيل Intercom سير العمل بناءً على نتائج مكالمة.",
+              "n8nTemplateName": "Intercom Workflow محفز",
+              "n8nTemplateDescription": "يفعل سير العمل",
+              "expectedOutcome": "Workflow triggered في Intercom"
+            },
+            "ic-notes": {
+              "title": "تسجيل ملاحظات المكالمة",
+              "description": "إضافة ملاحظات المكالمة إلى Intercom conversation records.",
+              "n8nTemplateName": "Intercom Note مسجل",
+              "n8nTemplateDescription": "يسجل ملاحظات مكالمة",
+              "expectedOutcome": "Notes logged في Intercom"
+            }
+          }
+        },
+        "twilio": {
+          "field1Label": "معرف الحساب",
+          "field1Placeholder": "أدخل Twilio Account SID",
+          "field2Label": "رمز المصادقة",
+          "field2Placeholder": "Enter your Twilio Auth Token",
+          "helpText": "Find your Account SID and Auth Token in the Twilio Console dashboard under Account Info.",
+          "setupLinkText": "Open Twilio Console",
+          "actions": {
+            "check-number": {
+              "name": "التحقق من رقم الهاتف",
+              "description": "Verify رقم الهاتف availability"
+            },
+            "send-sms": {
+              "name": "إرسال SMS متابعة",
+              "description": "إرسال SMS بعد call completion"
+            }
+          },
+          "useCases": {
+            "twilio-sms-followup": {
+              "title": "إرسال SMS متابعة بعد مكالمات",
+              "description": "إرسال تلقائياً SMS متابعة رسائل عبر Twilio بعد call completion.",
+              "n8nTemplateName": "Twilio SMS متابعة",
+              "n8nTemplateDescription": "يرسل post-call SMS رسائل",
+              "expectedOutcome": "SMS متابعة تم إرساله عبر Twilio"
+            },
+            "twilio-route-calls": {
+              "title": "توجيه مكالمات بناءً على AI تحليل",
+              "description": "Intelligently route incoming calls using AI analysis of caller intent.",
+              "n8nTemplateName": "Twilio موجه المكالمات",
+              "n8nTemplateDescription": "Routes مكالمات مع AI تحليل",
+              "expectedOutcome": "Call routed إلى appropriate destination"
+            },
+            "twilio-track-metrics": {
+              "title": "تتبع مقاييس المكالمة",
+              "description": "تتبع و aggregate مقاييس مكالمة و تحليلات عبر Twilio.",
+              "n8nTemplateName": "Twilio Metrics متتبع",
+              "n8nTemplateDescription": "يتتبع call performance مقاييس",
+              "expectedOutcome": "Call مقاييس recorded و aggregated"
+            },
+            "twilio-verify": {
+              "title": "Verify رقم الهاتف",
+              "description": "Verify caller رقم الهاتف باستخدام Twilio Lookup API.",
+              "n8nTemplateName": "Twilio Number مدقق",
+              "n8nTemplateDescription": "Verifies رقم الهاتف",
+              "expectedOutcome": "رقم الهاتف verified عبر Twilio"
+            }
+          }
+        },
+        "openai": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل OpenAI API Key (sk-...)",
+          "field2Label": "معرف المنظمة",
+          "field2Placeholder": "أدخل Organization ID (optional)",
+          "helpText": "Find your API key at platform.openai.com/api-keys. Organization ID is optional and found in Settings > Organization.",
+          "setupLinkText": "فتح OpenAI Platform",
+          "actions": {
+            "generate-summary": {
+              "name": "توليد ملخص مكالمة",
+              "description": "توليد AI ملخص of نصوص مكالمة"
+            },
+            "sentiment-analysis": {
+              "name": "تحليل المشاعر",
+              "description": "تحليل caller المشاعر من نص"
+            }
+          },
+          "useCases": {
+            "oai-summaries": {
+              "title": "توليد ملخصات المكالمة",
+              "description": "Use OpenAI to generate concise, structured summaries of call transcripts.",
+              "n8nTemplateName": "OpenAI Call ملخّص",
+              "n8nTemplateDescription": "يولد AI ملخصات مكالمة",
+              "expectedOutcome": "AI-تم توليده ملخص مكالمة تم إنشاؤه"
+            },
+            "oai-sentiment": {
+              "title": "Sentiment تحليل of نصوص",
+              "description": "تحليل caller المشاعر throughout ال محادثة باستخدام OpenAI.",
+              "n8nTemplateName": "OpenAI محلل المشاعر",
+              "n8nTemplateDescription": "Analyzes نص المشاعر",
+              "expectedOutcome": "Sentiment درجات تم توليده لـ call"
+            },
+            "oai-action-items": {
+              "title": "استخراج عناصر العمل",
+              "description": "Extract و categorize action items من نصوص مكالمة باستخدام OpenAI.",
+              "n8nTemplateName": "OpenAI Action مستخرج",
+              "n8nTemplateDescription": "Extracts action items من مكالمات",
+              "expectedOutcome": "Action items مستخرج و categorized"
+            },
+            "oai-classify": {
+              "title": "تصنيف نوايا المكالمات",
+              "description": "Classify caller intent و call purpose باستخدام OpenAI models.",
+              "n8nTemplateName": "OpenAI مصنف النوايا",
+              "n8nTemplateDescription": "يصنف نوايا المكالمات",
+              "expectedOutcome": "تم تصنيف نية المكالمة"
+            }
+          }
+        },
+        "anthropic": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Anthropic API Key",
+          "field2Label": "معرف المنظمة",
+          "field2Placeholder": "أدخل Organization ID (optional)",
+          "helpText": "Generate an API key in the Anthropic Console under API Keys.",
+          "setupLinkText": "Open Anthropic Console",
+          "useCases": {
+            "anth-summarize": {
+              "title": "Summarize محادثات",
+              "description": "Use Anthropic Claude to create detailed conversation summaries.",
+              "n8nTemplateName": "Anthropic ملخّص",
+              "n8nTemplateDescription": "Summarizes محادثات",
+              "expectedOutcome": "Conversation ملخص تم توليده"
+            },
+            "anth-intent": {
+              "title": "تحليل caller intent",
+              "description": "تحليل و categorize caller intent باستخدام Anthropic Claude.",
+              "n8nTemplateName": "Anthropic محلل نوايا",
+              "n8nTemplateDescription": "يحلل نوايا المتصل",
+              "expectedOutcome": "تم تحليل نية المتصل"
+            },
+            "anth-emails": {
+              "title": "توليد متابعة emails",
+              "description": "توليد personalized متابعة emails بناءً على call محتوى.",
+              "n8nTemplateName": "Anthropic Email مولد",
+              "n8nTemplateDescription": "يولد متابعة emails",
+              "expectedOutcome": "متابعة email draft تم توليده"
+            },
+            "anth-quality": {
+              "title": "تسجيل الجودة",
+              "description": "Score call quality و agent performance باستخدام Anthropic.",
+              "n8nTemplateName": "Anthropic Quality مقيّم",
+              "n8nTemplateDescription": "يسجل جودة المكالمة",
+              "expectedOutcome": "Quality score تم توليده"
+            }
+          }
+        },
+        "google-gemini": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Google AI API Key",
+          "field2Label": "معرف المشروع",
+          "field2Placeholder": "أدخل Google Cloud Project ID (optional)",
+          "helpText": "Get your API key from Google AI Studio or Google Cloud Console with the Generative AI API enabled.",
+          "setupLinkText": "فتح Google AI Studio",
+          "useCases": {
+            "gemini-transcript": {
+              "title": "Transcript تحليل",
+              "description": "تحليل نصوص مكالمة باستخدام Google Gemini لـ رؤى.",
+              "n8nTemplateName": "Gemini محلل نصوص",
+              "n8nTemplateDescription": "Analyzes نصوص",
+              "expectedOutcome": "Transcript تحليل مكتملة"
+            },
+            "gemini-multilang": {
+              "title": "تلخيص متعدد اللغات",
+              "description": "Summarize مكالمات في multiple languages باستخدام Gemini.",
+              "n8nTemplateName": "Gemini Multi-lang ملخّص",
+              "n8nTemplateDescription": "Multi-language ملخصات",
+              "expectedOutcome": "Multi-language ملخص تم توليده"
+            },
+            "gemini-intent": {
+              "title": "استخراج النوايا",
+              "description": "Extract caller intents من محادثات باستخدام Gemini.",
+              "n8nTemplateName": "Gemini Intent مستخرج",
+              "n8nTemplateDescription": "يستخرج نوايا المتصل",
+              "expectedOutcome": "Intents مستخرج من call"
+            },
+            "gemini-knowledge": {
+              "title": "استرجاع المعرفة",
+              "description": "Retrieve relevant knowledge base articles باستخدام Gemini.",
+              "n8nTemplateName": "Gemini مسترد معرفة",
+              "n8nTemplateDescription": "يسترجع مقالات المعرفة",
+              "expectedOutcome": "تم استرجاع المعرفة ذات الصلة"
+            }
+          }
+        },
+        "elevenlabs": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل ElevenLabs API Key",
+          "field2Label": "معرف الصوت الافتراضي",
+          "field2Placeholder": "Enter default voice ID (optional)",
+          "helpText": "Find your API key in ElevenLabs Profile Settings. Voice IDs are found in the Voices section.",
+          "setupLinkText": "Open ElevenLabs Settings",
+          "useCases": {
+            "el-clone-voice": {
+              "title": "Clone brand صوت",
+              "description": "Clone and use your brand voice for consistent AI agent responses.",
+              "n8nTemplateName": "ElevenLabs صوت مستنسخ",
+              "n8nTemplateDescription": "Clones brand صوت",
+              "expectedOutcome": "Brand صوت cloned و ready"
+            },
+            "el-multilang": {
+              "title": "تحويل النص إلى كلام متعدد اللغات",
+              "description": "توليد speech في multiple languages باستخدام ElevenLabs.",
+              "n8nTemplateName": "ElevenLabs متعدد اللغات TTS",
+              "n8nTemplateDescription": "كلام متعدد اللغات",
+              "expectedOutcome": "Multi-language speech تم توليده"
+            },
+            "el-quality": {
+              "title": "تحسين جودة الصوت",
+              "description": "Optimize voice output quality settings for ElevenLabs.",
+              "n8nTemplateName": "ElevenLabs Quality محسّن",
+              "n8nTemplateDescription": "Optimizes صوت quality",
+              "expectedOutcome": "تم تحسين جودة الصوت"
+            },
+            "el-pronunciations": {
+              "title": "نطق مخصص",
+              "description": "Configure custom pronunciations لـ names و terms.",
+              "n8nTemplateName": "ElevenLabs نطق مكوّن",
+              "n8nTemplateDescription": "يكوّن النطق",
+              "expectedOutcome": "نطق مخصص configured"
+            }
+          }
+        },
+        "deepgram": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Deepgram API Key",
+          "field2Label": "معرف المشروع",
+          "field2Placeholder": "أدخل Deepgram Project ID",
+          "helpText": "Create an API key in the Deepgram Console under your project settings.",
+          "setupLinkText": "Open Deepgram Console",
+          "useCases": {
+            "dg-realtime": {
+              "title": "الوقت الفعلي نسخ",
+              "description": "Transcribe مكالمات في الوقت الفعلي باستخدام Deepgram speech-إلى-text.",
+              "n8nTemplateName": "Deepgram الوقت الفعلي STT",
+              "n8nTemplateDescription": "الوقت الفعلي نسخ",
+              "expectedOutcome": "الوقت الفعلي نص تم توليده"
+            },
+            "dg-diarization": {
+              "title": "فصل المتحدثين",
+              "description": "Identify و separate speakers في تسجيلات مكالمة باستخدام Deepgram.",
+              "n8nTemplateName": "Deepgram Speaker مفصل",
+              "n8nTemplateDescription": "يحدد المتحدثين",
+              "expectedOutcome": "Speakers identified و separated"
+            },
+            "dg-keywords": {
+              "title": "كشف الكلمات المفتاحية",
+              "description": "كشف specific keywords و phrases في الوقت الفعلي.",
+              "n8nTemplateName": "Deepgram Keyword كاشف",
+              "n8nTemplateDescription": "يكشف الكلمات المفتاحية",
+              "expectedOutcome": "Keywords تم كشفهم في محادثة"
+            },
+            "dg-sentiment": {
+              "title": "Sentiment من صوت",
+              "description": "تحليل المشاعر من صوت tone باستخدام Deepgram.",
+              "n8nTemplateName": "Deepgram صوت مشاعر",
+              "n8nTemplateDescription": "Analyzes صوت المشاعر",
+              "expectedOutcome": "Voice المشاعر analyzed"
+            }
+          }
+        },
+        "zendesk": {
+          "field1Label": "رمز API",
+          "field1Placeholder": "Enter your Zendesk API Token",
+          "field2Label": "النطاق الفرعي",
+          "field2Placeholder": "e.g. yourcompany (من yourcompany.zendesk.com)",
+          "helpText": "Generate an API token in Zendesk Admin > Apps and Integrations > APIs > Zendesk API.",
+          "setupLinkText": "فتح Zendesk Admin",
+          "actions": {
+            "create-ticket": {
+              "name": "إنشاء Ticket",
+              "description": "إنشاء support ticket من call"
+            },
+            "update-ticket": {
+              "name": "تحديث Ticket",
+              "description": "تحديث existing ticket مع ملاحظات مكالمة"
+            }
+          },
+          "useCases": {
+            "zd-create-tickets": {
+              "title": "إنشاء تذاكر من مكالمات",
+              "description": "إنشاء تلقائياً Zendesk support تذاكر من customer مكالمات.",
+              "n8nTemplateName": "Zendesk منشئ تذاكر",
+              "n8nTemplateDescription": "ينشئ تذاكر من مكالمات",
+              "expectedOutcome": "Support ticket تم إنشاؤه في Zendesk"
+            },
+            "zd-update-status": {
+              "title": "تحديث ticket حالة",
+              "description": "تحديث Zendesk ticket حالة بناءً على call resolution.",
+              "n8nTemplateName": "Zendesk Status محدث",
+              "n8nTemplateDescription": "يحدث ticket حالة",
+              "expectedOutcome": "Ticket حالة تم تحديثه في Zendesk"
+            },
+            "zd-escalate": {
+              "title": "تصعيد المشاكل",
+              "description": "Escalate high-priority issues إلى Zendesk support teams.",
+              "n8nTemplateName": "Zendesk Issue مصعّد",
+              "n8nTemplateDescription": "يصعّد المشاكل",
+              "expectedOutcome": "Issue escalated في Zendesk"
+            },
+            "zd-transcripts": {
+              "title": "تسجيل نصوص مكالمة",
+              "description": "Attach نصوص مكالمة إلى Zendesk تذاكر.",
+              "n8nTemplateName": "Zendesk مسجل نصوص",
+              "n8nTemplateDescription": "يسجل نصوص إلى تذاكر",
+              "expectedOutcome": "Transcript attached إلى Zendesk ticket"
+            }
+          }
+        },
+        "freshdesk": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Freshdesk API Key",
+          "field2Label": "النطاق",
+          "field2Placeholder": "مثال: yourcompany.freshdesk.com",
+          "helpText": "Find your API key in Freshdesk: Profile Settings > Your API Key.",
+          "setupLinkText": "فتح Freshdesk",
+          "actions": {
+            "create-ticket": {
+              "name": "إنشاء Ticket",
+              "description": "إنشاء Freshdesk ticket من call"
+            },
+            "sync-contacts": {
+              "name": "مزامنة Contacts",
+              "description": "مزامنة جهات الاتصال من Freshdesk"
+            }
+          },
+          "useCases": {
+            "fd-create-tickets": {
+              "title": "تلقائياً-إنشاء تذاكر",
+              "description": "إنشاء تلقائياً Freshdesk تذاكر من support مكالمات.",
+              "n8nTemplateName": "Freshdesk منشئ تذاكر",
+              "n8nTemplateDescription": "ينشئ تذاكر تلقائياً",
+              "expectedOutcome": "Ticket تم إنشاؤه في Freshdesk"
+            },
+            "fd-update-status": {
+              "title": "تحديث support حالة",
+              "description": "تحديث Freshdesk ticket حالة بعد call resolution.",
+              "n8nTemplateName": "Freshdesk Status محدث",
+              "n8nTemplateDescription": "يحدث support حالة",
+              "expectedOutcome": "Support حالة تم تحديثه"
+            },
+            "fd-assign": {
+              "title": "تعيين agents",
+              "description": "تعيين agents إلى Freshdesk تذاكر بناءً على call routing.",
+              "n8nTemplateName": "Freshdesk وكيل مخصص",
+              "n8nTemplateDescription": "يعيّن الوكلاء",
+              "expectedOutcome": "Agent assigned إلى ticket"
+            },
+            "fd-log": {
+              "title": "تسجيل تفاعلات",
+              "description": "تسجيل call تفاعلات في Freshdesk محادثة سجل.",
+              "n8nTemplateName": "Freshdesk Interaction مسجل",
+              "n8nTemplateDescription": "يسجل تفاعلات",
+              "expectedOutcome": "Interaction logged في Freshdesk"
+            }
+          }
+        },
+        "google-calendar": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Google Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Google Client Secret",
+          "helpText": "In Google Cloud Console, create an OAuth 2.0 Client ID. Enable the Google Calendar API for your project and add the redirect URL below.",
+          "setupLinkText": "Open Google Cloud Console",
+          "actions": {
+            "create-event": {
+              "name": "Book Appointment",
+              "description": "إنشاء calendar event أثناء call"
+            },
+            "check-availability": {
+              "name": "التحقق من Availability",
+              "description": "التحقق من calendar availability"
+            }
+          },
+          "useCases": {
+            "gcal-book": {
+              "title": "Book appointments أثناء مكالمات",
+              "description": "Book appointments on Google Calendar during live calls.",
+              "n8nTemplateName": "Google Calendar حاجز",
+              "n8nTemplateDescription": "يحجز المواعيد",
+              "expectedOutcome": "تم حجز موعد على Google Calendar"
+            },
+            "gcal-availability": {
+              "title": "التحقق من availability",
+              "description": "التحقق من Google Calendar availability أثناء scheduling مكالمات.",
+              "n8nTemplateName": "Google Calendar Availability فاحص",
+              "n8nTemplateDescription": "يتحقق من التوفر",
+              "expectedOutcome": "تم التحقق من التوفر على Google Calendar"
+            },
+            "gcal-reminders": {
+              "title": "إرسال reminders",
+              "description": "إرسال appointment reminders عبر Google Calendar.",
+              "n8nTemplateName": "Google Calendar تذكير",
+              "n8nTemplateDescription": "يرسل reminders",
+              "expectedOutcome": "Reminder تم إرساله عبر Google Calendar"
+            },
+            "gcal-block": {
+              "title": "حجز فترات زمنية",
+              "description": "Block time slots on Google Calendar after booking.",
+              "n8nTemplateName": "Google Calendar حاظر",
+              "n8nTemplateDescription": "يحجز الفترات الزمنية",
+              "expectedOutcome": "تم حجز فترة زمنية على Google Calendar"
+            }
+          }
+        },
+        "calendly": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "Enter your Calendly Personal Access Token",
+          "field2Label": "عنوان المنظمة",
+          "field2Placeholder": "أدخل Calendly Organization URI",
+          "helpText": "Generate a Personal Access Token in Calendly: Integrations > API & Webhooks. Find your Organization URI in the API response.",
+          "setupLinkText": "فتح Calendly Integrations",
+          "actions": {
+            "create-scheduling-link": {
+              "name": "إرسال Scheduling Link",
+              "description": "توليد و share Calendly link"
+            },
+            "check-availability": {
+              "name": "التحقق من Availability",
+              "description": "التحقق من available time slots"
+            }
+          },
+          "useCases": {
+            "calendly-links": {
+              "title": "توليد scheduling links",
+              "description": "توليد Calendly scheduling links أثناء مكالمات.",
+              "n8nTemplateName": "Calendly Link مولد",
+              "n8nTemplateDescription": "يولد scheduling links",
+              "expectedOutcome": "Scheduling link تم توليده"
+            },
+            "calendly-availability": {
+              "title": "التحقق من availability",
+              "description": "التحقق من Calendly availability لـ scheduling.",
+              "n8nTemplateName": "Calendly Availability فاحص",
+              "n8nTemplateDescription": "يتحقق من التوفر",
+              "expectedOutcome": "تم التحقق من التوفر على Calendly"
+            },
+            "calendly-confirm": {
+              "title": "تأكيد الحجوزات",
+              "description": "Confirm Calendly bookings بعد call scheduling.",
+              "n8nTemplateName": "Calendly Booking مؤكد",
+              "n8nTemplateDescription": "يؤكد الحجوزات",
+              "expectedOutcome": "تم تأكيد الحجز على Calendly"
+            },
+            "calendly-reminders": {
+              "title": "إرسال reminders",
+              "description": "إرسال appointment reminders عبر Calendly.",
+              "n8nTemplateName": "Calendly تذكير",
+              "n8nTemplateDescription": "يرسل reminders",
+              "expectedOutcome": "Reminder تم إرساله عبر Calendly"
+            }
+          }
+        },
+        "stripe": {
+          "field1Label": "المفتاح السري",
+          "field1Placeholder": "أدخل Stripe Secret Key (sk_...)",
+          "field2Label": "Webhook Secret",
+          "field2Placeholder": "Enter your Stripe Webhook Secret (whsec_...)",
+          "helpText": "Find your API keys in the Stripe Dashboard > Developers > API Keys. Create a webhook endpoint and copy the signing secret.",
+          "setupLinkText": "فتح Stripe Dashboard",
+          "actions": {
+            "lookup-customer": {
+              "name": "Lookup Customer",
+              "description": "Look up customer payment info"
+            },
+            "create-invoice": {
+              "name": "إنشاء Invoice",
+              "description": "إنشاء invoice بعد call"
+            }
+          },
+          "useCases": {
+            "stripe-payments": {
+              "title": "معالجة المدفوعات",
+              "description": "Process payments أثناء مكالمات باستخدام Stripe.",
+              "n8nTemplateName": "Stripe Payment معالج",
+              "n8nTemplateDescription": "يعالج المدفوعات",
+              "expectedOutcome": "Payment processed عبر Stripe"
+            },
+            "stripe-invoices": {
+              "title": "إنشاء invoices",
+              "description": "إنشاء و send invoices عبر Stripe بعد مكالمات.",
+              "n8nTemplateName": "Stripe Invoice منشئ",
+              "n8nTemplateDescription": "ينشئ invoices",
+              "expectedOutcome": "Invoice تم إنشاؤه في Stripe"
+            },
+            "stripe-subscriptions": {
+              "title": "البحث عن الاشتراكات",
+              "description": "Look up customer subscription details during calls.",
+              "n8nTemplateName": "Stripe Subscription بحث",
+              "n8nTemplateDescription": "Looks up subscriptions",
+              "expectedOutcome": "Subscription تفاصيل retrieved"
+            },
+            "stripe-refunds": {
+              "title": "معالجة المبالغ المستردة",
+              "description": "Process refund requests أثناء support مكالمات.",
+              "n8nTemplateName": "Stripe Refund معالج",
+              "n8nTemplateDescription": "Handles refunds",
+              "expectedOutcome": "Refund processed عبر Stripe"
+            }
+          }
+        },
+        "shopify": {
+          "field1Label": "رمز الوصول",
+          "field1Placeholder": "Enter your Shopify Admin API Access Token",
+          "field2Label": "نطاق المتجر",
+          "field2Placeholder": "مثال: yourstore.myshopify.com",
+          "helpText": "Create a Custom App in Shopify Admin > Settings > Apps and sales channels > Develop apps. Install and copy the Admin API access token.",
+          "setupLinkText": "فتح Shopify Admin",
+          "actions": {
+            "lookup-order": {
+              "name": "Lookup Order",
+              "description": "Look up customer order details"
+            },
+            "lookup-product": {
+              "name": "Lookup Product",
+              "description": "التحقق من product availability"
+            }
+          },
+          "useCases": {
+            "shopify-orders": {
+              "title": "البحث عن الطلبات",
+              "description": "Look up customer orders in Shopify during calls.",
+              "n8nTemplateName": "Shopify Order بحث",
+              "n8nTemplateDescription": "Looks up orders",
+              "expectedOutcome": "Order تفاصيل retrieved من Shopify"
+            },
+            "shopify-inventory": {
+              "title": "التحقق من inventory",
+              "description": "التحقق من product inventory levels في Shopify.",
+              "n8nTemplateName": "Shopify Inventory فاحص",
+              "n8nTemplateDescription": "Checks inventory",
+              "expectedOutcome": "Inventory checked في Shopify"
+            },
+            "shopify-returns": {
+              "title": "معالجة المرتجعات",
+              "description": "Process return requests عبر Shopify.",
+              "n8nTemplateName": "Shopify Return معالج",
+              "n8nTemplateDescription": "Processes returns",
+              "expectedOutcome": "Return processed في Shopify"
+            },
+            "shopify-customers": {
+              "title": "البحث عن حساب العميل",
+              "description": "Look up customer account details in Shopify.",
+              "n8nTemplateName": "Shopify Customer بحث",
+              "n8nTemplateDescription": "Looks up customers",
+              "expectedOutcome": "Customer تفاصيل retrieved من Shopify"
+            }
+          }
+        },
+        "activecampaign": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل ActiveCampaign API Key",
+          "field2Label": "عنوان الحساب",
+          "field2Placeholder": "مثال: yourcompany.api-us1.com",
+          "helpText": "Find your API Key and URL in ActiveCampaign: Settings > Developer > API Access.",
+          "setupLinkText": "فتح ActiveCampaign",
+          "actions": {
+            "add-contact": {
+              "name": "إضافة جهة اتصال",
+              "description": "إضافة contact إلى ActiveCampaign"
+            },
+            "add-tag": {
+              "name": "إضافة Tag",
+              "description": "Tag contact بناءً على call outcome"
+            }
+          },
+          "useCases": {
+            "ac-add-contacts": {
+              "title": "إضافة جهات الاتصال",
+              "description": "إضافة جديد جهات الاتصال إلى ActiveCampaign من مكالمات.",
+              "n8nTemplateName": "ActiveCampaign جهة اتصال Adder",
+              "n8nTemplateDescription": "يضيف جهات الاتصال",
+              "expectedOutcome": "جهة اتصال added إلى ActiveCampaign"
+            },
+            "ac-tags": {
+              "title": "Apply علامات",
+              "description": "Apply علامات إلى ActiveCampaign جهات الاتصال بناءً على بيانات مكالمة.",
+              "n8nTemplateName": "ActiveCampaign Tag مطبّق",
+              "n8nTemplateDescription": "Applies علامات",
+              "expectedOutcome": "Tags applied في ActiveCampaign"
+            },
+            "ac-automations": {
+              "title": "تفعيل automations",
+              "description": "تفعيل ActiveCampaign automations من أحداث مكالمة.",
+              "n8nTemplateName": "ActiveCampaign Automation محفز",
+              "n8nTemplateDescription": "يفعل automations",
+              "expectedOutcome": "Automation triggered في ActiveCampaign"
+            },
+            "ac-deals": {
+              "title": "تحديث deal stages",
+              "description": "تحديث deal stages في ActiveCampaign بناءً على نتائج مكالمة.",
+              "n8nTemplateName": "ActiveCampaign محدث الصفقات",
+              "n8nTemplateDescription": "يحدث deal stages",
+              "expectedOutcome": "Deal stage تم تحديثه في ActiveCampaign"
+            }
+          }
+        },
+        "sendgrid": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل SendGrid API Key",
+          "field2Label": "بريد المرسل",
+          "field2Placeholder": "أدخل verified sender email",
+          "helpText": "Create an API key in SendGrid: Settings > API Keys > Create API Key. Verify a sender identity first.",
+          "setupLinkText": "Open SendGrid Settings",
+          "useCases": {
+            "sg-transactional": {
+              "title": "إرسال transactional emails",
+              "description": "إرسال transactional emails عبر SendGrid بعد مكالمات.",
+              "n8nTemplateName": "SendGrid Transactional بريد",
+              "n8nTemplateDescription": "يرسل transactional emails",
+              "expectedOutcome": "Transactional email تم إرساله عبر SendGrid"
+            },
+            "sg-followup": {
+              "title": "تسلسلات متابعة",
+              "description": "تفعيل متابعة تسلسلات بريد إلكتروني عبر SendGrid.",
+              "n8nTemplateName": "SendGrid متابعة Sequence",
+              "n8nTemplateDescription": "تسلسلات متابعة",
+              "expectedOutcome": "متابعة sequence started"
+            },
+            "sg-notifications": {
+              "title": "Email إشعارات",
+              "description": "إرسال إشعارات por بريد إلكتروني لـ أحداث مكالمة عبر SendGrid.",
+              "n8nTemplateName": "SendGrid Email منبه",
+              "n8nTemplateDescription": "Email إشعارات",
+              "expectedOutcome": "Email إشعار تم إرساله"
+            },
+            "sg-templates": {
+              "title": "إدارة القوالب",
+              "description": "Manage and use SendGrid email templates for communications.",
+              "n8nTemplateName": "SendGrid Template مدير",
+              "n8nTemplateDescription": "Manages قوالب",
+              "expectedOutcome": "Template configured في SendGrid"
+            }
+          }
+        },
+        "microsoft-teams": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Azure Application Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Azure Client Secret",
+          "helpText": "Register an app in Azure Portal > App Registrations. Under API Permissions, add Microsoft Graph permissions for Teams. Add the redirect URL below.",
+          "setupLinkText": "Open Azure Portal",
+          "actions": {
+            "send-notification": {
+              "name": "إرسال Notification",
+              "description": "نشر call alert إلى Teams channel"
+            }
+          },
+          "useCases": {
+            "teams-outcomes": {
+              "title": "Share نتائج مكالمة",
+              "description": "Share نتائج مكالمة و ملخصات في Microsoft Teams قنوات.",
+              "n8nTemplateName": "Teams Outcome مشارك",
+              "n8nTemplateDescription": "Shares نتائج مكالمة",
+              "expectedOutcome": "Call outcome shared في Teams"
+            },
+            "teams-alerts": {
+              "title": "Campaign تنبيهات",
+              "description": "إرسال حملة performance تنبيهات إلى Teams قنوات.",
+              "n8nTemplateName": "Teams Campaign تنبيه",
+              "n8nTemplateDescription": "Campaign performance تنبيهات",
+              "expectedOutcome": "Campaign alert تم إرساله إلى Teams"
+            },
+            "teams-notifications": {
+              "title": "Team إشعارات",
+              "description": "إرسال team-wide إشعارات لـ important أحداث مكالمة.",
+              "n8nTemplateName": "Teams منبه",
+              "n8nTemplateDescription": "Team إشعارات",
+              "expectedOutcome": "Team إشعار تم إرساله"
+            },
+            "teams-followups": {
+              "title": "متابعة الاجتماعات",
+              "description": "إرسال meeting متابعة رسائل بعد مكالمات.",
+              "n8nTemplateName": "Teams Meeting متابعة",
+              "n8nTemplateDescription": "متابعة الاجتماعات",
+              "expectedOutcome": "متابعة message تم إرساله في Teams"
+            }
+          }
+        },
+        "telegram": {
+          "field1Label": "رمز البوت",
+          "field1Placeholder": "Enter your Telegram Bot Token",
+          "field2Label": "معرف المحادثة",
+          "field2Placeholder": "Enter the target Chat/Group ID",
+          "helpText": "Create a bot via @BotFather on Telegram. Use @userinfobot or the getUpdates API method to find your Chat ID.",
+          "setupLinkText": "فتح BotFather",
+          "actions": {
+            "send-notification": {
+              "name": "إرسال Notification",
+              "description": "إرسال call alert إلى Telegram"
+            },
+            "send-report": {
+              "name": "إرسال Campaign Report",
+              "description": "إرسال حملة ملخص إلى Telegram"
+            }
+          },
+          "useCases": {
+            "tg-alerts": {
+              "title": "إرسال call تنبيهات",
+              "description": "إرسال instant call تنبيهات إلى Telegram groups أو قنوات.",
+              "n8nTemplateName": "Telegram Call تنبيه",
+              "n8nTemplateDescription": "يرسل call تنبيهات",
+              "expectedOutcome": "Call alert تم إرساله إلى Telegram"
+            },
+            "tg-status": {
+              "title": "Campaign حالة updates",
+              "description": "إرسال حملة حالة updates إلى Telegram.",
+              "n8nTemplateName": "Telegram Status محدث",
+              "n8nTemplateDescription": "Campaign حالة updates",
+              "expectedOutcome": "Status update تم إرساله إلى Telegram"
+            },
+            "tg-leads": {
+              "title": "عميل محتمل إشعارات",
+              "description": "إشعار team about جديد عملاء محتملون عبر Telegram.",
+              "n8nTemplateName": "Telegram عميل محتمل Notifier",
+              "n8nTemplateDescription": "عميل محتمل إشعارات",
+              "expectedOutcome": "عميل محتمل إشعار تم إرساله إلى Telegram"
+            },
+            "tg-reports": {
+              "title": "تقارير يومية",
+              "description": "إرسال daily performance reports إلى Telegram.",
+              "n8nTemplateName": "Telegram Daily تقرير",
+              "n8nTemplateDescription": "تقارير يومية",
+              "expectedOutcome": "Daily report تم إرساله إلى Telegram"
+            }
+          }
+        },
+        "whatsapp": {
+          "field1Label": "رمز الوصول",
+          "field1Placeholder": "Enter your WhatsApp Business API Access Token",
+          "field2Label": "معرف رقم الهاتف",
+          "field2Placeholder": "أدخل WhatsApp Phone Number ID",
+          "helpText": "Set up WhatsApp Business API through Meta for Developers. Create an app, add the WhatsApp product, and generate a permanent access token.",
+          "setupLinkText": "Open Meta for Developers",
+          "actions": {
+            "send-followup": {
+              "name": "إرسال متابعة",
+              "description": "إرسال WhatsApp متابعة message"
+            },
+            "send-template": {
+              "name": "إرسال Template Message",
+              "description": "إرسال pre-approved template message"
+            }
+          },
+          "useCases": {
+            "wa-followup": {
+              "title": "إرسال متابعة رسائل",
+              "description": "إرسال personalized متابعة رسائل عبر WhatsApp بعد مكالمات.",
+              "n8nTemplateName": "WhatsApp متابعة",
+              "n8nTemplateDescription": "يرسل متابعة رسائل",
+              "expectedOutcome": "متابعة message تم إرساله عبر WhatsApp"
+            },
+            "wa-recordings": {
+              "title": "Share تسجيلات مكالمة",
+              "description": "Share call recording ملخصات عبر WhatsApp.",
+              "n8nTemplateName": "WhatsApp تسجيل مشارك",
+              "n8nTemplateDescription": "Shares تسجيلات مكالمة",
+              "expectedOutcome": "Recording ملخص shared عبر WhatsApp"
+            },
+            "wa-appointments": {
+              "title": "تأكيدات المواعيد",
+              "description": "إرسال appointment confirmation رسائل عبر WhatsApp.",
+              "n8nTemplateName": "WhatsApp موعد مؤكد",
+              "n8nTemplateDescription": "Confirms appointments",
+              "expectedOutcome": "Appointment confirmation تم إرساله عبر WhatsApp"
+            },
+            "wa-nurture": {
+              "title": "عميل محتمل nurture رسائل",
+              "description": "إرسال lead nurture رسائل عبر WhatsApp.",
+              "n8nTemplateName": "WhatsApp عميل محتمل Nurturer",
+              "n8nTemplateDescription": "Nurtures عملاء محتملون",
+              "expectedOutcome": "Nurture message تم إرساله عبر WhatsApp"
+            }
+          }
+        },
+        "discord": {
+          "field1Label": "رمز البوت",
+          "field1Placeholder": "Enter your Discord Bot Token",
+          "field2Label": "معرف القناة",
+          "field2Placeholder": "Enter the target Channel ID",
+          "helpText": "Create a bot in the Discord Developer Portal. Enable Developer Mode in Discord settings to copy Channel IDs.",
+          "setupLinkText": "Open Discord Developer Portal",
+          "actions": {
+            "send-notification": {
+              "name": "إرسال Notification",
+              "description": "نشر call update إلى Discord channel"
+            }
+          },
+          "useCases": {
+            "discord-updates": {
+              "title": "نشر call updates",
+              "description": "نشر call updates و ملخصات إلى Discord قنوات.",
+              "n8nTemplateName": "Discord محدث مكالمات",
+              "n8nTemplateDescription": "Posts call updates",
+              "expectedOutcome": "Call update posted إلى Discord"
+            },
+            "discord-campaign": {
+              "title": "Campaign تنبيهات",
+              "description": "إرسال حملة performance تنبيهات إلى Discord.",
+              "n8nTemplateName": "Discord Campaign تنبيه",
+              "n8nTemplateDescription": "Campaign تنبيهات",
+              "expectedOutcome": "Campaign alert posted إلى Discord"
+            },
+            "discord-team": {
+              "title": "Team إشعارات",
+              "description": "إرسال team إشعارات لـ important أحداث إلى Discord.",
+              "n8nTemplateName": "Discord Team منبه",
+              "n8nTemplateDescription": "Team إشعارات",
+              "expectedOutcome": "Team إشعار تم إرساله إلى Discord"
+            },
+            "discord-leads": {
+              "title": "عميل محتمل تنبيهات",
+              "description": "Alert team about جديد عملاء محتملون في Discord قنوات.",
+              "n8nTemplateName": "Discord عميل محتمل Alert",
+              "n8nTemplateDescription": "عميل محتمل تنبيهات",
+              "expectedOutcome": "عميل محتمل alert posted إلى Discord"
+            }
+          }
+        },
+        "zapier": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Zapier Webhook URL",
+          "field2Label": "المفتاح السري",
+          "field2Placeholder": "Enter a shared secret key (optional)",
+          "helpText": "Create a Zap with a 'Webhooks by Zapier' trigger. Copy the webhook URL provided and paste it here.",
+          "setupLinkText": "فتح Zapier",
+          "actions": {
+            "trigger-webhook": {
+              "name": "Trigger Webhook",
+              "description": "Send call data to Zapier webhook"
+            }
+          },
+          "useCases": {
+            "zapier-trigger": {
+              "title": "تفعيل zaps من مكالمات",
+              "description": "تفعيل Zapier zaps مع بيانات مكالمة لـ cross-app automation.",
+              "n8nTemplateName": "Zapier Zap محفز",
+              "n8nTemplateDescription": "يفعل zaps",
+              "expectedOutcome": "Zap triggered في Zapier"
+            },
+            "zapier-multi": {
+              "title": "Multi-step سير العمل",
+              "description": "Execute multi-step Zapier سير العمل من أحداث مكالمة.",
+              "n8nTemplateName": "Zapier متعدد الخطوات Workflow",
+              "n8nTemplateDescription": "Multi-step سير العمل",
+              "expectedOutcome": "Multi-step سير العمل executed"
+            },
+            "zapier-cross": {
+              "title": "أتمتة عبر التطبيقات",
+              "description": "Automate cross-app سير العمل triggered by مكالمات.",
+              "n8nTemplateName": "Zapier عبر التطبيقات Automation",
+              "n8nTemplateDescription": "أتمتة عبر التطبيقات",
+              "expectedOutcome": "أتمتة عبر التطبيقات triggered"
+            },
+            "zapier-routing": {
+              "title": "توجيه مشروط",
+              "description": "توجيه بيانات مكالمة conditionally عبر Zapier paths.",
+              "n8nTemplateName": "Zapier Conditional موجه",
+              "n8nTemplateDescription": "توجيه مشروط",
+              "expectedOutcome": "تم توجيه البيانات بشكل مشروط"
+            }
+          }
+        },
+        "make": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Make.com Webhook URL",
+          "field2Label": "المفتاح السري",
+          "field2Placeholder": "Enter a shared secret key (optional)",
+          "helpText": "Create a scenario in Make with a Webhooks module. Copy the webhook URL and paste it here.",
+          "setupLinkText": "فتح Make.com",
+          "useCases": {
+            "make-scenarios": {
+              "title": "تفعيل scenarios",
+              "description": "تفعيل Make (Integromat) scenarios من أحداث مكالمة.",
+              "n8nTemplateName": "Make Scenario محفز",
+              "n8nTemplateDescription": "يفعل scenarios",
+              "expectedOutcome": "Scenario triggered في Make"
+            },
+            "make-complex": {
+              "title": "Complex سير العمل",
+              "description": "Execute complex multi-module سير العمل في Make.",
+              "n8nTemplateName": "Make Complex Workflow",
+              "n8nTemplateDescription": "Complex سير العمل",
+              "expectedOutcome": "Complex سير العمل executed"
+            },
+            "make-transform": {
+              "title": "تحويل البيانات",
+              "description": "Transform بيانات مكالمة باستخدام Make بيانات processing modules.",
+              "n8nTemplateName": "Make بيانات Transformer",
+              "n8nTemplateDescription": "Transforms بيانات",
+              "expectedOutcome": "Data transformed في Make"
+            },
+            "make-multi": {
+              "title": "تكامل متعدد التطبيقات",
+              "description": "Integrate multiple apps عبر Make scenarios.",
+              "n8nTemplateName": "Make Multi-app Integration",
+              "n8nTemplateDescription": "تكامل متعدد التطبيقات",
+              "expectedOutcome": "تكامل متعدد التطبيقات executed"
+            }
+          }
+        },
+        "notion": {
+          "field1Label": "رمز التكامل",
+          "field1Placeholder": "Enter your Notion Integration Token",
+          "field2Label": "معرف قاعدة البيانات",
+          "field2Placeholder": "Enter the target Notion Database ID",
+          "helpText": "Create an integration at notion.so/my-integrations. Share the target database with your integration. Find the Database ID in the database URL.",
+          "setupLinkText": "فتح Notion Integrations",
+          "actions": {
+            "create-page": {
+              "name": "إنشاء Page",
+              "description": "إنشاء Notion page مع ملاحظات مكالمة"
+            },
+            "update-database": {
+              "name": "تحديث Database",
+              "description": "إضافة call سجلات إلى Notion database"
+            }
+          },
+          "useCases": {
+            "notion-pages": {
+              "title": "إنشاء pages من ملاحظات مكالمة",
+              "description": "إنشاء Notion pages من ملاحظات مكالمة و نصوص.",
+              "n8nTemplateName": "Notion Page منشئ",
+              "n8nTemplateDescription": "ينشئ pages من مكالمات",
+              "expectedOutcome": "Page تم إنشاؤه في Notion"
+            },
+            "notion-databases": {
+              "title": "تحديث databases",
+              "description": "تحديث Notion databases مع call سجلات و بيانات.",
+              "n8nTemplateName": "Notion Database محدث",
+              "n8nTemplateDescription": "يحدث databases",
+              "expectedOutcome": "Database تم تحديثه في Notion"
+            },
+            "notion-meetings": {
+              "title": "تسجيل meetings",
+              "description": "تسجيل meeting ملاحظات و ملخصات مكالمة في Notion.",
+              "n8nTemplateName": "Notion مسجل اجتماعات",
+              "n8nTemplateDescription": "يسجل meetings",
+              "expectedOutcome": "Meeting logged في Notion"
+            },
+            "notion-kb": {
+              "title": "تحديثات قاعدة المعرفة",
+              "description": "تحديث Notion knowledge base مع رؤى من مكالمات.",
+              "n8nTemplateName": "Notion KB محدث",
+              "n8nTemplateDescription": "يحدث knowledge base",
+              "expectedOutcome": "Knowledge base تم تحديثه في Notion"
+            }
+          }
+        },
+        "helpscout": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Help Scout API Key",
+          "field2Label": "معرف صندوق البريد",
+          "field2Placeholder": "أدخل Help Scout Mailbox ID",
+          "helpText": "Generate an API key in Help Scout: Your Profile > API Keys. Find your Mailbox ID in Mailbox settings.",
+          "setupLinkText": "فتح Help Scout",
+          "useCases": {
+            "hs-create-convs": {
+              "title": "إنشاء محادثات",
+              "description": "إنشاء Help Scout محادثات من support مكالمات.",
+              "n8nTemplateName": "Help Scout منشئ المحادثات",
+              "n8nTemplateDescription": "ينشئ محادثات",
+              "expectedOutcome": "Conversation تم إنشاؤه في Help Scout"
+            },
+            "hs-add-notes": {
+              "title": "إضافة ملاحظات مكالمة",
+              "description": "إضافة ملاحظات مكالمة و نصوص إلى Help Scout محادثات.",
+              "n8nTemplateName": "Help Scout Note مضيف",
+              "n8nTemplateDescription": "يضيف ملاحظات مكالمة",
+              "expectedOutcome": "Notes added إلى Help Scout"
+            },
+            "hs-update-mailbox": {
+              "title": "تحديث mailbox",
+              "description": "تحديث Help Scout mailbox مع call-related معلومات.",
+              "n8nTemplateName": "Help Scout Mailbox محدث",
+              "n8nTemplateDescription": "يحدث mailbox",
+              "expectedOutcome": "Mailbox تم تحديثه في Help Scout"
+            },
+            "hs-followup": {
+              "title": "Customer متابعة",
+              "description": "إرسال customer متابعة رسائل عبر Help Scout.",
+              "n8nTemplateName": "Help Scout متابعة",
+              "n8nTemplateDescription": "Customer متابعة",
+              "expectedOutcome": "متابعة تم إرساله عبر Help Scout"
+            }
+          }
+        },
+        "google-analytics": {
+          "field1Label": "معرف القياس",
+          "field1Placeholder": "أدخل GA4 Measurement ID (G-...)",
+          "field2Label": "سر API",
+          "field2Placeholder": "أدخل Measurement Protocol API Secret",
+          "helpText": "Find your Measurement ID in GA4: Admin > Data Streams > Web. Create an API Secret under the same stream's Measurement Protocol API secrets.",
+          "setupLinkText": "فتح Google Analytics",
+          "useCases": {
+            "ga-events": {
+              "title": "تتبع أحداث مكالمة",
+              "description": "تتبع أحداث مكالمة في Google Analytics لـ attribution.",
+              "n8nTemplateName": "GA Call متتبع أحداث",
+              "n8nTemplateDescription": "يتتبع أحداث مكالمة",
+              "expectedOutcome": "Call event tracked في GA"
+            },
+            "ga-attribution": {
+              "title": "إسناد التحويل",
+              "description": "Attribute conversions إلى specific مكالمات في Google Analytics.",
+              "n8nTemplateName": "GA Conversion منسب",
+              "n8nTemplateDescription": "Attributes conversions",
+              "expectedOutcome": "Conversion attributed في GA"
+            },
+            "ga-campaigns": {
+              "title": "Campaign تحليلات",
+              "description": "تتبع حملة performance تحليلات في Google Analytics.",
+              "n8nTemplateName": "GA محلل حملة",
+              "n8nTemplateDescription": "Campaign تحليلات",
+              "expectedOutcome": "Campaign تحليلات تم تحديثه في GA"
+            },
+            "ga-behavior": {
+              "title": "User سلوك",
+              "description": "تتبع user سلوك أنماط related إلى مكالمات.",
+              "n8nTemplateName": "GA Behavior متتبع",
+              "n8nTemplateDescription": "يتتبع user سلوك",
+              "expectedOutcome": "Behavior tracked في GA"
+            }
+          }
+        },
+        "aws-s3": {
+          "field1Label": "معرف مفتاح الوصول",
+          "field1Placeholder": "أدخل AWS Access Key ID",
+          "field2Label": "مفتاح الوصول السري",
+          "field2Placeholder": "أدخل AWS Secret Access Key",
+          "helpText": "Create an IAM user with S3 permissions in AWS Console. Generate access keys under Security Credentials.",
+          "setupLinkText": "Open AWS IAM Console",
+          "useCases": {
+            "s3-recordings": {
+              "title": "تخزين تسجيلات",
+              "description": "تخزين تسجيلات مكالمة في AWS S3 buckets.",
+              "n8nTemplateName": "S3 تسجيل مخزن",
+              "n8nTemplateDescription": "Stores تسجيلات",
+              "expectedOutcome": "Recording stored في S3"
+            },
+            "s3-transcripts": {
+              "title": "Archive نصوص",
+              "description": "Archive نصوص مكالمة في AWS S3.",
+              "n8nTemplateName": "S3 Transcript مؤرشف",
+              "n8nTemplateDescription": "Archives نصوص",
+              "expectedOutcome": "Transcript archived في S3"
+            },
+            "s3-backup": {
+              "title": "Backup بيانات",
+              "description": "Backup بيانات مكالمة و configurations إلى AWS S3.",
+              "n8nTemplateName": "S3 بيانات نسخة احتياطية",
+              "n8nTemplateDescription": "Backs up بيانات",
+              "expectedOutcome": "Data backed up إلى S3"
+            },
+            "s3-media": {
+              "title": "إدارة الوسائط",
+              "description": "إدارة media ملفات و assets في AWS S3.",
+              "n8nTemplateName": "S3 Media مدير",
+              "n8nTemplateDescription": "Manages media",
+              "expectedOutcome": "Media managed في S3"
+            }
+          }
+        },
+        "bamboohr": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل BambooHR API Key",
+          "field2Label": "النطاق الفرعي",
+          "field2Placeholder": "e.g. yourcompany (من yourcompany.bamboohr.com)",
+          "helpText": "توليد  API key في BambooHR: Account > API Keys.",
+          "setupLinkText": "فتح BambooHR",
+          "useCases": {
+            "bamboo-sync": {
+              "title": "مزامنة employee بيانات",
+              "description": "مزامنة employee بيانات من BambooHR لـ internal مكالمات.",
+              "n8nTemplateName": "BambooHR Employee مزامنة",
+              "n8nTemplateDescription": "يزامن employee بيانات",
+              "expectedOutcome": "Employee بيانات synced من BambooHR"
+            },
+            "bamboo-interviews": {
+              "title": "تسجيل interviews",
+              "description": "تسجيل interview تفاصيل مكالمة في BambooHR.",
+              "n8nTemplateName": "BambooHR Interview مسجل",
+              "n8nTemplateDescription": "يسجل interviews",
+              "expectedOutcome": "Interview logged في BambooHR"
+            },
+            "bamboo-candidates": {
+              "title": "تحديث candidate حالة",
+              "description": "تحديث candidate حالة في BambooHR بعد interview مكالمات.",
+              "n8nTemplateName": "BambooHR Candidate محدث",
+              "n8nTemplateDescription": "يحدث candidate حالة",
+              "expectedOutcome": "Candidate حالة تم تحديثه"
+            },
+            "bamboo-followups": {
+              "title": "Schedule follow-ups",
+              "description": "جدولة متابعة أنشطة في BambooHR.",
+              "n8nTemplateName": "BambooHR متابعة Scheduler",
+              "n8nTemplateDescription": "Schedules follow-ups",
+              "expectedOutcome": "متابعة scheduled في BambooHR"
+            }
+          }
+        },
+        "acuity-scheduling": {
+          "field1Label": "معرف المستخدم",
+          "field1Placeholder": "أدخل Acuity Scheduling User ID",
+          "field2Label": "مفتاح API",
+          "field2Placeholder": "أدخل Acuity Scheduling API Key",
+          "helpText": "Find your API credentials in Acuity: Integrations > API. Copy your User ID and API Key.",
+          "setupLinkText": "فتح Acuity Scheduling",
+          "useCases": {
+            "acuity-book": {
+              "title": "حجز appointments",
+              "description": "Book appointments عبر Acuity Scheduling أثناء مكالمات.",
+              "n8nTemplateName": "Acuity موعد حاجز",
+              "n8nTemplateDescription": "يحجز المواعيد",
+              "expectedOutcome": "تم حجز موعد على Acuity"
+            },
+            "acuity-openings": {
+              "title": "التحقق من openings",
+              "description": "Check available openings on Acuity Scheduling.",
+              "n8nTemplateName": "Acuity Opening فاحص",
+              "n8nTemplateDescription": "Checks openings",
+              "expectedOutcome": "تم التحقق من الفتحات على Acuity"
+            },
+            "acuity-confirm": {
+              "title": "إرسال confirmations",
+              "description": "إرسال booking confirmations عبر Acuity.",
+              "n8nTemplateName": "Acuity Confirmation مرسل",
+              "n8nTemplateDescription": "يرسل confirmations",
+              "expectedOutcome": "Confirmation تم إرساله عبر Acuity"
+            },
+            "acuity-reschedule": {
+              "title": "إدارة reschedules",
+              "description": "Handle appointment reschedules عبر Acuity.",
+              "n8nTemplateName": "Acuity Reschedule مدير",
+              "n8nTemplateDescription": "Manages reschedules",
+              "expectedOutcome": "Reschedule managed on Acuity"
+            }
+          }
+        },
+        "amazon-connect": {
+          "field1Label": "معرف مفتاح الوصول",
+          "field1Placeholder": "أدخل AWS Access Key ID",
+          "field2Label": "مفتاح الوصول السري",
+          "field2Placeholder": "أدخل AWS Secret Access Key",
+          "helpText": "Create an IAM user with Amazon Connect permissions. Generate access keys under Security Credentials. Note your Instance ID from the Amazon Connect console.",
+          "setupLinkText": "Open Amazon Connect Console",
+          "useCases": {
+            "ac-route-agents": {
+              "title": "توجيه إلى live agents",
+              "description": "توجيه مكالمات إلى live agents في Amazon Connect بناءً على AI تحليل.",
+              "n8nTemplateName": "Amazon Connect Agent موجه",
+              "n8nTemplateDescription": "Routes إلى live agents",
+              "expectedOutcome": "Call routed إلى live agent"
+            },
+            "ac-track-metrics": {
+              "title": "تتبع مقاييس المكالمة",
+              "description": "Track and report on call center metrics through Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect مقاييس",
+              "n8nTemplateDescription": "يتتبع مقاييس مكالمة",
+              "expectedOutcome": "Metrics tracked في Amazon Connect"
+            },
+            "ac-queue": {
+              "title": "إدارة قوائم الانتظار",
+              "description": "إدارة call queues و routing في Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect Queue مدير",
+              "n8nTemplateDescription": "Manages call queues",
+              "expectedOutcome": "Queue managed في Amazon Connect"
+            },
+            "ac-surveys": {
+              "title": "استطلاعات ما بعد المكالمة",
+              "description": "تفعيل post-call surveys عبر Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect استطلاع",
+              "n8nTemplateDescription": "يرسل post-call surveys",
+              "expectedOutcome": "Survey triggered عبر Amazon Connect"
+            }
+          }
+        },
+        "amazon-polly": {
+          "field1Label": "معرف مفتاح الوصول",
+          "field1Placeholder": "أدخل AWS Access Key ID",
+          "field2Label": "مفتاح الوصول السري",
+          "field2Placeholder": "أدخل AWS Secret Access Key",
+          "helpText": "Create an IAM user with Amazon Polly permissions in AWS Console. Generate access keys under Security Credentials.",
+          "setupLinkText": "Open Amazon Polly Console",
+          "useCases": {
+            "polly-prompts": {
+              "title": "توليد صوت prompts",
+              "description": "توليد صوت prompts و IVR رسائل باستخدام Amazon Polly.",
+              "n8nTemplateName": "Amazon Polly Prompt مولد",
+              "n8nTemplateDescription": "يولد صوت prompts",
+              "expectedOutcome": "Voice prompts تم توليده"
+            },
+            "polly-multilang": {
+              "title": "دعم متعدد اللغات",
+              "description": "Support multiple languages لـ صوت synthesis.",
+              "n8nTemplateName": "Amazon Polly متعدد اللغات",
+              "n8nTemplateDescription": "تحويل النص إلى كلام متعدد اللغات",
+              "expectedOutcome": "Multi-language audio تم توليده"
+            },
+            "polly-neural": {
+              "title": "Neural صوت synthesis",
+              "description": "Use neural voice models for natural-sounding speech.",
+              "n8nTemplateName": "Amazon Polly عصبي صوت",
+              "n8nTemplateDescription": "Neural صوت synthesis",
+              "expectedOutcome": "Neural صوت audio تم توليده"
+            },
+            "polly-lexicons": {
+              "title": "قواميس مخصصة",
+              "description": "Configure custom lexicons لـ pronunciation rules.",
+              "n8nTemplateName": "Amazon Polly Lexicon مكوّن",
+              "n8nTemplateDescription": "Configures lexicons",
+              "expectedOutcome": "Custom lexicon configured"
+            }
+          }
+        },
+        "azure-speech": {
+          "field1Label": "مفتاح الاشتراك",
+          "field1Placeholder": "أدخل Azure Speech Services Key",
+          "field2Label": "المنطقة",
+          "field2Placeholder": "مثال: eastus, westeurope",
+          "helpText": "Create a Speech Services resource in Azure Portal. Find your key and region under Keys and Endpoint.",
+          "setupLinkText": "Open Azure Portal",
+          "useCases": {
+            "azure-neural": {
+              "title": "أصوات عصبية مخصصة",
+              "description": "Create and use custom neural voice models via Azure.",
+              "n8nTemplateName": "Azure مخصص عصبي صوت",
+              "n8nTemplateDescription": "مخصص neural voices",
+              "expectedOutcome": "Custom neural صوت تم إنشاؤه"
+            },
+            "azure-translate": {
+              "title": "الوقت الفعلي translation",
+              "description": "Translate speech في الوقت الفعلي أثناء مكالمات.",
+              "n8nTemplateName": "Azure الوقت الفعلي Translator",
+              "n8nTemplateDescription": "الوقت الفعلي translation",
+              "expectedOutcome": "الوقت الفعلي translation نشط"
+            },
+            "azure-pronunciation": {
+              "title": "ضبط النطق",
+              "description": "Fine-tune pronunciation لـ specific terms و names.",
+              "n8nTemplateName": "Azure نطق Tuner",
+              "n8nTemplateDescription": "Tunes pronunciation",
+              "expectedOutcome": "Pronunciation tuning applied"
+            },
+            "azure-profiles": {
+              "title": "Voice ملفات شخصية",
+              "description": "إنشاء و manage صوت ملفات شخصية لـ different scenarios.",
+              "n8nTemplateName": "Azure صوت Profiles",
+              "n8nTemplateDescription": "Manages صوت ملفات شخصية",
+              "expectedOutcome": "Voice profile configured"
+            }
+          }
+        },
+        "bandwidth": {
+          "field1Label": "رمز API",
+          "field1Placeholder": "Enter your Bandwidth API Token",
+          "field2Label": "سر API",
+          "field2Placeholder": "أدخل Bandwidth API Secret",
+          "helpText": "Find your API credentials in the Bandwidth Dashboard under Account > API Credentials.",
+          "setupLinkText": "فتح Bandwidth Dashboard",
+          "useCases": {
+            "bw-sms": {
+              "title": "SMS متابعة",
+              "description": "إرسال SMS متابعة رسائل عبر Bandwidth بعد مكالمات.",
+              "n8nTemplateName": "Bandwidth مرسل رسائل",
+              "n8nTemplateDescription": "يرسل متابعة SMS",
+              "expectedOutcome": "SMS تم إرساله عبر Bandwidth"
+            },
+            "bw-tracking": {
+              "title": "تتبع المكالمات",
+              "description": "تتبع أحداث مكالمة و مقاييس عبر Bandwidth.",
+              "n8nTemplateName": "Bandwidth متتبع مكالمات",
+              "n8nTemplateDescription": "يتتبع بيانات مكالمة",
+              "expectedOutcome": "Call بيانات tracked في Bandwidth"
+            },
+            "bw-numbers": {
+              "title": "إدارة الأرقام",
+              "description": "إدارة رقم الهاتف و provisioning عبر Bandwidth.",
+              "n8nTemplateName": "Bandwidth مدير رقم",
+              "n8nTemplateDescription": "Manages رقم الهاتف",
+              "expectedOutcome": "Numbers managed عبر Bandwidth"
+            },
+            "bw-routing": {
+              "title": "توجيه المكالمات",
+              "description": "توجيه مكالمات عبر Bandwidth network مع custom logic.",
+              "n8nTemplateName": "Bandwidth موجه المكالمات",
+              "n8nTemplateDescription": "Routes مكالمات",
+              "expectedOutcome": "Call routed عبر Bandwidth"
+            }
+          }
+        },
+        "bitrix24": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Bitrix24 Webhook URL",
+          "field2Label": "معرف المستخدم",
+          "field2Placeholder": "أدخل Bitrix24 User ID",
+          "helpText": "Create an inbound webhook in Bitrix24: Developer resources > Other > Inbound webhook. Copy the webhook URL.",
+          "setupLinkText": "فتح Bitrix24",
+          "useCases": {
+            "bitrix-push-calls": {
+              "title": "إرسال بيانات مكالمة",
+              "description": "إرسال بيانات مكالمة و تسجيلات إلى Bitrix24 CRM أنشطة.",
+              "n8nTemplateName": "Bitrix24 مكالمة دافع",
+              "n8nTemplateDescription": "يرسل بيانات مكالمة إلى Bitrix24",
+              "expectedOutcome": "Call بيانات pushed إلى Bitrix24"
+            },
+            "bitrix-sync-leads": {
+              "title": "مزامنة عملاء محتملون",
+              "description": "Synchronize lead records between your platform and Bitrix24.",
+              "n8nTemplateName": "Bitrix24 عميل محتمل Sync",
+              "n8nTemplateDescription": "يزامن lead بيانات",
+              "expectedOutcome": "عميل محتمل synced في Bitrix24"
+            },
+            "bitrix-create-activities": {
+              "title": "إنشاء أنشطة",
+              "description": "إنشاء سجلات أنشطة في Bitrix24 من أحداث مكالمة.",
+              "n8nTemplateName": "Bitrix24 منشئ الأنشطة",
+              "n8nTemplateDescription": "ينشئ أنشطة من مكالمات",
+              "expectedOutcome": "Activity تم إنشاؤه في Bitrix24"
+            },
+            "bitrix-update-deals": {
+              "title": "تحديث صفقات",
+              "description": "تحديث deal stages في Bitrix24 بناءً على نتائج مكالمة.",
+              "n8nTemplateName": "Bitrix24 محدث الصفقات",
+              "n8nTemplateDescription": "يحدث صفقات من call نتائج",
+              "expectedOutcome": "Deal تم تحديثه في Bitrix24"
+            }
+          }
+        },
+        "brevo": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Brevo API Key",
+          "field2Label": "بريد المرسل",
+          "field2Placeholder": "أدخل verified sender email",
+          "helpText": "Generate an API key in Brevo: Settings > SMTP & API > API Keys. Verify a sender identity first.",
+          "setupLinkText": "Open Brevo Settings",
+          "useCases": {
+            "brevo-contacts": {
+              "title": "إضافة جهات الاتصال",
+              "description": "إضافة جهات الاتصال إلى Brevo من call تفاعلات.",
+              "n8nTemplateName": "Brevo جهة اتصال Adder",
+              "n8nTemplateDescription": "يضيف جهات الاتصال",
+              "expectedOutcome": "جهة اتصال added إلى Brevo"
+            },
+            "brevo-emails": {
+              "title": "إرسال emails",
+              "description": "إرسال emails عبر Brevo بعد مكالمات.",
+              "n8nTemplateName": "Brevo Email مرسل",
+              "n8nTemplateDescription": "يرسل emails",
+              "expectedOutcome": "Email تم إرساله عبر Brevo"
+            },
+            "brevo-workflows": {
+              "title": "تفعيل سير العمل",
+              "description": "تفعيل Brevo automation سير العمل من أحداث مكالمة.",
+              "n8nTemplateName": "Brevo Workflow محفز",
+              "n8nTemplateDescription": "يفعل سير العمل",
+              "expectedOutcome": "Workflow triggered في Brevo"
+            },
+            "brevo-segments": {
+              "title": "Segment جهات الاتصال",
+              "description": "Segment جهات الاتصال في Brevo بناءً على نتائج مكالمة.",
+              "n8nTemplateName": "Brevo جهة اتصال Segmenter",
+              "n8nTemplateDescription": "Segments جهات الاتصال",
+              "expectedOutcome": "جهة اتصال segmented في Brevo"
+            }
+          }
+        },
+        "cal-com": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Cal.com API Key",
+          "field2Label": "معرف نوع الحدث",
+          "field2Placeholder": "أدخل default Event Type ID",
+          "helpText": "Generate an API key in Cal.com: Settings > Developer > API Keys. Find Event Type IDs in your event type settings.",
+          "setupLinkText": "Open Cal.com Settings",
+          "useCases": {
+            "calcom-book": {
+              "title": "إنشاء bookings",
+              "description": "إنشاء Cal.com bookings من call محادثات.",
+              "n8nTemplateName": "Cal.com Booking منشئ",
+              "n8nTemplateDescription": "ينشئ bookings",
+              "expectedOutcome": "Booking created on Cal.com"
+            },
+            "calcom-slots": {
+              "title": "التحقق من slots",
+              "description": "Check available time slots on Cal.com.",
+              "n8nTemplateName": "Cal.com Slot فاحص",
+              "n8nTemplateDescription": "Checks time slots",
+              "expectedOutcome": "Available slots checked on Cal.com"
+            },
+            "calcom-confirm": {
+              "title": "إرسال confirmations",
+              "description": "إرسال booking confirmations عبر Cal.com.",
+              "n8nTemplateName": "Cal.com Confirmation مرسل",
+              "n8nTemplateDescription": "يرسل confirmations",
+              "expectedOutcome": "Confirmation تم إرساله عبر Cal.com"
+            },
+            "calcom-sync": {
+              "title": "مزامنة calendars",
+              "description": "مزامنة Cal.com bookings مع external calendars.",
+              "n8nTemplateName": "Cal.com Calendar مزامنة",
+              "n8nTemplateDescription": "يزامن calendars",
+              "expectedOutcome": "Calendars synced مع Cal.com"
+            }
+          }
+        },
+        "close-crm": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Close CRM API Key",
+          "field2Label": "معرف المنظمة",
+          "field2Placeholder": "أدخل Close Organization ID (optional)",
+          "helpText": "Find your API key in Close: Settings > Your API Keys. Generate a new key if needed.",
+          "setupLinkText": "Open Close Settings",
+          "useCases": {
+            "close-log-calls": {
+              "title": "تلقائياً-تسجيل مكالمات",
+              "description": "تسجيل تلقائياً جميع call أنشطة في Close CRM مع نصوص و نتائج.",
+              "n8nTemplateName": "Close CRM مسجل المكالمات",
+              "n8nTemplateDescription": "يسجل مكالمات في Close CRM",
+              "expectedOutcome": "Call logged في Close CRM"
+            },
+            "close-update-leads": {
+              "title": "تحديث lead statuses",
+              "description": "تحديث lead حالة في Close CRM بناءً على نتائج مكالمة و engagement levels.",
+              "n8nTemplateName": "Close CRM عميل محتمل Updater",
+              "n8nTemplateDescription": "يحدث lead statuses من مكالمات",
+              "expectedOutcome": "عميل محتمل حالة تم تحديثه في Close CRM"
+            },
+            "close-sync-contacts": {
+              "title": "مزامنة contact info",
+              "description": "Keep contact information synchronized between your calling platform and Close CRM.",
+              "n8nTemplateName": "Close CRM مزامنة جهات الاتصال",
+              "n8nTemplateDescription": "يزامن بيانات جهة اتصال",
+              "expectedOutcome": "جهة اتصال synced في Close CRM"
+            },
+            "close-create-tasks": {
+              "title": "إنشاء مهام",
+              "description": "توليد متابعة مهام في Close CRM من call action items.",
+              "n8nTemplateName": "Close CRM منشئ المهام",
+              "n8nTemplateDescription": "ينشئ مهام من مكالمات",
+              "expectedOutcome": "Task تم إنشاؤه في Close CRM"
+            }
+          }
+        },
+        "cohere": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Cohere API Key",
+          "field2Label": "معرف النموذج",
+          "field2Placeholder": "مثال: command-r-plus (اختياري)",
+          "helpText": "Generate an API key in the Cohere Dashboard under API Keys.",
+          "setupLinkText": "فتح Cohere Dashboard",
+          "useCases": {
+            "cohere-search": {
+              "title": "Semantic search over نصوص",
+              "description": "البحث عن across نصوص مكالمة باستخدام Cohere semantic search.",
+              "n8nTemplateName": "Cohere Transcript بحث",
+              "n8nTemplateDescription": "Semantic نص search",
+              "expectedOutcome": "Relevant نصوص found"
+            },
+            "cohere-cluster": {
+              "title": "تجميع المواضيع",
+              "description": "Cluster calls by topic using Cohere embedding models.",
+              "n8nTemplateName": "Cohere Topic مجمّع",
+              "n8nTemplateDescription": "Clusters call topics",
+              "expectedOutcome": "مكالمات مجمعة حسب الموضوع"
+            },
+            "cohere-summarize": {
+              "title": "التلخيص",
+              "description": "Summarize نصوص مكالمة باستخدام Cohere summarization models.",
+              "n8nTemplateName": "Cohere ملخّص",
+              "n8nTemplateDescription": "Summarizes نصوص",
+              "expectedOutcome": "نص ملخص"
+            },
+            "cohere-classify": {
+              "title": "التصنيف",
+              "description": "Classify مكالمات باستخدام Cohere classification models.",
+              "n8nTemplateName": "Cohere مصنف",
+              "n8nTemplateDescription": "Classifies مكالمات",
+              "expectedOutcome": "مكالمة مصنفة"
+            }
+          }
+        },
+        "convertkit": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل ConvertKit API Key",
+          "field2Label": "سر API",
+          "field2Placeholder": "أدخل ConvertKit API Secret",
+          "helpText": "Find your API credentials in ConvertKit: Settings > Advanced > API.",
+          "setupLinkText": "Open ConvertKit Settings",
+          "useCases": {
+            "ck-subscribers": {
+              "title": "إضافة subscribers",
+              "description": "إضافة جديد subscribers إلى ConvertKit من مكالمات.",
+              "n8nTemplateName": "ConvertKit Subscriber مضيف",
+              "n8nTemplateDescription": "يضيف subscribers",
+              "expectedOutcome": "Subscriber added إلى ConvertKit"
+            },
+            "ck-tags": {
+              "title": "Apply علامات",
+              "description": "Apply علامات إلى ConvertKit subscribers بناءً على بيانات مكالمة.",
+              "n8nTemplateName": "ConvertKit Tag مطبّق",
+              "n8nTemplateDescription": "Applies علامات",
+              "expectedOutcome": "Tags applied في ConvertKit"
+            },
+            "ck-sequences": {
+              "title": "تفعيل تسلسلات",
+              "description": "تفعيل ConvertKit تسلسلات بريد إلكتروني من أحداث مكالمة.",
+              "n8nTemplateName": "ConvertKit محفز التسلسل",
+              "n8nTemplateDescription": "يفعل تسلسلات",
+              "expectedOutcome": "Sequence triggered في ConvertKit"
+            },
+            "ck-fields": {
+              "title": "تحديث custom fields",
+              "description": "Update custom fields on ConvertKit subscribers.",
+              "n8nTemplateName": "ConvertKit Field محدث",
+              "n8nTemplateDescription": "يحدث custom fields",
+              "expectedOutcome": "Custom fields تم تحديثه في ConvertKit"
+            }
+          }
+        },
+        "copper-crm": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Copper API Key",
+          "field2Label": "البريد الإلكتروني",
+          "field2Placeholder": "أدخل Copper account email",
+          "helpText": "Find your API key in Copper: Settings > Integrations > API Keys.",
+          "setupLinkText": "فتح Copper CRM",
+          "useCases": {
+            "copper-push-summaries": {
+              "title": "إرسال ملخصات مكالمة",
+              "description": "إرسال AI-تم توليده ملخصات مكالمة إلى Copper CRM contact و opportunity سجلات.",
+              "n8nTemplateName": "Copper ملخص مكالمة Pusher",
+              "n8nTemplateDescription": "يرسل ملخصات مكالمة إلى Copper",
+              "expectedOutcome": "Call ملخص added إلى Copper سجلات"
+            },
+            "copper-create-contacts": {
+              "title": "إنشاء جهات الاتصال من المتصلون",
+              "description": "إنشاء تلقائياً جديد جهات الاتصال في Copper CRM من غير معرفين المتصلون.",
+              "n8nTemplateName": "Copper جهة اتصال Creator",
+              "n8nTemplateDescription": "ينشئ جهات الاتصال من جديد المتصلون",
+              "expectedOutcome": "جهة اتصال تم إنشاؤه في Copper CRM"
+            },
+            "copper-sync-activities": {
+              "title": "مزامنة أنشطة",
+              "description": "Synchronize call activities between your platform and Copper CRM.",
+              "n8nTemplateName": "Copper مزامنة أنشطة",
+              "n8nTemplateDescription": "يزامن call أنشطة",
+              "expectedOutcome": "Activity synced في Copper CRM"
+            },
+            "copper-update-opps": {
+              "title": "تحديث opportunities",
+              "description": "تحديث opportunity سجلات في Copper CRM بناءً على نتائج مكالمة.",
+              "n8nTemplateName": "Copper تحديث صفقات",
+              "n8nTemplateDescription": "يحدث opportunities من مكالمات",
+              "expectedOutcome": "فرصة تم تحديثه في Copper CRM"
+            }
+          }
+        },
+        "firebase": {
+          "field1Label": "معرف المشروع",
+          "field1Placeholder": "أدخل Firebase Project ID",
+          "field2Label": "مفتاح حساب الخدمة",
+          "field2Placeholder": "Paste your Firebase service account JSON key",
+          "helpText": "In Firebase Console, go to Project Settings > Service Accounts > Generate New Private Key. Copy the JSON contents.",
+          "setupLinkText": "Open Firebase Console",
+          "useCases": {
+            "fb-store": {
+              "title": "تخزين بيانات مكالمة",
+              "description": "تخزين بيانات مكالمة و نصوص في Firebase.",
+              "n8nTemplateName": "Firebase بيانات مخزن",
+              "n8nTemplateDescription": "Stores بيانات مكالمة",
+              "expectedOutcome": "Data stored في Firebase"
+            },
+            "fb-realtime": {
+              "title": "الوقت الفعلي sync",
+              "description": "مزامنة بيانات مكالمة في الوقت الفعلي باستخدام Firebase.",
+              "n8nTemplateName": "Firebase الوقت الفعلي Sync",
+              "n8nTemplateDescription": "الوقت الفعلي بيانات sync",
+              "expectedOutcome": "Data synced في الوقت الفعلي"
+            },
+            "fb-analytics": {
+              "title": "User تحليلات",
+              "description": "تتبع user تحليلات و مقاييس مكالمة في Firebase.",
+              "n8nTemplateName": "Firebase Analytics متتبع",
+              "n8nTemplateDescription": "يتتبع تحليلات",
+              "expectedOutcome": "Analytics tracked في Firebase"
+            },
+            "fb-push": {
+              "title": "إرسال إشعارات",
+              "description": "إرسال push إشعارات لـ أحداث مكالمة عبر Firebase.",
+              "n8nTemplateName": "Firebase Push منبه",
+              "n8nTemplateDescription": "يرسل push إشعارات",
+              "expectedOutcome": "إرسال إشعار تم إرساله"
+            }
+          }
+        },
+        "front": {
+          "field1Label": "رمز API",
+          "field1Placeholder": "Enter your Front API Token",
+          "field2Label": "معرف القناة",
+          "field2Placeholder": "أدخل Front Channel ID",
+          "helpText": "Generate an API token in Front: Settings > Developers > API Tokens. Find Channel IDs in your channel settings.",
+          "setupLinkText": "Open Front Settings",
+          "useCases": {
+            "front-create-convs": {
+              "title": "إنشاء محادثات",
+              "description": "إنشاء Front محادثات من call تفاعلات.",
+              "n8nTemplateName": "Front منشئ المحادثات",
+              "n8nTemplateDescription": "ينشئ محادثات",
+              "expectedOutcome": "Conversation تم إنشاؤه في Front"
+            },
+            "front-route": {
+              "title": "توجيه رسائل",
+              "description": "توجيه call-related رسائل إلى appropriate Front inboxes.",
+              "n8nTemplateName": "Front Message موجه",
+              "n8nTemplateDescription": "Routes رسائل",
+              "expectedOutcome": "Message routed في Front"
+            },
+            "front-context": {
+              "title": "إضافة محتوى مكالمة",
+              "description": "إضافة محتوى مكالمة و ملاحظات إلى Front محادثات.",
+              "n8nTemplateName": "Front Context مضيف",
+              "n8nTemplateDescription": "يضيف محتوى مكالمة",
+              "expectedOutcome": "Call context added إلى Front"
+            },
+            "front-assign": {
+              "title": "تعيينات الفريق",
+              "description": "تعيين Front محادثات إلى أعضاء الفريق بناءً على call routing.",
+              "n8nTemplateName": "Front فريق مخصص",
+              "n8nTemplateDescription": "Assigns إلى teams",
+              "expectedOutcome": "Conversation assigned في Front"
+            }
+          }
+        },
+        "gohighlevel": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل GoHighLevel API Key",
+          "field2Label": "معرف الموقع",
+          "field2Placeholder": "أدخل GoHighLevel Location ID",
+          "helpText": "Find your API key in GoHighLevel: Settings > Business Profile > API Key. The Location ID is in your account URL.",
+          "setupLinkText": "فتح GoHighLevel",
+          "useCases": {
+            "ghl-trigger-workflows": {
+              "title": "تفعيل متابعة سير العمل",
+              "description": "تفعيل automated متابعة سير العمل في GoHighLevel بناءً على نتائج مكالمة.",
+              "n8nTemplateName": "GHL Workflow محفز",
+              "n8nTemplateDescription": "يفعل متابعة سير العمل",
+              "expectedOutcome": "متابعة سير العمل triggered في GoHighLevel"
+            },
+            "ghl-sync-contacts": {
+              "title": "مزامنة جهات الاتصال",
+              "description": "Synchronize contact data between your calling platform and GoHighLevel.",
+              "n8nTemplateName": "GHL مزامنة جهات الاتصال",
+              "n8nTemplateDescription": "يزامن سجلات جهة اتصال",
+              "expectedOutcome": "جهة اتصال synced في GoHighLevel"
+            },
+            "ghl-update-pipeline": {
+              "title": "تحديث خط الأنابيب stages",
+              "description": "Move opportunities عبر GoHighLevel خط الأنابيب stages بناءً على call تحليل.",
+              "n8nTemplateName": "GHL محدث خط أنابيب",
+              "n8nTemplateDescription": "يحدث خط الأنابيب stages",
+              "expectedOutcome": "Pipeline stage تم تحديثه في GoHighLevel"
+            },
+            "ghl-send-sms": {
+              "title": "إرسال متابعة SMS",
+              "description": "Send automated SMS follow-ups via GoHighLevel after call completion.",
+              "n8nTemplateName": "GHL مرسل رسائل",
+              "n8nTemplateDescription": "يرسل متابعة SMS رسائل",
+              "expectedOutcome": "متابعة SMS تم إرساله عبر GoHighLevel"
+            }
+          }
+        },
+        "google-cloud-tts": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Google Cloud API Key",
+          "field2Label": "معرف المشروع",
+          "field2Placeholder": "أدخل Google Cloud Project ID",
+          "helpText": "Enable the Cloud Text-to-Speech API in Google Cloud Console. Create an API key under APIs & Services > Credentials.",
+          "setupLinkText": "Open Google Cloud Console",
+          "useCases": {
+            "gctts-multilang": {
+              "title": "تخليق متعدد اللغات",
+              "description": "Synthesize speech في multiple languages باستخدام Google Cloud TTS.",
+              "n8nTemplateName": "Google TTS متعدد اللغات",
+              "n8nTemplateDescription": "Multi-language synthesis",
+              "expectedOutcome": "كلام متعدد اللغات synthesized"
+            },
+            "gctts-profiles": {
+              "title": "Custom صوت ملفات شخصية",
+              "description": "Create custom voice profiles for different use cases.",
+              "n8nTemplateName": "Google TTS صوت Profiles",
+              "n8nTemplateDescription": "ينشئ صوت ملفات شخصية",
+              "expectedOutcome": "Voice profile تم إنشاؤه"
+            },
+            "gctts-ssml": {
+              "title": "SSML formatting",
+              "description": "Use SSML formatting for advanced speech control.",
+              "n8nTemplateName": "Google TTS SSML منسّق",
+              "n8nTemplateDescription": "SSML speech control",
+              "expectedOutcome": "SSML-formatted speech تم توليده"
+            },
+            "gctts-adapt": {
+              "title": "تكييف الصوت",
+              "description": "Adapt صوت output إلى different contexts و scenarios.",
+              "n8nTemplateName": "Google TTS صوت مكيّف",
+              "n8nTemplateDescription": "Adapts صوت output",
+              "expectedOutcome": "Voice adapted إلى context"
+            }
+          }
+        },
+        "greenhouse": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Greenhouse Harvest API Key",
+          "field2Label": "معرف المستخدم المفوض",
+          "field2Placeholder": "Enter the user ID for API actions",
+          "helpText": "Generate a Harvest API key in Greenhouse: Configure > Dev Center > API Credential Management.",
+          "setupLinkText": "فتح Greenhouse",
+          "useCases": {
+            "gh-log-interviews": {
+              "title": "تسجيل interview مكالمات",
+              "description": "تسجيل interview تفاصيل مكالمة و درجات في Greenhouse.",
+              "n8nTemplateName": "Greenhouse Interview مسجل",
+              "n8nTemplateDescription": "يسجل interview مكالمات",
+              "expectedOutcome": "Interview logged في Greenhouse"
+            },
+            "gh-update-stage": {
+              "title": "تحديث candidate stage",
+              "description": "تحديث candidate خط الأنابيب stage في Greenhouse بعد interviews.",
+              "n8nTemplateName": "Greenhouse Stage محدث",
+              "n8nTemplateDescription": "يحدث candidate stage",
+              "expectedOutcome": "Candidate stage تم تحديثه"
+            },
+            "gh-sync-jobs": {
+              "title": "مزامنة job بيانات",
+              "description": "مزامنة job بيانات و requirements من Greenhouse.",
+              "n8nTemplateName": "Greenhouse Job مزامنة",
+              "n8nTemplateDescription": "يزامن job بيانات",
+              "expectedOutcome": "Job بيانات synced من Greenhouse"
+            },
+            "gh-schedule": {
+              "title": "جدولة interviews",
+              "description": "جدولة interview مكالمات عبر Greenhouse.",
+              "n8nTemplateName": "Greenhouse Interview جدولة",
+              "n8nTemplateDescription": "Schedules interviews",
+              "expectedOutcome": "Interview scheduled في Greenhouse"
+            }
+          }
+        },
+        "groq": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Groq API Key",
+          "field2Label": "معرف النموذج",
+          "field2Placeholder": "مثال: llama-3.1-70b-versatile (اختياري)",
+          "helpText": "Generate an API key at console.groq.com under API Keys.",
+          "setupLinkText": "Open Groq Console",
+          "useCases": {
+            "groq-realtime": {
+              "title": "الوقت الفعلي نص processing",
+              "description": "Process نصوص في الوقت الفعلي باستخدام Groq لـ ultra-fast inference.",
+              "n8nTemplateName": "Groq الوقت الفعلي Processor",
+              "n8nTemplateDescription": "الوقت الفعلي نص processing",
+              "expectedOutcome": "Transcript processed في الوقت الفعلي"
+            },
+            "groq-sentiment": {
+              "title": "Fast تحليل المشاعر",
+              "description": "Perform instant تحليل المشاعر on مكالمات باستخدام Groq.",
+              "n8nTemplateName": "Groq محلل المشاعر",
+              "n8nTemplateDescription": "Fast تحليل المشاعر",
+              "expectedOutcome": "Sentiment analyzed instantly"
+            },
+            "groq-classify": {
+              "title": "تصنيف النوايا",
+              "description": "Classify call intents at high speed using Groq inference.",
+              "n8nTemplateName": "Groq مصنف النوايا",
+              "n8nTemplateDescription": "Classifies intents quickly",
+              "expectedOutcome": "Intent classified"
+            },
+            "groq-summarize": {
+              "title": "تلخيص سريع",
+              "description": "توليد rapid ملخصات مكالمة باستخدام Groq models.",
+              "n8nTemplateName": "Groq Quick ملخّص",
+              "n8nTemplateDescription": "Quick ملخصات مكالمة",
+              "expectedOutcome": "Summary تم توليده quickly"
+            }
+          }
+        },
+        "insightly": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Insightly API Key",
+          "field2Label": "عنوان Pod",
+          "field2Placeholder": "مثال: api.na1.insightly.com",
+          "helpText": "Find your API key in Insightly: User Settings > API. Your pod URL depends on your data center region.",
+          "setupLinkText": "فتح Insightly",
+          "useCases": {
+            "insightly-create-leads": {
+              "title": "إنشاء عملاء محتملون من مكالمات",
+              "description": "إنشاء جديد سجلات عميل محتمل في Insightly من واردة بيانات مكالمة.",
+              "n8nTemplateName": "Insightly منشئ العملاء المحتملين",
+              "n8nTemplateDescription": "ينشئ عملاء محتملون من مكالمات",
+              "expectedOutcome": "عميل محتمل تم إنشاؤه في Insightly"
+            },
+            "insightly-log-notes": {
+              "title": "تسجيل ملاحظات المكالمة",
+              "description": "إضافة ملاحظات مكالمة و نصوص إلى Insightly سجلات جهة اتصال.",
+              "n8nTemplateName": "Insightly Note مسجل",
+              "n8nTemplateDescription": "يسجل ملاحظات مكالمة",
+              "expectedOutcome": "Notes logged في Insightly"
+            },
+            "insightly-sync-contacts": {
+              "title": "مزامنة جهات الاتصال",
+              "description": "Synchronize contact information between platforms and Insightly.",
+              "n8nTemplateName": "Insightly مزامنة جهات الاتصال",
+              "n8nTemplateDescription": "يزامن بيانات جهة اتصال",
+              "expectedOutcome": "جهة اتصال synced في Insightly"
+            },
+            "insightly-update-pipelines": {
+              "title": "تحديث pipelines",
+              "description": "تحديث خط الأنابيب stages في Insightly بناءً على call تحليل.",
+              "n8nTemplateName": "Insightly محدث خط أنابيب",
+              "n8nTemplateDescription": "يحدث pipelines من مكالمات",
+              "expectedOutcome": "Pipeline تم تحديثه في Insightly"
+            }
+          }
+        },
+        "keap": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Keap Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Keap Client Secret",
+          "helpText": "Create an app in the Keap Developer Portal. Add the redirect URL below. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Keap Developer Portal",
+          "useCases": {
+            "keap-tag-leads": {
+              "title": "Tag عملاء محتملون بناءً على call outcome",
+              "description": "Automatically apply علامات إلى Keap جهات الاتصال بناءً على call disposition و نتائج.",
+              "n8nTemplateName": "Keap عميل محتمل Tagger",
+              "n8nTemplateDescription": "Tags جهات الاتصال من نتائج مكالمة",
+              "expectedOutcome": "Tags applied إلى contact في Keap"
+            },
+            "keap-create-contacts": {
+              "title": "إنشاء جهات الاتصال",
+              "description": "إنشاء جديد جهات الاتصال في Keap من غير معرفين المتصلون.",
+              "n8nTemplateName": "Keap جهة اتصال Creator",
+              "n8nTemplateDescription": "ينشئ جهات الاتصال من جديد المتصلون",
+              "expectedOutcome": "جهة اتصال تم إنشاؤه في Keap"
+            },
+            "keap-trigger-campaigns": {
+              "title": "تفعيل حملات",
+              "description": "تفعيل Keap marketing حملات بناءً على نتائج مكالمة و lead qualification.",
+              "n8nTemplateName": "Keap محفز حملة",
+              "n8nTemplateDescription": "يفعل حملات من call نتائج",
+              "expectedOutcome": "Campaign triggered في Keap"
+            },
+            "keap-log-activities": {
+              "title": "تسجيل call أنشطة",
+              "description": "تسجيل call أنشطة في Keap سجلات جهة اتصال لـ complete interaction سجل.",
+              "n8nTemplateName": "Keap مسجل أنشطة",
+              "n8nTemplateDescription": "يسجل call أنشطة",
+              "expectedOutcome": "Activity logged في Keap"
+            }
+          }
+        },
+        "lever": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Lever API Key",
+          "field2Label": "البيئة",
+          "field2Placeholder": "e.g. sandbox أو production",
+          "helpText": "Generate an API key in Lever: Settings > Integrations and API > API Credentials.",
+          "setupLinkText": "Open Lever Settings"
+        },
+        "microsoft-outlook": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Azure Application Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Azure Client Secret",
+          "helpText": "Register an app in Azure Portal > App Registrations. Under API Permissions, add Microsoft Graph permissions for Mail and Calendar. Add the redirect URL below.",
+          "setupLinkText": "Open Azure Portal",
+          "useCases": {
+            "outlook-schedule": {
+              "title": "جدولة meetings",
+              "description": "جدولة meetings في Microsoft Outlook أثناء مكالمات.",
+              "n8nTemplateName": "Outlook جدولة اجتماعات",
+              "n8nTemplateDescription": "Schedules meetings",
+              "expectedOutcome": "Meeting scheduled في Outlook"
+            },
+            "outlook-availability": {
+              "title": "التحقق من availability",
+              "description": "التحقق من Outlook calendar availability.",
+              "n8nTemplateName": "Outlook Availability فاحص",
+              "n8nTemplateDescription": "يتحقق من التوفر",
+              "expectedOutcome": "Availability checked في Outlook"
+            },
+            "outlook-invites": {
+              "title": "إرسال invites",
+              "description": "إرسال meeting invitations عبر Outlook.",
+              "n8nTemplateName": "Outlook Invite مرسل",
+              "n8nTemplateDescription": "يرسل meeting invites",
+              "expectedOutcome": "Meeting invite تم إرساله عبر Outlook"
+            },
+            "outlook-sync": {
+              "title": "مزامنة التقويم",
+              "description": "مزامنة calendar أحداث مع Microsoft Outlook.",
+              "n8nTemplateName": "Outlook Calendar مزامنة",
+              "n8nTemplateDescription": "يزامن calendar أحداث",
+              "expectedOutcome": "Calendar synced مع Outlook"
+            }
+          }
+        },
+        "mistral": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Mistral AI API Key",
+          "field2Label": "معرف النموذج",
+          "field2Placeholder": "e.g. mistral-large-أحدث (optional)",
+          "helpText": "Generate an API key in the Mistral AI platform under API Keys.",
+          "setupLinkText": "Open Mistral Console",
+          "useCases": {
+            "mistral-summarize": {
+              "title": "تلخيص المكالمات",
+              "description": "توليد concise ملخصات مكالمة باستخدام Mistral AI models.",
+              "n8nTemplateName": "Mistral ملخّص",
+              "n8nTemplateDescription": "Summarizes مكالمات",
+              "expectedOutcome": "Call ملخص تم توليده"
+            },
+            "mistral-topics": {
+              "title": "استخراج المواضيع",
+              "description": "Extract key topics و themes من محادثات باستخدام Mistral.",
+              "n8nTemplateName": "Mistral Topic مستخرج",
+              "n8nTemplateDescription": "Extracts محادثة topics",
+              "expectedOutcome": "Topics مستخرج من call"
+            },
+            "mistral-sentiment": {
+              "title": "تسجيل المشاعر",
+              "description": "Score call المشاعر باستخدام Mistral AI تحليل.",
+              "n8nTemplateName": "Mistral Sentiment مقيّم",
+              "n8nTemplateDescription": "Scores المشاعر",
+              "expectedOutcome": "Sentiment score تم توليده"
+            },
+            "mistral-suggestions": {
+              "title": "اقتراحات الرد",
+              "description": "توليد الوقت الفعلي response suggestions باستخدام Mistral.",
+              "n8nTemplateName": "Mistral Response مقترح",
+              "n8nTemplateDescription": "Suggests ردود",
+              "expectedOutcome": "Response suggestions تم توليده"
+            }
+          }
+        },
+        "mixpanel": {
+          "field1Label": "رمز المشروع",
+          "field1Placeholder": "Enter your Mixpanel Project Token",
+          "field2Label": "سر API",
+          "field2Placeholder": "أدخل Mixpanel API Secret",
+          "helpText": "Find your Project Token and API Secret in Mixpanel: Settings > Project Settings.",
+          "setupLinkText": "Open Mixpanel Settings",
+          "useCases": {
+            "mp-events": {
+              "title": "تتبع أحداث مكالمة",
+              "description": "تتبع أحداث مكالمة و user إجراءات في Mixpanel.",
+              "n8nTemplateName": "Mixpanel متتبع أحداث",
+              "n8nTemplateDescription": "يتتبع أحداث مكالمة",
+              "expectedOutcome": "Event tracked في Mixpanel"
+            },
+            "mp-funnels": {
+              "title": "Funnel تحليل",
+              "description": "تحليل call-إلى-conversion funnels في Mixpanel.",
+              "n8nTemplateName": "Mixpanel Funnel محلل",
+              "n8nTemplateDescription": "Analyzes funnels",
+              "expectedOutcome": "Funnel تحليل تم تحديثه في Mixpanel"
+            },
+            "mp-segments": {
+              "title": "تجزئة المستخدمين",
+              "description": "Segment users بناءً على call سلوك في Mixpanel.",
+              "n8nTemplateName": "Mixpanel مستخدم مجزّئ",
+              "n8nTemplateDescription": "Segments users",
+              "expectedOutcome": "Users segmented في Mixpanel"
+            },
+            "mp-ab": {
+              "title": "A/B testing",
+              "description": "تتبع A/B test نتائج لـ call scripts في Mixpanel.",
+              "n8nTemplateName": "Mixpanel A/B متتبع",
+              "n8nTemplateDescription": "A/B test tracking",
+              "expectedOutcome": "A/B نتائج tracked في Mixpanel"
+            }
+          }
+        },
+        "murf": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Murf AI API Key",
+          "field2Label": "معرف الصوت الافتراضي",
+          "field2Placeholder": "Enter default voice ID (optional)",
+          "helpText": "Generate an API key in Murf Studio: Account Settings > API. Browse available voices in the Voice Library.",
+          "setupLinkText": "فتح Murf Studio",
+          "useCases": {
+            "murf-voiceovers": {
+              "title": "Studio-quality voiceovers",
+              "description": "توليد studio-quality voiceovers باستخدام Murf AI.",
+              "n8nTemplateName": "Murf Studio Voiceover",
+              "n8nTemplateDescription": "Studio-quality voiceovers",
+              "expectedOutcome": "Studio-quality voiceover تم توليده"
+            },
+            "murf-brand": {
+              "title": "Brand صوت creation",
+              "description": "إنشاء consistent brand voices باستخدام Murf.",
+              "n8nTemplateName": "Murf Brand منشئ صوت",
+              "n8nTemplateDescription": "ينشئ brand صوت",
+              "expectedOutcome": "Brand صوت تم إنشاؤه"
+            },
+            "murf-script": {
+              "title": "Script إلى speech",
+              "description": "تحويل scripts إلى natural-sounding speech.",
+              "n8nTemplateName": "Murf Script إلى Speech",
+              "n8nTemplateDescription": "Converts scripts إلى speech",
+              "expectedOutcome": "Script converted إلى speech"
+            },
+            "murf-pronunciation": {
+              "title": "Pronunciation editor",
+              "description": "Edit و customize pronunciation لـ specific terms.",
+              "n8nTemplateName": "Murf نطق محرر",
+              "n8nTemplateDescription": "Edits pronunciation",
+              "expectedOutcome": "Pronunciation customized"
+            }
+          }
+        },
+        "n8n": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your n8n Webhook URL",
+          "field2Label": "قيمة مصادقة الرأس",
+          "field2Placeholder": "Enter authentication header value (optional)",
+          "helpText": "Create a workflow in n8n with a Webhook trigger node. Copy the Production Webhook URL. Optionally set up Header Auth for security.",
+          "setupLinkText": "فتح n8n",
+          "useCases": {
+            "n8n-templates": {
+              "title": "Execute سير العمل قوالب",
+              "description": "Execute pre-built n8n سير العمل قوالب لـ common مهام.",
+              "n8nTemplateName": "n8n Template منفّذ",
+              "n8nTemplateDescription": "Executes سير العمل قوالب",
+              "expectedOutcome": "سير العمل template executed"
+            },
+            "n8n-custom": {
+              "title": "تدفقات أتمتة مخصصة",
+              "description": "Run custom n8n automation flows triggered by أحداث مكالمة.",
+              "n8nTemplateName": "n8n مخصص تدفق",
+              "n8nTemplateDescription": "مخصص automation flows",
+              "expectedOutcome": "Custom flow executed"
+            },
+            "n8n-processing": {
+              "title": "معالجة البيانات",
+              "description": "Process بيانات مكالمة عبر n8n بيانات transformation nodes.",
+              "n8nTemplateName": "n8n Data معالج",
+              "n8nTemplateDescription": "بيانات processing",
+              "expectedOutcome": "Data processed في n8n"
+            },
+            "n8n-multi": {
+              "title": "Multi-step integrations",
+              "description": "Execute multi-step integration سير العمل في n8n.",
+              "n8nTemplateName": "n8n متعدد الخطوات Integration",
+              "n8nTemplateDescription": "متعدد الخطوات integrations",
+              "expectedOutcome": "Multi-step integration مكتملة"
+            }
+          }
+        },
+        "perplexity": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Perplexity API Key",
+          "field2Label": "معرف النموذج",
+          "field2Placeholder": "مثال: llama-3.1-sonar-large-128k-online (اختياري)",
+          "helpText": "Generate an API key in Perplexity Settings under API.",
+          "setupLinkText": "Open Perplexity Settings",
+          "useCases": {
+            "pplx-research": {
+              "title": "Research caller background",
+              "description": "Research caller و company background باستخدام Perplexity.",
+              "n8nTemplateName": "Perplexity Caller باحث",
+              "n8nTemplateDescription": "Researches caller background",
+              "expectedOutcome": "Caller background research مكتملة"
+            },
+            "pplx-insights": {
+              "title": "Industry رؤى",
+              "description": "الحصول على الوقت الفعلي industry رؤى لـ محادثات باستخدام Perplexity.",
+              "n8nTemplateName": "Perplexity Industry رؤى",
+              "n8nTemplateDescription": "Provides industry رؤى",
+              "expectedOutcome": "Industry رؤى تم توليده"
+            },
+            "pplx-competitive": {
+              "title": "Competitive تحليل",
+              "description": "Perform competitive تحليل أثناء sales مكالمات باستخدام Perplexity.",
+              "n8nTemplateName": "Perplexity Competitive تحليل",
+              "n8nTemplateDescription": "Analyzes competition",
+              "expectedOutcome": "Competitive تحليل delivered"
+            },
+            "pplx-factcheck": {
+              "title": "الوقت الفعلي fact checking",
+              "description": "Fact-check claims made during calls using Perplexity.",
+              "n8nTemplateName": "Perplexity Fact فاحص",
+              "n8nTemplateDescription": "Fact-checks في الوقت الفعلي",
+              "expectedOutcome": "Facts verified في الوقت الفعلي"
+            }
+          }
+        },
+        "playht": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل PlayHT API Key",
+          "field2Label": "معرف المستخدم",
+          "field2Placeholder": "أدخل PlayHT User ID",
+          "helpText": "Find your API Key and User ID in PlayHT: Settings > API Access.",
+          "setupLinkText": "Open PlayHT Settings",
+          "useCases": {
+            "playht-realistic": {
+              "title": "Ultra-realistic voices",
+              "description": "توليد ultra-realistic صوت output باستخدام PlayHT.",
+              "n8nTemplateName": "PlayHT Realistic صوت",
+              "n8nTemplateDescription": "Ultra-realistic TTS",
+              "expectedOutcome": "Realistic صوت audio تم توليده"
+            },
+            "playht-clone": {
+              "title": "استنساخ الصوت",
+              "description": "Clone voices لـ personalized AI agent ردود.",
+              "n8nTemplateName": "PlayHT صوت مستنسخ",
+              "n8nTemplateDescription": "Clones voices",
+              "expectedOutcome": "صوت مستنسخ successfully"
+            },
+            "playht-emotion": {
+              "title": "التحكم بالمشاعر",
+              "description": "Control emotional tone في صوت synthesis.",
+              "n8nTemplateName": "PlayHT Emotion متحكم",
+              "n8nTemplateDescription": "Controls صوت emotion",
+              "expectedOutcome": "Emotional tone applied إلى صوت"
+            },
+            "playht-accents": {
+              "title": "Multi-accent support",
+              "description": "Support multiple accents و speaking styles.",
+              "n8nTemplateName": "PlayHT Accent محدّد",
+              "n8nTemplateDescription": "Multi-accent support",
+              "expectedOutcome": "Accent configured لـ صوت"
+            }
+          }
+        },
+        "segment": {
+          "field1Label": "مفتاح الكتابة",
+          "field1Placeholder": "أدخل Segment Source Write Key",
+          "field2Label": "معرف مساحة العمل",
+          "field2Placeholder": "أدخل Segment workspace slug (optional)",
+          "helpText": "Find your Write Key in Segment: Sources > Your Source > Settings > API Keys.",
+          "setupLinkText": "فتح Segment",
+          "useCases": {
+            "seg-events": {
+              "title": "Event tracking",
+              "description": "تتبع أحداث مكالمة عبر Segment لـ بيانات routing.",
+              "n8nTemplateName": "Segment متتبع أحداث",
+              "n8nTemplateDescription": "يتتبع أحداث",
+              "expectedOutcome": "Event tracked في Segment"
+            },
+            "seg-identify": {
+              "title": "تحديد المستخدم",
+              "description": "Identify و track users عبر Segment.",
+              "n8nTemplateName": "Segment مستخدم معرّف",
+              "n8nTemplateDescription": "Identifies users",
+              "expectedOutcome": "User identified في Segment"
+            },
+            "seg-cross": {
+              "title": "Cross-platform تحليلات",
+              "description": "توجيه call تحليلات across platforms عبر Segment.",
+              "n8nTemplateName": "Segment Cross-platform موجه",
+              "n8nTemplateDescription": "Cross-platform routing",
+              "expectedOutcome": "Analytics routed عبر Segment"
+            },
+            "seg-routing": {
+              "title": "توجيه البيانات",
+              "description": "توجيه بيانات مكالمة إلى multiple destinations عبر Segment.",
+              "n8nTemplateName": "Segment موجه بيانات",
+              "n8nTemplateDescription": "Routes بيانات",
+              "expectedOutcome": "Data routed عبر Segment"
+            }
+          }
+        },
+        "sugarcrm": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your SugarCRM OAuth Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your SugarCRM OAuth Client Secret",
+          "helpText": "Create an OAuth Key in SugarCRM: Administration > OAuth Keys. Enter your instance URL during setup.",
+          "setupLinkText": "فتح SugarCRM",
+          "useCases": {
+            "sugar-log-calls": {
+              "title": "تسجيل call أنشطة",
+              "description": "إنشاء أنشطة مكالمة سجلات في SugarCRM مع محادثة تفاصيل.",
+              "n8nTemplateName": "SugarCRM مسجل المكالمات",
+              "n8nTemplateDescription": "يسجل مكالمات في SugarCRM",
+              "expectedOutcome": "Call أنشطة logged في SugarCRM"
+            },
+            "sugar-sync-leads": {
+              "title": "مزامنة عملاء محتملون",
+              "description": "Synchronize lead data between your calling platform and SugarCRM.",
+              "n8nTemplateName": "SugarCRM عميل محتمل Sync",
+              "n8nTemplateDescription": "يزامن سجلات عميل محتمل",
+              "expectedOutcome": "عميل محتمل synced في SugarCRM"
+            },
+            "sugar-update-opps": {
+              "title": "تحديث opportunities",
+              "description": "تحديث حالة فرصة في SugarCRM بناءً على نتائج مكالمة.",
+              "n8nTemplateName": "SugarCRM تحديث صفقات",
+              "n8nTemplateDescription": "يحدث opportunities من مكالمات",
+              "expectedOutcome": "فرصة تم تحديثه في SugarCRM"
+            },
+            "sugar-create-tasks": {
+              "title": "إنشاء متابعة مهام",
+              "description": "توليد متابعة مهام في SugarCRM من call action items.",
+              "n8nTemplateName": "SugarCRM منشئ المهام",
+              "n8nTemplateDescription": "ينشئ مهام من مكالمات",
+              "expectedOutcome": "Task تم إنشاؤه في SugarCRM"
+            }
+          }
+        },
+        "supabase": {
+          "field1Label": "عنوان API",
+          "field1Placeholder": "أدخل Supabase Project URL",
+          "field2Label": "مفتاح دور الخدمة",
+          "field2Placeholder": "أدخل Supabase Service Role Key",
+          "helpText": "Find your Project URL and Service Role Key in Supabase: Project Settings > API.",
+          "setupLinkText": "فتح Supabase Dashboard",
+          "useCases": {
+            "supa-transcripts": {
+              "title": "تخزين نصوص",
+              "description": "تخزين نصوص مكالمة في Supabase database.",
+              "n8nTemplateName": "Supabase Transcript مخزن",
+              "n8nTemplateDescription": "Stores نصوص",
+              "expectedOutcome": "Transcript stored في Supabase"
+            },
+            "supa-realtime": {
+              "title": "الوقت الفعلي بيانات",
+              "description": "مزامنة بيانات مكالمة في الوقت الفعلي باستخدام Supabase.",
+              "n8nTemplateName": "Supabase الوقت الفعلي Sync",
+              "n8nTemplateDescription": "الوقت الفعلي بيانات sync",
+              "expectedOutcome": "Data synced في Supabase"
+            },
+            "supa-users": {
+              "title": "إدارة المستخدمين",
+              "description": "إدارة user بيانات و preferences في Supabase.",
+              "n8nTemplateName": "Supabase User مدير",
+              "n8nTemplateDescription": "Manages users",
+              "expectedOutcome": "User بيانات managed في Supabase"
+            },
+            "supa-analytics": {
+              "title": "Analytics storage",
+              "description": "تخزين تحليلات و مقاييس بيانات في Supabase.",
+              "n8nTemplateName": "Supabase Analytics مخزن",
+              "n8nTemplateDescription": "Stores تحليلات",
+              "expectedOutcome": "Analytics stored في Supabase"
+            }
+          }
+        },
+        "telnyx": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Telnyx API Key (KEY...)",
+          "field2Label": "معرف الاتصال",
+          "field2Placeholder": "أدخل Telnyx SIP Connection ID",
+          "helpText": "Generate an API key in the Telnyx Portal: Auth > API Keys. Find your Connection ID under SIP Connections.",
+          "setupLinkText": "Open Telnyx Portal",
+          "useCases": {
+            "telnyx-messaging": {
+              "title": "رسائل ما بعد المكالمة",
+              "description": "إرسال post-call رسائل عبر Telnyx messaging API.",
+              "n8nTemplateName": "Telnyx مراسل",
+              "n8nTemplateDescription": "يرسل post-call رسائل",
+              "expectedOutcome": "Message تم إرساله عبر Telnyx"
+            },
+            "telnyx-analytics": {
+              "title": "Call تحليلات",
+              "description": "تتبع call تحليلات و performance عبر Telnyx.",
+              "n8nTemplateName": "Telnyx تحليلات",
+              "n8nTemplateDescription": "يتتبع call تحليلات",
+              "expectedOutcome": "Analytics recorded في Telnyx"
+            },
+            "telnyx-provision": {
+              "title": "Number provisioning",
+              "description": "Provision و manage رقم الهاتف عبر Telnyx.",
+              "n8nTemplateName": "Telnyx رقم مزوّد",
+              "n8nTemplateDescription": "Provisions numbers",
+              "expectedOutcome": "Numbers provisioned عبر Telnyx"
+            },
+            "telnyx-sip": {
+              "title": "SIP routing",
+              "description": "Configure SIP routing عبر Telnyx لـ advanced call handling.",
+              "n8nTemplateName": "Telnyx SIP موجه",
+              "n8nTemplateDescription": "Configures SIP routing",
+              "expectedOutcome": "SIP routing configured عبر Telnyx"
+            }
+          }
+        },
+        "vonage": {
+          "field1Label": "مفتاح API",
+          "field1Placeholder": "أدخل Vonage API Key",
+          "field2Label": "سر API",
+          "field2Placeholder": "أدخل Vonage API Secret",
+          "helpText": "Find your API Key and Secret on the Vonage Dashboard under API Settings.",
+          "setupLinkText": "فتح Vonage Dashboard",
+          "useCases": {
+            "vonage-sms": {
+              "title": "إرسال SMS إشعارات",
+              "description": "إرسال SMS إشعارات عبر Vonage لـ أحداث مكالمة و نتائج.",
+              "n8nTemplateName": "Vonage منبه رسائل",
+              "n8nTemplateDescription": "يرسل SMS إشعارات",
+              "expectedOutcome": "SMS إشعار تم إرساله عبر Vonage"
+            },
+            "vonage-quality": {
+              "title": "تتبع call quality",
+              "description": "Monitor و track call quality مقاييس عبر Vonage.",
+              "n8nTemplateName": "Vonage Quality متتبع",
+              "n8nTemplateDescription": "يتتبع call quality",
+              "expectedOutcome": "Quality مقاييس recorded"
+            },
+            "vonage-route": {
+              "title": "توجيه مكالمات",
+              "description": "توجيه مكالمات عبر Vonage مع intelligent call distribution.",
+              "n8nTemplateName": "Vonage موجه المكالمات",
+              "n8nTemplateDescription": "Routes مكالمات",
+              "expectedOutcome": "Call routed عبر Vonage"
+            },
+            "vonage-lookup": {
+              "title": "البحث عن رقم",
+              "description": "Look up رقم الهاتف تفاصيل باستخدام Vonage Number Insight.",
+              "n8nTemplateName": "Vonage Number بحث",
+              "n8nTemplateDescription": "Looks up number info",
+              "expectedOutcome": "Number تفاصيل retrieved"
+            }
+          }
+        },
+        "woocommerce": {
+          "field1Label": "مفتاح المستهلك",
+          "field1Placeholder": "أدخل WooCommerce Consumer Key (ck_...)",
+          "field2Label": "سر المستهلك",
+          "field2Placeholder": "أدخل WooCommerce Consumer Secret (cs_...)",
+          "helpText": "Generate REST API keys in WooCommerce: Settings > Advanced > REST API > Add Key. Set permissions to Read/Write.",
+          "setupLinkText": "فتح WooCommerce",
+          "useCases": {
+            "woo-orders": {
+              "title": "تتبع الطلبات",
+              "description": "Track and look up orders in WooCommerce during calls.",
+              "n8nTemplateName": "WooCommerce Order متتبع",
+              "n8nTemplateDescription": "يتتبع orders",
+              "expectedOutcome": "Order tracked في WooCommerce"
+            },
+            "woo-products": {
+              "title": "Product availability",
+              "description": "التحقق من product availability في WooCommerce.",
+              "n8nTemplateName": "WooCommerce Product فاحص",
+              "n8nTemplateDescription": "Checks products",
+              "expectedOutcome": "Product availability checked"
+            },
+            "woo-process": {
+              "title": "Process orders",
+              "description": "Process جديد orders عبر WooCommerce.",
+              "n8nTemplateName": "WooCommerce Order معالج",
+              "n8nTemplateDescription": "Processes orders",
+              "expectedOutcome": "Order processed في WooCommerce"
+            },
+            "woo-customers": {
+              "title": "البحث عن عميل",
+              "description": "Look up customer information in WooCommerce.",
+              "n8nTemplateName": "WooCommerce Customer بحث",
+              "n8nTemplateDescription": "Looks up customers",
+              "expectedOutcome": "Customer info retrieved"
+            }
+          }
+        },
+        "default": {
+          "field1Label": "معرف العميل",
+          "field1Placeholder": "Enter your Client ID",
+          "field2Label": "سر العميل",
+          "field2Placeholder": "Enter your Client Secret",
+          "helpText": "Enter your OAuth app credentials. You can find these in the provider's developer console or admin settings.",
+          "setupLinkText": "Open Developer Console"
+        }
+      },
+      "never": "أبداً",
+      "notAvailable": "غ/م",
+      "status": {
+        "connected": "متصل",
+        "pendingAuth": "في انتظار المصادقة",
+        "error": "خطأ",
+        "inactive": "غير نشط"
+      }
+    },
+    "apiKeys": {
+      "title": "إدارة مفاتيح API",
+      "description": "إدارة مفاتيح API الخاصة بك للوصول البرمجي إلى المنصة",
+      "keyLabel": "مفتاح API",
+      "noKey": "لم يتم إنشاء مفتاح API",
+      "warning": "حافظ على أمان مفتاح API الخاص بك. لا تشاركه علنياً.",
+      "regenerate": "إعادة إنشاء المفتاح",
+      "regenerateTitle": "إعادة إنشاء مفتاح API",
+      "regenerateConfirm": "سيؤدي هذا إلى إبطال مفتاح API الحالي وإنشاء مفتاح جديد. ستتوقف التكاملات الحالية التي تستخدم المفتاح القديم عن العمل. لا يمكن التراجع عن هذا الإجراء.",
+      "regenerated": "تم إعادة إنشاء مفتاح API",
+      "regeneratedDesc": "تم إنشاء مفتاح API الجديد بنجاح",
+      "regenerateFailed": "فشل إعادة إنشاء مفتاح API"
     }
   },
   "install": {

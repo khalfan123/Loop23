@@ -368,78 +368,111 @@ export default function FlowsPage() {
           ) : (
             <>
               <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08] overflow-visible">
-                {paginatedFlows.map((flow, index) => (
-                  <div
-                    key={flow.id}
-                    className={`flex items-center gap-4 px-4 py-3 hover-elevate ${index > 0 ? "border-t ml-0" : ""}`}
-                    data-testid={`card-flow-${flow.id}`}
-                  >
-                    <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
-                      <GitBranch className="w-4 h-4 text-muted-foreground" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm truncate" data-testid={`text-flow-name-${flow.id}`}>
-                          {flow.name}
-                        </span>
-                        <Badge variant="outline" className="text-xs shrink-0">
-                          {flow.nodes?.length || 0} nodes
-                        </Badge>
-                        <Badge variant="outline" className="text-xs shrink-0">
-                          {flow.edges?.length || 0} edges
-                        </Badge>
-                      </div>
-                      {flow.description && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {flow.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={flow.isActive}
-                          onCheckedChange={(checked) =>
-                            toggleActiveMutation.mutate({ flowId: flow.id, isActive: checked })
-                          }
-                          data-testid={`switch-flow-active-${flow.id}`}
-                        />
-                        <Badge variant={flow.isActive ? "default" : "secondary"} className="text-xs">
-                          {flow.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                {paginatedFlows.map((flow, index) => {
+                  const nodeColorMap: Record<string, string> = {
+                    message: "#3b82f6", question: "#a855f7", condition: "#f59e0b",
+                    appointment: "#10b981", form: "#06b6d4", webhook: "#8b5cf6",
+                    transfer: "#ec4899", delay: "#f97316", end: "#ef4444", play_audio: "#06b6d4",
+                  };
+                  const uniqueTypes: string[] = Array.from(
+                    new Set<string>(
+                      (flow.nodes || []).map((n: any) => n.data?.type || n.type).filter(Boolean)
+                    )
+                  );
+                  return (
+                    <div
+                      key={flow.id}
+                      className={`flex items-center gap-4 px-4 py-3 hover-elevate ${index > 0 ? "border-t ml-0" : ""}`}
+                      data-testid={`card-flow-${flow.id}`}
+                    >
+                      <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
+                        <GitBranch className="w-4 h-4 text-muted-foreground" />
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setLocation(`/app/settings/flows/${flow.id}`)}
-                          data-testid={`button-edit-flow-${flow.id}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setFlowToTest(flow)}
-                          data-testid={`button-test-flow-${flow.id}`}
-                        >
-                          <Play className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setFlowToDelete(flow)}
-                          data-testid={`button-delete-flow-${flow.id}`}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm truncate" data-testid={`text-flow-name-${flow.id}`}>
+                            {flow.name}
+                          </span>
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {flow.nodes?.length || 0} nodes
+                          </Badge>
+                        </div>
+
+                        {/* Node type dot preview */}
+                        {uniqueTypes.length > 0 && (
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            {uniqueTypes.map((type) => (
+                              <span
+                                key={type}
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: nodeColorMap[type] || "#6b7280" }}
+                                title={type}
+                              />
+                            ))}
+                            <span className="text-[10px] text-muted-foreground ml-0.5 truncate">
+                              {uniqueTypes.join(", ")}
+                            </span>
+                          </div>
+                        )}
+
+                        {flow.description && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {flow.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={flow.isActive}
+                            onCheckedChange={(checked) =>
+                              toggleActiveMutation.mutate({ flowId: flow.id, isActive: checked })
+                            }
+                            data-testid={`switch-flow-active-${flow.id}`}
+                          />
+                          <Badge
+                            className={`text-xs ${
+                              flow.isActive
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800"
+                                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+                            }`}
+                          >
+                            {flow.isActive ? "Active" : "Draft"}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setLocation(`/app/settings/flows/${flow.id}`)}
+                            data-testid={`button-edit-flow-${flow.id}`}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setFlowToTest(flow)}
+                            data-testid={`button-test-flow-${flow.id}`}
+                          >
+                            <Play className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setFlowToDelete(flow)}
+                            data-testid={`button-delete-flow-${flow.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <DataPagination
                 currentPage={currentPage}

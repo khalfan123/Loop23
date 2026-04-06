@@ -206,7 +206,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
     }
   });
 
-  // Download call recording - handles all 3 engines: ElevenLabs+Twilio, Twilio+OpenAI, Plivo+OpenAI
+  // Download call recording - handles ElevenLabs+Twilio and Twilio+OpenAI engines
   router.get("/api/calls/:id/recording", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       // Use getCallWithDetails which checks both calls and twilioOpenaiCalls tables
@@ -275,32 +275,6 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         });
       }
 
-      // Handle Plivo+OpenAI calls - fetch recording from Plivo URL
-      if (callWithDetails.engine === 'plivo-openai') {
-        console.log(`🎙️ [Recording] Fetching Plivo+OpenAI recording for call ${callWithDetails.id}`);
-        
-        if (callWithDetails.recordingUrl) {
-          try {
-            const response = await fetch(callWithDetails.recordingUrl);
-            if (response.ok) {
-              const audioBuffer = Buffer.from(await response.arrayBuffer());
-              const contentType = response.headers.get('content-type') || 'audio/mpeg';
-              
-              res.setHeader('Content-Type', contentType);
-              res.setHeader('Content-Disposition', `inline; filename="call-recording-${callWithDetails.id}.mp3"`);
-              res.setHeader('Cache-Control', 'no-cache');
-              return res.send(audioBuffer);
-            }
-          } catch (plivoError: any) {
-            console.error(`❌ [Plivo Recording] Failed to fetch: ${plivoError.message}`);
-          }
-        }
-        
-        return res.status(404).json({ 
-          error: "Recording not available", 
-          details: "No recording found for this Plivo+OpenAI call" 
-        });
-      }
 
       // Handle ElevenLabs calls (existing logic)
       const result = await recordingService.getRecordingAudio(callWithDetails);
@@ -507,6 +481,19 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
     } catch (error: any) {
       console.error("Get analytics error:", error);
       res.status(500).json({ error: error.message || "Failed to get analytics" });
+    }
+  });
+
+  // Advanced Analytics (BI-grade)
+  router.get("/api/analytics/advanced", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const timeRange = req.query.timeRange as string || '7days';
+      const { calculateAdvancedAnalytics } = await import("../storage/advanced-analytics");
+      const result = await calculateAdvancedAnalytics(req.userId!, timeRange);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Get advanced analytics error:", error);
+      res.status(500).json({ error: error.message || "Failed to get advanced analytics" });
     }
   });
 

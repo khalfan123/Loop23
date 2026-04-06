@@ -1,0 +1,3359 @@
+{
+  "integrations": {
+    "panel": {
+      "title": "集成",
+      "tabs": {
+        "marketplace": "应用市场",
+        "myIntegrations": "我的集成",
+        "apiWebhooks": "API 和 Webhooks"
+      },
+      "sidebar": {
+        "quickAccess": "快速访问",
+        "categories": "分类",
+        "overview": "概览",
+        "total": "总计可用",
+        "connected": "已连接",
+        "available": "可用"
+      },
+      "categories": {
+        "all": "所有集成",
+        "crm": "客户关系管理",
+        "telephony": "电话通信",
+        "aiLlm": "AI 和 LLM",
+        "voiceSpeech": "语音和语言",
+        "marketing": "营销",
+        "communication": "通信",
+        "support": "支持",
+        "calendar": "日历",
+        "ecommerce": "电子商务",
+        "analytics": "分析",
+        "automation": "自动化",
+        "dataStorage": "数据和存储",
+        "hrRecruiting": "人力资源和招聘",
+        "other": "其他"
+      },
+      "marketplace": {
+        "searchPlaceholder": "搜索集成...",
+        "connectedCount": "已连接",
+        "clearFilters": "清除筛选",
+        "popular": "热门集成",
+        "popularBadge": "热门",
+        "noResults": "未找到集成",
+        "noSearchResults": "没有与 \"{{query}}\" 匹配的集成。请尝试其他搜索词。",
+        "noFilterResults": "此分类中暂无集成。",
+        "connect": "连接",
+        "manage": "管理"
+      },
+      "myIntegrations": {
+        "emptyTitle": "暂无已连接的集成",
+        "emptyDescription": "从应用市场标签页连接您的第一个集成以开始使用。",
+        "active": "活跃",
+        "pending": "待处理",
+        "errors": "错误",
+        "inactive": "未活跃",
+        "lastSync": "上次同步",
+        "configure": "配置",
+        "resync": "重新同步",
+        "resyncSuccess": "同步已开始",
+        "resyncSuccessDesc": "集成同步已成功触发",
+        "resyncFailed": "同步失败",
+        "resyncFailedDesc": "无法触发集成同步",
+        "disconnect": "断开连接",
+        "disconnected": "集成已断开连接",
+        "disconnectedDesc": "集成已成功断开连接",
+        "disconnectFailed": "断开连接失败",
+        "disconnectTitle": "断开集成连接",
+        "disconnectConfirm": "您确定要断开 {{name}} 的连接吗？这将停止所有数据同步，并可能影响相关的工作流程。",
+        "cancel": "取消"
+      },
+      "webhooks": {
+        "title": "Webhooks 和 API 密钥",
+        "subtitle": "配置 webhooks 将通话数据发送到外部系统"
+      },
+      "status": {
+        "connected": "已连接",
+        "pendingAuth": "等待认证",
+        "error": "错误",
+        "inactive": "未活跃"
+      },
+      "breadcrumb": {
+        "backToIntegrations": "集成"
+      }
+    },
+    "detail": {
+      "notFound": "未找到集成",
+      "backToMarketplace": "返回市场",
+      "syncNow": "立即同步",
+      "activate": "激活",
+      "waitingAuth": "等待授权中...",
+      "addTestConnection": "添加测试连接",
+      "tabs": {
+        "functions": "功能",
+        "useCases": "使用场景",
+        "settings": "设置",
+        "setupGuide": "API设置指南",
+        "logs": "日志"
+      },
+      "functions": {
+        "connectFirst": "请先连接 {{name}} 以启用和配置功能。",
+        "actions": "操作",
+        "syncs": "同步",
+        "howToUse": "如何使用{{type}}",
+        "name": "名称",
+        "type": "类型",
+        "enabled": "已启用",
+        "template": "模板",
+        "noActions": "此集成尚未配置任何{{type}}。",
+        "categories": {
+          "contacts": "联系人",
+          "leads": "线索",
+          "deals": "交易",
+          "files": "文件",
+          "activities": "活动",
+          "notifications": "通知",
+          "others": "其他"
+        }
+      },
+      "useCases": {
+        "header": "{{name}} 的使用场景",
+        "trigger": "触发器",
+        "outcome": "预期结果",
+        "connectFirst": "先连接",
+        "executing": "执行中...",
+        "executeTemplate": "执行模板",
+        "empty": "{{name}} 暂无可用的使用场景。"
+      },
+      "settings": {
+        "connectFirst": "请先连接 {{name}} 以查看设置。",
+        "connectedAccount": "已连接账户",
+        "authenticated": "已认证",
+        "account": "账户",
+        "email": "电子邮件",
+        "authorizedOn": "授权日期",
+        "fieldMapping": "字段映射",
+        "fieldMappingDesc": "配置数据字段如何从 Loop9 映射到 {{name}}。",
+        "contactName": "联系人姓名",
+        "phoneNumber": "电话号码",
+        "company": "公司",
+        "callSummary": "通话摘要",
+        "integrationDetails": "集成详情",
+        "authMethod": "认证方式",
+        "apiKey": "API密钥",
+        "oauth2": "OAuth 2.0",
+        "displayName": "显示名称",
+        "integrationId": "集成ID",
+        "category": "类别",
+        "integration": "集成",
+        "reconnect": "重新连接",
+        "dangerZone": "危险区域",
+        "dangerDesc": "断开连接将撤销对您 {{name}} 账户的访问权限，停止所有自动同步，并删除集成配置。此操作无法撤消。",
+        "disconnect": "断开 {{name}}",
+        "placeholderContactName": "例如 contact_name",
+        "placeholderPhoneNumber": "例如 phone_number",
+        "placeholderCompany": "例如 company",
+        "placeholderCallSummary": "例如 call_summary"
+      },
+      "setupGuide": {
+        "oauth": {
+          "createApp": "创建开发者应用",
+          "createAppDesc": "前往 {{provider}} 并创建一个新应用程序。选择“Web 应用”作为应用类型。",
+          "configureRedirect": "配置重定向 URI",
+          "configureRedirectDesc": "In your app settings, add the following redirect/callback URL. This is required for the OAuth authorization flow to work correctly.",
+          "setScopes": "设置所需权限",
+          "setScopesDesc": "确保为您的应用程序启用了以下权限。",
+          "enterCredentials": "输入凭证",
+          "enterCredentialsDesc": "从您的应用设置页面复制 {{field1}} 和 {{field2}}。",
+          "authorizeAccess": "授权访问",
+          "authorizeAccessDesc": "您将被重定向到提供商的同意页面。查看权限并点击“允许”。",
+          "verifyConnection": "验证连接",
+          "verifyConnectionDesc": "在设置选项卡中确认您的帐户已连接。"
+        },
+        "apiKey": {
+          "findKey": "查找您的 API 密钥",
+          "findKeyDesc": "导航到您的账户设置页面。查找“API 密钥”部分。复制密钥。",
+          "noteDomain": "记录您的域名",
+          "noteDomainDesc": "您的域名是访问服务的 URL。您需要它与 API 密钥一起使用。",
+          "enterCredentials": "输入凭证",
+          "enterCredentialsDesc": "点击“连接”并输入您的 {{field1}} 和 {{field2}}。它们将被安全存储。",
+          "verifyConnection": "验证连接",
+          "verifyConnectionDesc": "在设置选项卡中确认您的帐户已关联。"
+        },
+        "header": "{{name}} 设置指南",
+        "redirectUri": "重定向 URI",
+        "requiredScopes": "所需权限"
+      },
+      "logs": {
+        "connectFirst": "请先连接 {{name}} 以查看同步日志。",
+        "syncHistory": "同步历史",
+        "entries": "条目",
+        "all": "全部",
+        "success": "成功",
+        "failed": "失败",
+        "inProgress": "进行中",
+        "event": "事件",
+        "status": "状态",
+        "records": "记录",
+        "duration": "持续时间",
+        "date": "日期",
+        "errorDetails": "错误详情",
+        "noHistory": "暂无同步历史"
+      },
+      "sidebar": {
+        "authMethod": "认证方式",
+        "apiKey": "API密钥",
+        "oauth2": "OAuth 2",
+        "displayName": "显示名称",
+        "integrationId": "集成ID",
+        "apiDocs": "API文档",
+        "created": "创建时间"
+      },
+      "disconnect": {
+        "title": "断开 {{name}}？",
+        "description": "这将移除集成、撤销对您 {{name}} 账户的访问权限、停止所有自动同步并删除工作流。此操作无法撤消。",
+        "cancel": "取消",
+        "confirm": "断开连接"
+      },
+      "connect": {
+        "title": "连接 {{name}}",
+        "redirectUri": "重定向/回调 URL（将此添加到您的 {{name}} 应用中）",
+        "requiredScopes": "所需权限范围/权限",
+        "securityNoteApiKey": "您的 {{field1}} 和 {{field2}} 已加密并安全存储。它们仅用于代表您向 {{name}} 进行身份验证。",
+        "securityNoteOAuth": "您的凭据已加密并安全存储。输入后，您将被重定向到 {{name}} 以授权访问您的账户。",
+        "cancel": "取消",
+        "connecting": "连接中...",
+        "connectButton": "连接",
+        "connectAuthorize": "连接并授权"
+      },
+      "copied": "已复制",
+      "copiedDesc": "{{label}} 已复制到剪贴板。",
+      "toast": {
+        "accountConnected": "账户已连接",
+        "accountConnectedDesc": "您的账户已通过认证，正在同步数据。",
+        "authFailed": "认证失败",
+        "authFailedDefault": "认证过程中发生错误。",
+        "authErrors": {
+          "accessDenied": "您拒绝了对账户的访问。请重试。",
+          "missingParams": "认证响应不完整。请重试。",
+          "invalidState": "认证会话已过期或无效。请重试。",
+          "integrationNotFound": "未找到集成记录。请重新连接。",
+          "tokenExchangeFailed": "无法完成与服务的认证。请检查您的凭据并重试。",
+          "missingCredentials": "未找到您存储的凭据。请重新连接。",
+          "credentialError": "您存储的凭据存在问题。请重新连接。",
+          "serverError": "认证过程中发生意外错误。请重试。"
+        },
+        "signIn": "登录您的账户",
+        "signInDesc": "已打开新窗口以授权访问您的 {{name}} 账户。",
+        "connected": "集成已连接",
+        "connectedDesc": "{{name}} 已连接并处于活动状态。",
+        "connectionFailed": "连接失败",
+        "connectionFailedDefault": "无法连接集成",
+        "missingCredentials": "缺少凭据",
+        "missingCredentialsDesc": "请输入 {{field1}} 和 {{field2}}。",
+        "activated": "集成已激活",
+        "activatedDesc": "集成现在处于活动状态并正在同步数据。",
+        "activationFailed": "激活失败",
+        "activationFailedDefault": "无法激活集成",
+        "disconnected": "集成已断开",
+        "disconnectedDesc": "集成已被移除。",
+        "disconnectFailed": "断开连接失败",
+        "disconnectFailedDefault": "无法断开连接",
+        "syncCompleted": "同步完成",
+        "syncCompletedDesc": "数据已成功同步。",
+        "syncFailed": "同步失败",
+        "syncFailedDesc": "同步遇到错误。",
+        "syncFailedDefault": "无法触发同步",
+        "templateExecuted": "模板已执行",
+        "templateExecutedDesc": "n8n工作流模板已成功触发。",
+        "executionFailed": "执行失败",
+        "executionFailedDesc": "无法执行模板。",
+        "executionFailedDefault": "无法执行用例模板"
+      },
+      "providers": {
+        "salesforce": {
+          "field1Label": "消费者密钥",
+          "field1Placeholder": "输入您的 Salesforce Consumer Key",
+          "field2Label": "消费者密钥",
+          "field2Placeholder": "输入您的 Salesforce Consumer Secret",
+          "helpText": "Create a Connected App in Salesforce: go to Setup > App Manager > New Connected App. Enable OAuth settings and add the callback URL below. Copy the Consumer Key and Consumer Secret from the app details.",
+          "setupLinkText": "打开 Salesforce Setup",
+          "actions": {
+            "sync-contacts": {
+              "name": "同步 Contacts",
+              "description": "同步 联系人 从 Salesforce"
+            },
+            "push-call-summary": {
+              "name": "推送 摘要 de 通话",
+              "description": "推送 摘要 de 通话 到 Salesforce 活动"
+            },
+            "sync-leads": {
+              "name": "同步 Leads",
+              "description": "同步 线索 从 Salesforce"
+            },
+            "update-contact-status": {
+              "name": "更新 状态 de 联系人",
+              "description": "更新 状态 de 联系人 之后 call"
+            }
+          },
+          "useCases": {
+            "sf-log-calls": {
+              "title": "自动-记录 通话 作为 活动",
+              "description": "创建 自动 记录 de 活动 在 Salesforce 为 每个 已完成的 call 与 完整的 转录文本 和 outcome 数据.",
+              "n8nTemplateName": "Salesforce 记录 de 通话",
+              "n8nTemplateDescription": "记录 数据 de 通话 作为 Salesforce Task 活动",
+              "expectedOutcome": "新 Task 活动 已创建 在 Salesforce 与 详情 de 通话"
+            },
+            "sf-create-leads": {
+              "title": "创建 线索 从 新的 呼叫者",
+              "description": "创建 自动 新的 记录 de 线索 当 呼叫者 未知的 are 被检测到 期间 对话.",
+              "n8nTemplateName": "Salesforce 创建 de 线索",
+              "n8nTemplateDescription": "创建 线索 从 未识别的 电话号码",
+              "expectedOutcome": "新 记录 de 线索 已创建 与 信息 del 呼叫者"
+            },
+            "sf-sync-contacts": {
+              "title": "同步 数据 de 联系人 之后 对话",
+              "description": "更新 Salesforce 联系人 记录 与 最新的 洞察 de 对话 和 已提取 数据 points.",
+              "n8nTemplateName": "Salesforce 同步 de 联系人",
+              "n8nTemplateDescription": "同步 数据 de 对话 到 记录 de 联系人",
+              "expectedOutcome": "记录 de 联系人 已更新 与 最新的 数据 de 对话"
+            },
+            "sf-update-opps": {
+              "title": "更新 状态 de oportunidad",
+              "description": "更新 自动 或 update Oportunidad stages 基于 结果 de 通话 和 AI 分析.",
+              "n8nTemplateName": "Salesforce 更新 de 交易",
+              "n8nTemplateDescription": "更新 状态 de oportunidad 从 call 结果",
+              "expectedOutcome": "Oportunidad stage 已更新 基于 call 分析"
+            }
+          }
+        },
+        "hubspot": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your HubSpot Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your HubSpot Client Secret",
+          "helpText": "Create an app in the HubSpot Developer Portal. Go to your app's Auth settings, add the redirect URL below, and select the required scopes. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open HubSpot Developer Portal",
+          "actions": {
+            "sync-contacts": {
+              "name": "同步 Contacts",
+              "description": "同步 联系人 从 HubSpot"
+            },
+            "sync-deals": {
+              "name": "同步 Deals",
+              "description": "同步 交易 从 HubSpot"
+            },
+            "create-engagement": {
+              "name": "创建 Engagement",
+              "description": "创建 call engagement 记录"
+            },
+            "push-call-notes": {
+              "name": "推送 备注 de 通话",
+              "description": "推送 备注 de 通话 到 contact timeline"
+            }
+          },
+          "useCases": {
+            "hs-create-deals": {
+              "title": "创建 交易 从 qualified 通话",
+              "description": "Automatically create new deals in HubSpot when calls are identified as sales-qualified opportunities.",
+              "n8nTemplateName": "HubSpot 创建器 de 交易",
+              "n8nTemplateDescription": "创建 交易 从 qualified 结果 de 通话",
+              "expectedOutcome": "新 deal 已创建 在 HubSpot 管道"
+            },
+            "hs-push-notes": {
+              "title": "推送 备注 de 通话 到 timeline",
+              "description": "添加 detailed 备注 de 通话 和 转录文本 到  HubSpot contact timeline 为 complete interaction 历史.",
+              "n8nTemplateName": "HubSpot 记录器 de 时间线",
+              "n8nTemplateDescription": "推送 备注 de 通话 到 contact timeline",
+              "expectedOutcome": "Call 备注 added 到 contact timeline 在 HubSpot"
+            },
+            "hs-sync-contacts": {
+              "title": "同步 联系人 bi-directionally",
+              "description": "Keep contact information synchronized between your calling platform and HubSpot in both directions.",
+              "n8nTemplateName": "HubSpot 同步 de 联系人",
+              "n8nTemplateDescription": "双向联系人同步",
+              "expectedOutcome": "Contact data synced between platforms"
+            },
+            "hs-followup": {
+              "title": "触发 序列 de 后续跟进",
+              "description": "Automatically enroll 联系人 到 HubSpot 序列 de correo 基于 结果 de 通话 和 qualification 状态.",
+              "n8nTemplateName": "HubSpot 触发器 de 序列",
+              "n8nTemplateDescription": "Enrolls 联系人 在 序列 de 后续跟进",
+              "expectedOutcome": "联系人 enrolled 在 appropriate 后续跟进 sequence"
+            }
+          }
+        },
+        "zoho": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Zoho Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Zoho Client Secret",
+          "helpText": "Register a Server-based Application in the Zoho API Console. Add the redirect URL below as an authorized redirect URI. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Zoho API Console",
+          "actions": {
+            "sync-contacts": {
+              "name": "同步 Contacts",
+              "description": "同步 联系人 从 Zoho CRM"
+            },
+            "sync-leads": {
+              "name": "同步 Leads",
+              "description": "同步 线索 从 Zoho"
+            },
+            "push-call-log": {
+              "name": "推送 Call Log",
+              "description": "推送 记录 de 通话 到 Zoho"
+            },
+            "update-lead-status": {
+              "name": "更新 线索 Status",
+              "description": "更新 lead 状态 之后 call"
+            }
+          },
+          "useCases": {
+            "zoho-log-calls": {
+              "title": "记录 call 活动",
+              "description": "创建 活动 de 通话 记录 在 Zoho CRM 与 complete 对话 详情 和 结果.",
+              "n8nTemplateName": "Zoho 记录 de 通话",
+              "n8nTemplateDescription": "记录 通话 作为 Zoho 活动",
+              "expectedOutcome": "Call 活动 logged 在 Zoho CRM"
+            },
+            "zoho-sync-leads": {
+              "title": "同步 线索 之后 对话",
+              "description": "Synchronize lead 数据 和 洞察 de 对话 到 Zoho CRM 记录 de 线索.",
+              "n8nTemplateName": "Zoho 线索 Sync",
+              "n8nTemplateDescription": "同步 lead 数据 post-对话",
+              "expectedOutcome": "记录 de 线索 已更新 在 Zoho CRM"
+            },
+            "zoho-update-deals": {
+              "title": "更新 deal stages",
+              "description": "Advance deal stages 在 Zoho CRM 基于 结果 de 通话 和 qualification criteria.",
+              "n8nTemplateName": "Zoho 更新 de 交易",
+              "n8nTemplateDescription": "更新 deal stages 从 call 结果",
+              "expectedOutcome": "Deal stage 已更新 在 Zoho CRM"
+            },
+            "zoho-create-tasks": {
+              "title": "创建 后续跟进 任务",
+              "description": "创建 自动 后续跟进 任务 在 Zoho CRM 基于 action items 从 通话.",
+              "n8nTemplateName": "Zoho 创建器 de 任务",
+              "n8nTemplateDescription": "创建 任务 从 call action items",
+              "expectedOutcome": "后续跟进 task 已创建 在 Zoho CRM"
+            }
+          }
+        },
+        "google-sheets": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Google Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Google Client Secret",
+          "helpText": "In Google Cloud Console, create an OAuth 2.0 Client ID (Web application type). Add the redirect URL below as an authorized redirect URI. Enable the Google Sheets API and Google People API for your project.",
+          "setupLinkText": "Open Google Cloud Console",
+          "actions": {
+            "export-call-data": {
+              "name": "导出 数据 de 通话",
+              "description": "导出 数据 de 通话 到 Google Sheets"
+            },
+            "read-contact-list": {
+              "name": "Read 联系人 List",
+              "description": "Read contact list 从 Google Sheets"
+            },
+            "sync-campaign-results": {
+              "name": "同步 Campaign Results",
+              "description": "同步 活动 结果 到 sheets"
+            }
+          },
+          "useCases": {
+            "gsheets-export": {
+              "title": "导出 数据 de 通话",
+              "description": "导出 数据 de 通话 和 指标 到 Google Sheets.",
+              "n8nTemplateName": "Google Sheets 导出器 de 数据",
+              "n8nTemplateDescription": "Exports 数据 de 通话",
+              "expectedOutcome": "Call 数据 exported 到 Google Sheets"
+            },
+            "gsheets-import": {
+              "title": "导入 contact lists",
+              "description": "导入 contact lists 从 Google Sheets 为 活动.",
+              "n8nTemplateName": "Google Sheets 联系人 Importer",
+              "n8nTemplateDescription": "Imports 联系人",
+              "expectedOutcome": "Contacts imported 从 Google Sheets"
+            },
+            "gsheets-reports": {
+              "title": "报告 de 活动",
+              "description": "生成 活动 reports 在 Google Sheets.",
+              "n8nTemplateName": "Google Sheets Report 生成器",
+              "n8nTemplateDescription": "生成 reports",
+              "expectedOutcome": "Report 已生成 在 Google Sheets"
+            },
+            "gsheets-dashboards": {
+              "title": "分析仪表板",
+              "description": "创建 分析 dashboards 在 Google Sheets.",
+              "n8nTemplateName": "Google Sheets 仪表板",
+              "n8nTemplateDescription": "创建 dashboards",
+              "expectedOutcome": "仪表板 已创建 在 Google Sheets"
+            }
+          }
+        },
+        "pipedrive": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Pipedrive Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Pipedrive Client Secret",
+          "helpText": "Create an app in the Pipedrive Developer Hub (Marketplace Manager). Set the callback URL to the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Pipedrive Developer Hub",
+          "actions": {
+            "sync-contacts": {
+              "name": "同步 Persons",
+              "description": "同步 persons 从 Pipedrive"
+            },
+            "sync-deals": {
+              "name": "同步 Deals",
+              "description": "同步 交易 从 Pipedrive"
+            },
+            "create-activity": {
+              "name": "创建 Activity",
+              "description": "创建 活动 de 通话 记录"
+            },
+            "push-call-outcome": {
+              "name": "推送 Call Outcome",
+              "description": "推送 call outcome 到 deal"
+            }
+          },
+          "useCases": {
+            "pd-create-activities": {
+              "title": "创建 活动 从 通话",
+              "description": "记录 call 活动 在 Pipedrive 与 detailed 备注 和 outcome tracking.",
+              "n8nTemplateName": "Pipedrive 创建器 de 活动",
+              "n8nTemplateDescription": "创建 活动 从 已完成的 通话",
+              "expectedOutcome": "Activity 已创建 在 Pipedrive"
+            },
+            "pd-update-deals": {
+              "title": "更新 deal 进度",
+              "description": "Move 交易 通过 管道 stages 基于 结果 de 通话 和 buyer signals.",
+              "n8nTemplateName": "Pipedrive 更新 de 交易",
+              "n8nTemplateDescription": "更新 deal stages 从 call 分析",
+              "expectedOutcome": "Deal stage 已更新 在 Pipedrive"
+            },
+            "pd-sync-persons": {
+              "title": "同步 person 数据",
+              "description": "Keep person records in Pipedrive synchronized with caller information.",
+              "n8nTemplateName": "Pipedrive Person 同步",
+              "n8nTemplateDescription": "同步 数据 del 呼叫者 到 person 记录",
+              "expectedOutcome": "Person 记录 已更新 在 Pipedrive"
+            },
+            "pd-push-outcomes": {
+              "title": "推送 结果 de 通话",
+              "description": "记录 结果 de 通话 和 dispositions directly 到 Pipedrive deal 和 记录 de 活动.",
+              "n8nTemplateName": "Pipedrive Outcome 记录器",
+              "n8nTemplateDescription": "推送 结果 de 通话 到 Pipedrive",
+              "expectedOutcome": "Call outcome recorded 在 Pipedrive"
+            }
+          }
+        },
+        "dynamics365": {
+          "field1Label": "应用程序（客户端）ID",
+          "field1Placeholder": "Enter your Azure Application (Client) ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Azure Client Secret value",
+          "helpText": "Register an application in Azure Portal > App Registrations. Under Authentication, add the redirect URL below as a Web redirect URI. Under Certificates & secrets, create a new Client Secret and copy the value. Grant Dynamics CRM API permissions.",
+          "setupLinkText": "Open Azure Portal",
+          "actions": {
+            "sync-contacts": {
+              "name": "同步 Contacts",
+              "description": "同步 联系人 从 Dynamics 365"
+            },
+            "sync-leads": {
+              "name": "同步 Leads",
+              "description": "同步 线索 从 Dynamics"
+            },
+            "create-phone-call": {
+              "name": "创建 Phone Call",
+              "description": "创建 phone 活动 de 通话"
+            },
+            "update-lead-qualification": {
+              "name": "更新 线索 Qualification",
+              "description": "更新 lead qualification"
+            }
+          },
+          "useCases": {
+            "d365-create-calls": {
+              "title": "创建 phone call 活动",
+              "description": "创建 Phone Call 记录 de 活动 在 Dynamics 365 为 每个 已完成的 对话.",
+              "n8nTemplateName": "Dynamics 365 创建器 de 通话",
+              "n8nTemplateDescription": "创建 phone call 活动",
+              "expectedOutcome": "Phone Call 活动 已创建 在 Dynamics 365"
+            },
+            "d365-sync-leads": {
+              "title": "同步 线索",
+              "description": "Synchronize lead data between your calling platform and Dynamics 365.",
+              "n8nTemplateName": "Dynamics 365 线索 Sync",
+              "n8nTemplateDescription": "同步 记录 de 线索",
+              "expectedOutcome": "线索 synced 在 Dynamics 365"
+            },
+            "d365-update-quals": {
+              "title": "更新 lead qualifications",
+              "description": "更新 lead qualification 状态 在 Dynamics 365 基于 call 分析 结果.",
+              "n8nTemplateName": "Dynamics 365 Qualification 更新器",
+              "n8nTemplateDescription": "更新 lead qualification 从 通话",
+              "expectedOutcome": "线索 qualification 已更新 在 Dynamics 365"
+            },
+            "d365-log-outcomes": {
+              "title": "记录 对话 结果",
+              "description": "记录 detailed 对话 结果 和 备注 在 Dynamics 365 记录 de 活动.",
+              "n8nTemplateName": "Dynamics 365 Outcome 记录器",
+              "n8nTemplateDescription": "记录 对话 结果",
+              "expectedOutcome": "Outcome logged 在 Dynamics 365"
+            }
+          }
+        },
+        "freshsales": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Freshsales API Key",
+          "field2Label": "域名",
+          "field2Placeholder": "例如 yourcompany.freshsales.io",
+          "helpText": "Find your API Key in Freshsales: go to Settings > API Settings > Your API Key. Your domain is the URL you use to access Freshsales (e.g., yourcompany.freshsales.io).",
+          "setupLinkText": "打开 Freshsales",
+          "actions": {
+            "sync-contacts": {
+              "name": "同步 Contacts",
+              "description": "同步 联系人 从 Freshsales"
+            },
+            "sync-leads": {
+              "name": "同步 Leads",
+              "description": "同步 线索 从 Freshsales"
+            },
+            "log-call-activity": {
+              "name": "记录 活动 de 通话",
+              "description": "记录 call 活动"
+            },
+            "update-lead-score": {
+              "name": "更新 线索 Score",
+              "description": "更新 lead score 基于 call"
+            }
+          },
+          "useCases": {
+            "fs-log-outcomes": {
+              "title": "记录 结果 de 通话",
+              "description": "记录 结果 de 通话 和 dispositions 在 Freshsales 为 complete 活动 tracking.",
+              "n8nTemplateName": "Freshsales 记录 de 通话",
+              "n8nTemplateDescription": "记录 结果 de 通话 在 Freshsales",
+              "expectedOutcome": "Call outcome logged 在 Freshsales"
+            },
+            "fs-update-scores": {
+              "title": "更新 lead 评分",
+              "description": "Automatically adjust lead 评分 在 Freshsales 基于 call engagement 和 结果.",
+              "n8nTemplateName": "Freshsales Score 更新器",
+              "n8nTemplateDescription": "更新 lead 评分 从 数据 de 通话",
+              "expectedOutcome": "线索 score 已更新 在 Freshsales"
+            },
+            "fs-create-tasks": {
+              "title": "创建 任务 从 通话",
+              "description": "生成 后续跟进 任务 在 Freshsales 从 action items identified 期间 通话.",
+              "n8nTemplateName": "Freshsales 创建器 de 任务",
+              "n8nTemplateDescription": "创建 任务 从 call action items",
+              "expectedOutcome": "Task 已创建 在 Freshsales"
+            },
+            "fs-sync-contacts": {
+              "title": "同步 数据 de 联系人",
+              "description": "Synchronize contact information between your calling platform and Freshsales.",
+              "n8nTemplateName": "Freshsales 同步 de 联系人",
+              "n8nTemplateDescription": "同步 数据 de 联系人 bi-directionally",
+              "expectedOutcome": "联系人 synced 在 Freshsales"
+            }
+          }
+        },
+        "monday-com": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Monday.com Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Monday.com Client Secret",
+          "helpText": "Create an app at monday.com Developers. Under OAuth settings, add the redirect URL below. Copy the Client ID and Client Secret from the app's Basic Information section.",
+          "setupLinkText": "打开 Monday.com Developers",
+          "actions": {
+            "sync-board-items": {
+              "name": "同步 Board Items",
+              "description": "同步 items 从 Monday.com boards"
+            },
+            "update-item-status": {
+              "name": "更新 Item Status",
+              "description": "更新 item 状态 之后 call"
+            },
+            "push-call-summary": {
+              "name": "推送 摘要 de 通话",
+              "description": "推送 摘要 de 通话 到 items"
+            }
+          }
+        },
+        "airtable": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Airtable Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Airtable Client Secret",
+          "helpText": "Register an OAuth integration at the Airtable Developer Hub. Add the redirect URL below. Select the required scopes (data.records:read, data.records:write, schema.bases:read). Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Airtable Developer Hub",
+          "actions": {
+            "sync-records": {
+              "name": "同步 Records",
+              "description": "同步 记录 从 Airtable base"
+            },
+            "export-call-data": {
+              "name": "导出 数据 de 通话",
+              "description": "导出 数据 de 通话 到 Airtable"
+            },
+            "update-record-status": {
+              "name": "更新 Record Status",
+              "description": "更新 记录 状态"
+            }
+          },
+          "useCases": {
+            "at-sync": {
+              "title": "同步 call 记录",
+              "description": "同步 call 记录 到 Airtable bases.",
+              "n8nTemplateName": "Airtable Record 同步",
+              "n8nTemplateDescription": "同步 call 记录",
+              "expectedOutcome": "Records synced 到 Airtable"
+            },
+            "at-update": {
+              "title": "更新 bases",
+              "description": "更新 Airtable bases 与 数据 de 通话 和 结果.",
+              "n8nTemplateName": "Airtable Base 更新器",
+              "n8nTemplateDescription": "更新 bases",
+              "expectedOutcome": "Base 已更新 在 Airtable"
+            },
+            "at-campaigns": {
+              "title": "活动追踪",
+              "description": "追踪 活动 performance 在 Airtable.",
+              "n8nTemplateName": "Airtable 追踪器 de 活动",
+              "n8nTemplateDescription": "追踪 活动",
+              "expectedOutcome": "Campaign tracked 在 Airtable"
+            },
+            "at-contacts": {
+              "title": "联系人 management",
+              "description": "管理 联系人 在 Airtable 从 call 互动.",
+              "n8nTemplateName": "Airtable Contact Manager",
+              "n8nTemplateDescription": "Manages 联系人",
+              "expectedOutcome": "联系人 managed 在 Airtable"
+            }
+          }
+        },
+        "slack": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Slack Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Slack Client Secret",
+          "helpText": "Create a Slack App at api.slack.com/apps. Under OAuth & Permissions, add the redirect URL below. Add the required Bot Token Scopes (chat:write, channels:read, users:read). Copy the Client ID and Client Secret from Basic Information.",
+          "setupLinkText": "打开 Slack API",
+          "actions": {
+            "send-call-notification": {
+              "name": "发送 Call Notification",
+              "description": "发送 call completion 通知"
+            },
+            "send-campaign-summary": {
+              "name": "发送 Campaign Summary",
+              "description": "发送 活动 摘要 reports"
+            },
+            "send-alert": {
+              "name": "发送 Alert",
+              "description": "发送 实时 警报 为 important 通话"
+            }
+          },
+          "useCases": {
+            "slack-summaries": {
+              "title": "发布 摘要 de 通话 到 频道",
+              "description": "发布 自动 AI-已生成 摘要 de 通话 到 designated Slack 频道.",
+              "n8nTemplateName": "Slack 摘要 de 通话 Poster",
+              "n8nTemplateDescription": "Posts 摘要 de 通话 到 Slack",
+              "expectedOutcome": "Call 摘要 posted 到 Slack channel"
+            },
+            "slack-alerts": {
+              "title": "Alert on high-priority calls",
+              "description": "发送 instant Slack 警报 为 high-priority 或 escalated 通话.",
+              "n8nTemplateName": "Slack Priority 警报",
+              "n8nTemplateDescription": "Alerts on priority calls",
+              "expectedOutcome": "Priority alert 已发送 到 Slack"
+            },
+            "slack-reports": {
+              "title": "Daily 活动 reports",
+              "description": "发送 daily 活动 performance reports 到 Slack 频道.",
+              "n8nTemplateName": "Slack Daily 报告",
+              "n8nTemplateDescription": "Daily 活动 reports",
+              "expectedOutcome": "Daily report posted 到 Slack"
+            },
+            "slack-realtime": {
+              "title": "实时 call 通知",
+              "description": "发送 实时 通知 到 Slack 为 事件 de 通话.",
+              "n8nTemplateName": "Slack 实时 Notifier",
+              "n8nTemplateDescription": "实时 call 通知",
+              "expectedOutcome": "实时 通知 已发送"
+            }
+          }
+        },
+        "mailchimp": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Mailchimp Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Mailchimp Client Secret",
+          "helpText": "Register an app in the Mailchimp Developer Portal. Add the redirect URL below as a redirect URI. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Mailchimp Developer Portal",
+          "actions": {
+            "sync-audience": {
+              "name": "同步 Audience",
+              "description": "同步 audience/subscriber lists"
+            },
+            "update-tags": {
+              "name": "更新 Tags",
+              "description": "更新 subscriber 标签 基于 结果 de 通话"
+            },
+            "push-campaign-results": {
+              "name": "推送 Campaign Results",
+              "description": "推送 calling 活动 结果"
+            }
+          },
+          "useCases": {
+            "mc-add-contacts": {
+              "title": "添加 联系人 到 lists",
+              "description": "添加 caller 联系人 到 Mailchimp audience lists.",
+              "n8nTemplateName": "Mailchimp 联系人 Adder",
+              "n8nTemplateDescription": "添加 联系人 到 lists",
+              "expectedOutcome": "联系人 added 到 Mailchimp list"
+            },
+            "mc-tag": {
+              "title": "Tag 基于 call outcome",
+              "description": "Tag Mailchimp 联系人 基于 结果 de 通话.",
+              "n8nTemplateName": "Mailchimp Outcome 标记器",
+              "n8nTemplateDescription": "Tags contacts by outcome",
+              "expectedOutcome": "联系人 tagged 在 Mailchimp"
+            },
+            "mc-sequences": {
+              "title": "触发 序列 de correo",
+              "description": "触发 Mailchimp email automation 序列 从 通话.",
+              "n8nTemplateName": "Mailchimp 触发器 de 序列",
+              "n8nTemplateDescription": "触发 序列 de correo",
+              "expectedOutcome": "Email sequence triggered 在 Mailchimp"
+            },
+            "mc-sync": {
+              "title": "同步 subscriber 数据",
+              "description": "Sync subscriber data between platforms and Mailchimp.",
+              "n8nTemplateName": "Mailchimp Subscriber 同步",
+              "n8nTemplateDescription": "同步 subscriber 数据",
+              "expectedOutcome": "Subscriber 数据 synced 在 Mailchimp"
+            }
+          }
+        },
+        "intercom": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Intercom Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Intercom Client Secret",
+          "helpText": "Create an app in the Intercom Developer Hub. Under Authentication, add the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Intercom Developer Hub",
+          "actions": {
+            "sync-contacts": {
+              "name": "同步 Contacts",
+              "description": "同步 联系人 从 Intercom"
+            },
+            "create-conversation-note": {
+              "name": "创建 Conversation Note",
+              "description": "添加 备注 de 通话 到 对话"
+            },
+            "update-contact-attributes": {
+              "name": "更新 联系人 Attributes",
+              "description": "更新 contact attributes"
+            }
+          },
+          "useCases": {
+            "ic-create-convs": {
+              "title": "创建 对话",
+              "description": "创建 Intercom 对话 从 inbound 通话.",
+              "n8nTemplateName": "Intercom 创建器 de 对话",
+              "n8nTemplateDescription": "创建 对话",
+              "expectedOutcome": "Conversation 已创建 在 Intercom"
+            },
+            "ic-update-contacts": {
+              "title": "更新 数据 de 联系人",
+              "description": "更新 Intercom 数据 de 联系人 与 call 洞察.",
+              "n8nTemplateName": "Intercom 联系人 Updater",
+              "n8nTemplateDescription": "更新 数据 de 联系人",
+              "expectedOutcome": "联系人 数据 已更新 在 Intercom"
+            },
+            "ic-trigger": {
+              "title": "触发 工作流",
+              "description": "触发 Intercom 工作流 基于 结果 de 通话.",
+              "n8nTemplateName": "Intercom Workflow 触发器",
+              "n8nTemplateDescription": "触发 工作流",
+              "expectedOutcome": "Workflow triggered 在 Intercom"
+            },
+            "ic-notes": {
+              "title": "记录 备注 de 通话",
+              "description": "添加 备注 de 通话 到 Intercom 对话 记录.",
+              "n8nTemplateName": "Intercom Note 记录器",
+              "n8nTemplateDescription": "记录 备注 de 通话",
+              "expectedOutcome": "Notes logged 在 Intercom"
+            }
+          }
+        },
+        "twilio": {
+          "field1Label": "账户 SID",
+          "field1Placeholder": "输入您的 Twilio Account SID",
+          "field2Label": "身份验证令牌",
+          "field2Placeholder": "Enter your Twilio Auth Token",
+          "helpText": "Find your Account SID and Auth Token in the Twilio Console dashboard under Account Info.",
+          "setupLinkText": "Open Twilio Console",
+          "actions": {
+            "check-number": {
+              "name": "检查 电话号码",
+              "description": "Verify 电话号码 availability"
+            },
+            "send-sms": {
+              "name": "发送 SMS 后续跟进",
+              "description": "发送 SMS 之后 call completion"
+            }
+          },
+          "useCases": {
+            "twilio-sms-followup": {
+              "title": "发送 SMS 后续跟进 之后 通话",
+              "description": "发送 自动 SMS 后续跟进 消息 通过 Twilio 之后 call completion.",
+              "n8nTemplateName": "Twilio SMS 后续跟进",
+              "n8nTemplateDescription": "发送 post-call SMS 消息",
+              "expectedOutcome": "SMS 后续跟进 已发送 通过 Twilio"
+            },
+            "twilio-route-calls": {
+              "title": "路由 通话 基于 AI 分析",
+              "description": "Intelligently route incoming calls using AI analysis of caller intent.",
+              "n8nTemplateName": "Twilio 路由器 de 通话",
+              "n8nTemplateDescription": "Routes 通话 与 AI 分析",
+              "expectedOutcome": "Call routed 到 appropriate destination"
+            },
+            "twilio-track-metrics": {
+              "title": "追踪 指标 de 通话",
+              "description": "追踪 和 aggregate 指标 de 通话 和 分析 通过 Twilio.",
+              "n8nTemplateName": "Twilio Metrics 追踪器",
+              "n8nTemplateDescription": "追踪 call performance 指标",
+              "expectedOutcome": "Call 指标 recorded 和 aggregated"
+            },
+            "twilio-verify": {
+              "title": "Verify 电话号码",
+              "description": "Verify caller 电话号码 使用 Twilio Lookup API.",
+              "n8nTemplateName": "Twilio Number 验证器",
+              "n8nTemplateDescription": "Verifies 电话号码",
+              "expectedOutcome": "电话号码 verified 通过 Twilio"
+            }
+          }
+        },
+        "openai": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 OpenAI API Key (sk-...)",
+          "field2Label": "组织 ID",
+          "field2Placeholder": "输入您的 Organization ID (optional)",
+          "helpText": "Find your API key at platform.openai.com/api-keys. Organization ID is optional and found in Settings > Organization.",
+          "setupLinkText": "打开 OpenAI Platform",
+          "actions": {
+            "generate-summary": {
+              "name": "生成 摘要 de 通话",
+              "description": "生成 AI 摘要 of 转录文本 de 通话"
+            },
+            "sentiment-analysis": {
+              "name": "分析 de 情感",
+              "description": "分析 caller 情感 从 转录文本"
+            }
+          },
+          "useCases": {
+            "oai-summaries": {
+              "title": "生成 摘要 de 通话",
+              "description": "Use OpenAI to generate concise, structured summaries of call transcripts.",
+              "n8nTemplateName": "OpenAI Call 总结器",
+              "n8nTemplateDescription": "生成 AI 摘要 de 通话",
+              "expectedOutcome": "AI-已生成 摘要 de 通话 已创建"
+            },
+            "oai-sentiment": {
+              "title": "Sentiment 分析 of 转录文本",
+              "description": "分析 caller 情感 throughout  对话 使用 OpenAI.",
+              "n8nTemplateName": "OpenAI 分析 de 情感",
+              "n8nTemplateDescription": "Analyzes 转录文本 情感",
+              "expectedOutcome": "Sentiment 评分 已生成 为 call"
+            },
+            "oai-action-items": {
+              "title": "提取行动项",
+              "description": "Extract 和 categorize action items 从 转录文本 de 通话 使用 OpenAI.",
+              "n8nTemplateName": "OpenAI Action 提取器",
+              "n8nTemplateDescription": "Extracts action items 从 通话",
+              "expectedOutcome": "Action items 已提取 和 categorized"
+            },
+            "oai-classify": {
+              "title": "分类通话意图",
+              "description": "Classify caller intent 和 call purpose 使用 OpenAI models.",
+              "n8nTemplateName": "OpenAI 分类器 de 意图",
+              "n8nTemplateDescription": "分类通话意图",
+              "expectedOutcome": "通话意图已分类"
+            }
+          }
+        },
+        "anthropic": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Anthropic API Key",
+          "field2Label": "组织 ID",
+          "field2Placeholder": "输入您的 Organization ID (optional)",
+          "helpText": "Generate an API key in the Anthropic Console under API Keys.",
+          "setupLinkText": "Open Anthropic Console",
+          "useCases": {
+            "anth-summarize": {
+              "title": "Summarize 对话",
+              "description": "Use Anthropic Claude to create detailed conversation summaries.",
+              "n8nTemplateName": "Anthropic 总结器",
+              "n8nTemplateDescription": "Summarizes 对话",
+              "expectedOutcome": "Conversation 摘要 已生成"
+            },
+            "anth-intent": {
+              "title": "分析 caller intent",
+              "description": "分析 和 categorize caller intent 使用 Anthropic Claude.",
+              "n8nTemplateName": "Anthropic 分析器 de 意图",
+              "n8nTemplateDescription": "分析来电者意图",
+              "expectedOutcome": "来电者意图已分析"
+            },
+            "anth-emails": {
+              "title": "生成 后续跟进 emails",
+              "description": "生成 personalized 后续跟进 emails 基于 call 内容.",
+              "n8nTemplateName": "Anthropic Email 生成器",
+              "n8nTemplateDescription": "生成 后续跟进 emails",
+              "expectedOutcome": "后续跟进 email draft 已生成"
+            },
+            "anth-quality": {
+              "title": "质量评分",
+              "description": "Score call quality 和 agent performance 使用 Anthropic.",
+              "n8nTemplateName": "Anthropic Quality 评分器",
+              "n8nTemplateDescription": "评分通话质量",
+              "expectedOutcome": "Quality score 已生成"
+            }
+          }
+        },
+        "google-gemini": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Google AI API Key",
+          "field2Label": "项目 ID",
+          "field2Placeholder": "输入您的 Google Cloud Project ID (optional)",
+          "helpText": "Get your API key from Google AI Studio or Google Cloud Console with the Generative AI API enabled.",
+          "setupLinkText": "打开 Google AI Studio",
+          "useCases": {
+            "gemini-transcript": {
+              "title": "Transcript 分析",
+              "description": "分析 转录文本 de 通话 使用 Google Gemini 为 洞察.",
+              "n8nTemplateName": "Gemini 分析器 de 转录",
+              "n8nTemplateDescription": "Analyzes 转录文本",
+              "expectedOutcome": "Transcript 分析 已完成的"
+            },
+            "gemini-multilang": {
+              "title": "多语言摘要",
+              "description": "Summarize 通话 在 multiple languages 使用 Gemini.",
+              "n8nTemplateName": "Gemini Multi-lang 总结器",
+              "n8nTemplateDescription": "Multi-language 摘要",
+              "expectedOutcome": "Multi-language 摘要 已生成"
+            },
+            "gemini-intent": {
+              "title": "意图提取",
+              "description": "Extract caller intents 从 对话 使用 Gemini.",
+              "n8nTemplateName": "Gemini Intent 提取器",
+              "n8nTemplateDescription": "提取来电者意图",
+              "expectedOutcome": "Intents 已提取 从 call"
+            },
+            "gemini-knowledge": {
+              "title": "知识检索",
+              "description": "Retrieve relevant knowledge base articles 使用 Gemini.",
+              "n8nTemplateName": "Gemini 检索器 de 知识",
+              "n8nTemplateDescription": "检索知识文章",
+              "expectedOutcome": "相关知识已检索"
+            }
+          }
+        },
+        "elevenlabs": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 ElevenLabs API Key",
+          "field2Label": "默认语音 ID",
+          "field2Placeholder": "Enter default voice ID (optional)",
+          "helpText": "Find your API key in ElevenLabs Profile Settings. Voice IDs are found in the Voices section.",
+          "setupLinkText": "Open ElevenLabs Settings",
+          "useCases": {
+            "el-clone-voice": {
+              "title": "Clone brand 语音",
+              "description": "Clone and use your brand voice for consistent AI agent responses.",
+              "n8nTemplateName": "ElevenLabs 语音 克隆器",
+              "n8nTemplateDescription": "Clones brand 语音",
+              "expectedOutcome": "Brand 语音 cloned 和 ready"
+            },
+            "el-multilang": {
+              "title": "多语言语音合成",
+              "description": "生成 speech 在 multiple languages 使用 ElevenLabs.",
+              "n8nTemplateName": "ElevenLabs 多语言 TTS",
+              "n8nTemplateDescription": "Multi-language speech",
+              "expectedOutcome": "Multi-language speech 已生成"
+            },
+            "el-quality": {
+              "title": "语音质量优化",
+              "description": "Optimize voice output quality settings for ElevenLabs.",
+              "n8nTemplateName": "ElevenLabs Quality 优化器",
+              "n8nTemplateDescription": "Optimizes 语音 quality",
+              "expectedOutcome": "语音质量已优化"
+            },
+            "el-pronunciations": {
+              "title": "自定义发音",
+              "description": "Configure custom pronunciations 为 names 和 terms.",
+              "n8nTemplateName": "ElevenLabs 发音 配置器",
+              "n8nTemplateDescription": "Configures pronunciations",
+              "expectedOutcome": "自定义发音 configured"
+            }
+          }
+        },
+        "deepgram": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Deepgram API Key",
+          "field2Label": "项目 ID",
+          "field2Placeholder": "输入您的 Deepgram Project ID",
+          "helpText": "Create an API key in the Deepgram Console under your project settings.",
+          "setupLinkText": "Open Deepgram Console",
+          "useCases": {
+            "dg-realtime": {
+              "title": "实时 转录",
+              "description": "Transcribe 通话 在 实时 使用 Deepgram speech-到-text.",
+              "n8nTemplateName": "Deepgram 实时 STT",
+              "n8nTemplateDescription": "实时 转录",
+              "expectedOutcome": "实时 转录文本 已生成"
+            },
+            "dg-diarization": {
+              "title": "说话者分离",
+              "description": "Identify 和 separate speakers 在 录音 de 通话 使用 Deepgram.",
+              "n8nTemplateName": "Deepgram Speaker 分离器",
+              "n8nTemplateDescription": "Identifies speakers",
+              "expectedOutcome": "Speakers identified 和 separated"
+            },
+            "dg-keywords": {
+              "title": "关键词检测",
+              "description": "检测 specific keywords 和 phrases 在 实时.",
+              "n8nTemplateName": "Deepgram Keyword 检测器",
+              "n8nTemplateDescription": "Detects keywords",
+              "expectedOutcome": "Keywords 被检测到 在 对话"
+            },
+            "dg-sentiment": {
+              "title": "Sentiment 从 语音",
+              "description": "分析 情感 从 语音 tone 使用 Deepgram.",
+              "n8nTemplateName": "Deepgram 语音 情感",
+              "n8nTemplateDescription": "Analyzes 语音 情感",
+              "expectedOutcome": "Voice 情感 analyzed"
+            }
+          }
+        },
+        "zendesk": {
+          "field1Label": "API 令牌",
+          "field1Placeholder": "Enter your Zendesk API Token",
+          "field2Label": "子域名",
+          "field2Placeholder": "e.g. yourcompany (从 yourcompany.zendesk.com)",
+          "helpText": "Generate an API token in Zendesk Admin > Apps and Integrations > APIs > Zendesk API.",
+          "setupLinkText": "打开 Zendesk Admin",
+          "actions": {
+            "create-ticket": {
+              "name": "创建 Ticket",
+              "description": "创建 support ticket 从 call"
+            },
+            "update-ticket": {
+              "name": "更新 Ticket",
+              "description": "更新 existing ticket 与 备注 de 通话"
+            }
+          },
+          "useCases": {
+            "zd-create-tickets": {
+              "title": "创建 工单 从 通话",
+              "description": "创建 自动 Zendesk support 工单 从 customer 通话.",
+              "n8nTemplateName": "Zendesk 创建器 de 工单",
+              "n8nTemplateDescription": "创建 工单 从 通话",
+              "expectedOutcome": "Support ticket 已创建 在 Zendesk"
+            },
+            "zd-update-status": {
+              "title": "更新 ticket 状态",
+              "description": "更新 Zendesk ticket 状态 基于 call resolution.",
+              "n8nTemplateName": "Zendesk Status 更新器",
+              "n8nTemplateDescription": "更新 ticket 状态",
+              "expectedOutcome": "Ticket 状态 已更新 在 Zendesk"
+            },
+            "zd-escalate": {
+              "title": "升级问题",
+              "description": "Escalate high-priority issues 到 Zendesk support teams.",
+              "n8nTemplateName": "Zendesk Issue 升级器",
+              "n8nTemplateDescription": "Escalates issues",
+              "expectedOutcome": "Issue escalated 在 Zendesk"
+            },
+            "zd-transcripts": {
+              "title": "记录 转录文本 de 通话",
+              "description": "Attach 转录文本 de 通话 到 Zendesk 工单.",
+              "n8nTemplateName": "Zendesk 记录器 de 转录",
+              "n8nTemplateDescription": "记录 转录文本 到 工单",
+              "expectedOutcome": "Transcript attached 到 Zendesk ticket"
+            }
+          }
+        },
+        "freshdesk": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Freshdesk API Key",
+          "field2Label": "域名",
+          "field2Placeholder": "例如 yourcompany.freshdesk.com",
+          "helpText": "Find your API key in Freshdesk: Profile Settings > Your API Key.",
+          "setupLinkText": "打开 Freshdesk",
+          "actions": {
+            "create-ticket": {
+              "name": "创建 Ticket",
+              "description": "创建 Freshdesk ticket 从 call"
+            },
+            "sync-contacts": {
+              "name": "同步 Contacts",
+              "description": "同步 联系人 从 Freshdesk"
+            }
+          },
+          "useCases": {
+            "fd-create-tickets": {
+              "title": "自动-创建 工单",
+              "description": "创建 自动 Freshdesk 工单 从 support 通话.",
+              "n8nTemplateName": "Freshdesk 创建器 de 工单",
+              "n8nTemplateDescription": "创建 工单 自动",
+              "expectedOutcome": "Ticket 已创建 在 Freshdesk"
+            },
+            "fd-update-status": {
+              "title": "更新 support 状态",
+              "description": "更新 Freshdesk ticket 状态 之后 call resolution.",
+              "n8nTemplateName": "Freshdesk Status 更新器",
+              "n8nTemplateDescription": "更新 support 状态",
+              "expectedOutcome": "Support 状态 已更新"
+            },
+            "fd-assign": {
+              "title": "分配 agents",
+              "description": "分配 agents 到 Freshdesk 工单 基于 call routing.",
+              "n8nTemplateName": "Freshdesk 代理 分配器",
+              "n8nTemplateDescription": "Assigns agents",
+              "expectedOutcome": "Agent assigned 到 ticket"
+            },
+            "fd-log": {
+              "title": "记录 互动",
+              "description": "记录 call 互动 在 Freshdesk 对话 历史.",
+              "n8nTemplateName": "Freshdesk Interaction 记录器",
+              "n8nTemplateDescription": "记录 互动",
+              "expectedOutcome": "Interaction logged 在 Freshdesk"
+            }
+          }
+        },
+        "google-calendar": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Google Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Google Client Secret",
+          "helpText": "In Google Cloud Console, create an OAuth 2.0 Client ID. Enable the Google Calendar API for your project and add the redirect URL below.",
+          "setupLinkText": "Open Google Cloud Console",
+          "actions": {
+            "create-event": {
+              "name": "Book Appointment",
+              "description": "创建 calendar event 期间 call"
+            },
+            "check-availability": {
+              "name": "检查 Availability",
+              "description": "检查 calendar availability"
+            }
+          },
+          "useCases": {
+            "gcal-book": {
+              "title": "Book appointments 期间 通话",
+              "description": "Book appointments on Google Calendar during live calls.",
+              "n8nTemplateName": "Google Calendar 预约器",
+              "n8nTemplateDescription": "Books appointments",
+              "expectedOutcome": "预约已安排在 Google Calendar"
+            },
+            "gcal-availability": {
+              "title": "检查 availability",
+              "description": "检查 Google Calendar availability 期间 scheduling 通话.",
+              "n8nTemplateName": "Google Calendar Availability 检查器",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "可用性已检查于 Google Calendar"
+            },
+            "gcal-reminders": {
+              "title": "发送 reminders",
+              "description": "发送 appointment reminders 通过 Google Calendar.",
+              "n8nTemplateName": "Google Calendar 提醒器",
+              "n8nTemplateDescription": "发送 reminders",
+              "expectedOutcome": "Reminder 已发送 通过 Google Calendar"
+            },
+            "gcal-block": {
+              "title": "锁定时间段",
+              "description": "Block time slots on Google Calendar after booking.",
+              "n8nTemplateName": "Google Calendar 锁定器",
+              "n8nTemplateDescription": "Blocks time slots",
+              "expectedOutcome": "时间段已锁定于 Google Calendar"
+            }
+          }
+        },
+        "calendly": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "Enter your Calendly Personal Access Token",
+          "field2Label": "组织 URI",
+          "field2Placeholder": "输入您的 Calendly Organization URI",
+          "helpText": "Generate a Personal Access Token in Calendly: Integrations > API & Webhooks. Find your Organization URI in the API response.",
+          "setupLinkText": "打开 Calendly Integrations",
+          "actions": {
+            "create-scheduling-link": {
+              "name": "发送 Scheduling Link",
+              "description": "生成 和 share Calendly link"
+            },
+            "check-availability": {
+              "name": "检查 Availability",
+              "description": "检查 available time slots"
+            }
+          },
+          "useCases": {
+            "calendly-links": {
+              "title": "生成 scheduling links",
+              "description": "生成 Calendly scheduling links 期间 通话.",
+              "n8nTemplateName": "Calendly Link 生成器",
+              "n8nTemplateDescription": "生成 scheduling links",
+              "expectedOutcome": "Scheduling link 已生成"
+            },
+            "calendly-availability": {
+              "title": "检查 availability",
+              "description": "检查 Calendly availability 为 scheduling.",
+              "n8nTemplateName": "Calendly Availability 检查器",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "可用性已检查于 Calendly"
+            },
+            "calendly-confirm": {
+              "title": "确认预约",
+              "description": "Confirm Calendly bookings 之后 call scheduling.",
+              "n8nTemplateName": "Calendly Booking 确认器",
+              "n8nTemplateDescription": "Confirms bookings",
+              "expectedOutcome": "预约已确认于 Calendly"
+            },
+            "calendly-reminders": {
+              "title": "发送 reminders",
+              "description": "发送 appointment reminders 通过 Calendly.",
+              "n8nTemplateName": "Calendly 提醒器",
+              "n8nTemplateDescription": "发送 reminders",
+              "expectedOutcome": "Reminder 已发送 通过 Calendly"
+            }
+          }
+        },
+        "stripe": {
+          "field1Label": "密钥",
+          "field1Placeholder": "输入您的 Stripe Secret Key (sk_...)",
+          "field2Label": "Webhook Secret",
+          "field2Placeholder": "Enter your Stripe Webhook Secret (whsec_...)",
+          "helpText": "Find your API keys in the Stripe Dashboard > Developers > API Keys. Create a webhook endpoint and copy the signing secret.",
+          "setupLinkText": "打开 Stripe Dashboard",
+          "actions": {
+            "lookup-customer": {
+              "name": "Lookup Customer",
+              "description": "Look up customer payment info"
+            },
+            "create-invoice": {
+              "name": "创建 Invoice",
+              "description": "创建 invoice 之后 call"
+            }
+          },
+          "useCases": {
+            "stripe-payments": {
+              "title": "处理付款",
+              "description": "Process payments 期间 通话 使用 Stripe.",
+              "n8nTemplateName": "Stripe Payment 处理器",
+              "n8nTemplateDescription": "Processes payments",
+              "expectedOutcome": "Payment processed 通过 Stripe"
+            },
+            "stripe-invoices": {
+              "title": "创建 invoices",
+              "description": "创建 和 send invoices 通过 Stripe 之后 通话.",
+              "n8nTemplateName": "Stripe Invoice 创建器",
+              "n8nTemplateDescription": "创建 invoices",
+              "expectedOutcome": "Invoice 已创建 在 Stripe"
+            },
+            "stripe-subscriptions": {
+              "title": "查询订阅",
+              "description": "Look up customer subscription details during calls.",
+              "n8nTemplateName": "Stripe Subscription 查询",
+              "n8nTemplateDescription": "Looks up subscriptions",
+              "expectedOutcome": "Subscription 详情 retrieved"
+            },
+            "stripe-refunds": {
+              "title": "处理退款",
+              "description": "Process refund requests 期间 support 通话.",
+              "n8nTemplateName": "Stripe Refund 处理器",
+              "n8nTemplateDescription": "Handles refunds",
+              "expectedOutcome": "Refund processed 通过 Stripe"
+            }
+          }
+        },
+        "shopify": {
+          "field1Label": "访问令牌",
+          "field1Placeholder": "Enter your Shopify Admin API Access Token",
+          "field2Label": "商店域名",
+          "field2Placeholder": "例如 yourstore.myshopify.com",
+          "helpText": "Create a Custom App in Shopify Admin > Settings > Apps and sales channels > Develop apps. Install and copy the Admin API access token.",
+          "setupLinkText": "打开 Shopify Admin",
+          "actions": {
+            "lookup-order": {
+              "name": "Lookup Order",
+              "description": "Look up customer order details"
+            },
+            "lookup-product": {
+              "name": "Lookup Product",
+              "description": "检查 product availability"
+            }
+          },
+          "useCases": {
+            "shopify-orders": {
+              "title": "查询订单",
+              "description": "Look up customer orders in Shopify during calls.",
+              "n8nTemplateName": "Shopify Order 查询",
+              "n8nTemplateDescription": "Looks up orders",
+              "expectedOutcome": "Order 详情 retrieved 从 Shopify"
+            },
+            "shopify-inventory": {
+              "title": "检查 inventory",
+              "description": "检查 product inventory levels 在 Shopify.",
+              "n8nTemplateName": "Shopify Inventory 检查器",
+              "n8nTemplateDescription": "Checks inventory",
+              "expectedOutcome": "Inventory checked 在 Shopify"
+            },
+            "shopify-returns": {
+              "title": "处理退货",
+              "description": "Process return requests 通过 Shopify.",
+              "n8nTemplateName": "Shopify Return 处理器",
+              "n8nTemplateDescription": "Processes returns",
+              "expectedOutcome": "Return processed 在 Shopify"
+            },
+            "shopify-customers": {
+              "title": "客户账户查询",
+              "description": "Look up customer account details in Shopify.",
+              "n8nTemplateName": "Shopify Customer 查询",
+              "n8nTemplateDescription": "Looks up customers",
+              "expectedOutcome": "Customer 详情 retrieved 从 Shopify"
+            }
+          }
+        },
+        "activecampaign": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 ActiveCampaign API Key",
+          "field2Label": "账户网址",
+          "field2Placeholder": "例如 yourcompany.api-us1.com",
+          "helpText": "Find your API Key and URL in ActiveCampaign: Settings > Developer > API Access.",
+          "setupLinkText": "打开 ActiveCampaign",
+          "actions": {
+            "add-contact": {
+              "name": "添加 联系人",
+              "description": "添加 contact 到 ActiveCampaign"
+            },
+            "add-tag": {
+              "name": "添加 Tag",
+              "description": "Tag contact 基于 call outcome"
+            }
+          },
+          "useCases": {
+            "ac-add-contacts": {
+              "title": "添加 联系人",
+              "description": "添加 新的 联系人 到 ActiveCampaign 从 通话.",
+              "n8nTemplateName": "ActiveCampaign 联系人 Adder",
+              "n8nTemplateDescription": "添加 联系人",
+              "expectedOutcome": "联系人 added 到 ActiveCampaign"
+            },
+            "ac-tags": {
+              "title": "Apply 标签",
+              "description": "Apply 标签 到 ActiveCampaign 联系人 基于 数据 de 通话.",
+              "n8nTemplateName": "ActiveCampaign Tag 应用器",
+              "n8nTemplateDescription": "Applies 标签",
+              "expectedOutcome": "Tags applied 在 ActiveCampaign"
+            },
+            "ac-automations": {
+              "title": "触发 automations",
+              "description": "触发 ActiveCampaign automations 从 事件 de 通话.",
+              "n8nTemplateName": "ActiveCampaign Automation 触发器",
+              "n8nTemplateDescription": "触发 automations",
+              "expectedOutcome": "Automation triggered 在 ActiveCampaign"
+            },
+            "ac-deals": {
+              "title": "更新 deal stages",
+              "description": "更新 deal stages 在 ActiveCampaign 基于 结果 de 通话.",
+              "n8nTemplateName": "ActiveCampaign 更新 de 交易",
+              "n8nTemplateDescription": "更新 deal stages",
+              "expectedOutcome": "Deal stage 已更新 在 ActiveCampaign"
+            }
+          }
+        },
+        "sendgrid": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 SendGrid API Key",
+          "field2Label": "发件人邮箱",
+          "field2Placeholder": "输入您的 verified sender email",
+          "helpText": "Create an API key in SendGrid: Settings > API Keys > Create API Key. Verify a sender identity first.",
+          "setupLinkText": "Open SendGrid Settings",
+          "useCases": {
+            "sg-transactional": {
+              "title": "发送 transactional emails",
+              "description": "发送 transactional emails 通过 SendGrid 之后 通话.",
+              "n8nTemplateName": "SendGrid Transactional 邮件",
+              "n8nTemplateDescription": "发送 transactional emails",
+              "expectedOutcome": "Transactional email 已发送 通过 SendGrid"
+            },
+            "sg-followup": {
+              "title": "序列 de 后续跟进",
+              "description": "触发 后续跟进 序列 de correo 通过 SendGrid.",
+              "n8nTemplateName": "SendGrid 后续跟进 Sequence",
+              "n8nTemplateDescription": "序列 de 后续跟进",
+              "expectedOutcome": "后续跟进 sequence started"
+            },
+            "sg-notifications": {
+              "title": "Email 通知",
+              "description": "发送 通知 por correo 为 事件 de 通话 通过 SendGrid.",
+              "n8nTemplateName": "SendGrid Email 通知器",
+              "n8nTemplateDescription": "Email 通知",
+              "expectedOutcome": "Email 通知 已发送"
+            },
+            "sg-templates": {
+              "title": "模板管理",
+              "description": "Manage and use SendGrid email templates for communications.",
+              "n8nTemplateName": "SendGrid Template 管理器",
+              "n8nTemplateDescription": "Manages 模板",
+              "expectedOutcome": "Template configured 在 SendGrid"
+            }
+          }
+        },
+        "microsoft-teams": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Azure Application Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Azure Client Secret",
+          "helpText": "Register an app in Azure Portal > App Registrations. Under API Permissions, add Microsoft Graph permissions for Teams. Add the redirect URL below.",
+          "setupLinkText": "Open Azure Portal",
+          "actions": {
+            "send-notification": {
+              "name": "发送 Notification",
+              "description": "发布 call alert 到 Teams channel"
+            }
+          },
+          "useCases": {
+            "teams-outcomes": {
+              "title": "Share 结果 de 通话",
+              "description": "Share 结果 de 通话 和 摘要 在 Microsoft Teams 频道.",
+              "n8nTemplateName": "Teams Outcome 分享器",
+              "n8nTemplateDescription": "Shares 结果 de 通话",
+              "expectedOutcome": "Call outcome shared 在 Teams"
+            },
+            "teams-alerts": {
+              "title": "Campaign 警报",
+              "description": "发送 活动 performance 警报 到 Teams 频道.",
+              "n8nTemplateName": "Teams Campaign 警报",
+              "n8nTemplateDescription": "Campaign performance 警报",
+              "expectedOutcome": "Campaign alert 已发送 到 Teams"
+            },
+            "teams-notifications": {
+              "title": "Team 通知",
+              "description": "发送 team-wide 通知 为 important 事件 de 通话.",
+              "n8nTemplateName": "Teams 通知器",
+              "n8nTemplateDescription": "Team 通知",
+              "expectedOutcome": "Team 通知 已发送"
+            },
+            "teams-followups": {
+              "title": "会议后续跟进",
+              "description": "发送 meeting 后续跟进 消息 之后 通话.",
+              "n8nTemplateName": "Teams Meeting 后续跟进",
+              "n8nTemplateDescription": "会议后续跟进",
+              "expectedOutcome": "后续跟进 message 已发送 在 Teams"
+            }
+          }
+        },
+        "telegram": {
+          "field1Label": "机器人令牌",
+          "field1Placeholder": "Enter your Telegram Bot Token",
+          "field2Label": "聊天 ID",
+          "field2Placeholder": "Enter the target Chat/Group ID",
+          "helpText": "Create a bot via @BotFather on Telegram. Use @userinfobot or the getUpdates API method to find your Chat ID.",
+          "setupLinkText": "打开 BotFather",
+          "actions": {
+            "send-notification": {
+              "name": "发送 Notification",
+              "description": "发送 call alert 到 Telegram"
+            },
+            "send-report": {
+              "name": "发送 Campaign Report",
+              "description": "发送 活动 摘要 到 Telegram"
+            }
+          },
+          "useCases": {
+            "tg-alerts": {
+              "title": "发送 call 警报",
+              "description": "发送 instant call 警报 到 Telegram groups 或 频道.",
+              "n8nTemplateName": "Telegram Call 警报",
+              "n8nTemplateDescription": "发送 call 警报",
+              "expectedOutcome": "Call alert 已发送 到 Telegram"
+            },
+            "tg-status": {
+              "title": "Campaign 状态 updates",
+              "description": "发送 活动 状态 updates 到 Telegram.",
+              "n8nTemplateName": "Telegram Status 更新器",
+              "n8nTemplateDescription": "Campaign 状态 updates",
+              "expectedOutcome": "Status update 已发送 到 Telegram"
+            },
+            "tg-leads": {
+              "title": "线索 通知",
+              "description": "通知 team about 新的 线索 通过 Telegram.",
+              "n8nTemplateName": "Telegram 线索 Notifier",
+              "n8nTemplateDescription": "线索 通知",
+              "expectedOutcome": "线索 通知 已发送 到 Telegram"
+            },
+            "tg-reports": {
+              "title": "每日报告",
+              "description": "发送 daily performance reports 到 Telegram.",
+              "n8nTemplateName": "Telegram Daily 报告",
+              "n8nTemplateDescription": "每日报告",
+              "expectedOutcome": "Daily report 已发送 到 Telegram"
+            }
+          }
+        },
+        "whatsapp": {
+          "field1Label": "访问令牌",
+          "field1Placeholder": "Enter your WhatsApp Business API Access Token",
+          "field2Label": "电话号码 ID",
+          "field2Placeholder": "输入您的 WhatsApp Phone Number ID",
+          "helpText": "Set up WhatsApp Business API through Meta for Developers. Create an app, add the WhatsApp product, and generate a permanent access token.",
+          "setupLinkText": "Open Meta for Developers",
+          "actions": {
+            "send-followup": {
+              "name": "发送 后续跟进",
+              "description": "发送 WhatsApp 后续跟进 message"
+            },
+            "send-template": {
+              "name": "发送 Template Message",
+              "description": "发送 pre-approved template message"
+            }
+          },
+          "useCases": {
+            "wa-followup": {
+              "title": "发送 后续跟进 消息",
+              "description": "发送 personalized 后续跟进 消息 通过 WhatsApp 之后 通话.",
+              "n8nTemplateName": "WhatsApp 后续跟进",
+              "n8nTemplateDescription": "发送 后续跟进 消息",
+              "expectedOutcome": "后续跟进 message 已发送 通过 WhatsApp"
+            },
+            "wa-recordings": {
+              "title": "Share 录音 de 通话",
+              "description": "Share call recording 摘要 通过 WhatsApp.",
+              "n8nTemplateName": "WhatsApp 录音 分享器",
+              "n8nTemplateDescription": "Shares 录音 de 通话",
+              "expectedOutcome": "Recording 摘要 shared 通过 WhatsApp"
+            },
+            "wa-appointments": {
+              "title": "预约确认",
+              "description": "发送 appointment confirmation 消息 通过 WhatsApp.",
+              "n8nTemplateName": "WhatsApp 预约 确认器",
+              "n8nTemplateDescription": "Confirms appointments",
+              "expectedOutcome": "Appointment confirmation 已发送 通过 WhatsApp"
+            },
+            "wa-nurture": {
+              "title": "线索 nurture 消息",
+              "description": "发送 lead nurture 消息 通过 WhatsApp.",
+              "n8nTemplateName": "WhatsApp 线索 Nurturer",
+              "n8nTemplateDescription": "Nurtures 线索",
+              "expectedOutcome": "Nurture message 已发送 通过 WhatsApp"
+            }
+          }
+        },
+        "discord": {
+          "field1Label": "机器人令牌",
+          "field1Placeholder": "Enter your Discord Bot Token",
+          "field2Label": "频道 ID",
+          "field2Placeholder": "Enter the target Channel ID",
+          "helpText": "Create a bot in the Discord Developer Portal. Enable Developer Mode in Discord settings to copy Channel IDs.",
+          "setupLinkText": "Open Discord Developer Portal",
+          "actions": {
+            "send-notification": {
+              "name": "发送 Notification",
+              "description": "发布 call update 到 Discord channel"
+            }
+          },
+          "useCases": {
+            "discord-updates": {
+              "title": "发布 call updates",
+              "description": "发布 call updates 和 摘要 到 Discord 频道.",
+              "n8nTemplateName": "Discord 更新器 de 通话",
+              "n8nTemplateDescription": "Posts call updates",
+              "expectedOutcome": "Call update posted 到 Discord"
+            },
+            "discord-campaign": {
+              "title": "Campaign 警报",
+              "description": "发送 活动 performance 警报 到 Discord.",
+              "n8nTemplateName": "Discord Campaign 警报",
+              "n8nTemplateDescription": "Campaign 警报",
+              "expectedOutcome": "Campaign alert posted 到 Discord"
+            },
+            "discord-team": {
+              "title": "Team 通知",
+              "description": "发送 team 通知 为 important 事件 到 Discord.",
+              "n8nTemplateName": "Discord Team 通知器",
+              "n8nTemplateDescription": "Team 通知",
+              "expectedOutcome": "Team 通知 已发送 到 Discord"
+            },
+            "discord-leads": {
+              "title": "线索 警报",
+              "description": "Alert team about 新的 线索 在 Discord 频道.",
+              "n8nTemplateName": "Discord 线索 Alert",
+              "n8nTemplateDescription": "线索 警报",
+              "expectedOutcome": "线索 alert posted 到 Discord"
+            }
+          }
+        },
+        "zapier": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Zapier Webhook URL",
+          "field2Label": "密钥",
+          "field2Placeholder": "Enter a shared secret key (optional)",
+          "helpText": "Create a Zap with a 'Webhooks by Zapier' trigger. Copy the webhook URL provided and paste it here.",
+          "setupLinkText": "打开 Zapier",
+          "actions": {
+            "trigger-webhook": {
+              "name": "Trigger Webhook",
+              "description": "Send call data to Zapier webhook"
+            }
+          },
+          "useCases": {
+            "zapier-trigger": {
+              "title": "触发 zaps 从 通话",
+              "description": "触发 Zapier zaps 与 数据 de 通话 为 cross-app automation.",
+              "n8nTemplateName": "Zapier Zap 触发器",
+              "n8nTemplateDescription": "触发 zaps",
+              "expectedOutcome": "Zap triggered 在 Zapier"
+            },
+            "zapier-multi": {
+              "title": "Multi-step 工作流",
+              "description": "Execute multi-step Zapier 工作流 从 事件 de 通话.",
+              "n8nTemplateName": "Zapier 多步骤 Workflow",
+              "n8nTemplateDescription": "Multi-step 工作流",
+              "expectedOutcome": "Multi-step 工作流 executed"
+            },
+            "zapier-cross": {
+              "title": "跨应用自动化",
+              "description": "Automate cross-app 工作流 triggered by 通话.",
+              "n8nTemplateName": "Zapier 跨应用 Automation",
+              "n8nTemplateDescription": "跨应用自动化",
+              "expectedOutcome": "跨应用自动化 triggered"
+            },
+            "zapier-routing": {
+              "title": "条件路由",
+              "description": "路由 数据 de 通话 conditionally 通过 Zapier paths.",
+              "n8nTemplateName": "Zapier Conditional 路由器",
+              "n8nTemplateDescription": "条件路由",
+              "expectedOutcome": "数据已条件路由"
+            }
+          }
+        },
+        "make": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Make.com Webhook URL",
+          "field2Label": "密钥",
+          "field2Placeholder": "Enter a shared secret key (optional)",
+          "helpText": "Create a scenario in Make with a Webhooks module. Copy the webhook URL and paste it here.",
+          "setupLinkText": "打开 Make.com",
+          "useCases": {
+            "make-scenarios": {
+              "title": "触发 scenarios",
+              "description": "触发 Make (Integromat) scenarios 从 事件 de 通话.",
+              "n8nTemplateName": "Make Scenario 触发器",
+              "n8nTemplateDescription": "触发 scenarios",
+              "expectedOutcome": "Scenario triggered 在 Make"
+            },
+            "make-complex": {
+              "title": "Complex 工作流",
+              "description": "Execute complex multi-module 工作流 在 Make.",
+              "n8nTemplateName": "Make Complex Workflow",
+              "n8nTemplateDescription": "Complex 工作流",
+              "expectedOutcome": "Complex 工作流 executed"
+            },
+            "make-transform": {
+              "title": "数据转换",
+              "description": "Transform 数据 de 通话 使用 Make 数据 processing modules.",
+              "n8nTemplateName": "Make 数据 Transformer",
+              "n8nTemplateDescription": "Transforms 数据",
+              "expectedOutcome": "Data transformed 在 Make"
+            },
+            "make-multi": {
+              "title": "多应用集成",
+              "description": "Integrate multiple apps 通过 Make scenarios.",
+              "n8nTemplateName": "Make Multi-app Integration",
+              "n8nTemplateDescription": "多应用集成",
+              "expectedOutcome": "多应用集成 executed"
+            }
+          }
+        },
+        "notion": {
+          "field1Label": "集成令牌",
+          "field1Placeholder": "Enter your Notion Integration Token",
+          "field2Label": "数据库 ID",
+          "field2Placeholder": "Enter the target Notion Database ID",
+          "helpText": "Create an integration at notion.so/my-integrations. Share the target database with your integration. Find the Database ID in the database URL.",
+          "setupLinkText": "打开 Notion Integrations",
+          "actions": {
+            "create-page": {
+              "name": "创建 Page",
+              "description": "创建 Notion page 与 备注 de 通话"
+            },
+            "update-database": {
+              "name": "更新 Database",
+              "description": "添加 call 记录 到 Notion database"
+            }
+          },
+          "useCases": {
+            "notion-pages": {
+              "title": "创建 pages 从 备注 de 通话",
+              "description": "创建 Notion pages 从 备注 de 通话 和 转录文本.",
+              "n8nTemplateName": "Notion Page 创建器",
+              "n8nTemplateDescription": "创建 pages 从 通话",
+              "expectedOutcome": "Page 已创建 在 Notion"
+            },
+            "notion-databases": {
+              "title": "更新 databases",
+              "description": "更新 Notion databases 与 call 记录 和 数据.",
+              "n8nTemplateName": "Notion Database 更新器",
+              "n8nTemplateDescription": "更新 databases",
+              "expectedOutcome": "Database 已更新 在 Notion"
+            },
+            "notion-meetings": {
+              "title": "记录 meetings",
+              "description": "记录 meeting 备注 和 摘要 de 通话 在 Notion.",
+              "n8nTemplateName": "Notion 记录器 de 会议",
+              "n8nTemplateDescription": "记录 meetings",
+              "expectedOutcome": "Meeting logged 在 Notion"
+            },
+            "notion-kb": {
+              "title": "知识库更新",
+              "description": "更新 Notion knowledge base 与 洞察 从 通话.",
+              "n8nTemplateName": "Notion KB 更新器",
+              "n8nTemplateDescription": "更新 knowledge base",
+              "expectedOutcome": "Knowledge base 已更新 在 Notion"
+            }
+          }
+        },
+        "helpscout": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Help Scout API Key",
+          "field2Label": "邮箱 ID",
+          "field2Placeholder": "输入您的 Help Scout Mailbox ID",
+          "helpText": "Generate an API key in Help Scout: Your Profile > API Keys. Find your Mailbox ID in Mailbox settings.",
+          "setupLinkText": "打开 Help Scout",
+          "useCases": {
+            "hs-create-convs": {
+              "title": "创建 对话",
+              "description": "创建 Help Scout 对话 从 support 通话.",
+              "n8nTemplateName": "Help Scout 创建器 de 对话",
+              "n8nTemplateDescription": "创建 对话",
+              "expectedOutcome": "Conversation 已创建 在 Help Scout"
+            },
+            "hs-add-notes": {
+              "title": "添加 备注 de 通话",
+              "description": "添加 备注 de 通话 和 转录文本 到 Help Scout 对话.",
+              "n8nTemplateName": "Help Scout Note 添加器",
+              "n8nTemplateDescription": "添加 备注 de 通话",
+              "expectedOutcome": "Notes added 到 Help Scout"
+            },
+            "hs-update-mailbox": {
+              "title": "更新 mailbox",
+              "description": "更新 Help Scout mailbox 与 call-related 信息.",
+              "n8nTemplateName": "Help Scout Mailbox 更新器",
+              "n8nTemplateDescription": "更新 mailbox",
+              "expectedOutcome": "Mailbox 已更新 在 Help Scout"
+            },
+            "hs-followup": {
+              "title": "Customer 后续跟进",
+              "description": "发送 customer 后续跟进 消息 通过 Help Scout.",
+              "n8nTemplateName": "Help Scout 后续跟进",
+              "n8nTemplateDescription": "Customer 后续跟进",
+              "expectedOutcome": "后续跟进 已发送 通过 Help Scout"
+            }
+          }
+        },
+        "google-analytics": {
+          "field1Label": "衡量 ID",
+          "field1Placeholder": "输入您的 GA4 Measurement ID (G-...)",
+          "field2Label": "API 密钥",
+          "field2Placeholder": "输入您的 Measurement Protocol API Secret",
+          "helpText": "Find your Measurement ID in GA4: Admin > Data Streams > Web. Create an API Secret under the same stream's Measurement Protocol API secrets.",
+          "setupLinkText": "打开 Google Analytics",
+          "useCases": {
+            "ga-events": {
+              "title": "追踪 事件 de 通话",
+              "description": "追踪 事件 de 通话 在 Google Analytics 为 attribution.",
+              "n8nTemplateName": "GA Call 追踪器 de 事件",
+              "n8nTemplateDescription": "追踪 事件 de 通话",
+              "expectedOutcome": "Call event tracked 在 GA"
+            },
+            "ga-attribution": {
+              "title": "转化归因",
+              "description": "Attribute conversions 到 specific 通话 在 Google Analytics.",
+              "n8nTemplateName": "GA Conversion 归因器",
+              "n8nTemplateDescription": "Attributes conversions",
+              "expectedOutcome": "Conversion attributed 在 GA"
+            },
+            "ga-campaigns": {
+              "title": "Campaign 分析",
+              "description": "追踪 活动 performance 分析 在 Google Analytics.",
+              "n8nTemplateName": "GA 分析器 de 活动",
+              "n8nTemplateDescription": "Campaign 分析",
+              "expectedOutcome": "Campaign 分析 已更新 在 GA"
+            },
+            "ga-behavior": {
+              "title": "User 行为",
+              "description": "追踪 user 行为 模式 related 到 通话.",
+              "n8nTemplateName": "GA Behavior 追踪器",
+              "n8nTemplateDescription": "追踪 user 行为",
+              "expectedOutcome": "Behavior tracked 在 GA"
+            }
+          }
+        },
+        "aws-s3": {
+          "field1Label": "访问密钥 ID",
+          "field1Placeholder": "输入您的 AWS Access Key ID",
+          "field2Label": "秘密访问密钥",
+          "field2Placeholder": "输入您的 AWS Secret Access Key",
+          "helpText": "Create an IAM user with S3 permissions in AWS Console. Generate access keys under Security Credentials.",
+          "setupLinkText": "Open AWS IAM Console",
+          "useCases": {
+            "s3-recordings": {
+              "title": "存储 录音",
+              "description": "存储 录音 de 通话 在 AWS S3 buckets.",
+              "n8nTemplateName": "S3 录音 存储",
+              "n8nTemplateDescription": "Stores 录音",
+              "expectedOutcome": "Recording stored 在 S3"
+            },
+            "s3-transcripts": {
+              "title": "Archive 转录文本",
+              "description": "Archive 转录文本 de 通话 在 AWS S3.",
+              "n8nTemplateName": "S3 Transcript 归档器",
+              "n8nTemplateDescription": "Archives 转录文本",
+              "expectedOutcome": "Transcript archived 在 S3"
+            },
+            "s3-backup": {
+              "title": "Backup 数据",
+              "description": "Backup 数据 de 通话 和 configurations 到 AWS S3.",
+              "n8nTemplateName": "S3 数据 备份",
+              "n8nTemplateDescription": "Backs up 数据",
+              "expectedOutcome": "Data backed up 到 S3"
+            },
+            "s3-media": {
+              "title": "媒体管理",
+              "description": "管理 media 文件 和 assets 在 AWS S3.",
+              "n8nTemplateName": "S3 Media 管理器",
+              "n8nTemplateDescription": "Manages media",
+              "expectedOutcome": "Media managed 在 S3"
+            }
+          }
+        },
+        "bamboohr": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 BambooHR API Key",
+          "field2Label": "子域名",
+          "field2Placeholder": "e.g. yourcompany (从 yourcompany.bamboohr.com)",
+          "helpText": "生成 一个 API key 在 BambooHR: Account > API Keys.",
+          "setupLinkText": "打开 BambooHR",
+          "useCases": {
+            "bamboo-sync": {
+              "title": "同步 employee 数据",
+              "description": "同步 employee 数据 从 BambooHR 为 internal 通话.",
+              "n8nTemplateName": "BambooHR Employee 同步",
+              "n8nTemplateDescription": "同步 employee 数据",
+              "expectedOutcome": "Employee 数据 synced 从 BambooHR"
+            },
+            "bamboo-interviews": {
+              "title": "记录 interviews",
+              "description": "记录 interview 详情 de 通话 在 BambooHR.",
+              "n8nTemplateName": "BambooHR Interview 记录器",
+              "n8nTemplateDescription": "记录 interviews",
+              "expectedOutcome": "Interview logged 在 BambooHR"
+            },
+            "bamboo-candidates": {
+              "title": "更新 candidate 状态",
+              "description": "更新 candidate 状态 在 BambooHR 之后 interview 通话.",
+              "n8nTemplateName": "BambooHR Candidate 更新器",
+              "n8nTemplateDescription": "更新 candidate 状态",
+              "expectedOutcome": "Candidate 状态 已更新"
+            },
+            "bamboo-followups": {
+              "title": "Schedule follow-ups",
+              "description": "安排 后续跟进 活动 在 BambooHR.",
+              "n8nTemplateName": "BambooHR 后续跟进 Scheduler",
+              "n8nTemplateDescription": "Schedules follow-ups",
+              "expectedOutcome": "后续跟进 scheduled 在 BambooHR"
+            }
+          }
+        },
+        "acuity-scheduling": {
+          "field1Label": "用户 ID",
+          "field1Placeholder": "输入您的 Acuity Scheduling User ID",
+          "field2Label": "API 密钥",
+          "field2Placeholder": "输入您的 Acuity Scheduling API Key",
+          "helpText": "Find your API credentials in Acuity: Integrations > API. Copy your User ID and API Key.",
+          "setupLinkText": "打开 Acuity Scheduling",
+          "useCases": {
+            "acuity-book": {
+              "title": "预约 appointments",
+              "description": "Book appointments 通过 Acuity Scheduling 期间 通话.",
+              "n8nTemplateName": "Acuity 预约 预约器",
+              "n8nTemplateDescription": "Books appointments",
+              "expectedOutcome": "预约已安排在 Acuity"
+            },
+            "acuity-openings": {
+              "title": "检查 openings",
+              "description": "Check available openings on Acuity Scheduling.",
+              "n8nTemplateName": "Acuity Opening 检查器",
+              "n8nTemplateDescription": "Checks openings",
+              "expectedOutcome": "Openings checked on Acuity"
+            },
+            "acuity-confirm": {
+              "title": "发送 confirmations",
+              "description": "发送 booking confirmations 通过 Acuity.",
+              "n8nTemplateName": "Acuity Confirmation 发送器",
+              "n8nTemplateDescription": "发送 confirmations",
+              "expectedOutcome": "Confirmation 已发送 通过 Acuity"
+            },
+            "acuity-reschedule": {
+              "title": "管理 reschedules",
+              "description": "Handle appointment reschedules 通过 Acuity.",
+              "n8nTemplateName": "Acuity Reschedule 管理器",
+              "n8nTemplateDescription": "Manages reschedules",
+              "expectedOutcome": "Reschedule managed on Acuity"
+            }
+          }
+        },
+        "amazon-connect": {
+          "field1Label": "访问密钥 ID",
+          "field1Placeholder": "输入您的 AWS Access Key ID",
+          "field2Label": "秘密访问密钥",
+          "field2Placeholder": "输入您的 AWS Secret Access Key",
+          "helpText": "Create an IAM user with Amazon Connect permissions. Generate access keys under Security Credentials. Note your Instance ID from the Amazon Connect console.",
+          "setupLinkText": "Open Amazon Connect Console",
+          "useCases": {
+            "ac-route-agents": {
+              "title": "路由 到 live agents",
+              "description": "路由 通话 到 live agents 在 Amazon Connect 基于 AI 分析.",
+              "n8nTemplateName": "Amazon Connect Agent 路由器",
+              "n8nTemplateDescription": "Routes 到 live agents",
+              "expectedOutcome": "Call routed 到 live agent"
+            },
+            "ac-track-metrics": {
+              "title": "追踪 指标 de 通话",
+              "description": "Track and report on call center metrics through Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect 指标",
+              "n8nTemplateDescription": "追踪 指标 de 通话",
+              "expectedOutcome": "Metrics tracked 在 Amazon Connect"
+            },
+            "ac-queue": {
+              "title": "队列管理",
+              "description": "管理 call queues 和 routing 在 Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect Queue 管理器",
+              "n8nTemplateDescription": "Manages call queues",
+              "expectedOutcome": "Queue managed 在 Amazon Connect"
+            },
+            "ac-surveys": {
+              "title": "通话后调查",
+              "description": "触发 post-call surveys 通过 Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect 调查",
+              "n8nTemplateDescription": "发送 post-call surveys",
+              "expectedOutcome": "Survey triggered 通过 Amazon Connect"
+            }
+          }
+        },
+        "amazon-polly": {
+          "field1Label": "访问密钥 ID",
+          "field1Placeholder": "输入您的 AWS Access Key ID",
+          "field2Label": "秘密访问密钥",
+          "field2Placeholder": "输入您的 AWS Secret Access Key",
+          "helpText": "Create an IAM user with Amazon Polly permissions in AWS Console. Generate access keys under Security Credentials.",
+          "setupLinkText": "Open Amazon Polly Console",
+          "useCases": {
+            "polly-prompts": {
+              "title": "生成 语音 prompts",
+              "description": "生成 语音 prompts 和 IVR 消息 使用 Amazon Polly.",
+              "n8nTemplateName": "Amazon Polly Prompt 生成器",
+              "n8nTemplateDescription": "生成 语音 prompts",
+              "expectedOutcome": "Voice prompts 已生成"
+            },
+            "polly-multilang": {
+              "title": "多语言支持",
+              "description": "Support multiple languages 为 语音 synthesis.",
+              "n8nTemplateName": "Amazon Polly 多语言",
+              "n8nTemplateDescription": "多语言语音合成",
+              "expectedOutcome": "Multi-language audio 已生成"
+            },
+            "polly-neural": {
+              "title": "Neural 语音 synthesis",
+              "description": "Use neural voice models for natural-sounding speech.",
+              "n8nTemplateName": "Amazon Polly 神经 语音",
+              "n8nTemplateDescription": "Neural 语音 synthesis",
+              "expectedOutcome": "Neural 语音 audio 已生成"
+            },
+            "polly-lexicons": {
+              "title": "自定义词典",
+              "description": "Configure custom lexicons 为 pronunciation rules.",
+              "n8nTemplateName": "Amazon Polly Lexicon 配置器",
+              "n8nTemplateDescription": "Configures lexicons",
+              "expectedOutcome": "Custom lexicon configured"
+            }
+          }
+        },
+        "azure-speech": {
+          "field1Label": "订阅密钥",
+          "field1Placeholder": "输入您的 Azure Speech Services Key",
+          "field2Label": "区域",
+          "field2Placeholder": "例如 eastus, westeurope",
+          "helpText": "Create a Speech Services resource in Azure Portal. Find your key and region under Keys and Endpoint.",
+          "setupLinkText": "Open Azure Portal",
+          "useCases": {
+            "azure-neural": {
+              "title": "自定义神经语音",
+              "description": "Create and use custom neural voice models via Azure.",
+              "n8nTemplateName": "Azure 自定义 神经 语音",
+              "n8nTemplateDescription": "自定义 neural voices",
+              "expectedOutcome": "Custom neural 语音 已创建"
+            },
+            "azure-translate": {
+              "title": "实时 translation",
+              "description": "Translate speech 在 实时 期间 通话.",
+              "n8nTemplateName": "Azure 实时 Translator",
+              "n8nTemplateDescription": "实时 translation",
+              "expectedOutcome": "实时 translation 活跃的"
+            },
+            "azure-pronunciation": {
+              "title": "发音调整",
+              "description": "Fine-tune pronunciation 为 specific terms 和 names.",
+              "n8nTemplateName": "Azure 发音 调整器",
+              "n8nTemplateDescription": "Tunes pronunciation",
+              "expectedOutcome": "Pronunciation tuning applied"
+            },
+            "azure-profiles": {
+              "title": "Voice 档案",
+              "description": "创建 和 manage 语音 档案 为 different scenarios.",
+              "n8nTemplateName": "Azure 语音 Profiles",
+              "n8nTemplateDescription": "Manages 语音 档案",
+              "expectedOutcome": "Voice profile configured"
+            }
+          }
+        },
+        "bandwidth": {
+          "field1Label": "API 令牌",
+          "field1Placeholder": "Enter your Bandwidth API Token",
+          "field2Label": "API 密钥",
+          "field2Placeholder": "输入您的 Bandwidth API Secret",
+          "helpText": "Find your API credentials in the Bandwidth Dashboard under Account > API Credentials.",
+          "setupLinkText": "打开 Bandwidth Dashboard",
+          "useCases": {
+            "bw-sms": {
+              "title": "SMS 后续跟进",
+              "description": "发送 SMS 后续跟进 消息 通过 Bandwidth 之后 通话.",
+              "n8nTemplateName": "Bandwidth 发送器 de 短信",
+              "n8nTemplateDescription": "发送 后续跟进 SMS",
+              "expectedOutcome": "SMS 已发送 通过 Bandwidth"
+            },
+            "bw-tracking": {
+              "title": "通话追踪",
+              "description": "追踪 事件 de 通话 和 指标 通过 Bandwidth.",
+              "n8nTemplateName": "Bandwidth 追踪器 de 通话",
+              "n8nTemplateDescription": "追踪 数据 de 通话",
+              "expectedOutcome": "Call 数据 tracked 在 Bandwidth"
+            },
+            "bw-numbers": {
+              "title": "号码管理",
+              "description": "管理 电话号码 和 provisioning 通过 Bandwidth.",
+              "n8nTemplateName": "Bandwidth 管理器 de 号码",
+              "n8nTemplateDescription": "Manages 电话号码",
+              "expectedOutcome": "Numbers managed 通过 Bandwidth"
+            },
+            "bw-routing": {
+              "title": "通话路由",
+              "description": "路由 通话 通过 Bandwidth network 与 custom logic.",
+              "n8nTemplateName": "Bandwidth 路由器 de 通话",
+              "n8nTemplateDescription": "Routes 通话",
+              "expectedOutcome": "Call routed 通过 Bandwidth"
+            }
+          }
+        },
+        "bitrix24": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your Bitrix24 Webhook URL",
+          "field2Label": "用户 ID",
+          "field2Placeholder": "输入您的 Bitrix24 User ID",
+          "helpText": "Create an inbound webhook in Bitrix24: Developer resources > Other > Inbound webhook. Copy the webhook URL.",
+          "setupLinkText": "打开 Bitrix24",
+          "useCases": {
+            "bitrix-push-calls": {
+              "title": "推送 数据 de 通话",
+              "description": "推送 数据 de 通话 和 录音 到 Bitrix24 CRM 活动.",
+              "n8nTemplateName": "Bitrix24 通话 推送器",
+              "n8nTemplateDescription": "推送 数据 de 通话 到 Bitrix24",
+              "expectedOutcome": "Call 数据 pushed 到 Bitrix24"
+            },
+            "bitrix-sync-leads": {
+              "title": "同步 线索",
+              "description": "Synchronize lead records between your platform and Bitrix24.",
+              "n8nTemplateName": "Bitrix24 线索 Sync",
+              "n8nTemplateDescription": "同步 lead 数据",
+              "expectedOutcome": "线索 synced 在 Bitrix24"
+            },
+            "bitrix-create-activities": {
+              "title": "创建 活动",
+              "description": "创建 记录 de 活动 在 Bitrix24 从 事件 de 通话.",
+              "n8nTemplateName": "Bitrix24 创建器 de 活动",
+              "n8nTemplateDescription": "创建 活动 从 通话",
+              "expectedOutcome": "Activity 已创建 在 Bitrix24"
+            },
+            "bitrix-update-deals": {
+              "title": "更新 交易",
+              "description": "更新 deal stages 在 Bitrix24 基于 结果 de 通话.",
+              "n8nTemplateName": "Bitrix24 更新 de 交易",
+              "n8nTemplateDescription": "更新 交易 从 call 结果",
+              "expectedOutcome": "Deal 已更新 在 Bitrix24"
+            }
+          }
+        },
+        "brevo": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Brevo API Key",
+          "field2Label": "发件人邮箱",
+          "field2Placeholder": "输入您的 verified sender email",
+          "helpText": "Generate an API key in Brevo: Settings > SMTP & API > API Keys. Verify a sender identity first.",
+          "setupLinkText": "Open Brevo Settings",
+          "useCases": {
+            "brevo-contacts": {
+              "title": "添加 联系人",
+              "description": "添加 联系人 到 Brevo 从 call 互动.",
+              "n8nTemplateName": "Brevo 联系人 Adder",
+              "n8nTemplateDescription": "添加 联系人",
+              "expectedOutcome": "联系人 added 到 Brevo"
+            },
+            "brevo-emails": {
+              "title": "发送 emails",
+              "description": "发送 emails 通过 Brevo 之后 通话.",
+              "n8nTemplateName": "Brevo Email 发送器",
+              "n8nTemplateDescription": "发送 emails",
+              "expectedOutcome": "Email 已发送 通过 Brevo"
+            },
+            "brevo-workflows": {
+              "title": "触发 工作流",
+              "description": "触发 Brevo automation 工作流 从 事件 de 通话.",
+              "n8nTemplateName": "Brevo Workflow 触发器",
+              "n8nTemplateDescription": "触发 工作流",
+              "expectedOutcome": "Workflow triggered 在 Brevo"
+            },
+            "brevo-segments": {
+              "title": "Segment 联系人",
+              "description": "Segment 联系人 在 Brevo 基于 结果 de 通话.",
+              "n8nTemplateName": "Brevo 联系人 Segmenter",
+              "n8nTemplateDescription": "Segments 联系人",
+              "expectedOutcome": "联系人 segmented 在 Brevo"
+            }
+          }
+        },
+        "cal-com": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Cal.com API Key",
+          "field2Label": "事件类型 ID",
+          "field2Placeholder": "输入您的 default Event Type ID",
+          "helpText": "Generate an API key in Cal.com: Settings > Developer > API Keys. Find Event Type IDs in your event type settings.",
+          "setupLinkText": "Open Cal.com Settings",
+          "useCases": {
+            "calcom-book": {
+              "title": "创建 bookings",
+              "description": "创建 Cal.com bookings 从 call 对话.",
+              "n8nTemplateName": "Cal.com Booking 创建器",
+              "n8nTemplateDescription": "创建 bookings",
+              "expectedOutcome": "Booking created on Cal.com"
+            },
+            "calcom-slots": {
+              "title": "检查 slots",
+              "description": "Check available time slots on Cal.com.",
+              "n8nTemplateName": "Cal.com Slot 检查器",
+              "n8nTemplateDescription": "Checks time slots",
+              "expectedOutcome": "Available slots checked on Cal.com"
+            },
+            "calcom-confirm": {
+              "title": "发送 confirmations",
+              "description": "发送 booking confirmations 通过 Cal.com.",
+              "n8nTemplateName": "Cal.com Confirmation 发送器",
+              "n8nTemplateDescription": "发送 confirmations",
+              "expectedOutcome": "Confirmation 已发送 通过 Cal.com"
+            },
+            "calcom-sync": {
+              "title": "同步 calendars",
+              "description": "同步 Cal.com bookings 与 external calendars.",
+              "n8nTemplateName": "Cal.com Calendar 同步",
+              "n8nTemplateDescription": "同步 calendars",
+              "expectedOutcome": "Calendars synced 与 Cal.com"
+            }
+          }
+        },
+        "close-crm": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Close CRM API Key",
+          "field2Label": "组织 ID",
+          "field2Placeholder": "输入您的 Close Organization ID (optional)",
+          "helpText": "Find your API key in Close: Settings > Your API Keys. Generate a new key if needed.",
+          "setupLinkText": "Open Close Settings",
+          "useCases": {
+            "close-log-calls": {
+              "title": "自动-记录 通话",
+              "description": "记录 自动 所有 call 活动 在 Close CRM 与 转录文本 和 结果.",
+              "n8nTemplateName": "Close CRM 记录 de 通话",
+              "n8nTemplateDescription": "记录 通话 在 Close CRM",
+              "expectedOutcome": "Call logged 在 Close CRM"
+            },
+            "close-update-leads": {
+              "title": "更新 lead statuses",
+              "description": "更新 lead 状态 在 Close CRM 基于 结果 de 通话 和 engagement levels.",
+              "n8nTemplateName": "Close CRM 线索 Updater",
+              "n8nTemplateDescription": "更新 lead statuses 从 通话",
+              "expectedOutcome": "线索 状态 已更新 在 Close CRM"
+            },
+            "close-sync-contacts": {
+              "title": "同步 contact info",
+              "description": "Keep contact information synchronized between your calling platform and Close CRM.",
+              "n8nTemplateName": "Close CRM 同步 de 联系人",
+              "n8nTemplateDescription": "同步 数据 de 联系人",
+              "expectedOutcome": "联系人 synced 在 Close CRM"
+            },
+            "close-create-tasks": {
+              "title": "创建 任务",
+              "description": "生成 后续跟进 任务 在 Close CRM 从 call action items.",
+              "n8nTemplateName": "Close CRM 创建器 de 任务",
+              "n8nTemplateDescription": "创建 任务 从 通话",
+              "expectedOutcome": "Task 已创建 在 Close CRM"
+            }
+          }
+        },
+        "cohere": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Cohere API Key",
+          "field2Label": "模型 ID",
+          "field2Placeholder": "例如 command-r-plus （可选）",
+          "helpText": "Generate an API key in the Cohere Dashboard under API Keys.",
+          "setupLinkText": "打开 Cohere Dashboard",
+          "useCases": {
+            "cohere-search": {
+              "title": "Semantic search over 转录文本",
+              "description": "搜索 across 转录文本 de 通话 使用 Cohere semantic search.",
+              "n8nTemplateName": "Cohere Transcript 搜索",
+              "n8nTemplateDescription": "Semantic 转录文本 search",
+              "expectedOutcome": "Relevant 转录文本 found"
+            },
+            "cohere-cluster": {
+              "title": "主题聚类",
+              "description": "Cluster calls by topic using Cohere embedding models.",
+              "n8nTemplateName": "Cohere Topic 聚类器",
+              "n8nTemplateDescription": "Clusters call topics",
+              "expectedOutcome": "通话已按主题聚类"
+            },
+            "cohere-summarize": {
+              "title": "摘要",
+              "description": "Summarize 转录文本 de 通话 使用 Cohere summarization models.",
+              "n8nTemplateName": "Cohere 总结器",
+              "n8nTemplateDescription": "Summarizes 转录文本",
+              "expectedOutcome": "转录已摘要"
+            },
+            "cohere-classify": {
+              "title": "分类",
+              "description": "Classify 通话 使用 Cohere classification models.",
+              "n8nTemplateName": "Cohere 分类器",
+              "n8nTemplateDescription": "Classifies 通话",
+              "expectedOutcome": "通话已分类"
+            }
+          }
+        },
+        "convertkit": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 ConvertKit API Key",
+          "field2Label": "API 密钥",
+          "field2Placeholder": "输入您的 ConvertKit API Secret",
+          "helpText": "Find your API credentials in ConvertKit: Settings > Advanced > API.",
+          "setupLinkText": "Open ConvertKit Settings",
+          "useCases": {
+            "ck-subscribers": {
+              "title": "添加 subscribers",
+              "description": "添加 新的 subscribers 到 ConvertKit 从 通话.",
+              "n8nTemplateName": "ConvertKit Subscriber 添加器",
+              "n8nTemplateDescription": "添加 subscribers",
+              "expectedOutcome": "Subscriber added 到 ConvertKit"
+            },
+            "ck-tags": {
+              "title": "Apply 标签",
+              "description": "Apply 标签 到 ConvertKit subscribers 基于 数据 de 通话.",
+              "n8nTemplateName": "ConvertKit Tag 应用器",
+              "n8nTemplateDescription": "Applies 标签",
+              "expectedOutcome": "Tags applied 在 ConvertKit"
+            },
+            "ck-sequences": {
+              "title": "触发 序列",
+              "description": "触发 ConvertKit 序列 de correo 从 事件 de 通话.",
+              "n8nTemplateName": "ConvertKit 触发器 de 序列",
+              "n8nTemplateDescription": "触发 序列",
+              "expectedOutcome": "Sequence triggered 在 ConvertKit"
+            },
+            "ck-fields": {
+              "title": "更新 custom fields",
+              "description": "Update custom fields on ConvertKit subscribers.",
+              "n8nTemplateName": "ConvertKit Field 更新器",
+              "n8nTemplateDescription": "更新 custom fields",
+              "expectedOutcome": "Custom fields 已更新 在 ConvertKit"
+            }
+          }
+        },
+        "copper-crm": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Copper API Key",
+          "field2Label": "电子邮件",
+          "field2Placeholder": "输入您的 Copper account email",
+          "helpText": "Find your API key in Copper: Settings > Integrations > API Keys.",
+          "setupLinkText": "打开 Copper CRM",
+          "useCases": {
+            "copper-push-summaries": {
+              "title": "推送 摘要 de 通话",
+              "description": "推送 AI-已生成 摘要 de 通话 到 Copper CRM contact 和 opportunity 记录.",
+              "n8nTemplateName": "Copper 摘要 de 通话 Pusher",
+              "n8nTemplateDescription": "推送 摘要 de 通话 到 Copper",
+              "expectedOutcome": "Call 摘要 added 到 Copper 记录"
+            },
+            "copper-create-contacts": {
+              "title": "创建 联系人 从 呼叫者",
+              "description": "创建 自动 新的 联系人 在 Copper CRM 从 未识别的 呼叫者.",
+              "n8nTemplateName": "Copper 联系人 Creator",
+              "n8nTemplateDescription": "创建 联系人 从 新的 呼叫者",
+              "expectedOutcome": "联系人 已创建 在 Copper CRM"
+            },
+            "copper-sync-activities": {
+              "title": "同步 活动",
+              "description": "Synchronize call activities between your platform and Copper CRM.",
+              "n8nTemplateName": "Copper 同步 de 活动",
+              "n8nTemplateDescription": "同步 call 活动",
+              "expectedOutcome": "Activity synced 在 Copper CRM"
+            },
+            "copper-update-opps": {
+              "title": "更新 opportunities",
+              "description": "更新 opportunity 记录 在 Copper CRM 基于 结果 de 通话.",
+              "n8nTemplateName": "Copper 更新 de 交易",
+              "n8nTemplateDescription": "更新 opportunities 从 通话",
+              "expectedOutcome": "Oportunidad 已更新 在 Copper CRM"
+            }
+          }
+        },
+        "firebase": {
+          "field1Label": "项目 ID",
+          "field1Placeholder": "输入您的 Firebase Project ID",
+          "field2Label": "服务账户密钥",
+          "field2Placeholder": "Paste your Firebase service account JSON key",
+          "helpText": "In Firebase Console, go to Project Settings > Service Accounts > Generate New Private Key. Copy the JSON contents.",
+          "setupLinkText": "Open Firebase Console",
+          "useCases": {
+            "fb-store": {
+              "title": "存储 数据 de 通话",
+              "description": "存储 数据 de 通话 和 转录文本 在 Firebase.",
+              "n8nTemplateName": "Firebase 数据 存储",
+              "n8nTemplateDescription": "Stores 数据 de 通话",
+              "expectedOutcome": "Data stored 在 Firebase"
+            },
+            "fb-realtime": {
+              "title": "实时 sync",
+              "description": "同步 数据 de 通话 在 实时 使用 Firebase.",
+              "n8nTemplateName": "Firebase 实时 Sync",
+              "n8nTemplateDescription": "实时 数据 sync",
+              "expectedOutcome": "Data synced 在 实时"
+            },
+            "fb-analytics": {
+              "title": "User 分析",
+              "description": "追踪 user 分析 和 指标 de 通话 在 Firebase.",
+              "n8nTemplateName": "Firebase Analytics 追踪器",
+              "n8nTemplateDescription": "追踪 分析",
+              "expectedOutcome": "Analytics tracked 在 Firebase"
+            },
+            "fb-push": {
+              "title": "推送 通知",
+              "description": "发送 push 通知 为 事件 de 通话 通过 Firebase.",
+              "n8nTemplateName": "Firebase Push 通知器",
+              "n8nTemplateDescription": "发送 push 通知",
+              "expectedOutcome": "推送 通知 已发送"
+            }
+          }
+        },
+        "front": {
+          "field1Label": "API 令牌",
+          "field1Placeholder": "Enter your Front API Token",
+          "field2Label": "频道 ID",
+          "field2Placeholder": "输入您的 Front Channel ID",
+          "helpText": "Generate an API token in Front: Settings > Developers > API Tokens. Find Channel IDs in your channel settings.",
+          "setupLinkText": "Open Front Settings",
+          "useCases": {
+            "front-create-convs": {
+              "title": "创建 对话",
+              "description": "创建 Front 对话 从 call 互动.",
+              "n8nTemplateName": "Front 创建器 de 对话",
+              "n8nTemplateDescription": "创建 对话",
+              "expectedOutcome": "Conversation 已创建 在 Front"
+            },
+            "front-route": {
+              "title": "路由 消息",
+              "description": "路由 call-related 消息 到 appropriate Front inboxes.",
+              "n8nTemplateName": "Front Message 路由器",
+              "n8nTemplateDescription": "Routes 消息",
+              "expectedOutcome": "Message routed 在 Front"
+            },
+            "front-context": {
+              "title": "添加 内容 de 通话",
+              "description": "添加 内容 de 通话 和 备注 到 Front 对话.",
+              "n8nTemplateName": "Front Context 添加器",
+              "n8nTemplateDescription": "添加 内容 de 通话",
+              "expectedOutcome": "Call context added 到 Front"
+            },
+            "front-assign": {
+              "title": "团队分配",
+              "description": "分配 Front 对话 到 团队成员 基于 call routing.",
+              "n8nTemplateName": "Front Team 分配器",
+              "n8nTemplateDescription": "Assigns 到 teams",
+              "expectedOutcome": "Conversation assigned 在 Front"
+            }
+          }
+        },
+        "gohighlevel": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 GoHighLevel API Key",
+          "field2Label": "位置 ID",
+          "field2Placeholder": "输入您的 GoHighLevel Location ID",
+          "helpText": "Find your API key in GoHighLevel: Settings > Business Profile > API Key. The Location ID is in your account URL.",
+          "setupLinkText": "打开 GoHighLevel",
+          "useCases": {
+            "ghl-trigger-workflows": {
+              "title": "触发 后续跟进 工作流",
+              "description": "触发 automated 后续跟进 工作流 在 GoHighLevel 基于 结果 de 通话.",
+              "n8nTemplateName": "GHL Workflow 触发器",
+              "n8nTemplateDescription": "触发 后续跟进 工作流",
+              "expectedOutcome": "后续跟进 工作流 triggered 在 GoHighLevel"
+            },
+            "ghl-sync-contacts": {
+              "title": "同步 联系人",
+              "description": "Synchronize contact data between your calling platform and GoHighLevel.",
+              "n8nTemplateName": "GHL 同步 de 联系人",
+              "n8nTemplateDescription": "同步 记录 de 联系人",
+              "expectedOutcome": "联系人 synced 在 GoHighLevel"
+            },
+            "ghl-update-pipeline": {
+              "title": "更新 管道 stages",
+              "description": "Move opportunities 通过 GoHighLevel 管道 stages 基于 call 分析.",
+              "n8nTemplateName": "GHL 更新器 de 管道",
+              "n8nTemplateDescription": "更新 管道 stages",
+              "expectedOutcome": "Pipeline stage 已更新 在 GoHighLevel"
+            },
+            "ghl-send-sms": {
+              "title": "发送 后续跟进 SMS",
+              "description": "Send automated SMS follow-ups via GoHighLevel after call completion.",
+              "n8nTemplateName": "GHL 发送器 de 短信",
+              "n8nTemplateDescription": "发送 后续跟进 SMS 消息",
+              "expectedOutcome": "后续跟进 SMS 已发送 通过 GoHighLevel"
+            }
+          }
+        },
+        "google-cloud-tts": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Google Cloud API Key",
+          "field2Label": "项目 ID",
+          "field2Placeholder": "输入您的 Google Cloud Project ID",
+          "helpText": "Enable the Cloud Text-to-Speech API in Google Cloud Console. Create an API key under APIs & Services > Credentials.",
+          "setupLinkText": "Open Google Cloud Console",
+          "useCases": {
+            "gctts-multilang": {
+              "title": "多语言合成",
+              "description": "Synthesize speech 在 multiple languages 使用 Google Cloud TTS.",
+              "n8nTemplateName": "Google TTS 多语言",
+              "n8nTemplateDescription": "Multi-language synthesis",
+              "expectedOutcome": "Multi-language speech synthesized"
+            },
+            "gctts-profiles": {
+              "title": "Custom 语音 档案",
+              "description": "Create custom voice profiles for different use cases.",
+              "n8nTemplateName": "Google TTS 语音 Profiles",
+              "n8nTemplateDescription": "创建 语音 档案",
+              "expectedOutcome": "Voice profile 已创建"
+            },
+            "gctts-ssml": {
+              "title": "SSML formatting",
+              "description": "Use SSML formatting for advanced speech control.",
+              "n8nTemplateName": "Google TTS SSML 格式器",
+              "n8nTemplateDescription": "SSML speech control",
+              "expectedOutcome": "SSML-formatted speech 已生成"
+            },
+            "gctts-adapt": {
+              "title": "语音适配",
+              "description": "Adapt 语音 output 到 different contexts 和 scenarios.",
+              "n8nTemplateName": "Google TTS 语音 适配器",
+              "n8nTemplateDescription": "Adapts 语音 output",
+              "expectedOutcome": "Voice adapted 到 context"
+            }
+          }
+        },
+        "greenhouse": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Greenhouse Harvest API Key",
+          "field2Label": "代理用户 ID",
+          "field2Placeholder": "Enter the user ID for API actions",
+          "helpText": "Generate a Harvest API key in Greenhouse: Configure > Dev Center > API Credential Management.",
+          "setupLinkText": "打开 Greenhouse",
+          "useCases": {
+            "gh-log-interviews": {
+              "title": "记录 interview 通话",
+              "description": "记录 interview 详情 de 通话 和 评分 在 Greenhouse.",
+              "n8nTemplateName": "Greenhouse Interview 记录器",
+              "n8nTemplateDescription": "记录 interview 通话",
+              "expectedOutcome": "Interview logged 在 Greenhouse"
+            },
+            "gh-update-stage": {
+              "title": "更新 candidate stage",
+              "description": "更新 candidate 管道 stage 在 Greenhouse 之后 interviews.",
+              "n8nTemplateName": "Greenhouse Stage 更新器",
+              "n8nTemplateDescription": "更新 candidate stage",
+              "expectedOutcome": "Candidate stage 已更新"
+            },
+            "gh-sync-jobs": {
+              "title": "同步 job 数据",
+              "description": "同步 job 数据 和 requirements 从 Greenhouse.",
+              "n8nTemplateName": "Greenhouse Job 同步",
+              "n8nTemplateDescription": "同步 job 数据",
+              "expectedOutcome": "Job 数据 synced 从 Greenhouse"
+            },
+            "gh-schedule": {
+              "title": "安排 interviews",
+              "description": "安排 interview 通话 通过 Greenhouse.",
+              "n8nTemplateName": "Greenhouse Interview 调度器",
+              "n8nTemplateDescription": "Schedules interviews",
+              "expectedOutcome": "Interview scheduled 在 Greenhouse"
+            }
+          }
+        },
+        "groq": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Groq API Key",
+          "field2Label": "模型 ID",
+          "field2Placeholder": "例如 llama-3.1-70b-versatile （可选）",
+          "helpText": "Generate an API key at console.groq.com under API Keys.",
+          "setupLinkText": "Open Groq Console",
+          "useCases": {
+            "groq-realtime": {
+              "title": "实时 转录文本 processing",
+              "description": "Process 转录文本 在 实时 使用 Groq 为 ultra-fast inference.",
+              "n8nTemplateName": "Groq 实时 Processor",
+              "n8nTemplateDescription": "实时 转录文本 processing",
+              "expectedOutcome": "Transcript processed 在 实时"
+            },
+            "groq-sentiment": {
+              "title": "Fast 分析 de 情感",
+              "description": "Perform instant 分析 de 情感 on 通话 使用 Groq.",
+              "n8nTemplateName": "Groq 分析 de 情感",
+              "n8nTemplateDescription": "Fast 分析 de 情感",
+              "expectedOutcome": "Sentiment analyzed instantly"
+            },
+            "groq-classify": {
+              "title": "意图分类",
+              "description": "Classify call intents at high speed using Groq inference.",
+              "n8nTemplateName": "Groq 分类器 de 意图",
+              "n8nTemplateDescription": "Classifies intents quickly",
+              "expectedOutcome": "Intent classified"
+            },
+            "groq-summarize": {
+              "title": "快速摘要",
+              "description": "生成 rapid 摘要 de 通话 使用 Groq models.",
+              "n8nTemplateName": "Groq Quick 总结器",
+              "n8nTemplateDescription": "Quick 摘要 de 通话",
+              "expectedOutcome": "Summary 已生成 quickly"
+            }
+          }
+        },
+        "insightly": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Insightly API Key",
+          "field2Label": "Pod 网址",
+          "field2Placeholder": "例如 api.na1.insightly.com",
+          "helpText": "Find your API key in Insightly: User Settings > API. Your pod URL depends on your data center region.",
+          "setupLinkText": "打开 Insightly",
+          "useCases": {
+            "insightly-create-leads": {
+              "title": "创建 线索 从 通话",
+              "description": "创建 新的 记录 de 线索 在 Insightly 从 传入的 数据 de 通话.",
+              "n8nTemplateName": "Insightly 创建 de 线索",
+              "n8nTemplateDescription": "创建 线索 从 通话",
+              "expectedOutcome": "线索 已创建 在 Insightly"
+            },
+            "insightly-log-notes": {
+              "title": "记录 备注 de 通话",
+              "description": "添加 备注 de 通话 和 转录文本 到 Insightly 记录 de 联系人.",
+              "n8nTemplateName": "Insightly Note 记录器",
+              "n8nTemplateDescription": "记录 备注 de 通话",
+              "expectedOutcome": "Notes logged 在 Insightly"
+            },
+            "insightly-sync-contacts": {
+              "title": "同步 联系人",
+              "description": "Synchronize contact information between platforms and Insightly.",
+              "n8nTemplateName": "Insightly 同步 de 联系人",
+              "n8nTemplateDescription": "同步 数据 de 联系人",
+              "expectedOutcome": "联系人 synced 在 Insightly"
+            },
+            "insightly-update-pipelines": {
+              "title": "更新 pipelines",
+              "description": "更新 管道 stages 在 Insightly 基于 call 分析.",
+              "n8nTemplateName": "Insightly 更新器 de 管道",
+              "n8nTemplateDescription": "更新 pipelines 从 通话",
+              "expectedOutcome": "Pipeline 已更新 在 Insightly"
+            }
+          }
+        },
+        "keap": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Keap Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Keap Client Secret",
+          "helpText": "Create an app in the Keap Developer Portal. Add the redirect URL below. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Keap Developer Portal",
+          "useCases": {
+            "keap-tag-leads": {
+              "title": "Tag 线索 基于 call outcome",
+              "description": "Automatically apply 标签 到 Keap 联系人 基于 call disposition 和 结果.",
+              "n8nTemplateName": "Keap 线索 Tagger",
+              "n8nTemplateDescription": "Tags 联系人 从 结果 de 通话",
+              "expectedOutcome": "Tags applied 到 contact 在 Keap"
+            },
+            "keap-create-contacts": {
+              "title": "创建 联系人",
+              "description": "创建 新的 联系人 在 Keap 从 未识别的 呼叫者.",
+              "n8nTemplateName": "Keap 联系人 Creator",
+              "n8nTemplateDescription": "创建 联系人 从 新的 呼叫者",
+              "expectedOutcome": "联系人 已创建 在 Keap"
+            },
+            "keap-trigger-campaigns": {
+              "title": "触发 活动",
+              "description": "触发 Keap marketing 活动 基于 结果 de 通话 和 lead qualification.",
+              "n8nTemplateName": "Keap 触发器 de 活动",
+              "n8nTemplateDescription": "触发 活动 从 call 结果",
+              "expectedOutcome": "Campaign triggered 在 Keap"
+            },
+            "keap-log-activities": {
+              "title": "记录 call 活动",
+              "description": "记录 call 活动 在 Keap 记录 de 联系人 为 complete interaction 历史.",
+              "n8nTemplateName": "Keap 记录器 de 活动",
+              "n8nTemplateDescription": "记录 call 活动",
+              "expectedOutcome": "Activity logged 在 Keap"
+            }
+          }
+        },
+        "lever": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Lever API Key",
+          "field2Label": "环境",
+          "field2Placeholder": "e.g. sandbox 或 production",
+          "helpText": "Generate an API key in Lever: Settings > Integrations and API > API Credentials.",
+          "setupLinkText": "Open Lever Settings"
+        },
+        "microsoft-outlook": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Azure Application Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Azure Client Secret",
+          "helpText": "Register an app in Azure Portal > App Registrations. Under API Permissions, add Microsoft Graph permissions for Mail and Calendar. Add the redirect URL below.",
+          "setupLinkText": "Open Azure Portal",
+          "useCases": {
+            "outlook-schedule": {
+              "title": "安排 meetings",
+              "description": "安排 meetings 在 Microsoft Outlook 期间 通话.",
+              "n8nTemplateName": "Outlook 调度器 de 会议",
+              "n8nTemplateDescription": "Schedules meetings",
+              "expectedOutcome": "Meeting scheduled 在 Outlook"
+            },
+            "outlook-availability": {
+              "title": "检查 availability",
+              "description": "检查 Outlook calendar availability.",
+              "n8nTemplateName": "Outlook Availability 检查器",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "Availability checked 在 Outlook"
+            },
+            "outlook-invites": {
+              "title": "发送 invites",
+              "description": "发送 meeting invitations 通过 Outlook.",
+              "n8nTemplateName": "Outlook Invite 发送器",
+              "n8nTemplateDescription": "发送 meeting invites",
+              "expectedOutcome": "Meeting invite 已发送 通过 Outlook"
+            },
+            "outlook-sync": {
+              "title": "日历同步",
+              "description": "同步 calendar 事件 与 Microsoft Outlook.",
+              "n8nTemplateName": "Outlook Calendar 同步",
+              "n8nTemplateDescription": "同步 calendar 事件",
+              "expectedOutcome": "Calendar synced 与 Outlook"
+            }
+          }
+        },
+        "mistral": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Mistral AI API Key",
+          "field2Label": "模型 ID",
+          "field2Placeholder": "e.g. mistral-large-最新的 (optional)",
+          "helpText": "Generate an API key in the Mistral AI platform under API Keys.",
+          "setupLinkText": "Open Mistral Console",
+          "useCases": {
+            "mistral-summarize": {
+              "title": "通话摘要",
+              "description": "生成 concise 摘要 de 通话 使用 Mistral AI models.",
+              "n8nTemplateName": "Mistral 总结器",
+              "n8nTemplateDescription": "Summarizes 通话",
+              "expectedOutcome": "Call 摘要 已生成"
+            },
+            "mistral-topics": {
+              "title": "主题提取",
+              "description": "Extract key topics 和 themes 从 对话 使用 Mistral.",
+              "n8nTemplateName": "Mistral Topic 提取器",
+              "n8nTemplateDescription": "Extracts 对话 topics",
+              "expectedOutcome": "Topics 已提取 从 call"
+            },
+            "mistral-sentiment": {
+              "title": "情感评分",
+              "description": "Score call 情感 使用 Mistral AI 分析.",
+              "n8nTemplateName": "Mistral Sentiment 评分器",
+              "n8nTemplateDescription": "Scores 情感",
+              "expectedOutcome": "Sentiment score 已生成"
+            },
+            "mistral-suggestions": {
+              "title": "回复建议",
+              "description": "生成 实时 response suggestions 使用 Mistral.",
+              "n8nTemplateName": "Mistral Response 建议器",
+              "n8nTemplateDescription": "Suggests 响应",
+              "expectedOutcome": "Response suggestions 已生成"
+            }
+          }
+        },
+        "mixpanel": {
+          "field1Label": "项目令牌",
+          "field1Placeholder": "Enter your Mixpanel Project Token",
+          "field2Label": "API 密钥",
+          "field2Placeholder": "输入您的 Mixpanel API Secret",
+          "helpText": "Find your Project Token and API Secret in Mixpanel: Settings > Project Settings.",
+          "setupLinkText": "Open Mixpanel Settings",
+          "useCases": {
+            "mp-events": {
+              "title": "追踪 事件 de 通话",
+              "description": "追踪 事件 de 通话 和 user 操作 在 Mixpanel.",
+              "n8nTemplateName": "Mixpanel 追踪器 de 事件",
+              "n8nTemplateDescription": "追踪 事件 de 通话",
+              "expectedOutcome": "Event tracked 在 Mixpanel"
+            },
+            "mp-funnels": {
+              "title": "Funnel 分析",
+              "description": "分析 call-到-conversion funnels 在 Mixpanel.",
+              "n8nTemplateName": "Mixpanel Funnel 分析器",
+              "n8nTemplateDescription": "Analyzes funnels",
+              "expectedOutcome": "Funnel 分析 已更新 在 Mixpanel"
+            },
+            "mp-segments": {
+              "title": "用户分群",
+              "description": "Segment users 基于 call 行为 在 Mixpanel.",
+              "n8nTemplateName": "Mixpanel 用户 分群器",
+              "n8nTemplateDescription": "Segments users",
+              "expectedOutcome": "Users segmented 在 Mixpanel"
+            },
+            "mp-ab": {
+              "title": "A/B testing",
+              "description": "追踪 A/B test 结果 为 call scripts 在 Mixpanel.",
+              "n8nTemplateName": "Mixpanel A/B 追踪器",
+              "n8nTemplateDescription": "A/B test tracking",
+              "expectedOutcome": "A/B 结果 tracked 在 Mixpanel"
+            }
+          }
+        },
+        "murf": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Murf AI API Key",
+          "field2Label": "默认语音 ID",
+          "field2Placeholder": "Enter default voice ID (optional)",
+          "helpText": "Generate an API key in Murf Studio: Account Settings > API. Browse available voices in the Voice Library.",
+          "setupLinkText": "打开 Murf Studio",
+          "useCases": {
+            "murf-voiceovers": {
+              "title": "Studio-quality voiceovers",
+              "description": "生成 studio-quality voiceovers 使用 Murf AI.",
+              "n8nTemplateName": "Murf Studio 配音",
+              "n8nTemplateDescription": "Studio-quality voiceovers",
+              "expectedOutcome": "Studio-quality voiceover 已生成"
+            },
+            "murf-brand": {
+              "title": "Brand 语音 creation",
+              "description": "创建 consistent brand voices 使用 Murf.",
+              "n8nTemplateName": "Murf Brand 创建器 de 语音",
+              "n8nTemplateDescription": "创建 brand 语音",
+              "expectedOutcome": "Brand 语音 已创建"
+            },
+            "murf-script": {
+              "title": "Script 到 speech",
+              "description": "转换 scripts 到 natural-sounding speech.",
+              "n8nTemplateName": "Murf Script 到 Speech",
+              "n8nTemplateDescription": "Converts scripts 到 speech",
+              "expectedOutcome": "Script converted 到 speech"
+            },
+            "murf-pronunciation": {
+              "title": "Pronunciation editor",
+              "description": "Edit 和 customize pronunciation 为 specific terms.",
+              "n8nTemplateName": "Murf 发音 编辑器",
+              "n8nTemplateDescription": "Edits pronunciation",
+              "expectedOutcome": "Pronunciation customized"
+            }
+          }
+        },
+        "n8n": {
+          "field1Label": "Webhook URL",
+          "field1Placeholder": "Enter your n8n Webhook URL",
+          "field2Label": "标头认证值",
+          "field2Placeholder": "Enter authentication header value (optional)",
+          "helpText": "Create a workflow in n8n with a Webhook trigger node. Copy the Production Webhook URL. Optionally set up Header Auth for security.",
+          "setupLinkText": "打开 n8n",
+          "useCases": {
+            "n8n-templates": {
+              "title": "Execute 工作流 模板",
+              "description": "Execute pre-built n8n 工作流 模板 为 common 任务.",
+              "n8nTemplateName": "n8n Template 执行器",
+              "n8nTemplateDescription": "Executes 工作流 模板",
+              "expectedOutcome": "Workflow template executed"
+            },
+            "n8n-custom": {
+              "title": "Custom automation flows",
+              "description": "Run custom n8n automation flows triggered by 事件 de 通话.",
+              "n8nTemplateName": "n8n 自定义 流程",
+              "n8nTemplateDescription": "自定义 automation flows",
+              "expectedOutcome": "Custom flow executed"
+            },
+            "n8n-processing": {
+              "title": "数据处理",
+              "description": "Process 数据 de 通话 通过 n8n 数据 transformation nodes.",
+              "n8nTemplateName": "n8n Data 处理器",
+              "n8nTemplateDescription": "数据 processing",
+              "expectedOutcome": "Data processed 在 n8n"
+            },
+            "n8n-multi": {
+              "title": "Multi-step integrations",
+              "description": "Execute multi-step integration 工作流 在 n8n.",
+              "n8nTemplateName": "n8n 多步骤 Integration",
+              "n8nTemplateDescription": "多步骤 integrations",
+              "expectedOutcome": "Multi-step integration 已完成的"
+            }
+          }
+        },
+        "perplexity": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Perplexity API Key",
+          "field2Label": "模型 ID",
+          "field2Placeholder": "例如 llama-3.1-sonar-large-128k-online （可选）",
+          "helpText": "Generate an API key in Perplexity Settings under API.",
+          "setupLinkText": "Open Perplexity Settings",
+          "useCases": {
+            "pplx-research": {
+              "title": "Research caller background",
+              "description": "Research caller 和 company background 使用 Perplexity.",
+              "n8nTemplateName": "Perplexity Caller 研究器",
+              "n8nTemplateDescription": "Researches caller background",
+              "expectedOutcome": "Caller background research 已完成的"
+            },
+            "pplx-insights": {
+              "title": "Industry 洞察",
+              "description": "获取 实时 industry 洞察 为 对话 使用 Perplexity.",
+              "n8nTemplateName": "Perplexity Industry 洞察",
+              "n8nTemplateDescription": "Provides industry 洞察",
+              "expectedOutcome": "Industry 洞察 已生成"
+            },
+            "pplx-competitive": {
+              "title": "Competitive 分析",
+              "description": "Perform competitive 分析 期间 sales 通话 使用 Perplexity.",
+              "n8nTemplateName": "Perplexity Competitive 分析",
+              "n8nTemplateDescription": "Analyzes competition",
+              "expectedOutcome": "Competitive 分析 delivered"
+            },
+            "pplx-factcheck": {
+              "title": "实时 fact checking",
+              "description": "Fact-check claims made during calls using Perplexity.",
+              "n8nTemplateName": "Perplexity Fact 检查器",
+              "n8nTemplateDescription": "Fact-checks 在 实时",
+              "expectedOutcome": "Facts verified 在 实时"
+            }
+          }
+        },
+        "playht": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 PlayHT API Key",
+          "field2Label": "用户 ID",
+          "field2Placeholder": "输入您的 PlayHT User ID",
+          "helpText": "Find your API Key and User ID in PlayHT: Settings > API Access.",
+          "setupLinkText": "Open PlayHT Settings",
+          "useCases": {
+            "playht-realistic": {
+              "title": "Ultra-realistic voices",
+              "description": "生成 ultra-realistic 语音 output 使用 PlayHT.",
+              "n8nTemplateName": "PlayHT Realistic 语音",
+              "n8nTemplateDescription": "Ultra-realistic TTS",
+              "expectedOutcome": "Realistic 语音 audio 已生成"
+            },
+            "playht-clone": {
+              "title": "语音克隆",
+              "description": "Clone voices 为 personalized AI agent 响应.",
+              "n8nTemplateName": "PlayHT 语音 克隆器",
+              "n8nTemplateDescription": "Clones voices",
+              "expectedOutcome": "语音已克隆 successfully"
+            },
+            "playht-emotion": {
+              "title": "情感控制",
+              "description": "Control emotional tone 在 语音 synthesis.",
+              "n8nTemplateName": "PlayHT Emotion 控制器",
+              "n8nTemplateDescription": "Controls 语音 emotion",
+              "expectedOutcome": "Emotional tone applied 到 语音"
+            },
+            "playht-accents": {
+              "title": "Multi-accent support",
+              "description": "Support multiple accents 和 speaking styles.",
+              "n8nTemplateName": "PlayHT Accent 选择器",
+              "n8nTemplateDescription": "Multi-accent support",
+              "expectedOutcome": "Accent configured 为 语音"
+            }
+          }
+        },
+        "segment": {
+          "field1Label": "写入密钥",
+          "field1Placeholder": "输入您的 Segment Source Write Key",
+          "field2Label": "工作区标识",
+          "field2Placeholder": "输入您的 Segment workspace slug (optional)",
+          "helpText": "Find your Write Key in Segment: Sources > Your Source > Settings > API Keys.",
+          "setupLinkText": "打开 Segment",
+          "useCases": {
+            "seg-events": {
+              "title": "Event tracking",
+              "description": "追踪 事件 de 通话 通过 Segment 为 数据 routing.",
+              "n8nTemplateName": "Segment 追踪器 de 事件",
+              "n8nTemplateDescription": "追踪 事件",
+              "expectedOutcome": "Event tracked 在 Segment"
+            },
+            "seg-identify": {
+              "title": "用户识别",
+              "description": "Identify 和 track users 通过 Segment.",
+              "n8nTemplateName": "Segment 用户 识别器",
+              "n8nTemplateDescription": "Identifies users",
+              "expectedOutcome": "User identified 在 Segment"
+            },
+            "seg-cross": {
+              "title": "Cross-platform 分析",
+              "description": "路由 call 分析 across platforms 通过 Segment.",
+              "n8nTemplateName": "Segment Cross-platform 路由器",
+              "n8nTemplateDescription": "跨平台 routing",
+              "expectedOutcome": "Analytics routed 通过 Segment"
+            },
+            "seg-routing": {
+              "title": "数据路由",
+              "description": "路由 数据 de 通话 到 multiple destinations 通过 Segment.",
+              "n8nTemplateName": "Segment 路由器 de 数据",
+              "n8nTemplateDescription": "Routes 数据",
+              "expectedOutcome": "Data routed 通过 Segment"
+            }
+          }
+        },
+        "sugarcrm": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your SugarCRM OAuth Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your SugarCRM OAuth Client Secret",
+          "helpText": "Create an OAuth Key in SugarCRM: Administration > OAuth Keys. Enter your instance URL during setup.",
+          "setupLinkText": "打开 SugarCRM",
+          "useCases": {
+            "sugar-log-calls": {
+              "title": "记录 call 活动",
+              "description": "创建 活动 de 通话 记录 在 SugarCRM 与 对话 详情.",
+              "n8nTemplateName": "SugarCRM 记录 de 通话",
+              "n8nTemplateDescription": "记录 通话 在 SugarCRM",
+              "expectedOutcome": "Call 活动 logged 在 SugarCRM"
+            },
+            "sugar-sync-leads": {
+              "title": "同步 线索",
+              "description": "Synchronize lead data between your calling platform and SugarCRM.",
+              "n8nTemplateName": "SugarCRM 线索 Sync",
+              "n8nTemplateDescription": "同步 记录 de 线索",
+              "expectedOutcome": "线索 synced 在 SugarCRM"
+            },
+            "sugar-update-opps": {
+              "title": "更新 opportunities",
+              "description": "更新 状态 de oportunidad 在 SugarCRM 基于 结果 de 通话.",
+              "n8nTemplateName": "SugarCRM 更新 de 交易",
+              "n8nTemplateDescription": "更新 opportunities 从 通话",
+              "expectedOutcome": "Oportunidad 已更新 在 SugarCRM"
+            },
+            "sugar-create-tasks": {
+              "title": "创建 后续跟进 任务",
+              "description": "生成 后续跟进 任务 在 SugarCRM 从 call action items.",
+              "n8nTemplateName": "SugarCRM 创建器 de 任务",
+              "n8nTemplateDescription": "创建 任务 从 通话",
+              "expectedOutcome": "Task 已创建 在 SugarCRM"
+            }
+          }
+        },
+        "supabase": {
+          "field1Label": "API 网址",
+          "field1Placeholder": "输入您的 Supabase Project URL",
+          "field2Label": "服务角色密钥",
+          "field2Placeholder": "输入您的 Supabase Service Role Key",
+          "helpText": "Find your Project URL and Service Role Key in Supabase: Project Settings > API.",
+          "setupLinkText": "打开 Supabase Dashboard",
+          "useCases": {
+            "supa-transcripts": {
+              "title": "存储 转录文本",
+              "description": "存储 转录文本 de 通话 在 Supabase database.",
+              "n8nTemplateName": "Supabase Transcript 存储",
+              "n8nTemplateDescription": "Stores 转录文本",
+              "expectedOutcome": "Transcript stored 在 Supabase"
+            },
+            "supa-realtime": {
+              "title": "实时 数据",
+              "description": "同步 数据 de 通话 在 实时 使用 Supabase.",
+              "n8nTemplateName": "Supabase 实时 Sync",
+              "n8nTemplateDescription": "实时 数据 sync",
+              "expectedOutcome": "Data synced 在 Supabase"
+            },
+            "supa-users": {
+              "title": "用户管理",
+              "description": "管理 user 数据 和 preferences 在 Supabase.",
+              "n8nTemplateName": "Supabase User 管理器",
+              "n8nTemplateDescription": "Manages users",
+              "expectedOutcome": "User 数据 managed 在 Supabase"
+            },
+            "supa-analytics": {
+              "title": "Analytics storage",
+              "description": "存储 分析 和 指标 数据 在 Supabase.",
+              "n8nTemplateName": "Supabase Analytics 存储",
+              "n8nTemplateDescription": "Stores 分析",
+              "expectedOutcome": "Analytics stored 在 Supabase"
+            }
+          }
+        },
+        "telnyx": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Telnyx API Key (KEY...)",
+          "field2Label": "连接 ID",
+          "field2Placeholder": "输入您的 Telnyx SIP Connection ID",
+          "helpText": "Generate an API key in the Telnyx Portal: Auth > API Keys. Find your Connection ID under SIP Connections.",
+          "setupLinkText": "Open Telnyx Portal",
+          "useCases": {
+            "telnyx-messaging": {
+              "title": "Post-call messaging",
+              "description": "发送 post-call 消息 通过 Telnyx messaging API.",
+              "n8nTemplateName": "Telnyx 消息器",
+              "n8nTemplateDescription": "发送 post-call 消息",
+              "expectedOutcome": "Message 已发送 通过 Telnyx"
+            },
+            "telnyx-analytics": {
+              "title": "Call 分析",
+              "description": "追踪 call 分析 和 performance 通过 Telnyx.",
+              "n8nTemplateName": "Telnyx 分析",
+              "n8nTemplateDescription": "追踪 call 分析",
+              "expectedOutcome": "Analytics recorded 在 Telnyx"
+            },
+            "telnyx-provision": {
+              "title": "Number provisioning",
+              "description": "Provision 和 manage 电话号码 通过 Telnyx.",
+              "n8nTemplateName": "Telnyx 号码 配置器",
+              "n8nTemplateDescription": "Provisions numbers",
+              "expectedOutcome": "Numbers provisioned 通过 Telnyx"
+            },
+            "telnyx-sip": {
+              "title": "SIP routing",
+              "description": "Configure SIP routing 通过 Telnyx 为 advanced call handling.",
+              "n8nTemplateName": "Telnyx SIP 路由器",
+              "n8nTemplateDescription": "Configures SIP routing",
+              "expectedOutcome": "SIP routing configured 通过 Telnyx"
+            }
+          }
+        },
+        "vonage": {
+          "field1Label": "API 密钥",
+          "field1Placeholder": "输入您的 Vonage API Key",
+          "field2Label": "API 密钥",
+          "field2Placeholder": "输入您的 Vonage API Secret",
+          "helpText": "Find your API Key and Secret on the Vonage Dashboard under API Settings.",
+          "setupLinkText": "打开 Vonage Dashboard",
+          "useCases": {
+            "vonage-sms": {
+              "title": "发送 SMS 通知",
+              "description": "发送 SMS 通知 通过 Vonage 为 事件 de 通话 和 结果.",
+              "n8nTemplateName": "Vonage 通知器 de 短信",
+              "n8nTemplateDescription": "发送 SMS 通知",
+              "expectedOutcome": "SMS 通知 已发送 通过 Vonage"
+            },
+            "vonage-quality": {
+              "title": "追踪 call quality",
+              "description": "Monitor 和 track call quality 指标 通过 Vonage.",
+              "n8nTemplateName": "Vonage Quality 追踪器",
+              "n8nTemplateDescription": "追踪 call quality",
+              "expectedOutcome": "Quality 指标 recorded"
+            },
+            "vonage-route": {
+              "title": "路由 通话",
+              "description": "路由 通话 通过 Vonage 与 intelligent call distribution.",
+              "n8nTemplateName": "Vonage 路由器 de 通话",
+              "n8nTemplateDescription": "Routes 通话",
+              "expectedOutcome": "Call routed 通过 Vonage"
+            },
+            "vonage-lookup": {
+              "title": "号码查询",
+              "description": "Look up 电话号码 详情 使用 Vonage Number Insight.",
+              "n8nTemplateName": "Vonage Number 查询",
+              "n8nTemplateDescription": "Looks up number info",
+              "expectedOutcome": "Number 详情 retrieved"
+            }
+          }
+        },
+        "woocommerce": {
+          "field1Label": "消费者密钥",
+          "field1Placeholder": "输入您的 WooCommerce Consumer Key (ck_...)",
+          "field2Label": "消费者密钥",
+          "field2Placeholder": "输入您的 WooCommerce Consumer Secret (cs_...)",
+          "helpText": "Generate REST API keys in WooCommerce: Settings > Advanced > REST API > Add Key. Set permissions to Read/Write.",
+          "setupLinkText": "打开 WooCommerce",
+          "useCases": {
+            "woo-orders": {
+              "title": "订单追踪",
+              "description": "Track and look up orders in WooCommerce during calls.",
+              "n8nTemplateName": "WooCommerce Order 追踪器",
+              "n8nTemplateDescription": "追踪 orders",
+              "expectedOutcome": "Order tracked 在 WooCommerce"
+            },
+            "woo-products": {
+              "title": "Product availability",
+              "description": "检查 product availability 在 WooCommerce.",
+              "n8nTemplateName": "WooCommerce Product 检查器",
+              "n8nTemplateDescription": "Checks products",
+              "expectedOutcome": "Product availability checked"
+            },
+            "woo-process": {
+              "title": "Process orders",
+              "description": "Process 新的 orders 通过 WooCommerce.",
+              "n8nTemplateName": "WooCommerce Order 处理器",
+              "n8nTemplateDescription": "Processes orders",
+              "expectedOutcome": "Order processed 在 WooCommerce"
+            },
+            "woo-customers": {
+              "title": "客户查询",
+              "description": "Look up customer information in WooCommerce.",
+              "n8nTemplateName": "WooCommerce Customer 查询",
+              "n8nTemplateDescription": "Looks up customers",
+              "expectedOutcome": "Customer info retrieved"
+            }
+          }
+        },
+        "default": {
+          "field1Label": "客户端 ID",
+          "field1Placeholder": "Enter your Client ID",
+          "field2Label": "客户端密钥",
+          "field2Placeholder": "Enter your Client Secret",
+          "helpText": "Enter your OAuth app credentials. You can find these in the provider's developer console or admin settings.",
+          "setupLinkText": "Open Developer Console"
+        }
+      },
+      "never": "从不",
+      "notAvailable": "不适用",
+      "status": {
+        "connected": "已连接",
+        "pendingAuth": "待认证",
+        "error": "错误",
+        "inactive": "不活跃"
+      }
+    },
+    "title": "Webhooks 和 API 密钥",
+    "subtitle": "配置 Webhooks 将通话数据发送到 CRM 等外部系统",
+    "createWebhook": "Create Webhook",
+    "loading": "加载中...",
+    "loadingWebhooks": "正在加载 Webhooks...",
+    "error": {
+      "title": "加载错误",
+      "description": "无法加载 Webhooks，请重试。"
+    },
+    "dialog": {
+      "createTitle": "Create Webhook",
+      "createDescription": "Configure a webhook to receive call completion events",
+      "deleteTitle": "Delete Webhook",
+      "deleteDescription": "确定要删除吗？此操作无法撤销。",
+      "logsTitle": "交付日志",
+      "logsDescription": "最近交付尝试的历史记录。"
+    },
+    "form": {
+      "nameLabel": "Name *",
+      "namePlaceholder": "例如 CRM 更新",
+      "urlLabel": "目标 URL",
+      "urlPlaceholder": "https://your-api.com/webhook",
+      "campaignLabel": "活动",
+      "allCampaigns": "所有活动"
+    },
+    "actions": {
+      "creating": "创建中...",
+      "testWebhook": "Test Webhook",
+      "viewLogs": "查看日志"
+    },
+    "empty": {
+      "title": "No webhooks configured",
+      "description": "Create your first webhook to start receiving call completion events"
+    },
+    "status": {
+      "active": "活跃",
+      "inactive": "非活跃"
+    },
+    "logs": {
+      "noLogs": "暂无日志。",
+      "success": "成功",
+      "failed": "失败",
+      "http": "HTTP",
+      "attempt": "尝试",
+      "viewResponse": "查看响应"
+    },
+    "webhook": {
+      "campaign": "活动",
+      "secret": "密钥"
+    },
+    "unlock": {
+      "title": "解锁强大的 Webhooks",
+      "description": "使用实时 Webhooks 自动化工作流",
+      "proFeaturesTitle": "专业版功能",
+      "realTimeEvents": "实时事件",
+      "realTimeEventsDesc": "通话完成时即时通知",
+      "crmAutoSync": "CRM 自动同步",
+      "crmAutoSyncDesc": "自动将数据发送到您的 CRM",
+      "customWorkflows": "自定义工作流",
+      "customWorkflowsDesc": "根据结果触发操作",
+      "secureReliable": "安全可靠",
+      "secureReliableDesc": "HMAC 签名和自动重试",
+      "upgradeButton": "升级到专业版",
+      "upgradeDesc": "Webhooks 在专业版及以上计划中可用"
+    },
+    "toast": {
+      "created": "Webhook created",
+      "createdDesc": "Your webhook has been created successfully.",
+      "createFailed": "创建失败",
+      "createFailedDesc": "Failed to create webhook",
+      "updated": "Webhook updated",
+      "updatedDesc": "Your webhook has been updated successfully.",
+      "updateFailed": "更新失败",
+      "updateFailedDesc": "Failed to update webhook",
+      "deleted": "Webhook deleted",
+      "deletedDesc": "Your webhook has been deleted successfully.",
+      "deleteFailed": "删除失败",
+      "deleteFailedDesc": "Failed to delete webhook",
+      "testSent": "测试已发送",
+      "testSentDesc": "A test payload has been sent to your webhook URL.",
+      "testFailed": "测试失败",
+      "testFailedDesc": "无法发送测试事件。",
+      "missingFields": "必填字段",
+      "missingFieldsDesc": "请填写所有必填字段。",
+      "copied": "已复制",
+      "copiedDesc": "已复制到剪贴板。"
+    },
+    "apiKeys": {
+      "title": "API密钥管理",
+      "description": "管理您的API密钥以编程方式访问平台",
+      "keyLabel": "API密钥",
+      "noKey": "未生成API密钥",
+      "warning": "请保管好您的API密钥。不要公开分享。",
+      "regenerate": "重新生成密钥",
+      "regenerateTitle": "重新生成API密钥",
+      "regenerateConfirm": "这将使您当前的API密钥失效并生成一个新密钥。使用旧密钥的现有集成将停止工作。此操作无法撤消。",
+      "regenerated": "API密钥已重新生成",
+      "regeneratedDesc": "您的新API密钥已成功生成",
+      "regenerateFailed": "重新生成API密钥失败"
+    }
+  }
+}

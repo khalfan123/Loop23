@@ -41,7 +41,7 @@ interface SipPhoneNumber {
 
 interface Agent {
   id: string;
-  type: 'incoming' | 'flow';
+  type: 'incoming' | 'flow' | 'inbound';
   name: string;
   voiceTone: string;
   personality: string;
@@ -65,6 +65,7 @@ interface Agent {
   voiceStability: number | null;
   voiceSimilarityBoost: number | null;
   voiceSpeed: number | null;
+  voiceProvider: 'elevenlabs' | 'aws_polly' | 'openai' | 'cartesia' | null;
   telephonyProvider: string | null;
   openaiVoice: string | null;
   sourceTemplateId: string | null;
@@ -152,7 +153,7 @@ export default function AgentEditor() {
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
-    telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+    telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
     openaiVoice: "alloy",
     sipPhoneNumberId: "",
     sourceTemplateId: "" as string,
@@ -195,12 +196,11 @@ export default function AgentEditor() {
     queryKey: ["/api/agents"],
   });
 
-  const { data: voiceEngineSettings } = useQuery<{ plivo_openai_engine_enabled: boolean; twilio_openai_engine_enabled: boolean }>({
+  const { data: voiceEngineSettings } = useQuery<{ twilio_openai_engine_enabled: boolean }>({
     queryKey: ["/api/settings/voice-engine"],
     staleTime: 60000,
   });
 
-  const isPlivoEnabled = voiceEngineSettings?.plivo_openai_engine_enabled ?? false;
   const isTwilioOpenaiEnabled = voiceEngineSettings?.twilio_openai_engine_enabled ?? false;
 
   const { isSipPluginEnabled, sipEnginesAllowed } = usePluginStatus();
@@ -213,7 +213,7 @@ export default function AgentEditor() {
   });
   const sipPhoneNumbers = sipPhoneNumbersResponse?.data || [];
 
-  const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed;
+  const hasAlternateEngines = isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed;
 
   const { data: openaiModelsData } = useQuery<{
     tier: 'free' | 'pro';
@@ -221,8 +221,8 @@ export default function AgentEditor() {
     description: string;
     allTiers: Record<string, { models: string[]; description: string }>;
   }>({
-    queryKey: ["/api/plivo/openai/models"],
-    enabled: isPlivoEnabled || isTwilioOpenaiEnabled || formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai",
+    queryKey: ["/api/twilio-openai/models"],
+    enabled: isTwilioOpenaiEnabled || formData.telephonyProvider === "twilio_openai",
     staleTime: 60000,
   });
 
@@ -251,12 +251,14 @@ export default function AgentEditor() {
   useEffect(() => {
     if (existingAgent && isEditMode) {
       setFormData({
-        type: existingAgent.type,
+        type: existingAgent.type === 'inbound' ? 'incoming' : existingAgent.type,
         name: existingAgent.name,
         voiceTone: existingAgent.voiceTone || "professional",
         personality: existingAgent.personality || "helpful",
         systemPrompt: existingAgent.systemPrompt || "",
-        elevenLabsVoiceId: existingAgent.elevenLabsVoiceId || "",
+        elevenLabsVoiceId: existingAgent.voiceProvider === 'cartesia' 
+          ? (existingAgent.openaiVoice || "") 
+          : (existingAgent.elevenLabsVoiceId || ""),
         language: existingAgent.language || "en",
         llmModel: existingAgent.llmModel || "gpt-4o-mini",
         firstMessage: existingAgent.firstMessage || "Hello! How can I help you today?",
@@ -356,7 +358,7 @@ export default function AgentEditor() {
     }
 
     if (formData.type === 'incoming') {
-      const isOpenAIVoice = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+      const isOpenAIVoice = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
       const hasValidVoice = isOpenAIVoice ? !!formData.openaiVoice : !!formData.elevenLabsVoiceId;
       if (!hasValidVoice) {
         toast({
@@ -403,7 +405,7 @@ export default function AgentEditor() {
         });
         return;
       }
-      const isOpenAIVoice = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+      const isOpenAIVoice = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
       const hasValidVoice = isOpenAIVoice ? !!formData.openaiVoice : !!formData.elevenLabsVoiceId;
       if (!hasValidVoice) {
         toast({
@@ -443,7 +445,7 @@ export default function AgentEditor() {
     updateMutation.mutate({ id: agentId, data: formData });
   };
 
-  const isOpenAIVoice = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+  const isOpenAIVoice = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
 
   if (agentLoading) {
     return (
@@ -500,8 +502,8 @@ export default function AgentEditor() {
                   formData.type === 'incoming' 
                     ? 'glass-card bg-emerald-500/10 dark:bg-emerald-500/15 border-2 border-emerald-500/40 shadow-[var(--glass-shadow)]' 
                     : 'glass-surface border-2 border-transparent hover:border-white/30 dark:hover:border-white/10'
-                } ${isEditMode ? 'pointer-events-none opacity-60' : ''}`}
-                onClick={() => !isEditMode && setFormData({ ...formData, type: 'incoming' })}
+                }`}
+                onClick={() => setFormData({ ...formData, type: 'incoming' })}
                 data-testid="card-type-incoming"
               >
                 <div className="flex items-start gap-3">
@@ -531,8 +533,8 @@ export default function AgentEditor() {
                   formData.type === 'flow' 
                     ? 'glass-card bg-violet-500/10 dark:bg-violet-500/15 border-2 border-violet-500/40 shadow-[var(--glass-shadow)]' 
                     : 'glass-surface border-2 border-transparent hover:border-white/30 dark:hover:border-white/10'
-                } ${isEditMode ? 'pointer-events-none opacity-60' : ''}`}
-                onClick={() => !isEditMode && setFormData({ ...formData, type: 'flow' })}
+                }`}
+                onClick={() => setFormData({ ...formData, type: 'flow' })}
                 data-testid="card-type-flow"
               >
                 <div className="flex items-start gap-3">
@@ -632,7 +634,7 @@ export default function AgentEditor() {
                   </div>
                   <Select
                     value={formData.telephonyProvider}
-                    onValueChange={(value: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip") => 
+                    onValueChange={(value: "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip") => 
                       setFormData({ ...formData, telephonyProvider: value })
                     }
                   >
@@ -641,7 +643,7 @@ export default function AgentEditor() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="twilio">{t('agents.providers.twilio')}</SelectItem>
-                      {isPlivoEnabled && <SelectItem value="plivo">{t('agents.providers.plivo')}</SelectItem>}
+
                       {isTwilioOpenaiEnabled && <SelectItem value="twilio_openai">{t('agents.providers.twilioOpenai')}</SelectItem>}
                       {isElevenLabsSipAllowed && <SelectItem value="elevenlabs-sip">{t('agents.providers.elevenLabsSip')}</SelectItem>}
                       {isOpenAISipAllowed && <SelectItem value="openai-sip">{t('agents.providers.openaiSip')}</SelectItem>}
@@ -960,7 +962,7 @@ export default function AgentEditor() {
                 <Select
                   value={formData.flowId}
                   onValueChange={(value) => setFormData({ ...formData, flowId: value })}
-                  disabled={isEditMode}
+                  disabled={false}
                 >
                   <SelectTrigger data-testid="select-flow">
                     <SelectValue placeholder={t('agents.create.selectFlowPlaceholder')} />
@@ -1026,7 +1028,7 @@ export default function AgentEditor() {
                   </div>
                   <Select
                     value={formData.telephonyProvider}
-                    onValueChange={(value: "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip") => 
+                    onValueChange={(value: "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip") => 
                       setFormData({ ...formData, telephonyProvider: value })
                     }
                   >
@@ -1035,7 +1037,7 @@ export default function AgentEditor() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="twilio">{t('agents.providers.twilio')}</SelectItem>
-                      {isPlivoEnabled && <SelectItem value="plivo">{t('agents.providers.plivo')}</SelectItem>}
+
                       {isTwilioOpenaiEnabled && <SelectItem value="twilio_openai">{t('agents.providers.twilioOpenai')}</SelectItem>}
                       {isElevenLabsSipAllowed && <SelectItem value="elevenlabs-sip">{t('agents.providers.elevenLabsSip')}</SelectItem>}
                       {isOpenAISipAllowed && <SelectItem value="openai-sip">{t('agents.providers.openaiSip')}</SelectItem>}
@@ -1081,6 +1083,265 @@ export default function AgentEditor() {
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                  <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <Label className="text-sm font-semibold text-purple-700 dark:text-purple-300">{t('agents.create.aiConfiguration')}</Label>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Label htmlFor="flow-system-prompt">{t('agents.create.systemPromptRequired')} <span className="text-destructive">*</span></Label>
+                    <InfoTooltip content={t('agents.create.systemPromptTooltip')} />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowTemplateLibrary(true)}
+                    className="gap-1 text-xs"
+                    data-testid="button-use-template-flow"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    {t('agents.create.useTemplate')}
+                  </Button>
+                </div>
+                <Textarea
+                  id="flow-system-prompt"
+                  placeholder={t('agents.create.systemPromptPlaceholderFlow', { defaultValue: 'You are a professional phone agent conducting a structured conversation. Follow the workflow exactly as defined. Be polite, clear, and concise in your responses.' })}
+                  rows={6}
+                  value={formData.systemPrompt}
+                  onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
+                  data-testid="textarea-flow-system-prompt"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <Label htmlFor="flow-first-message">{t('agents.create.firstMessage')}</Label>
+                  <InfoTooltip content={t('agents.create.firstMessageTooltip')} />
+                </div>
+                <Input
+                  id="flow-first-message"
+                  placeholder={t('agents.create.firstMessagePlaceholderFlow', { defaultValue: 'Hello! I\'m calling to assist you today.' })}
+                  value={formData.firstMessage}
+                  onChange={(e) => setFormData({ ...formData, firstMessage: e.target.value })}
+                  data-testid="input-flow-first-message"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <Label htmlFor="flow-language">{t('agents.create.language')}</Label>
+                    <InfoTooltip content={t('agents.create.languageTooltip')} />
+                  </div>
+                  <Select
+                    value={formData.language}
+                    onValueChange={(value) => setFormData({ ...formData, language: value })}
+                  >
+                    <SelectTrigger id="flow-language" data-testid="select-flow-language">
+                      <SelectValue>
+                        {getLanguageLabel(formData.language)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <SelectItem key={lang.value} value={lang.value}>
+                          <LanguageOptionLabel label={lang.label} providers={lang.providers} compact />
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <Label htmlFor="flow-llm-model">{t('agents.create.llmModel')}</Label>
+                    <InfoTooltip content={t('agents.create.llmModelTooltip')} />
+                  </div>
+                  <Select
+                    value={formData.llmModel}
+                    onValueChange={(value) => setFormData({ ...formData, llmModel: value })}
+                  >
+                    <SelectTrigger id="flow-llm-model" data-testid="select-flow-llm-model">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableLLMModels.map((model) => (
+                        <SelectItem key={model.id} value={model.modelId}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Label>{t('agents.create.temperature')}</Label>
+                    <InfoTooltip content={t('agents.create.temperatureTooltip')} />
+                  </div>
+                  <span className="text-sm text-muted-foreground">{formData.temperature.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[formData.temperature]}
+                  onValueChange={([value]) => setFormData({ ...formData, temperature: value })}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  data-testid="slider-flow-temperature"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                  <Wrench className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                </div>
+                <Label className="text-sm font-semibold text-orange-700 dark:text-orange-300">{t('agents.systemTools.title')}</Label>
+              </div>
+
+              <div className="space-y-4 pl-2">
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer" data-testid="label-flow-enable-call-transfer">
+                    <Checkbox
+                      checked={formData.transferEnabled}
+                      onCheckedChange={(checked) => setFormData({ ...formData, transferEnabled: checked as boolean })}
+                      data-testid="checkbox-flow-enable-call-transfer"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-medium">{t('agents.systemTools.enableCallTransfer')}</span>
+                        <InfoTooltip content={t('agents.systemTools.callTransferTooltip')} />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {t('agents.systemTools.callTransferDescription')}
+                      </p>
+                    </div>
+                  </label>
+                  
+                  {formData.transferEnabled && (
+                    <div className="ml-7 space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-normal">Transfer Type <span className="text-destructive">*</span></Label>
+                        <Select
+                          value={formData.transferType}
+                          onValueChange={(value: "phone" | "agent") => setFormData({ ...formData, transferType: value, ...(value === "phone" ? { transferAgentId: "" } : { transferPhoneNumber: "" }) })}
+                        >
+                          <SelectTrigger data-testid="select-flow-transfer-type">
+                            <SelectValue placeholder="Select transfer type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="phone" data-testid="select-item-flow-transfer-phone">Phone Number</SelectItem>
+                            <SelectItem value="agent" data-testid="select-item-flow-transfer-agent">AI Agent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {formData.transferType === "phone" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="flow-transfer-phone" className="text-sm font-normal">
+                            {t('agents.systemTools.transferPhoneNumber')} <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="flow-transfer-phone"
+                            placeholder="+1234567890"
+                            value={formData.transferPhoneNumber}
+                            onChange={(e) => setFormData({ ...formData, transferPhoneNumber: e.target.value })}
+                            data-testid="input-flow-transfer-phone"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {t('agents.systemTools.transferPhoneHint')}
+                          </p>
+                        </div>
+                      )}
+
+                      {formData.transferType === "agent" && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-normal">
+                            Transfer to Agent <span className="text-destructive">*</span>
+                          </Label>
+                          <Select
+                            value={formData.transferAgentId}
+                            onValueChange={(value) => setFormData({ ...formData, transferAgentId: value })}
+                          >
+                            <SelectTrigger data-testid="select-flow-transfer-agent">
+                              <SelectValue placeholder="Select an agent" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableAgents
+                                .filter((a) => a.id !== agentId)
+                                .map((agent) => (
+                                  <SelectItem key={agent.id} value={agent.id} data-testid={`select-item-flow-agent-${agent.id}`}>
+                                    {agent.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Select another AI agent to transfer calls to.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-3 cursor-pointer" data-testid="label-flow-enable-language-detection">
+                  <Checkbox
+                    checked={formData.detectLanguageEnabled}
+                    onCheckedChange={(checked) => setFormData({ ...formData, detectLanguageEnabled: checked as boolean })}
+                    data-testid="checkbox-flow-enable-language-detection"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">{t('agents.create.enableLanguageDetection')}</span>
+                      <InfoTooltip content={t('agents.systemTools.languageDetectionTooltip')} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('agents.systemTools.languageDetectionDescription')}
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer" data-testid="label-flow-enable-end-conversation">
+                  <Checkbox
+                    checked={formData.endConversationEnabled}
+                    onCheckedChange={(checked) => setFormData({ ...formData, endConversationEnabled: checked as boolean })}
+                    data-testid="checkbox-flow-enable-end-conversation"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">{t('agents.systemTools.enableEndConversation')}</span>
+                      <InfoTooltip content={t('agents.systemTools.endConversationTooltip')} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('agents.systemTools.endConversationDescription')}
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer" data-testid="label-flow-enable-appointment-booking">
+                  <Checkbox
+                    checked={formData.appointmentBookingEnabled}
+                    onCheckedChange={(checked) => setFormData({ ...formData, appointmentBookingEnabled: checked as boolean })}
+                    data-testid="checkbox-flow-enable-appointment-booking"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">{t('agents.systemTools.enableAppointmentBooking')}</span>
+                      <InfoTooltip content={t('agents.systemTools.appointmentBookingTooltip')} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('agents.systemTools.appointmentBookingDescription')}
+                    </p>
+                  </div>
+                </label>
               </div>
             </>
           )}

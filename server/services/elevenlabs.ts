@@ -1583,10 +1583,13 @@ You are a script reader, not a conversational AI. Execute the workflow mechanica
       conversationConfigUpdates.tts = ttsConfig;
     }
     
-    // ALWAYS include ASR config for ElevenLabs to ensure proper audio format
+    // Include ASR config — do NOT hardcode user_input_audio_format.
+    // ElevenLabs auto-detects the format based on the call source:
+    //   - Twilio calls use mulaw_8000
+    //   - Web widget calls use pcm_16000
+    // Hardcoding pcm_16000 breaks Twilio inbound calls (format mismatch → disconnect).
     conversationConfigUpdates.asr = {
       provider: "elevenlabs",
-      user_input_audio_format: "pcm_16000", // PCM 16kHz to match widget audio format
     };
     
     // Add conversation settings for timeout and events

@@ -227,14 +227,21 @@
     
     // Rebuild dropdown options with engine-specific languages
     var sortedLanguages = getSortedLanguages();
-    var optionsHtml = sortedLanguages.map(function(code) {
-      return '<button class="vw-lang-option' + (code === currentLang ? ' vw-selected' : '') + '" data-lang="' + code + '">' +
-        '<span class="vw-lang-option-flag">' + getLanguageFlag(code) + '</span>' +
-        '<span class="vw-lang-option-name">' + getLanguageName(code) + '</span>' +
-      '</button>';
-    }).join('');
-    
-    dropdown.innerHTML = optionsHtml;
+    dropdown.textContent = '';
+    sortedLanguages.forEach(function(code) {
+      var btn = document.createElement('button');
+      btn.className = 'vw-lang-option' + (code === currentLang ? ' vw-selected' : '');
+      btn.setAttribute('data-lang', code);
+      var flagSpan = document.createElement('span');
+      flagSpan.className = 'vw-lang-option-flag';
+      flagSpan.textContent = getLanguageFlag(code);
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'vw-lang-option-name';
+      nameSpan.textContent = getLanguageName(code);
+      btn.appendChild(flagSpan);
+      btn.appendChild(nameSpan);
+      dropdown.appendChild(btn);
+    });
     
     // Update the flag button
     var flagEl = document.getElementById('vw-lang-flag');
@@ -269,7 +276,12 @@
   function createWidget() {
     var container = document.createElement('div');
     container.id = 'vw-container';
-    container.innerHTML = getWidgetHTML();
+    var parser = new DOMParser();
+    var doc = parser.parseFromString('<div>' + getWidgetHTML() + '</div>', 'text/html');
+    var parsed = doc.body.firstChild;
+    while (parsed && parsed.firstChild) {
+      container.appendChild(parsed.firstChild);
+    }
     document.body.appendChild(container);
     injectStyles();
     bindEvents();
@@ -508,7 +520,15 @@
     
     var termsLabel = document.querySelector('.vw-terms-label span');
     if (termsLabel) {
-      termsLabel.innerHTML = t('termsAgree') + ' <a href="' + getBaseUrl() + '/terms" target="_blank" class="vw-terms-link">' + t('terms') + '</a>';
+      termsLabel.textContent = '';
+      var agreeText = document.createTextNode(t('termsAgree') + ' ');
+      var termsLink = document.createElement('a');
+      termsLink.href = getBaseUrl() + '/terms';
+      termsLink.target = '_blank';
+      termsLink.className = 'vw-terms-link';
+      termsLink.textContent = t('terms');
+      termsLabel.appendChild(agreeText);
+      termsLabel.appendChild(termsLink);
     }
     
     var cancelBtn = document.getElementById('vw-terms-cancel');
@@ -520,7 +540,13 @@
     var poweredBys = document.querySelectorAll('.vw-powered');
     var appName = (config && config.platformName) ? config.platformName : (brandingData?.app_name || 'AgentLabs');
     poweredBys.forEach(function(el) {
-      el.innerHTML = t('poweredBy') + ' <span class="vw-brand">' + escapeHtml(appName) + '</span>';
+      el.textContent = '';
+      var poweredText = document.createTextNode(t('poweredBy') + ' ');
+      var brandSpan = document.createElement('span');
+      brandSpan.className = 'vw-brand';
+      brandSpan.textContent = appName;
+      el.appendChild(poweredText);
+      el.appendChild(brandSpan);
     });
   }
   

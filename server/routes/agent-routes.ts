@@ -18,16 +18,17 @@
 
 import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { eq, and } from "drizzle-orm";
-import { llmModels, flows, FlowNode, FlowEdge, knowledgeBase } from "@shared/schema";
+import { eq, and, inArray, sql } from "drizzle-orm";
+import { llmModels, flows, FlowNode, FlowEdge, knowledgeBase, departmentAgents, departments, agents as agentsTable } from "@shared/schema";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
-import { OpenAIPoolService } from "../engines/plivo/services/openai-pool.service";
+import { OpenAIPoolService } from "../services/openai-pool.service";
 import { IncomingAgentService } from "../services/incoming-agent";
 import { FlowAgentService } from "../services/flow-agent";
 import { setupRAGToolForAgent, isRAGEnabled } from "../services/rag-elevenlabs-tool";
 import { generateAgentAvatar } from "../services/avatar-generator";
 import { generateUseCasesFromKB } from "../services/use-case-generator";
+import { buildElevenLabsDynamicFormWebhookTools, DYNAMIC_FORM_PROMPT } from "../services/dynamic-form-tools";
 
 export function createAgentRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -50,6 +51,51 @@ export function createAgentRoutes(ctx: RouteContext): Router {
     } catch (error: any) {
       console.error("Get agents error:", error);
       res.status(500).json({ error: "Failed to get agents" });
+    }
+  });
+
+  router.get("/api/agents/deprock-linked", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userDepts = await db.select({ id: departments.id })
+        .from(departments)
+        .where(and(eq(departments.userId, req.userId!), eq(departments.engineType, 'bedrock-polly')));
+      
+      if (userDepts.length === 0) {
+        return res.json({ agentIds: [], departmentMap: {} });
+      }
+
+      const deptIds = userDepts.map(d => d.id);
+      const links = await db.select({
+        agentId: departmentAgents.agentId,
+        departmentId: departmentAgents.departmentId,
+        language: departmentAgents.language,
+        isPrimary: departmentAgents.isPrimary,
+        deptName: departments.name,
+      })
+        .from(departmentAgents)
+        .innerJoin(departments, eq(departmentAgents.departmentId, departments.id))
+        .innerJoin(agentsTable, eq(departmentAgents.agentId, agentsTable.id))
+        .where(and(
+          inArray(departmentAgents.departmentId, deptIds),
+          eq(agentsTable.userId, req.userId!)
+        ));
+
+      const agentIds = [...new Set(links.map(l => l.agentId))];
+      const departmentMap: Record<string, { departmentId: string; departmentName: string; language: string; isPrimary: boolean }[]> = {};
+      for (const link of links) {
+        if (!departmentMap[link.agentId]) departmentMap[link.agentId] = [];
+        departmentMap[link.agentId].push({
+          departmentId: link.departmentId,
+          departmentName: link.deptName || 'Unknown',
+          language: link.language,
+          isPrimary: link.isPrimary,
+        });
+      }
+
+      res.json({ agentIds, departmentMap });
+    } catch (error: any) {
+      console.error("Get deprock-linked agents error:", error);
+      res.status(500).json({ error: "Failed to get deprock-linked agents" });
     }
   });
 
@@ -106,8 +152,8 @@ export function createAgentRoutes(ctx: RouteContext): Router {
       }
 
       // Voice validation depends on telephony provider
-      // OpenAI-based providers (plivo, twilio_openai) use OpenAI voices, not ElevenLabs
-      const isOpenAIProvider = telephonyProvider === 'plivo' || telephonyProvider === 'twilio_openai';
+      // OpenAI-based providers (twilio_openai) use OpenAI voices, not ElevenLabs
+      const isOpenAIProvider = telephonyProvider === 'twilio_openai';
       
       if (type === 'incoming') {
         if (isOpenAIProvider) {
@@ -272,10 +318,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
 
           const incomingElevenLabsService = new ElevenLabsService(credential.apiKey);
 
+          const enhancedPromptForEL = systemPrompt + DYNAMIC_FORM_PROMPT;
+
           const agentResponse = await incomingElevenLabsService.createAgent({
             name,
             voice_id: elevenLabsVoiceId,
-            prompt: systemPrompt,
+            prompt: enhancedPromptForEL,
             first_message: firstMessage || "Hello! How can I help you today?",
             language: language || "en",
             model: effectiveLlmModelId!,
@@ -295,6 +343,19 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           });
 
           elevenLabsAgentId = agentResponse.agent_id;
+
+          const dynamicFormWebhookTools = buildElevenLabsDynamicFormWebhookTools(
+            req.userId!,
+            elevenLabsAgentId
+          );
+          try {
+            await incomingElevenLabsService.updateAgent(elevenLabsAgentId, {
+              webhookTools: dynamicFormWebhookTools,
+              skipWorkflowRebuild: true,
+            });
+          } catch (toolErr: any) {
+            console.warn(`📋 [Agent Create] Could not add dynamic form tools: ${toolErr.message}`);
+          }
         } catch (error) {
           console.error("Error creating ElevenLabs agent:", error);
           return res.status(500).json({ error: "Failed to create ElevenLabs agent" });
@@ -406,7 +467,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         // Voice provider configuration
         voiceProvider: voiceProvider || 'elevenlabs',
         awsPollyVoiceId: voiceProvider === 'aws_polly' ? req.body.awsPollyVoiceId : null,
-        // OpenAI Realtime configuration (for plivo and twilio_openai providers)
+        // OpenAI Realtime configuration (for twilio_openai provider)
         telephonyProvider: isOpenAIProvider ? telephonyProvider : 'twilio',
         openaiVoice: isOpenAIProvider ? (openaiVoice || 'alloy') : null,
         // Template tracking fields
@@ -598,9 +659,6 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         return res.status(404).json({ error: "Agent not found" });
       }
 
-      if (req.body.type && req.body.type !== agent.type) {
-        return res.status(400).json({ error: "Cannot change agent type after creation" });
-      }
 
       if (agent.type === 'incoming' && req.body.transferEnabled === true && !req.body.transferPhoneNumber?.trim() && !req.body.transferAgentId?.trim()) {
         return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });

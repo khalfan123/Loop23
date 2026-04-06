@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["unzip", "fltk14"]
+packages = ["unzip", "fltk14", "run"]
 
 [[ports]]
 localPort = 5000
@@ -26,14 +26,25 @@ externalPort = 3001
 localPort = 23638
 externalPort = 3003
 
+[[ports]]
+localPort = 23639
+externalPort = 4200
+
+[[ports]]
+localPort = 23640
+externalPort = 5173
+
+[[ports]]
+localPort = 23641
+externalPort = 5000
+
 [env]
 PORT = "5000"
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["node", "./dist/index.cjs"]
+run = ["node", "./dist/index.mjs"]
 build = ["npm", "run", "build"]
-publicDir = "dist/public"
 
 [workflows]
 runButton = "Project"
@@ -59,12 +70,22 @@ waitForPort = 5000
 [userenv]
 
 [userenv.shared]
-JWT_SECRET = "agentlabs-development-jwt-secret-key-2025"
 APP_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
-APP_URL = "https://workspace.replit.dev"
-NODE_ENV = "development"
+APP_URL = "https://looop23.replit.app"
 DEV_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
 AWS_REGION = "us-east-1"
+UAEPASS_CLIENT_ID = "sandbox_stage"
+UAEPASS_CLIENT_SECRET = "sandbox_stage"
+UAEPASS_BASE_URL = "https://stg-id.uaepass.ae/idshub"
+UAEPASS_REDIRECT_URI = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev/api/auth/uaepass/callback"
+SUPPORT_API_KEY = "980f4aa892ac10edec08028eda910a5f5f825bd190adb053e16af46435dbd163"
+SUPPORT_API_BASE = "https://looop23.replit.app/api/public/support"
+
+[userenv.development]
+NODE_ENV = "development"
+
+[userenv.production]
+NODE_ENV = "production"
 
 [agent]
 integrations = ["javascript_openai_ai_integrations:2.0.0", "javascript_anthropic_ai_integrations:2.0.0"]

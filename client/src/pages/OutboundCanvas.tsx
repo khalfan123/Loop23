@@ -200,7 +200,6 @@ interface FlowTemplate {
   id: string;
   name: string;
   description: string;
-  category?: string;
   isTemplate: boolean;
   nodeCount: number;
   preview: string[];
@@ -801,7 +800,7 @@ function OutboundWizard() {
       setPreviewAudio(null);
       toast({ title: "Preview Failed", description: "Could not play voice preview", variant: "destructive" });
     };
-    audio.play();
+    audio.play().catch(() => {});
     setPreviewAudio(audio);
   };
 
@@ -826,7 +825,7 @@ function OutboundWizard() {
       const audio = new Audio(previewUrl);
       audio.onended = () => { setPreviewingVoiceId(null); setPreviewAudio(null); };
       audio.onerror = () => { setPreviewingVoiceId(null); setPreviewAudio(null); toast({ title: "Preview Failed", variant: "destructive" }); };
-      audio.play();
+      audio.play().catch(() => {});
       setPreviewAudio(audio);
       return;
     }
@@ -846,7 +845,7 @@ function OutboundWizard() {
       const audio = new Audio(url);
       audio.onended = () => { setPreviewingVoiceId(null); setPreviewAudio(null); URL.revokeObjectURL(url); };
       audio.onerror = () => { setPreviewingVoiceId(null); setPreviewAudio(null); URL.revokeObjectURL(url); toast({ title: "Preview Failed", variant: "destructive" }); };
-      audio.play();
+      audio.play().catch(() => {});
       setPreviewAudio(audio);
     } catch {
       toast({ title: "Preview Failed", description: "Could not play voice preview", variant: "destructive" });

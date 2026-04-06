@@ -1,14 +1,13 @@
 'use strict';
 import { EventEmitter } from 'events';
 import { db } from '../db';
-import { calls, twilioOpenaiCalls, plivoCalls } from '../../shared/schema';
+import { calls, twilioOpenaiCalls } from '../../shared/schema';
 import { eq, and, lt, sql, inArray } from 'drizzle-orm';
 
 export interface LiveCall {
   callId: string;
   userId: string;
   twilioCallSid?: string;
-  plivoCallUuid?: string;
   direction: 'inbound' | 'outbound';
   status: 'initiated' | 'ringing' | 'in-progress' | 'completed' | 'failed' | 'no-answer' | 'busy' | 'canceled';
   fromNumber?: string;
@@ -19,7 +18,7 @@ export interface LiveCall {
   campaignName?: string;
   contactId?: string;
   contactName?: string;
-  engine: 'twilio-elevenlabs' | 'twilio-openai' | 'twilio-bedrock-polly' | 'plivo-openai' | 'plivo-elevenlabs' | 'sip';
+  engine: 'twilio-elevenlabs' | 'twilio-openai' | 'twilio-bedrock-polly' | 'sip';
   startedAt: Date;
   answeredAt?: Date;
   duration?: number;
@@ -172,18 +171,6 @@ class LiveCallRegistry extends EventEmitter {
     console.log(`📞 [LiveRegistry] endCallByTwilioSid skipped - no call found for SID: ${callSid}`);
   }
 
-  endCallByPlivoUuid(callUuid: string): void {
-    const entries = Array.from(this.activeCalls.entries());
-    for (let i = 0; i < entries.length; i++) {
-      const [callId, call] = entries[i];
-      if (call.plivoCallUuid === callUuid || callId === callUuid) {
-        this.endCall(callId);
-        return;
-      }
-    }
-    console.log(`📞 [LiveRegistry] endCallByPlivoUuid skipped - no call found for UUID: ${callUuid}`);
-  }
-
   private startDurationTracker(callId: string): void {
     const interval = setInterval(() => {
       const call = this.activeCalls.get(callId);
@@ -252,18 +239,6 @@ class LiveCallRegistry extends EventEmitter {
         )
       );
 
-    const result3 = await db
-      .update(plivoCalls)
-      .set({
-        status: 'completed',
-        endedAt: sql`COALESCE(${plivoCalls.endedAt}, NOW())`,
-      })
-      .where(
-        and(
-          inArray(plivoCalls.status, ['in-progress', 'ringing', 'initiated']),
-          lt(plivoCalls.createdAt, cutoff)
-        )
-      );
   }
 }
 

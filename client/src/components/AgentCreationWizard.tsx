@@ -222,8 +222,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   const [currentStep, setCurrentStep] = useState<WizardStep>("preset");
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
-  // Fetch voice engine setting to check if Plivo+OpenAI or Twilio+OpenAI is enabled
-  const { data: voiceEngineSettings } = useQuery<{ plivo_openai_engine_enabled: boolean; twilio_openai_engine_enabled: boolean }>({
+  // Fetch voice engine setting to check if Twilio+OpenAI is enabled
+  const { data: voiceEngineSettings } = useQuery<{ twilio_openai_engine_enabled: boolean }>({
     queryKey: ["/api/settings/voice-engine"],
     staleTime: 60000, // Cache for 1 minute
   });
@@ -240,9 +240,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   });
   const sipPhoneNumbers = sipPhoneNumbersResponse?.data || [];
 
-  const isPlivoEnabled = voiceEngineSettings?.plivo_openai_engine_enabled ?? false;
   const isTwilioOpenaiEnabled = voiceEngineSettings?.twilio_openai_engine_enabled ?? false;
-  const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed;
+  const hasAlternateEngines = isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed;
 
   const [formData, setFormData] = useState({
     useCase: "",
@@ -256,7 +255,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
-    telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+    telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
     openaiVoice: "alloy",
     sipPhoneNumberId: "",
     sourcePresetId: "" as string,
@@ -303,7 +302,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
         return !!formData.useCase;
       case "basics":
         // Voice validation depends on telephony provider
-        const isOpenAIProvider = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+        const isOpenAIProvider = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
         const hasValidVoice = isOpenAIProvider
           ? !!formData.openaiVoice 
           : !!formData.elevenLabsVoiceId;
@@ -380,7 +379,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
   const createMutation = useMutation({
     mutationFn: async () => {
       const isSipEngine = formData.telephonyProvider === "elevenlabs-sip" || formData.telephonyProvider === "openai-sip";
-      const isOpenAIVoice = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+      const isOpenAIVoice = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
       const isElevenLabsVoice = formData.telephonyProvider === "twilio" || formData.telephonyProvider === "elevenlabs-sip";
       
       const payload = {
@@ -546,7 +545,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
               {hasAlternateEngines && (
                 <div className="space-y-2">
                   <Label>Telephony Provider</Label>
-                  <div className={`grid gap-3 ${isPlivoEnabled && isTwilioOpenaiEnabled ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  <div className="grid gap-3 grid-cols-2">
                     {/* ElevenLabs + Twilio - Purple theme */}
                     <div
                       className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
@@ -593,32 +592,6 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                           </div>
                           {formData.telephonyProvider === "twilio_openai" && (
                             <Check className="h-4 w-4 text-teal-600" />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {/* OpenAI + Plivo - Green theme */}
-                    {isPlivoEnabled && (
-                      <div
-                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          formData.telephonyProvider === "plivo"
-                            ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20"
-                            : "border-border hover:border-emerald-400/50 hover:bg-emerald-500/5"
-                        }`}
-                        onClick={() => setFormData(prev => ({ ...prev, telephonyProvider: "plivo" }))}
-                        data-testid="provider-plivo"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-emerald-700 dark:text-emerald-300">OpenAI + Plivo</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Real-time AI, India numbers
-                            </p>
-                          </div>
-                          {formData.telephonyProvider === "plivo" && (
-                            <Check className="h-4 w-4 text-emerald-600" />
                           )}
                         </div>
                       </div>
@@ -686,8 +659,8 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
               <div className="grid grid-cols-1 lg:[grid-template-columns:repeat(2,minmax(0,1fr))] gap-4">
                 <div className="space-y-2 relative min-w-0">
                   <Label>Voice <span className="text-destructive">*</span></Label>
-                  {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
-                    // OpenAI Voice Selector for Plivo, Twilio+OpenAI, or OpenAI SIP
+                  {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
+                    // OpenAI Voice Selector for Twilio+OpenAI or OpenAI SIP
                     <div className="flex gap-2 min-w-0">
                       <div className="flex-1 min-w-0">
                         <Select
@@ -949,14 +922,14 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
             <div className="text-center mb-6">
               <h3 className="text-lg font-semibold tracking-tight">Fine-tune Voice</h3>
               <p className="text-sm text-muted-foreground">
-                {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai")
+                {formData.telephonyProvider === "twilio_openai"
                   ? "OpenAI voice settings are optimized automatically"
                   : "Adjust voice characteristics for the perfect sound"
                 }
               </p>
             </div>
 
-            {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai") ? (
+            {formData.telephonyProvider === "twilio_openai" ? (
               // OpenAI engine - show simplified voice info
               <div className="space-y-6">
                 <Card>
@@ -1094,9 +1067,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                       <div>
                         <Label className="text-xs text-muted-foreground">Telephony Provider</Label>
                         <p className="font-medium">
-                          {formData.telephonyProvider === "plivo" 
-                            ? "OpenAI + Plivo" 
-                            : formData.telephonyProvider === "twilio_openai"
+                          {formData.telephonyProvider === "twilio_openai"
                               ? "OpenAI + Twilio"
                               : "ElevenLabs + Twilio"}
                         </p>
@@ -1105,7 +1076,7 @@ export function AgentCreationWizard({ open, onOpenChange, onSuccess }: AgentCrea
                     <div>
                       <Label className="text-xs text-muted-foreground">Voice</Label>
                       <p className="font-medium">
-                        {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai")
+                        {formData.telephonyProvider === "twilio_openai"
                           ? openaiVoices.find(v => v.value === formData.openaiVoice)?.label || formData.openaiVoice
                           : formData.elevenLabsVoiceId || "Not selected"
                         }

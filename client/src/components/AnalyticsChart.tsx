@@ -21,11 +21,12 @@ import { cn } from "@/lib/utils";
 interface AnalyticsChartProps {
   title: string;
   type: "bar" | "pie" | "area";
-  data: any[];
+  data: Array<Record<string, string | number>>;
   dataKey?: string;
   xAxisKey?: string;
   testId?: string;
   gradientClassName?: string;
+  onSegmentClick?: (data: { name: string; value: number }) => void;
 }
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
@@ -42,7 +43,7 @@ const glassTooltipStyle = {
   letterSpacing: "-0.01em",
 };
 
-export function AnalyticsChart({ title, type, data, dataKey = "value", xAxisKey = "name", testId, gradientClassName }: AnalyticsChartProps) {
+export function AnalyticsChart({ title, type, data, dataKey = "value", xAxisKey = "name", testId, gradientClassName, onSegmentClick }: AnalyticsChartProps) {
   return (
     <Card className={cn("p-6", gradientClassName)} data-testid={testId || `chart-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <h3 className="text-base font-semibold text-foreground mb-4 tracking-tight">{title}</h3>
@@ -128,6 +129,8 @@ export function AnalyticsChart({ title, type, data, dataKey = "value", xAxisKey 
                 strokeWidth={2}
                 stroke="hsl(var(--background))"
                 paddingAngle={2}
+                onClick={onSegmentClick ? (entry: { name: string; value: number }) => onSegmentClick(entry) : undefined}
+                style={onSegmentClick ? { cursor: 'pointer' } : undefined}
               >
                 {data.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} opacity={0.85} />

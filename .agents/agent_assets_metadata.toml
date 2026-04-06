@@ -1,0 +1,26 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "oRXC6RxnLg3uqSaYgqSQq"
+uri = "file://.local/admin-panel-prompt.md"
+type = "text"
+title = "Complete Admin Panel Prompt for Replit Agent"
+
+[[outputs]]
+id = "jTOT-g20p3OxQ0fzNKd84"
+uri = "file://docs/uaepass-onboarding/00-requirement-gathering-response.md"
+type = "text"
+title = "UAE Pass Requirement Gathering Response"
+
+[[outputs]]
+id = "x9GDpTa6HHJLNijIbbmx8"
+uri = "file://docs/uaepass-onboarding/03-db-storage-evidence.md"
+type = "text"
+title = "DB Storage Evidence"
+
+[[outputs]]
+id = "yqYhVVaFFgHXfGete_ro0"
+uri = "file://docs/uaepass-onboarding/04-questionnaire-responses.md"
+type = "text"
+title = "Authentication Questionnaire Responses"

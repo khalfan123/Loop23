@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import IncomingCallCanvas from "@/pages/IncomingCallCanvas";
 import HumanAgentCanvas from "@/pages/HumanAgentCanvas";
+import DeprockCallSimulator from "@/pages/DeprockCallSimulator";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,8 +132,6 @@ interface IvrConfiguration {
   isActive: boolean;
   voiceName: string | null;
   menuOptions: { key: string; label: string; departmentId: string }[] | null;
-  languageOptions?: LanguageOption[] | null;
-  greetingMessage?: string | null;
 }
 
 interface PhoneNumber {
@@ -177,23 +176,11 @@ interface NewAgentConfig {
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "de", label: "German" },
-  { code: "it", label: "Italian" },
-  { code: "pt", label: "Portuguese" },
   { code: "zh", label: "Chinese" },
   { code: "hi", label: "Hindi" },
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
   { code: "ar", label: "Arabic" },
-  { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" },
-  { code: "nl", label: "Dutch" },
-  { code: "pl", label: "Polish" },
-  { code: "sv", label: "Swedish" },
-  { code: "no", label: "Norwegian" },
-  { code: "fi", label: "Finnish" },
-  { code: "da", label: "Danish" },
-  { code: "tr", label: "Turkish" },
 ];
 
 const POLLY_VOICES = [
@@ -280,11 +267,72 @@ const ELEVENLABS_VOICES = [
   { id: "el_omar", name: "Omar (ElevenLabs)", gender: "male", style: "deep", languages: ["ar"] },
 ];
 
+const LANG_CODE_MAP: Record<string, string> = {
+  english: 'en', arabic: 'ar', french: 'fr', spanish: 'es', hindi: 'hi',
+  chinese: 'zh', italian: 'it', german: 'de', portuguese: 'pt', japanese: 'ja',
+  korean: 'ko', dutch: 'nl', polish: 'pl', swedish: 'sv', norwegian: 'no',
+  finnish: 'fi', danish: 'da', turkish: 'tr',
+};
+
+interface ElevenLabsApiVoice {
+  voice_id: string;
+  name: string;
+  category?: string;
+  labels?: Record<string, string>;
+}
+
+function mapApiVoicesToLocal(apiVoices: ElevenLabsApiVoice[]): typeof ELEVENLABS_VOICES {
+  const seenIds = new Set(ELEVENLABS_VOICES.map(v => v.id));
+  return apiVoices
+    .filter(v => {
+      if (seenIds.has(v.voice_id)) return false;
+      seenIds.add(v.voice_id);
+      return true;
+    })
+    .map(v => {
+      const lang = v.labels?.language?.toLowerCase() || '';
+      const langCode = LANG_CODE_MAP[lang] || lang.substring(0, 2) || 'en';
+      const gender = v.labels?.gender?.toLowerCase() || 'unknown';
+      const style = v.category || v.labels?.use_case || 'professional';
+      return {
+        id: v.voice_id,
+        name: `${v.name} (ElevenLabs)`,
+        gender: gender as 'male' | 'female',
+        style,
+        languages: [langCode],
+      };
+    });
+}
+
 const ALL_IVR_VOICES = [...ELEVENLABS_VOICES];
 
+const CARTESIA_DEFAULT_VOICES = [
+  { id: "cartesia_a0e99841-438c-4a64-b679-ae501e7d6091", name: "Barbershop Man (Cartesia)", gender: "male", style: "warm", languages: ["en"] },
+  { id: "cartesia_79a125e8-cd45-4c13-8a67-188112f4dd22", name: "British Lady (Cartesia)", gender: "female", style: "professional", languages: ["en"] },
+  { id: "cartesia_87748186-23bb-4571-8b85-4d0e4e7e7196", name: "Calm Lady (Cartesia)", gender: "female", style: "calm", languages: ["en"] },
+  { id: "cartesia_ee7ea9f8-c0c1-498c-9f62-dc2627e1e3ef", name: "Confident Man (Cartesia)", gender: "male", style: "professional", languages: ["en"] },
+  { id: "cartesia_c2ac25f9-ecc4-4f56-9095-651354df60c0", name: "Customer Support (Cartesia)", gender: "female", style: "friendly", languages: ["en"] },
+  { id: "cartesia_41534e16-2966-4c6b-9670-111411def906", name: "Wise Man (Cartesia)", gender: "male", style: "deep", languages: ["en"] },
+  { id: "cartesia_248be419-c632-4f23-adf1-5324ed7dbf1d", name: "Pleasant Man (Cartesia)", gender: "male", style: "friendly", languages: ["en"] },
+  { id: "cartesia_bf991597-6c13-47e4-8411-91ec2de5c466", name: "Newsman (Cartesia)", gender: "male", style: "crisp", languages: ["en"] },
+  { id: "cartesia_b7d50908-b179-4d51-8d53-8b2a5d5e1bf3", name: "Friendly Sidekick (Cartesia)", gender: "male", style: "expressive", languages: ["en"] },
+  { id: "cartesia_00a77add-48d5-4ef6-8157-71e5437b282d", name: "Sarah (Cartesia)", gender: "female", style: "soft", languages: ["en", "es", "fr", "de", "it", "pt", "zh", "hi", "ar", "ja", "ko"] },
+  { id: "cartesia_f114a467-c40a-4db8-964d-aaba89cd08fa", name: "Friendly French Man (Cartesia)", gender: "male", style: "warm", languages: ["fr"] },
+  { id: "cartesia_a3520a8f-226a-428d-9fcd-b0a4711a6829", name: "French Narrator Lady (Cartesia)", gender: "female", style: "professional", languages: ["fr"] },
+  { id: "cartesia_ab7c61f5-3daa-47dd-a23b-4ac0aac5f5c3", name: "Spanish Narrator Lady (Cartesia)", gender: "female", style: "warm", languages: ["es"] },
+  { id: "cartesia_846d6cb0-2301-48b6-9683-48f5618ea2f6", name: "Spanish Narrator Man (Cartesia)", gender: "male", style: "professional", languages: ["es"] },
+  { id: "cartesia_5c42302c-f55f-481a-b895-80c1cda8c4e2", name: "Chinese Female Voice (Cartesia)", gender: "female", style: "clear", languages: ["zh"] },
+  { id: "cartesia_daf747c6-6bc2-4083-bd59-aa94dce23f5d", name: "Hindi Female Voice (Cartesia)", gender: "female", style: "warm", languages: ["hi"] },
+  { id: "cartesia_2b568345-1d48-4047-b25f-7baccf842eb0", name: "Arabic Male Voice (Cartesia)", gender: "male", style: "professional", languages: ["ar"] },
+];
 
-const getVoicesForLanguage = (languageCode: string) => {
-  return ALL_IVR_VOICES.filter(voice => voice.languages.includes(languageCode));
+const isCartesiaVoice = (voiceId: string) => voiceId.startsWith("cartesia_");
+
+const getVoicesForLanguage = (languageCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = [], dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []) => {
+  const allElVoices = [...ALL_IVR_VOICES, ...dynamicVoices];
+  const allCartesiaVoices = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
+  const allVoices = [...allElVoices, ...allCartesiaVoices];
+  return allVoices.filter(voice => voice.languages.includes(languageCode));
 };
 
 const DEFAULT_GREETINGS: Record<string, string> = {
@@ -449,14 +497,44 @@ export default function DeprockManagement() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  const { data: dynamicElVoices = [] } = useQuery<ElevenLabsApiVoice[], Error, typeof ELEVENLABS_VOICES>({
+    queryKey: ["/api/elevenlabs/voices"],
+    select: (data) => mapApiVoicesToLocal(data || []),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: dynamicCartesiaVoices = [] } = useQuery<any[], Error, typeof CARTESIA_DEFAULT_VOICES>({
+    queryKey: ["/api/deprock/cartesia-voices"],
+    select: (data) => {
+      if (!Array.isArray(data) || data.length === 0) return CARTESIA_DEFAULT_VOICES;
+      const seenIds = new Set<string>();
+      return data
+        .filter((v: any) => {
+          if (seenIds.has(v.id)) return false;
+          seenIds.add(v.id);
+          return true;
+        })
+        .map((v: any) => ({
+          id: `cartesia_${v.id}`,
+          name: `${v.name || "Unknown"} (Cartesia)`,
+          gender: (v.gender || "unknown") as string,
+          style: "professional",
+          languages: [(v.language || "en").toLowerCase().split('-')[0].split('_')[0]],
+        }));
+    },
+    staleTime: 10 * 60 * 1000,
+  });
   
   const [activeTab, setActiveTab] = useState<"org-map" | "departments" | "incoming-connections" | "human-connections">("org-map");
+  const [showSimulator, setShowSimulator] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [showIvrSettingsDialog, setShowIvrSettingsDialog] = useState(false);
   const [showAddAgentDialog, setShowAddAgentDialog] = useState(false);
   const [showConfigSheet, setShowConfigSheet] = useState(false);
+  const [creatingDepartment, setCreatingDepartment] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set());
   
@@ -572,7 +650,7 @@ export default function DeprockManagement() {
     queryKey: ["/api/auth/me"],
   });
 
-  const { data: statsData, isLoading: statsLoading } = useQuery<{
+  const { data: statsData, isLoading: statsLoading, isFetching: statsRefetching } = useQuery<{
     departments: Department[];
     totalDepartments: number;
     activeIvrCount: number;
@@ -596,6 +674,7 @@ export default function DeprockManagement() {
 
   const createDepartmentMutation = useMutation({
     mutationFn: async (data: typeof newDepartment) => {
+      setCreatingDepartment(true);
       const response = await apiRequest("POST", "/api/deprock", data);
       return response.json();
     },
@@ -616,15 +695,19 @@ export default function DeprockManagement() {
           }
         }
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/deprock"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
       setShowCreateDialog(false);
       setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
       setNewAgents([]);
       setExpandedNewAgents(new Set());
+      await queryClient.invalidateQueries({ queryKey: ["/api/deprock"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
+      setCreatingDepartment(false);
       toast({ title: "Deprock department created successfully" });
     },
     onError: (error: any) => {
+      setCreatingDepartment(false);
       toast({ title: "Failed to create deprock department", variant: "destructive" });
     },
   });
@@ -652,6 +735,8 @@ export default function DeprockManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deprock"] });
       queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       setShowDeleteDialog(false);
       setSelectedDepartment(null);
       toast({ title: "Deprock department deleted successfully" });
@@ -670,6 +755,8 @@ export default function DeprockManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/incoming-connections"] });
       queryClient.invalidateQueries({ queryKey: ["/api/incoming-connections/human"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       setShowDeleteAllDialog(false);
       toast({ title: "Call center organization cleared successfully" });
     },
@@ -685,6 +772,8 @@ export default function DeprockManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deprock"] });
       queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       refetchDepartmentAgents();
       setShowAddAgentDialog(false);
       setSelectedAgent({ agentId: "", language: "en", systemPrompt: "", voiceTone: "", voiceId: "", voiceSpeed: 1.0 });
@@ -702,6 +791,8 @@ export default function DeprockManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deprock"] });
       queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       refetchDepartmentAgents();
       toast({ title: "Agent removed from deprock department" });
     },
@@ -722,6 +813,8 @@ export default function DeprockManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       toast({ title: "Agent configuration updated" });
       setViewAgentDetail(null);
       setEditAgentDetail(null);
@@ -867,7 +960,7 @@ export default function DeprockManagement() {
   const languageSelectionGreeting = languageSelectionGreetingText || generateDefaultLanguageSelectionGreeting();
 
   const getDefaultVoiceForLanguage = (langCode: string) => {
-    const voices = getVoicesForLanguage(langCode);
+    const voices = getVoicesForLanguage(langCode, dynamicElVoices, dynamicCartesiaVoices);
     return voices[0]?.id || "el_rachel";
   };
 
@@ -915,7 +1008,7 @@ export default function DeprockManagement() {
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
 
-  const handleIvrVoicePreview = async (voiceId: string, greetingText: string, speed?: number) => {
+  const handleIvrVoicePreview = async (voiceId: string, greetingText: string, speed?: number, language?: string) => {
     if (!ivrAudioRef.current) return;
     
     if (ivrPlayingVoiceId === voiceId) {
@@ -927,7 +1020,7 @@ export default function DeprockManagement() {
     
     try {
       setIvrPlayingVoiceId(voiceId);
-      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: greetingText, speed: speed ?? ivrVoiceSpeed });
+      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: greetingText, speed: speed ?? ivrVoiceSpeed, language });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -943,7 +1036,7 @@ export default function DeprockManagement() {
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
       ivrAudioRef.current.src = audioUrl;
-      ivrAudioRef.current.play();
+      ivrAudioRef.current.play().catch(() => {});
       ivrAudioRef.current.onended = () => {
         setIvrPlayingVoiceId(null);
         URL.revokeObjectURL(audioUrl);
@@ -1114,7 +1207,7 @@ export default function DeprockManagement() {
     }
   };
   
-  const handlePlayVoice = async (voiceId: string, text?: string, speed?: number) => {
+  const handlePlayVoice = async (voiceId: string, text?: string, speed?: number, language?: string) => {
     if (!audioRef.current) return;
     
     if (playingVoiceId === voiceId) {
@@ -1126,7 +1219,7 @@ export default function DeprockManagement() {
     
     try {
       setPlayingVoiceId(voiceId);
-      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: text || "Hello, this is a voice preview.", speed: speed ?? 1.0 });
+      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: text || "Hello, this is a voice preview.", speed: speed ?? 1.0, language });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -1142,7 +1235,7 @@ export default function DeprockManagement() {
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
       audioRef.current.src = audioUrl;
-      audioRef.current.play();
+      audioRef.current.play().catch(() => {});
       audioRef.current.onended = () => {
         setPlayingVoiceId(null);
         URL.revokeObjectURL(audioUrl);
@@ -1218,7 +1311,7 @@ export default function DeprockManagement() {
     return (phoneNumbers || []).filter(p => assignedPhoneIds.has(p.id));
   }, [phoneNumbers, assignedPhoneIds]);
 
-  if (statsLoading) {
+  if (statsLoading && !statsData) {
     return (
       <div className="flex items-center justify-center py-16" data-testid="deprock-loading-spinner">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -1271,8 +1364,15 @@ export default function DeprockManagement() {
       subPanelHeader={<span className="font-medium text-sm">Deprock Management</span>}
     >
       <div className="flex flex-col h-[calc(100vh-120px)]" data-testid="deprock-management-page">
+        {(creatingDepartment || (statsRefetching && !statsLoading)) && (
+          <div className="flex items-center gap-2 px-4 pt-3 pb-0" data-testid="deprock-refetch-spinner">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">{creatingDepartment ? "Creating department..." : "Updating..."}</span>
+          </div>
+        )}
         {activeTab === 'org-map' && (
-          <div className="space-y-4 sm:space-y-6 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+          <div className="space-y-5 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+            {/* Header */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2 min-w-0">
                 <Network className="h-4 w-4 text-foreground shrink-0" />
@@ -1328,7 +1428,7 @@ export default function DeprockManagement() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setLocation("/app/deprock/call-simulator")}
+                  onClick={() => setShowSimulator(true)}
                   data-testid="deprock-button-call-simulator"
                 >
                   <Headphones className="h-4 w-4 sm:mr-2" />
@@ -1347,44 +1447,132 @@ export default function DeprockManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="deprock-call-center-org-card">
-              <div className="rounded-lg border border-border/30 p-3 text-center">
-                <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mx-auto mb-1.5" />
-                <span className="text-xs font-medium block">Inbound</span>
-                <span className="text-[11px] text-muted-foreground" data-testid="deprock-text-phone-count">
-                  {assignedPhones.length > 0 ? `${assignedPhones.length} number${assignedPhones.length > 1 ? 's' : ''}` : 'No number'}
-                </span>
-                {unassignedPhones.length > 0 && (
-                  <Badge variant="outline" className="text-[9px] px-1 py-0 mt-1 cursor-pointer text-orange-500 border-orange-300" onClick={() => setShowIvrSettingsDialog(true)} data-testid="deprock-unassigned-numbers-panel">
-                    {unassignedPhones.length} unassigned
-                  </Badge>
-                )}
+            {/* ── Call Routing Pipeline ── */}
+            <div data-testid="deprock-call-center-org-card">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-3">
+                Call Routing Flow
               </div>
-              <div className="rounded-lg border border-border/30 p-3 text-center">
-                <GitBranch className="h-4 w-4 text-amber-600 dark:text-amber-400 mx-auto mb-1.5" />
-                <span className="text-xs font-medium block">IVR</span>
-                <span className="text-[11px] text-muted-foreground">{ivrConfigurations.find(i => i.isActive)?.name || "Not configured"}</span>
-                {multiLangEnabled && languageOptions.length > 1 && (
-                  <span className="text-[10px] text-blue-500 block mt-0.5">{languageOptions.length} languages</span>
-                )}
-              </div>
-              <div className="rounded-lg border border-border/30 p-3 text-center">
-                <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400 mx-auto mb-1.5" />
-                <span className="text-xs font-medium block">Departments</span>
-                <span className="text-[11px] text-muted-foreground">{departments.length} active</span>
-              </div>
-              <div className="rounded-lg border border-border/30 p-3 text-center">
-                <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400 mx-auto mb-1.5" />
-                <span className="text-xs font-medium block">AI Agents</span>
-                <span className="text-[11px] text-muted-foreground">{agents?.length || 0} enabled</span>
+              <div className="flex items-stretch gap-0 overflow-x-auto pb-1">
+
+                {/* Stage 1 — Inbound Numbers */}
+                <div className="flex-1 min-w-[110px]">
+                  <div className="rounded-xl border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-950/30 p-3 h-full flex flex-col items-center text-center gap-1.5">
+                    <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center shrink-0">
+                      <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 leading-tight">Inbound</span>
+                    {assignedPhones.length > 0 ? (
+                      <div className="flex flex-col gap-1 w-full mt-0.5" data-testid="deprock-text-phone-count">
+                        {assignedPhones.map((p) => (
+                          <div key={p.id} className="bg-emerald-100 dark:bg-emerald-900/40 rounded-md px-1.5 py-0.5 text-center">
+                            <span className="text-[10px] font-mono font-medium text-emerald-800 dark:text-emerald-300 block leading-snug truncate">
+                              {p.phoneNumber}
+                            </span>
+                            {p.friendlyName && (
+                              <span className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70 leading-tight truncate block">
+                                {p.friendlyName}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground leading-tight" data-testid="deprock-text-phone-count">No number</span>
+                    )}
+                    {unassignedPhones.length > 0 && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 cursor-pointer text-orange-500 border-orange-300 mt-0.5" onClick={() => setShowIvrSettingsDialog(true)} data-testid="deprock-unassigned-numbers-panel">
+                        {unassignedPhones.length} unassigned
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <div className="flex items-center px-1 shrink-0 self-center">
+                  <div className="h-px w-4 bg-border/60" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 -ml-0.5" />
+                </div>
+
+                {/* Stage 2 — IVR Router */}
+                <div className="flex-1 min-w-[100px]">
+                  <div className={`rounded-xl border p-3 h-full flex flex-col items-center text-center gap-1.5 ${ivrConfigurations.find(i => i.isActive) ? 'border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/30' : 'border-border/30 bg-muted/20'}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${ivrConfigurations.find(i => i.isActive) ? 'bg-amber-100 dark:bg-amber-900/50' : 'bg-muted/50'}`}>
+                      <GitBranch className={`h-4 w-4 ${ivrConfigurations.find(i => i.isActive) ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/50'}`} />
+                    </div>
+                    <span className={`text-[11px] font-semibold leading-tight ${ivrConfigurations.find(i => i.isActive) ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground/60'}`}>IVR Router</span>
+                    <span className="text-[11px] text-muted-foreground leading-tight line-clamp-1">
+                      {ivrConfigurations.find(i => i.isActive)?.name || 'Not configured'}
+                    </span>
+                    {multiLangEnabled && languageOptions.length > 1 && (
+                      <span className="text-[10px] text-blue-500 leading-tight">{languageOptions.length} languages</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <div className="flex items-center px-1 shrink-0 self-center">
+                  <div className="h-px w-4 bg-border/60" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 -ml-0.5" />
+                </div>
+
+                {/* Stage 3 — Departments */}
+                <div className="flex-1 min-w-[100px]">
+                  <div className="rounded-xl border border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-950/30 p-3 h-full flex flex-col items-center text-center gap-1.5">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+                      <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 leading-tight">Departments</span>
+                    <span className="text-[11px] text-muted-foreground leading-tight">
+                      {departments.length} dept{departments.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <div className="flex items-center px-1 shrink-0 self-center">
+                  <div className="h-px w-4 bg-border/60" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 -ml-0.5" />
+                </div>
+
+                {/* Stage 4 — AI Agents */}
+                <div className="flex-1 min-w-[100px]">
+                  <div className="rounded-xl border border-purple-200 dark:border-purple-800/50 bg-purple-50 dark:bg-purple-950/30 p-3 h-full flex flex-col items-center text-center gap-1.5">
+                    <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center shrink-0">
+                      <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-400 leading-tight">AI Agents</span>
+                    <span className="text-[11px] text-muted-foreground leading-tight">
+                      {agents?.length || 0} agent{(agents?.length || 0) !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+
               </div>
             </div>
 
+            {/* ── Routing Destinations (Department cards) ── */}
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-medium tracking-wide text-muted-foreground/60 uppercase">Departments & AI Agents</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                  Routing Destinations
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs h-7 gap-1 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setSelectedDepartment(null);
+                    setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
+                    setNewAgents([]);
+                    setExpandedNewAgents(new Set());
+                    setShowCreateDialog(true);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Department
+                </Button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 min-h-[180px]">
                 {departments.map((dept, idx) => (
                   <DeprockDepartmentCard
                     key={dept.id}
@@ -1404,8 +1592,15 @@ export default function DeprockManagement() {
                   />
                 ))}
 
-                <div 
-                  className="rounded-2xl border border-dashed border-border/40 hover-elevate cursor-pointer min-h-[150px] sm:min-h-[200px] flex flex-col items-center justify-center glass-surface"
+                {creatingDepartment && (
+                  <div className="rounded-2xl border border-border/20 min-h-[160px] flex flex-col items-center justify-center bg-muted/20 animate-pulse" data-testid="creating-department-placeholder">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                    <span className="text-xs text-muted-foreground">Creating department...</span>
+                  </div>
+                )}
+
+                <div
+                  className="rounded-2xl border border-dashed border-border/40 hover-elevate cursor-pointer min-h-[160px] flex flex-col items-center justify-center glass-surface"
                   onClick={() => {
                     setSelectedDepartment(null);
                     setNewDepartment({ name: "", description: "", icon: "building-2", color: "#3b82f6" });
@@ -1774,14 +1969,14 @@ export default function DeprockManagement() {
                           <Label className="text-xs">Voice</Label>
                           <div className="flex items-center gap-1">
                             <Select value={agent.voiceId} onValueChange={(v) => {
-                              const voice = ALL_IVR_VOICES.find(voice => voice.id === v);
+                              const voice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(voice => voice.id === v);
                               updateNewAgent(agent.id, { voiceId: v, voiceTone: voice?.style || "" });
                             }}>
                               <SelectTrigger className="flex-1" data-testid={`deprock-select-agent-voice-${idx}`}>
                                 <SelectValue placeholder="Select voice..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {ELEVENLABS_VOICES.filter(v => v.languages.includes(agent.language)).map(voice => (
+                                {getVoicesForLanguage(agent.language, dynamicElVoices, dynamicCartesiaVoices).map(voice => (
                                   <SelectItem key={voice.id} value={voice.id}>
                                     {voice.name} - {voice.gender}
                                   </SelectItem>
@@ -1789,7 +1984,7 @@ export default function DeprockManagement() {
                               </SelectContent>
                             </Select>
                             {agent.voiceId && (
-                              <Button variant="outline" size="icon" onClick={() => handlePlayVoice(agent.voiceId, undefined, agent.voiceSpeed ?? 1.0)} data-testid={`deprock-button-preview-voice-${idx}`}>
+                              <Button variant="outline" size="icon" onClick={() => handlePlayVoice(agent.voiceId, undefined, agent.voiceSpeed ?? 1.0, agent.language)} data-testid={`deprock-button-preview-voice-${idx}`}>
                                 {playingVoiceId === agent.voiceId ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                               </Button>
                             )}
@@ -1844,7 +2039,7 @@ export default function DeprockManagement() {
                               size="sm"
                               onClick={() => {
                                 const lang = SUPPORTED_LANGUAGES.find(l => l.code === agent.language)?.label || "English";
-                                const voice = ALL_IVR_VOICES.find(v => v.id === agent.voiceId);
+                                const voice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(v => v.id === agent.voiceId);
                                 const voiceStyle = voice?.style || agent.voiceTone || "professional";
                                 const autoPrompt = `You are a ${voiceStyle} AI assistant for the ${newDepartment.name || "department"}. You speak ${lang} fluently and help callers with their inquiries. Be helpful, clear, and efficient in your responses. Always maintain a ${voiceStyle} tone throughout the conversation.`;
                                 updateNewAgent(agent.id, { systemPrompt: autoPrompt });
@@ -1944,7 +2139,7 @@ export default function DeprockManagement() {
                 <Select
                   value={selectedAgent.voiceId}
                   onValueChange={(v) => {
-                    const voice = ALL_IVR_VOICES.find(voice => voice.id === v);
+                    const voice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(voice => voice.id === v);
                     setSelectedAgent({ 
                       ...selectedAgent, 
                       voiceId: v,
@@ -1956,7 +2151,7 @@ export default function DeprockManagement() {
                     <SelectValue placeholder="Select a voice..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {ALL_IVR_VOICES.filter(v => v.languages.includes(selectedAgent.language)).map((voice) => (
+                    {getVoicesForLanguage(selectedAgent.language, dynamicElVoices, dynamicCartesiaVoices).map((voice) => (
                       <SelectItem key={voice.id} value={voice.id}>
                         {voice.name} - {voice.gender}, {voice.style}
                       </SelectItem>
@@ -1967,7 +2162,7 @@ export default function DeprockManagement() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => handlePlayVoice(selectedAgent.voiceId, undefined, selectedAgent.voiceSpeed ?? 1.0)}
+                    onClick={() => handlePlayVoice(selectedAgent.voiceId, undefined, selectedAgent.voiceSpeed ?? 1.0, selectedAgent.language)}
                     data-testid="deprock-button-preview-agent-voice"
                   >
                     {playingVoiceId === selectedAgent.voiceId ? (
@@ -2028,7 +2223,7 @@ export default function DeprockManagement() {
                   size="sm"
                   onClick={() => {
                     const lang = languages.find(l => l.value === selectedAgent.language)?.label || "English";
-                    const voice = ALL_IVR_VOICES.find(v => v.id === selectedAgent.voiceId);
+                    const voice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(v => v.id === selectedAgent.voiceId);
                     const voiceStyle = voice?.style || "professional";
                     const autoPrompt = `You are a ${voiceStyle} AI assistant for the ${selectedDepartment?.name || "department"}. You speak ${lang} fluently and help callers with their inquiries. Be helpful, clear, and efficient in your responses. Always maintain a ${voiceStyle} tone throughout the conversation.`;
                     setSelectedAgent({ ...selectedAgent, systemPrompt: autoPrompt });
@@ -2340,7 +2535,7 @@ export default function DeprockManagement() {
                             <SelectValue placeholder="Select a voice..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {getVoicesForLanguage(activeLangAgent.language).map((voice) => (
+                            {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices, dynamicCartesiaVoices).map((voice) => (
                               <SelectItem key={voice.id} value={voice.id}>
                                 {voice.name} - {voice.gender}, {voice.style}
                               </SelectItem>
@@ -2351,7 +2546,7 @@ export default function DeprockManagement() {
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => handlePlayVoice(activeLangAgent.voiceId!, undefined, activeLangAgent.voiceSpeed ?? 1.0)}
+                            onClick={() => handlePlayVoice(activeLangAgent.voiceId!, undefined, activeLangAgent.voiceSpeed ?? 1.0, activeLangAgent.language)}
                             data-testid="deprock-button-preview-voice"
                           >
                             {playingVoiceId === activeLangAgent.voiceId ? (
@@ -2636,7 +2831,7 @@ export default function DeprockManagement() {
                                 <SelectValue placeholder="Select a voice..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {ELEVENLABS_VOICES.filter(v => v.languages.includes("en")).map((voice) => (
+                                {getVoicesForLanguage("en", dynamicElVoices, dynamicCartesiaVoices).map((voice) => (
                                   <SelectItem key={voice.id} value={voice.id}>
                                     {voice.name} - {voice.gender}, {voice.style}
                                   </SelectItem>
@@ -2741,9 +2936,9 @@ export default function DeprockManagement() {
                                       <SelectValue placeholder="Select a voice..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {getVoicesForLanguage(opt.language).length > 0 ? (
+                                      {getVoicesForLanguage(opt.language, dynamicElVoices, dynamicCartesiaVoices).length > 0 ? (
                                         <>
-                                          {getVoicesForLanguage(opt.language).map((voice) => (
+                                          {getVoicesForLanguage(opt.language, dynamicElVoices, dynamicCartesiaVoices).map((voice) => (
                                             <SelectItem key={voice.id} value={voice.id}>
                                               {voice.name} - {voice.gender}, {voice.style}
                                             </SelectItem>
@@ -2757,7 +2952,7 @@ export default function DeprockManagement() {
                                   <Button
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => handleIvrVoicePreview(opt.voiceId, opt.greeting, opt.speed ?? 0.92)}
+                                    onClick={() => handleIvrVoicePreview(opt.voiceId, opt.greeting, opt.speed ?? 0.92, opt.language)}
                                     data-testid={`deprock-button-preview-voice-${idx}`}
                                   >
                                     {ivrPlayingVoiceId === opt.voiceId ? (
@@ -2977,7 +3172,7 @@ export default function DeprockManagement() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      disabled={previewingVoice || !editAgentDetail.voiceId || !ALL_IVR_VOICES.some(v => v.id === editAgentDetail.voiceId)}
+                      disabled={previewingVoice || !editAgentDetail.voiceId || ![...ALL_IVR_VOICES, ...dynamicElVoices, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].some(v => v.id === editAgentDetail.voiceId)}
                       onClick={async () => {
                         if (!editAgentDetail.voiceId) return;
                         setPreviewingVoice(true);
@@ -2986,12 +3181,16 @@ export default function DeprockManagement() {
                             previewAudioRef.current.pause();
                             previewAudioRef.current = null;
                           }
-                          const voiceName = ALL_IVR_VOICES.find(v => v.id === editAgentDetail.voiceId)?.name || editAgentDetail.voiceId;
+                          const allVoicesList = [...ALL_IVR_VOICES, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)];
+                          const voiceInfo = allVoicesList.find(v => v.id === editAgentDetail.voiceId);
+                          const voiceName = voiceInfo?.name || editAgentDetail.voiceId;
+                          const voiceLang = voiceInfo?.languages?.[0] || 'en';
                           const sampleText = editAgentDetail.firstMessage || `Hello, I am ${voiceName}. This is how I sound.`;
                           const res = await apiRequest("POST", "/api/deprock/voice-preview", {
                             voiceId: editAgentDetail.voiceId,
                             text: sampleText.substring(0, 200),
                             speed: editAgentDetail.voiceSpeed ?? 1.0,
+                            language: voiceLang,
                           });
                           const blob = await res.blob();
                           const url = URL.createObjectURL(blob);
@@ -3024,8 +3223,9 @@ export default function DeprockManagement() {
                   </div>
                   {(() => {
                     const currentVoiceId = editAgentDetail.voiceId;
-                    const isKnownVoice = ALL_IVR_VOICES.some(v => v.id === currentVoiceId);
-                    const filteredEL = ELEVENLABS_VOICES.filter(v => v.languages.includes(viewAgentDetail.language));
+                    const allCartesia = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
+                    const isKnownVoice = [...ALL_IVR_VOICES, ...dynamicElVoices, ...allCartesia].some(v => v.id === currentVoiceId);
+                    const filteredEL = getVoicesForLanguage(viewAgentDetail.language, dynamicElVoices, dynamicCartesiaVoices);
                     const currentInFiltered = filteredEL.some(v => v.id === currentVoiceId);
                     return (
                       <Select
@@ -3042,7 +3242,7 @@ export default function DeprockManagement() {
                         <SelectContent>
                           {!currentInFiltered && isKnownVoice && currentVoiceId && (
                             <SelectItem key={currentVoiceId} value={currentVoiceId} data-testid={`deprock-agent-detail-voice-option-${currentVoiceId}`}>
-                              {ALL_IVR_VOICES.find(v => v.id === currentVoiceId)?.name || currentVoiceId} (current)
+                              {[...ALL_IVR_VOICES, ...(dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES)].find(v => v.id === currentVoiceId)?.name || currentVoiceId} (current)
                             </SelectItem>
                           )}
                           {filteredEL.map(voice => (
@@ -3238,6 +3438,9 @@ export default function DeprockManagement() {
         </SheetContent>
       </Sheet>
       </div>
+      {showSimulator && (
+        <DeprockCallSimulator onClose={() => setShowSimulator(false)} />
+      )}
     </ThreeColumnLayout>
   );
 }
@@ -3267,122 +3470,149 @@ function DeprockDepartmentCard({
   const agents = department.assignedAgents || [];
 
   return (
-    <div 
-      className="rounded-2xl glass-card p-3 sm:p-4 space-y-3"
+    <div
+      className="rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-border/20"
       data-testid={`deprock-department-card-${department.id}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <div 
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" 
-            style={{ backgroundColor: `${department.color}12` }}
-          >
-            <IconComponent className="h-4 w-4" style={{ color: department.color }} />
+      {/* Colored header band */}
+      <div
+        className="px-3 py-2.5 flex items-center gap-2.5"
+        style={{ backgroundColor: department.color || "#3b82f6" }}
+      >
+        <div
+          className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+          style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
+        >
+          <IconComponent className="h-4 w-4 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-white text-xs font-semibold truncate">{department.name}</span>
+            <span className="text-white/50 text-[10px] shrink-0">#{index}</span>
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium truncate">{department.name}</span>
-              <span className="text-[11px] text-muted-foreground/60 shrink-0">#{index}</span>
-            </div>
-            {department.description && (
-              <p className="text-xs text-muted-foreground/70 line-clamp-1 mt-0.5">{department.description}</p>
-            )}
-          </div>
+          {department.description && (
+            <p className="text-white/70 text-[10px] truncate leading-snug">{department.description}</p>
+          )}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
-          <Button variant="ghost" size="icon" onClick={onEdit} data-testid={`deprock-button-edit-${department.id}`}>
+          <button
+            className="w-6 h-6 rounded flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            onClick={onEdit}
+            data-testid={`deprock-button-edit-${department.id}`}
+          >
             <Edit className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={onDelete} className="text-destructive" data-testid={`deprock-button-delete-${department.id}`}>
+          </button>
+          <button
+            className="w-6 h-6 rounded flex items-center justify-center text-white/60 hover:text-red-200 hover:bg-white/10 transition-colors"
+            onClick={onDelete}
+            data-testid={`deprock-button-delete-${department.id}`}
+          >
             <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-muted-foreground/70 flex-wrap">
-        <div className="flex items-center gap-1.5" data-testid={`deprock-badge-ivr-active-${department.id}`}>
-          <div className={`w-1.5 h-1.5 rounded-full ${department.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
-          <span>{department.isActive ? "Active" : "Inactive"}</span>
+      {/* Card body */}
+      <div className="bg-card border-x border-b border-border/20 rounded-b-2xl px-3 py-2.5 space-y-2.5">
+        {/* Status row */}
+        <div className="flex items-center gap-2 flex-wrap" data-testid={`deprock-badge-ivr-active-${department.id}`}>
+          <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${department.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${department.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+            {department.isActive ? 'Active' : 'Inactive'}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground" data-testid={`deprock-badge-ai-voice-${department.id}`}>
+            <Mic className="h-2.5 w-2.5" />
+            {agentCount} Agent{agentCount !== 1 ? 's' : ''}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Globe className="h-2.5 w-2.5" />
+            {langCount} Lang{langCount !== 1 ? 's' : ''}
+          </span>
         </div>
-        <div className="flex items-center gap-1" data-testid={`deprock-badge-ai-voice-${department.id}`}>
-          <Mic className="h-3 w-3" />
-          <span>{agentCount} Agent{agentCount !== 1 ? 's' : ''}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Globe className="h-3 w-3" />
-          <span>{langCount} Lang{langCount !== 1 ? 's' : ''}</span>
-        </div>
-      </div>
 
-      <div data-testid={`deprock-agent-list-${department.id}`}>
-        {agents.length > 0 ? (
-          <div className="flex items-start gap-3 flex-wrap py-1">
-            {agents.map((agent: any) => {
-              const initials = agent.agentName
-                .split(/\s+/)
-                .map((w: string) => w.charAt(0).toUpperCase())
-                .slice(0, 2)
-                .join('');
-              const langLabel = languages.find(l => l.value === agent.language)?.label || agent.language;
-              return (
-                <div
-                  key={agent.id}
-                  className="flex flex-col items-center gap-1 cursor-pointer group"
-                  onClick={() => onViewAgent({
-                    id: agent.id,
-                    agentId: agent.agentId,
-                    departmentId: department.id,
-                    agentName: agent.agentName,
-                    language: agent.language,
-                    systemPrompt: agent.systemPrompt ?? null,
-                    voiceTone: agent.voiceTone ?? null,
-                    voiceId: agent.voiceId ?? null,
-                    voiceProvider: agent.voiceProvider ?? null,
-                    knowledgeBaseIds: agent.knowledgeBaseIds ?? null,
-                    isPrimary: agent.isPrimary ?? false,
-                    agentType: agent.agentType ?? 'incoming',
-                    firstMessage: agent.firstMessage ?? null,
-                  })}
-                  data-testid={`deprock-view-agent-${agent.id}`}
-                >
-                  <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors" title={agent.agentName}>
-                    <span className="text-xs font-semibold text-primary">{initials}</span>
+        {/* Agents */}
+        <div data-testid={`deprock-agent-list-${department.id}`}>
+          {agents.length > 0 ? (
+            <div className="flex items-start gap-2.5 flex-wrap py-0.5">
+              {agents.map((agent: any) => {
+                const initials = agent.agentName
+                  .split(/\s+/)
+                  .map((w: string) => w.charAt(0).toUpperCase())
+                  .slice(0, 2)
+                  .join('');
+                const langLabel = languages.find(l => l.value === agent.language)?.label || agent.language;
+                return (
+                  <div
+                    key={agent.id}
+                    className="flex flex-col items-center gap-1 cursor-pointer group"
+                    onClick={() => onViewAgent({
+                      id: agent.id,
+                      agentId: agent.agentId,
+                      departmentId: department.id,
+                      agentName: agent.agentName,
+                      language: agent.language,
+                      systemPrompt: agent.systemPrompt ?? null,
+                      voiceTone: agent.voiceTone ?? null,
+                      voiceId: agent.voiceId ?? null,
+                      voiceProvider: agent.voiceProvider ?? null,
+                      knowledgeBaseIds: agent.knowledgeBaseIds ?? null,
+                      isPrimary: agent.isPrimary ?? false,
+                      agentType: agent.agentType ?? 'incoming',
+                      firstMessage: agent.firstMessage ?? null,
+                    })}
+                    data-testid={`deprock-view-agent-${agent.id}`}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full border-2 flex items-center justify-center group-hover:scale-105 transition-transform"
+                      style={{ backgroundColor: `${department.color}15`, borderColor: `${department.color}40` }}
+                      title={agent.agentName}
+                    >
+                      <span className="text-[11px] font-semibold" style={{ color: department.color }}>{initials}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/70 leading-tight text-center max-w-[48px] truncate">{langLabel}</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground/70 leading-tight text-center max-w-[52px] truncate">{langLabel}</span>
+                );
+              })}
+              <div
+                className="flex flex-col items-center gap-1 cursor-pointer group"
+                onClick={onAddAgent}
+                data-testid={`deprock-button-add-agent-${department.id}`}
+              >
+                <div className="w-8 h-8 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
+                  <Plus className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary/70" />
                 </div>
-              );
-            })}
-            <div
-              className="flex flex-col items-center gap-1 cursor-pointer group"
-              onClick={onAddAgent}
-              data-testid={`deprock-button-add-agent-${department.id}`}
-            >
-              <div className="w-9 h-9 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
-                <Plus className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70" />
+                <span className="text-[10px] text-muted-foreground/50 leading-tight">Add</span>
               </div>
-              <span className="text-[10px] text-muted-foreground/50 leading-tight">Add</span>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center py-3">
-            <div
-              className="flex flex-col items-center gap-1 cursor-pointer group"
-              onClick={onAddAgent}
-              data-testid={`deprock-button-add-agent-${department.id}`}
-            >
-              <div className="w-9 h-9 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
-                <Plus className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70" />
+          ) : (
+            <div className="flex items-center justify-center py-2">
+              <div
+                className="flex flex-col items-center gap-1 cursor-pointer group"
+                onClick={onAddAgent}
+                data-testid={`deprock-button-add-agent-${department.id}`}
+              >
+                <div className="w-8 h-8 rounded-full border border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-primary/50 group-hover:bg-primary/5 transition-colors">
+                  <Plus className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary/70" />
+                </div>
+                <span className="text-[10px] text-muted-foreground/50 leading-tight">Add Agent</span>
               </div>
-              <span className="text-[10px] text-muted-foreground/50 leading-tight">Add Agent</span>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      <Button variant="ghost" size="sm" onClick={onFlow} className="w-full text-xs text-muted-foreground" data-testid={`deprock-button-flow-${department.id}`}>
-        <GitBranch className="h-3.5 w-3.5 mr-1.5" />
-        View Flow
-      </Button>
+        {/* Footer action */}
+        <div className="pt-1 border-t border-border/20">
+          <button
+            onClick={onFlow}
+            className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-1.5 rounded-lg transition-colors hover:bg-muted/60"
+            style={{ color: department.color || undefined }}
+            data-testid={`deprock-button-flow-${department.id}`}
+          >
+            <GitBranch className="h-3.5 w-3.5" />
+            View Flow
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

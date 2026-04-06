@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,6 +146,74 @@ interface IntelligenceStats {
   graphNodes: number;
 }
 
+// Industry-specific article type suggestions
+const getIndustryArticleTypes = (industry: string | undefined): { value: string; label: string }[] => {
+  const defaultTypes = [
+    { value: "all", label: "All Types" },
+    { value: "how-to", label: "How-to Guide" },
+    { value: "faq", label: "FAQ" },
+    { value: "troubleshooting", label: "Troubleshooting" },
+    { value: "overview", label: "Overview" }
+  ];
+
+  const industryTypes: Record<string, typeof defaultTypes> = {
+    "E-commerce": [
+      { value: "all", label: "All Types" },
+      { value: "how-to", label: "How to Order" },
+      { value: "faq", label: "FAQ" },
+      { value: "troubleshooting", label: "Return & Exchange" },
+      { value: "overview", label: "Product Overview" },
+      { value: "shipping", label: "Shipping & Delivery" },
+      { value: "payment", label: "Payment Methods" }
+    ],
+    "SaaS": [
+      { value: "all", label: "All Types" },
+      { value: "how-to", label: "Getting Started" },
+      { value: "faq", label: "FAQ" },
+      { value: "troubleshooting", label: "Troubleshooting" },
+      { value: "overview", label: "Feature Overview" },
+      { value: "integration", label: "Integrations" },
+      { value: "api", label: "API Documentation" }
+    ],
+    "Healthcare": [
+      { value: "all", label: "All Types" },
+      { value: "how-to", label: "Patient Guide" },
+      { value: "faq", label: "FAQ" },
+      { value: "troubleshooting", label: "Appointment Help" },
+      { value: "overview", label: "Service Overview" },
+      { value: "insurance", label: "Insurance & Payment" }
+    ],
+    "Financial Services": [
+      { value: "all", label: "All Types" },
+      { value: "how-to", label: "Account Setup" },
+      { value: "faq", label: "FAQ" },
+      { value: "troubleshooting", label: "Transaction Help" },
+      { value: "overview", label: "Product Overview" },
+      { value: "security", label: "Security & Safety" },
+      { value: "compliance", label: "Compliance Info" }
+    ],
+    "Hospitality": [
+      { value: "all", label: "All Types" },
+      { value: "how-to", label: "Booking Guide" },
+      { value: "faq", label: "FAQ" },
+      { value: "troubleshooting", label: "Reservation Help" },
+      { value: "overview", label: "Property Overview" },
+      { value: "amenities", label: "Amenities & Services" },
+      { value: "cancellation", label: "Cancellation Policy" }
+    ],
+    "Education": [
+      { value: "all", label: "All Types" },
+      { value: "how-to", label: "Course Guide" },
+      { value: "faq", label: "FAQ" },
+      { value: "troubleshooting", label: "Technical Help" },
+      { value: "overview", label: "Program Overview" },
+      { value: "enrollment", label: "Enrollment Process" }
+    ]
+  };
+
+  return industryTypes[industry] || defaultTypes;
+};
+
 interface TopicGap {
   topic: string;
   suggestion: string;
@@ -163,7 +231,7 @@ interface PipelineJob {
   stageDetails?: {
     crawling: { pagesDiscovered: number; pagesCrawled: number; startedAt?: string; completedAt?: string };
     analyzing: { itemsTotal: number; itemsProcessed: number; entitiesFound: number; topicsFound: number; faqsFound: number; startedAt?: string; completedAt?: string };
-    generating: { articlesPlanned: number; articlesGenerated: number; startedAt?: string; completedAt?: string };
+    generating: { articlesPlanned: number; articlesGenerated: number; currentArticleTitle?: string; currentCategory?: string; startedAt?: string; completedAt?: string };
     websiteNature?: { industry: string; productCategory: string; features: number; personas: number };
     topicMining?: { topicsDiscovered: number; topicsExpanded: number; topicsSelected: number; clusters: number };
   };
@@ -373,6 +441,57 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
     queryKey: ["/api/knowledge-intelligence/topic-gaps"],
     enabled: (stats?.topics || 0) > 0,
   });
+
+  // Derive content opportunities from the crawled website data
+  const contentOpportunities = useMemo(() => {
+    const existingTitles = articles.map(a => a.title.toLowerCase());
+    type Opportunity = { label: string; type: string; topic: string; source: "topic" | "entity" | "faq" | "gap" };
+    const ops: Opportunity[] = [];
+
+    // Topic-based opportunities (topics without articles yet)
+    topics.slice(0, 10).forEach(topic => {
+      if (!existingTitles.some(t => t.includes(topic.name.toLowerCase()))) {
+        ops.push({ label: topic.name, type: "overview", topic: `Overview: ${topic.name}`, source: "topic" });
+      }
+    });
+
+    // Product/feature entity opportunities
+    entities
+      .filter(e => ["product", "feature"].includes(e.entityType))
+      .slice(0, 6)
+      .forEach(entity => {
+        if (!existingTitles.some(t => t.includes(entity.name.toLowerCase()))) {
+          ops.push({ label: entity.name, type: "how-to", topic: `How to use ${entity.name}`, source: "entity" });
+        }
+      });
+
+    // Content gap opportunities
+    topicGaps.filter(g => g.priority === "high").slice(0, 4).forEach(gap => {
+      if (!existingTitles.some(t => t.includes(gap.topic.toLowerCase()))) {
+        ops.push({ label: gap.topic, type: "article", topic: gap.suggestion || gap.topic, source: "gap" });
+      }
+    });
+
+    // FAQ expansion opportunities
+    faqs.slice(0, 3).forEach(faq => {
+      if (!existingTitles.some(t => t.includes(faq.question.toLowerCase().slice(0, 20)))) {
+        ops.push({ label: faq.question.length > 50 ? faq.question.slice(0, 50) + "…" : faq.question, type: "faq", topic: faq.question, source: "faq" });
+      }
+    });
+
+    return ops.slice(0, 9);
+  }, [topics, entities, faqs, topicGaps, articles]);
+
+  // All topic suggestions for the generate dialog
+  const topicSuggestions = useMemo(() => {
+    const suggestions: { label: string; topic: string }[] = [];
+    topics.slice(0, 5).forEach(t => suggestions.push({ label: t.name, topic: `Overview: ${t.name}` }));
+    entities.filter(e => ["product", "feature"].includes(e.entityType)).slice(0, 5).forEach(e =>
+      suggestions.push({ label: e.name, topic: `How to use ${e.name}` })
+    );
+    faqs.slice(0, 3).forEach(f => suggestions.push({ label: f.question.slice(0, 45) + (f.question.length > 45 ? "…" : ""), topic: f.question }));
+    return suggestions;
+  }, [topics, entities, faqs]);
 
   const { data: pipelineAnalytics, isLoading: analyticsLoading } = useQuery<PipelineAnalytics>({
     queryKey: ["/api/knowledge-intelligence/pipeline-analytics"],
@@ -796,7 +915,26 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
               <div>
                 <h4 className="font-medium" data-testid="text-pipeline-name">{activePipelineJob.name}</h4>
                 <p className="text-sm text-muted-foreground">
-                  {getStageLabel(activePipelineJob.currentStage)} • {formatTimeRemaining(activePipelineJob.estimatedTimeRemaining)}
+                  {activePipelineJob.currentStage === "generating" && activePipelineJob.stageDetails?.generating?.currentArticleTitle ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      <span className="font-medium text-foreground">{activePipelineJob.stageDetails.generating.currentCategory}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="italic truncate max-w-[220px]">{activePipelineJob.stageDetails.generating.currentArticleTitle}</span>
+                    </span>
+                  ) : activePipelineJob.currentStage === "analyzing" ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      Analyzing website content & entities…
+                    </span>
+                  ) : activePipelineJob.currentStage === "crawling" ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                      Crawling pages… {activePipelineJob.stageDetails?.crawling?.pagesCrawled ? `${activePipelineJob.stageDetails.crawling.pagesCrawled} done` : ''}
+                    </span>
+                  ) : (
+                    getStageLabel(activePipelineJob.currentStage)
+                  )}
                 </p>
               </div>
             </div>
@@ -847,23 +985,42 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                   </span>
                 )}
               </div>
-              <div className={`flex items-center gap-1.5 ${activePipelineJob.currentStage === "generating" ? "text-primary font-medium" : activePipelineJob.stageDetails?.generating?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
+              <div className={`flex items-center gap-1.5 col-span-1 ${activePipelineJob.currentStage === "generating" ? "text-primary font-medium" : activePipelineJob.stageDetails?.generating?.completedAt ? "text-green-600" : "text-muted-foreground"}`}>
                 {activePipelineJob.stageDetails?.generating?.completedAt ? (
-                  <Check className="h-3.5 w-3.5" />
+                  <Check className="h-3.5 w-3.5 shrink-0" />
                 ) : activePipelineJob.currentStage === "generating" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
                 ) : (
-                  <div className="h-3.5 w-3.5 rounded-full border border-current" />
+                  <div className="h-3.5 w-3.5 rounded-full border border-current shrink-0" />
                 )}
-                <span>Content</span>
+                <span className="shrink-0">Content</span>
                 {activePipelineJob.stageDetails?.generating?.articlesGenerated !== undefined && activePipelineJob.stageDetails?.generating?.articlesGenerated > 0 && (
-                  <span className="text-muted-foreground">
-                    ({activePipelineJob.stageDetails.generating.articlesGenerated} articles)
+                  <span className="text-muted-foreground shrink-0">
+                    ({activePipelineJob.stageDetails.generating.articlesGenerated}/{activePipelineJob.stageDetails.generating.articlesPlanned || '?'})
                   </span>
                 )}
               </div>
             </div>
             
+            {/* Live Article Being Built */}
+            {activePipelineJob.currentStage === "generating" && activePipelineJob.stageDetails?.generating?.currentArticleTitle && (
+              <div className="mt-3 pt-3 border-t">
+                <div className="text-xs text-muted-foreground mb-1.5">Now Building</div>
+                <div className="flex items-start gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-foreground">{activePipelineJob.stageDetails.generating.currentCategory}</div>
+                    <div className="text-xs text-muted-foreground italic truncate">{activePipelineJob.stageDetails.generating.currentArticleTitle}</div>
+                  </div>
+                  {activePipelineJob.stageDetails.generating.articlesPlanned > 0 && (
+                    <span className="ml-auto text-xs text-muted-foreground shrink-0 tabular-nums">
+                      {activePipelineJob.stageDetails.generating.articlesGenerated}/{activePipelineJob.stageDetails.generating.articlesPlanned}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Topic Intelligence Progress (shown during generating stage) */}
             {activePipelineJob.currentStage === "generating" && activePipelineJob.stageDetails?.topicMining && (
               <div className="mt-3 pt-3 border-t">
@@ -1819,8 +1976,37 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
       ) : section === "content-studio" ? (
         /* Direct render of Content Studio when section="content-studio" */
         <div className="space-y-4">
+          {/* Industry Detection Banner */}
+          {activePipelineJob?.stageDetails?.websiteNature?.industry && (
+            <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Industry: <span className="font-semibold">{activePipelineJob.stageDetails.websiteNature.industry}</span>
+                  </span>
+                  {activePipelineJob.stageDetails.websiteNature.productCategory && (
+                    <>
+                      <span className="text-blue-900 dark:text-blue-100">•</span>
+                      <span className="text-sm text-blue-800 dark:text-blue-200">
+                        {activePipelineJob.stageDetails.websiteNature.productCategory}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <h3 className="text-lg font-medium">AI Content Studio</h3>
+            <div>
+              <h3 className="text-lg font-medium">AI Content Studio</h3>
+              {activePipelineJob?.stageDetails?.websiteNature?.industry && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Content types tailored for {activePipelineJob.stageDetails.websiteNature.industry} businesses
+                </p>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 placeholder="Search articles..."
@@ -1830,15 +2016,15 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
                 data-testid="input-article-search"
               />
               <Select value={articleTypeFilter} onValueChange={setArticleTypeFilter}>
-                <SelectTrigger className="w-32" data-testid="select-article-type-filter">
+                <SelectTrigger className="w-40" data-testid="select-article-type-filter">
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="how-to">How-to</SelectItem>
-                  <SelectItem value="faq">FAQ</SelectItem>
-                  <SelectItem value="troubleshooting">Troubleshooting</SelectItem>
-                  <SelectItem value="overview">Overview</SelectItem>
+                  {getIndustryArticleTypes(activePipelineJob?.stageDetails?.websiteNature?.industry).map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button onClick={() => setGenerateDialogOpen(true)} data-testid="button-new-article">
@@ -1848,17 +2034,66 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
             </div>
           </div>
 
+          {/* Content Opportunities — derived from crawled website data */}
+          {contentOpportunities.length > 0 && (
+            <Card className="border-dashed">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lightbulb className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-medium">Content Opportunities from Your Website</span>
+                  {crawlJobs.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-auto truncate max-w-[160px]">
+                      {crawlJobs[0].startUrl}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {contentOpportunities.map((op, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setGenerateTopic(op.topic);
+                        setGenerateType(op.type === "faq" ? "faq" : op.type === "how-to" ? "article" : "article");
+                        setGeneratedBrief(null);
+                        setGenerateDialogOpen(true);
+                      }}
+                      className="flex items-start gap-2 p-2.5 rounded-md border bg-background hover:bg-muted/50 transition-colors text-left group"
+                      data-testid={`button-opportunity-${i}`}
+                    >
+                      <span className="text-[10px] uppercase tracking-wide font-semibold rounded px-1.5 py-0.5 shrink-0 mt-0.5
+                        border
+                        text-zinc-500 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800">
+                        {op.source === "topic" ? "Topic" :
+                         op.source === "entity" ? "Product" :
+                         op.source === "gap" ? "Gap" : "FAQ"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{op.label}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{op.topic}</p>
+                      </div>
+                      <Sparkles className="h-3 w-3 text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {articles.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center">
                 <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h4 className="font-medium mb-2" data-testid="text-no-articles-title">No Articles Yet</h4>
                 <p className="text-sm text-muted-foreground mb-4" data-testid="text-no-articles-desc">
-                  Generate AI-powered articles based on your knowledge base content.
+                  {contentOpportunities.length > 0
+                    ? "Click any opportunity above to generate your first article tailored to your website."
+                    : "Generate AI-powered articles based on your knowledge base content."}
                 </p>
-                <Button onClick={() => setGenerateDialogOpen(true)} data-testid="button-generate-first-article">
-                  Generate Your First Article
-                </Button>
+                {contentOpportunities.length === 0 && (
+                  <Button onClick={() => setGenerateDialogOpen(true)} data-testid="button-generate-first-article">
+                    Generate Your First Article
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -3321,6 +3556,36 @@ export default function KnowledgeIntelligence({ section = "all" }: KnowledgeInte
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Topic suggestions from crawled website */}
+            {topicSuggestions.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Label className="text-xs text-muted-foreground">
+                    Suggested from your website
+                    {crawlJobs.length > 0 && <span className="ml-1 opacity-70">({crawlJobs[0].startUrl})</span>}
+                  </Label>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {topicSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setGenerateTopic(s.topic)}
+                      className={`text-[11px] px-2 py-1 rounded-full border transition-colors
+                        ${generateTopic === s.topic
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted/50 hover:bg-muted text-foreground border-border"
+                        }`}
+                      data-testid={`chip-topic-${i}`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="generate-topic">Topic</Label>
               <Input

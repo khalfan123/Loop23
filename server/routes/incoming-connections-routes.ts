@@ -16,8 +16,8 @@
  */
 import { Router } from "express";
 import { db } from "../db";
-import { incomingConnections, humanIncomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, campaigns, ivrConfigurations } from "@shared/schema";
-import { eq, and, isNull, or, inArray, ne } from "drizzle-orm";
+import { incomingConnections, humanIncomingConnections, agents, phoneNumbers, insertIncomingConnectionSchema, ivrConfigurations } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth";
 import { authenticateHybrid } from "../middleware/hybrid-auth";
 import { twilioService } from "../services/twilio";
@@ -37,7 +37,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
     }
 
     // Get all connections with agent and phone number details
-    // Filter to only include Twilio + ElevenLabs connections (exclude plivo and twilio_openai agents)
+    // Filter to only include Twilio + ElevenLabs connections (exclude twilio_openai agents)
     const allConnections = await db
       .select({
         id: incomingConnections.id,
@@ -71,7 +71,7 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
       .where(eq(incomingConnections.userId, userId));
     
-    // Filter out connections with OpenAI-based agents (plivo or twilio_openai) for UI display
+    // Filter out connections with OpenAI-based agents (twilio_openai) for UI display
     const connections = allConnections.filter(c => {
       const provider = c.agent?.telephonyProvider;
       return !provider || provider === 'twilio'; // Include null/undefined or 'twilio' (ElevenLabs)
@@ -90,14 +90,24 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
         )
       );
 
-    // Get phone numbers assigned to IVR/department configurations (exclude all, not just active)
+    // Get phone numbers assigned to ANY IVR/department configurations (including Deprock)
     const ivrPhoneAssignments = await db
-      .select({ phoneNumberId: ivrConfigurations.phoneNumberId })
+      .select({ phoneNumberId: ivrConfigurations.phoneNumberId, isActive: ivrConfigurations.isActive, engineType: ivrConfigurations.engineType, name: ivrConfigurations.name })
       .from(ivrConfigurations)
       .where(eq(ivrConfigurations.userId, userId));
     const ivrPhoneIds = ivrPhoneAssignments
       .map((ivr) => ivr.phoneNumberId)
       .filter((id): id is string => id !== null);
+    const ivrPhoneLookup = new Map<string, { isActive: boolean; engineType: string; name: string }>();
+    for (const ivr of ivrPhoneAssignments) {
+      if (ivr.phoneNumberId) {
+        ivrPhoneLookup.set(ivr.phoneNumberId, {
+          isActive: ivr.isActive,
+          engineType: ivr.engineType || 'default',
+          name: ivr.name || 'IVR',
+        });
+      }
+    }
 
     // Get phone numbers assigned to human agent connections
     const humanPhoneAssignments = await db
@@ -105,35 +115,6 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       .from(humanIncomingConnections)
       .where(eq(humanIncomingConnections.userId, userId));
     const humanPhoneIds = humanPhoneAssignments.map((h) => h.phoneNumberId);
-
-    // Check which phones have active campaign conflicts
-    const activeStatuses = ['pending', 'running', 'scheduled', 'paused'];
-    const allPhoneIds = allUserNumbers.map(pn => pn.id);
-    
-    const activeCampaigns = allPhoneIds.length > 0 ? await db
-      .select({
-        phoneNumberId: campaigns.phoneNumberId,
-        campaignName: campaigns.name,
-        campaignStatus: campaigns.status,
-      })
-      .from(campaigns)
-      .where(
-        and(
-          inArray(campaigns.phoneNumberId, allPhoneIds),
-          inArray(campaigns.status, activeStatuses),
-          isNull(campaigns.deletedAt)
-        )
-      ) : [];
-
-    const conflictMap = new Map<string, { campaignName: string; campaignStatus: string }>();
-    for (const campaign of activeCampaigns) {
-      if (campaign.phoneNumberId && !conflictMap.has(campaign.phoneNumberId)) {
-        conflictMap.set(campaign.phoneNumberId, {
-          campaignName: campaign.campaignName,
-          campaignStatus: campaign.campaignStatus,
-        });
-      }
-    }
 
     // Build a connection lookup for connected phone numbers
     const connectionLookup = new Map<string, { agentName: string }>();
@@ -145,12 +126,13 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       }
     }
 
-    // Mark every phone number with its availability status and reason
+    // Mark every phone number with its availability status and reason.
+    // NOTE: Campaign usage (outbound) does NOT block inbound routing assignment —
+    // a number can simultaneously run outbound campaigns and receive inbound calls.
     const availablePhoneNumbersWithConflict = allUserNumbers.map(pn => {
       const isConnected = connectedPhoneIds.includes(pn.id);
       const isIvrAssigned = ivrPhoneIds.includes(pn.id);
       const isHumanConnected = humanPhoneIds.includes(pn.id);
-      const campaign = conflictMap.get(pn.id);
       const connInfo = connectionLookup.get(pn.id);
 
       let unavailableReason: string | null = null;
@@ -159,26 +141,27 @@ router.get("/", authenticateHybrid, async (req: AuthRequest, res) => {
       } else if (isHumanConnected) {
         unavailableReason = "Connected to human agent";
       } else if (isIvrAssigned) {
-        unavailableReason = "Assigned to department/IVR";
-      } else if (campaign) {
-        unavailableReason = `Used by campaign "${campaign.campaignName}" (${campaign.campaignStatus})`;
+        const ivrInfo = ivrPhoneLookup.get(pn.id);
+        if (ivrInfo?.engineType === 'bedrock-polly') {
+          unavailableReason = `Used in Deprock (${ivrInfo.name})`;
+        } else {
+          unavailableReason = `Assigned to department/IVR (${ivrInfo?.name || 'IVR'})`;
+        }
       }
 
       return {
         ...pn,
-        isUnavailable: isConnected || isHumanConnected || isIvrAssigned || !!campaign,
+        isUnavailable: isConnected || isHumanConnected || isIvrAssigned,
         unavailableReason,
-        isConflicted: !!campaign,
-        conflictReason: campaign
-          ? `Used by campaign "${campaign.campaignName}" (${campaign.campaignStatus})`
-          : null,
-        conflictCampaignName: campaign?.campaignName || null,
-        conflictCampaignStatus: campaign?.campaignStatus || null,
+        isConflicted: false,
+        conflictReason: null,
+        conflictCampaignName: null,
+        conflictCampaignStatus: null,
       };
     });
 
     // Get incoming agents (type='incoming') for connection selection
-    // Filter to only include Twilio + ElevenLabs agents (exclude plivo and twilio_openai)
+    // Filter to only include Twilio + ElevenLabs agents (exclude twilio_openai)
     const allIncomingAgents = await db
       .select()
       .from(agents)
@@ -299,40 +282,6 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
     }
 
     // ========================================
-    // PHONE CONFLICT CHECK: Ensure phone is not being used by active campaigns
-    // A phone used for outbound campaigns cannot be used for incoming calls
-    // ========================================
-    const activeCampaignStatuses = ['pending', 'running', 'scheduled', 'paused'];
-    const activeCampaignCheck = await db
-      .select({ id: campaigns.id, name: campaigns.name, status: campaigns.status })
-      .from(campaigns)
-      .where(
-        and(
-          eq(campaigns.phoneNumberId, phoneNumberId),
-          isNull(campaigns.deletedAt),
-          or(
-            eq(campaigns.status, 'pending'),
-            eq(campaigns.status, 'running'),
-            eq(campaigns.status, 'scheduled'),
-            eq(campaigns.status, 'paused')
-          )
-        )
-      )
-      .limit(1);
-    
-    if (activeCampaignCheck.length > 0) {
-      const campaign = activeCampaignCheck[0];
-      return res.status(409).json({
-        message: `This phone number is being used by campaign "${campaign.name}" (status: ${campaign.status}). A phone number can only be used for either incoming calls OR outbound campaigns, not both.`,
-        error: "Phone number conflict",
-        suggestion: "Please either purchase a new phone number for incoming calls, or wait for the campaign to complete (or cancel it) and select a different phone number for the campaign.",
-        conflictType: "active_campaign",
-        campaignName: campaign.name,
-        campaignStatus: campaign.status
-      });
-    }
-
-    // ========================================
     // PRE-FLIGHT CHECKS (before creating connection)
     // Order: Credential check → Migration → Verification
     // ========================================
@@ -341,8 +290,8 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
     const elevenLabsPoolModule = await import('../services/elevenlabs-pool');
     
     // STEP 0: Auto-sync agent with ElevenLabs if missing elevenLabsAgentId
-    // Only applies to Twilio/ElevenLabs agents (not plivo_openai or twilio_openai providers)
-    const isOpenAIProvider = agent[0].telephonyProvider === 'plivo_openai' || agent[0].telephonyProvider === 'twilio_openai';
+    // Only applies to Twilio/ElevenLabs agents (not twilio_openai providers)
+    const isOpenAIProvider = agent[0].telephonyProvider === 'twilio_openai';
     
     if (!agent[0].elevenLabsAgentId && !isOpenAIProvider) {
       console.log(`📞 [Incoming Connection] Agent "${agent[0].name}" missing elevenLabsAgentId — auto-syncing with ElevenLabs...`);
@@ -613,7 +562,11 @@ router.post("/", authenticateHybrid, async (req: AuthRequest, res) => {
       // Configure Twilio to route calls to ElevenLabs native endpoint
       if (phoneNumber[0].twilioSid) {
         try {
-          await twilioService.configurePhoneWebhookForElevenLabs(phoneNumber[0].twilioSid, phoneNumber[0].phoneNumber);
+          await twilioService.configurePhoneWebhookForElevenLabs(
+            phoneNumber[0].twilioSid, 
+            phoneNumber[0].phoneNumber,
+            agent[0].elevenLabsAgentId  // Pass the agent ID so Twilio can route to the correct agent
+          );
         } catch (twilioError: any) {
           console.error('⚠️  [Twilio Config] Failed to configure Twilio webhook:', twilioError);
           // Don't fail - the ElevenLabs side is configured, Twilio can be fixed manually
@@ -645,19 +598,25 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
     
     const { id } = req.params;
     
-    // Get connection with agent details
+    // Get connection with agent and phone details
     const connection = await db
       .select({
         id: incomingConnections.id,
         agentId: incomingConnections.agentId,
+        phoneNumberId: incomingConnections.phoneNumberId,
         agent: {
           elevenLabsAgentId: agents.elevenLabsAgentId,
           elevenLabsCredentialId: agents.elevenLabsCredentialId,
           name: agents.name,
         },
+        phoneNumber: {
+          phoneNumber: phoneNumbers.phoneNumber,
+          twilioSid: phoneNumbers.twilioSid,
+        },
       })
       .from(incomingConnections)
       .leftJoin(agents, eq(incomingConnections.agentId, agents.id))
+      .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
       .where(and(eq(incomingConnections.id, id), eq(incomingConnections.userId, userId)))
       .limit(1);
     
@@ -691,7 +650,7 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
     const webhookUrl = `${domain}/api/webhooks/elevenlabs`;
     const webhookSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
     
-    console.log(`🔗 [Webhook Sync] Configuring webhook: ${webhookUrl}`);
+    console.log(`🔗 [Webhook Sync] Configuring ElevenLabs webhook: ${webhookUrl}`);
     
     await elevenLabsService.configureAgentWebhook(conn.agent.elevenLabsAgentId, {
       webhookUrl,
@@ -699,12 +658,29 @@ router.post("/:id/sync-webhook", authenticateHybrid, async (req: AuthRequest, re
       secret: webhookSecret,
     });
     
-    console.log(`✅ [Webhook Sync] Webhook configured successfully for agent: ${conn.agent.name}`);
+    console.log(`✅ [Webhook Sync] ElevenLabs webhook configured successfully`);
+    
+    // Also sync the Twilio voiceUrl to include the agent_id parameter
+    if (conn.phoneNumber?.twilioSid) {
+      try {
+        console.log(`📞 [Webhook Sync] Updating Twilio voiceUrl with agent ID for routing`);
+        await twilioService.configurePhoneWebhookForElevenLabs(
+          conn.phoneNumber.twilioSid,
+          conn.phoneNumber.phoneNumber,
+          conn.agent.elevenLabsAgentId
+        );
+        console.log(`✅ [Webhook Sync] Twilio voiceUrl configured successfully`);
+      } catch (twilioError: any) {
+        console.warn(`⚠️  [Webhook Sync] Failed to update Twilio webhook:`, twilioError.message);
+        // Don't fail the whole request - ElevenLabs side is configured
+      }
+    }
     
     res.json({ 
       success: true, 
-      message: "Webhook configured successfully",
-      webhookUrl,
+      message: "Webhooks synced successfully",
+      elevenlabsWebhook: webhookUrl,
+      agentId: conn.agent.elevenLabsAgentId,
     });
   } catch (error: any) {
     console.error("Error syncing webhook:", error);
@@ -859,7 +835,7 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
     const ivrPhoneAssignments = await db
       .select({ phoneNumberId: ivrConfigurations.phoneNumberId })
       .from(ivrConfigurations)
-      .where(eq(ivrConfigurations.userId, userId));
+      .where(and(eq(ivrConfigurations.userId, userId), eq(ivrConfigurations.isActive, true)));
     const ivrPhoneIds = ivrPhoneAssignments
       .map((ivr) => ivr.phoneNumberId)
       .filter((id): id is string => id !== null);
@@ -875,39 +851,13 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
         )
       );
 
-    const activeStatuses = ['pending', 'running', 'scheduled', 'paused'];
-    const allPhoneIds = allUserNumbers.map(pn => pn.id);
-    
-    const activeCampaigns = allPhoneIds.length > 0 ? await db
-      .select({
-        phoneNumberId: campaigns.phoneNumberId,
-        campaignName: campaigns.name,
-        campaignStatus: campaigns.status,
-      })
-      .from(campaigns)
-      .where(
-        and(
-          inArray(campaigns.phoneNumberId, allPhoneIds),
-          inArray(campaigns.status, activeStatuses),
-          isNull(campaigns.deletedAt)
-        )
-      ) : [];
-
-    const campaignConflictMap = new Map<string, { campaignName: string; campaignStatus: string }>();
-    for (const campaign of activeCampaigns) {
-      if (campaign.phoneNumberId && !campaignConflictMap.has(campaign.phoneNumberId)) {
-        campaignConflictMap.set(campaign.phoneNumberId, {
-          campaignName: campaign.campaignName,
-          campaignStatus: campaign.campaignStatus,
-        });
-      }
-    }
-
+    // NOTE: Campaign usage (outbound) does NOT block inbound routing assignment —
+    // a number can simultaneously run outbound campaigns and receive inbound calls.
     const allUsedPhoneIds = [...aiConnectedPhoneIds, ...humanConnectedPhoneIds, ...ivrPhoneIds];
 
     const availablePhoneNumbers = allUserNumbers.map(pn => {
-      const campaign = campaignConflictMap.get(pn.id);
-      const isUsed = allUsedPhoneIds.includes(pn.id) || !!campaign;
+      const isUsed = allUsedPhoneIds.includes(pn.id);
+      const isTollFree = pn.numberType === 'toll_free' || pn.numberType === 'tollfree';
       let unavailableReason: string | null = null;
       if (aiConnectedPhoneIds.includes(pn.id)) {
         unavailableReason = "Connected to AI agent";
@@ -915,12 +865,12 @@ router.get("/human", authenticateHybrid, async (req: AuthRequest, res) => {
         unavailableReason = "Connected to human agent";
       } else if (ivrPhoneIds.includes(pn.id)) {
         unavailableReason = "Assigned to department/IVR";
-      } else if (campaign) {
-        unavailableReason = `Used by campaign "${campaign.campaignName}" (${campaign.campaignStatus})`;
+      } else if (isTollFree) {
+        unavailableReason = "Toll-free numbers cannot transfer calls — they can only receive inbound calls and cannot originate the outbound call needed to connect to the transfer number. Use a local or mobile number instead.";
       }
       return {
         ...pn,
-        isUnavailable: isUsed,
+        isUnavailable: isUsed || isTollFree,
         unavailableReason,
       };
     });
@@ -1021,30 +971,6 @@ router.post("/human", authenticateHybrid, async (req: AuthRequest, res) => {
 
       if (ivrCheck.length) {
         errors.push({ phoneNumberId, error: "Phone number is assigned to department/IVR" });
-        continue;
-      }
-
-      // Check campaign conflict
-      const activeCampaignCheck = await db
-        .select({ id: campaigns.id, name: campaigns.name, status: campaigns.status })
-        .from(campaigns)
-        .where(
-          and(
-            eq(campaigns.phoneNumberId, phoneNumberId),
-            isNull(campaigns.deletedAt),
-            or(
-              eq(campaigns.status, 'pending'),
-              eq(campaigns.status, 'running'),
-              eq(campaigns.status, 'scheduled'),
-              eq(campaigns.status, 'paused')
-            )
-          )
-        )
-        .limit(1);
-
-      if (activeCampaignCheck.length > 0) {
-        const campaign = activeCampaignCheck[0];
-        errors.push({ phoneNumberId, error: `Used by active campaign "${campaign.name}" (${campaign.status})` });
         continue;
       }
 
@@ -1156,5 +1082,84 @@ router.delete("/human/:id", authenticateHybrid, async (req: AuthRequest, res) =>
     res.status(500).json({ message: "Failed to delete human incoming connection" });
   }
 });
+
+export async function fixExistingConnectionWebhooks() {
+  try {
+    const allConnections = await db
+      .select({
+        id: incomingConnections.id,
+        agentId: incomingConnections.agentId,
+        phoneNumber: {
+          phoneNumber: phoneNumbers.phoneNumber,
+          twilioSid: phoneNumbers.twilioSid,
+        },
+        agent: {
+          elevenLabsAgentId: agents.elevenLabsAgentId,
+          elevenLabsCredentialId: agents.elevenLabsCredentialId,
+          name: agents.name,
+        },
+      })
+      .from(incomingConnections)
+      .leftJoin(phoneNumbers, eq(incomingConnections.phoneNumberId, phoneNumbers.id))
+      .leftJoin(agents, eq(incomingConnections.agentId, agents.id));
+
+    if (!allConnections.length) {
+      console.log(`✅ [Webhook Fix] No incoming connections to fix`);
+      return;
+    }
+
+    console.log(`🔧 [Webhook Fix] Checking ${allConnections.length} incoming connection(s)...`);
+
+    for (const conn of allConnections) {
+      if (conn.phoneNumber?.twilioSid && conn.agent?.elevenLabsAgentId) {
+        try {
+          await twilioService.configurePhoneWebhookForElevenLabs(
+            conn.phoneNumber.twilioSid,
+            conn.phoneNumber.phoneNumber,
+            conn.agent.elevenLabsAgentId
+          );
+          console.log(`✅ [Webhook Fix] Fixed webhook for ${conn.phoneNumber.phoneNumber} → ${conn.agent.name}`);
+        } catch (err: any) {
+          console.warn(`⚠️  [Webhook Fix] Failed to fix ${conn.phoneNumber?.phoneNumber}: ${err.message}`);
+        }
+      }
+
+      if (conn.agent?.elevenLabsAgentId && conn.agent?.elevenLabsCredentialId) {
+        try {
+          const credential = await ElevenLabsPoolService.getCredentialById(conn.agent.elevenLabsCredentialId);
+          if (credential?.apiKey) {
+            console.log(`🔧 [ASR Fix] Clearing hardcoded audio format on agent ${conn.agent.name} (${conn.agent.elevenLabsAgentId})`);
+            const patchResponse = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${conn.agent.elevenLabsAgentId}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'xi-api-key': credential.apiKey,
+              },
+              body: JSON.stringify({
+                conversation_config: {
+                  asr: {
+                    provider: "elevenlabs",
+                  },
+                },
+              }),
+            });
+            if (patchResponse.ok) {
+              console.log(`✅ [ASR Fix] Agent ${conn.agent.name} ASR config updated (auto-detect audio format)`);
+            } else {
+              const errText = await patchResponse.text();
+              console.warn(`⚠️  [ASR Fix] ElevenLabs returned ${patchResponse.status}: ${errText}`);
+            }
+          }
+        } catch (err: any) {
+          console.warn(`⚠️  [ASR Fix] Failed to fix ASR for ${conn.agent?.name}: ${err.message}`);
+        }
+      }
+    }
+
+    console.log(`✅ [Webhook Fix] Done`);
+  } catch (error: any) {
+    console.error(`❌ [Webhook Fix] Error:`, error.message);
+  }
+}
 
 export default router;

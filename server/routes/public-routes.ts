@@ -467,24 +467,18 @@ export function createPublicRoutes(ctx: RouteContext): Router {
         return Boolean(value);
       };
 
-      const plivoEngineEnabled = await storage.getGlobalSetting('plivo_openai_engine_enabled');
       const twilioOpenaiEngineEnabled = await storage.getGlobalSetting('twilio_openai_engine_enabled');
       const twilioKycRequired = await storage.getGlobalSetting('twilio_kyc_required');
-      const plivoKycRequired = await storage.getGlobalSetting('plivo_kyc_required');
       
       res.json({
-        plivo_openai_engine_enabled: toBool(plivoEngineEnabled?.value) || false,
         twilio_openai_engine_enabled: toBool(twilioOpenaiEngineEnabled?.value) || false,
         twilio_kyc_required: toBool(twilioKycRequired?.value) ?? true,
-        plivo_kyc_required: toBool(plivoKycRequired?.value) ?? true,
       });
     } catch (error) {
       console.error('Error fetching voice engine settings:', error);
       res.json({
-        plivo_openai_engine_enabled: false,
         twilio_openai_engine_enabled: false,
         twilio_kyc_required: true,
-        plivo_kyc_required: true,
       });
     }
   });

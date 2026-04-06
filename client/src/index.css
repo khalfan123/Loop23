@@ -1234,3 +1234,30 @@ html {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
   }
 }
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(2deg); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(-2deg); }
+}
+
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: float-medium 4.5s ease-in-out infinite;
+}
+
+.animate-float-fast {
+  animation: float-fast 3.5s ease-in-out infinite;
+}

@@ -32,45 +32,6 @@ export interface QaAnalysisResult {
   evidence: Array<{ transcriptIndex: number; issue: string; severity: string }>;
 }
 
-interface DeterministicQaMetrics {
-  phoneStyleScore: number;
-  groundingScore: number;
-  interruptionControlScore: number;
-  latencyProxyScore: number;
-  retellReadinessScore: number;
-  retellGapScore: number;
-  benchmarkFlags: string[];
-  deterministicEvidence: Array<{ issue: string; severity: 'low' | 'medium' | 'high' }>;
-}
-
-export interface RetellBenchmarkScorecard {
-  weightedScore: number;
-  dimensions: {
-    callFlowSmoothness: number;
-    phonePhrasingConciseness: number;
-    groundingAndHallucinationSafety: number;
-    interruptionHandling: number;
-    emotionalAdaptation: number;
-    resolutionAndEscalation: number;
-    multilingualConsistency: number;
-  };
-  strengths: string[];
-  risks: string[];
-  recommendedActions: string[];
-}
-
-export interface RetellRegressionSignal {
-  key: string;
-  count: number;
-  severity: 'low' | 'medium' | 'high';
-}
-
-interface TranscriptTurn {
-  speaker: 'user' | 'agent';
-  text: string;
-  index: number;
-}
-
 const QA_SYSTEM_PROMPT = `You are an AI Quality Assurance analyst for voice calls. Analyze the call transcript and provide a comprehensive quality assessment.
 
 Respond ONLY with valid JSON in this exact format:
@@ -151,7 +112,10 @@ export class QaAnalysisService {
       return null;
     }
 
-    const userMessage = `Analyze this call transcript:
+    try {
+      const openai = this.getOpenAIClient(apiKey);
+
+      const userMessage = `Analyze this call transcript:
 
 Call ID: ${callId}
 Duration: ${call.duration || 'Unknown'} seconds
@@ -164,11 +128,6 @@ ${call.transcript}
 ${call.aiSummary ? `AI Summary: ${call.aiSummary}` : ''}
 ${call.sentiment ? `Current Sentiment: ${call.sentiment}` : ''}`;
 
-    let analysis: QaAnalysisResult | null = null;
-    let analysisModel = 'gpt-4o-mini';
-
-    try {
-      const openai = this.getOpenAIClient(apiKey);
       logger.info(`Analyzing QA for call ${callId}`, {
         transcriptLength: call.transcript.length,
         duration: call.duration
@@ -191,47 +150,29 @@ ${call.sentiment ? `Current Sentiment: ${call.sentiment}` : ''}`;
         return null;
       }
 
-      analysis = JSON.parse(content) as QaAnalysisResult;
-      analysis = this.normalizeAnalysisResult(analysis, call.transcript);
-    } catch (error: any) {
-      logger.warn(`LLM QA analysis failed for call ${callId}, using deterministic fallback`, {
-        error: error.message
-      }, source);
-      analysis = this.buildHeuristicAnalysis(call.transcript, call.duration || undefined);
-      analysisModel = 'heuristic-local-v1';
-    }
-
-    try {
-      if (!analysis) {
-        return null;
-      }
-      const benchmark = this.computeRetellBenchmark(analysis, call.transcript);
-      analysis.diagnostics = {
-        ...(analysis.diagnostics || {}),
-        retellBenchmark: benchmark,
-      } as any;
+      const analysis: QaAnalysisResult = JSON.parse(content);
 
       const qaData: InsertCallQaAnalysis = {
         callId,
         userId,
-        overallScore: analysis.overallScore ?? null,
-        audioQualityScore: analysis.audioQualityScore ?? null,
-        languageScore: analysis.languageScore ?? null,
-        complianceScore: analysis.complianceScore ?? null,
-        performanceScore: analysis.performanceScore ?? null,
-        resolutionStatus: analysis.resolutionStatus ?? null,
-        resolutionNotes: analysis.resolutionNotes ?? null,
-        avgResponseLatency: analysis.avgResponseLatency ?? null,
-        maxResponseLatency: analysis.maxResponseLatency ?? null,
-        hasHallucinations: analysis.hasHallucinations ?? false,
-        hasInterruptions: analysis.hasInterruptions ?? false,
-        hasNegativeSentiment: analysis.hasNegativeSentiment ?? false,
-        hasComplianceIssues: analysis.hasComplianceIssues ?? false,
-        hasKbInaccuracies: analysis.hasKbInaccuracies ?? false,
+        overallScore: analysis.overallScore,
+        audioQualityScore: analysis.audioQualityScore,
+        languageScore: analysis.languageScore,
+        complianceScore: analysis.complianceScore,
+        performanceScore: analysis.performanceScore,
+        resolutionStatus: analysis.resolutionStatus,
+        resolutionNotes: analysis.resolutionNotes,
+        avgResponseLatency: analysis.avgResponseLatency,
+        maxResponseLatency: analysis.maxResponseLatency,
+        hasHallucinations: analysis.hasHallucinations,
+        hasInterruptions: analysis.hasInterruptions,
+        hasNegativeSentiment: analysis.hasNegativeSentiment,
+        hasComplianceIssues: analysis.hasComplianceIssues,
+        hasKbInaccuracies: analysis.hasKbInaccuracies,
         diagnostics: analysis.diagnostics,
         keyMoments: analysis.keyMoments,
         evidence: analysis.evidence,
-        analysisModel,
+        analysisModel: 'gpt-4o-mini',
         analysisVersion: '1.0',
         analyzedAt: new Date()
       };
@@ -253,197 +194,6 @@ ${call.sentiment ? `Current Sentiment: ${call.sentiment}` : ''}`;
       }, source);
       return null;
     }
-  }
-
-  static async getRetellBenchmark(callId: string): Promise<RetellBenchmarkScorecard | null> {
-    const [analysis] = await db
-      .select({
-        diagnostics: callQaAnalyses.diagnostics,
-      })
-      .from(callQaAnalyses)
-      .where(eq(callQaAnalyses.callId, callId))
-      .limit(1);
-    const benchmark = (analysis?.diagnostics as any)?.retellBenchmark;
-    if (!benchmark || typeof benchmark !== 'object') return null;
-    return benchmark as RetellBenchmarkScorecard;
-  }
-
-  static async analyzeTwilioOpenAIBenchmarkCall(
-    callId: string,
-    userId: string,
-    apiKey?: string
-  ): Promise<CallQaAnalysis | null> {
-    const [call] = await db
-      .select({
-        id: calls.id,
-        userId: calls.userId,
-        transcript: calls.transcript,
-      })
-      .from(calls)
-      .where(eq(calls.id, callId))
-      .limit(1);
-
-    if (!call || call.userId !== userId || !call.transcript || call.transcript.trim().length === 0) {
-      return null;
-    }
-
-    const existing = await this.getAnalysis(callId);
-    if (existing) {
-      const diagnostics = (existing.diagnostics as any) || {};
-      if (diagnostics.retellBenchmark) {
-        return existing;
-      }
-    }
-
-    return this.analyzeCall(callId, userId, apiKey);
-  }
-
-  static async runBenchmarkForRecentTwilioOpenAICalls(
-    userId: string,
-    limit = 20
-  ): Promise<{ processed: number; successful: number; failed: number }> {
-    const cappedLimit = Math.max(1, Math.min(100, limit));
-    const recentCalls = await db
-      .select({
-        id: calls.id,
-      })
-      .from(calls)
-      .where(
-        and(
-          eq(calls.userId, userId),
-          eq(calls.status, 'completed'),
-          sql`${calls.transcript} IS NOT NULL AND ${calls.transcript} != ''`
-        )
-      )
-      .orderBy(desc(calls.createdAt))
-      .limit(cappedLimit);
-
-    let successful = 0;
-    let failed = 0;
-
-    for (const call of recentCalls) {
-      try {
-        const analysis = await this.analyzeTwilioOpenAIBenchmarkCall(call.id, userId);
-        if (analysis) {
-          successful += 1;
-        } else {
-          failed += 1;
-        }
-      } catch {
-        failed += 1;
-      }
-    }
-
-    return {
-      processed: recentCalls.length,
-      successful,
-      failed,
-    };
-  }
-
-  static async getRetellReadinessSummary(
-    userId: string,
-    limit = 50
-  ): Promise<{
-    analyzedCalls: number;
-    avgRetellReadiness: number;
-    belowTargetCalls: number;
-    targetScore: number;
-  }> {
-    const cappedLimit = Math.max(1, Math.min(200, limit));
-    const analyses = await db
-      .select({
-        diagnostics: callQaAnalyses.diagnostics,
-      })
-      .from(callQaAnalyses)
-      .where(eq(callQaAnalyses.userId, userId))
-      .orderBy(desc(callQaAnalyses.analyzedAt))
-      .limit(cappedLimit);
-
-    if (analyses.length === 0) {
-      return {
-        analyzedCalls: 0,
-        avgRetellReadiness: 0,
-        belowTargetCalls: 0,
-        targetScore: 85,
-      };
-    }
-
-    const scores = analyses
-      .map((a) => Number(((a.diagnostics as any)?.retellBenchmark?.weightedScore) || 0))
-      .filter((n) => Number.isFinite(n) && n > 0);
-
-    const targetScore = 85;
-    const avgRetellReadiness = scores.length
-      ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length)
-      : 0;
-    const belowTargetCalls = scores.filter((s) => s < targetScore).length;
-
-    return {
-      analyzedCalls: scores.length,
-      avgRetellReadiness,
-      belowTargetCalls,
-      targetScore,
-    };
-  }
-
-  static async getTopRegressionSignals(
-    userId: string,
-    limit = 50
-  ): Promise<{
-    windowSize: number;
-    topRisks: Array<{ risk: string; count: number; percentage: number }>;
-    topRecommendations: Array<{ action: string; count: number; percentage: number }>;
-  }> {
-    const cappedLimit = Math.max(1, Math.min(300, limit));
-    const analyses = await db
-      .select({
-        diagnostics: callQaAnalyses.diagnostics,
-      })
-      .from(callQaAnalyses)
-      .where(eq(callQaAnalyses.userId, userId))
-      .orderBy(desc(callQaAnalyses.analyzedAt))
-      .limit(cappedLimit);
-
-    if (analyses.length === 0) {
-      return {
-        windowSize: 0,
-        topRisks: [],
-        topRecommendations: [],
-      };
-    }
-
-    const riskCounts = new Map<string, number>();
-    const actionCounts = new Map<string, number>();
-
-    for (const analysis of analyses) {
-      const benchmark = (analysis.diagnostics as any)?.retellBenchmark;
-      const risks: string[] = Array.isArray(benchmark?.risks) ? benchmark.risks : [];
-      const actions: string[] = Array.isArray(benchmark?.recommendedActions) ? benchmark.recommendedActions : [];
-
-      for (const risk of risks) {
-        riskCounts.set(risk, (riskCounts.get(risk) || 0) + 1);
-      }
-      for (const action of actions) {
-        actionCounts.set(action, (actionCounts.get(action) || 0) + 1);
-      }
-    }
-
-    const toTopList = (entries: Map<string, number>, keyName: 'risk' | 'action') =>
-      Array.from(entries.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([label, count]) => ({
-          [keyName]: label,
-          count,
-          percentage: Math.round((count / analyses.length) * 100),
-        })) as Array<{ risk: string; count: number; percentage: number }> | Array<{ action: string; count: number; percentage: number }>;
-
-    return {
-      windowSize: analyses.length,
-      topRisks: toTopList(riskCounts, 'risk') as Array<{ risk: string; count: number; percentage: number }>,
-      topRecommendations: toTopList(actionCounts, 'action') as Array<{ action: string; count: number; percentage: number }>,
-    };
   }
 
   static async getAnalysis(callId: string): Promise<CallQaAnalysis | null> {
@@ -493,12 +243,6 @@ ${call.sentiment ? `Current Sentiment: ${call.sentiment}` : ''}`;
     const averageScore = Math.round(
       analyses.reduce((sum, a) => sum + (a.overallScore || 0), 0) / totalAnalyzed
     );
-    const retellReadiness = Math.round(
-      analyses.reduce((sum, a) => {
-        const score = Number(((a.diagnostics as any)?.retellBenchmark?.weightedScore) || 0);
-        return sum + score;
-      }, 0) / totalAnalyzed
-    );
     const resolvedCount = analyses.filter(
       a => a.resolutionStatus === 'resolved'
     ).length;
@@ -520,7 +264,6 @@ ${call.sentiment ? `Current Sentiment: ${call.sentiment}` : ''}`;
     return {
       totalAnalyzed,
       averageScore,
-      retellReadiness,
       resolutionRate,
       issueBreakdown,
       scoreTrend,
@@ -584,231 +327,6 @@ ${call.sentiment ? `Current Sentiment: ${call.sentiment}` : ''}`;
     return {
       analyses,
       total: countResult?.count || 0
-    };
-  }
-
-  private static normalizeAnalysisResult(
-    raw: QaAnalysisResult,
-    transcript: string
-  ): QaAnalysisResult {
-    const fallback = this.buildHeuristicAnalysis(transcript);
-    return {
-      overallScore: this.clampScore(raw.overallScore, fallback.overallScore),
-      audioQualityScore: this.clampScore(raw.audioQualityScore, fallback.audioQualityScore),
-      languageScore: this.clampScore(raw.languageScore, fallback.languageScore),
-      complianceScore: this.clampScore(raw.complianceScore, fallback.complianceScore),
-      performanceScore: this.clampScore(raw.performanceScore, fallback.performanceScore),
-      resolutionStatus: raw.resolutionStatus || fallback.resolutionStatus,
-      resolutionNotes: raw.resolutionNotes || fallback.resolutionNotes,
-      avgResponseLatency: Math.max(0, Number(raw.avgResponseLatency || 0)),
-      maxResponseLatency: Math.max(0, Number(raw.maxResponseLatency || 0)),
-      hasHallucinations: !!raw.hasHallucinations,
-      hasInterruptions: !!raw.hasInterruptions,
-      hasNegativeSentiment: !!raw.hasNegativeSentiment,
-      hasComplianceIssues: !!raw.hasComplianceIssues,
-      hasKbInaccuracies: !!raw.hasKbInaccuracies,
-      diagnostics: raw.diagnostics || fallback.diagnostics,
-      keyMoments: Array.isArray(raw.keyMoments) ? raw.keyMoments : fallback.keyMoments,
-      evidence: Array.isArray(raw.evidence) ? raw.evidence : fallback.evidence,
-    };
-  }
-
-  private static clampScore(value: unknown, fallback: number): number {
-    const num = Number(value);
-    if (!Number.isFinite(num)) return fallback;
-    return Math.max(0, Math.min(100, Math.round(num)));
-  }
-
-  private static parseTranscript(transcript: string): TranscriptTurn[] {
-    const lines = transcript
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
-
-    const turns: TranscriptTurn[] = [];
-    for (const line of lines) {
-      const lower = line.toLowerCase();
-      if (lower.startsWith('user:')) {
-        turns.push({
-          speaker: 'user',
-          text: line.slice(line.indexOf(':') + 1).trim(),
-          index: turns.length,
-        });
-      } else if (lower.startsWith('agent:') || lower.startsWith('assistant:')) {
-        turns.push({
-          speaker: 'agent',
-          text: line.slice(line.indexOf(':') + 1).trim(),
-          index: turns.length,
-        });
-      }
-    }
-    return turns;
-  }
-
-  private static buildHeuristicAnalysis(transcript: string, duration?: number): QaAnalysisResult {
-    const turns = this.parseTranscript(transcript);
-    const agentTurns = turns.filter((t) => t.speaker === 'agent');
-    const userTurns = turns.filter((t) => t.speaker === 'user');
-    const agentWordCounts = agentTurns.map((t) => t.text.split(/\s+/).filter(Boolean).length);
-    const avgAgentWords = agentWordCounts.length
-      ? agentWordCounts.reduce((sum, n) => sum + n, 0) / agentWordCounts.length
-      : 0;
-    const longAgentTurns = agentWordCounts.filter((n) => n > 45).length;
-    const interruptionSignals = transcript.match(/\b(sorry to interrupt|wait wait|hold on|let me stop you)\b/gi)?.length || 0;
-    const negativeSignals = transcript.match(/\b(angry|frustrated|upset|not happy|bad service|complaint)\b/gi)?.length || 0;
-    const uncertainSignals = transcript.match(/\b(i think|maybe|not sure|cannot confirm|can't confirm)\b/gi)?.length || 0;
-    const greetingDetected = /\b(hello|hi|good (morning|afternoon|evening))\b/i.test(transcript);
-    const closingDetected = /\b(thank you for calling|goodbye|have a great day|bye)\b/i.test(transcript);
-    const transferDetected = /\b(transfer|human agent|representative)\b/i.test(transcript);
-    const resolvedDetected = /\b(resolved|fixed|done|completed|all set)\b/i.test(transcript);
-
-    const languageScore = Math.max(45, 88 - Math.round(longAgentTurns * 6) - (avgAgentWords > 30 ? 8 : 0));
-    const complianceScore = Math.max(35, 92 - (greetingDetected ? 0 : 15) - (closingDetected ? 0 : 10));
-    const performanceScore = Math.max(40, 82 - Math.round(interruptionSignals * 8) - (transferDetected ? 5 : 0));
-    const audioQualityScore = 75;
-    const overallScore = Math.round(
-      (audioQualityScore * 0.15) +
-      (languageScore * 0.25) +
-      (complianceScore * 0.25) +
-      (performanceScore * 0.35)
-    );
-
-    const resolutionStatus: QaAnalysisResult['resolutionStatus'] =
-      transferDetected ? 'transferred' : (resolvedDetected ? 'resolved' : 'partial');
-    const resolutionNotes =
-      resolutionStatus === 'resolved'
-        ? 'Detected completion cues in transcript.'
-        : resolutionStatus === 'transferred'
-          ? 'Call appears escalated/transferred.'
-          : 'No explicit complete resolution cues detected.';
-
-    const estimatedAvgLatency = duration && agentTurns.length > 0
-      ? Math.max(500, Math.round((duration * 1000) / Math.max(agentTurns.length, 1)))
-      : 0;
-
-    return {
-      overallScore: this.clampScore(overallScore, 65),
-      audioQualityScore: this.clampScore(audioQualityScore, 70),
-      languageScore: this.clampScore(languageScore, 65),
-      complianceScore: this.clampScore(complianceScore, 65),
-      performanceScore: this.clampScore(performanceScore, 65),
-      resolutionStatus,
-      resolutionNotes,
-      avgResponseLatency: estimatedAvgLatency,
-      maxResponseLatency: estimatedAvgLatency ? Math.round(estimatedAvgLatency * 1.6) : 0,
-      hasHallucinations: uncertainSignals > 3,
-      hasInterruptions: interruptionSignals > 0,
-      hasNegativeSentiment: negativeSignals > 0,
-      hasComplianceIssues: !greetingDetected || !closingDetected,
-      hasKbInaccuracies: false,
-      diagnostics: {
-        hallucinations: uncertainSignals > 0 ? [{ text: 'High uncertainty language detected', context: 'heuristic-fallback' }] : [],
-        interruptions: interruptionSignals > 0 ? [{ timestamp: 0, description: 'Interruption-like phrases detected' }] : [],
-        sentimentBreakdown: {
-          positive: Math.max(0, 65 - negativeSignals * 10),
-          neutral: 25,
-          negative: Math.min(100, negativeSignals * 15),
-        },
-        complianceIssues: [
-          ...(!greetingDetected ? [{ issue: 'Missing clear greeting', severity: 'medium' }] : []),
-          ...(!closingDetected ? [{ issue: 'Missing clear closing', severity: 'medium' }] : []),
-        ],
-      },
-      keyMoments: [],
-      evidence: [],
-    };
-  }
-
-  private static computeRetellBenchmark(
-    analysis: QaAnalysisResult,
-    transcript: string
-  ): RetellBenchmarkScorecard {
-    const turns = this.parseTranscript(transcript);
-    const agentTurns = turns.filter((t) => t.speaker === 'agent');
-    const agentWords = agentTurns.map((t) => t.text.split(/\s+/).filter(Boolean).length);
-    const avgAgentWords = agentWords.length
-      ? agentWords.reduce((sum, n) => sum + n, 0) / agentWords.length
-      : 0;
-    const overlongTurns = agentWords.filter((n) => n > 45).length;
-    const longTurnPenalty = Math.min(30, overlongTurns * 6 + (avgAgentWords > 30 ? 8 : 0));
-
-    const phonePhrasingConciseness = this.clampScore(95 - longTurnPenalty, 65);
-    const callFlowSmoothness = this.clampScore(
-      (analysis.performanceScore || 65) - ((analysis.hasInterruptions ? 10 : 0)),
-      65
-    );
-    const groundingAndHallucinationSafety = this.clampScore(
-      90 - (analysis.hasHallucinations ? 20 : 0) - (analysis.hasKbInaccuracies ? 15 : 0),
-      70
-    );
-    const interruptionHandling = this.clampScore(
-      88 - (analysis.hasInterruptions ? 20 : 0),
-      68
-    );
-    const emotionalAdaptation = this.clampScore(
-      86 - (analysis.hasNegativeSentiment ? 8 : 0),
-      70
-    );
-    const resolutionAndEscalation = this.clampScore(
-      (analysis.resolutionStatus === 'resolved' ? 90 : analysis.resolutionStatus === 'transferred' ? 80 : 68) -
-      (analysis.hasComplianceIssues ? 8 : 0),
-      68
-    );
-    const multilingualConsistency = this.clampScore(analysis.languageScore || 70, 70);
-
-    const weightedScore = this.clampScore(
-      (callFlowSmoothness * 0.2) +
-      (phonePhrasingConciseness * 0.17) +
-      (groundingAndHallucinationSafety * 0.2) +
-      (interruptionHandling * 0.13) +
-      (emotionalAdaptation * 0.1) +
-      (resolutionAndEscalation * 0.12) +
-      (multilingualConsistency * 0.08),
-      70
-    );
-
-    const strengths: string[] = [];
-    const risks: string[] = [];
-    const recommendedActions: string[] = [];
-
-    if (groundingAndHallucinationSafety >= 85) strengths.push('Strong grounding safety signals');
-    if (phonePhrasingConciseness >= 80) strengths.push('Concise phone-ready phrasing');
-    if (interruptionHandling >= 80) strengths.push('Good interruption resilience');
-
-    if (phonePhrasingConciseness < 75) {
-      risks.push('Agent turns are often too long for call-center pacing');
-      recommendedActions.push('Enforce 1-3 sentence default responses and split details into chunks.');
-    }
-    if (groundingAndHallucinationSafety < 80) {
-      risks.push('Potential grounding/hallucination risk remains');
-      recommendedActions.push('Increase low-confidence escalation behavior and tighten KB confidence thresholds.');
-    }
-    if (resolutionAndEscalation < 75) {
-      risks.push('Resolution and escalation handling needs improvement');
-      recommendedActions.push('Add explicit resolution checkpoints and earlier escalation logic for blocked intents.');
-    }
-    if (multilingualConsistency < 75) {
-      risks.push('Language consistency not yet stable');
-      recommendedActions.push('Strengthen language lock and dialect-preservation prompts/tooling.');
-    }
-    if (recommendedActions.length === 0) {
-      recommendedActions.push('Keep running benchmark batches and track score drift by agent/flow.');
-    }
-
-    return {
-      weightedScore,
-      dimensions: {
-        callFlowSmoothness,
-        phonePhrasingConciseness,
-        groundingAndHallucinationSafety,
-        interruptionHandling,
-        emotionalAdaptation,
-        resolutionAndEscalation,
-        multilingualConsistency,
-      },
-      strengths,
-      risks,
-      recommendedActions,
     };
   }
 }

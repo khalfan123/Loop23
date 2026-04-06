@@ -134,7 +134,7 @@ export default function VoicePreviewButton({
     if (audioRef.current) {
       audioRef.current.src = url;
       audioRef.current.load();
-      await audioRef.current.play();
+      await audioRef.current.play().catch(() => {});
       setIsPlaying(true);
     }
   }, []);
@@ -181,7 +181,7 @@ export default function VoicePreviewButton({
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      audioRef.current.play().catch(() => {});
       setIsPlaying(true);
     }
   };

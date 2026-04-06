@@ -25,7 +25,7 @@ export interface TeamMemberData {
 export interface TeamData {
   id: string;
   name: string;
-  type: 'user' | 'admin';
+  type: 'user';
   parentUserId?: string;
 }
 
@@ -154,13 +154,9 @@ export const TeamAuth = {
     return Object.values(permissions[section]).some(v => v === true);
   },
 
-  getTeamType(): 'user' | 'admin' | null {
+  getTeamType(): 'user' | null {
     const team = this.getTeam();
     return team?.type || null;
-  },
-
-  isAdminTeamMember(): boolean {
-    return this.getTeamType() === 'admin';
   },
 
   async validateSession(): Promise<{ valid: boolean; member?: TeamMemberData; team?: TeamData; permissions?: any }> {
@@ -169,9 +165,7 @@ export const TeamAuth = {
       return { valid: false };
     }
 
-    const team = this.getTeam();
-    const isAdminTeam = team?.type === 'admin';
-    const endpoint = isAdminTeam ? '/api/admin/team/auth/me' : '/api/team/auth/me';
+    const endpoint = '/api/team/auth/me';
 
     try {
       const response = await fetch(endpoint, {

@@ -155,7 +155,7 @@ export const flowTemplates = [
           label: "Qualified Goodbye",
           config: {
             type: "end",
-            endMessage: "Wonderful! Based on what you've shared, I think we have some great options for you. Our sales team will reach out within 24 hours to schedule a detailed demo. Thank you for your time!",
+            endMessage: "Love it! Based on what you've told me, I think we've got some really good options for you. Our sales team will reach out within twenty-four hours to set up a demo. Thanks for your time!",
           },
         },
       },
@@ -1001,7 +1001,7 @@ export const flowTemplates = [
           label: "Confirmation",
           config: {
             type: "message",
-            message: "Wonderful! You're all registered. You'll receive a confirmation email shortly with all the event details including venue information, agenda, and parking instructions.",
+            message: "You're all set! You'll get a confirmation email with all the event details — venue, agenda, parking, everything.",
             waitForResponse: false,
           },
         },
@@ -1472,7 +1472,7 @@ export const flowTemplates = [
           label: "Positive Goodbye",
           config: {
             type: "end",
-            endMessage: "Excellent! I've got you booked in. You'll receive a calendar invite shortly. Looking forward to speaking with you then. Have a great day!",
+            endMessage: "You're all set! You'll get a calendar invite shortly. Looking forward to chatting then. Have a great day!",
           },
         },
       },
@@ -1774,7 +1774,7 @@ export const flowTemplates = [
           label: "Upgrade Complete",
           config: {
             type: "end",
-            endMessage: "Excellent! Your upgrade has been processed. You'll receive a confirmation email shortly with all the details about your new features. Thank you for being a valued customer!",
+            endMessage: "Done! Your upgrade's all processed. You'll get a confirmation email with everything about your new features. Thanks so much!",
           },
         },
       },
@@ -2272,7 +2272,7 @@ export const flowTemplates = [
           label: "Sale Complete",
           config: {
             type: "end",
-            endMessage: "Wonderful! Your account is being set up. You'll receive login details via email shortly. Welcome to {company_name}!",
+            endMessage: "Nice, your account's getting set up right now. You'll get login details by email shortly. Welcome to {company_name}!",
           },
         },
       },
@@ -2466,7 +2466,7 @@ export const flowTemplates = [
           label: "Conversion Complete",
           config: {
             type: "end",
-            endMessage: "Excellent! Your account has been upgraded. You'll receive a confirmation email with your receipt. Thank you for choosing us!",
+            endMessage: "All done! Your account's been upgraded. You'll get a confirmation email with your receipt. Thanks for going with us!",
           },
         },
       },
@@ -2563,7 +2563,7 @@ export const flowTemplates = [
           label: "Greeting",
           config: {
             type: "message",
-            message: "Hi {contact_name}! This is {agent_name} from {company_name}. I'm following up on the quote we sent over for {project_name}. Have you had a chance to review it?",
+            message: "Hi {firstName}! This is {agent_name} from {company_name}. I'm following up on the quote we sent over for {project_name}. Have you had a chance to review it?",
             waitForResponse: true,
           },
         },
@@ -2664,7 +2664,7 @@ export const flowTemplates = [
           label: "Quote Accepted",
           config: {
             type: "end",
-            endMessage: "Wonderful! I'm marking the quote as accepted. You'll receive a contract to sign via email. We're excited to work with you!",
+            endMessage: "Awesome, I'm locking that in for you. You'll get the contract by email to sign. We're really looking forward to working together!",
           },
         },
       },
@@ -3279,7 +3279,7 @@ export const flowTemplates = [
           label: "Pre-order Complete",
           config: {
             type: "end",
-            endMessage: "Excellent! Your pre-order is confirmed. You'll be among the first to receive {product_name}. We'll send shipping details as soon as it's ready. Thank you for your continued support!",
+            endMessage: "Nice, your pre-order's locked in! You'll be one of the first to get {product_name}. We'll send shipping details as soon as it's ready. Thanks!",
           },
         },
       },
@@ -3396,7 +3396,7 @@ export const flowTemplates = [
           label: "Order Details",
           config: {
             type: "question",
-            question: "Wonderful! What would you like to order today? I can process it right now.",
+            question: "Great! So what can I get for you today? I can put the order through right now.",
             variableName: "order_details",
             waitForResponse: true,
           },
@@ -3638,7 +3638,7 @@ export const flowTemplates = [
           label: "Greeting",
           config: {
             type: "message",
-            message: "Hi {contact_name}! This is {agent_name} from {company_name}. I'm following up on the contract we sent over for {deal_name}. I wanted to see if you have any questions or if there's anything we need to discuss before moving forward.",
+            message: "Hi {firstName}! This is {agent_name} from {company_name}. I'm following up on the contract we sent over for {deal_name}. I wanted to see if you have any questions or if there's anything we need to discuss before moving forward.",
             waitForResponse: true,
           },
         },
@@ -5136,7 +5136,7 @@ export const flowTemplates = [
           label: "Customer Retained",
           config: {
             type: "end",
-            endMessage: "Wonderful! I've applied that to your account. You'll see the changes reflected immediately. Thank you for giving us another chance!",
+            endMessage: "Done, that's been applied to your account. You should see it right away. And thanks for sticking with us!",
           },
         },
       },
@@ -6353,7 +6353,7 @@ export const flowTemplates = [
           config: {
             type: "transfer",
             transferNumber: "{payment_line_number}",
-            message: "Excellent! I'll transfer you to our secure payment line. Please have your payment method ready. One moment please.",
+            message: "Perfect, I'll get you over to our payment line. Just have your payment method handy. One sec.",
           },
         },
       },
@@ -6943,7 +6943,7 @@ export const flowTemplates = [
           label: "Confirmation",
           config: {
             type: "message",
-            message: "Excellent! Your payment plan has been set up successfully. You'll receive a confirmation email with all the details and a schedule of upcoming payments.",
+            message: "Great, your payment plan's all set up. You'll get an email with the details and your payment schedule.",
             waitForResponse: false,
           },
         },
@@ -8326,7 +8326,7 @@ export const flowTemplates = [
           label: "Confirmed Goodbye",
           config: {
             type: "end",
-            endMessage: "Wonderful! Your appointment is confirmed. We look forward to seeing you. You'll receive a reminder message 24 hours before your appointment. Have a great day!",
+            endMessage: "You're booked! We'll send you a reminder twenty-four hours before. Looking forward to seeing you. Have a great day!",
           },
         },
       },
@@ -8572,7 +8572,7 @@ export const flowTemplates = [
           label: "Confirmed Goodbye",
           config: {
             type: "end",
-            endMessage: "Excellent! We'll see you tomorrow. If anything changes, please call us at {office_phone}. Have a great rest of your day!",
+            endMessage: "See you tomorrow! If anything comes up, just call us at {office_phone}. Have a great rest of your day!",
           },
         },
       },
@@ -9001,7 +9001,7 @@ export const flowTemplates = [
           label: "Rescheduled Goodbye",
           config: {
             type: "end",
-            endMessage: "Wonderful! Your new appointment is confirmed. We'll send you a reminder before your appointment. Thank you and we look forward to seeing you!",
+            endMessage: "All set, your new appointment's confirmed. We'll send a reminder beforehand. See you then!",
           },
         },
       },
@@ -9155,7 +9155,7 @@ export const flowTemplates = [
           label: "Confirm Details",
           config: {
             type: "question",
-            question: "Excellent! Let me confirm your contact details. Is {customer_phone} still the best number to reach you, and {customer_email} for confirmation emails?",
+            question: "Okay cool, let me just confirm your details real quick. Is {customer_phone} still the best number, and {customer_email} for emails?",
             variableName: "details_confirmed",
             waitForResponse: true,
           },
@@ -14480,7 +14480,7 @@ export const flowTemplates = [
           label: "Viewing Confirmed",
           config: {
             type: "end",
-            endMessage: "Wonderful! Your property viewing has been scheduled. You'll receive a confirmation email with all the details. Our agent will meet you at the property. Is there anything else I can help you with?",
+            endMessage: "Perfect, your viewing's all scheduled. You'll get a confirmation email, and our agent will meet you right at the property. Anything else you need?",
           },
         },
       },
@@ -15180,7 +15180,7 @@ export const flowTemplates = [
           label: "Consultation Scheduled",
           config: {
             type: "end",
-            endMessage: "Excellent! Your mortgage consultation has been scheduled. You'll receive an email with the lender's information and what documents to prepare. This is an exciting step toward your new home!",
+            endMessage: "You're booked in! You'll get an email with the lender's info and what docs to bring. This is a big step toward your new home — exciting stuff!",
           },
         },
       },
@@ -16975,7 +16975,7 @@ export const flowTemplates = [
           label: "Process Increase",
           config: {
             type: "message",
-            message: "Wonderful! I'm processing your credit limit increase now. Your new limit will be reflected on your account within 24-48 hours. You'll also receive a confirmation email with the details.",
+            message: "Got it, I'm processing your limit increase right now. It'll show up on your account within twenty-four to forty-eight hours, and you'll get a confirmation email too.",
             waitForResponse: false,
           },
         },
@@ -17189,7 +17189,7 @@ export const flowTemplates = [
           label: "Process Renewal",
           config: {
             type: "message",
-            message: "Excellent! I'm processing your policy renewal now. Your coverage will continue uninterrupted, and you'll receive your updated policy documents via email within 24 hours.",
+            message: "Got it, I'm processing your renewal right now. Your coverage stays active, and you'll get the updated documents by email within twenty-four hours.",
             waitForResponse: false,
           },
         },
@@ -17827,7 +17827,7 @@ export const flowTemplates = [
           label: "Confirmation Summary",
           config: {
             type: "message",
-            message: "Wonderful! Your reservation is now fully confirmed. You will receive a confirmation email with all the details. Our team will be ready to welcome you upon arrival.",
+            message: "Your reservation's all confirmed! You'll get an email with everything you need. Our team will be ready for you when you arrive.",
             waitForResponse: false,
           },
         },
@@ -18013,7 +18013,7 @@ export const flowTemplates = [
           label: "Confirmation",
           config: {
             type: "message",
-            message: "Excellent! Your pre-arrival check-in is complete. When you arrive, simply proceed to our express check-in counter where your room key will be ready. You can skip the line entirely!",
+            message: "You're all checked in! When you get here, just head to the express counter and your room key will be waiting. No line, no hassle.",
             waitForResponse: false,
           },
         },
@@ -18322,7 +18322,7 @@ export const flowTemplates = [
           label: "Email Address",
           config: {
             type: "question",
-            question: "Wonderful! Let's get you enrolled. What email address would you like to use for your membership account?",
+            question: "Nice, let's get you signed up. What email do you want to use for your account?",
             variableName: "member_email",
             waitForResponse: true,
           },

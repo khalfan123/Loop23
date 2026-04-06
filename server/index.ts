@@ -19,9 +19,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import cookieParser from "cookie-parser";
 import compression from "compression";
+import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startPhoneBillingCron } from "./services/phone-billing-cron";
+import { startCallpilotWorker } from "./services/callpilot-auto-analyze";
 import { runStartupHealthCheck, getHealthStatus } from "./services/startup-health-check";
 import { setupGlobalHandlers, registerServer, signalReady } from "./services/graceful-shutdown";
 import { startWatchdog } from "./services/resource-watchdog";
@@ -33,6 +35,7 @@ import { startStaleCallsCleanup } from "./services/stale-calls-cleanup";
 import { correlationIdMiddleware } from "./middleware/correlation-id";
 import { emailService } from "./services/email-service";
 import { initializeDirectories } from "./utils/init-directories";
+import { RAGKnowledgeService } from "./services/rag-knowledge";
 
 // Setup global error handlers and shutdown signals FIRST
 // This ensures crashes are caught even during initialization
@@ -124,6 +127,14 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Early root handler so deployment health checks to "/" pass during initialization.
+// Once the full app is ready, this falls through to the real SPA/static handler.
+let appFullyInitialized = false;
+app.get("/", (req, res, next) => {
+  if (appFullyInitialized) return next();
+  res.status(200).send("OK");
+});
+
 // Detailed health check endpoint with integration status
 app.get("/health/detailed", async (_req, res) => {
   try {
@@ -167,9 +178,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Create the HTTP server and start listening EARLY so deployment health checks
+// can be answered immediately (the /health endpoint is already registered above).
+// Heavy async initialization (DB seeding, route registration, etc.) runs after.
+const port = parseInt(process.env.PORT || '5000', 10);
+const server = createServer(app);
+
+registerServer(server);
+
+server.listen({
+  port,
+  host: "0.0.0.0",
+  reusePort: true,
+}, () => {
+  log(`serving on port ${port}`);
+});
+
 (async () => {
-  // Initialize email service from database settings FIRST (before health check)
-  // This ensures database SMTP settings take precedence over env vars
   try {
     const emailInitialized = await emailService.reinitializeFromDatabase();
     if (emailInitialized) {
@@ -179,24 +204,36 @@ app.use((req, res, next) => {
     console.error('⚠️ [Email] Failed to initialize from database:', error);
   }
   
-  // Run startup health checks before serving traffic
   try {
     await runStartupHealthCheck();
   } catch (error) {
     console.error('❌ [Startup] Health check failed:', error);
   }
+
+  try {
+    const backfilled = await RAGKnowledgeService.backfillPgvectorEmbeddings();
+    console.log(`🔍 [RAG] pgvector ready — ${backfilled} embeddings backfilled`);
+  } catch (error: any) {
+    console.warn(`⚠️ [RAG] pgvector startup init failed: ${error.message}`);
+  }
   
-  // Preload JWT expiry settings from database
   await preloadJwtExpiry(storage);
   
-  const server = await registerRoutes(app);
+  await registerRoutes(app, server);
 
-  // Global error handler - ALWAYS returns JSON for API routes
+  try {
+    const { fixExistingConnectionWebhooks } = await import('./routes/incoming-connections-routes');
+    await fixExistingConnectionWebhooks();
+  } catch (fixError: any) {
+    console.warn('⚠️  [Startup] Webhook fix failed:', fixError.message);
+  }
+
+  startCallpilotWorker();
+
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     
-    // Include correlation ID in error response for debugging
     const correlationId = req.correlationId;
     const errorResponse: any = { 
       success: false,
@@ -207,19 +244,14 @@ app.use((req, res, next) => {
       errorResponse.correlationId = correlationId;
     }
 
-    // Log the error for debugging (don't re-throw as that crashes the server)
     console.error(`[Error Handler] ${req.method} ${req.path}:`, err.message || err);
     
-    // Always return JSON response for API routes, never crash the server
     if (!res.headersSent) {
-      // Explicitly set Content-Type to prevent HTML responses
       res.setHeader('Content-Type', 'application/json');
       res.status(status).json(errorResponse);
     }
   });
 
-  // API 404 handler - catches any /api route that wasn't matched
-  // This MUST run before Vite catch-all to prevent HTML responses for API routes
   app.use('/api', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
     res.status(404).json({
@@ -230,13 +262,8 @@ app.use((req, res, next) => {
     });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   const isProduction = app.get("env") === "production" || process.env.NODE_ENV === "production";
   
-  // SEO meta tag injection middleware for social sharing (Facebook, WhatsApp, Twitter, etc.)
-  // This injects og:image and other meta tags server-side since crawlers don't execute JavaScript
   const injectSeoMetaTags = async (html: string, baseUrl: string): Promise<string> => {
     try {
       const [seoSettings, appNameSetting, appTaglineSetting] = await Promise.all([
@@ -283,7 +310,6 @@ app.use((req, res, next) => {
     }
   };
   
-  // Crawler user agents that need server-rendered OG meta tags
   const crawlerUserAgents = [
     'facebookexternalhit',
     'Facebot',
@@ -303,24 +329,19 @@ app.use((req, res, next) => {
     return crawlerUserAgents.some(crawler => userAgent.toLowerCase().includes(crawler.toLowerCase()));
   };
   
-  // Middleware to serve SEO-optimized HTML for social media crawlers
-  // This runs BEFORE Vite/static file serving to catch crawler requests
   app.use(async (req: Request, res: Response, next: NextFunction) => {
     const userAgent = req.headers['user-agent'];
     
-    // Only intercept non-API HTML page requests from crawlers
     if (!req.path.startsWith('/api') && !req.path.includes('.') && isCrawler(userAgent)) {
       try {
         const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
         const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
         const baseUrl = `${protocol}://${host}`;
         
-        // Read the appropriate HTML template based on environment
         const fs = await import('fs').then(m => m.promises);
         const prodPath = path.resolve(import.meta.dirname, 'public', 'index.html');
         const devPath = path.join(process.cwd(), 'client', 'index.html');
         
-        // Use production build in production, dev template in development
         let indexPath = devPath;
         try {
           await fs.access(prodPath);
@@ -328,12 +349,10 @@ app.use((req, res, next) => {
             indexPath = prodPath;
           }
         } catch {
-          // Production build doesn't exist, use dev path
         }
         
         let html = await fs.readFile(indexPath, 'utf-8');
         
-        // Inject SEO meta tags
         html = await injectSeoMetaTags(html, baseUrl);
         
         res.setHeader('Content-Type', 'text/html');
@@ -341,7 +360,6 @@ app.use((req, res, next) => {
         return;
       } catch (error) {
         console.error('Error serving crawler-optimized HTML:', error);
-        // Fall through to normal serving if error occurs
       }
     }
     next();
@@ -350,12 +368,10 @@ app.use((req, res, next) => {
   if (!isProduction) {
     await setupVite(app, server);
   } else {
-    // Set NODE_ENV to production for proper middleware behavior
     process.env.NODE_ENV = "production";
     app.set("env", "production");
     log("Running in PRODUCTION mode");
     
-    // In production, serve static files with SEO injection
     const fs = await import('fs');
     const distPath = path.resolve(import.meta.dirname, "public");
     
@@ -367,7 +383,6 @@ app.use((req, res, next) => {
     
     app.use(express.static(distPath));
     
-    // Serve index.html with SEO meta tags for all non-file routes
     app.use("*", async (req, res) => {
       try {
         const indexPath = path.resolve(distPath, "index.html");
@@ -387,38 +402,13 @@ app.use((req, res, next) => {
     });
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
+  startPhoneBillingCron();
+  startWatchdog();
+  webhookRetryService.start();
+  initializeMigrationEngine();
+  startStaleCallsCleanup();
+  signalReady();
   
-  // Register the server for graceful shutdown
-  registerServer(server);
-  
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-    
-    // Start phone number billing cron job
-    startPhoneBillingCron();
-    
-    // Start resource watchdog for auto-restart monitoring
-    startWatchdog();
-    
-    // Start webhook retry service for failed payment webhooks
-    webhookRetryService.start();
-    
-    // Start ElevenLabs migration engine (handles retry queue for capacity errors)
-    initializeMigrationEngine();
-    
-    // Start stale pending calls cleanup (marks calls pending > 5 min as failed)
-    startStaleCallsCleanup();
-    
-    // Signal PM2 that the process is ready to receive connections
-    signalReady();
-  });
+  appFullyInitialized = true;
+  log("All services initialized successfully");
 })();

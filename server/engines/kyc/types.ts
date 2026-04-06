@@ -7,7 +7,7 @@
 
 export type KycStatus = 'pending' | 'submitted' | 'approved' | 'rejected';
 
-export type KycDocumentType = 'photo_id' | 'company_registration' | 'gst_certificate' | 'authorization_letter';
+export type KycDocumentType = 'photo_id' | 'company_registration' | 'gst_certificate' | 'authorization_letter' | 'trade_license';
 
 export interface KycDocument {
   id: string;
@@ -32,5 +32,4 @@ export interface UserKycStatus {
 
 export interface KycSettings {
   twilioKycRequired: boolean;
-  plivoKycRequired: boolean;
 }

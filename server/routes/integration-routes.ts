@@ -501,7 +501,7 @@ router.post('/:id/use-cases/execute', async (req: AuthRequest, res: Response) =>
     const webhookUrl = config.n8nWebhookUrl || integration.webhookUrl;
 
     const startTime = Date.now();
-    let executionResult: { success: boolean; executionId?: string } = { success: true, executionId: undefined };
+    let executionResult = { success: true, executionId: undefined as string | undefined };
     let warning: string | undefined;
 
     if (webhookUrl) {

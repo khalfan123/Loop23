@@ -440,9 +440,7 @@ export class BatchCallingService {
     return contacts.map(contact => {
       const recipient: BatchRecipient = {
         phone_number: contact.phone,
-        name: contact.lastName 
-          ? `${contact.firstName} ${contact.lastName}` 
-          : contact.firstName,
+        name: contact.firstName || '',
       };
 
       if (contact.email) {

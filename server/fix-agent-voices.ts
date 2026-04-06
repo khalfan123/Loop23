@@ -99,9 +99,6 @@ async function fixAgentVoices() {
       if (elevenLabsMismatch) {
         console.log(`   ElevenLabs: ${agent.elevenLabsVoiceId} (${currentVoiceGender}) → ${newElevenLabsVoice} (${detectedGender})`);
       }
-      if (openaiMismatch) {
-        console.log(`   OpenAI: ${agent.openaiVoice} (${currentOpenaiGender}) → ${newOpenaiVoice} (${detectedGender})`);
-      }
       
       await db.update(agents)
         .set({

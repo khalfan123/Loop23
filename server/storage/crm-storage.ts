@@ -7,7 +7,7 @@
  */
 
 import { db } from '../db';
-import { leads, leadStages, leadNotes, leadActivities, campaigns, incomingConnections, calls, plivoCalls, twilioOpenaiCalls, users, AI_LEAD_CATEGORIES, type AILeadCategory, crmCategoryPreferences } from '@shared/schema';
+import { leads, leadStages, leadNotes, leadActivities, campaigns, incomingConnections, calls, twilioOpenaiCalls, users, AI_LEAD_CATEGORIES, type AILeadCategory, crmCategoryPreferences } from '@shared/schema';
 import type { Lead, InsertLead, LeadStage, InsertLeadStage, LeadNote, InsertLeadNote, LeadActivity, InsertLeadActivity, CrmCategoryPreferences } from '@shared/schema';
 import { eq, and, desc, asc, sql, ilike, or, inArray, notInArray, gte, lte, count, isNotNull } from 'drizzle-orm';
 
@@ -819,7 +819,6 @@ export class CRMStorage {
       campaignId?: string;
       incomingConnectionId?: string;
       callId?: string;
-      plivoCallId?: string;
       twilioOpenaiCallId?: string;
       transcript?: string;
       aiSummary?: string;
@@ -866,7 +865,6 @@ export class CRMStorage {
       incomingConnectionId: callData.incomingConnectionId,
       stage,
       callId: callData.callId,
-      plivoCallId: callData.plivoCallId,
       twilioOpenaiCallId: callData.twilioOpenaiCallId,
       aiSummary: callData.aiSummary,
       leadScore: callData.leadScore,

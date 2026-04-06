@@ -151,16 +151,6 @@ const INTEGRATION_APPS = [
     isActive: true,
   },
   {
-    name: 'Plivo',
-    slug: 'plivo',
-    description: 'Use Plivo as your telephony provider for cost-effective global AI voice calls.',
-    category: 'telephony',
-    logoUrl: null,
-    n8nNodeType: 'n8n-nodes-base.httpRequest',
-    isPopular: false,
-    isActive: true,
-  },
-  {
     name: 'Vonage',
     slug: 'vonage',
     description: 'Enable AI agent calls through Vonage voice API with global phone number coverage.',

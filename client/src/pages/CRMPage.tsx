@@ -923,7 +923,7 @@ function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lead | nul
                       if (isPlaying) {
                         audio.pause();
                       } else {
-                        audio.play();
+                        audio.play().catch(() => {});
                       }
                       setIsPlaying(!isPlaying);
                     }
@@ -1313,7 +1313,7 @@ export default function CRMPage() {
   const validViews = ["list", "analytics"] as const;
   const urlViewRaw = new URLSearchParams(searchString).get('view');
   const urlViewParam = validViews.includes(urlViewRaw as any) ? (urlViewRaw as "list" | "analytics") : null;
-  const [viewMode, setViewMode] = useState<"list" | "analytics" | "kanban">(urlViewParam || "list");
+  const [viewMode, setViewMode] = useState<"list" | "analytics">(urlViewParam || "list");
   
   useEffect(() => {
     setViewMode(urlViewParam || "list");
@@ -1343,7 +1343,7 @@ export default function CRMPage() {
   const [totalLeads, setTotalLeads] = useState(0);
   
   // Column drag-and-drop state
-  const [draggingColumnId, setDraggingColumnId] = useState<AICategory | null>(null);
+  const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<CRMAnalytics>({
@@ -1412,16 +1412,12 @@ export default function CRMPage() {
     onMutate: async ({ categoryId, color }: { categoryId: string; color: string }) => {
       await queryClientRef.cancelQueries({ queryKey: ["/api/crm/preferences"] });
       const previousPrefs = queryClientRef.getQueryData<CrmCategoryPreferences>(["/api/crm/preferences"]);
-      queryClientRef.setQueryData<CrmCategoryPreferences>(["/api/crm/preferences"], (old) => {
-        if (!old && !previousPrefs) return old;
-        const base = old ?? previousPrefs!;
-        return {
-          ...base,
-          colorOverrides: { ...(base.colorOverrides || {}), [categoryId]: color },
-          columnOrder: base.columnOrder || [],
-          columnSortPreferences: base.columnSortPreferences || {},
-        };
-      });
+      queryClientRef.setQueryData<CrmCategoryPreferences>(["/api/crm/preferences"], (old) => ({
+        ...old,
+        colorOverrides: { ...(old?.colorOverrides || {}), [categoryId]: color },
+        columnOrder: old?.columnOrder || [],
+        columnSortPreferences: old?.columnSortPreferences || {},
+      }));
       return { previousPrefs };
     },
     onError: (error: any, _variables, context) => {
@@ -1442,16 +1438,12 @@ export default function CRMPage() {
     onMutate: async (newOrder: string[]) => {
       await queryClientRef.cancelQueries({ queryKey: ["/api/crm/preferences"] });
       const previousPrefs = queryClientRef.getQueryData<CrmCategoryPreferences>(["/api/crm/preferences"]);
-      queryClientRef.setQueryData<CrmCategoryPreferences>(["/api/crm/preferences"], (old) => {
-        if (!old && !previousPrefs) return old;
-        const base = old ?? previousPrefs!;
-        return {
-          ...base,
-          columnOrder: newOrder,
-          colorOverrides: base.colorOverrides || {},
-          columnSortPreferences: base.columnSortPreferences || {},
-        };
-      });
+      queryClientRef.setQueryData<CrmCategoryPreferences>(["/api/crm/preferences"], (old) => ({
+        ...old,
+        columnOrder: newOrder,
+        colorOverrides: old?.colorOverrides || {},
+        columnSortPreferences: old?.columnSortPreferences || {},
+      }));
       return { previousPrefs };
     },
     onError: (error: any, _variables, context) => {
@@ -1574,13 +1566,13 @@ export default function CRMPage() {
   };
 
   // Column drag-and-drop handlers
-  const handleColumnDragStart = (e: React.DragEvent, categoryId: AICategory) => {
+  const handleColumnDragStart = (e: React.DragEvent, categoryId: string) => {
     setDraggingColumnId(categoryId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', categoryId);
   };
 
-  const handleColumnDragOver = (e: React.DragEvent, categoryId: AICategory) => {
+  const handleColumnDragOver = (e: React.DragEvent, categoryId: string) => {
     e.preventDefault();
     if (draggingColumnId && draggingColumnId !== categoryId) {
       setDragOverColumnId(categoryId);
@@ -1591,7 +1583,7 @@ export default function CRMPage() {
     setDragOverColumnId(null);
   };
 
-  const handleColumnDrop = (e: React.DragEvent, targetCategoryId: AICategory) => {
+  const handleColumnDrop = (e: React.DragEvent, targetCategoryId: string) => {
     e.preventDefault();
     if (!draggingColumnId || draggingColumnId === targetCategoryId) {
       setDraggingColumnId(null);
@@ -1599,7 +1591,7 @@ export default function CRMPage() {
       return;
     }
 
-    const currentOrder = orderedCategories.map((c) => c.id as AICategory);
+    const currentOrder = orderedCategories.map(c => c.id);
     const fromIndex = currentOrder.indexOf(draggingColumnId);
     const toIndex = currentOrder.indexOf(targetCategoryId);
     

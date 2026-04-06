@@ -80,13 +80,6 @@ export default function HomePage() {
         ))}
       </div>
 
-      <Card className="p-8 text-center">
-        <h2 className="text-xl font-semibold mb-2">Need Help Getting Started?</h2>
-        <p className="text-muted-foreground mb-4">
-          Check out our documentation and tutorials to learn how to build powerful AI agents
-        </p>
-        <Button data-testid="button-view-docs">View Documentation</Button>
-      </Card>
     </div>
   );
 }

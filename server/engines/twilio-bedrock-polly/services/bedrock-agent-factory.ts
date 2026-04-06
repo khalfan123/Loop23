@@ -32,6 +32,7 @@ import { appointments, appointmentSettings, formSubmissions, agents, forms, form
 import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
+import { buildDynamicFormTools, DYNAMIC_FORM_PROMPT } from '../../../services/dynamic-form-tools';
 
 export interface ToolContext {
   userId: string;
@@ -79,7 +80,7 @@ export class BedrockAgentFactory {
     userTier?: 'free' | 'pro';
     toolContext?: ToolContext;
     language?: string;
-    ttsProvider?: 'aws_polly' | 'elevenlabs';
+    ttsProvider?: 'aws_polly' | 'elevenlabs' | 'cartesia';
     elevenLabsVoiceId?: string;
     elevenLabsApiKey?: string;
     agentName?: string;
@@ -88,7 +89,7 @@ export class BedrockAgentFactory {
     dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
   }): AgentConfigWithContext {
     const tier = params.userTier || 'free';
-    const voice = params.ttsProvider === 'elevenlabs' ? params.voice : this.validateVoice(params.voice);
+    const voice = (params.ttsProvider === 'elevenlabs' || params.ttsProvider === 'cartesia') ? params.voice : this.validateVoice(params.voice);
     const model = this.validateModel(params.model, tier);
     const language = params.language || 'en';
 
@@ -96,13 +97,26 @@ export class BedrockAgentFactory {
 
     let systemPrompt = params.systemPrompt;
 
-    const languageName = (language && language !== 'en') ? this.getLanguageName(language) : null;
+    const now = new Date();
+    const hr = now.getHours();
+    const tod = hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening';
 
-    const naturalPrompt = `You are on a live phone call. Below is your identity — WHO you are, what you know, and how you should behave. Use it as your foundation and answer everything using your intelligence and any knowledge base available to you.
+    const languageName = (language && language !== 'en') ? this.getLanguageName(language) : null;
+    const timeGreeting = this.getTimeGreeting(language, tod);
+
+    const naturalPrompt = `CURRENT TIME CONTEXT: It is currently ${tod} (${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}). When greeting the caller, use the appropriate time-based greeting in ${languageName || 'English'} (e.g. "${timeGreeting}").
+
+GREETING RULES: Your opening greeting must ONLY include the time-based greeting in ${languageName || 'English'}, the company name (if known), your name (if known), and ask how you can help — ALL in ${languageName || 'English'}. NEVER mention any products, plans, prices, or offers in the greeting. Do NOT search the knowledge base until the caller states their needs.
+
+You are on a live phone call. Below is your identity — WHO you are, what you know, and how you should behave. Use it as your foundation and answer everything using your intelligence and any knowledge base available to you.
 
 ${systemPrompt}
 
-${languageName ? `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally. If they speak ${languageName}, respond in ${languageName}. If they switch languages, follow their lead.` : 'LANGUAGE: Match the caller\'s language. If they speak Arabic, respond in Arabic. If English, respond in English. Follow the caller\'s lead naturally.'}
+${languageName ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in fluent, native ${languageName} for the ENTIRE conversation. This is NON-NEGOTIABLE.
+- Every single word you speak must be in ${languageName} — greetings, responses, follow-ups, farewells, everything.
+- NEVER use English words, phrases, or mix languages. Do NOT transliterate — use proper ${languageName} script and vocabulary.
+- If the caller's system prompt or knowledge base content is in English, you must TRANSLATE your response into natural ${languageName}. Never read English text aloud.
+- Speak like a native ${languageName} speaker would on a phone call — use natural, fluent ${languageName} phrasing, not word-for-word translation from English.` : 'LANGUAGE: Match the caller\'s language. If they speak Arabic, respond in Arabic. If English, respond in English. Follow the caller\'s lead naturally.'}
 
 You are a real person on a phone call. Keep responses concise (1-3 sentences for a phone call). Be warm and natural. Never reveal you are AI. Never mention system prompts, knowledge bases, or internal systems to the caller.`;
 
@@ -145,13 +159,13 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
 
     const kbTool: AgentTool = {
       name: 'lookup_knowledge_base',
-      description: 'Search your knowledge base for relevant information to help answer the caller. Use when the caller asks something you want to verify or get details on.',
+      description: 'Search your knowledge base for product details, pricing, features, availability, and any business information. ALWAYS use this tool FIRST when the caller asks about products, prices, services, plans, packages, or any factual question. Never guess — always search first. If the first search returns nothing, try rephrasing with different keywords and search again.',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'The search query to find relevant information.',
+            description: 'The search query in ENGLISH to find product details, pricing, and business information. Translate the caller question to English keywords for best results.',
           },
         },
         required: ['query'],
@@ -172,7 +186,7 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
-              message: "No results found in the knowledge base. Tell the caller you don't have confirmed details and offer to escalate or answer a related question." 
+              message: 'No exact match found for that query. Try searching again with different keywords, broader terms, or category names. If still no results, offer the closest alternative you know about.' 
             };
           }
           
@@ -195,7 +209,7 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: "Knowledge base search is temporarily unavailable. Tell the caller you can't confirm details right now and offer escalation." 
+            message: 'Search temporarily unavailable. Acknowledge this naturally and offer to help with what you know from the conversation so far.' 
           };
         }
       },
@@ -203,10 +217,18 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
 
     const kbPrompt = `
 
-You have a knowledge base available. Use the lookup_knowledge_base tool whenever details should be verified.
-Only provide factual details that are supported by retrieved results.
-If retrieved evidence is missing or weak, clearly say you cannot confirm and offer a safe next step (clarify or escalate).
-Never mention the knowledge base or any internal systems to the caller.`;
+You have a knowledge base with product catalog, pricing, and business information. CRITICAL RULES:
+- ALWAYS use the lookup_knowledge_base tool BEFORE answering ANY question about products, prices, plans, packages, features, availability, or business details. Search in ENGLISH even if the caller speaks another language.
+- You are an elite sales agent. Your mission: understand the caller's needs deeply, match them with the perfect product, and guide them confidently toward a purchase.
+- When presenting products, lead with the benefit that matters most to THIS caller based on what they've told you, then follow with features and pricing.
+- Present pricing confidently as YOUR pricing. Never hesitate. Say "That plan is X per month" not "I believe it costs around X."
+- ALWAYS proactively suggest: related products, bundles, upgrades, or better value options. A great agent anticipates needs.
+- If one search returns nothing, rephrase and search AGAIN with different keywords before giving up. Try category names, synonyms, or broader terms.
+- When you find multiple relevant products, compare them briefly and recommend the best fit: "Based on what you've told me, I'd recommend X because..."
+- Never say "I don't have that information" or "check the website" — exhaust your knowledge base first, then offer alternatives.
+- Never mention the knowledge base, internal systems, databases, or that you are looking things up.
+- Respond with specific numbers, features, and details from search results — never give vague answers when you have exact data.
+- Remember everything discussed in this call. Reference earlier topics to show continuity and build rapport.`;
 
     return {
       ...config,
@@ -866,10 +888,7 @@ ${firstMessage}`;
 
     const languageInstruction = `
 
-LANGUAGE DETECTION: You have automatic language detection enabled.
-Lock to the caller's current language/dialect and keep responses consistent for at least the next 2 turns.
-Only switch language after a clear caller switch request or two consecutive turns in another language.
-Preserve regional phrasing and politeness level; avoid drifting to generic formal language unless the caller uses it.`;
+LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefully to the language the caller is speaking and ALWAYS respond in the SAME language they use. If they switch languages, you should switch too. Support all major world languages naturally.`;
 
     return {
       ...config,
@@ -1206,6 +1225,17 @@ Preserve regional phrasing and politeness level; avoid drifting to generic forma
     const { nodes, edges, variables } = flowConfig;
     
     let systemPrompt = this.buildFlowSystemPrompt(nodes, edges, variables, params.language || 'en');
+
+    const now = new Date();
+    const hr = now.getHours();
+    const tod = hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening';
+    const flowLang = params.language || 'en';
+    const flowLangName = this.getLanguageName(flowLang);
+    const flowTimeGreeting = this.getTimeGreeting(flowLang, tod);
+    const timeContext = `CURRENT TIME CONTEXT: It is currently ${tod} (${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}). When greeting the caller, use the appropriate time-based greeting in ${flowLangName} (e.g. "${flowTimeGreeting}").
+
+GREETING RULES: Your opening greeting must ONLY include the time-based greeting in ${flowLangName}, the company name (if known), your name (if known), and ask how you can help — ALL in ${flowLangName}. NEVER mention any products, plans, prices, or offers in the greeting. Do NOT search the knowledge base until the caller states their needs.`;
+    systemPrompt = `${timeContext}\n\n${systemPrompt}`;
     
     let firstMessage: string | undefined;
     const startNode = nodes.find(n => this.getNodeType(n) === 'start' || this.getNodeType(n) === 'message');
@@ -1392,6 +1422,27 @@ Preserve regional phrasing and politeness level; avoid drifting to generic forma
     return languageNames[code] || code.toUpperCase();
   }
 
+  private static getTimeGreeting(langCode: string, timeOfDay: string): string {
+    const greetings: Record<string, Record<string, string>> = {
+      ar: { morning: 'صباح الخير', afternoon: 'مساء الخير', evening: 'مساء الخير' },
+      hi: { morning: 'सुप्रभात', afternoon: 'नमस्कार', evening: 'शुभ संध्या' },
+      zh: { morning: '早上好', afternoon: '下午好', evening: '晚上好' },
+      es: { morning: 'Buenos días', afternoon: 'Buenas tardes', evening: 'Buenas noches' },
+      fr: { morning: 'Bonjour', afternoon: 'Bon après-midi', evening: 'Bonsoir' },
+      de: { morning: 'Guten Morgen', afternoon: 'Guten Tag', evening: 'Guten Abend' },
+      it: { morning: 'Buongiorno', afternoon: 'Buon pomeriggio', evening: 'Buonasera' },
+      pt: { morning: 'Bom dia', afternoon: 'Boa tarde', evening: 'Boa noite' },
+      ja: { morning: 'おはようございます', afternoon: 'こんにちは', evening: 'こんばんは' },
+      ko: { morning: '좋은 아침입니다', afternoon: '안녕하세요', evening: '좋은 저녁입니다' },
+      tr: { morning: 'Günaydın', afternoon: 'İyi günler', evening: 'İyi akşamlar' },
+    };
+    const langGreetings = greetings[langCode];
+    if (langGreetings && langGreetings[timeOfDay]) {
+      return langGreetings[timeOfDay];
+    }
+    return `Good ${timeOfDay}`;
+  }
+
   private static buildFlowSystemPrompt(
     nodes: FlowNode[],
     edges: FlowEdge[],
@@ -1401,7 +1452,9 @@ Preserve regional phrasing and politeness level; avoid drifting to generic forma
     const languageName = this.getLanguageName(language);
     
     const parts: string[] = [
-      `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.`,
+      language !== 'en'
+        ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in ${languageName} for the ENTIRE conversation — greeting, all responses, and farewell. NEVER switch to English or any other language.`
+        : `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.`,
       '',
       'You are an AI assistant following a structured conversation flow.',
       'Guide the conversation through the following steps:',
@@ -1854,6 +1907,22 @@ Preserve regional phrasing and politeness level; avoid drifting to generic forma
 
     if (agent.detectLanguageEnabled) {
       config = this.enableLanguageDetection(config);
+    }
+
+    // Add dynamic form tools when no pre-assigned form tool exists
+    const hasStaticFormTool = config.tools?.some(t => t.name.startsWith('submit_form'));
+    if (!hasStaticFormTool) {
+      const dynamicTools = buildDynamicFormTools({
+        userId: agent.userId,
+        agentId: agent.id,
+        callId,
+      });
+      if (!config.tools) config.tools = [];
+      for (const tool of dynamicTools) {
+        config.tools.push(tool);
+      }
+      config.systemPrompt = (config.systemPrompt || '') + DYNAMIC_FORM_PROMPT;
+      console.log(`[Bedrock Agent Factory] Added dynamic form tools (list_available_forms, submit_dynamic_form)`);
     }
 
     console.log(`[Bedrock Agent Factory] Created config with ${config.tools?.length || 0} tools`);

@@ -176,6 +176,63 @@ export class BedrockPollyAudioBridge {
   private static readonly ENERGY_FALLOFF_RATIO = 0.3;
   private static readonly SUSTAINED_ENERGY_RATIO = 0.45;
   private static readonly ENERGY_VARIANCE_MAX_RATIO = 4.0;
+  private static readonly KB_MIN_CONFIDENCE = 0.68;
+
+  private static readonly SPOKEN_RESPONSE_SYSTEM_ADDENDUM = `
+
+PHONE RESPONSE STYLE:
+- Keep answers short and spoken-first: 1-3 sentences by default.
+- Use one brief acknowledgment only when it adds value; do not stack acknowledgments.
+- Avoid essay structure, bullet lists, and long clauses.
+- Ask at most one clarifying question when needed.
+- If policy/details are uncertain, state uncertainty clearly and offer escalation.`;
+
+  private static normalizeLanguageCode(language?: string): string {
+    if (!language) return 'en';
+    const normalized = language.toLowerCase();
+    if (normalized === 'hinglish') return 'hi';
+    return normalized.split('-')[0];
+  }
+
+  private static detectPrimaryLanguageCode(text: string): string | null {
+    const trimmed = text.trim();
+    if (trimmed.length < 3) return null;
+
+    const arabicChars = (trimmed.match(/[\u0600-\u06FF]/g) || []).length;
+    const latinChars = (trimmed.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
+    const cjkChars = (trimmed.match(/[\u4e00-\u9fff]/g) || []).length;
+    const devanagariChars = (trimmed.match(/[\u0900-\u097F]/g) || []).length;
+    const totalAlpha = arabicChars + latinChars + cjkChars + devanagariChars;
+
+    if (totalAlpha < 3) return null;
+
+    if (arabicChars / totalAlpha >= 0.45) return 'ar';
+    if (cjkChars / totalAlpha >= 0.35) return 'zh';
+    if (devanagariChars / totalAlpha >= 0.35) return 'hi';
+    if (latinChars / totalAlpha >= 0.45) return 'en';
+    return null;
+  }
+
+  private static appendSpokenStylePromptIfMissing(basePrompt: string): string {
+    if (basePrompt.includes('PHONE RESPONSE STYLE:')) {
+      return basePrompt;
+    }
+    return `${basePrompt}${this.SPOKEN_RESPONSE_SYSTEM_ADDENDUM}`;
+  }
+
+  private static estimateKbConfidenceFromPayload(kbResult: any): number {
+    if (!kbResult || kbResult.found === false) return 0;
+    const information = typeof kbResult.information === 'string' ? kbResult.information : '';
+    const relevanceMatches = [...information.matchAll(/Relevance:\s*(\d+)%/gi)];
+    if (relevanceMatches.length === 0) return 0;
+    const scores = relevanceMatches
+      .map((m) => Number(m[1]))
+      .filter((n) => Number.isFinite(n))
+      .map((n) => n / 100);
+    if (scores.length === 0) return 0;
+    const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+    return avg;
+  }
 
   private static calculateMulawEnergy(chunk: Buffer): number {
     if (chunk.length === 0) return 0;
@@ -271,6 +328,8 @@ export class BedrockPollyAudioBridge {
       ttsProvider: agentConfig.ttsProvider || 'aws_polly',
       isOutbound: callDirection === 'outbound',
       explicitEndCall: false,
+      _languageLock: this.normalizeLanguageCode(agentConfig.language),
+      _languageMismatchStreak: 0,
     };
 
     if (agentConfig.tools) {
@@ -902,8 +961,8 @@ export class BedrockPollyAudioBridge {
         return;
       }
 
-      const expectedLang = session.agentConfig.language || 'en';
-      if (this.isLanguageMismatch(transcription, expectedLang)) {
+      const expectedLang = this.normalizeLanguageCode(session._languageLock || session.agentConfig.language);
+      if (this.isLikelyLanguageMismatchWithLock(session, transcription)) {
         console.log(`[BedrockPolly Bridge] Language mismatch filtered for ${callSid} (expected=${expectedLang}): "${transcription.substring(0, 100)}"`);
         session.isProcessing = false;
         return;
@@ -1023,34 +1082,37 @@ export class BedrockPollyAudioBridge {
         kbPreFetched = true;
         session._kbPreFetched = true;
         const kbResultStr = typeof kbResultHolder === 'string' ? kbResultHolder : JSON.stringify(kbResultHolder);
+        const kbConfidence = this.estimateKbConfidenceFromPayload(kbResultHolder);
 
-        if (kbResultHolder.found !== false) {
+        if (kbResultHolder.found !== false && kbConfidence >= this.KB_MIN_CONFIDENCE) {
           session.messages.push({
             role: 'user',
             content: `[Reference information]\n${kbResultStr}`,
             timestamp: new Date(),
           });
-          console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, skipping tool call round-trip`);
+          console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, confidence=${kbConfidence.toFixed(2)} (threshold=${this.KB_MIN_CONFIDENCE})`);
         } else {
           session.messages.push({
             role: 'user',
-            content: `[No additional reference data found — answer using your own knowledge.]`,
+            content: `[No sufficiently grounded reference data found — do not invent details. Clearly state uncertainty and offer escalation.]`,
             timestamp: new Date(),
           });
-          console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
+          console.log(`[BedrockPolly Bridge] KB grounding insufficient for ${callSid} (found=${kbResultHolder?.found}, confidence=${kbConfidence.toFixed(2)}), forcing safe fallback`);
         }
       }
 
       const llmProvider = isOpenAIModel(session.agentConfig.model) ? 'OpenAI' : 'Bedrock';
       console.log(`[BedrockPolly Bridge] Calling ${llmProvider} for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
-      const bedrockStart = Date.now();
       const responseText = await this.streamBedrockAndSpeak(session, sttMs);
 
       if (kbPreFetched) {
         session._kbPreFetched = false;
         const kbContextIdx = session.messages.findIndex(m =>
-          m.role === 'user' && (m.content.startsWith('[Reference information]') || m.content.startsWith('[No additional reference data'))
+          m.role === 'user'
+            && (m.content.startsWith('[Reference information]')
+              || m.content.startsWith('[No additional reference data')
+              || m.content.startsWith('[No sufficiently grounded reference data'))
         );
         if (kbContextIdx !== -1) {
           session.messages.splice(kbContextIdx, 1);
@@ -1371,6 +1433,31 @@ export class BedrockPollyAudioBridge {
     return false;
   }
 
+  private static isLikelyLanguageMismatchWithLock(
+    session: BedrockPollyBridgeSession,
+    transcription: string
+  ): boolean {
+    const expectedLang = this.normalizeLanguageCode(session._languageLock || session.agentConfig.language);
+    if (!this.isLanguageMismatch(transcription, expectedLang)) {
+      session._languageMismatchStreak = 0;
+      return false;
+    }
+
+    const detected = this.detectPrimaryLanguageCode(transcription);
+    const mismatchStreak = (session._languageMismatchStreak || 0) + 1;
+    session._languageMismatchStreak = mismatchStreak;
+
+    // Single mismatch can happen from STT drift/noise; require stability before switching lock.
+    if (detected && detected !== expectedLang && mismatchStreak >= 2) {
+      session._languageLock = detected;
+      session._languageMismatchStreak = 0;
+      console.log(`[BedrockPolly Bridge] Language lock switched for ${session.callSid}: ${expectedLang} -> ${detected}`);
+      return false;
+    }
+
+    return true;
+  }
+
   private static cachedOpenAIKey: string | null = null;
   private static cachedKeyTimestamp: number = 0;
   private static readonly KEY_CACHE_TTL_MS = 300_000;
@@ -1600,7 +1687,9 @@ export class BedrockPollyAudioBridge {
       kbOverride = `\n\nKB already searched — results are in the conversation above. Do not call lookup_knowledge_base or lookup_bedrock_knowledge_base again.`;
     }
 
-    const systemPrompt = agentConfig.systemPrompt + kbOverride + toolCallInstructions;
+    const systemPrompt = this.appendSpokenStylePromptIfMissing(
+      agentConfig.systemPrompt + kbOverride + toolCallInstructions
+    );
 
     if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
       session.twilioWs.send(JSON.stringify({
@@ -1685,7 +1774,7 @@ export class BedrockPollyAudioBridge {
                 console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
               }
 
-              pendingSynthesis = this.synthesizeAndSend(session, sentence).then(() => {
+              pendingSynthesis = this.synthesizeAndSend(session, this.applyPhoneSpeechStyle(sentence)).then(() => {
                 if (!firstTtsAudioTime) {
                   firstTtsAudioTime = Date.now();
                 }
@@ -1784,7 +1873,7 @@ export class BedrockPollyAudioBridge {
         if (sentencesSent === 1) {
           firstTtsStartTime = Date.now();
         }
-        await this.synthesizeAndSend(session, sentenceBuffer.trim());
+        await this.synthesizeAndSend(session, this.applyPhoneSpeechStyle(sentenceBuffer.trim()));
         if (!firstTtsAudioTime) firstTtsAudioTime = Date.now();
       }
 
@@ -2271,6 +2360,17 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     sanitized = sanitized.replace(/\{\s*"error"\s*:\s*"[^"]*"\s*\}/g, '');
     sanitized = sanitized.replace(/\s{2,}/g, ' ');
     return sanitized.trim();
+  }
+
+  private static applyPhoneSpeechStyle(text: string): string {
+    const trimmed = text.trim();
+    if (!trimmed) return trimmed;
+    const sentenceParts = trimmed
+      .split(/(?<=[.!?؟])\s+/)
+      .map(part => part.trim())
+      .filter(Boolean);
+    if (sentenceParts.length <= 3) return trimmed;
+    return sentenceParts.slice(0, 3).join(' ');
   }
 
   private static ssmlBlockedVoices: Set<string> = new Set();
@@ -2994,7 +3094,6 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
 
     this.activeSessions.delete(callSid);
-
     console.log(`[BedrockPolly Bridge] Session ended for ${callSid}: duration=${duration}s, transcript=${transcript.length} chars`);
     return { duration, transcript };
   }

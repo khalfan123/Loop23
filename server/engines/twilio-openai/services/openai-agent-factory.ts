@@ -198,7 +198,11 @@ export class OpenAIAgentFactory {
 
     const kbPrompt = `
 
-You have a knowledge base available. Use the lookup_knowledge_base tool when it would help you give a better answer. Combine what you find with your own intelligence to respond naturally. Never mention the knowledge base or any internal systems to the caller.`;
+You have a knowledge base available. Use the lookup_knowledge_base tool when it would help you give a better answer.
+Grounding policy:
+- Treat tool results as the primary source of truth.
+- If tool results are missing or weak, clearly state uncertainty and offer escalation; do not invent policy/details.
+- Never mention the knowledge base or any internal systems to the caller.`;
 
     return {
       ...config,
@@ -944,7 +948,11 @@ You have a knowledge base available. Use the lookup_knowledge_base tool when it 
 
     const languageInstruction = `
 
-LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefully to the language the caller is speaking and ALWAYS respond in the SAME language they use. If they switch languages, you should switch too. Support all major world languages naturally.`;
+LANGUAGE & DIALECT LOCK:
+- Detect the caller language and keep responses in that language for stability.
+- Preserve dialect/register (for example Gulf/Levantine/Egyptian Arabic, US/UK English, Hinglish) once established.
+- Only switch language when the caller clearly switches for two consecutive turns.
+- Do not default to formal MSA/neutral style unless the caller uses it.`;
 
     return {
       ...config,

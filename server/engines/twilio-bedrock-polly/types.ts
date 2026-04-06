@@ -352,6 +352,8 @@ export interface BedrockPollyBridgeSession {
   _mediaLogThrottle?: number;
   _kbPreFetched?: boolean;
   _retryAttempted?: boolean;
+  _languageLock?: string;
+  _languageMismatchStreak?: number;
 }
 
 /**

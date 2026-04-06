@@ -375,6 +375,7 @@ async function initializeSession(
       fromNumber: callRecord.fromNumber || undefined,
       toNumber: callRecord.toNumber || undefined,
       callDirection: callRecord.callDirection as 'inbound' | 'outbound' || 'inbound',
+      credentialId: callRecord.openaiCredentialId || undefined,
     });
 
     logger.info(`Session created for incoming call ${callSid}`, undefined, 'TwilioOpenAI Stream');

@@ -92,15 +92,19 @@ router.get('/analytics', async (req: AdminRequest, res: Response) => {
   try {
     const allUsers = await storage.getAllUsers();
     const allPlans = await storage.getAllPlans();
-    const allAgents = await storage.getAgents();
-    const allCampaigns = await storage.getAllCampaigns();
+    const allCampaigns = await Promise.all(
+      allUsers.map((user) => storage.getUserCampaigns(user.id))
+    ).then((rows) => rows.flat());
+    const allAgents = await Promise.all(
+      allUsers.map((user) => storage.getUserAgents(user.id))
+    ).then((rows) => rows.flat());
     
     const activeUsers = allUsers.filter(u => !u.deletedAt);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const newUsersThisMonth = activeUsers.filter(u => new Date(u.createdAt) > thirtyDaysAgo);
-    const paidUsers = activeUsers.filter(u => u.planId && u.planId !== 'free');
+    const paidUsers = activeUsers.filter((u) => u.planType && u.planType !== 'free');
     
     const analytics = {
       totalUsers: activeUsers.length,
@@ -123,8 +127,11 @@ router.get('/contacts', async (req: AdminRequest, res: Response) => {
   try {
     const page = parseInt(req.query.page as string, 10) || 1;
     const pageSize = parseInt(req.query.pageSize as string, 10) || 50;
-    
-    const allContacts = await storage.getAllContacts();
+
+    const allUsers = await storage.getAllUsers();
+    const allContacts = await Promise.all(
+      allUsers.map((user) => storage.getUserContacts(user.id))
+    ).then((rows) => rows.flat());
     
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;

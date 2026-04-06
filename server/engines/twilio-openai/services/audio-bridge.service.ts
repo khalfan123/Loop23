@@ -47,6 +47,8 @@ const fsReadFile = promisify(fs.readFile);
 export class TwilioOpenAIAudioBridge {
   private static activeSessions: Map<string, AudioBridgeSession> = new Map();
   private static readonly OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime';
+  private static credentialByCallSid: Map<string, string> = new Map();
+  private static readonly BARGE_IN_CANCEL_COOLDOWN_MS = 350;
 
   static async createSession(params: CreateSessionParams): Promise<AudioBridgeSession> {
     const { callSid, openaiApiKey, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection } = params;
@@ -85,6 +87,11 @@ export class TwilioOpenAIAudioBridge {
       behaviorConfig: null,
       waitingMessages: null,
       explicitEndCall: false,
+      pendingClearTimerId: null,
+      sentimentMode: 'neutral',
+      lastBargeInCancelAt: 0,
+      activeResponseId: null,
+      suppressResponseOutputUntilDone: false,
     };
 
     try {
@@ -159,6 +166,7 @@ export class TwilioOpenAIAudioBridge {
       console.log(`[TwilioOpenAI Bridge] OpenAI pool limit reached for credential ${credentialId}`);
       throw new Error('OpenAI connection limit reached. Please try again later.');
     }
+    this.credentialByCallSid.set(callSid, credentialId);
 
     try {
       await this.connectToOpenAI(session, openaiApiKey);
@@ -166,6 +174,7 @@ export class TwilioOpenAIAudioBridge {
     } catch (error: any) {
       console.error(`[TwilioOpenAI Bridge] Failed to create session:`, error.message);
       session.status = 'error';
+      this.credentialByCallSid.delete(callSid);
       throw error;
     }
   }
@@ -198,13 +207,14 @@ export class TwilioOpenAIAudioBridge {
         clearTimeout(connectionTimeoutId);
         console.log(`[TwilioOpenAI Bridge] OpenAI connected for ${callSid}`);
         session.status = 'connected';
+        const credentialId = this.credentialByCallSid.get(callSid) || 'twilio-openai-default';
         
         // Register connection with the pool manager
         openaiPoolManager.addConnection(
           session.callSid,
           ws,
           '',  // sessionId will be updated later
-          'default'  // credentialId
+          credentialId
         );
         
         this.configureSession(session);
@@ -221,6 +231,7 @@ export class TwilioOpenAIAudioBridge {
         console.error(`[TwilioOpenAI Bridge] OpenAI error for ${callSid}:`, error);
         session.status = 'error';
         openaiPoolManager.removeConnection(session.callSid);
+        this.credentialByCallSid.delete(callSid);
         reject(error);
       });
 
@@ -228,6 +239,7 @@ export class TwilioOpenAIAudioBridge {
         console.log(`[TwilioOpenAI Bridge] OpenAI closed for ${callSid}: ${code} ${reason}`);
         session.status = 'disconnected';
         openaiPoolManager.removeConnection(session.callSid);
+        this.credentialByCallSid.delete(callSid);
         this.fireEndCallback(session);
       });
     });
@@ -292,9 +304,12 @@ export class TwilioOpenAIAudioBridge {
     const functionCallingRequirements = `
 
 CONVERSATION STYLE:
-- Give complete, thorough answers. Do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs.
+- Keep responses phone-friendly and concise: 1-3 sentences by default.
+- If the caller requests more detail, provide it in small chunks instead of long monologues.
 - If something is unclear, ask ONE specific clarifying question.
 - Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.
+- Never read URLs, markdown, or bullet lists aloud. Rephrase into natural spoken language.
+- If information is uncertain or missing, clearly say you cannot confirm and offer escalation.
 - CRITICAL: After delivering your greeting, you MUST wait for the user to actually speak before responding. Do NOT assume the user has said something if you have not clearly heard their words. If there is silence or unclear noise, do NOT fabricate or guess what the user said — instead, wait patiently or say something brief like "Hello, are you there?" Do NOT respond as if the user said something negative (e.g., "I understand you don't have...") unless you clearly heard them say that.
 
 IMPORTANT FUNCTION CALLING REQUIREMENTS:
@@ -350,6 +365,61 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     session.firstMessageSent = true;
     console.log(`[TwilioOpenAI Bridge] Twilio stream ready, sending first message for ${session.callSid}`);
     this.sendAgentMessage(session, session.agentConfig.firstMessage);
+  }
+
+  private static updateSentimentMode(session: AudioBridgeSession): void {
+    const current = RealtimeSentimentService.getCurrentLevel(session.callSid);
+    if (current === 'critical' || current === 'negative') {
+      session.sentimentMode = 'deescalate';
+      return;
+    }
+    if (current === 'cautious') {
+      session.sentimentMode = 'cautious';
+      return;
+    }
+    session.sentimentMode = 'neutral';
+  }
+
+  private static shouldThrottleBargeInCancel(session: AudioBridgeSession): boolean {
+    const now = Date.now();
+    const last = session.lastBargeInCancelAt || 0;
+    if (now - last < this.BARGE_IN_CANCEL_COOLDOWN_MS) {
+      return true;
+    }
+    session.lastBargeInCancelAt = now;
+    return false;
+  }
+
+  private static buildEmotionAdaptiveInstruction(session: AudioBridgeSession, base: string): string {
+    if (session.sentimentMode === 'deescalate') {
+      return `${base}\n\nTone mode: caller may be upset. Lead with a brief empathy line, keep sentences short, avoid promotional language, and move directly to resolution options.`;
+    }
+    if (session.sentimentMode === 'cautious') {
+      return `${base}\n\nTone mode: caller may be uncertain. Use a calm, reassuring tone and confirm one concrete next step.`;
+    }
+    return base;
+  }
+
+  private static scheduleTwilioClear(session: AudioBridgeSession): void {
+    if (session.pendingClearTimerId) {
+      clearTimeout(session.pendingClearTimerId);
+      session.pendingClearTimerId = null;
+    }
+    if (!session.twilioWs || session.twilioWs.readyState !== WebSocket.OPEN || !session.streamSid) {
+      return;
+    }
+
+    // Coalesce bursty clear requests to avoid clear/media races under rapid barge-in.
+    session.pendingClearTimerId = setTimeout(() => {
+      session.pendingClearTimerId = null;
+      if (!session.twilioWs || session.twilioWs.readyState !== WebSocket.OPEN || !session.streamSid) {
+        return;
+      }
+      session.twilioWs.send(JSON.stringify({
+        event: 'clear',
+        streamSid: session.streamSid,
+      }));
+    }, 45);
   }
 
   /**
@@ -431,6 +501,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         case 'response.audio.delta':
           this.clearLLMTimeouts(session);
           if (message.delta) {
+            if (session.pendingClearTimerId) {
+              clearTimeout(session.pendingClearTimerId);
+              session.pendingClearTimerId = null;
+            }
             if (session.onAudioCallback) {
               session.onAudioCallback(message.delta);
             }
@@ -449,6 +523,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.audio.done':
           console.log(`[TwilioOpenAI Bridge] Audio response complete for ${callSid}`);
+          session.isResponseActive = false;
           break;
 
         case 'response.text.delta':
@@ -491,6 +566,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
                 message.transcript,
                 session.agentConfig?.language || 'en'
               );
+              this.updateSentimentMode(session);
               liveCallRegistry.updateSentiment(session.callSid, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);
               if (sentimentResult.alert && session.userId) {
                 NotificationService.create({
@@ -515,12 +591,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           if (session.isResponseActive) {
             this.handleBargeIn(session);
           } else {
-            if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
-              session.twilioWs.send(JSON.stringify({
-                event: 'clear',
-                streamSid: session.streamSid,
-              }));
-            }
+            this.scheduleTwilioClear(session);
           }
           break;
 
@@ -531,6 +602,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.created':
           session.isResponseActive = true;
+          session.activeResponseId = message.response?.id || null;
           console.log(`[TwilioOpenAI Bridge] Event: response.created`);
           break;
 
@@ -540,6 +612,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.done':
           session.isResponseActive = false;
+          session.activeResponseId = null;
           if (message.response?.output) {
             for (const item of message.response.output) {
               if (item.type === 'function_call') {
@@ -1160,6 +1233,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     if (!openaiWs || openaiWs.readyState !== WebSocket.OPEN) {
       return;
     }
+    if (this.shouldThrottleBargeInCancel(session)) {
+      this.scheduleTwilioClear(session);
+      return;
+    }
 
     console.log(`[TwilioOpenAI Bridge] Handling barge-in for ${callSid}`);
     
@@ -1171,12 +1248,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     
     // 2. Clear any queued audio that hasn't been sent yet
     // This prevents "rushing through" already-generated audio
+    this.scheduleTwilioClear(session);
     if (twilioWs && twilioWs.readyState === WebSocket.OPEN && streamSid) {
-      twilioWs.send(JSON.stringify({
-        event: 'clear',
-        streamSid: streamSid,
-      }));
-      console.log(`[TwilioOpenAI Bridge] Cleared Twilio audio buffer for ${callSid}`);
+      console.log(`[TwilioOpenAI Bridge] Scheduled Twilio audio clear for ${callSid}`);
     }
     
     // 3. Optionally clear OpenAI's input audio buffer to start fresh
@@ -1215,7 +1289,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         type: 'response.create',
         response: {
           modalities: ['text', 'audio'],
-          instructions: `Say exactly this to the caller while they wait: "${waitingMessage}"`,
+          instructions: this.buildEmotionAdaptiveInstruction(
+            session,
+            `Say exactly this to the caller while they wait: "${waitingMessage}"`
+          ),
         },
       }));
     }, softTimeoutSec * 1000);
@@ -1239,12 +1316,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         }));
       }
 
-      if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
-        session.twilioWs.send(JSON.stringify({
-          event: 'clear',
-          streamSid: session.streamSid,
-        }));
-      }
+      this.scheduleTwilioClear(session);
     }, hardTimeoutSec * 1000);
   }
 
@@ -1256,6 +1328,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     if (session.hardTimeoutId) {
       clearTimeout(session.hardTimeoutId);
       session.hardTimeoutId = null;
+    }
+    if (session.pendingClearTimerId) {
+      clearTimeout(session.pendingClearTimerId);
+      session.pendingClearTimerId = null;
     }
   }
 
@@ -1275,6 +1351,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     
     // Remove connection from the pool manager
     openaiPoolManager.removeConnection(callSid);
+    this.credentialByCallSid.delete(callSid);
 
     session.status = 'disconnected';
     session.endedAt = new Date();
@@ -1344,6 +1421,11 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     session.callSid = newCallSid;
     this.activeSessions.delete(oldCallSid);
     this.activeSessions.set(newCallSid, session);
+    const credentialId = this.credentialByCallSid.get(oldCallSid);
+    if (credentialId) {
+      this.credentialByCallSid.delete(oldCallSid);
+      this.credentialByCallSid.set(newCallSid, credentialId);
+    }
     console.log(`[TwilioOpenAI Bridge] Remapped session from ${oldCallSid} to ${newCallSid}`);
     return true;
   }

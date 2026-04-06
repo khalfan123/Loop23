@@ -225,6 +225,11 @@ export interface AudioBridgeSession {
   } | null;
   waitingMessages: string[] | null;
   explicitEndCall: boolean;
+  pendingClearTimerId: ReturnType<typeof setTimeout> | null;
+  sentimentMode: 'neutral' | 'cautious' | 'deescalate';
+  lastBargeInCancelAt: number;
+  activeResponseId: string | null;
+  suppressResponseOutputUntilDone: boolean;
 }
 
 export interface CreateSessionParams {

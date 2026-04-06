@@ -172,7 +172,7 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
-              message: 'No results found. Answer using your own knowledge from your identity and what you know.' 
+              message: "No results found in the knowledge base. Tell the caller you don't have confirmed details and offer to escalate or answer a related question." 
             };
           }
           
@@ -195,7 +195,7 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: 'Could not search right now. Answer using your own knowledge.' 
+            message: "Knowledge base search is temporarily unavailable. Tell the caller you can't confirm details right now and offer escalation." 
           };
         }
       },
@@ -203,7 +203,10 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
 
     const kbPrompt = `
 
-You have a knowledge base available. Use the lookup_knowledge_base tool when it would help you give a better answer. Combine what you find with your own intelligence to respond naturally. Never mention the knowledge base or any internal systems to the caller.`;
+You have a knowledge base available. Use the lookup_knowledge_base tool whenever details should be verified.
+Only provide factual details that are supported by retrieved results.
+If retrieved evidence is missing or weak, clearly say you cannot confirm and offer a safe next step (clarify or escalate).
+Never mention the knowledge base or any internal systems to the caller.`;
 
     return {
       ...config,
@@ -863,7 +866,10 @@ ${firstMessage}`;
 
     const languageInstruction = `
 
-LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefully to the language the caller is speaking and ALWAYS respond in the SAME language they use. If they switch languages, you should switch too. Support all major world languages naturally.`;
+LANGUAGE DETECTION: You have automatic language detection enabled.
+Lock to the caller's current language/dialect and keep responses consistent for at least the next 2 turns.
+Only switch language after a clear caller switch request or two consecutive turns in another language.
+Preserve regional phrasing and politeness level; avoid drifting to generic formal language unless the caller uses it.`;
 
     return {
       ...config,

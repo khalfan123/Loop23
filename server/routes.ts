@@ -2115,6 +2115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     fromNumber: fromPhone || '',
                     toNumber: customParams.toNumber || '',
                     callDirection: 'inbound',
+                    credentialId: credential?.id || undefined,
                   });
                   
                   console.log(`✅ [WebSocket] OpenAI Realtime session created for call ${callId}`);

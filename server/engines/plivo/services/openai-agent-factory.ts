@@ -165,9 +165,9 @@ export class OpenAIAgentFactory {
           
           if (results.length === 0) {
             console.log(`[KB Tool] No results found`);
-            return { 
-              found: false, 
-              message: 'No results found. Answer using your own knowledge.' 
+            return {
+              found: false,
+              message: "No verified details found in the knowledge base. Clearly say you can't confirm and offer escalation or a related safe answer."
             };
           }
           
@@ -182,7 +182,7 @@ export class OpenAIAgentFactory {
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: 'Could not search right now. Answer using your own knowledge.' 
+            message: "Knowledge base search is temporarily unavailable. Clearly state uncertainty and offer escalation." 
           };
         }
       },
@@ -190,7 +190,7 @@ export class OpenAIAgentFactory {
 
     const kbPrompt = `
 
-You have a knowledge base available. Use the lookup_knowledge_base tool when it would help you give a better answer. Combine what you find with your own intelligence to respond naturally. Never mention the knowledge base or any internal systems to the caller.`;
+You have a knowledge base available. Use the lookup_knowledge_base tool to verify policy, pricing, eligibility, and factual details before answering. Prefer grounded information over assumptions. If results are missing or low-confidence, state uncertainty clearly and offer escalation. Never mention the knowledge base or any internal systems to the caller.`;
 
     return {
       ...config,
@@ -730,7 +730,7 @@ You have a knowledge base available. Use the lookup_knowledge_base tool when it 
 
     const languageInstruction = `
 
-LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefully to the language the caller is speaking and ALWAYS respond in the SAME language they use. If they switch languages, you should switch too. Support all major world languages naturally.`;
+LANGUAGE DETECTION: Detect the caller's language from their first meaningful utterance and lock to it by default. Preserve regional wording and dialect choices (for example Gulf/Levantine/Egyptian Arabic, US/UK English, Hindi/Hinglish) unless the caller clearly asks or consistently switches language for two consecutive turns.`;
 
     return {
       ...config,

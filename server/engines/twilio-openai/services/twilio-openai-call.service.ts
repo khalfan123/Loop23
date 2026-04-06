@@ -248,6 +248,7 @@ export class TwilioOpenAICallService {
         fromNumber: normalizedFromNumber,
         toNumber: normalizedToNumber,
         callDirection: 'outbound',
+        credentialId: openaiCredential.id,
       });
 
       const client = await getTwilioClient();

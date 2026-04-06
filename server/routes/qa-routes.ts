@@ -247,5 +247,55 @@ export function createQaRoutes(ctx: RouteContext): Router {
     }
   });
 
+  router.post('/api/qa/benchmark/gate', authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const limitRaw = req.body?.limit;
+      const minReadinessRaw = req.body?.minReadinessScore;
+      const maxRiskFrequencyRaw = req.body?.maxTopRiskFrequencyPct;
+      const allowNoDataRaw = req.body?.allowNoData;
+
+      const limit = Math.max(1, Math.min(200, Number.isFinite(Number(limitRaw)) ? Number(limitRaw) : 50));
+      const minReadinessScore = Number.isFinite(Number(minReadinessRaw)) ? Number(minReadinessRaw) : 85;
+      const maxTopRiskFrequencyPct = Number.isFinite(Number(maxRiskFrequencyRaw)) ? Number(maxRiskFrequencyRaw) : 45;
+      const allowNoData = allowNoDataRaw === undefined ? true : Boolean(allowNoDataRaw);
+
+      const summary = await QaAnalysisService.getRetellReadinessSummary(userId, limit);
+      const regressions = await QaAnalysisService.getTopRegressionSignals(userId, limit);
+
+      const topRiskPct = regressions.topRisks[0]?.percentage || 0;
+      const failures: string[] = [];
+
+      if (summary.analyzedCalls === 0 && !allowNoData) {
+        failures.push('No benchmark data available in the selected window.');
+      }
+      if (summary.analyzedCalls > 0 && summary.avgRetellReadiness < minReadinessScore) {
+        failures.push(`Average readiness ${summary.avgRetellReadiness} is below threshold ${minReadinessScore}.`);
+      }
+      if (summary.analyzedCalls > 0 && topRiskPct > maxTopRiskFrequencyPct) {
+        failures.push(`Top regression risk frequency ${topRiskPct}% exceeds threshold ${maxTopRiskFrequencyPct}%.`);
+      }
+
+      const passed = failures.length === 0;
+      const payload = {
+        passed,
+        thresholdConfig: {
+          limit,
+          minReadinessScore,
+          maxTopRiskFrequencyPct,
+          allowNoData,
+        },
+        summary,
+        regressions,
+        failures,
+      };
+
+      return res.status(passed ? 200 : 422).json(payload);
+    } catch (error: any) {
+      logger.error('Failed to evaluate benchmark quality gate', { error: error.message }, 'QA Routes');
+      return res.status(500).json({ error: 'Failed to evaluate benchmark quality gate' });
+    }
+  });
+
   return router;
 }

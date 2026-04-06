@@ -86,6 +86,8 @@ export class TwilioOpenAIAudioBridge {
       behaviorConfig: null,
       waitingMessages: null,
       explicitEndCall: false,
+      pendingClearTimerId: null,
+      sentimentMode: 'neutral',
     };
 
     try {
@@ -361,6 +363,51 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     this.sendAgentMessage(session, session.agentConfig.firstMessage);
   }
 
+  private static updateSentimentMode(session: AudioBridgeSession): void {
+    const current = RealtimeSentimentService.getCurrentLevel(session.callSid);
+    if (current === 'critical' || current === 'negative') {
+      session.sentimentMode = 'deescalate';
+      return;
+    }
+    if (current === 'cautious') {
+      session.sentimentMode = 'cautious';
+      return;
+    }
+    session.sentimentMode = 'neutral';
+  }
+
+  private static buildEmotionAdaptiveInstruction(session: AudioBridgeSession, base: string): string {
+    if (session.sentimentMode === 'deescalate') {
+      return `${base}\n\nTone mode: caller may be upset. Lead with a brief empathy line, keep sentences short, avoid promotional language, and move directly to resolution options.`;
+    }
+    if (session.sentimentMode === 'cautious') {
+      return `${base}\n\nTone mode: caller may be uncertain. Use a calm, reassuring tone and confirm one concrete next step.`;
+    }
+    return base;
+  }
+
+  private static scheduleTwilioClear(session: AudioBridgeSession): void {
+    if (session.pendingClearTimerId) {
+      clearTimeout(session.pendingClearTimerId);
+      session.pendingClearTimerId = null;
+    }
+    if (!session.twilioWs || session.twilioWs.readyState !== WebSocket.OPEN || !session.streamSid) {
+      return;
+    }
+
+    // Coalesce bursty clear requests to avoid clear/media races under rapid barge-in.
+    session.pendingClearTimerId = setTimeout(() => {
+      session.pendingClearTimerId = null;
+      if (!session.twilioWs || session.twilioWs.readyState !== WebSocket.OPEN || !session.streamSid) {
+        return;
+      }
+      session.twilioWs.send(JSON.stringify({
+        event: 'clear',
+        streamSid: session.streamSid,
+      }));
+    }, 45);
+  }
+
   /**
    * Process pending audio queue after stream becomes ready
    * Plays all queued audio files in order
@@ -440,6 +487,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         case 'response.audio.delta':
           this.clearLLMTimeouts(session);
           if (message.delta) {
+            if (session.pendingClearTimerId) {
+              clearTimeout(session.pendingClearTimerId);
+              session.pendingClearTimerId = null;
+            }
             if (session.onAudioCallback) {
               session.onAudioCallback(message.delta);
             }
@@ -500,6 +551,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
                 message.transcript,
                 session.agentConfig?.language || 'en'
               );
+              this.updateSentimentMode(session);
               liveCallRegistry.updateSentiment(session.callSid, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);
               if (sentimentResult.alert && session.userId) {
                 NotificationService.create({
@@ -524,12 +576,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           if (session.isResponseActive) {
             this.handleBargeIn(session);
           } else {
-            if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
-              session.twilioWs.send(JSON.stringify({
-                event: 'clear',
-                streamSid: session.streamSid,
-              }));
-            }
+            this.scheduleTwilioClear(session);
           }
           break;
 
@@ -1180,12 +1227,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     
     // 2. Clear any queued audio that hasn't been sent yet
     // This prevents "rushing through" already-generated audio
+    this.scheduleTwilioClear(session);
     if (twilioWs && twilioWs.readyState === WebSocket.OPEN && streamSid) {
-      twilioWs.send(JSON.stringify({
-        event: 'clear',
-        streamSid: streamSid,
-      }));
-      console.log(`[TwilioOpenAI Bridge] Cleared Twilio audio buffer for ${callSid}`);
+      console.log(`[TwilioOpenAI Bridge] Scheduled Twilio audio clear for ${callSid}`);
     }
     
     // 3. Optionally clear OpenAI's input audio buffer to start fresh
@@ -1224,7 +1268,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         type: 'response.create',
         response: {
           modalities: ['text', 'audio'],
-          instructions: `Say exactly this to the caller while they wait: "${waitingMessage}"`,
+          instructions: this.buildEmotionAdaptiveInstruction(
+            session,
+            `Say exactly this to the caller while they wait: "${waitingMessage}"`
+          ),
         },
       }));
     }, softTimeoutSec * 1000);
@@ -1248,12 +1295,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         }));
       }
 
-      if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
-        session.twilioWs.send(JSON.stringify({
-          event: 'clear',
-          streamSid: session.streamSid,
-        }));
-      }
+      this.scheduleTwilioClear(session);
     }, hardTimeoutSec * 1000);
   }
 
@@ -1265,6 +1307,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     if (session.hardTimeoutId) {
       clearTimeout(session.hardTimeoutId);
       session.hardTimeoutId = null;
+    }
+    if (session.pendingClearTimerId) {
+      clearTimeout(session.pendingClearTimerId);
+      session.pendingClearTimerId = null;
     }
   }
 

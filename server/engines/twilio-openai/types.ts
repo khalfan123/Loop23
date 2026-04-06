@@ -225,6 +225,8 @@ export interface AudioBridgeSession {
   } | null;
   waitingMessages: string[] | null;
   explicitEndCall: boolean;
+  pendingClearTimerId: ReturnType<typeof setTimeout> | null;
+  sentimentMode: 'neutral' | 'cautious' | 'deescalate';
 }
 
 export interface CreateSessionParams {

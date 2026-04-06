@@ -146,5 +146,66 @@ export function createQaRoutes(ctx: RouteContext): Router {
     }
   });
 
+  router.post('/api/qa/benchmark/twilio-openai/:callId', authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const callId = req.params.callId as string;
+
+      const analysis = await QaAnalysisService.analyzeTwilioOpenAIBenchmarkCall(callId, userId);
+      if (!analysis) {
+        return res.status(400).json({
+          error: 'Could not benchmark call. Make sure the call exists and has a transcript.'
+        });
+      }
+
+      res.json({
+        message: 'Twilio OpenAI benchmark analysis completed',
+        analysis
+      });
+    } catch (error: any) {
+      logger.error('Failed to benchmark Twilio OpenAI call', { error: error.message }, 'QA Routes');
+      res.status(500).json({ error: 'Failed to benchmark call' });
+    }
+  });
+
+  router.post('/api/qa/benchmark/twilio-openai-batch', authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const { callIds } = req.body;
+
+      if (!Array.isArray(callIds) || callIds.length === 0) {
+        return res.status(400).json({ error: 'callIds array is required' });
+      }
+
+      if (callIds.length > 20) {
+        return res.status(400).json({ error: 'Maximum 20 calls can be benchmarked at once' });
+      }
+
+      const results: { callId: string; success: boolean; error?: string }[] = [];
+
+      for (const callId of callIds) {
+        try {
+          const analysis = await QaAnalysisService.analyzeTwilioOpenAIBenchmarkCall(String(callId), userId);
+          results.push({
+            callId: String(callId),
+            success: !!analysis,
+            error: analysis ? undefined : 'Call not found or transcript unavailable'
+          });
+        } catch (err: any) {
+          results.push({ callId: String(callId), success: false, error: err.message });
+        }
+      }
+
+      const successCount = results.filter(r => r.success).length;
+      res.json({
+        message: `Benchmarked ${successCount}/${callIds.length} calls`,
+        results
+      });
+    } catch (error: any) {
+      logger.error('Twilio OpenAI benchmark batch failed', { error: error.message }, 'QA Routes');
+      res.status(500).json({ error: 'Benchmark batch failed' });
+    }
+  });
+
   return router;
 }

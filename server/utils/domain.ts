@@ -39,6 +39,11 @@ export function getDomain(fallbackHost?: string): string {
   else if (fallbackHost) {
     domain = fallbackHost;
   }
+  // Final development fallback so local startup doesn't crash when
+  // APP_DOMAIN/DEV_DOMAIN are not injected in ephemeral environments.
+  else if (process.env.NODE_ENV !== 'production') {
+    domain = `http://localhost:${process.env.PORT || '5000'}`;
+  }
   
   if (!domain) {
     throw new Error('Unable to determine domain for webhooks. Please set APP_DOMAIN environment variable.');

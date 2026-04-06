@@ -207,5 +207,45 @@ export function createQaRoutes(ctx: RouteContext): Router {
     }
   });
 
+  router.get('/api/qa/benchmark/regressions', authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const limit = Math.max(1, Math.min(100, parseInt(req.query.limit as string, 10) || 50));
+      const regressions = await QaAnalysisService.getTopRegressionSignals(userId, limit);
+      res.json(regressions);
+    } catch (error: any) {
+      logger.error('Failed to fetch benchmark regressions', { error: error.message }, 'QA Routes');
+      res.status(500).json({ error: 'Failed to fetch benchmark regressions' });
+    }
+  });
+
+  router.get('/api/qa/benchmark/retell-readiness-summary', authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const limit = Math.max(1, Math.min(200, parseInt(req.query.limit as string, 10) || 50));
+      const summary = await QaAnalysisService.getRetellReadinessSummary(userId, limit);
+      res.json(summary);
+    } catch (error: any) {
+      logger.error('Failed to fetch retell readiness summary', { error: error.message }, 'QA Routes');
+      res.status(500).json({ error: 'Failed to fetch retell readiness summary' });
+    }
+  });
+
+  router.post('/api/qa/benchmark/twilio-openai/recent', authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+      const limitRaw = req.body?.limit;
+      const limit = Math.max(1, Math.min(100, Number.isFinite(Number(limitRaw)) ? Number(limitRaw) : 20));
+      const result = await QaAnalysisService.runBenchmarkForRecentTwilioOpenAICalls(userId, limit);
+      res.json({
+        message: `Recent benchmark run completed (${result.successful}/${result.processed})`,
+        ...result,
+      });
+    } catch (error: any) {
+      logger.error('Failed to run recent Twilio OpenAI benchmark', { error: error.message }, 'QA Routes');
+      res.status(500).json({ error: 'Failed to run recent benchmark' });
+    }
+  });
+
   return router;
 }

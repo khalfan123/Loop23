@@ -59,6 +59,12 @@ export interface RetellBenchmarkScorecard {
   recommendedActions: string[];
 }
 
+export interface RetellRegressionSignal {
+  key: string;
+  count: number;
+  severity: 'low' | 'medium' | 'high';
+}
+
 interface TranscriptTurn {
   speaker: 'user' | 'agent';
   text: string;
@@ -332,6 +338,111 @@ ${call.sentiment ? `Current Sentiment: ${call.sentiment}` : ''}`;
       processed: recentCalls.length,
       successful,
       failed,
+    };
+  }
+
+  static async getRetellReadinessSummary(
+    userId: string,
+    limit = 50
+  ): Promise<{
+    analyzedCalls: number;
+    avgRetellReadiness: number;
+    belowTargetCalls: number;
+    targetScore: number;
+  }> {
+    const cappedLimit = Math.max(1, Math.min(200, limit));
+    const analyses = await db
+      .select({
+        diagnostics: callQaAnalyses.diagnostics,
+      })
+      .from(callQaAnalyses)
+      .where(eq(callQaAnalyses.userId, userId))
+      .orderBy(desc(callQaAnalyses.analyzedAt))
+      .limit(cappedLimit);
+
+    if (analyses.length === 0) {
+      return {
+        analyzedCalls: 0,
+        avgRetellReadiness: 0,
+        belowTargetCalls: 0,
+        targetScore: 85,
+      };
+    }
+
+    const scores = analyses
+      .map((a) => Number(((a.diagnostics as any)?.retellBenchmark?.weightedScore) || 0))
+      .filter((n) => Number.isFinite(n) && n > 0);
+
+    const targetScore = 85;
+    const avgRetellReadiness = scores.length
+      ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length)
+      : 0;
+    const belowTargetCalls = scores.filter((s) => s < targetScore).length;
+
+    return {
+      analyzedCalls: scores.length,
+      avgRetellReadiness,
+      belowTargetCalls,
+      targetScore,
+    };
+  }
+
+  static async getTopRegressionSignals(
+    userId: string,
+    limit = 50
+  ): Promise<{
+    windowSize: number;
+    topRisks: Array<{ risk: string; count: number; percentage: number }>;
+    topRecommendations: Array<{ action: string; count: number; percentage: number }>;
+  }> {
+    const cappedLimit = Math.max(1, Math.min(300, limit));
+    const analyses = await db
+      .select({
+        diagnostics: callQaAnalyses.diagnostics,
+      })
+      .from(callQaAnalyses)
+      .where(eq(callQaAnalyses.userId, userId))
+      .orderBy(desc(callQaAnalyses.analyzedAt))
+      .limit(cappedLimit);
+
+    if (analyses.length === 0) {
+      return {
+        windowSize: 0,
+        topRisks: [],
+        topRecommendations: [],
+      };
+    }
+
+    const riskCounts = new Map<string, number>();
+    const actionCounts = new Map<string, number>();
+
+    for (const analysis of analyses) {
+      const benchmark = (analysis.diagnostics as any)?.retellBenchmark;
+      const risks: string[] = Array.isArray(benchmark?.risks) ? benchmark.risks : [];
+      const actions: string[] = Array.isArray(benchmark?.recommendedActions) ? benchmark.recommendedActions : [];
+
+      for (const risk of risks) {
+        riskCounts.set(risk, (riskCounts.get(risk) || 0) + 1);
+      }
+      for (const action of actions) {
+        actionCounts.set(action, (actionCounts.get(action) || 0) + 1);
+      }
+    }
+
+    const toTopList = (entries: Map<string, number>, keyName: 'risk' | 'action') =>
+      Array.from(entries.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([label, count]) => ({
+          [keyName]: label,
+          count,
+          percentage: Math.round((count / analyses.length) * 100),
+        })) as Array<{ risk: string; count: number; percentage: number }> | Array<{ action: string; count: number; percentage: number }>;
+
+    return {
+      windowSize: analyses.length,
+      topRisks: toTopList(riskCounts, 'risk') as Array<{ risk: string; count: number; percentage: number }>,
+      topRecommendations: toTopList(actionCounts, 'action') as Array<{ action: string; count: number; percentage: number }>,
     };
   }
 

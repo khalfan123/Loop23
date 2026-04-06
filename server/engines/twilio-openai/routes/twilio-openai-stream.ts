@@ -27,6 +27,7 @@ import { logger } from '../../../utils/logger';
 import { TWILIO_OPENAI_CONFIG } from '../config/twilio-openai-config';
 import { CallInsightsService } from '../../../services/call-insights.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
+import { QaAnalysisService } from '../../../services/qa-analysis.service';
 import type { TwilioMediaStreamEvent } from '../types';
 import type { OpenAIVoice, OpenAIRealtimeModel, AgentTool } from '../types';
 
@@ -534,6 +535,25 @@ async function initializeSession(
             }
           } catch (crmError: any) {
             logger.error(`Failed to create CRM lead: ${crmError.message}`, crmError, 'TwilioOpenAI Stream');
+          }
+        }
+
+        // Automatically generate Retell-style benchmark scorecard for completed Twilio OpenAI calls.
+        if (callUserId) {
+          try {
+            const qaAnalysis = await QaAnalysisService.analyzeTwilioOpenAIBenchmarkCall(callId, callUserId, openaiApiKey);
+            if (qaAnalysis) {
+              const retellScore = Number(((qaAnalysis.diagnostics as any)?.retellBenchmark?.weightedScore) || 0);
+              logger.info(
+                `Generated Twilio OpenAI benchmark for call ${callId}`,
+                { retellReadinessScore: retellScore },
+                'TwilioOpenAI Stream'
+              );
+            } else {
+              logger.warn(`Benchmark generation skipped for call ${callId}`, undefined, 'TwilioOpenAI Stream');
+            }
+          } catch (qaError: any) {
+            logger.error(`Failed to auto-generate benchmark for call ${callId}: ${qaError.message}`, qaError, 'TwilioOpenAI Stream');
           }
         }
       } catch (error: any) {

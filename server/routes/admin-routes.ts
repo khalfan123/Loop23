@@ -104,7 +104,7 @@ router.get('/analytics', async (req: AdminRequest, res: Response) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const newUsersThisMonth = activeUsers.filter(u => new Date(u.createdAt) > thirtyDaysAgo);
-    const paidUsers = activeUsers.filter(u => u.planId && u.planId !== 'free');
+    const paidUsers = activeUsers.filter((u) => u.planType && u.planType !== 'free');
     
     const analytics = {
       totalUsers: activeUsers.length,

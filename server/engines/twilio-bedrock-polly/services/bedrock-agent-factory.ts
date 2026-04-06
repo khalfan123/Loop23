@@ -172,7 +172,7 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
-              message: 'No results found. Answer using your own knowledge from your identity and what you know.' 
+              message: "No results found in the knowledge base. Tell the caller you don't have confirmed details and offer to escalate or answer a related question." 
             };
           }
           
@@ -195,7 +195,7 @@ You are a real person on a phone call. Keep responses concise (1-3 sentences for
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: 'Could not search right now. Answer using your own knowledge.' 
+            message: "Knowledge base search is temporarily unavailable. Tell the caller you can't confirm details right now and offer escalation." 
           };
         }
       },

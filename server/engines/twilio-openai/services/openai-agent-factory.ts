@@ -175,7 +175,7 @@ export class OpenAIAgentFactory {
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
-              message: 'No results found. Answer using your own knowledge.' 
+              message: "No results found in the knowledge base. Say you don't have that specific information and offer escalation if needed." 
             };
           }
           
@@ -190,7 +190,7 @@ export class OpenAIAgentFactory {
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: 'Could not search right now. Answer using your own knowledge.' 
+            message: "Knowledge base lookup failed. Clearly state uncertainty and offer a safe next step or escalation." 
           };
         }
       },

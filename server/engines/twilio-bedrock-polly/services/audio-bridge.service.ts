@@ -729,7 +729,26 @@ export class BedrockPollyAudioBridge {
   private static async playFillerAudio(session: BedrockPollyBridgeSession, filler: string): Promise<void> {
     try {
       const voiceId = session.agentConfig.voice || 'Joanna';
-      const audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
+      let audioBuffer: Buffer;
+      if (session.ttsProvider === 'elevenlabs' && session.agentConfig.elevenLabsVoiceId) {
+        const apiKey = session.agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
+        if (apiKey) {
+          try {
+            audioBuffer = await this.synthesizeWithElevenLabs(
+              filler,
+              session.agentConfig.elevenLabsVoiceId,
+              apiKey
+            );
+          } catch (ttsErr: any) {
+            console.warn(`[BedrockPolly Bridge] ElevenLabs filler failed, falling back to Polly: ${ttsErr.message}`);
+            audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
+          }
+        } else {
+          audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
+        }
+      } else {
+        audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
+      }
       const mulawAudio = this.pcmToMulaw(audioBuffer);
       const chunkSize = 640;
       for (let offset = 0; offset < mulawAudio.length; offset += chunkSize) {

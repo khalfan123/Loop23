@@ -36,7 +36,7 @@ import { openaiInvokeStream, openaiInvoke } from './openai-llm.service';
 import { humanizeToSSML } from './ssml-humanizer';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { calls } from '@shared/schema';
-import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
+import { RealtimeSentimentService, type SentimentLevel } from '../../../services/realtime-sentiment.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
@@ -187,6 +187,14 @@ PHONE RESPONSE STYLE:
 - Ask at most one clarifying question when needed.
 - If policy/details are uncertain, state uncertainty clearly and offer escalation.`;
 
+  private static readonly SENTIMENT_TONE_HINTS: Record<SentimentLevel, string> = {
+    positive: '',
+    neutral: '',
+    cautious: 'Tone guidance: caller may be uncertain. Keep a calm, reassuring tone and confirm one concrete next step.',
+    negative: 'Tone guidance: caller may be frustrated. Start with a brief empathy acknowledgment, keep sentences short, and move directly to resolution.',
+    critical: 'Tone guidance: caller may be highly upset. Lead with empathy, avoid defensive or promotional language, and prioritize clear escalation or immediate resolution steps.',
+  };
+
   private static normalizeLanguageCode(language?: string): string {
     if (!language) return 'en';
     const normalized = language.toLowerCase();
@@ -220,6 +228,13 @@ PHONE RESPONSE STYLE:
     return `${basePrompt}${this.SPOKEN_RESPONSE_SYSTEM_ADDENDUM}`;
   }
 
+  private static applySentimentAdaptiveInstruction(callSid: string, prompt: string): string {
+    const toneHint = this.getSentimentToneHint(callSid);
+    if (!toneHint) return prompt;
+    if (prompt.includes('SENTIMENT-ADAPTIVE TONE:')) return prompt;
+    return `${prompt}\n\nSENTIMENT-ADAPTIVE TONE:\n${toneHint}`;
+  }
+
   private static estimateKbConfidenceFromPayload(kbResult: any): number {
     if (!kbResult || kbResult.found === false) return 0;
     const information = typeof kbResult.information === 'string' ? kbResult.information : '';
@@ -232,6 +247,11 @@ PHONE RESPONSE STYLE:
     if (scores.length === 0) return 0;
     const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
     return avg;
+  }
+
+  private static getSentimentToneHint(callSid: string): string {
+    const level = RealtimeSentimentService.getCurrentLevel(callSid);
+    return this.SENTIMENT_TONE_HINTS[level] || '';
   }
 
   private static calculateMulawEnergy(chunk: Buffer): number {
@@ -1687,8 +1707,11 @@ PHONE RESPONSE STYLE:
       kbOverride = `\n\nKB already searched — results are in the conversation above. Do not call lookup_knowledge_base or lookup_bedrock_knowledge_base again.`;
     }
 
-    const systemPrompt = this.appendSpokenStylePromptIfMissing(
-      agentConfig.systemPrompt + kbOverride + toolCallInstructions
+    const systemPrompt = this.applySentimentAdaptiveInstruction(
+      callSid,
+      this.appendSpokenStylePromptIfMissing(
+        agentConfig.systemPrompt + kbOverride + toolCallInstructions
+      )
     );
 
     if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {

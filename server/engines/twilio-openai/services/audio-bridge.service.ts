@@ -48,6 +48,7 @@ export class TwilioOpenAIAudioBridge {
   private static activeSessions: Map<string, AudioBridgeSession> = new Map();
   private static readonly OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime';
   private static credentialByCallSid: Map<string, string> = new Map();
+  private static readonly BARGE_IN_CANCEL_COOLDOWN_MS = 350;
 
   static async createSession(params: CreateSessionParams): Promise<AudioBridgeSession> {
     const { callSid, openaiApiKey, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection } = params;
@@ -88,6 +89,9 @@ export class TwilioOpenAIAudioBridge {
       explicitEndCall: false,
       pendingClearTimerId: null,
       sentimentMode: 'neutral',
+      lastBargeInCancelAt: 0,
+      activeResponseId: null,
+      suppressResponseOutputUntilDone: false,
     };
 
     try {
@@ -376,6 +380,16 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     session.sentimentMode = 'neutral';
   }
 
+  private static shouldThrottleBargeInCancel(session: AudioBridgeSession): boolean {
+    const now = Date.now();
+    const last = session.lastBargeInCancelAt || 0;
+    if (now - last < this.BARGE_IN_CANCEL_COOLDOWN_MS) {
+      return true;
+    }
+    session.lastBargeInCancelAt = now;
+    return false;
+  }
+
   private static buildEmotionAdaptiveInstruction(session: AudioBridgeSession, base: string): string {
     if (session.sentimentMode === 'deescalate') {
       return `${base}\n\nTone mode: caller may be upset. Lead with a brief empathy line, keep sentences short, avoid promotional language, and move directly to resolution options.`;
@@ -509,6 +523,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.audio.done':
           console.log(`[TwilioOpenAI Bridge] Audio response complete for ${callSid}`);
+          session.isResponseActive = false;
           break;
 
         case 'response.text.delta':
@@ -587,6 +602,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.created':
           session.isResponseActive = true;
+          session.activeResponseId = message.response?.id || null;
           console.log(`[TwilioOpenAI Bridge] Event: response.created`);
           break;
 
@@ -596,6 +612,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.done':
           session.isResponseActive = false;
+          session.activeResponseId = null;
           if (message.response?.output) {
             for (const item of message.response.output) {
               if (item.type === 'function_call') {
@@ -1214,6 +1231,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     const { callSid, openaiWs, twilioWs, streamSid } = session;
     
     if (!openaiWs || openaiWs.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    if (this.shouldThrottleBargeInCancel(session)) {
+      this.scheduleTwilioClear(session);
       return;
     }
 

@@ -38,11 +38,22 @@ import { conversationResumptionService } from '../../../services/conversation-re
 import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
+import { ConversationMemoryService } from '../../../services/conversation-memory';
 
 const execAsync = promisify(exec);
 const fsWriteFile = promisify(fs.writeFile);
 const fsUnlink = promisify(fs.unlink);
 const fsReadFile = promisify(fs.readFile);
+
+const SPEECH_GUARDRAIL_PATTERNS = [
+  /\baccording to (our|the) (knowledge base|records|policy|policies)\b/i,
+  /\bas per (our|the) (policy|policies|knowledge base)\b/i,
+  /\bhere are the (steps|bullet points|points|items)\b/i,
+  /\bfirst[,:\s].*second[,:\s].*third[,:\s]/i,
+  /\bhttps?:\/\//i,
+  /\bwww\./i,
+  /[`*_#>-]/,
+];
 
 export class TwilioOpenAIAudioBridge {
   private static activeSessions: Map<string, AudioBridgeSession> = new Map();
@@ -95,6 +106,7 @@ export class TwilioOpenAIAudioBridge {
       suppressedResponseId: null,
       runtimeInstructionBase: '',
       lastSyncedSentimentMode: null,
+      speechGuardrailStrikes: 0,
     };
 
     try {
@@ -102,6 +114,7 @@ export class TwilioOpenAIAudioBridge {
         .select({
           behaviorConfig: agents.behaviorConfig,
           waitingMessages: agents.waitingMessages,
+          userId: twilioOpenaiCalls.userId,
         })
         .from(twilioOpenaiCalls)
         .innerJoin(agents, eq(agents.id, twilioOpenaiCalls.agentId))
@@ -111,6 +124,7 @@ export class TwilioOpenAIAudioBridge {
       if (agentRecord) {
         session.behaviorConfig = agentRecord.behaviorConfig as any || null;
         session.waitingMessages = agentRecord.waitingMessages || null;
+        session.userId = agentRecord.userId || undefined;
         console.log(`[TwilioOpenAI Bridge] Loaded behavior config for ${callSid}: softTimeout=${session.behaviorConfig?.softTimeoutSec ?? 4}s, hardTimeout=${session.behaviorConfig?.hardTimeoutSec ?? 15}s`);
       }
     } catch (err: any) {
@@ -120,12 +134,13 @@ export class TwilioOpenAIAudioBridge {
     if (callDirection === 'inbound' && fromNumber) {
       try {
         const [callRecord] = await db
-          .select({ agentId: twilioOpenaiCalls.agentId })
+          .select({ agentId: twilioOpenaiCalls.agentId, userId: twilioOpenaiCalls.userId })
           .from(twilioOpenaiCalls)
           .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
           .limit(1);
 
         if (callRecord?.agentId) {
+          session.userId = session.userId || callRecord.userId || undefined;
           const previousCall = await conversationResumptionService.findResumableCall(fromNumber, callRecord.agentId);
           if (previousCall) {
             const resumptionPrompt = conversationResumptionService.generateResumptionPrompt(previousCall);
@@ -148,6 +163,20 @@ export class TwilioOpenAIAudioBridge {
       } catch (err: any) {
         console.log(`[TwilioOpenAI Bridge] Could not check for resumable calls: ${err.message}`);
       }
+    }
+
+    try {
+      const callerPhoneNumber = callDirection === 'outbound' ? toNumber : fromNumber;
+      if (session.userId && callerPhoneNumber) {
+        const withMemory = await OpenAIAgentFactory.injectCallerMemoryContext(agentConfig as any, {
+          userId: session.userId,
+          callerPhoneNumber,
+        });
+        session.agentConfig = withMemory;
+        agentConfig.systemPrompt = withMemory.systemPrompt;
+      }
+    } catch (memoryErr: any) {
+      console.log(`[TwilioOpenAI Bridge] Caller memory injection skipped for ${callSid}: ${memoryErr.message}`);
     }
 
     if (agentConfig.tools) {
@@ -469,13 +498,37 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
   }
 
   private static buildEmotionAdaptiveInstruction(session: AudioBridgeSession, base: string): string {
+    let instruction = base;
+
     if (session.sentimentMode === 'deescalate') {
-      return `${base}\n\nTone mode: caller may be upset. Lead with a brief empathy line, keep sentences short, avoid promotional language, and move directly to resolution options.`;
+      instruction = `${instruction}\n\nTone mode: caller may be upset. Lead with a brief empathy line, keep sentences short, avoid promotional language, and move directly to resolution options.`;
     }
     if (session.sentimentMode === 'cautious') {
-      return `${base}\n\nTone mode: caller may be uncertain. Use a calm, reassuring tone and confirm one concrete next step.`;
+      instruction = `${instruction}\n\nTone mode: caller may be uncertain. Use a calm, reassuring tone and confirm one concrete next step.`;
     }
-    return base;
+
+    if (session.speechGuardrailStrikes > 0) {
+      const strictness = session.speechGuardrailStrikes >= 2 ? 'strict' : 'normal';
+      instruction = `${instruction}\n\nPhone speech guardrails (${strictness}):
+- Use spoken conversational phrasing only.
+- Do NOT say "according to policy/records/knowledge base" and do NOT read URLs or markdown.
+- Keep answers to 1-3 short sentences unless explicitly asked for detail.
+- If confidence is low, say you cannot confirm and offer a safe next step or escalation.`;
+    }
+
+    return instruction;
+  }
+
+  private static violatesSpeechGuardrails(text: string): boolean {
+    if (!text) return false;
+    if (SPEECH_GUARDRAIL_PATTERNS.some((pattern) => pattern.test(text))) {
+      return true;
+    }
+    const sentenceCount = text
+      .split(/[.!?؟]+/)
+      .map((s) => s.trim())
+      .filter(Boolean).length;
+    return sentenceCount > 5;
   }
 
   private static scheduleTwilioClear(session: AudioBridgeSession): void {
@@ -658,15 +711,26 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.audio_transcript.done':
           if (message.transcript) {
+            const assistantText = message.transcript as string;
             session.transcriptParts.push({
               role: 'assistant',
-              text: message.transcript,
+              text: assistantText,
               timestamp: new Date(),
             });
             if (session.onTranscriptCallback) {
-              session.onTranscriptCallback(message.transcript, true);
+              session.onTranscriptCallback(assistantText, true);
             }
-            console.log(`[TwilioOpenAI Bridge] Agent: "${message.transcript.substring(0, 100)}..."`);
+            if (this.violatesSpeechGuardrails(assistantText)) {
+              session.speechGuardrailStrikes = Math.min(session.speechGuardrailStrikes + 1, 3);
+              await this.syncRealtimeSentimentInstructions(session);
+              console.warn(
+                `[TwilioOpenAI Bridge] Speech guardrail triggered for ${callSid} (strikes=${session.speechGuardrailStrikes})`
+              );
+            } else if (session.speechGuardrailStrikes > 0) {
+              session.speechGuardrailStrikes -= 1;
+              await this.syncRealtimeSentimentInstructions(session);
+            }
+            console.log(`[TwilioOpenAI Bridge] Agent: "${assistantText.substring(0, 100)}..."`);
           }
           break;
 
@@ -1550,6 +1614,31 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     const transcript = session.transcriptParts
       .map(p => `${p.role === 'user' ? 'User' : 'Agent'}: ${p.text}`)
       .join('\n');
+    const callerNumberForMemory = session.callDirection === 'inbound'
+      ? session.fromNumber
+      : session.toNumber;
+
+    try {
+      if (session.userId && callerNumberForMemory && transcript.length > 80) {
+        const [callRecord] = await db
+          .select({ id: calls.id })
+          .from(calls)
+          .where(eq(calls.twilioSid, callSid))
+          .limit(1);
+        const callIdForMemory = callRecord?.id || callSid;
+        const facts = await ConversationMemoryService.processCallTranscript(
+          session.userId,
+          callIdForMemory,
+          callerNumberForMemory,
+          transcript
+        );
+        if (facts > 0) {
+          console.log(`[TwilioOpenAI Bridge] Stored ${facts} caller-memory facts for ${callSid}`);
+        }
+      }
+    } catch (memoryErr: any) {
+      console.error(`[TwilioOpenAI Bridge] Caller-memory persistence failed for ${callSid}: ${memoryErr.message}`);
+    }
 
     this.activeSessions.delete(callSid);
     RealtimeSentimentService.resetCall(callSid);

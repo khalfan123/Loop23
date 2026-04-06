@@ -26,7 +26,7 @@ import {
   getStreamWebhookUrl 
 } from '../config/twilio-openai-config';
 import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
-import { OpenAIAgentFactory } from '../../plivo/services/openai-agent-factory';
+import { OpenAIAgentFactory } from './openai-agent-factory';
 import { TwilioOpenAIAudioBridge } from './audio-bridge.service';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { 
@@ -236,6 +236,11 @@ export class TwilioOpenAICallService {
         
         agentConfig = naturalConfig;
       }
+
+      agentConfig = await OpenAIAgentFactory.injectCallerMemoryContext(agentConfig as any, {
+        userId,
+        callerPhoneNumber: toNumber,
+      });
 
       // Normalize phone numbers early - preserve + prefix for proper E.164 format display
       const normalizedFromNumber = phoneNumber.phoneNumber.replace(/[\s\-\(\)]/g, '').replace(/^\+?/, '+');

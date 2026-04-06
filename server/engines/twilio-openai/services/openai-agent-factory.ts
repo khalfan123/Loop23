@@ -26,6 +26,7 @@ import { appointments, appointmentSettings, formSubmissions, agents, forms, form
 import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
+import { ConversationMemoryService } from '../../../services/conversation-memory';
 
 export interface DataSchemaField {
   name: string;
@@ -51,6 +52,9 @@ export interface AgentConfigWithContext extends AgentConfig {
 }
 
 export class OpenAIAgentFactory {
+  private static readonly KB_HIGH_CONFIDENCE_THRESHOLD = 0.72;
+  private static readonly KB_MEDIUM_CONFIDENCE_THRESHOLD = 0.52;
+
   /**
    * Get available voices
    */
@@ -175,21 +179,37 @@ export class OpenAIAgentFactory {
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
+              confidence: 0,
+              confidenceLevel: 'none',
               message: "No results found in the knowledge base. Say you don't have that specific information and offer escalation if needed." 
             };
           }
           
           const formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 1200);
+          const topScore = results[0]?.score ?? 0;
+          const avgScore = results.reduce((sum, r) => sum + (r.score || 0), 0) / Math.max(results.length, 1);
+          const confidence = Math.max(0, Math.min(1, (topScore * 0.7) + (avgScore * 0.3)));
+          const confidenceLevel =
+            confidence >= this.KB_HIGH_CONFIDENCE_THRESHOLD
+              ? 'high'
+              : confidence >= this.KB_MEDIUM_CONFIDENCE_THRESHOLD
+                ? 'medium'
+                : 'low';
           console.log(`[KB Tool] Found ${results.length} results`);
           
           return { 
             found: true, 
+            confidence,
+            confidenceLevel,
+            topRelevance: topScore,
             information: formattedResponse 
           };
         } catch (error: any) {
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
+            confidence: 0,
+            confidenceLevel: 'none',
             message: "Knowledge base lookup failed. Clearly state uncertainty and offer a safe next step or escalation." 
           };
         }
@@ -201,7 +221,11 @@ export class OpenAIAgentFactory {
 You have a knowledge base available. Use the lookup_knowledge_base tool when it would help you give a better answer.
 Grounding policy:
 - Treat tool results as the primary source of truth.
-- If tool results are missing or weak, clearly state uncertainty and offer escalation; do not invent policy/details.
+- If tool results are missing, clearly state uncertainty and offer escalation; do not invent policy/details.
+- The tool output includes confidence and confidenceLevel fields. Obey them:
+  - confidenceLevel=high: answer directly using the returned information.
+  - confidenceLevel=medium: answer cautiously and mention details may vary.
+  - confidenceLevel=low: do NOT provide a definitive policy answer; ask one clarifying question or offer escalation.
 - Never mention the knowledge base or any internal systems to the caller.`;
 
     return {
@@ -210,6 +234,38 @@ Grounding policy:
       knowledgeBaseIds,
       tools: [...(config.tools || []), kbTool],
     };
+  }
+
+  static async injectCallerMemoryContext(
+    config: AgentConfigWithContext,
+    params: { userId: string; callerPhoneNumber?: string | null }
+  ): Promise<AgentConfigWithContext> {
+    const callerPhoneNumber = params.callerPhoneNumber?.trim();
+    if (!callerPhoneNumber) return config;
+
+    try {
+      const callerContext = await ConversationMemoryService.getCallerContext(
+        params.userId,
+        callerPhoneNumber
+      );
+
+      if (!callerContext) {
+        return config;
+      }
+
+      const memoryPrompt = ConversationMemoryService.buildCallerContextPrompt(callerContext);
+      console.log(
+        `[Agent Factory] Injected caller memory for ${callerPhoneNumber} (${callerContext.facts.length} facts)`
+      );
+
+      return {
+        ...config,
+        systemPrompt: `${config.systemPrompt}\n\n${memoryPrompt}`,
+      };
+    } catch (error: any) {
+      console.error(`[Agent Factory] Failed to inject caller memory: ${error.message}`);
+      return config;
+    }
   }
 
   /**

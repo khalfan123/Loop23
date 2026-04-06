@@ -282,6 +282,10 @@ async function initializeSession(
         transferPhoneNumber: metadata?.transferPhoneNumber as string || undefined,
       });
       
+      const callerPhoneNumber = (callRecord.callDirection as string) === 'inbound'
+        ? callRecord.fromNumber
+        : callRecord.toNumber;
+
       // Build agent config with hydrated flow tools
       agentConfig = {
         voice: (callRecord.openaiVoice as OpenAIVoice) || TWILIO_OPENAI_CONFIG.defaultVoice,
@@ -293,6 +297,12 @@ async function initializeSession(
       };
       
       logger.info(`Flow agent initialized with ${hydratedTools.length} tools including play_audio support`, undefined, 'TwilioOpenAI Stream');
+      if (callRecord.userId) {
+        agentConfig = await OpenAIAgentFactory.injectCallerMemoryContext(agentConfig as any, {
+          userId: callRecord.userId,
+          callerPhoneNumber,
+        });
+      }
     } else {
       // Natural agent - build agent config from scratch
       agentConfig = OpenAIAgentFactory.createAgentConfig({
@@ -352,6 +362,16 @@ async function initializeSession(
       const dataSchema = metadata?.dataSchema as DataSchemaField[] | undefined;
       if (dataSchema && dataSchema.length > 0) {
         agentConfig = OpenAIAgentFactory.addDataCollectionTool(agentConfig, dataSchema, callRecord.id);
+      }
+
+      const callerPhoneNumber = (callRecord.callDirection as string) === 'inbound'
+        ? callRecord.fromNumber
+        : callRecord.toNumber;
+      if (callRecord.userId) {
+        agentConfig = await OpenAIAgentFactory.injectCallerMemoryContext(agentConfig as any, {
+          userId: callRecord.userId,
+          callerPhoneNumber,
+        });
       }
     }
 

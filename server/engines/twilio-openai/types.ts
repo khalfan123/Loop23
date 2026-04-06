@@ -240,6 +240,7 @@ export interface AudioBridgeSession {
   suppressedResponseId: string | null;
   runtimeInstructionBase?: string;
   lastSyncedSentimentMode?: 'neutral' | 'cautious' | 'deescalate' | null;
+  speechGuardrailStrikes: number;
   userId?: string;
 }
 
@@ -253,6 +254,7 @@ export interface CreateSessionParams {
   toNumber?: string;
   callDirection?: CallDirection;
   credentialId?: string;
+  userId?: string;
 }
 
 export const OPENAI_VOICES: { id: OpenAIVoice; name: string; description: string }[] = [

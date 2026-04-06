@@ -2076,6 +2076,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       agent.userId
                     );
                   }
+                  if (agent.userId && fromPhone) {
+                    agentConfig = await OpenAIAgentFactory.injectCallerMemoryContext(agentConfig, {
+                      userId: agent.userId,
+                      callerPhoneNumber: fromPhone,
+                    });
+                  }
                   
                   if (agent.appointmentBookingEnabled && agent.userId) {
                     agentConfig = OpenAIAgentFactory.addAppointmentTool(

@@ -230,6 +230,9 @@ export interface AudioBridgeSession {
   lastBargeInCancelAt: number;
   activeResponseId: string | null;
   suppressResponseOutputUntilDone: boolean;
+  suppressedResponseId: string | null;
+  runtimeInstructionBase?: string;
+  lastSyncedSentimentMode?: 'neutral' | 'cautious' | 'deescalate' | null;
 }
 
 export interface CreateSessionParams {

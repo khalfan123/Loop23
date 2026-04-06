@@ -92,6 +92,9 @@ export class TwilioOpenAIAudioBridge {
       lastBargeInCancelAt: 0,
       activeResponseId: null,
       suppressResponseOutputUntilDone: false,
+      suppressedResponseId: null,
+      runtimeInstructionBase: '',
+      lastSyncedSentimentMode: null,
     };
 
     try {
@@ -321,7 +324,12 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
     const backgroundNoiseInstruction = `\n\nBACKGROUND NOISE HANDLING:\n- If you hear what seems like background conversation not directed at you, ignore it and wait for the caller to address you directly.\n- Do NOT respond to ambient noise, TV audio, or other people talking nearby.\n- Only respond when you are confident the caller is speaking directly to you.\n- If a voice fingerprint rejection is noted in the conversation, it means background speech from a different speaker was detected and filtered — do not address it.`;
 
-    const enhancedInstructions = agentConfig.systemPrompt + behaviorPromptAdditions + backgroundNoiseInstruction + functionCallingRequirements;
+    session.runtimeInstructionBase = agentConfig.systemPrompt + behaviorPromptAdditions + backgroundNoiseInstruction + functionCallingRequirements;
+
+    const enhancedInstructions = this.buildEmotionAdaptiveInstruction(
+      session,
+      session.runtimeInstructionBase
+    );
 
     const sessionConfig = {
       type: 'session.update',
@@ -378,6 +386,76 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       return;
     }
     session.sentimentMode = 'neutral';
+  }
+
+  private static async refreshSentimentModeAndSync(session: AudioBridgeSession): Promise<void> {
+    const previous = session.sentimentMode;
+    this.updateSentimentMode(session);
+    if (previous !== session.sentimentMode) {
+      await this.syncRealtimeSentimentInstructions(session);
+    }
+  }
+
+  private static async syncRealtimeSentimentInstructions(session: AudioBridgeSession): Promise<void> {
+    if (!session.openaiWs || session.openaiWs.readyState !== WebSocket.OPEN) return;
+
+    const tone = session.sentimentMode;
+    if (session.lastSyncedSentimentMode === tone) return;
+
+    const agentConfig = session.agentConfig;
+    const behaviorCfg = session.behaviorConfig || {};
+    const vadSettings = agentConfig.vadSettings || {};
+    const vadType = vadSettings.type ?? 'semantic_vad';
+    const vadThreshold = behaviorCfg.vadThreshold ?? vadSettings.threshold ?? 0.8;
+    const vadPrefixPaddingMs = vadSettings.prefixPaddingMs ?? 500;
+    const vadSilenceDurationMs = behaviorCfg.vadSilenceTimeoutMs ?? vadSettings.silenceDurationMs ?? 1000;
+    const vadEagerness = vadSettings.eagerness ?? 'low';
+
+    const turnDetection = vadType === 'semantic_vad'
+      ? {
+          type: 'semantic_vad',
+          eagerness: vadEagerness,
+          create_response: true,
+          interrupt_response: true,
+        }
+      : {
+          type: 'server_vad',
+          threshold: vadThreshold,
+          prefix_padding_ms: vadPrefixPaddingMs,
+          silence_duration_ms: vadSilenceDurationMs,
+        };
+
+    const tools: any[] = [];
+    if (agentConfig.tools) {
+      for (const tool of agentConfig.tools) {
+        tools.push({
+          type: 'function',
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+        });
+      }
+    }
+
+    const instructions = this.buildEmotionAdaptiveInstruction(session, session.runtimeInstructionBase || agentConfig.systemPrompt);
+    session.openaiWs.send(JSON.stringify({
+      type: 'session.update',
+      session: {
+        modalities: ['text', 'audio'],
+        instructions,
+        voice: agentConfig.voice,
+        input_audio_format: 'g711_ulaw',
+        output_audio_format: 'g711_ulaw',
+        input_audio_transcription: { model: 'whisper-1' },
+        turn_detection: turnDetection,
+        tools,
+        tool_choice: tools.length > 0 ? 'auto' : 'none',
+        temperature: agentConfig.knowledgeBaseIds && agentConfig.knowledgeBaseIds.length > 0
+          ? Math.max(agentConfig.temperature ?? 0.6, 0.6)
+          : Math.max(agentConfig.temperature ?? 0.7, 0.6),
+      },
+    }));
+    session.lastSyncedSentimentMode = tone;
   }
 
   private static shouldThrottleBargeInCancel(session: AudioBridgeSession): boolean {
@@ -500,6 +578,9 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.audio.delta':
           this.clearLLMTimeouts(session);
+          if (session.suppressResponseOutputUntilDone) {
+            break;
+          }
           if (message.delta) {
             if (session.pendingClearTimerId) {
               clearTimeout(session.pendingClearTimerId);
@@ -523,7 +604,17 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.audio.done':
           console.log(`[TwilioOpenAI Bridge] Audio response complete for ${callSid}`);
-          session.isResponseActive = false;
+          if (session.suppressResponseOutputUntilDone) {
+            const doneResponseId = message.response_id || message.response?.id || null;
+            if (!session.suppressedResponseId || !doneResponseId || session.suppressedResponseId === doneResponseId) {
+              session.suppressResponseOutputUntilDone = false;
+              session.suppressedResponseId = null;
+            }
+          }
+          if (!message.response_id || session.activeResponseId === message.response_id) {
+            session.isResponseActive = false;
+            session.activeResponseId = null;
+          }
           break;
 
         case 'response.text.delta':
@@ -566,7 +657,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
                 message.transcript,
                 session.agentConfig?.language || 'en'
               );
-              this.updateSentimentMode(session);
+              await this.refreshSentimentModeAndSync(session);
               liveCallRegistry.updateSentiment(session.callSid, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);
               if (sentimentResult.alert && session.userId) {
                 NotificationService.create({
@@ -601,8 +692,18 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           break;
 
         case 'response.created':
-          session.isResponseActive = true;
-          session.activeResponseId = message.response?.id || null;
+          {
+            const responseId = message.response?.id || null;
+            if (session.suppressResponseOutputUntilDone) {
+              // A new response id indicates we can safely stop suppressing stale output.
+              if (!session.suppressedResponseId || !responseId || responseId !== session.suppressedResponseId) {
+                session.suppressResponseOutputUntilDone = false;
+                session.suppressedResponseId = null;
+              }
+            }
+            session.isResponseActive = true;
+            session.activeResponseId = responseId;
+          }
           console.log(`[TwilioOpenAI Bridge] Event: response.created`);
           break;
 
@@ -611,8 +712,25 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
           break;
 
         case 'response.done':
-          session.isResponseActive = false;
-          session.activeResponseId = null;
+          {
+            const doneResponseId = message.response?.id || null;
+            const isSuppressedResponse = session.suppressResponseOutputUntilDone
+              && (!session.suppressedResponseId || !doneResponseId || session.suppressedResponseId === doneResponseId);
+
+            if (isSuppressedResponse) {
+              session.suppressResponseOutputUntilDone = false;
+              session.suppressedResponseId = null;
+            }
+
+            if (!doneResponseId || session.activeResponseId === doneResponseId) {
+              session.isResponseActive = false;
+              session.activeResponseId = null;
+            }
+
+            if (isSuppressedResponse) {
+              break;
+            }
+          }
           if (message.response?.output) {
             for (const item of message.response.output) {
               if (item.type === 'function_call') {
@@ -1239,6 +1357,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     }
 
     console.log(`[TwilioOpenAI Bridge] Handling barge-in for ${callSid}`);
+
+    // Suppress stale output from the response being cancelled until we observe its done boundary.
+    session.suppressResponseOutputUntilDone = true;
+    session.suppressedResponseId = session.activeResponseId;
     
     // 1. Cancel the current response from OpenAI
     // This tells OpenAI to stop generating more audio/text

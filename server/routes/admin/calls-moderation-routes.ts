@@ -269,7 +269,7 @@ export function registerCallsModerationRoutes(router: Router) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
       
-      const credential = await db.select().from(elevenlabsCredentials).where(eq(elevenlabsCredentials.id, credentialId));
+      const credential = await db.select().from(elevenLabsCredentials).where(eq(elevenLabsCredentials.id, credentialId));
       
       if (credential.length === 0 || !credential[0].webhookSecret) {
         return res.status(404).json({ error: 'Credential not found or no webhook secret' });

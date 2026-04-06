@@ -457,7 +457,7 @@ export function registerUsersRoutes(router: Router) {
   router.get('/users/:userId/webhooks', async (req: AdminRequest, res: Response) => {
     try {
       const { userId } = req.params;
-      const webhooks = await storage.getUserWebhookSubscriptions(userId);
+      const webhooks = await storage.getUserWebhooks(userId);
       res.json(webhooks);
     } catch (error) {
       console.error('Error fetching user webhooks:', error);
@@ -469,12 +469,12 @@ export function registerUsersRoutes(router: Router) {
     try {
       const { userId, webhookId } = req.params;
       
-      const webhook = await storage.getWebhookSubscription(webhookId);
+      const webhook = await storage.getWebhook(webhookId);
       if (!webhook || webhook.userId !== userId) {
         return res.status(404).json({ error: 'Webhook not found' });
       }
       
-      await storage.deleteWebhookSubscription(webhookId);
+      await storage.deleteWebhook(webhookId);
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting user webhook:', error);

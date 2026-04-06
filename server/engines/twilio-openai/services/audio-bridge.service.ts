@@ -47,6 +47,7 @@ const fsReadFile = promisify(fs.readFile);
 export class TwilioOpenAIAudioBridge {
   private static activeSessions: Map<string, AudioBridgeSession> = new Map();
   private static readonly OPENAI_REALTIME_URL = 'wss://api.openai.com/v1/realtime';
+  private static credentialByCallSid: Map<string, string> = new Map();
 
   static async createSession(params: CreateSessionParams): Promise<AudioBridgeSession> {
     const { callSid, openaiApiKey, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection } = params;
@@ -159,6 +160,7 @@ export class TwilioOpenAIAudioBridge {
       console.log(`[TwilioOpenAI Bridge] OpenAI pool limit reached for credential ${credentialId}`);
       throw new Error('OpenAI connection limit reached. Please try again later.');
     }
+    this.credentialByCallSid.set(callSid, credentialId);
 
     try {
       await this.connectToOpenAI(session, openaiApiKey);
@@ -166,6 +168,7 @@ export class TwilioOpenAIAudioBridge {
     } catch (error: any) {
       console.error(`[TwilioOpenAI Bridge] Failed to create session:`, error.message);
       session.status = 'error';
+      this.credentialByCallSid.delete(callSid);
       throw error;
     }
   }
@@ -198,13 +201,14 @@ export class TwilioOpenAIAudioBridge {
         clearTimeout(connectionTimeoutId);
         console.log(`[TwilioOpenAI Bridge] OpenAI connected for ${callSid}`);
         session.status = 'connected';
+        const credentialId = this.credentialByCallSid.get(callSid) || 'twilio-openai-default';
         
         // Register connection with the pool manager
         openaiPoolManager.addConnection(
           session.callSid,
           ws,
           '',  // sessionId will be updated later
-          'default'  // credentialId
+          credentialId
         );
         
         this.configureSession(session);
@@ -221,6 +225,7 @@ export class TwilioOpenAIAudioBridge {
         console.error(`[TwilioOpenAI Bridge] OpenAI error for ${callSid}:`, error);
         session.status = 'error';
         openaiPoolManager.removeConnection(session.callSid);
+        this.credentialByCallSid.delete(callSid);
         reject(error);
       });
 
@@ -228,6 +233,7 @@ export class TwilioOpenAIAudioBridge {
         console.log(`[TwilioOpenAI Bridge] OpenAI closed for ${callSid}: ${code} ${reason}`);
         session.status = 'disconnected';
         openaiPoolManager.removeConnection(session.callSid);
+        this.credentialByCallSid.delete(callSid);
         this.fireEndCallback(session);
       });
     });
@@ -1275,6 +1281,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     
     // Remove connection from the pool manager
     openaiPoolManager.removeConnection(callSid);
+    this.credentialByCallSid.delete(callSid);
 
     session.status = 'disconnected';
     session.endedAt = new Date();
@@ -1344,6 +1351,11 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     session.callSid = newCallSid;
     this.activeSessions.delete(oldCallSid);
     this.activeSessions.set(newCallSid, session);
+    const credentialId = this.credentialByCallSid.get(oldCallSid);
+    if (credentialId) {
+      this.credentialByCallSid.delete(oldCallSid);
+      this.credentialByCallSid.set(newCallSid, credentialId);
+    }
     console.log(`[TwilioOpenAI Bridge] Remapped session from ${oldCallSid} to ${newCallSid}`);
     return true;
   }

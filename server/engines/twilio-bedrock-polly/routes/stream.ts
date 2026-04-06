@@ -231,6 +231,7 @@ async function initializeSession(
 
     const isFlowAgent = metadata?.isFlowAgent === true;
     const compiledTools = metadata?.compiledTools as any[] | undefined;
+    const metaDataSchema = metadata?.dataSchema as Array<{ name: string; type: string; description: string; required?: boolean }> | undefined;
 
     let agentConfig: AgentConfig;
 
@@ -279,7 +280,6 @@ async function initializeSession(
 
       const metaBehaviorConfig = metadata?.behaviorConfig as Record<string, any> | undefined;
       const metaWaitingMessages = metadata?.waitingMessages as string[] | undefined;
-      const metaDataSchema = metadata?.dataSchema as Array<{ name: string; type: string; description: string; required?: boolean }> | undefined;
 
       agentConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),

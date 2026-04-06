@@ -1022,7 +1022,7 @@ export class BedrockPollyAudioBridge {
         }
       }
 
-      const llmProvider = isOpenAIModel(agentConfig.model) ? 'OpenAI' : 'Bedrock';
+      const llmProvider = isOpenAIModel(session.agentConfig.model) ? 'OpenAI' : 'Bedrock';
       console.log(`[BedrockPolly Bridge] Calling ${llmProvider} for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
       const bedrockStart = Date.now();
@@ -2387,7 +2387,13 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
       console.log(`[BedrockPolly Bridge] Tool call: ${name} for ${callSid}`);
 
-      const toolId = `${name}-${Date.now()}`;
+      let paramsKey = '';
+      try {
+        paramsKey = JSON.stringify(params ?? {});
+      } catch {
+        paramsKey = '[unserializable_params]';
+      }
+      const toolId = `${name}:${paramsKey}`;
       if (session.processedToolCallIds.has(toolId)) {
         console.log(`[BedrockPolly Bridge] Skipping duplicate tool call: ${name}`);
         continue;
@@ -2404,35 +2410,6 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
           this.executeEndCall(session, reason).catch((err) => {
             console.error(`[BedrockPolly Bridge] Error executing end_call:`, err);
           });
-          continue;
-        }
-
-        if (name === 'transfer_call' || name.startsWith('transfer_')) {
-          let targetNumber = (params.destination as string) || (params.phoneNumber as string) || '';
-
-          if (!targetNumber && session.agentConfig.tools) {
-            for (const tool of session.agentConfig.tools) {
-              const toolAny = tool as unknown as Record<string, unknown>;
-              if (tool.name === name) {
-                if (toolAny._transferNumber) {
-                  targetNumber = toolAny._transferNumber as string;
-                } else if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).phoneNumber) {
-                  targetNumber = (toolAny._metadata as Record<string, unknown>).phoneNumber as string;
-                }
-                break;
-              }
-            }
-          }
-
-          if (targetNumber) {
-            console.log(`[BedrockPolly Bridge] Transferring call ${callSid} to ${targetNumber}`);
-            results.push(`Transferring call to ${targetNumber}`);
-            this.executeTransfer(session, targetNumber).catch((err) => {
-              console.error(`[BedrockPolly Bridge] Error executing transfer:`, err);
-            });
-          } else {
-            results.push('Transfer failed — no destination number specified');
-          }
           continue;
         }
 
@@ -2457,6 +2434,35 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
             results.push(`Transferring to agent ${targetAgentId}`);
           } else {
             results.push('Agent transfer failed — no target agent specified');
+          }
+          continue;
+        }
+
+        if (name === 'transfer_call' || (name.startsWith('transfer_') && !name.startsWith('transfer_agent_'))) {
+          let targetNumber = (params.destination as string) || (params.phoneNumber as string) || '';
+
+          if (!targetNumber && session.agentConfig.tools) {
+            for (const tool of session.agentConfig.tools) {
+              const toolAny = tool as unknown as Record<string, unknown>;
+              if (tool.name === name) {
+                if (toolAny._transferNumber) {
+                  targetNumber = toolAny._transferNumber as string;
+                } else if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).phoneNumber) {
+                  targetNumber = (toolAny._metadata as Record<string, unknown>).phoneNumber as string;
+                }
+                break;
+              }
+            }
+          }
+
+          if (targetNumber) {
+            console.log(`[BedrockPolly Bridge] Transferring call ${callSid} to ${targetNumber}`);
+            results.push(`Transferring call to ${targetNumber}`);
+            this.executeTransfer(session, targetNumber).catch((err) => {
+              console.error(`[BedrockPolly Bridge] Error executing transfer:`, err);
+            });
+          } else {
+            results.push('Transfer failed — no destination number specified');
           }
           continue;
         }
@@ -2512,7 +2518,12 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
   ): Promise<void> {
     try {
       const client = await getTwilioClient();
-      const callerId = session.fromNumber || '';
+      const callerId = session.callDirection === 'inbound'
+        ? (session.toNumber || '')
+        : (session.fromNumber || '');
+      if (!callerId) {
+        throw new Error(`Cannot transfer call ${session.callSid}: missing callerId for ${session.callDirection || 'unknown'} call`);
+      }
       const twiml = generateTransferTwiML(targetNumber, callerId);
 
       await client.calls(session.callSid).update({

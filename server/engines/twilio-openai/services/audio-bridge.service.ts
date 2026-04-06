@@ -1223,6 +1223,13 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
     openaiWs.send(JSON.stringify({
       type: 'response.create',
+      response: {
+        modalities: ['text', 'audio'],
+        instructions: this.buildEmotionAdaptiveInstruction(
+          session,
+          'Continue naturally. Keep it conversational and phone-friendly in 1-3 short sentences.'
+        ),
+      },
     }));
   }
 

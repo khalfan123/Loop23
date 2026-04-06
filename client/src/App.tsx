@@ -218,10 +218,18 @@ function UserRouter() {
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
           <Route path="/app/agents" component={Agents} />
           <Route path="/app/prompt-templates" component={PromptTemplates} />
-          <Route path="/app/incoming-connections/canvas" component={IncomingCallCanvas} />
-          <Route path="/app/incoming-connections/list" component={IncomingConnections} />
-          <Route path="/app/incoming-connections" component={IncomingCallCanvas} />
-          <Route path="/app/voices" component={Voices} />
+          <Route path="/app/incoming-connections/canvas">
+            <IncomingCallCanvas />
+          </Route>
+          <Route path="/app/incoming-connections/list">
+            <IncomingConnections />
+          </Route>
+          <Route path="/app/incoming-connections">
+            <IncomingCallCanvas />
+          </Route>
+          <Route path="/app/voices">
+            <Voices />
+          </Route>
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
           <Route path="/app/integrations/:slug" component={IntegrationDetail} />
           <Route path="/app/integrations" component={IntegrationMarketplace} />
@@ -313,10 +321,18 @@ function TeamMemberRouter() {
           <Route path="/app/agents/:id/edit" component={AgentEditor} />
           <Route path="/app/agents" component={Agents} />
           <Route path="/app/prompt-templates" component={PromptTemplates} />
-          <Route path="/app/incoming-connections/canvas" component={IncomingCallCanvas} />
-          <Route path="/app/incoming-connections/list" component={IncomingConnections} />
-          <Route path="/app/incoming-connections" component={IncomingCallCanvas} />
-          <Route path="/app/voices" component={Voices} />
+          <Route path="/app/incoming-connections/canvas">
+            <IncomingCallCanvas />
+          </Route>
+          <Route path="/app/incoming-connections/list">
+            <IncomingConnections />
+          </Route>
+          <Route path="/app/incoming-connections">
+            <IncomingCallCanvas />
+          </Route>
+          <Route path="/app/voices">
+            <Voices />
+          </Route>
           <Route path="/app/phone-numbers" component={PhoneNumbers} />
           <Route path="/app/integrations/:slug" component={IntegrationDetail} />
           <Route path="/app/integrations" component={IntegrationMarketplace} />

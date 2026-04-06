@@ -200,6 +200,7 @@ interface FlowTemplate {
   id: string;
   name: string;
   description: string;
+  category?: string;
   isTemplate: boolean;
   nodeCount: number;
   preview: string[];

@@ -230,7 +230,21 @@ export function registerElevenlabsPoolRoutes(router: Router) {
       
       const voices = await db.select().from(syncedVoices).where(eq(syncedVoices.voiceId, voiceId));
       const voiceInfo = voices[0];
-      await VoiceSyncService.syncVoiceToCredential(credentialId, voiceId, voiceInfo?.publicOwnerId || '', voiceInfo?.voiceName || null);
+      const [credential] = await db
+        .select({ id: elevenLabsCredentials.id, apiKey: elevenLabsCredentials.apiKey })
+        .from(elevenLabsCredentials)
+        .where(eq(elevenLabsCredentials.id, credentialId))
+        .limit(1);
+
+      if (!credential) {
+        return res.status(404).json({ error: 'Credential not found' });
+      }
+      await VoiceSyncService.syncVoiceToCredential(
+        voiceId,
+        voiceInfo?.publicOwnerId || '',
+        voiceInfo?.voiceName || null,
+        credential
+      );
       
       res.json({ success: true, message: 'Voice synced successfully' });
     } catch (error: any) {

@@ -158,7 +158,7 @@ export function createLiveMonitoringRoutes(authenticateHybrid: any): Router {
 
       if (call.twilioCallSid) {
         try {
-          const twilioClient = await getTwilioClient(userId);
+          const twilioClient = await getTwilioClient();
           if (twilioClient) {
             await twilioClient.calls(call.twilioCallSid).update({ status: 'completed' });
           }

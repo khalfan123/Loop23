@@ -198,7 +198,7 @@ export class AWSPollyService {
   async testCredentials(): Promise<{ success: boolean; message: string }> {
     try {
       const client = this.getClient();
-      const command = new DescribeVoicesCommand({ MaxResults: 1 });
+      const command = new DescribeVoicesCommand({});
       await client.send(command);
       return { success: true, message: "AWS credentials are valid" };
     } catch (error: any) {

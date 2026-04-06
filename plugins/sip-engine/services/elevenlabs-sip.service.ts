@@ -67,7 +67,7 @@ export class ElevenLabsSipService {
     const [primaryCred] = await db
       .select()
       .from(elevenLabsCredentials)
-      .where(and(eq(elevenLabsCredentials.isPrimary, true), eq(elevenLabsCredentials.isActive, true)))
+      .where(eq(elevenLabsCredentials.isActive, true))
       .limit(1);
     
     if (primaryCred?.apiKey) {

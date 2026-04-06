@@ -8,7 +8,7 @@ export function useBuiltinPlugins() {
   const { isPluginEnabled, isLoading } = usePluginStatus();
   const registeredRef = useRef(false);
   
-  const sipPluginLoaded = isPluginEnabled('sip-engine');
+  const sipPluginLoaded = isPluginEnabled?.('sip-engine') ?? false;
   
   useEffect(() => {
     if (isLoading || registeredRef.current) return;

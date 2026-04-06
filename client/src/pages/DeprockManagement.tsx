@@ -131,6 +131,8 @@ interface IvrConfiguration {
   isActive: boolean;
   voiceName: string | null;
   menuOptions: { key: string; label: string; departmentId: string }[] | null;
+  languageOptions?: LanguageOption[] | null;
+  greetingMessage?: string | null;
 }
 
 interface PhoneNumber {

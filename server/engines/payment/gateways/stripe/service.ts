@@ -28,7 +28,7 @@ export async function getStripeClient(): Promise<Stripe | null> {
   
   if (!stripeInstance) {
     stripeInstance = new Stripe(secretKey, {
-      apiVersion: '2025-10-29.clover',
+      apiVersion: '2025-12-15.clover',
     });
   }
   

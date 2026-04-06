@@ -99,6 +99,8 @@ export interface AgentConfig {
   voice: OpenAIVoice;
   model: OpenAIRealtimeModel;
   systemPrompt: string;
+  agentName?: string;
+  language?: string;
   firstMessage?: string;
   temperature?: number;
   tools?: AgentTool[];
@@ -222,6 +224,11 @@ export interface AudioBridgeSession {
   behaviorConfig: {
     softTimeoutSec?: number;
     hardTimeoutSec?: number;
+    vadThreshold?: number;
+    vadSilenceTimeoutMs?: number;
+    maxQuestionsPerTurn?: number;
+    useDiscourseMarkers?: boolean;
+    silenceTimeoutSec?: number;
   } | null;
   waitingMessages: string[] | null;
   explicitEndCall: boolean;
@@ -233,6 +240,7 @@ export interface AudioBridgeSession {
   suppressedResponseId: string | null;
   runtimeInstructionBase?: string;
   lastSyncedSentimentMode?: 'neutral' | 'cautious' | 'deescalate' | null;
+  userId?: string;
 }
 
 export interface CreateSessionParams {

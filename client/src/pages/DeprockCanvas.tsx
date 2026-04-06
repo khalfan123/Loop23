@@ -90,7 +90,7 @@ interface LanguageAgent {
   voiceTone: string | null;
 }
 
-const NATIVE_NAME_EXAMPLES: Record<string, string[]> = {
+const NATIVE_NAME_EXAMPLES: Record<string, readonly string[]> = {
   en: ["Sarah Mitchell", "James Anderson", "Emily Parker", "David Thompson", "Rachel Foster"],
   es: ["María García López", "Carlos Rodríguez", "Sofía Martínez", "Alejandro Herrera", "Lucía Fernández"],
   fr: ["Marie Dupont", "Pierre Laurent", "Camille Moreau", "Antoine Lefevre", "Chloé Bernard"],
@@ -150,6 +150,11 @@ function extractNameFromPrompt(prompt: string, language: string): string | null 
   return null;
 }
 
+function getLanguageNameExamples(language: string): readonly string[] {
+  const key = language as keyof typeof NATIVE_NAME_EXAMPLES;
+  return NATIVE_NAME_EXAMPLES[key] || NATIVE_NAME_EXAMPLES.en;
+}
+
 function generateNameFromPrompt(prompt: string, language: string, agentId: string): string {
   // First try to extract explicit name from prompt
   const extractedName = extractNameFromPrompt(prompt, language);
@@ -158,23 +163,23 @@ function generateNameFromPrompt(prompt: string, language: string, agentId: strin
   }
   
   // If no name found, use role keywords from prompt to generate contextual name
-  const roleKeywords: Record<string, string[][]> = {
+  const roleKeywords: Record<string, [string[], ...string[]][]> = {
     en: [
-      [["sales", "sales agent", "sell"], "Morgan", "Jordan", "Casey"],
-      [["support", "customer service", "help"], "Alex", "Taylor", "Riley"],
-      [["booking", "schedule", "appointment"], "Sam", "Sidney", "Cameron"],
-      [["billing", "payment", "invoice"], "Morgan", "Drew", "Finley"],
-      [["hr", "human resources", "recruitment"], "Casey", "Morgan", "Riley"],
-      [["marketing", "campaign", "promotion"], "Jordan", "Riley", "Morgan"],
-      [["tech", "technical", "support"], "Alex", "Riley", "Jordan"],
+      [["sales", "sales agent", "sell"], ...["Morgan", "Jordan", "Casey"]],
+      [["support", "customer service", "help"], ...["Alex", "Taylor", "Riley"]],
+      [["booking", "schedule", "appointment"], ...["Sam", "Sidney", "Cameron"]],
+      [["billing", "payment", "invoice"], ...["Morgan", "Drew", "Finley"]],
+      [["hr", "human resources", "recruitment"], ...["Casey", "Morgan", "Riley"]],
+      [["marketing", "campaign", "promotion"], ...["Jordan", "Riley", "Morgan"]],
+      [["tech", "technical", "support"], ...["Alex", "Riley", "Jordan"]],
     ],
     ar: [
-      [["مبيعات", "مندوب", "بيع"], "خلفان", "نور", "سلطان"],
-      [["دعم", "خدمة", "مساعدة"], "أحمد", "فاطمة", "نور"],
-      [["حجز", "مواعيد", "جدول"], "محمد", "علي", "حسن"],
-      [["فاتورة", "دفع", "رسوم"], "علي", "محمد", "سلطان"],
-      [["موارد بشرية", "توظيف"], "فاطمة", "نور", "ليلى"],
-      [["تسويق", "حملة", "ترويج"], "أحمد", "علي", "حسن"],
+      [["مبيعات", "مندوب", "بيع"], ...["خلفان", "نور", "سلطان"]],
+      [["دعم", "خدمة", "مساعدة"], ...["أحمد", "فاطمة", "نور"]],
+      [["حجز", "مواعيد", "جدول"], ...["محمد", "علي", "حسن"]],
+      [["فاتورة", "دفع", "رسوم"], ...["علي", "محمد", "سلطان"]],
+      [["موارد بشرية", "توظيف"], ...["فاطمة", "نور", "ليلى"]],
+      [["تسويق", "حملة", "ترويج"], ...["أحمد", "علي", "حسن"]],
     ],
   };
   
@@ -195,7 +200,7 @@ function generateNameFromPrompt(prompt: string, language: string, agentId: strin
   }
   
   // Fallback to random placeholder name
-  const names = NATIVE_NAME_EXAMPLES[language] || NATIVE_NAME_EXAMPLES.en;
+  const names = getLanguageNameExamples(language);
   let hash = 0;
   for (let i = 0; i < agentId.length; i++) {
     hash = ((hash << 5) - hash) + agentId.charCodeAt(i);
@@ -205,7 +210,7 @@ function generateNameFromPrompt(prompt: string, language: string, agentId: strin
 }
 
 function pickRandomName(language: string, agentId: string): string {
-  const names = NATIVE_NAME_EXAMPLES[language] || NATIVE_NAME_EXAMPLES.en;
+  const names = getLanguageNameExamples(language);
   let hash = 0;
   for (let i = 0; i < agentId.length; i++) {
     hash = ((hash << 5) - hash) + agentId.charCodeAt(i);

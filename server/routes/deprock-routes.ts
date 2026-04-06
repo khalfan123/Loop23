@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { db } from "../db";
 import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows, incomingConnections, humanIncomingConnections, knowledgeBase } from "@shared/schema";
 import type { FlowNode, FlowEdge } from "@shared/schema";
@@ -473,7 +473,7 @@ async function generateDeptIvrTwiml(config: any, step: string, digits?: string, 
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Unknown step. Goodbye.</Say><Hangup/></Response>`;
 }
 
-export function createDeprockRoutes(authenticateToken: (req: Request, res: Response, next: Function) => void) {
+export function createDeprockRoutes(authenticateToken: (req: Request, res: Response, next: NextFunction) => void) {
   const router = Router();
 
   router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
@@ -772,7 +772,7 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
 
         const [newAgent] = await db
           .insert(agents)
-          .values(agentValues)
+          .values(agentValues as any)
           .returning();
         resolvedAgentId = newAgent.id;
         console.log(`[Deprock] Created new agent "${trimmedAgentName}" (${newAgent.id}) for language ${language}, linked ${kbIds.length} knowledge bases, voiceProvider=${isElVoice ? 'elevenlabs' : 'aws_polly'}`);

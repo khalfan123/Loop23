@@ -30,6 +30,14 @@ export interface VoiceInfo {
 }
 
 export class VoiceProviderService {
+  private resolveElevenLabsApiKey(config: VoiceProviderConfig): string {
+    const key = config.options?.apiKey;
+    if (!key) {
+      throw new Error('ElevenLabs API key is required');
+    }
+    return String(key);
+  }
+
   async synthesizeSpeech(
     text: string,
     config: VoiceProviderConfig
@@ -58,7 +66,7 @@ export class VoiceProviderService {
       languageCode: config.language,
     };
 
-    const result = await awsPollyService.synthesizeSpeech(options, config.credentialId);
+    const result = await awsPollyService.synthesizeSpeech(options);
 
     return {
       audioStream: result.audioStream,
@@ -73,15 +81,19 @@ export class VoiceProviderService {
     config: VoiceProviderConfig
   ): Promise<VoiceSynthesisResult> {
     const { ElevenLabsService } = await import('./elevenlabs');
-    
-    const elevenLabsService = new ElevenLabsService();
-    const apiKey = config.options?.apiKey;
-    
-    if (!apiKey) {
-      throw new Error('ElevenLabs API key is required');
-    }
 
-    const audioBuffer = await elevenLabsService.generateSpeech(text, config.voiceId, apiKey);
+    const apiKey = this.resolveElevenLabsApiKey(config);
+    const elevenLabsService = new ElevenLabsService(apiKey);
+    const audioBuffer = await elevenLabsService.generateVoicePreview({
+      voiceId: config.voiceId,
+      text,
+      voiceSettings: {
+        stability: config.options?.stability,
+        similarity_boost: config.options?.similarityBoost,
+        speed: config.options?.speed,
+      },
+      modelId: config.options?.modelId,
+    });
 
     return {
       audioStream: audioBuffer,
@@ -150,11 +162,7 @@ export class VoiceProviderService {
     credentialId?: string,
     options?: Record<string, any>
   ): Promise<VoiceInfo[]> {
-    const voices = await awsPollyService.listVoices(
-      options?.languageCode,
-      options?.engine,
-      credentialId
-    );
+    const voices = await awsPollyService.listVoices(options?.languageCode);
 
     return voices.map((voice) => ({
       id: voice.id,
@@ -228,7 +236,9 @@ export class VoiceProviderService {
   ): Promise<Array<{ code: string; name: string; voiceCount: number }>> {
     switch (provider) {
       case 'aws_polly':
-        return awsPollyService.getAvailableLanguages(credentialId);
+        return awsPollyService
+          .getSupportedLanguages()
+          .map((language) => ({ ...language, voiceCount: 0 }));
       case 'elevenlabs':
         return [
           { code: 'en', name: 'English', voiceCount: 50 },

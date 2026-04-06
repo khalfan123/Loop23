@@ -1524,7 +1524,7 @@ export async function handleIvrSelection(req: Request, res: Response) {
             toNumber: To || '',
             status: 'in-progress',
             callDirection: 'incoming',
-            twilioCallSid: callSid as string,
+            twilioSid: callSid as string,
           })
           .returning({ id: calls.id });
         if (newCall.length > 0) {
@@ -1953,7 +1953,6 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
         const [callRecordForRegistry] = await db
           .select({
             userId: calls.userId,
-            agentId: calls.agentId,
             campaignId: calls.campaignId,
             startedAt: calls.startedAt,
           })
@@ -1962,11 +1961,14 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
           .limit(1);
 
         let agentName: string | undefined;
-        if (callRecordForRegistry?.agentId) {
+        const resolvedAgentId = typeof updateData?.metadata?.agentId === 'string'
+          ? updateData.metadata.agentId
+          : undefined;
+        if (resolvedAgentId) {
           const [agentRecord] = await db
             .select({ name: agents.name })
             .from(agents)
-            .where(eq(agents.id, callRecordForRegistry.agentId))
+            .where(eq(agents.id, resolvedAgentId))
             .limit(1);
           agentName = agentRecord?.name || undefined;
         }
@@ -1989,7 +1991,7 @@ export async function handleTwilioStatusWebhook(req: Request, res: Response) {
           status: 'in-progress',
           fromNumber: From || undefined,
           toNumber: To || undefined,
-          agentId: callRecordForRegistry?.agentId || undefined,
+          agentId: resolvedAgentId,
           agentName,
           campaignId: callRecordForRegistry?.campaignId || undefined,
           campaignName,

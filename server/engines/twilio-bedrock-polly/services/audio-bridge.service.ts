@@ -1025,9 +1025,10 @@ PHONE RESPONSE STYLE:
           session.agentConfig.language || 'en'
         );
         liveCallRegistry.updateSentiment(callSid, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);
-        if (sentimentResult.alert && session.userId) {
+        const sentimentUserId = (session.agentConfig as any)?.toolContext?.userId as string | undefined;
+        if (sentimentResult.alert && sentimentUserId) {
           NotificationService.create({
-            userId: session.userId,
+            userId: sentimentUserId,
             type: 'sentiment_alert',
             title: 'Call Needs Attention',
             message: `Call with ${session.agentConfig.agentName || 'AI Agent'} flagged: ${sentimentResult.reason}. Sentiment: ${sentimentResult.level} (score: ${sentimentResult.score})`,
@@ -1046,7 +1047,7 @@ PHONE RESPONSE STYLE:
         timestamp: new Date(),
       });
 
-      if (session.status === 'disconnected') {
+      if (session.status !== 'connected') {
         console.log(`[BedrockPolly Bridge] Session disconnected before Bedrock call for ${callSid}`);
         return;
       }
@@ -1808,7 +1809,7 @@ PHONE RESPONSE STYLE:
                 pendingSynthesis = null;
               }
 
-              if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+              if (bargeInFlags.get(callSid) || session.status !== 'connected') break;
             }
             sentenceBuffer = sentences[sentences.length - 1];
           }
@@ -1832,7 +1833,7 @@ PHONE RESPONSE STYLE:
         }
         return awsBedrockService.invokeStream({
           model,
-          messages: bedrockMessages,
+          messages: bedrockMessages as Array<{ role: 'user' | 'assistant'; content: string }>,
           systemPrompt,
           temperature: 0.3,
           maxTokens: adaptiveTokens,
@@ -1881,7 +1882,7 @@ PHONE RESPONSE STYLE:
         if (sentencesSent === 0) {
           const apologyMsg = session.agentConfig?.language?.startsWith('ar') ? 'عذراً، لم أتمكن من فهم ذلك. هل يمكنك إعادة المحاولة؟' : 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';
           await this.synthesizeAndSend(session, apologyMsg);
-          session.messages.push({ role: 'assistant', content: apologyMsg });
+          session.messages.push({ role: 'assistant', content: apologyMsg, timestamp: new Date() });
           session.transcriptParts.push({ role: 'assistant', text: apologyMsg, timestamp: new Date() });
           return apologyMsg;
         }
@@ -1912,7 +1913,7 @@ PHONE RESPONSE STYLE:
       console.error(`[BedrockPolly Bridge] Streaming Bedrock error for ${callSid}:`, error.message);
       callErrorLogger.logCallError({
         callId: (session.agentConfig as any).toolContext?.callId, userId: (session.agentConfig as any).toolContext?.userId, engineType: 'bedrock-polly',
-        errorCategory: 'streaming', severity: 'error',
+        errorCategory: 'bedrock_error', severity: 'error',
         message: `Streaming Bedrock error: ${error.message?.substring(0, 300)}`,
         metadata: { callSid, model: agentConfig.model },
       });
@@ -2046,7 +2047,7 @@ PHONE RESPONSE STYLE:
       console.error(`[BedrockPolly Bridge] Tool call parsing failed for ${session.callSid}, using recovery phrase`);
       callErrorLogger.logCallError({
         engineType: 'bedrock-polly',
-        errorCategory: 'tool_call', severity: 'warning',
+        errorCategory: 'stream_abort', severity: 'warning',
         message: `Tool call parsing failed`,
         metadata: { callSid: session.callSid },
       });
@@ -2075,7 +2076,7 @@ PHONE RESPONSE STYLE:
       console.error(`[BedrockPolly Bridge] Tool execution error in stream for ${session.callSid}:`, execError.message);
       callErrorLogger.logCallError({
         engineType: 'bedrock-polly',
-        errorCategory: 'tool_execution', severity: 'error',
+        errorCategory: 'bedrock_error', severity: 'error',
         message: `Tool execution error: ${execError.message?.substring(0, 300)}`,
         metadata: { callSid: session.callSid, toolName: toolCall?.name },
       });
@@ -2129,7 +2130,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
           : undefined;
         const response = await openaiInvoke({
           model: agentConfig.model,
-          messages: bedrockMessages,
+          messages: bedrockMessages as Array<{ role: 'user' | 'assistant'; content: string }>,
           systemPrompt,
           temperature: agentConfig.temperature ?? 0.7,
           maxTokens: adaptiveTokens,
@@ -2140,7 +2141,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
       } else {
         const response = await awsBedrockService.invoke({
           model: agentConfig.model,
-          messages: bedrockMessages,
+          messages: bedrockMessages as Array<{ role: 'user' | 'assistant'; content: string }>,
           systemPrompt,
           temperature: agentConfig.temperature ?? 0.7,
           maxTokens: adaptiveTokens,
@@ -2157,7 +2158,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
           console.error(`[BedrockPolly Bridge] Tool call parsing failed in getBedrockResponse for ${session.callSid}`);
           callErrorLogger.logCallError({
             engineType: 'bedrock-polly',
-            errorCategory: 'tool_call', severity: 'warning',
+            errorCategory: 'stream_abort', severity: 'warning',
             message: `Tool call parsing failed in getBedrockResponse`,
             metadata: { callSid: session.callSid },
           });
@@ -2185,7 +2186,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
           console.error(`[BedrockPolly Bridge] Tool execution error in getBedrockResponse:`, execError.message);
           callErrorLogger.logCallError({
             engineType: 'bedrock-polly',
-            errorCategory: 'tool_execution', severity: 'error',
+            errorCategory: 'bedrock_error', severity: 'error',
             message: `Tool execution error in getBedrockResponse: ${execError.message?.substring(0, 300)}`,
             metadata: { callSid: session.callSid, toolName: toolCall?.name },
           });

@@ -751,7 +751,6 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
       }
       
       try {
-        // Use the plugin's ElevenLabsSipService.makeOutboundCall
         const { ElevenLabsSipService } = await import('../../plugins/sip-engine/services/elevenlabs-sip.service');
         
         console.log(`📞 [Flow Test] Initiating SIP test call via ElevenLabs SIP Trunk API`);
@@ -759,29 +758,16 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
         console.log(`   To: ${phoneNumber}`);
         console.log(`   Agent (ElevenLabs ID): ${agent.elevenLabsAgentId}`);
         
-        const result = await ElevenLabsSipService.makeOutboundCall(
+        const result = await ElevenLabsSipService.initiateOutboundCall({
+          sipPhoneNumberId: sipPhone.id,
+          toNumber: phoneNumber,
+          agentId: agent.id,
           userId,
-          sipPhone as any,
-          phoneNumber,
-          agent.id,
-          {
-            source: 'flow_test',
-            flowId: flow.id,
-            flowName: flow.name,
-            testCall: true,
-          }
-        );
-        
-        if (!result.success) {
-          return res.status(400).json({
-            error: "SIP call initiation failed",
-            message: result.error || "Failed to initiate call via ElevenLabs SIP Trunk"
-          });
-        }
+        });
         
         console.log(`✅ [Flow Test] ElevenLabs SIP outbound call initiated`);
-        console.log(`   Conversation ID: ${result.conversationId}`);
-        console.log(`   Call ID: ${result.callId}`);
+        console.log(`   External Call ID: ${result.externalCallId || 'n/a'}`);
+        console.log(`   Internal Call ID: ${result.id}`);
         
         // Create SIP call record
         const sipCallId = nanoid();
@@ -794,7 +780,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
           engine: 'elevenlabs-sip',
           toNumber: phoneNumber,
           fromNumber: sipPhone.phoneNumber,
-          externalCallId: result.conversationId || result.callId || null,
+          externalCallId: result.externalCallId || null,
           status: 'initiated',
           startedAt: new Date(),
           conversationData: {
@@ -802,7 +788,7 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
             flowId: flow.id,
             flowName: flow.name,
             testCall: true,
-            conversationId: result.conversationId,
+            conversationId: result.externalCallId,
           },
         });
         
@@ -823,15 +809,15 @@ router.post("/flows/:id/test", async (req: AuthRequest, res: Response) => {
             nativeExecution: true,
             telephonyProvider: 'elevenlabs-sip',
             testCall: true,
-            conversationId: result.conversationId,
+            conversationId: result.externalCallId,
           },
         });
         
         return res.json({
           success: true,
           callId: sipCallId,
-          conversationId: result.conversationId,
-          callSid: result.callId,
+          conversationId: result.externalCallId,
+          callSid: result.externalCallId,
           flowId: flow.id,
           flowName: flow.name,
           fromNumber: sipPhone.phoneNumber,

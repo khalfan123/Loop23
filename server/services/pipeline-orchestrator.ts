@@ -42,6 +42,10 @@ export interface PipelineConfig {
   scheduledAt?: Date;
 }
 
+type KnowledgePipelineJobRecord = typeof knowledgePipelineJobs.$inferSelect & {
+  maxArticles?: number | null;
+};
+
 export interface PipelineProgress {
   stage: string;
   stageProgress: number;
@@ -380,7 +384,7 @@ export class PipelineOrchestrator {
         const autoGenResult = await topicIntelligence.runAutoGeneration(
           pipelineJobId,
           pipelineJob.crawlJobId,
-          pipelineJob.maxArticles || 15
+          (pipelineJob as KnowledgePipelineJobRecord).maxArticles || 15
         );
 
         stageDetails.websiteNature = {

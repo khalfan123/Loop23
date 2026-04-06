@@ -746,7 +746,7 @@ router.post('/handle-selection', async (req: Request, res: Response) => {
       toNumber: To || phoneRecord?.phoneNumber || '',
       agentId: agent.id,
       agentName: agent.name || undefined,
-      engine: actualEngine === 'openai-realtime' ? 'twilio-openai' : 'bedrock-polly',
+      engine: actualEngine === 'openai-realtime' ? 'twilio-openai' : 'twilio-bedrock-polly',
       startedAt: new Date(),
       answeredAt: new Date(),
     });
@@ -809,7 +809,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
 
     if (!config || !config.fallbackDepartmentId) {
       const voiceId = config?.voiceId || 'Joanna';
-      const langOptions = config?.languageOptions as Array<{ language: string; speed?: number }> | null;
+      const langOptions = config?.languageOptions as Array<{ language: string; speed?: number; voiceId?: string }> | null;
       const langOpt = langOptions?.find(l => l.language === lang);
       const fallbackSpeed = langOpt?.speed ?? 0.92;
       const template = getTemplate(lang);
@@ -818,7 +818,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
     }
 
     const voiceId = config.voiceId || 'Joanna';
-    const langOptions = config.languageOptions as Array<{ language: string; speed?: number }> | null;
+    const langOptions = config.languageOptions as Array<{ language: string; speed?: number; voiceId?: string }> | null;
     const langOpt = langOptions?.find(l => l.language === lang);
     const fallbackSpeed = langOpt?.speed ?? 0.92;
     const template = getTemplate(lang);
@@ -963,7 +963,7 @@ router.post('/fallback', async (req: Request, res: Response) => {
       toNumber: phoneRecord?.phoneNumber || '',
       agentId: agent.id,
       agentName: agent.name || undefined,
-      engine: fbEngineLabel === 'openai-realtime' ? 'twilio-openai' : 'bedrock-polly',
+      engine: fbEngineLabel === 'openai-realtime' ? 'twilio-openai' : 'twilio-bedrock-polly',
       startedAt: new Date(),
       answeredAt: new Date(),
     });

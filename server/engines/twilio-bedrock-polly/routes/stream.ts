@@ -485,7 +485,7 @@ async function initializeSession(
               fromNumber: fromNumber || 'Unknown',
               toNumber: toNumber || 'Unknown',
               durationSeconds: sessionData.duration,
-              engine: 'bedrock-polly',
+              engine: 'twilio-openai',
             });
 
             if (!creditResult.success && !creditResult.alreadyDeducted) {

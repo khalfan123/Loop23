@@ -354,6 +354,7 @@ export interface BedrockPollyBridgeSession {
   _retryAttempted?: boolean;
   _languageLock?: string;
   _languageMismatchStreak?: number;
+  userId?: string;
 }
 
 /**

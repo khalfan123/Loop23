@@ -89,6 +89,20 @@ interface Department {
   flowId?: string | null;
   agentCount?: number;
   languages?: string[];
+  assignedAgents?: Array<{
+    id: string;
+    agentId: string;
+    agentName: string;
+    language: string;
+    systemPrompt: string | null;
+    voiceTone: string | null;
+    voiceId: string | null;
+    voiceProvider: string | null;
+    knowledgeBaseIds: string[] | null;
+    isPrimary: boolean;
+    agentType: string;
+    firstMessage: string | null;
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -113,6 +127,8 @@ interface IvrConfiguration {
   name: string;
   isActive: boolean;
   voiceName: string | null;
+  greetingMessage?: string | null;
+  languageOptions?: LanguageOption[] | null;
   menuOptions: { key: string; label: string; departmentId: string }[] | null;
 }
 

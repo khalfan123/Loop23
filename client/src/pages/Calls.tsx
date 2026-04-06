@@ -837,7 +837,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
     </div>
   );
 
-  const renderCallsTable = (callList: Call[], pagination: ReturnType<typeof usePagination>, testIdPrefix: string = "") => (
+  const renderCallsTable = (callList: Call[], pagination: ReturnType<typeof usePagination<Call>>, testIdPrefix: string = "") => (
     <div className="border rounded-2xl overflow-hidden glass-surface">
       <div className="overflow-x-auto">
         <Table>

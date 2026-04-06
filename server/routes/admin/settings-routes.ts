@@ -254,7 +254,7 @@ export function registerSettingsRoutes(router: Router) {
 
   router.get('/analytics', async (req: AdminRequest, res: Response) => {
     try {
-      const analytics = await storage.getAdminAnalytics?.();
+      const analytics = await storage.getPaymentAnalytics?.();
       res.json(analytics || {});
     } catch (error) {
       console.error('Error fetching analytics:', error);

@@ -1624,7 +1624,7 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
 
       const synthesized = await KnowledgeSynthesisService.synthesize(
         entry.content,
-        entry.sourceUrl || entry.title || 'unknown',
+        entry.url || entry.title || 'unknown',
         (progress) => {
           console.log(`[Synthesis] Stage ${progress.currentStage}/${progress.totalStages}: ${progress.message}`);
         }
@@ -1708,7 +1708,7 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const { seedOperationalScripts } = await import("../../seed-operational-scripts");
+      const { seedOperationalScripts } = await import("../seed-operational-scripts");
       const result = await seedOperationalScripts(userId);
 
       if (!result.success) {
@@ -1751,7 +1751,7 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
 
   router.get("/analytics", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.userId;
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
 
       const { db } = await import("../db");
@@ -1842,7 +1842,7 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
 
       const synthesized = await KnowledgeSynthesisService.synthesize(
         entry.content,
-        entry.sourceUrl || entry.title || "unknown"
+        entry.url || entry.title || "unknown"
       );
 
       triggerMediaGeneration(synthesized, userId, knowledgeBaseId, { pdf, audio, images });

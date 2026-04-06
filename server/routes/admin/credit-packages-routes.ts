@@ -15,7 +15,7 @@ async function getStripeClient(): Promise<Stripe | null> {
       return null;
     }
     
-    return new Stripe(secretKey, { apiVersion: '2025-10-29.clover' });
+    return new Stripe(secretKey, { apiVersion: '2025-12-15.clover' });
   } catch (error) {
     console.error('Error initializing Stripe client:', error);
     return null;

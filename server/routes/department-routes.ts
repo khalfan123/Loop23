@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { db } from "../db";
 import { departments, departmentAgents, ivrConfigurations, departmentKnowledgeBases, agents, phoneNumbers, flows, incomingConnections, humanIncomingConnections, knowledgeBase } from "@shared/schema";
 import type { FlowNode, FlowEdge } from "@shared/schema";
@@ -142,7 +142,7 @@ function generateDefaultFlowNodes(departmentName: string, agentName: string = "y
   return { nodes, edges };
 }
 
-export function createDepartmentRoutes(authenticateToken: (req: Request, res: Response, next: Function) => void) {
+export function createDepartmentRoutes(authenticateToken: (req: Request, res: Response, next: NextFunction) => void) {
   const router = Router();
 
   /**

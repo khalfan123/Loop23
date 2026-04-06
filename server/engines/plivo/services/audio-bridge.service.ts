@@ -1216,7 +1216,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
         systemPrompt: targetAgent.systemPrompt || '',
         firstMessage: targetAgent.firstMessage || null,
         openaiVoice: targetAgent.openaiVoice || null,
-        openaiModel: targetAgent.openaiModel || null,
+        openaiModel: (targetAgent as any).openaiModel || null,
         temperature: targetAgent.temperature as number | null,
         knowledgeBaseIds: targetAgent.knowledgeBaseIds as string[] | null,
         transferEnabled: targetAgent.transferEnabled as boolean | null,
@@ -1267,7 +1267,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
       const [callRecord] = await db
         .select({ openaiCredentialId: plivoCalls.openaiCredentialId })
         .from(plivoCalls)
-        .where(eq(plivoCalls.callUuid, session.callUuid))
+        .where(eq(plivoCalls.plivoCallUuid, session.callUuid))
         .limit(1);
       
       if (callRecord?.openaiCredentialId) {

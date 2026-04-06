@@ -313,7 +313,7 @@ export class BedrockPollyCallService {
           voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,
           model: defaultModel,
           systemPrompt: effectiveSystemPrompt,
-          firstMessage: resolveTemplateVariables(localizedFirstMessage),
+          firstMessage: resolveTemplateVariables(localizedFirstMessage || ''),
           temperature: agent.temperature ?? 0.7,
           userTier,
           ttsProvider,

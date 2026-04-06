@@ -683,7 +683,7 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
               const sentimentResult = RealtimeSentimentService.analyzeSentiment(
                 session.callSid,
                 message.transcript,
-                session.agentConfig?.language || 'en'
+                session.agentConfig.language || 'en'
               );
               await this.refreshSentimentModeAndSync(session);
               liveCallRegistry.updateSentiment(session.callSid, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);

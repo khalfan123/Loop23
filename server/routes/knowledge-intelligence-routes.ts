@@ -1036,9 +1036,6 @@ router.post("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
     const [job] = await db.insert(knowledgePipelineJobs).values({
       userId: req.userId,
       name,
-      startUrl,
-      crawlType,
-      maxPages,
       crawlJobId: crawlJob.id,
       status: "pending",
       currentStage: "crawling",
@@ -1052,8 +1049,9 @@ router.post("/pipeline-jobs", async (req: AuthRequest, res: Response) => {
     }).returning();
 
     // Run pipeline asynchronously (non-blocking)
+    const pipelineUserId = req.userId;
     setImmediate(() => {
-      runPipeline(job.id, req.userId).catch(err => {
+      runPipeline(job.id, pipelineUserId as string).catch(err => {
         console.error(`Pipeline ${job.id} failed:`, err);
       });
     });
@@ -1404,15 +1402,13 @@ router.get("/ml-conversations/samples", async (req: AuthRequest, res: Response) 
     const status = req.query.status as string;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
 
-    let query = db.select().from(mlTrainingSamples)
-      .where(eq(mlTrainingSamples.userId, req.userId));
-
+    const filters = [eq(mlTrainingSamples.userId, req.userId)];
     if (status && status !== "all") {
-      query = query.where(and(
-        eq(mlTrainingSamples.userId, req.userId),
-        eq(mlTrainingSamples.status, status)
-      ));
+      filters.push(eq(mlTrainingSamples.status, status));
     }
+
+    const query = db.select().from(mlTrainingSamples)
+      .where(and(...filters));
 
     const samples = await query.orderBy(desc(mlTrainingSamples.createdAt)).limit(limit);
 
@@ -2161,7 +2157,6 @@ Requirements:
         generatedWithoutSource: !websiteContent,
       },
       storageSize,
-      ragStatus: 'pending',
     }).returning();
 
     try {

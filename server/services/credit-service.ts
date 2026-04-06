@@ -10,7 +10,7 @@ import { users, creditTransactions } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
-export type CreditEngine = 'elevenlabs-twilio' | 'plivo-openai' | 'twilio-openai';
+export type CreditEngine = 'elevenlabs-twilio' | 'plivo-openai' | 'twilio-openai' | 'bedrock-polly';
 
 export interface CreditDeductionParams {
   userId: string;

@@ -968,7 +968,7 @@ export default function PlanBillingPage() {
                           <div className="flex items-center gap-2">
                             <h4 className="font-semibold text-sm">{pkg.name}</h4>
                             {isPopular && (
-                              <Badge size="sm">
+                              <Badge>
                                 <Sparkles className="h-3 w-3 mr-1" />
                                 {t('billing.popular')}
                               </Badge>

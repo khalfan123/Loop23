@@ -18,7 +18,7 @@
 
 import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, type SQL } from "drizzle-orm";
 import { 
   campaigns, contacts, calls, agents, phoneNumbers, incomingConnections, sipPhoneNumbers, flows, forms, formFields, knowledgeBase, generatedUseCases 
 } from "@shared/schema";
@@ -1272,13 +1272,12 @@ OUTPUT RULES:
       }
 
       const newContacts = validContacts.map((c) => ({
-        id: nanoid(),
         campaignId,
         firstName: c.firstName,
         lastName: c.lastName,
         phone: c.phone,
         email: c.email,
-        customFields: c.customFields,
+        customFields: c.customFields as SQL<unknown> | Record<string, unknown> | unknown[] | null | undefined,
         status: "pending" as const,
       }));
 

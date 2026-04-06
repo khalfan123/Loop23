@@ -635,6 +635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           importCampaign = await storage.createCampaign({
             name: 'Imported Contacts',
             userId: req.userId!,
+            type: 'outbound',
             status: 'active',
           });
         }
@@ -1806,14 +1807,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Knowledge Intelligence routes (crawling, AI analysis, content generation)
   const knowledgeIntelligenceRoutes = createKnowledgeIntelligenceRoutes();
-  app.use("/api/knowledge-intelligence", routeContext.authenticateHybrid, knowledgeIntelligenceRoutes);
+  app.use(
+    "/api/knowledge-intelligence",
+    routeContext.authenticateHybrid as unknown as import("express").RequestHandler,
+    knowledgeIntelligenceRoutes
+  );
 
   // Department Management routes
-  const departmentRoutes = createDepartmentRoutes(routeContext.authenticateHybrid);
+  const departmentRoutes = createDepartmentRoutes(
+    routeContext.authenticateHybrid as unknown as import("express").RequestHandler
+  );
   app.use("/api/departments", departmentRoutes);
 
   // Deprock (Bedrock + Polly) Department Management routes
-  const deprockRoutes = createDeprockRoutes(routeContext.authenticateHybrid);
+  const deprockRoutes = createDeprockRoutes(
+    routeContext.authenticateHybrid as unknown as import("express").RequestHandler
+  );
   app.use("/api/deprock", deprockRoutes);
 
   // Live Call Monitoring routes
@@ -2016,7 +2025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     console.log(`✅ [WebSocket] Reserved OpenAI credential: ${credential.name} (ID: ${credential.id})`);
                   }
                   
-                  const openaiModel = agent.openaiModel || 'gpt-4o-realtime-preview';
+                  const openaiModel = (agent as any).openaiModel || (agent as any).llmModel || 'gpt-4o-realtime-preview';
                   const openaiVoice = agent.openaiVoice || 'alloy';
                   
                   const [twilioOpenaiCall] = await db.insert(twilioOpenaiCalls).values({
@@ -2826,7 +2835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   progress,
                 },
                 createdAt: item.campaign.startedAt?.toISOString(),
-                lastUpdatedAt: item.campaign.updatedAt?.toISOString(),
+                lastUpdatedAt: item.campaign.createdAt?.toISOString(),
               };
             }
 

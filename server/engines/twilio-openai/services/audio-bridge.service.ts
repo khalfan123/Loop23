@@ -578,11 +578,36 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
         case 'response.audio.delta':
           this.clearLLMTimeouts(session);
-          if (session.suppressResponseOutputUntilDone) {
-            break;
+          {
+            const deltaResponseId = message.response_id || message.response?.id || null;
+            if (session.suppressResponseOutputUntilDone) {
+              if (
+                session.suppressedResponseId
+                && deltaResponseId
+                && deltaResponseId !== session.suppressedResponseId
+              ) {
+                session.suppressResponseOutputUntilDone = false;
+                session.suppressedResponseId = null;
+              } else {
+                break;
+              }
+            }
+
+            // Ignore stale/out-of-order audio chunks from non-active responses.
+            if (
+              session.activeResponseId
+              && deltaResponseId
+              && session.activeResponseId !== deltaResponseId
+            ) {
+              break;
+            }
           }
           if (message.delta) {
-            if (session.pendingClearTimerId) {
+            const deltaResponseId = message.response_id || message.response?.id || null;
+            if (
+              session.pendingClearTimerId
+              && (!session.activeResponseId || !deltaResponseId || session.activeResponseId === deltaResponseId)
+            ) {
               clearTimeout(session.pendingClearTimerId);
               session.pendingClearTimerId = null;
             }
@@ -611,7 +636,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
               session.suppressedResponseId = null;
             }
           }
-          if (!message.response_id || session.activeResponseId === message.response_id) {
+          if (
+            !session.activeResponseId
+            || (message.response_id && session.activeResponseId === message.response_id)
+          ) {
             session.isResponseActive = false;
             session.activeResponseId = null;
           }
@@ -722,7 +750,10 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
               session.suppressedResponseId = null;
             }
 
-            if (!doneResponseId || session.activeResponseId === doneResponseId) {
+            if (
+              !session.activeResponseId
+              || (doneResponseId && session.activeResponseId === doneResponseId)
+            ) {
               session.isResponseActive = false;
               session.activeResponseId = null;
             }

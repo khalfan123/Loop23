@@ -486,7 +486,6 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
     }));
     session.lastSyncedSentimentMode = tone;
   }
-
   private static shouldThrottleBargeInCancel(session: AudioBridgeSession): boolean {
     const now = Date.now();
     const last = session.lastBargeInCancelAt || 0;
@@ -689,9 +688,11 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
               session.suppressedResponseId = null;
             }
           }
+          const audioDoneResponseId = message.response_id || message.response?.id || null;
           if (
             !session.activeResponseId
-            || (message.response_id && session.activeResponseId === message.response_id)
+            || !audioDoneResponseId
+            || session.activeResponseId === audioDoneResponseId
           ) {
             session.isResponseActive = false;
             session.activeResponseId = null;
@@ -816,7 +817,8 @@ IMPORTANT FUNCTION CALLING REQUIREMENTS:
 
             if (
               !session.activeResponseId
-              || (doneResponseId && session.activeResponseId === doneResponseId)
+              || !doneResponseId
+              || session.activeResponseId === doneResponseId
             ) {
               session.isResponseActive = false;
               session.activeResponseId = null;

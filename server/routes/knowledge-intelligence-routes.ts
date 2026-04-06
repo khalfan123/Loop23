@@ -1890,49 +1890,58 @@ router.post("/generate-kb-articles", async (req: AuthRequest, res: Response) => 
       .map(item => `- ${item.title}: ${(item.content || '').substring(0, 300)}`)
       .join('\n');
 
-    const { getOpenAIClient } = await import("../services/openai-modelfarm");
-    const openai = await getOpenAIClient(req.userId);
+    const { awsBedrockService } = await import("../services/aws-bedrock");
+    const bedrockConfigured = awsBedrockService.isConfigured();
+    let openai: any = null;
+    if (!bedrockConfigured) {
+      const { getOpenAIClient } = await import("../services/openai-modelfarm");
+      openai = await getOpenAIClient(req.userId);
+    }
 
     const categoryArticleCounts: Record<string, number> = {
-      "Products": 15,
-      "Technical Support": 14,
-      "FAQs": 14,
-      "Billing & Payments": 13,
-      "Account Management": 12,
-      "Orders": 12,
-      "Policies": 12,
-      "Security & Privacy": 12,
-      "Delivery": 11,
-      "Glossary": 11,
-      "Escalation": 10,
-      "Contact Info": 10,
+      "Products": 25,
+      "Technical Support": 23,
+      "FAQs": 23,
+      "Billing & Payments": 22,
+      "Account Management": 22,
+      "Orders": 21,
+      "Policies": 21,
+      "Security & Privacy": 21,
+      "Delivery": 20,
+      "Glossary": 20,
+      "Escalation": 20,
+      "Contact Info": 20,
+      "Conversation Scenarios": 20,
+      "Call Center Operations": 20,
     };
 
     const allCreatedItems: any[] = [];
     const folderResults: Record<string, number> = {};
 
     for (const folder of folders) {
-      const targetCount = categoryArticleCounts[folder.name] || 12;
+      const targetCount = categoryArticleCounts[folder.name] || 20;
       const existingInFolder = existingItems.filter(i => i.folderId === folder.id && !((i.metadata as any)?.aiGenerated)).length;
 
       console.log(`[KB Gen] Generating ${targetCount} articles for "${folder.name}" (has ${existingInFolder} existing)...`);
 
       const topicGuidance: Record<string, string> = {
-        "Products": "eSIM product details, data plan comparisons, regional vs global plans, compatible devices, plan features, prepaid vs postpaid, data speeds, coverage maps, multi-device support, family plans, business plans, special offers, seasonal promotions, bundle packages, product specifications",
-        "Technical Support": "eSIM installation troubleshooting, activation issues, connectivity problems, APN settings, device compatibility, network switching, signal strength, VPN usage, hotspot functionality, dual SIM configuration, QR code scanning issues, data not working abroad, slow speeds, roaming settings, firmware updates",
-        "FAQs": "what is an eSIM, how eSIM works, eSIM vs physical SIM, supported devices, how to activate, data usage tracking, plan expiration, multiple eSIMs, sharing data, coverage availability, refund eligibility, account recovery, language support, payment security, customer support channels",
-        "Billing & Payments": "payment methods, pricing tiers, currency support, invoice generation, auto-renewal, refund process, promo codes, subscription management, payment failures, transaction history, tax information, enterprise billing, credit system, payment security, dispute resolution",
-        "Account Management": "account creation, profile updates, password reset, email verification, two-factor authentication, account deletion, notification preferences, login issues, session management, linked devices, account security, data export, subscription status, account upgrade, team accounts",
-        "Orders": "placing an order, order confirmation, order tracking, order cancellation, order modifications, bulk orders, gift purchases, order history, reorder process, international orders, express activation, order status notifications, failed orders, order receipts, enterprise orders",
-        "Policies": "terms of service, privacy policy, acceptable use policy, fair usage policy, data retention, GDPR compliance, cookie policy, refund policy, cancellation policy, service level agreement, content policy, intellectual property, liability limitations, dispute resolution, age requirements",
-        "Security & Privacy": "data encryption, account security measures, fraud prevention, phishing awareness, secure payments, privacy controls, data sharing, breach notification, compliance certifications, VPN recommendations, public WiFi safety, identity verification, suspicious activity, security updates, privacy rights",
-        "Delivery": "eSIM delivery process, instant activation, QR code delivery, email delivery, activation timeline, delivery confirmation, redelivery requests, delivery troubleshooting, bulk delivery, scheduled delivery, delivery to multiple recipients, delivery status tracking, pre-arrival setup, airport pickup alternatives, delayed delivery resolution",
-        "Glossary": "eSIM terminology, telecom glossary, APN definition, IMEI explained, LTE/5G bands, roaming definitions, MNO vs MVNO, SIM lock/unlock, data throttling, fair usage, QR provisioning, SM-DP+ server, EID number, carrier aggregation, VoLTE explained",
-        "Escalation": "escalation triggers, supervisor handoff, complaint handling, SLA breaches, priority levels, escalation workflow, customer retention, compensation guidelines, executive escalation, regulatory complaints, social media escalation, legal escalation, technical escalation tiers, feedback loops, post-escalation follow-up",
-        "Contact Info": "support channels, business hours, emergency contact, social media links, office locations, email support, live chat availability, phone support numbers, regional contacts, partner contacts, enterprise support, accessibility support, language-specific support, holiday schedule, response time expectations",
+        "Products": "eSIM product overview, data plan comparisons, regional vs global plans, compatible device list, plan features deep-dive, prepaid vs postpaid eSIMs, data speeds by region, interactive coverage maps, multi-device support, family plan options, business plan options, special introductory offers, seasonal travel promotions, bundle packages, product technical specifications, how to choose the right plan, unlimited data plans, short-term vs long-term plans, top destination country plans, marketplace overview and navigation",
+        "Technical Support": "eSIM installation step-by-step, activation failure troubleshooting, no data connectivity fix, APN settings configuration, device compatibility guide, manual network switching, improving signal strength, VPN usage with eSIM, hotspot and tethering setup, dual SIM configuration, QR code scanning problems, data not working abroad, slow data speed fixes, roaming settings guide, firmware update impact on eSIM, eSIM profile deletion and reinstall, carrier lock issues, iOS eSIM setup guide, Android eSIM setup guide, Windows and Mac eSIM support",
+        "FAQs": "what is an eSIM, how does eSIM work, eSIM vs physical SIM card, which devices support eSIM, how to activate your eSIM, tracking your data usage, what happens when plan expires, using multiple eSIMs on one device, can you share eSIM data, which countries are covered, am I eligible for a refund, recovering a locked account, available support languages, how payments are secured, what support channels are available, is eSIM permanent or removable, can I reuse my eSIM, eSIM for cruise ships, eSIM for remote work travelers, eSIM coverage in developing countries",
+        "Billing & Payments": "accepted payment methods, pricing tier breakdown, multi-currency support, how invoices are generated, auto-renewal settings and cancellation, step-by-step refund process, using promo and coupon codes, managing your subscription, handling payment failures, viewing full transaction history, tax and VAT information, enterprise and volume billing, using the credit wallet, payment security and encryption, resolving billing disputes, split payment options, prepaid top-up process, invoicing for business accounts, upgrading or downgrading plans mid-cycle, free trial and promotional credit terms",
+        "Account Management": "creating a new account, updating profile information, resetting your password, verifying your email address, enabling two-factor authentication, permanently deleting your account, managing notification preferences, fixing login and access issues, active session management, managing linked devices, reviewing account security settings, exporting your personal data, checking subscription status, upgrading your account tier, setting up team or sub-accounts, social login setup, language and region preferences, referral program management, account suspension recovery, switching account ownership",
+        "Orders": "how to place an order, understanding your order confirmation, tracking your active order, cancelling an order before activation, modifying a pending order, placing bulk orders for groups, purchasing eSIMs as gifts, viewing full order history, how to reorder a previous plan, international order processing, express activation after purchase, order status notification settings, what to do when an order fails, downloading order receipts, enterprise and corporate orders, order placed but no email received, order confirmation delays, applying store credit to an order, order verification requirements, managing multiple simultaneous orders",
+        "Policies": "terms of service summary, privacy policy highlights, acceptable use policy, fair usage policy explained, data retention and deletion policy, GDPR rights and compliance, cookie policy and consent management, refund and return policy, plan cancellation policy, service level agreement, content and conduct policy, intellectual property rights, platform liability limitations, dispute resolution process, minimum age requirements, anti-spam policy, reseller and partner policy, affiliate program terms, promotional terms and conditions, changes to terms notification process",
+        "Security & Privacy": "how user data is encrypted, account security best practices, fraud prevention measures, how to spot phishing attacks, secure payment handling, managing your privacy settings, data sharing with third parties, security breach notification process, compliance certifications overview, VPN compatibility and recommendations, staying safe on public WiFi, identity verification process, how to report suspicious activity, security update notifications, your data rights and access requests, two-factor authentication setup guide, session hijacking prevention, device trust and management, password strength requirements, responding to unauthorized access",
+        "Delivery": "how eSIM delivery works, instant QR code delivery explained, eSIM delivered by email guide, activation timeline after purchase, receiving your delivery confirmation, what to do if delivery is delayed, requesting a re-send of your eSIM, troubleshooting delivery issues, bulk delivery for teams, scheduling delivery for a future date, delivering eSIM to multiple recipients, tracking delivery status, setting up eSIM before you travel, eSIM as an airport alternative to local SIMs, resolving failed delivery, eSIM QR code expiry policy, forwarding an eSIM QR code safely, delivery to international email addresses, business delivery workflows, eSIM delivery for cruise and ship travel",
+        "Glossary": "eSIM definition and meaning, APN explained, IMEI number guide, LTE vs 5G band differences, roaming definition, MNO vs MVNO comparison, SIM lock and unlock explained, data throttling and fair use, QR code provisioning process, SM-DP+ server role, EID number explained, carrier aggregation, VoLTE definition, ICCID number, IMSI explained, profile download process, eUICC explained, network slicing, dual connectivity, eSIM discovery and push methods",
+        "Escalation": "when to escalate a customer issue, supervisor handoff process, handling formal complaints, what constitutes an SLA breach, escalation priority levels, escalation workflow step-by-step, customer retention during escalation, compensation and goodwill guidelines, executive escalation process, filing a regulatory complaint, managing social media escalations, legal escalation procedure, technical escalation tier system, closing the feedback loop post-escalation, post-escalation follow-up process, de-escalation communication techniques, escalation documentation requirements, time-to-resolve standards, escalation for payment disputes, escalation for connectivity outages",
+        "Contact Info": "available support channels overview, customer support business hours, emergency contact procedures, official social media accounts, regional office locations, how to reach email support, live chat availability and hours, phone support numbers by region, country-specific support contacts, partner and reseller contacts, enterprise support team contact, accessibility support options, language-specific support availability, holiday and closure schedule, expected response times by channel, support ticket creation guide, escalating through the contact form, WhatsApp and messaging support, reporting abuse or fraud, press and media contact information",
+        "Conversation Scenarios": "handling a first-time activation call, customer confused about plan options, billing dispute conversation flow, customer reporting no connectivity, angry customer de-escalation script, upselling to a higher-tier plan, cross-selling additional countries, welcome call for new customers, cancellation retention script, account recovery conversation, troubleshooting QR code via phone, addressing refund requests verbally, guiding a non-technical customer, handling language barriers, follow-up call after a complaint, confirming order status by phone, explaining eSIM compatibility, discussing travel itinerary and plan fit, after-hours call handling script, transferring to specialist or supervisor",
+        "Call Center Operations": "call center agent onboarding, using the agent dashboard, handling inbound vs outbound calls, quality assurance and call monitoring, call wrap-up and disposition codes, knowledge base usage during a call, escalation protocols for agents, shift handover procedures, compliance and call recording rules, handling high call volume periods, agent performance metrics, customer satisfaction score tracking, after-call work best practices, CRM data entry during a call, using scripts and prompts effectively, multi-channel support coordination, agent coaching and feedback, handling technical issues mid-call, break and schedule management, emergency procedures during system outages",
       };
 
-      const topics = topicGuidance[folder.name] || "general customer support topics relevant to the category";
+      const topics = topicGuidance[folder.name] || `Generate 20 comprehensive knowledge base articles covering all important customer support topics relevant to the "${folder.name}" category for an eSIM marketplace platform`;
 
       const prompt = `You are a professional knowledge base writer for Tejwal eSIM — an eSIM marketplace for travelers providing instant global connectivity in 200+ countries starting from $3.30.
 
@@ -1952,71 +1961,153 @@ Requirements:
 - Content should help customer support agents handle real customer inquiries
 - Include step-by-step instructions where applicable
 - Mention specific features, processes, and policies
+- Every article must be on a DIFFERENT topic — do not repeat topics
 
 Return ONLY a valid JSON array: [{"title": "...", "content": "..."}]
 Do NOT include any markdown, code blocks, or extra text.`;
 
       try {
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations." },
-            { role: "user", content: prompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 16000,
-        });
+        let responseText: string;
 
-        const responseText = completion.choices[0]?.message?.content || '[]';
-        const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-        let articles: Array<{ title: string; content: string }>;
-        try {
-          articles = JSON.parse(cleanedResponse);
-        } catch {
-          console.error(`[KB Gen] Failed to parse response for "${folder.name}":`, cleanedResponse.substring(0, 200));
-          folderResults[folder.name] = 0;
-          continue;
+        if (bedrockConfigured) {
+          console.log(`[KB Gen] Using Claude Bedrock (claude-3-5-haiku) for "${folder.name}"...`);
+          try {
+            const bedrockResponse = await awsBedrockService.invoke({
+              model: "claude-3-5-haiku",
+              messages: [{ role: "user", content: prompt }],
+              systemPrompt: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations.",
+              maxTokens: 16000,
+              temperature: 0.7,
+            });
+            responseText = bedrockResponse.content;
+          } catch (bedrockErr: any) {
+            console.warn(`[KB Gen] Bedrock failed for "${folder.name}", falling back to OpenAI: ${bedrockErr.message}`);
+            if (!openai) {
+              const { getOpenAIClient } = await import("../services/openai-modelfarm");
+              openai = await getOpenAIClient(req.userId);
+            }
+            const completion = await openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              messages: [
+                { role: "system", content: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations." },
+                { role: "user", content: prompt }
+              ],
+              temperature: 0.7,
+              max_tokens: 16000,
+            });
+            responseText = completion.choices[0]?.message?.content || '[]';
+          }
+        } else {
+          console.log(`[KB Gen] Bedrock not configured, using OpenAI for "${folder.name}"...`);
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations." },
+              { role: "user", content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 16000,
+          });
+          responseText = completion.choices[0]?.message?.content || '[]';
         }
 
-        if (!Array.isArray(articles)) {
-          folderResults[folder.name] = 0;
-          continue;
-        }
+        const parseArticles = (raw: string): Array<{ title: string; content: string }> => {
+          const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            console.error(`[KB Gen] JSON parse failed for "${folder.name}":`, cleaned.substring(0, 200));
+            return [];
+          }
+        };
 
-        let insertedCount = 0;
-        for (const article of articles) {
-          if (!article.title || !article.content) continue;
+        const insertArticles = async (articles: Array<{ title: string; content: string }>): Promise<number> => {
+          let count = 0;
+          for (const article of articles) {
+            if (!article.title || !article.content) continue;
+            const contentText = article.content;
+            const storageSize = Buffer.byteLength(contentText, 'utf8');
+            const [inserted] = await db.insert(knowledgeBase).values({
+              userId: req.userId!,
+              folderId: folder.id,
+              type: 'text',
+              title: article.title,
+              content: contentText,
+              url: null,
+              fileUrl: null,
+              elevenLabsDocId: null,
+              metadata: { ragEnabled: true, aiGenerated: true },
+              storageSize,
+            }).returning();
+            allCreatedItems.push({ id: inserted.id, title: inserted.title, folder: folder.name });
+            count++;
+            RAGKnowledgeService.processKnowledgeItem(
+              inserted.id,
+              req.userId!,
+              contentText,
+              { source: 'text' }
+            ).catch(err => console.error(`[KB Gen] RAG error for ${inserted.id}:`, err));
+          }
+          return count;
+        };
 
-          const contentText = article.content;
-          const storageSize = Buffer.byteLength(contentText, 'utf8');
+        const generateArticleText = async (count: number, extraContext?: string): Promise<string> => {
+          const topUpPrompt = `${prompt}${extraContext ? `\n\nNote: You previously generated some articles. Generate ${count} ADDITIONAL articles on DIFFERENT topics not already covered.` : ''}`;
+          if (bedrockConfigured) {
+            try {
+              const br = await awsBedrockService.invoke({
+                model: "claude-3-5-haiku",
+                messages: [{ role: "user", content: topUpPrompt }],
+                systemPrompt: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations.",
+                maxTokens: 16000,
+                temperature: 0.75,
+              });
+              return br.content;
+            } catch (e: any) {
+              console.warn(`[KB Gen] Bedrock top-up failed, using OpenAI: ${e.message}`);
+            }
+          }
+          if (!openai) {
+            const { getOpenAIClient } = await import("../services/openai-modelfarm");
+            openai = await getOpenAIClient(req.userId);
+          }
+          const c = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations." },
+              { role: "user", content: topUpPrompt }
+            ],
+            temperature: 0.75,
+            max_tokens: 16000,
+          });
+          return c.choices[0]?.message?.content || '[]';
+        };
 
-          const [inserted] = await db.insert(knowledgeBase).values({
-            userId: req.userId,
-            folderId: folder.id,
-            type: 'text',
-            title: article.title,
-            content: contentText,
-            url: null,
-            fileUrl: null,
-            elevenLabsDocId: null,
-            metadata: { ragEnabled: true, aiGenerated: true },
-            storageSize,
-          }).returning();
+        let articles = parseArticles(responseText);
+        let insertedCount = await insertArticles(articles);
 
-          allCreatedItems.push({ id: inserted.id, title: inserted.title, folder: folder.name });
-          insertedCount++;
-
-          RAGKnowledgeService.processKnowledgeItem(
-            inserted.id,
-            req.userId!,
-            contentText,
-            { source: 'text' }
-          ).catch(err => console.error(`[KB Gen] RAG error for ${inserted.id}:`, err));
+        const MAX_TOPUP_ROUNDS = 2;
+        let topUpRound = 0;
+        while (insertedCount < targetCount && topUpRound < MAX_TOPUP_ROUNDS) {
+          const needed = targetCount - insertedCount;
+          console.log(`[KB Gen] "${folder.name}" under-returned (${insertedCount}/${targetCount}). Top-up round ${topUpRound + 1}: requesting ${needed} more...`);
+          try {
+            const topUpText = await generateArticleText(needed, `already_generated_${insertedCount}`);
+            const topUpArticles = parseArticles(topUpText);
+            if (topUpArticles.length === 0) break;
+            const added = await insertArticles(topUpArticles);
+            insertedCount += added;
+          } catch (topUpErr: any) {
+            console.warn(`[KB Gen] Top-up round ${topUpRound + 1} failed for "${folder.name}": ${topUpErr.message}`);
+            break;
+          }
+          topUpRound++;
         }
 
         folderResults[folder.name] = insertedCount;
-        console.log(`[KB Gen] Created ${insertedCount} articles for "${folder.name}"`);
+        const modelUsed = bedrockConfigured ? 'claude-3-5-haiku (Bedrock)' : 'gpt-4o-mini (OpenAI)';
+        console.log(`[KB Gen] "${folder.name}": ${insertedCount}/${targetCount} articles created (model: ${modelUsed}, top-up rounds: ${topUpRound})`);
       } catch (folderError: any) {
         console.error(`[KB Gen] Error generating for "${folder.name}":`, folderError.message);
         folderResults[folder.name] = 0;

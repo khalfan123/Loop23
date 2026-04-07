@@ -2164,9 +2164,9 @@ CONVERSATION STYLE:
   }
 
   private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string): number {
-    const MIN_TOKENS = 512;
-    const MAX_TOKENS = 2048;
-    const DEFAULT_TOKENS = 1024;
+    const MIN_TOKENS = 256;
+    const MAX_TOKENS = 1024;
+    const DEFAULT_TOKENS = 512;
 
     if (!messages || messages.length === 0) return DEFAULT_TOKENS;
 
@@ -2584,7 +2584,7 @@ CONVERSATION STYLE:
         return;
       }
 
-      trimmedText = this.sanitizeForTTS(trimmedText);
+      trimmedText = this.sanitizeForTTS(trimmedText, agentConfig.language);
       if (!trimmedText || trimmedText.length < 3) {
         console.log(`[BedrockPolly Bridge] Text too short after TTS sanitization, skipping for ${callSid}`);
         return;
@@ -2655,7 +2655,7 @@ CONVERSATION STYLE:
     }
   }
 
-  private static sanitizeForTTS(text: string): string {
+  private static sanitizeForTTS(text: string, language?: string): string {
     let sanitized = text;
     sanitized = sanitized.replace(/\[TOOL_CALL\]\s*\{[\s\S]*?\}/g, '');
     sanitized = sanitized.replace(/\[TOOL_CALL\]/g, '');
@@ -2663,8 +2663,93 @@ CONVERSATION STYLE:
     sanitized = sanitized.replace(/Tool\s+"[^"]*"\s+returned:\s*\{[\s\S]*?\}/g, '');
     sanitized = sanitized.replace(/Tool\s+"undefined"\s+returned:[\s\S]*/g, '');
     sanitized = sanitized.replace(/\{\s*"error"\s*:\s*"[^"]*"\s*\}/g, '');
+    sanitized = sanitized.replace(/SKU:\s*[A-Z0-9]+/gi, '');
+
+    sanitized = sanitized.replace(/(\d+[\.,]\d+)\s*(AED|درهم|USD|EUR)/gi, (match, numStr, currency) => {
+      const num = parseFloat(numStr.replace(',', '.'));
+      if (isNaN(num)) return match;
+      const isArabic = language === 'ar' || /[\u0600-\u06FF]/.test(sanitized);
+      if (isArabic) {
+        return this.numberToArabicWords(num) + ' درهم';
+      }
+      const rounded = Math.round(num);
+      return this.numberToEnglishWords(rounded) + ' ' + currency;
+    });
+
+    sanitized = sanitized.replace(/\b(\d{3,})\b/g, (match) => {
+      const num = parseInt(match, 10);
+      if (isNaN(num) || num > 999999) return match;
+      const isArabic = language === 'ar' || /[\u0600-\u06FF]/.test(sanitized);
+      if (isArabic) return this.numberToArabicWords(num);
+      return this.numberToEnglishWords(num);
+    });
+
     sanitized = sanitized.replace(/\s{2,}/g, ' ');
     return sanitized.trim();
+  }
+
+  private static numberToEnglishWords(num: number): string {
+    if (num === 0) return 'zero';
+    const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    const teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+    const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+    const rounded = Math.round(num);
+    if (rounded >= 1000) {
+      const thousands = Math.floor(rounded / 1000);
+      const remainder = rounded % 1000;
+      let result = this.numberToEnglishWords(thousands) + ' thousand';
+      if (remainder > 0) result += ' ' + this.numberToEnglishWords(remainder);
+      return result;
+    }
+
+    const parts: string[] = [];
+    const h = Math.floor(rounded / 100);
+    if (h > 0) parts.push(ones[h] + ' hundred');
+
+    const rem = rounded % 100;
+    if (rem >= 10 && rem <= 19) {
+      parts.push(teens[rem - 10]);
+    } else {
+      const t = Math.floor(rem / 10);
+      const o = rem % 10;
+      if (t > 1) parts.push(tens[t]);
+      if (o > 0) parts.push(ones[o]);
+    }
+
+    return parts.join(' ');
+  }
+
+  private static numberToArabicWords(num: number): string {
+    if (num === 0) return 'صفر';
+    const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+    const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+    const tens = ['', '', 'عشرين', 'ثلاثين', 'أربعين', 'خمسين', 'ستين', 'سبعين', 'ثمانين', 'تسعين'];
+    const hundreds = ['', 'مئة', 'مئتان', 'ثلاثمئة', 'أربعمئة', 'خمسمئة', 'ستمئة', 'سبعمئة', 'ثمانمئة', 'تسعمئة'];
+
+    const rounded = Math.round(num);
+    if (rounded >= 1000) {
+      const thousands = Math.floor(rounded / 1000);
+      const remainder = rounded % 1000;
+      let result = thousands === 1 ? 'ألف' : thousands === 2 ? 'ألفان' : `${ones[thousands] || thousands} آلاف`;
+      if (remainder > 0) result += ' و' + this.numberToArabicWords(remainder);
+      return result;
+    }
+
+    const parts: string[] = [];
+    const h = Math.floor(rounded / 100);
+    const t = Math.floor((rounded % 100) / 10);
+    const o = rounded % 10;
+
+    if (h > 0) parts.push(hundreds[h]);
+    if (rounded % 100 >= 10 && rounded % 100 <= 19) {
+      parts.push(teens[rounded % 100 - 10]);
+    } else {
+      if (o > 0) parts.push(ones[o]);
+      if (t > 1) parts.push(tens[t]);
+    }
+
+    return parts.join(' و');
   }
 
   private static ssmlBlockedVoices: Set<string> = new Set();

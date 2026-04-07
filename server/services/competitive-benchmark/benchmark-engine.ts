@@ -133,6 +133,57 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   check_accessibility: 'Check accessibility accommodations available at a facility including wheelchair access, interpreters, and other special needs.',
 };
 
+const TOOL_PARAMETER_SCHEMAS: Record<string, { type: 'object'; properties: Record<string, any>; required: string[] }> = {
+  lookup_order: { type: 'object', properties: { order_number: { type: 'string', description: 'The order number to look up' } }, required: ['order_number'] },
+  check_return_policy: { type: 'object', properties: { order_number: { type: 'string', description: 'Order number' }, item_condition: { type: 'string', enum: ['new', 'used', 'damaged', 'defective'], description: 'Condition of the item' } }, required: ['order_number'] },
+  initiate_return: { type: 'object', properties: { order_number: { type: 'string', description: 'Order number' }, reason: { type: 'string', description: 'Reason for return' }, refund_method: { type: 'string', enum: ['original_payment', 'store_credit'], description: 'Refund method' } }, required: ['order_number', 'reason'] },
+  lookup_billing: { type: 'object', properties: { account_email: { type: 'string', description: 'Customer account email' } }, required: ['account_email'] },
+  issue_credit: { type: 'object', properties: { account_email: { type: 'string', description: 'Customer account email' }, amount: { type: 'number', description: 'Credit amount in dollars' }, reason: { type: 'string', description: 'Reason for the credit' } }, required: ['account_email', 'amount'] },
+  check_system_status: { type: 'object', properties: { service: { type: 'string', description: 'Service name to check' }, region: { type: 'string', description: 'Region to check (e.g. us-east-1)' } }, required: [] },
+  create_ticket: { type: 'object', properties: { subject: { type: 'string', description: 'Ticket subject' }, description: { type: 'string', description: 'Detailed issue description' }, priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], description: 'Ticket priority' }, customer_email: { type: 'string', description: 'Customer email' } }, required: ['subject', 'description', 'priority'] },
+  lookup_account: { type: 'object', properties: { account_email: { type: 'string', description: 'Account email' } }, required: ['account_email'] },
+  apply_discount: { type: 'object', properties: { account_email: { type: 'string', description: 'Account email' }, discount_percent: { type: 'number', description: 'Discount percentage (e.g. 50)' }, duration_months: { type: 'number', description: 'Duration in months' } }, required: ['account_email', 'discount_percent', 'duration_months'] },
+  update_shipping: { type: 'object', properties: { order_number: { type: 'string', description: 'Order number' }, new_address: { type: 'string', description: 'New shipping address' } }, required: ['order_number', 'new_address'] },
+  verify_identity: { type: 'object', properties: { email: { type: 'string', description: 'Customer email' }, date_of_birth: { type: 'string', description: 'Date of birth (e.g. 1990-03-15)' } }, required: ['email'] },
+  send_reset_link: { type: 'object', properties: { email: { type: 'string', description: 'Email to send the reset link to' } }, required: ['email'] },
+  check_warranty_status: { type: 'object', properties: { model_number: { type: 'string', description: 'Product model number' }, purchase_date: { type: 'string', description: 'Purchase date (YYYY-MM-DD)' } }, required: ['model_number', 'purchase_date'] },
+  submit_warranty_claim: { type: 'object', properties: { model_number: { type: 'string', description: 'Product model number' }, issue_description: { type: 'string', description: 'Description of the issue' }, preferred_resolution: { type: 'string', enum: ['repair', 'replacement', 'refund'], description: 'Preferred resolution' } }, required: ['model_number', 'issue_description'] },
+  search_products: { type: 'object', properties: { query: { type: 'string', description: 'Search query' }, category: { type: 'string', description: 'Product category' }, max_price: { type: 'number', description: 'Maximum price' } }, required: ['query'] },
+  compare_products: { type: 'object', properties: { product_ids: { type: 'array', items: { type: 'string' }, description: 'Product IDs to compare' } }, required: ['product_ids'] },
+  check_service_status: { type: 'object', properties: { service_name: { type: 'string', description: 'Name of the service' }, region: { type: 'string', description: 'Region (e.g. us-east)' } }, required: [] },
+  subscribe_to_updates: { type: 'object', properties: { email: { type: 'string', description: 'Email for notifications' }, incident_id: { type: 'string', description: 'Incident ID to subscribe to' } }, required: ['email'] },
+  check_shipping_rates: { type: 'object', properties: { destination_country: { type: 'string', description: 'Destination country' }, weight_lbs: { type: 'number', description: 'Package weight in pounds' } }, required: ['destination_country', 'weight_lbs'] },
+  estimate_customs: { type: 'object', properties: { destination_country: { type: 'string', description: 'Destination country' }, item_value: { type: 'number', description: 'Declared value in USD' }, item_category: { type: 'string', description: 'Category of item being shipped' } }, required: ['destination_country', 'item_value'] },
+  get_current_plan: { type: 'object', properties: { account_email: { type: 'string', description: 'Customer account email' } }, required: ['account_email'] },
+  upgrade_subscription: { type: 'object', properties: { account_email: { type: 'string', description: 'Customer account email' }, new_plan: { type: 'string', description: 'Plan to upgrade to' } }, required: ['account_email', 'new_plan'] },
+  submit_data_request: { type: 'object', properties: { email: { type: 'string', description: 'Email of the data subject' }, request_type: { type: 'string', enum: ['export', 'deletion'], description: 'Type of data request' } }, required: ['email', 'request_type'] },
+  check_availability: { type: 'object', properties: { provider_name: { type: 'string', description: 'Provider or doctor name' }, preferred_date: { type: 'string', description: 'Preferred date (YYYY-MM-DD)' }, preferred_time: { type: 'string', description: 'Preferred time of day (morning, afternoon, evening)' } }, required: ['provider_name'] },
+  book_appointment: { type: 'object', properties: { provider_name: { type: 'string', description: 'Provider name' }, date: { type: 'string', description: 'Appointment date' }, time: { type: 'string', description: 'Appointment time' }, patient_name: { type: 'string', description: 'Patient name' } }, required: ['provider_name', 'date', 'time', 'patient_name'] },
+  lookup_appointment: { type: 'object', properties: { confirmation_number: { type: 'string', description: 'Appointment confirmation number' } }, required: ['confirmation_number'] },
+  cancel_appointment: { type: 'object', properties: { confirmation_number: { type: 'string', description: 'Appointment confirmation number' }, reason: { type: 'string', description: 'Cancellation reason' } }, required: ['confirmation_number'] },
+  check_emergency_slots: { type: 'object', properties: { department: { type: 'string', description: 'Department (e.g. dental, medical)' }, date: { type: 'string', description: 'Date to check (defaults to today)' } }, required: ['department'] },
+  list_packages: { type: 'object', properties: { service_type: { type: 'string', description: 'Type of service (e.g. spa, salon)' } }, required: [] },
+  book_package: { type: 'object', properties: { package_name: { type: 'string', description: 'Package name' }, date: { type: 'string', description: 'Booking date' }, time: { type: 'string', description: 'Booking time' }, customer_name: { type: 'string', description: 'Customer name' } }, required: ['package_name', 'date', 'time', 'customer_name'] },
+  check_recurring_availability: { type: 'object', properties: { provider_name: { type: 'string', description: 'Provider name' }, day_of_week: { type: 'string', enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], description: 'Preferred day' }, preferred_time: { type: 'string', description: 'Preferred time' } }, required: ['provider_name', 'day_of_week'] },
+  book_recurring: { type: 'object', properties: { provider_name: { type: 'string', description: 'Provider name' }, day_of_week: { type: 'string', description: 'Day of week' }, time: { type: 'string', description: 'Appointment time' }, patient_name: { type: 'string', description: 'Patient name' }, insurance: { type: 'string', description: 'Insurance provider' } }, required: ['provider_name', 'day_of_week', 'time', 'patient_name'] },
+  list_services: { type: 'object', properties: { category: { type: 'string', description: 'Service category' } }, required: [] },
+  book_service: { type: 'object', properties: { service_name: { type: 'string', description: 'Service name' }, date: { type: 'string', description: 'Date' }, time: { type: 'string', description: 'Time' }, vehicle_info: { type: 'string', description: 'Vehicle make/model/year' } }, required: ['service_name', 'date', 'time'] },
+  update_crm: { type: 'object', properties: { lead_name: { type: 'string', description: 'Lead full name' }, company: { type: 'string', description: 'Company name' }, status: { type: 'string', enum: ['new', 'qualified', 'unqualified', 'nurture'], description: 'Lead status' }, notes: { type: 'string', description: 'Notes about the lead' } }, required: ['lead_name', 'status'] },
+  update_lead: { type: 'object', properties: { lead_name: { type: 'string', description: 'Lead name' }, qualification_score: { type: 'number', description: 'Qualification score 1-10' }, notes: { type: 'string', description: 'Qualification notes' } }, required: ['lead_name', 'qualification_score'] },
+  schedule_followup: { type: 'object', properties: { lead_name: { type: 'string', description: 'Lead name' }, followup_date: { type: 'string', description: 'Follow-up date' }, topic: { type: 'string', description: 'Follow-up topic' } }, required: ['lead_name', 'followup_date'] },
+  schedule_demo: { type: 'object', properties: { lead_name: { type: 'string', description: 'Lead name' }, company: { type: 'string', description: 'Company' }, preferred_date: { type: 'string', description: 'Preferred date' }, demo_type: { type: 'string', enum: ['live', 'recorded', 'trial'], description: 'Demo type' } }, required: ['lead_name', 'company'] },
+  check_pricing: { type: 'object', properties: { plan_tier: { type: 'string', description: 'Plan tier to check' }, team_size: { type: 'number', description: 'Number of users' } }, required: [] },
+  send_materials: { type: 'object', properties: { email: { type: 'string', description: 'Recipient email' }, material_type: { type: 'string', enum: ['brochure', 'case_study', 'whitepaper', 'pricing'], description: 'Type of material' } }, required: ['email', 'material_type'] },
+  check_integration: { type: 'object', properties: { system_name: { type: 'string', description: 'System to check integration for' } }, required: ['system_name'] },
+  list_classes: { type: 'object', properties: { category: { type: 'string', description: 'Class category' }, day_of_week: { type: 'string', description: 'Day of week' } }, required: [] },
+  check_capacity: { type: 'object', properties: { class_name: { type: 'string', description: 'Class name' }, date: { type: 'string', description: 'Date to check' } }, required: ['class_name'] },
+  register_group: { type: 'object', properties: { class_name: { type: 'string', description: 'Class name' }, participant_names: { type: 'array', items: { type: 'string' }, description: 'Names of participants' }, date: { type: 'string', description: 'Class date' } }, required: ['class_name', 'participant_names'] },
+  check_cancellation_policy: { type: 'object', properties: { confirmation_number: { type: 'string', description: 'Confirmation number' } }, required: ['confirmation_number'] },
+  coordinate_appointments: { type: 'object', properties: { departments: { type: 'array', items: { type: 'string' }, description: 'Department names' }, preferred_date: { type: 'string', description: 'Preferred date' } }, required: ['departments', 'preferred_date'] },
+  book_appointments: { type: 'object', properties: { appointments: { type: 'array', items: { type: 'object' }, description: 'List of appointment objects with department, date, time' }, patient_name: { type: 'string', description: 'Patient name' } }, required: ['appointments', 'patient_name'] },
+  check_accessibility: { type: 'object', properties: { facility_id: { type: 'string', description: 'Facility identifier' }, requirements: { type: 'array', items: { type: 'string' }, description: 'Required accommodations (e.g. wheelchair, interpreter)' } }, required: [] },
+};
+
 export class BenchmarkEngine {
   private results: ScenarioResult[] = [];
   private isRunning = false;
@@ -409,13 +460,10 @@ export class BenchmarkEngine {
       function: {
         name: toolName,
         description: TOOL_DESCRIPTIONS[toolName] || `Execute ${toolName.replace(/_/g, ' ')} operation`,
-        parameters: {
+        parameters: TOOL_PARAMETER_SCHEMAS[toolName] || {
           type: 'object' as const,
-          properties: {
-            query: { type: 'string', description: 'Search query or identifier' },
-            data: { type: 'string', description: 'Additional data for the operation' },
-          },
-          required: [] as string[],
+          properties: { query: { type: 'string', description: 'Search query or identifier' } },
+          required: ['query'],
         },
       },
     }));

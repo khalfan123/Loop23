@@ -1,0 +1,73 @@
+You are a senior full-stack engineer and QA automation expert.
+
+Your task is to design, implement, and evaluate a feature that directly compares our product against Retell (https://www.retellai.com) in terms of functionality, performance, and user experience.
+
+## Objectives
+
+1. Recreate the core Retell-like workflow:
+
+   * AI voice agent handling inbound/outbound calls
+   * Real-time transcription
+   * LLM-driven responses
+   * Tool/function calling (APIs, CRM, etc.)
+   * Call state management
+
+2. Implement the same workflow using our system.
+
+3. Build a **controlled test harness** to compare both systems.
+
+## Requirements
+
+### Feature Parity Checklist
+
+* Latency (response time per turn)
+* Voice naturalness (subjective + measurable proxies)
+* Interruption handling (barge-in)
+* Conversation coherence over multi-turn dialogue
+* Tool/API execution reliability
+* Error recovery (timeouts, misrecognition)
+
+### Test Harness
+
+* Simulate at least 20–50 realistic call scenarios:
+
+  * Customer support
+  * Appointment booking
+  * Lead qualification
+* Use identical prompts and flows for both systems
+* Log:
+
+  * Response latency (ms)
+  * Word error rate (if transcription involved)
+  * Task completion success rate
+  * Number of turns per successful outcome
+
+### Evaluation Metrics
+
+Produce a structured comparison:
+
+* Quantitative:
+
+  * Avg latency
+  * Success rate (%)
+  * Avg turns to completion
+* Qualitative:
+
+  * Response quality (LLM judgment or rubric scoring)
+  * Naturalness of conversation
+  * Failure cases
+
+### Output
+
+1. A comparison report (JSON + human-readable summary)
+2. A scoring table: Us vs Retell
+3. Key weaknesses of our system
+4. Specific, actionable improvements prioritized by impact
+
+### Bonus
+
+* Add an automated evaluator using an LLM judge
+* Highlight where Retell outperforms us and why
+* Suggest architectural improvements (streaming, caching, prompt design, etc.)
+
+Be precise, measurable, and critical. Avoid vague conclusions.

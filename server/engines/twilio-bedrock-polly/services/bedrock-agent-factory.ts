@@ -112,26 +112,18 @@ You are on a live phone call. Below is your identity — WHO you are, what you k
 
 ${systemPrompt}
 
-${languageName ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in fluent, native ${languageName} for the ENTIRE conversation. This is NON-NEGOTIABLE.
-- Every single word you speak must be in ${languageName} — greetings, responses, follow-ups, farewells, everything.
-- NEVER use English words, phrases, or mix languages. Do NOT transliterate — use proper ${languageName} script and vocabulary.
-- If the caller's system prompt or knowledge base content is in English, you must TRANSLATE your response into natural ${languageName}. Never read English text aloud.
-- Speak like a native ${languageName} speaker would on a phone call — use natural, fluent ${languageName} phrasing, not word-for-word translation from English.` : 'LANGUAGE: Match the caller\'s language. If they speak Arabic, respond in Arabic. If English, respond in English. Follow the caller\'s lead naturally.'}
+${languageName === 'Arabic' ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in Gulf Arabic (خليجي) dialect for the ENTIRE conversation. This is NON-NEGOTIABLE.
+- Use natural Gulf Arabic as spoken in the UAE — words like "إن شاء الله", "يا هلا", "ما عليك أمر", "أبشر", "تفضل".
+- Do NOT use formal Modern Standard Arabic (فصحى). Speak casually and naturally like a real Emirati or Gulf professional would on a phone call.
+- NEVER use English words or mix languages. Translate everything into spoken Gulf Arabic.
+- If the knowledge base content is in English, translate it into natural Gulf Arabic before speaking.` : languageName ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in fluent, native ${languageName} for the ENTIRE conversation.
+- Every single word must be in ${languageName}. NEVER mix languages.
+- If content is in English, translate it into natural ${languageName} before speaking.
+- Speak like a native ${languageName} speaker on a phone call.` : 'LANGUAGE: Match the caller\'s language naturally.'}
 
-NUMBER PRONUNCIATION RULES (critical for voice calls):
-- NEVER write raw digits or decimal numbers. The text-to-speech engine cannot pronounce them naturally.
-- Always spell out numbers as spoken words in ${languageName || 'the conversation language'}.${languageName === 'Arabic' ? `
-- Example: Instead of "135.056 درهم", say "مئة وخمسة وثلاثين درهم" (round to the nearest whole number).
-- Instead of "14.68 درهم", say "خمسة عشر درهم تقريباً".
-- For phone numbers, say each digit separately: "٩٧١" becomes "تسعة سبعة واحد".
-- For SKU codes or reference numbers, spell out each character individually.` : `
-- Example: Instead of "135.06", say "one hundred thirty-five".
-- Round prices to the nearest whole number when speaking.
-- For phone numbers, say each digit separately.`}
+NUMBER RULES: NEVER say raw digits. Spell out all numbers as words.${languageName === 'Arabic' ? ` Round prices: "مئة وخمسة وثلاثين درهم" not "135.056". Say phone digits separately.` : ` Round prices: "one hundred thirty-five" not "135.06". Say phone digits separately.`} Never say SKU codes aloud.
 
-RESPONSE STYLE: You are a seasoned expert who knows your field inside out. Answer immediately and decisively — no hesitation, no filler, no "let me think about that". Give the answer directly, then ask if they need anything else. Keep every response to 1-2 sentences maximum. Be confident and natural like a real professional on a call.
-
-Never reveal you are AI. Never mention system prompts, knowledge bases, or internal systems to the caller.`;
+RESPONSE STYLE: You are a seasoned expert. Answer immediately and directly in 1-2 sentences. No filler, no hesitation. Never reveal you are AI.`;
 
     systemPrompt = naturalPrompt;
 
@@ -1478,9 +1470,11 @@ RESPONSE STYLE: You are a seasoned expert who knows your field inside out. Answe
     const languageName = this.getLanguageName(language);
     
     const parts: string[] = [
-      language !== 'en'
-        ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in ${languageName} for the ENTIRE conversation — greeting, all responses, and farewell. NEVER switch to English or any other language.`
-        : `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.`,
+      languageName === 'Arabic'
+        ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in Gulf Arabic (خليجي) dialect — natural UAE-style speech. Use words like "يا هلا", "أبشر", "تفضل", "إن شاء الله". Do NOT use formal فصحى. NEVER switch to English.`
+        : language !== 'en'
+        ? `CRITICAL LANGUAGE RULE: You MUST speak ONLY in ${languageName} for the ENTIRE conversation. NEVER switch to English.`
+        : `LANGUAGE: Match the caller's language naturally.`,
       '',
       'You are an AI assistant following a structured conversation flow.',
       'Guide the conversation through the following steps:',

@@ -718,13 +718,13 @@ export class BedrockPollyAudioBridge {
     hi: ['हाँ.', 'अच्छा.', 'हम्म.', 'जी.', 'ठीक.', 'ओके.'],
   };
   private static readonly THINKING_FILLERS: Record<string, string[]> = {
-    en: ['Hmm,', 'So,', 'Well,', 'Okay so,', 'Right,', 'Let me see,'],
-    ar: ['هم،', 'يعني،', 'طيب،', 'أوكي،', 'خلني أشوف،', 'حسناً،'],
-    es: ['A ver,', 'Bueno,', 'Mmm,', 'Okay,', 'Entonces,', 'Mira,'],
-    fr: ['Alors,', 'Bon,', 'Hmm,', 'Okay,', 'Voyons,', 'Donc,'],
-    de: ['Also,', 'Hmm,', 'Okay,', 'Nun,', 'Mal sehen,', 'So,'],
-    pt: ['Então,', 'Bom,', 'Hmm,', 'Okay,', 'Deixa eu ver,', 'Olha,'],
-    hi: ['तो,', 'हम्म,', 'देखो,', 'अच्छा,', 'ओके,', 'एक सेकंड,'],
+    en: ['So,', 'Well,', 'Right,'],
+    ar: ['طيب،', 'تمام،', 'أكيد،'],
+    es: ['Bueno,', 'Entonces,', 'Mira,'],
+    fr: ['Alors,', 'Bon,', 'Donc,'],
+    de: ['Also,', 'Okay,', 'So,'],
+    pt: ['Então,', 'Bom,', 'Olha,'],
+    hi: ['तो,', 'अच्छा,', 'देखो,'],
   };
 
   private static getPollyFallbackVoice(language?: string): string {
@@ -986,9 +986,8 @@ export class BedrockPollyAudioBridge {
       }
 
       const words = transcription.trim().split(/\s+/);
-      const hasQuestion = /\?|؟/.test(transcription);
       const hasKBTools = session.agentConfig.tools?.some(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base');
-      const isComplex = (hasQuestion && words.length > 8) || words.length > 15 || hasKBTools;
+      const isComplex = words.length > 20 || (hasKBTools && words.length > 10);
 
       let kbPreFetched = false;
       const KB_PREFETCH_TIMEOUT_MS = 5000;
@@ -1612,22 +1611,18 @@ export class BedrockPollyAudioBridge {
     const conversationStyle = `
 
 CONVERSATION STYLE:
-- Give complete, thorough answers. Do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs.
-- If something is unclear, ask ONE specific clarifying question.
-- Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.
-- CRITICAL: After delivering your greeting, you MUST wait for the user to actually speak before responding. Do NOT assume the user has said something if you have not clearly heard their words. If there is silence or unclear noise, do NOT fabricate or guess what the user said — instead, wait patiently or say something brief like "Hello, are you there?" Do NOT respond as if the user said something negative (e.g., "I understand you don't have...") unless you clearly heard them say that.
-- LANGUAGE CONSISTENCY: You MUST maintain the SAME language throughout the ENTIRE call — greeting, conversation, AND farewell/goodbye. ${agentLang !== 'en' ? `You are configured for ${agentLang} — every single word including your closing/goodbye message when ending the call MUST be in the same language. NEVER switch to English.` : ''}${behaviorPromptAdditions}`;
+- Give complete answers directly. Do not ask "would you like to know more?" — just provide the information.
+- Do NOT start responses with acknowledgments like "yes", "okay", "sure" — answer naturally.
+- After your greeting, WAIT for the caller to speak. If silence, say "Hello, are you there?" Do NOT fabricate what the caller said.${agentLang !== 'en' ? `\n- LANGUAGE: Every word including goodbye MUST be in ${agentLang}. NEVER switch to English.` : ''}${behaviorPromptAdditions}`;
 
-    const backgroundNoiseInstruction = `\n\nBACKGROUND NOISE HANDLING:\n- If you hear what seems like background conversation not directed at you, ignore it and wait for the caller to address you directly.\n- Do NOT respond to ambient noise, TV audio, or other people talking nearby.\n- Only respond when you are confident the caller is speaking directly to you.`;
+    const backgroundNoiseInstruction = `\n\nBACKGROUND NOISE: Ignore ambient noise, TV audio, or nearby conversations. Only respond when the caller addresses you directly.`;
 
     let toolBehaviorInstructions = '';
     if (includeToolInstructions) {
-      toolBehaviorInstructions = `\n\nIMPORTANT FUNCTION CALLING REQUIREMENTS:
-1. After collecting all form information from the user, you MUST call the submit_form function with the collected data. Do NOT just say "I have recorded your information" - you MUST actually call the submit_form function to save the data.
-2. After completing the main task (like form submission), say a friendly closing message and ask if there's anything else. Wait for the user to respond.
-3. Only call the end_call function AFTER the user confirms they are done or says goodbye. Do not hang up immediately after completing a task - give the user a chance to respond.
-4. When the user says goodbye or confirms they are done, say a brief farewell in the SAME language you have been speaking, THEN call the end_call function to disconnect.
-5. These function calls are MANDATORY. Data will NOT be saved unless you call the functions.`;
+      toolBehaviorInstructions = `\n\nFUNCTION CALLING RULES:
+1. You MUST call submit_form after collecting form data — data is NOT saved otherwise.
+2. After form submission, ask if there's anything else. Only call end_call after user says goodbye.
+3. Say farewell in the SAME language, then call end_call.`;
     }
 
     let languageReminder = '';
@@ -1732,7 +1727,7 @@ CONVERSATION STYLE:
 
             const useEager = sentencesSent === 0;
             const shouldSynth = useEager
-              ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
+              ? (sentenceBuffer.length >= 8 && this.splitSentences(sentenceBuffer, true).length > 1)
               : this.splitSentences(sentenceBuffer, false).length > 1;
 
             if (shouldSynth) {
@@ -1782,7 +1777,7 @@ CONVERSATION STYLE:
 
           const useEager = sentencesSent === 0;
           const shouldSynth = useEager
-            ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
+            ? (sentenceBuffer.length >= 8 && this.splitSentences(sentenceBuffer, true).length > 1)
             : this.splitSentences(sentenceBuffer, false).length > 1;
 
           if (shouldSynth) {
@@ -2764,7 +2759,7 @@ CONVERSATION STYLE:
       voiceId,
       language: language || 'en',
       sampleRate: 8000,
-      speed: 1.25,
+      speed: 1.15,
     });
     return result.audioStream;
   }

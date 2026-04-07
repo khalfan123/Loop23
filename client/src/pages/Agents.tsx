@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { DataPagination, usePagination } from "@/components/ui/data-pagination";
-import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Globe } from "lucide-react";
+import { Plus, Search, Trash2, Edit, Bot, Upload, Sparkles, GitBranch, CheckCircle2, XCircle, Mic, Brain, Settings2, Wrench, Check, FileText, History, MoreVertical, MoreHorizontal, Pencil, FolderOpen, ChevronRight, RefreshCw, Phone, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Globe, PhoneIncoming } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -95,7 +95,7 @@ interface SipPhoneNumber {
 
 interface Agent {
   id: string;
-  type: 'incoming' | 'flow';
+  type: 'incoming' | 'flow' | 'inbound';
   name: string;
   voiceTone: string;
   personality: string;
@@ -120,8 +120,10 @@ interface Agent {
   endConversationEnabled: boolean | null;
   appointmentBookingEnabled: boolean | null;
   knowledgeBaseOnly: boolean | null;
-  telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
+  telephonyProvider: 'twilio' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
+  voiceProvider: 'elevenlabs' | 'aws_polly' | 'openai' | 'cartesia' | null;
   openaiVoice: string | null;
+  awsPollyVoiceId: string | null;
   sourceTemplateId: string | null;
   isFromTemplate: boolean | null;
   tags: string[] | null;
@@ -130,7 +132,7 @@ interface Agent {
   createdAt: string;
 }
 
-// OpenAI Realtime API voice options (for Plivo+OpenAI and Twilio+OpenAI engines)
+// OpenAI Realtime API voice options (for Twilio+OpenAI engines)
 const openaiVoices = [
   { value: "alloy", label: "Alloy", description: "Versatile and balanced" },
   { value: "echo", label: "Echo", description: "Warm and confident" },
@@ -241,8 +243,8 @@ export default function Agents() {
   const [voiceLanguage, setVoiceLanguage] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<'all' | 'incoming' | 'flow'>('all');
-  const [selectedFolder, setSelectedFolder] = useState<string>('all');
-  const [engineFilter, setEngineFilter] = useState<'all' | 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip'>('all');
+  const [selectedFolder, setSelectedFolder] = useState<string>('deprock');
+  const [engineFilter, setEngineFilter] = useState<'all' | 'twilio' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip'>('all');
   const [languageFilter, setLanguageFilter] = useState<string>('all');
   const [tagsFilter, setTagsFilter] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -292,7 +294,7 @@ export default function Agents() {
     voiceStability: 0.55,
     voiceSimilarityBoost: 0.85,
     voiceSpeed: 1.0,
-    telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+    telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
     openaiVoice: "alloy",
     sipPhoneNumberId: "",
     // Template tracking
@@ -322,18 +324,46 @@ export default function Agents() {
     queryKey: ["/api/agents"],
   });
 
+  const { data: deprockLinked } = useQuery<{
+    agentIds: string[];
+    departmentMap: Record<string, { departmentId: string; departmentName: string; language: string; isPrimary: boolean }[]>;
+  }>({
+    queryKey: ["/api/agents/deprock-linked"],
+  });
+
+  const deprockAgentIds = useMemo(() => new Set(deprockLinked?.agentIds || []), [deprockLinked]);
+  const deprockDeptMap = deprockLinked?.departmentMap || {};
+
   const { data: voices = [] } = useQuery<Voice[]>({
     queryKey: ["/api/elevenlabs/voices"],
   });
 
-  // Voice lookup helper - only uses account voices
+  const { data: cartesiaVoices = [] } = useQuery<Array<{ id: string; name: string; language: string }>>({
+    queryKey: ["/api/deprock/cartesia-voices"],
+    staleTime: 60000,
+  });
+
   const getVoiceName = useMemo(() => {
     const voiceMap = new Map(voices.map(v => [v.voice_id, v.name]));
-    return (voiceId: string | null): string | null => {
-      if (!voiceId) return null;
-      return voiceMap.get(voiceId) || null;
+    const cartesiaMap = new Map(cartesiaVoices.map(v => [v.id, v.name]));
+    return (agent: Agent): string => {
+      const provider = agent.voiceProvider;
+      if (provider === 'cartesia' && agent.openaiVoice) {
+        return cartesiaMap.get(agent.openaiVoice) || agent.openaiVoice;
+      }
+      if (provider === 'aws_polly' && agent.awsPollyVoiceId) {
+        return agent.awsPollyVoiceId;
+      }
+      const isOpenAI = agent.telephonyProvider === 'twilio_openai' || agent.telephonyProvider === 'openai-sip';
+      if (isOpenAI && agent.openaiVoice) {
+        return openaiVoices.find(v => v.value === agent.openaiVoice)?.label || agent.openaiVoice;
+      }
+      if (agent.elevenLabsVoiceId) {
+        return voiceMap.get(agent.elevenLabsVoiceId) || agent.elevenLabsVoiceId;
+      }
+      return 'Not set';
     };
-  }, [voices]);
+  }, [voices, cartesiaVoices]);
 
   const availableVoiceLanguages = useMemo(() => {
     const langMap = new Map<string, string>();
@@ -376,13 +406,12 @@ export default function Agents() {
     queryKey: ["/api/flow-automation/flows"],
   });
 
-  // Fetch voice engine settings to check if Plivo+OpenAI or Twilio+OpenAI is enabled
-  const { data: voiceEngineSettings } = useQuery<{ plivo_openai_engine_enabled: boolean; twilio_openai_engine_enabled: boolean }>({
+  // Fetch voice engine settings to check if Twilio+OpenAI is enabled
+  const { data: voiceEngineSettings } = useQuery<{ twilio_openai_engine_enabled: boolean }>({
     queryKey: ["/api/settings/voice-engine"],
     staleTime: 60000,
   });
 
-  const isPlivoEnabled = voiceEngineSettings?.plivo_openai_engine_enabled ?? false;
   const isTwilioOpenaiEnabled = voiceEngineSettings?.twilio_openai_engine_enabled ?? false;
 
   // Check if SIP plugin is enabled and which engines are allowed
@@ -397,17 +426,17 @@ export default function Agents() {
   });
   const sipPhoneNumbers = sipPhoneNumbersResponse?.data || [];
 
-  const hasAlternateEngines = isPlivoEnabled || isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed;
+  const hasAlternateEngines = isTwilioOpenaiEnabled || isElevenLabsSipAllowed || isOpenAISipAllowed;
 
-  // Fetch OpenAI Realtime models (for Plivo+OpenAI or Twilio+OpenAI engine)
+  // Fetch OpenAI Realtime models (for Twilio+OpenAI engine)
   const { data: openaiModelsData } = useQuery<{
     tier: 'free' | 'pro';
     models: string[];
     description: string;
     allTiers: Record<string, { models: string[]; description: string }>;
   }>({
-    queryKey: ["/api/plivo/openai/models"],
-    enabled: isPlivoEnabled || isTwilioOpenaiEnabled || formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai",
+    queryKey: ["/api/openai/realtime-models"],
+    enabled: isTwilioOpenaiEnabled || formData.telephonyProvider === "twilio_openai",
     staleTime: 60000,
   });
 
@@ -445,6 +474,7 @@ export default function Agents() {
       setTimeout(() => {
         setAnimationState('idle');
         queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
         setCreateDialogOpen(false);
         resetForm();
       }, 1500);
@@ -473,6 +503,7 @@ export default function Agents() {
       setTimeout(() => {
         setAnimationState('idle');
         queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
         setEditingAgent(null);
         resetForm();
       }, 1500);
@@ -505,6 +536,7 @@ export default function Agents() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       setDeletingAgent(null);
       toast({ title: t('agents.toast.deleted') });
     },
@@ -546,6 +578,7 @@ export default function Agents() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       setReplicatingAgentId(null);
       toast({ 
         title: "Language Variants Created",
@@ -576,6 +609,7 @@ export default function Agents() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       setIsBatchReplicating(false);
       toast({ 
         title: "Language Replication Complete",
@@ -624,7 +658,7 @@ export default function Agents() {
       voiceStability: 0.55,
       voiceSimilarityBoost: 0.85,
       voiceSpeed: 1.0,
-      telephonyProvider: "twilio" as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+      telephonyProvider: "twilio" as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
       openaiVoice: "alloy",
       sipPhoneNumberId: "",
       // Template tracking
@@ -647,7 +681,7 @@ export default function Agents() {
 
     // Incoming Agent validation
     if (formData.type === 'incoming') {
-      const isOpenAIVoice = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+      const isOpenAIVoice = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
       const hasValidVoice = isOpenAIVoice
         ? !!formData.openaiVoice 
         : !!formData.elevenLabsVoiceId;
@@ -688,7 +722,7 @@ export default function Agents() {
         });
         return;
       }
-      const isOpenAIVoiceFlow = formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
+      const isOpenAIVoiceFlow = formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip";
       const hasValidVoice = isOpenAIVoiceFlow
         ? !!formData.openaiVoice 
         : !!formData.elevenLabsVoiceId;
@@ -736,7 +770,7 @@ export default function Agents() {
       voiceStability: agent.voiceStability ?? 0.55,
       voiceSimilarityBoost: agent.voiceSimilarityBoost ?? 0.85,
       voiceSpeed: agent.voiceSpeed ?? 1.0,
-      telephonyProvider: (agent.telephonyProvider || "twilio") as "twilio" | "plivo" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
+      telephonyProvider: (agent.telephonyProvider || "twilio") as "twilio" | "twilio_openai" | "elevenlabs-sip" | "openai-sip",
       openaiVoice: agent.openaiVoice || "alloy",
       sipPhoneNumberId: (agent as any).sipPhoneNumberId || "",
       // Template tracking
@@ -787,8 +821,12 @@ export default function Agents() {
       if (selectedFolder === 'template' && !agent.isFromTemplate) {
         return false;
       }
-      // Filter by type
-      if (typeFilter !== 'all' && agent.type !== typeFilter) {
+      if (selectedFolder === 'deprock' && !deprockAgentIds.has(agent.id)) {
+        return false;
+      }
+      // Filter by type (skip for Deprock folder — shows all linked agent types)
+      const normalizedType = agent.type === 'inbound' ? 'incoming' : agent.type;
+      if (selectedFolder !== 'deprock' && typeFilter !== 'all' && normalizedType !== typeFilter) {
         return false;
       }
       // Filter by engine/telephony provider
@@ -821,7 +859,9 @@ export default function Agents() {
         case 'name':
           return direction * a.name.localeCompare(b.name);
         case 'type':
-          return direction * (a.type || '').localeCompare(b.type || '');
+          const typeA = a.type === 'inbound' ? 'incoming' : (a.type || '');
+          const typeB = b.type === 'inbound' ? 'incoming' : (b.type || '');
+          return direction * typeA.localeCompare(typeB);
         case 'voice':
           const voiceA = a.openaiVoice || a.elevenLabsVoiceId || '';
           const voiceB = b.openaiVoice || b.elevenLabsVoiceId || '';
@@ -850,7 +890,7 @@ export default function Agents() {
     handleItemsPerPageChange,
   } = usePagination(filteredAgents, 9);
 
-  const incomingCount = agents.filter(a => a.type === 'incoming').length;
+  const incomingCount = agents.filter(a => a.type === 'incoming' || a.type === 'inbound').length;
   const flowCount = agents.filter(a => a.type === 'flow').length;
 
   // Get unique languages from agents for filter
@@ -1011,50 +1051,14 @@ export default function Agents() {
   const subPanelContent = (
     <>
     <SubPanelSection>
-      <div className="flex items-center justify-between pr-1">
-        <SubPanelItem
-          icon={<Bot className="h-4 w-4" />}
-          label={t('nav.agents', { defaultValue: 'Staff AI' })}
-          isActive={activeTab === 'agents' && selectedFolder === 'all'}
-          onClick={() => { setActiveTab('agents'); setSelectedFolder('all'); setTypeFilter('all'); }}
-          data-testid="tab-agents"
-          className="flex-1"
-        />
-        {activeTab === 'agents' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => { e.stopPropagation(); handleAddFolder(); }}
-            data-testid="button-add-folder"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </div>
-      {activeTab === 'agents' && (
-        <div className="pl-6 space-y-0.5">
-          {allFolderIds.map(folderId => renderFolderItem(folderId))}
-          {addingNewFolder && (
-            <div className="flex items-center gap-2 px-3 py-2">
-              <FolderOpen className="h-4 w-4 text-primary" />
-              <Input
-                autoFocus
-                className="h-6 text-sm flex-1"
-                placeholder="Folder name..."
-                onBlur={(e) => handleCreateFolder(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleCreateFolder((e.target as HTMLInputElement).value);
-                  } else if (e.key === 'Escape') {
-                    setAddingNewFolder(false);
-                  }
-                }}
-                data-testid="input-new-folder-name"
-              />
-            </div>
-          )}
-        </div>
-      )}
+      <SubPanelItem
+        icon={<PhoneIncoming className="h-4 w-4" />}
+        label="Inbound Departments"
+        isActive={activeTab === 'agents' && selectedFolder === 'deprock'}
+        onClick={() => { setActiveTab('agents'); setSelectedFolder('deprock'); setTypeFilter('all'); }}
+        data-testid="folder-deprock"
+        badge={deprockAgentIds.size > 0 ? String(deprockAgentIds.size) : undefined}
+      />
       <SubPanelItem
         icon={<FileText className="h-4 w-4" />}
         label={t('nav.promptTemplates', { defaultValue: 'Prompt Templates' })}
@@ -1076,51 +1080,6 @@ export default function Agents() {
           ))}
         </div>
       )}
-      <SubPanelItem
-        icon={<Mic className="h-4 w-4" />}
-        label={t('nav.voices', { defaultValue: 'Voices' })}
-        isActive={activeTab === 'voices'}
-        onClick={() => { setActiveTab('voices'); setVoiceLanguage('all'); }}
-        data-testid="tab-voices"
-      />
-      {activeTab === 'voices' && (
-        <div className="pl-6 space-y-0.5">
-          <div className="px-2 py-1">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">Provider</span>
-          </div>
-          <SubPanelItem
-            icon={<Sparkles className="h-4 w-4" />}
-            label="ElevenLabs"
-            isActive={voiceProvider === 'elevenlabs'}
-            onClick={() => setVoiceProvider('elevenlabs')}
-            data-testid="tab-voice-provider-elevenlabs"
-          />
-          <SubPanelItem
-            icon={<Brain className="h-4 w-4" />}
-            label="OpenAI"
-            isActive={voiceProvider === 'openai'}
-            onClick={() => setVoiceProvider('openai')}
-            data-testid="tab-voice-provider-openai"
-          />
-          {voiceProvider === 'elevenlabs' && availableVoiceLanguages.length > 0 && (
-            <>
-              <div className="px-2 py-1 mt-1">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">Language</span>
-              </div>
-              {availableVoiceLanguages.map((lang) => (
-                <SubPanelItem
-                  key={lang.value}
-                  icon={<Globe className="h-4 w-4" />}
-                  label={lang.label}
-                  isActive={voiceLanguage === lang.value}
-                  onClick={() => setVoiceLanguage(lang.value)}
-                  data-testid={`tab-voice-lang-${lang.value}`}
-                />
-              ))}
-            </>
-          )}
-        </div>
-      )}
     </SubPanelSection>
     </>
   );
@@ -1129,7 +1088,7 @@ export default function Agents() {
     <ThreeColumnLayout
       subPanel={subPanelContent}
       subPanelWidth="sm"
-      subPanelHeader={<span className="font-medium text-sm">{t('nav.agents', { defaultValue: 'Staff AI' })}</span>}
+      subPanelHeader={<span className="font-medium text-sm">{t('nav.agents', { defaultValue: 'Agents' })}</span>}
     >
       <div className={activeTab === 'templates' ? '' : 'hidden'}>
         <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
@@ -1169,7 +1128,7 @@ export default function Agents() {
           <div className="flex flex-col gap-3 p-3 md:p-4 border-b glass-surface">
             <div className="flex items-center justify-between">
               <h2 className="text-base md:text-lg font-semibold tracking-tight">
-                {selectedFolder === 'all' ? 'Staff AI' : (folderNames[selectedFolder] || 'Staff AI')}
+                {selectedFolder === 'all' ? 'Staff AI' : selectedFolder === 'deprock' ? 'Inbound Departments' : (folderNames[selectedFolder] || 'Staff AI')}
               </h2>
               {/* Create Agent Dropdown */}
               <DropdownMenu>
@@ -1251,15 +1210,28 @@ export default function Agents() {
             ) : filteredAgents.length === 0 ? (
               <div className="p-12 text-center">
                 <div className="h-16 w-16 mx-auto mb-4 rounded-2xl glass-card flex items-center justify-center">
-                  <Bot className="h-8 w-8 text-muted-foreground" />
+                  {selectedFolder === 'deprock' ? (
+                    <PhoneIncoming className="h-8 w-8 text-muted-foreground" />
+                  ) : (
+                    <Bot className="h-8 w-8 text-muted-foreground" />
+                  )}
                 </div>
                 <h3 className="text-lg font-semibold mb-2 tracking-tight">
-                  {searchQuery ? t('agents.noAgentsFound') : t('agents.noAgents')}
+                  {selectedFolder === 'deprock' 
+                    ? 'No Department Agents Yet'
+                    : searchQuery ? t('agents.noAgentsFound') : t('agents.noAgents')}
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  {searchQuery ? t('agents.noMatchingSearch') : t('agents.getStarted')}
+                  {selectedFolder === 'deprock'
+                    ? 'Create a department in the Deprock setup to add AI staff here. Each department automatically creates agents that will appear in this folder.'
+                    : searchQuery ? t('agents.noMatchingSearch') : t('agents.getStarted')}
                 </p>
-                {!searchQuery && (
+                {selectedFolder === 'deprock' ? (
+                  <Button onClick={() => setLocation('/app/deprock/canvas')} data-testid="btn-create-department">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create a Department
+                  </Button>
+                ) : !searchQuery && (
                   <Button onClick={() => setLocation('/app/agents/new')}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create your first agent
@@ -1321,12 +1293,10 @@ export default function Agents() {
                   </TableHeader>
                   <TableBody>
                     {paginatedItems.map((agent) => {
-                      const isOpenAIProvider = agent.telephonyProvider === "plivo" || agent.telephonyProvider === "twilio_openai" || agent.telephonyProvider === "openai-sip";
-                      const voiceName = isOpenAIProvider 
-                        ? openaiVoices.find(v => v.value === agent.openaiVoice)?.label || 'Alloy'
-                        : getVoiceName(agent.elevenLabsVoiceId) || 'Not set';
+                      const isOpenAIProvider = agent.telephonyProvider === "twilio_openai" || agent.telephonyProvider === "openai-sip";
+                      const voiceName = getVoiceName(agent);
                       const languageCode = agent.language || 'en';
-                      const isIncoming = agent.type === 'incoming';
+                      const isIncoming = agent.type === 'incoming' || agent.type === 'inbound';
                       const formattedDate = new Date(agent.createdAt).toLocaleDateString('en-US', {
                         month: '2-digit',
                         day: '2-digit',
@@ -1373,7 +1343,16 @@ export default function Agents() {
                               )}
                               <div className="min-w-0">
                                 <div className="font-medium truncate">{agent.name}</div>
-                                {agent.specialist && (
+                                {deprockAgentIds.has(agent.id) && deprockDeptMap[agent.id] && (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {deprockDeptMap[agent.id].map((dept, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-[10px] h-4 px-1.5 font-normal bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+                                        {dept.departmentName}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                                {agent.specialist && !deprockAgentIds.has(agent.id) && (
                                   <div className="text-xs text-muted-foreground truncate">{agent.specialist}</div>
                                 )}
                                 {/* Show type badge inline on mobile */}
@@ -1699,7 +1678,7 @@ export default function Agents() {
                 </div>
 
                 {/* Voice Settings for Flow Agents - Only show for ElevenLabs-based engines */}
-                {formData.telephonyProvider !== "plivo" && formData.telephonyProvider !== "twilio_openai" && formData.telephonyProvider !== "openai-sip" && (
+                {formData.telephonyProvider !== "twilio_openai" && formData.telephonyProvider !== "openai-sip" && (
                   <div className="space-y-3 border-t pt-4">
                     <Label className="text-base">{t('agents.create.voiceFineTuning')}</Label>
                     
@@ -1760,7 +1739,7 @@ export default function Agents() {
                 )}
 
                 {/* System Tools Section for Flow Agents - Only show for ElevenLabs-based engines */}
-                {formData.telephonyProvider !== "plivo" && formData.telephonyProvider !== "twilio_openai" && formData.telephonyProvider !== "openai-sip" && (
+                {formData.telephonyProvider !== "twilio_openai" && formData.telephonyProvider !== "openai-sip" && (
                   <div className="space-y-4 border-t pt-4">
                     <div className="flex items-center">
                       <Label className="text-base">{t('agents.create.systemTools')}</Label>
@@ -1788,7 +1767,7 @@ export default function Agents() {
                 )}
 
                 {/* Telephony Provider Selection for Flow Agents */}
-                {(hasAlternateEngines || formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai") && (
+                {(hasAlternateEngines || formData.telephonyProvider === "twilio_openai") && (
                   <div className="space-y-2 border-t pt-4">
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
@@ -1796,7 +1775,7 @@ export default function Agents() {
                       </div>
                       <Label className="text-sm font-semibold text-amber-700 dark:text-amber-300">Voice Engine</Label>
                     </div>
-                    <div className={`grid gap-3 ${isPlivoEnabled && isTwilioOpenaiEnabled ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                    <div className="grid gap-3 grid-cols-2">
                       {/* ElevenLabs + Twilio - Purple theme */}
                       <div
                         className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
@@ -1851,36 +1830,6 @@ export default function Agents() {
                             </div>
                             {formData.telephonyProvider === "twilio_openai" && (
                               <Check className="h-4 w-4 text-teal-600" />
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {/* OpenAI + Plivo - Green theme */}
-                      {(isPlivoEnabled || formData.telephonyProvider === "plivo") && (
-                        <div
-                          className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                            formData.telephonyProvider === "plivo"
-                              ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20"
-                              : "border-border hover:border-emerald-400/50 hover:bg-emerald-500/5"
-                          }`}
-                          onClick={() => setFormData({ 
-                            ...formData, 
-                            telephonyProvider: "plivo",
-                            llmModel: "gpt-realtime-mini"
-                          })}
-                          data-testid="flow-provider-plivo"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-medium text-emerald-700 dark:text-emerald-300">OpenAI + Plivo</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                Real-time AI, India numbers
-                              </p>
-                            </div>
-                            {formData.telephonyProvider === "plivo" && (
-                              <Check className="h-4 w-4 text-emerald-600" />
                             )}
                           </div>
                         </div>
@@ -1961,7 +1910,7 @@ export default function Agents() {
                     </Label>
                     <InfoTooltip content={t('agents.create.voiceTooltip')} />
                   </div>
-                  {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
+                  {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
                     <Select
                       value={formData.openaiVoice}
                       onValueChange={(value) => setFormData({ ...formData, openaiVoice: value })}
@@ -2018,11 +1967,11 @@ export default function Agents() {
                   <div className="space-y-2">
                     <div className="flex items-center">
                       <Label htmlFor="flow-model">
-                        {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI Model" : t('agents.create.llmModelRequired')} <span className="text-destructive">*</span>
+                        {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI Model" : t('agents.create.llmModelRequired')} <span className="text-destructive">*</span>
                       </Label>
-                      <InfoTooltip content={(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "Select the OpenAI Realtime model for voice conversations" : t('agents.create.llmModelTooltip')} />
+                      <InfoTooltip content={(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "Select the OpenAI Realtime model for voice conversations" : t('agents.create.llmModelTooltip')} />
                     </div>
-                    {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
+                    {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
                       <Select
                         value={formData.llmModel}
                         onValueChange={(value) => setFormData({ ...formData, llmModel: value })}
@@ -2094,7 +2043,7 @@ export default function Agents() {
                       </Select>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI Realtime models for low-latency voice AI" : t('agents.create.chooseModelFlow')}
+                      {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI Realtime models for low-latency voice AI" : t('agents.create.chooseModelFlow')}
                     </p>
                   </div>
 
@@ -2102,12 +2051,12 @@ export default function Agents() {
                   <div className="space-y-2">
                     <div className="flex items-center">
                       <Label>{t('agents.create.temperature')}</Label>
-                      <InfoTooltip content={(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI temperature (0-2): Higher values make output more random" : t('agents.create.temperatureTooltip')} />
+                      <InfoTooltip content={(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI temperature (0-2): Higher values make output more random" : t('agents.create.temperatureTooltip')} />
                     </div>
                     <div className="space-y-4">
                       <Slider
                         min={0}
-                        max={(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? 2 : 1}
+                        max={(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? 2 : 1}
                         step={0.1}
                         value={[formData.temperature]}
                         onValueChange={(value) => setFormData({ ...formData, temperature: value[0] })}
@@ -2143,7 +2092,7 @@ export default function Agents() {
                           >
                             {t('agents.create.moreCreative')}
                           </Button>
-                          {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") && (
+                          {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") && (
                             <Button
                               type="button"
                               variant={formData.temperature === 2.0 ? "default" : "outline"}
@@ -2254,10 +2203,10 @@ export default function Agents() {
             </div>
 
             {/* Telephony Provider Selection - Show only for INCOMING agents if alternate engines are enabled */}
-            {formData.type === 'incoming' && (hasAlternateEngines || formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai") && (
+            {formData.type === 'incoming' && (hasAlternateEngines || formData.telephonyProvider === "twilio_openai") && (
               <div className="space-y-2">
                 <Label>Telephony Provider</Label>
-                <div className={`grid gap-3 ${isPlivoEnabled && isTwilioOpenaiEnabled ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <div className="grid gap-3 grid-cols-2">
                   {/* ElevenLabs + Twilio - Purple theme */}
                   <div
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
@@ -2312,36 +2261,6 @@ export default function Agents() {
                         </div>
                         {formData.telephonyProvider === "twilio_openai" && (
                           <Check className="h-4 w-4 text-teal-600" />
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {/* OpenAI + Plivo - Green theme */}
-                  {(isPlivoEnabled || formData.telephonyProvider === "plivo") && (
-                    <div
-                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                        formData.telephonyProvider === "plivo"
-                          ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20"
-                          : "border-border hover:border-emerald-400/50 hover:bg-emerald-500/5"
-                      }`}
-                      onClick={() => setFormData({ 
-                        ...formData, 
-                        telephonyProvider: "plivo",
-                        llmModel: "gpt-realtime-mini"
-                      })}
-                      data-testid="provider-plivo"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-emerald-700 dark:text-emerald-300">OpenAI + Plivo</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Real-time AI, India numbers
-                          </p>
-                        </div>
-                        {formData.telephonyProvider === "plivo" && (
-                          <Check className="h-4 w-4 text-emerald-600" />
                         )}
                       </div>
                     </div>
@@ -2423,7 +2342,7 @@ export default function Agents() {
                   </Label>
                   <InfoTooltip content={t('agents.create.voiceTooltip')} />
                 </div>
-                {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
+                {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <Select
@@ -2537,11 +2456,11 @@ export default function Agents() {
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <Label htmlFor="model">
-                      {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI Model" : t('agents.create.llmModelRequired')} <span className="text-destructive">*</span>
+                      {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI Model" : t('agents.create.llmModelRequired')} <span className="text-destructive">*</span>
                     </Label>
-                    <InfoTooltip content={(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "Select the OpenAI Realtime model for voice conversations" : t('agents.create.llmModelTooltip')} />
+                    <InfoTooltip content={(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "Select the OpenAI Realtime model for voice conversations" : t('agents.create.llmModelTooltip')} />
                   </div>
-                  {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
+                  {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? (
                     <Select
                       value={formData.llmModel}
                       onValueChange={(value) => setFormData({ ...formData, llmModel: value })}
@@ -2613,7 +2532,7 @@ export default function Agents() {
                     </Select>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI Realtime models for low-latency voice AI" : t('agents.create.chooseModel')}
+                    {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI Realtime models for low-latency voice AI" : t('agents.create.chooseModel')}
                   </p>
                 </div>
 
@@ -2621,12 +2540,12 @@ export default function Agents() {
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <Label>{t('agents.create.temperature')}</Label>
-                    <InfoTooltip content={(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI temperature (0-2): Higher values make output more random" : t('agents.create.temperatureTooltipFull')} />
+                    <InfoTooltip content={(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? "OpenAI temperature (0-2): Higher values make output more random" : t('agents.create.temperatureTooltipFull')} />
                   </div>
                   <div className="space-y-4">
                     <Slider
                       min={0}
-                      max={(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? 2 : 1}
+                      max={(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") ? 2 : 1}
                       step={0.1}
                       value={[formData.temperature]}
                       onValueChange={(value) => setFormData({ ...formData, temperature: value[0] })}
@@ -2662,7 +2581,7 @@ export default function Agents() {
                         >
                           {t('agents.create.moreCreative')}
                         </Button>
-                        {(formData.telephonyProvider === "plivo" || formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") && (
+                        {(formData.telephonyProvider === "twilio_openai" || formData.telephonyProvider === "openai-sip") && (
                           <Button
                             type="button"
                             variant={formData.temperature === 2.0 ? "default" : "outline"}
@@ -2679,7 +2598,7 @@ export default function Agents() {
                 </div>
 
             {/* Voice Fine-Tuning Section for Incoming Agents - Only show for ElevenLabs-based engines */}
-            {formData.telephonyProvider !== "plivo" && formData.telephonyProvider !== "twilio_openai" && formData.telephonyProvider !== "openai-sip" && (
+            {formData.telephonyProvider !== "twilio_openai" && formData.telephonyProvider !== "openai-sip" && (
               <div className="space-y-3 border-t pt-4">
                 <Label className="text-base">{t('agents.create.voiceFineTuning')}</Label>
                 
@@ -2941,7 +2860,7 @@ export default function Agents() {
                     </div>
                 </label>
 
-                {/* Appointment Booking Toggle - All incoming agents (ElevenLabs, Twilio+OpenAI, Plivo+OpenAI) */}
+                {/* Appointment Booking Toggle - All incoming agents (ElevenLabs, Twilio+OpenAI) */}
                 {formData.type === "incoming" && (
                   <label className="flex items-center gap-3 cursor-pointer" data-testid="label-enable-appointment-booking">
                     <Checkbox
@@ -3092,6 +3011,7 @@ export default function Agents() {
         onOpenChange={setWizardOpen}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
         }}
       />
       </div>

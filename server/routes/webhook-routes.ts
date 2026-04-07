@@ -17,7 +17,7 @@
  */
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { calls, campaigns, users, creditTransactions, contacts, globalSettings, phoneNumbers, incomingAgents, incomingConnections, humanIncomingConnections, agents, knowledgeBase, appointments, appointmentSettings, flows, sipCalls, elevenLabsCredentials, ivrConfigurations, departments, departmentAgents } from '../../shared/schema';
+import { calls, campaigns, users, creditTransactions, contacts, globalSettings, phoneNumbers, incomingAgents, incomingConnections, humanIncomingConnections, agents, knowledgeBase, appointments, appointmentSettings, flows, sipCalls, elevenLabsCredentials, ivrConfigurations, departments, departmentAgents, forms, formFields, formSubmissions } from '../../shared/schema';
 import { nanoid } from 'nanoid';
 import { eq, and, inArray, sql, desc } from 'drizzle-orm';
 import WebSocket from 'ws';
@@ -1483,7 +1483,9 @@ export async function handleIvrSelection(req: Request, res: Response) {
       sayWithVoice(response, template.holdMsg);
       const firstAgent = deptAgentsList[0].agent;
       if (firstAgent?.transferPhoneNumber) {
-        response.dial().number(firstAgent.transferPhoneNumber);
+        // Use the Twilio number (To) as caller ID, not the caller's number (From)
+        // Twilio requires the caller ID to be a verified/owned number in the account
+        response.dial({ callerId: To, timeout: 30, hangupOnStar: false }).number(firstAgent.transferPhoneNumber);
       } else {
         sayWithVoice(response, template.noAgentMsg);
         response.hangup();
@@ -1648,91 +1650,90 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
       // Direct transfer (no AI agent or AI agent fallback)
       console.log(`📞 [Human Agent] Found human agent connection for ${To} → transferring to ${hc.transferNumber}`);
+      console.log(`📞 [Human Agent] Transfer details: From=${From}, To=${To}, CallSid=${CallSid}`);
+      console.log(`📞 [Human Agent] IVR enabled: ${hc.ivrEnabled}, IVR greeting: ${hc.ivrGreeting ? 'set' : 'none'}`);
 
-      const VoiceResponse = twilio.twiml.VoiceResponse;
-      const response = new VoiceResponse();
+      const domain = getDomain(req.headers.host as string);
+      
+      // Use conference bridge pattern: put caller in a conference room,
+      // then use REST API to call the transfer number into the same room.
+      // This avoids <Dial> verb issues with geographic permissions and toll-free numbers.
+      const conferenceRoom = `human-transfer-${CallSid}`;
+      const statusCallbackUrl = `${domain}/api/webhooks/twilio/human-dial-status`;
 
+      let twimlOutput = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>`;
+      
       if (hc.ivrEnabled && hc.ivrGreeting) {
-        response.say({ voice: 'Polly.Joanna' }, hc.ivrGreeting);
+        twimlOutput += `
+  <Say voice="Polly.Joanna">${hc.ivrGreeting}</Say>`;
       }
 
-      response.dial({ callerId: From }, hc.transferNumber);
+      twimlOutput += `
+  <Say voice="Polly.Joanna">Please hold while we connect you.</Say>
+  <Dial>
+    <Conference startConferenceOnEnter="true" endConferenceOnExit="true" waitUrl="http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical" beep="false">${conferenceRoom}</Conference>
+  </Dial>
+</Response>`;
 
+      console.log(`📋 [Human Agent] Generated TwiML for conference bridge:`, twimlOutput);
+
+      // Send TwiML response immediately to put caller in conference
       res.type('text/xml');
-      return res.send(response.toString());
-    }
+      res.send(twimlOutput);
 
-    // Check for Department IVR configuration FIRST (department routing takes priority)
-    let ivrConfig = await db
-      .select()
-      .from(ivrConfigurations)
-      .where(and(
-        eq(ivrConfigurations.phoneNumberId, phone.id),
-        eq(ivrConfigurations.isActive, true),
-        eq(ivrConfigurations.engineType, 'default')
-      ))
-      .orderBy(desc(ivrConfigurations.updatedAt))
-      .limit(1);
+      // Now use REST API to call the transfer number and join the conference
+      try {
+        const twilioClient = await getTwilioClient();
+        const outboundTwiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Dial>
+    <Conference startConferenceOnEnter="true" endConferenceOnExit="true" beep="false">${conferenceRoom}</Conference>
+  </Dial>
+</Response>`;
 
-    // Fallback: if no IVR config for this specific phone number,
-    // check for any active IVR config from the same user (department can have multiple numbers)
-    if ((!ivrConfig || ivrConfig.length === 0) && phone.userId) {
-      ivrConfig = await db
-        .select()
-        .from(ivrConfigurations)
-        .where(and(
-          eq(ivrConfigurations.userId, phone.userId),
-          eq(ivrConfigurations.isActive, true),
-          eq(ivrConfigurations.engineType, 'default')
-        ))
-        .orderBy(desc(ivrConfigurations.updatedAt))
-        .limit(1);
-      if (ivrConfig && ivrConfig.length > 0) {
-        console.log(`📞 [Incoming Call] No IVR for phone ${To} directly, using user-level IVR config: ${ivrConfig[0].name}`);
+        // Toll-free numbers (800) cannot originate outbound calls (SIP 403).
+        // Find a local/mobile number owned by the same user to use as the outbound caller ID.
+        let outboundFromNumber = To;
+        const userLocalNumbers = await db
+          .select({ phoneNumber: phoneNumbers.phoneNumber, numberType: phoneNumbers.numberType })
+          .from(phoneNumbers)
+          .where(
+            and(
+              eq(phoneNumbers.userId, phone.userId),
+              eq(phoneNumbers.status, 'active'),
+              eq(phoneNumbers.isSystemPool, false)
+            )
+          );
+
+        const localNum = userLocalNumbers.find(n => n.numberType === 'local' || n.numberType === 'mobile');
+        if (localNum) {
+          outboundFromNumber = localNum.phoneNumber;
+          console.log(`📞 [Human Agent] Using local number ${outboundFromNumber} as outbound caller ID (toll-free cannot originate calls)`);
+        } else {
+          console.log(`⚠️  [Human Agent] No local/mobile number found — using toll-free ${To} (may fail with SIP 403)`);
+        }
+
+        console.log(`📞 [Human Agent] Creating outbound call to ${hc.transferNumber} from ${outboundFromNumber} via REST API`);
+        const outboundCall = await twilioClient.calls.create({
+          to: hc.transferNumber,
+          from: outboundFromNumber,
+          twiml: outboundTwiml,
+          statusCallback: statusCallbackUrl,
+          statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
+          statusCallbackMethod: 'POST',
+          timeout: 30,
+        });
+        console.log(`✅ [Human Agent] Outbound call created: ${outboundCall.sid}, status: ${outboundCall.status}`);
+      } catch (callError: any) {
+        console.error(`❌ [Human Agent] Failed to create outbound call:`, callError.message);
+        console.error(`❌ [Human Agent] Error code: ${callError.code}, status: ${callError.status}`);
+        console.error(`❌ [Human Agent] Full error:`, JSON.stringify(callError, null, 2));
       }
+      return;
     }
 
-    if (ivrConfig && ivrConfig.length > 0) {
-      console.log(`📞 [Incoming Call] Found IVR configuration for ${To} - routing to IVR menu`);
-      return handleIvrCall(req, res, phone, ivrConfig[0], From, CallSid);
-    }
-
-    // Check for Deprock (bedrock-polly) IVR configuration
-    let deprockIvrConfig = await db
-      .select()
-      .from(ivrConfigurations)
-      .where(and(
-        eq(ivrConfigurations.phoneNumberId, phone.id),
-        eq(ivrConfigurations.isActive, true),
-        eq(ivrConfigurations.engineType, 'bedrock-polly')
-      ))
-      .orderBy(desc(ivrConfigurations.updatedAt))
-      .limit(1);
-
-    if ((!deprockIvrConfig || deprockIvrConfig.length === 0) && phone.userId) {
-      deprockIvrConfig = await db
-        .select()
-        .from(ivrConfigurations)
-        .where(and(
-          eq(ivrConfigurations.userId, phone.userId),
-          eq(ivrConfigurations.isActive, true),
-          eq(ivrConfigurations.engineType, 'bedrock-polly')
-        ))
-        .orderBy(desc(ivrConfigurations.updatedAt))
-        .limit(1);
-    }
-
-    if (deprockIvrConfig && deprockIvrConfig.length > 0) {
-      console.log(`📞 [Incoming Call] Found Deprock IVR configuration for ${To} - redirecting to Deprock IVR`);
-      const baseUrl = getDomain();
-      const VoiceResponse = twilio.twiml.VoiceResponse;
-      const response = new VoiceResponse();
-      response.redirect({ method: 'POST' }, `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(deprockIvrConfig[0].id)}&callSid=${encodeURIComponent(CallSid)}&caller=${encodeURIComponent(From)}&attempt=1`);
-      res.type('text/xml');
-      return res.send(response.toString());
-    }
-
-    // Look up the incoming connection for this phone number (fallback if no IVR)
+    // Check for AI Agent Incoming Connection FIRST (direct agent routing takes priority)
     const connection = await db
       .select({
         id: incomingConnections.id,
@@ -1743,11 +1744,80 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
       .limit(1);
 
     if (!connection || connection.length === 0) {
+      console.log(`📞 [Incoming Call] No AI agent connection for ${To} — checking IVR configurations`);
+
+      // Fallback: Check for Department IVR configuration
+      let ivrConfig = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(and(
+          eq(ivrConfigurations.phoneNumberId, phone.id),
+          eq(ivrConfigurations.isActive, true),
+          eq(ivrConfigurations.engineType, 'default')
+        ))
+        .orderBy(desc(ivrConfigurations.updatedAt))
+        .limit(1);
+
+      if ((!ivrConfig || ivrConfig.length === 0) && phone.userId) {
+        ivrConfig = await db
+          .select()
+          .from(ivrConfigurations)
+          .where(and(
+            eq(ivrConfigurations.userId, phone.userId),
+            eq(ivrConfigurations.isActive, true),
+            eq(ivrConfigurations.engineType, 'default')
+          ))
+          .orderBy(desc(ivrConfigurations.updatedAt))
+          .limit(1);
+        if (ivrConfig && ivrConfig.length > 0) {
+          console.log(`📞 [Incoming Call] No IVR for phone ${To} directly, using user-level IVR config: ${ivrConfig[0].name}`);
+        }
+      }
+
+      if (ivrConfig && ivrConfig.length > 0) {
+        console.log(`📞 [Incoming Call] Found IVR configuration for ${To} - routing to IVR menu`);
+        return handleIvrCall(req, res, phone, ivrConfig[0], From, CallSid);
+      }
+
+      // Fallback: Check for Deprock (bedrock-polly) IVR configuration
+      let deprockIvrConfig = await db
+        .select()
+        .from(ivrConfigurations)
+        .where(and(
+          eq(ivrConfigurations.phoneNumberId, phone.id),
+          eq(ivrConfigurations.isActive, true),
+          eq(ivrConfigurations.engineType, 'bedrock-polly')
+        ))
+        .orderBy(desc(ivrConfigurations.updatedAt))
+        .limit(1);
+
+      if ((!deprockIvrConfig || deprockIvrConfig.length === 0) && phone.userId) {
+        deprockIvrConfig = await db
+          .select()
+          .from(ivrConfigurations)
+          .where(and(
+            eq(ivrConfigurations.userId, phone.userId),
+            eq(ivrConfigurations.isActive, true),
+            eq(ivrConfigurations.engineType, 'bedrock-polly')
+          ))
+          .orderBy(desc(ivrConfigurations.updatedAt))
+          .limit(1);
+      }
+
+      if (deprockIvrConfig && deprockIvrConfig.length > 0) {
+        console.log(`📞 [Incoming Call] Found Deprock IVR configuration for ${To} - redirecting to Deprock IVR`);
+        const baseUrl = getDomain();
+        const VoiceResponse = twilio.twiml.VoiceResponse;
+        const response = new VoiceResponse();
+        response.redirect({ method: 'POST' }, `${baseUrl}/api/deprock/ivr/answer?ivrId=${encodeURIComponent(deprockIvrConfig[0].id)}&callSid=${encodeURIComponent(CallSid)}&caller=${encodeURIComponent(From)}&attempt=1`);
+        res.type('text/xml');
+        return res.send(response.toString());
+      }
+
       console.error(`❌ [Incoming Call] REJECTED - Phone number ${To} has no incoming connection or IVR configured`);
       console.error(`   🚨 [Security Audit] Incoming call to unconfigured number: From=${From}, To=${To}, CallSid=${CallSid}`);
       const VoiceResponse = twilio.twiml.VoiceResponse;
       const response = new VoiceResponse();
-      // Use reject() to minimize cost - caller hears busy/disconnect, no billing
       response.reject({ reason: 'rejected' });
       res.type('text/xml');
       return res.send(response.toString());
@@ -1795,22 +1865,63 @@ export async function handleIncomingCallWebhook(req: Request, res: Response) {
 
     const incomingAgent = agent[0];
 
-    // NATIVE ELEVENLABS INTEGRATION:
-    // This webhook should NOT be called for numbers with incoming connections.
-    // Twilio should route directly to ElevenLabs (https://api.elevenlabs.io/twilio/inbound_call).
-    // If we reach here, it means Twilio webhook is misconfigured for this number.
+    // ELEVENLABS ROUTING:
+    // Proxy the Twilio webhook to ElevenLabs native endpoint.
+    // ElevenLabs returns TwiML with a WebSocket stream URL. We relay that back to Twilio.
+    // Twilio then connects its Media Stream directly to ElevenLabs — audio never passes through us.
+    if (!incomingAgent.elevenLabsAgentId) {
+      console.error(`❌ [Incoming Call] Agent has no ElevenLabs agent ID — cannot route call`);
+      const VoiceResponse = twilio.twiml.VoiceResponse;
+      const response = new VoiceResponse();
+      response.say('This agent is not configured for calls. Please contact support.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
     
-    console.log(`⚠️  [Incoming Call] Call reached our server but should be handled by ElevenLabs natively`);
-    console.log(`   This indicates Twilio webhook is misconfigured for phone number ${To}`);
-    console.log(`   Expected: Twilio should route to https://api.elevenlabs.io/twilio/inbound_call`);
-    console.log(`   Fix: Delete and recreate the incoming connection to resync Twilio webhook`);
+    const elevenLabsUrl = `https://api.elevenlabs.io/twilio/inbound_call?agent_id=${incomingAgent.elevenLabsAgentId}`;
+    console.log(`📞 [Incoming Call] Proxying to ElevenLabs: ${elevenLabsUrl}`);
+    console.log(`   Agent: ${incomingAgent.name} (${incomingAgent.elevenLabsAgentId})`);
     
-    // Return a helpful message to the caller
-    const VoiceResponse = twilio.twiml.VoiceResponse;
-    const response = new VoiceResponse();
-    response.say('We are experiencing a temporary configuration issue. Please call back in a moment.');
-    res.type('text/xml');
-    return res.send(response.toString());
+    try {
+      // Forward the Twilio POST body to ElevenLabs and relay the TwiML response
+      const formBody = new URLSearchParams(req.body as Record<string, string>).toString();
+      const elevenLabsResponse = await fetch(elevenLabsUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'TwilioProxy/1.0',
+        },
+        body: formBody,
+      });
+      
+      const twiml = await elevenLabsResponse.text();
+      console.log(`📞 [Incoming Call] ElevenLabs response status: ${elevenLabsResponse.status}`);
+      console.log(`📞 [Incoming Call] ElevenLabs TwiML: ${twiml.substring(0, 300)}`);
+      
+      if (!elevenLabsResponse.ok) {
+        console.error(`❌ [Incoming Call] ElevenLabs rejected the call: ${elevenLabsResponse.status} - ${twiml}`);
+        // Fall back to a graceful message
+        const VoiceResponse = twilio.twiml.VoiceResponse;
+        const response = new VoiceResponse();
+        response.say('We are unable to connect your call at this time. Please try again shortly.');
+        response.hangup();
+        res.type('text/xml');
+        return res.send(response.toString());
+      }
+      
+      // Relay ElevenLabs' TwiML back to Twilio
+      res.type('text/xml');
+      return res.send(twiml);
+    } catch (proxyError: any) {
+      console.error(`❌ [Incoming Call] Failed to proxy to ElevenLabs:`, proxyError.message);
+      const VoiceResponse = twilio.twiml.VoiceResponse;
+      const response = new VoiceResponse();
+      response.say('A connection error occurred. Please try again.');
+      response.hangup();
+      res.type('text/xml');
+      return res.send(response.toString());
+    }
   } catch (error) {
     console.error('❌ [Incoming Call] Error:', error);
     const VoiceResponse = twilio.twiml.VoiceResponse;
@@ -1878,6 +1989,36 @@ export async function handleTwilioVoiceWebhook(req: Request, res: Response) {
   } catch (error) {
     console.error('Voice webhook error:', error);
     res.status(500).send('Internal server error');
+  }
+}
+
+export async function handleHumanDialStatusWebhook(req: Request, res: Response) {
+  try {
+    const { DialCallStatus, DialCallSid, DialCallDuration, CallSid, To, From, DialBridged } = req.body;
+    console.log(`📞 [Human Dial Status] Dial result received:`);
+    console.log(`   CallSid: ${CallSid}`);
+    console.log(`   DialCallSid: ${DialCallSid}`);
+    console.log(`   DialCallStatus: ${DialCallStatus}`);
+    console.log(`   DialCallDuration: ${DialCallDuration}`);
+    console.log(`   DialBridged: ${DialBridged}`);
+    console.log(`   Full body:`, JSON.stringify(req.body));
+
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+
+    if (DialCallStatus === 'completed') {
+      response.hangup();
+    } else {
+      response.say('The person you are trying to reach is not available. Please try again later.');
+      response.hangup();
+    }
+
+    res.type('text/xml');
+    return res.send(response.toString());
+  } catch (error) {
+    console.error(`❌ [Human Dial Status] Error:`, error);
+    res.type('text/xml');
+    return res.send('<Response><Hangup/></Response>');
   }
 }
 
@@ -4558,6 +4699,305 @@ export async function handleFormSubmissionWebhook(req: Request, res: Response) {
 }
 
 /**
+ * Dynamic Form Submission Webhook Handler (ElevenLabs)
+ * 
+ * Handles ad-hoc form submissions from ElevenLabs agents that don't have pre-assigned forms.
+ * Auto-creates an ad-hoc form and saves the submission.
+ * 
+ * Endpoint: POST /api/webhooks/elevenlabs/dynamic-form/:token/:userId/:elevenLabsAgentId
+ */
+export async function handleDynamicFormSubmissionWebhook(req: Request, res: Response) {
+  const { token: urlToken, userId, agentId: elevenLabsAgentId } = req.params;
+
+  console.log(`📋 [Dynamic Form Webhook] Received dynamic submission for user: ${userId}, agent: ${elevenLabsAgentId}`);
+
+  try {
+    const { validateFormWebhookToken } = await import('../services/form-elevenlabs-tool');
+
+    if (!validateFormWebhookToken(urlToken)) {
+      console.warn(`📋 [Dynamic Form Webhook] Invalid authentication token`);
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { contactName, contactPhone, formId, ...extraFields } = req.body;
+
+    const agent = await db
+      .select({ id: agents.id, userId: agents.userId })
+      .from(agents)
+      .where(eq(agents.elevenLabsAgentId, elevenLabsAgentId))
+      .limit(1);
+
+    if (agent.length === 0) {
+      console.warn(`📋 [Dynamic Form Webhook] Agent not found for ${elevenLabsAgentId}`);
+      return res.status(403).json({ success: false, error: 'Agent not found' });
+    }
+
+    const effectiveUserId = agent[0].userId;
+
+    let validatedCallId: string | null = null;
+    const { findCallForWebhook } = await import('../services/call-matcher');
+    const matchedCall = await findCallForWebhook(elevenLabsAgentId, contactPhone || null, effectiveUserId);
+    if (matchedCall) {
+      validatedCallId = matchedCall.callId;
+    }
+
+    let targetFormId: string;
+    let targetFormName: string;
+    let isDynamic = true;
+
+    if (formId) {
+      const [existingForm] = await db
+        .select()
+        .from(forms)
+        .where(and(eq(forms.id, formId), eq(forms.userId, effectiveUserId)))
+        .limit(1);
+
+      if (!existingForm) {
+        return res.json({ success: false, message: 'Form not found. Try without a formId to create an ad-hoc collection.' });
+      }
+
+      targetFormId = existingForm.id;
+      targetFormName = existingForm.name || 'Form';
+      isDynamic = false;
+      console.log(`📋 [Dynamic Form Webhook] Using existing form: ${targetFormName} (${targetFormId})`);
+    } else {
+      let reuseForm: typeof forms.$inferSelect | null = null;
+      if (validatedCallId) {
+        const existingSubmission = await db
+          .select({ formId: formSubmissions.formId })
+          .from(formSubmissions)
+          .where(eq(formSubmissions.callId, validatedCallId))
+          .limit(1);
+
+        if (existingSubmission.length > 0) {
+          const [cachedForm] = await db
+            .select()
+            .from(forms)
+            .where(eq(forms.id, existingSubmission[0].formId))
+            .limit(1);
+          if (cachedForm) {
+            reuseForm = cachedForm;
+            console.log(`📋 [Dynamic Form Webhook] Reusing existing ad-hoc form ${cachedForm.id} for call ${validatedCallId}`);
+          }
+        }
+      }
+
+      if (reuseForm) {
+        targetFormId = reuseForm.id;
+        targetFormName = reuseForm.name;
+      } else {
+        const adHocFormId = nanoid();
+        const [newForm] = await db
+          .insert(forms)
+          .values({
+            id: adHocFormId,
+            userId: effectiveUserId,
+            name: `Call Collection — ${new Date().toLocaleDateString()}`,
+            description: 'Auto-created during a call to capture caller information',
+            isActive: true,
+          })
+          .returning();
+
+        targetFormId = newForm.id;
+        targetFormName = newForm.name;
+        console.log(`📋 [Dynamic Form Webhook] Created ad-hoc form ${targetFormId}`);
+      }
+
+      const existingFieldCount = await db
+        .select({ id: formFields.id })
+        .from(formFields)
+        .where(eq(formFields.formId, targetFormId));
+
+      let nextOrder = existingFieldCount.length;
+      const fieldKeys = Object.keys(extraFields);
+      for (let i = 0; i < fieldKeys.length; i++) {
+        const key = fieldKeys[i];
+        const value = extraFields[key];
+        if (value !== undefined && value !== null && value !== '') {
+          const matchingFields = await db
+            .select({ id: formFields.id })
+            .from(formFields)
+            .where(and(eq(formFields.formId, targetFormId), eq(formFields.question, key)))
+            .limit(1);
+
+          if (matchingFields.length === 0) {
+            await db.insert(formFields).values({
+              id: nanoid(),
+              formId: targetFormId,
+              question: key,
+              fieldType: 'text',
+              isRequired: false,
+              order: nextOrder++,
+            });
+          }
+        }
+      }
+    }
+
+    const responses: { fieldId: string; question: string; answer: string }[] = [];
+
+    if (formId) {
+      const existingFields = await db
+        .select()
+        .from(formFields)
+        .where(eq(formFields.formId, formId))
+        .orderBy(formFields.order);
+
+      for (const field of existingFields) {
+        const value = extraFields[field.question] ?? extraFields[`field_${field.id.replace(/-/g, '_')}`];
+        if (value !== undefined && value !== null) {
+          responses.push({ fieldId: field.id, question: field.question, answer: String(value) });
+        }
+      }
+
+      const existingQuestions = new Set(responses.map(r => r.question.toLowerCase()));
+      for (const [key, value] of Object.entries(extraFields)) {
+        if (key.startsWith('field_')) continue;
+        if (existingQuestions.has(key.toLowerCase())) continue;
+        if (value !== undefined && value !== null && value !== '') {
+          responses.push({ fieldId: nanoid(), question: key, answer: String(value) });
+        }
+      }
+    } else {
+      for (const [key, value] of Object.entries(extraFields)) {
+        if (value !== undefined && value !== null && value !== '') {
+          responses.push({ fieldId: nanoid(), question: key, answer: String(value) });
+        }
+      }
+    }
+
+    if (responses.length === 0 && !contactName && !contactPhone) {
+      return res.json({ success: false, message: 'No data to save.' });
+    }
+
+    const submissionId = nanoid();
+    await db.insert(formSubmissions).values({
+      id: submissionId,
+      formId: targetFormId,
+      callId: validatedCallId,
+      flowExecutionId: null,
+      contactName: contactName || null,
+      contactPhone: contactPhone || null,
+      responses,
+    });
+
+    console.log(`📋 [Dynamic Form Webhook] Created submission ${submissionId} with ${responses.length} responses`);
+
+    try {
+      await webhookDeliveryService.triggerEvent(effectiveUserId, 'form.submitted', {
+        submission: {
+          id: submissionId,
+          formId: targetFormId,
+          formName: targetFormName,
+          contactName: contactName || null,
+          contactPhone: contactPhone || null,
+          responses,
+          submittedAt: new Date().toISOString(),
+          dynamic: isDynamic,
+        },
+        call: { id: validatedCallId },
+      });
+    } catch (webhookError: any) {
+      console.error(`📋 [Dynamic Form Webhook] Webhook trigger failed:`, webhookError.message);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Information saved successfully.',
+      submissionId,
+    });
+  } catch (error: any) {
+    console.error(`❌ [Dynamic Form Webhook] Error:`, error.message);
+    return res.json({
+      success: false,
+      message: 'Unable to save information at this time.',
+    });
+  }
+}
+
+/**
+ * Dynamic Form List Webhook Handler (ElevenLabs)
+ * 
+ * Endpoint: GET /api/webhooks/elevenlabs/dynamic-form-list/:token/:userId/:elevenLabsAgentId
+ */
+export async function handleDynamicFormListWebhook(req: Request, res: Response) {
+  const { token: urlToken, userId, agentId: elevenLabsAgentId } = req.params;
+
+  console.log(`📋 [Dynamic Form List Webhook] Listing forms for user: ${userId}`);
+
+  try {
+    const { validateFormWebhookToken } = await import('../services/form-elevenlabs-tool');
+
+    if (!validateFormWebhookToken(urlToken)) {
+      console.warn(`📋 [Dynamic Form List Webhook] Invalid authentication token`);
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const agent = await db
+      .select({ id: agents.id, userId: agents.userId })
+      .from(agents)
+      .where(eq(agents.elevenLabsAgentId, elevenLabsAgentId))
+      .limit(1);
+
+    if (agent.length === 0) {
+      console.warn(`📋 [Dynamic Form List Webhook] Agent not found for ${elevenLabsAgentId}`);
+      return res.status(403).json({ success: false, error: 'Agent not found' });
+    }
+
+    const effectiveUserId = agent[0].userId;
+
+    const userForms = await db
+      .select({
+        id: forms.id,
+        name: forms.name,
+        description: forms.description,
+      })
+      .from(forms)
+      .where(and(eq(forms.userId, effectiveUserId), eq(forms.isActive, true)));
+
+    if (userForms.length === 0) {
+      return res.json({
+        forms: [],
+        message: 'No forms available. You can still collect data using submit_dynamic_form without a formId.',
+      });
+    }
+
+    const formsWithFields = await Promise.all(
+      userForms.map(async (form) => {
+        const fields = await db
+          .select({
+            id: formFields.id,
+            question: formFields.question,
+            fieldType: formFields.fieldType,
+            isRequired: formFields.isRequired,
+          })
+          .from(formFields)
+          .where(eq(formFields.formId, form.id))
+          .orderBy(formFields.order);
+
+        return {
+          id: form.id,
+          name: form.name,
+          description: form.description,
+          fields: fields.map((f) => ({
+            id: f.id,
+            question: f.question,
+            type: f.fieldType,
+            required: f.isRequired,
+          })),
+        };
+      })
+    );
+
+    console.log(`📋 [Dynamic Form List Webhook] Found ${formsWithFields.length} forms`);
+    return res.json({ forms: formsWithFields });
+  } catch (error: any) {
+    console.error(`❌ [Dynamic Form List Webhook] Error:`, error.message);
+    return res.json({ forms: [], message: 'Unable to retrieve forms at this time.' });
+  }
+}
+
+/**
  * RAG Knowledge Base Tool Webhook Handler
  * 
  * This endpoint is called by ElevenLabs when an agent uses the ask_knowledge tool.
@@ -4652,6 +5092,9 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
       });
     }
     
+    const { enrichKnowledgeBaseIdsWithProducts } = await import('../utils/product-kb-enrichment');
+    knowledgeBaseIds = await enrichKnowledgeBaseIdsWithProducts(knowledgeBaseIds, userId);
+
     if (knowledgeBaseIds.length === 0) {
       console.warn(`📚 [RAG Webhook] No knowledge bases assigned to agent ${elevenLabsAgentId}`);
       return res.json({
@@ -4660,10 +5103,8 @@ export async function handleRAGToolWebhook(req: Request, res: Response) {
       });
     }
     
-    // Import the RAG tool handler
     const { handleAskKnowledgeToolCall } = await import('../services/rag-elevenlabs-tool');
     
-    // Process the query through RAG
     const result = await handleAskKnowledgeToolCall(query, knowledgeBaseIds, userId);
     
     console.log(`📚 [RAG Webhook] Returning result with ${result.sources.length} sources`);

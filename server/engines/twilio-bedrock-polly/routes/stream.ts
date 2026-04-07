@@ -231,7 +231,6 @@ async function initializeSession(
 
     const isFlowAgent = metadata?.isFlowAgent === true;
     const compiledTools = metadata?.compiledTools as any[] | undefined;
-    const metaDataSchema = metadata?.dataSchema as Array<{ name: string; type: string; description: string; required?: boolean }> | undefined;
 
     let agentConfig: AgentConfig;
 
@@ -264,6 +263,7 @@ async function initializeSession(
         ttsProvider: (metadata?.ttsProvider as TtsProvider) || 'aws_polly',
         elevenLabsVoiceId: (metadata?.elevenLabsVoiceId as string) || undefined,
         elevenLabsApiKey: (metadata?.elevenLabsApiKey as string) || undefined,
+        cartesiaVoiceId: (metadata?.ttsProvider === 'cartesia' ? ((metadata?.cartesiaVoiceId as string) || (callRecord.openaiVoice as string) || undefined) : undefined),
       });
       agentConfig = {
         ...factoryConfig,
@@ -280,6 +280,9 @@ async function initializeSession(
 
       const metaBehaviorConfig = metadata?.behaviorConfig as Record<string, any> | undefined;
       const metaWaitingMessages = metadata?.waitingMessages as string[] | undefined;
+      const metaDataSchema = metadata?.dataSchema as Array<{ name: string; type: string; description: string; required?: boolean }> | undefined;
+
+      const streamTtsProvider = (metadata?.ttsProvider as string) || undefined;
 
       agentConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
@@ -289,6 +292,7 @@ async function initializeSession(
         temperature: (metadata?.temperature as number) ?? 0.7,
         language: streamLanguage,
         userTier,
+        ttsProvider: streamTtsProvider as any,
         toolContext: {
           userId: callRecord.userId || '',
           agentId: callRecord.agentId || '',
@@ -299,7 +303,11 @@ async function initializeSession(
         dataSchema: metaDataSchema || undefined,
       });
 
-      const knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
+      let knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
+      if (callRecord.userId) {
+        const { enrichKnowledgeBaseIdsWithProducts } = await import('../../../utils/product-kb-enrichment');
+        knowledgeBaseIds = await enrichKnowledgeBaseIdsWithProducts(knowledgeBaseIds || [], callRecord.userId);
+      }
       if (knowledgeBaseIds && knowledgeBaseIds.length > 0 && callRecord.userId) {
         agentConfig = BedrockAgentFactory.addKnowledgeBaseTool(
           agentConfig,
@@ -358,6 +366,9 @@ async function initializeSession(
         agentConfig.ttsProvider = metadata.ttsProvider as TtsProvider;
         agentConfig.elevenLabsVoiceId = (metadata.elevenLabsVoiceId as string) || undefined;
         agentConfig.elevenLabsApiKey = (metadata.elevenLabsApiKey as string) || undefined;
+        if (metadata.ttsProvider === 'cartesia') {
+          agentConfig.cartesiaVoiceId = (metadata.cartesiaVoiceId as string) || agentConfig.voice || undefined;
+        }
       }
     }
 

@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Save, Loader2, Trash2, AlertTriangle, LogOut, Download, Clock, ShieldCheck, Upload, FileCheck, FilePlus, X, CheckCircle2, XCircle, AlertCircle, ExternalLink, MapPin, RefreshCw, Plus, ChevronRight, ChevronDown, Lock, Bell, UserCog, Key } from "lucide-react";
+import { Save, Loader2, Trash2, AlertTriangle, LogOut, Download, Clock, ShieldCheck, Upload, FileCheck, FilePlus, X, CheckCircle2, XCircle, AlertCircle, ExternalLink, MapPin, RefreshCw, Plus, ChevronRight, ChevronDown, Lock, Bell, UserCog, Key, Mail, TestTube, Eye, EyeOff } from "lucide-react";
 import { ApiKeysTab } from "@/components/api-keys/ApiKeysTab";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef, Suspense } from "react";
@@ -156,6 +156,7 @@ export const ACCOUNT_SETTINGS_SECTIONS = [
   { id: "section-addresses", label: "Addresses", icon: "MapPin" },
   { id: "section-developer", label: "Developer", icon: "Key", conditional: true },
   { id: "section-notifications", label: "Notifications", icon: "Bell" },
+  { id: "section-email-setup", label: "Email Setup", icon: "Mail" },
   { id: "section-data-privacy", label: "Data & Privacy", icon: "Download" },
   { id: "section-account", label: "Account", icon: "LogOut" },
 ];
@@ -178,6 +179,16 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordExpanded, setPasswordExpanded] = useState(false);
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpUsername, setSmtpUsername] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [smtpSecure, setSmtpSecure] = useState(false);
+  const [smtpFromEmail, setSmtpFromEmail] = useState("");
+  const [smtpFromName, setSmtpFromName] = useState("");
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [smtpHasChanges, setSmtpHasChanges] = useState(false);
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const [activeSection, setActiveSection] = useState("section-profile");
@@ -189,6 +200,7 @@ export default function Settings() {
     { id: "section-addresses", label: "Addresses", icon: MapPin },
     ...(isRestApiPluginEnabled ? [{ id: "section-developer", label: "Developer", icon: Key }] : []),
     { id: "section-notifications", label: "Notifications", icon: Bell },
+    { id: "section-email-setup", label: "Email Setup", icon: Mail },
     { id: "section-data-privacy", label: "Data & Privacy", icon: Download },
     { id: "section-account", label: "Account", icon: LogOut },
   ];
@@ -210,6 +222,87 @@ export default function Settings() {
       setSelectedTimezone(user.timezone);
     }
   }, [user]);
+
+  interface SmtpSettingsData {
+    configured: boolean;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUsername?: string;
+    smtpSecure?: boolean;
+    fromEmail?: string;
+    fromName?: string;
+    isVerified?: boolean;
+    hasPassword?: boolean;
+  }
+
+  const { data: smtpSettings, isLoading: smtpLoading } = useQuery<SmtpSettingsData>({
+    queryKey: ["/api/user-smtp"],
+  });
+
+  useEffect(() => {
+    if (smtpSettings?.configured) {
+      setSmtpHost(smtpSettings.smtpHost || "");
+      setSmtpPort(smtpSettings.smtpPort || 587);
+      setSmtpUsername(smtpSettings.smtpUsername || "");
+      setSmtpSecure(smtpSettings.smtpSecure || false);
+      setSmtpFromEmail(smtpSettings.fromEmail || "");
+      setSmtpFromName(smtpSettings.fromName || "");
+      setSmtpPassword(smtpSettings.hasPassword ? "••••••••" : "");
+    }
+  }, [smtpSettings]);
+
+  const saveSmtpMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/user-smtp", data);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to save SMTP settings");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-smtp"] });
+      toast({ title: "Email settings saved", description: "Your SMTP configuration has been saved." });
+      setSmtpHasChanges(false);
+      setSmtpTestResult(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const testSmtpMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/user-smtp/test");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Test failed");
+      }
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setSmtpTestResult({ success: data.success, message: data.success ? data.message : data.error });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-smtp"] });
+    },
+    onError: (error: any) => {
+      setSmtpTestResult({ success: false, message: error.message });
+    },
+  });
+
+  const deleteSmtpMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/user-smtp");
+      if (!res.ok) throw new Error("Failed to delete SMTP settings");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-smtp"] });
+      setSmtpHost(""); setSmtpPort(587); setSmtpUsername(""); setSmtpPassword("");
+      setSmtpSecure(false); setSmtpFromEmail(""); setSmtpFromName("");
+      setSmtpTestResult(null); setSmtpHasChanges(false);
+      toast({ title: "Email settings removed" });
+    },
+  });
 
   useEffect(() => {
     if (selectedTimezone) {
@@ -696,6 +789,183 @@ export default function Settings() {
                 Configure how you receive notifications from {branding.app_name}.
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Email Setup Section */}
+      <div id="section-email-setup" ref={(el) => { sectionRefs.current["section-email-setup"] = el; }}>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5">Email Setup</p>
+        <div className="rounded-2xl bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border border-white/60 dark:border-white/[0.08]">
+          <div className="p-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-500/10 text-blue-500 shrink-0 mt-0.5">
+                <Mail className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium">SMTP Email Configuration</span>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Set up your own email server so the AI agent sends emails from your domain (e.g., sales@yourdomain.com).
+                </p>
+              </div>
+              {smtpSettings?.configured && (
+                <Badge variant={smtpSettings.isVerified ? "default" : "secondary"} className="shrink-0" data-testid="status-smtp-verified">
+                  {smtpSettings.isVerified ? "Verified" : "Not Verified"}
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">SMTP Host</Label>
+                <Input
+                  value={smtpHost}
+                  onChange={(e) => { setSmtpHost(e.target.value); setSmtpHasChanges(true); setSmtpTestResult(null); }}
+                  placeholder="smtp.gmail.com"
+                  className="h-9 text-sm"
+                  data-testid="input-user-smtp-host"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">SMTP Port</Label>
+                <Input
+                  type="number"
+                  value={smtpPort}
+                  onChange={(e) => { setSmtpPort(parseInt(e.target.value) || 587); setSmtpHasChanges(true); setSmtpTestResult(null); }}
+                  placeholder="587"
+                  className="h-9 text-sm"
+                  data-testid="input-user-smtp-port"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Username / Email</Label>
+                <Input
+                  value={smtpUsername}
+                  onChange={(e) => { setSmtpUsername(e.target.value); setSmtpHasChanges(true); setSmtpTestResult(null); }}
+                  placeholder="you@yourdomain.com"
+                  className="h-9 text-sm"
+                  data-testid="input-user-smtp-username"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Password / App Password</Label>
+                <div className="relative">
+                  <Input
+                    type={showSmtpPassword ? "text" : "password"}
+                    value={smtpPassword}
+                    onChange={(e) => { setSmtpPassword(e.target.value); setSmtpHasChanges(true); setSmtpTestResult(null); }}
+                    placeholder="Enter SMTP password"
+                    className="h-9 text-sm pr-9"
+                    data-testid="input-user-smtp-password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                    data-testid="button-toggle-smtp-password"
+                  >
+                    {showSmtpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">From Email</Label>
+                <Input
+                  type="email"
+                  value={smtpFromEmail}
+                  onChange={(e) => { setSmtpFromEmail(e.target.value); setSmtpHasChanges(true); setSmtpTestResult(null); }}
+                  placeholder="sales@yourdomain.com"
+                  className="h-9 text-sm"
+                  data-testid="input-user-smtp-from-email"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">From Name (optional)</Label>
+                <Input
+                  value={smtpFromName}
+                  onChange={(e) => { setSmtpFromName(e.target.value); setSmtpHasChanges(true); setSmtpTestResult(null); }}
+                  placeholder="Your Business Name"
+                  className="h-9 text-sm"
+                  data-testid="input-user-smtp-from-name"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="smtp-secure"
+                checked={smtpSecure}
+                onChange={(e) => { setSmtpSecure(e.target.checked); setSmtpHasChanges(true); setSmtpTestResult(null); }}
+                className="rounded border-gray-300"
+                data-testid="input-user-smtp-secure"
+              />
+              <Label htmlFor="smtp-secure" className="text-xs cursor-pointer">
+                Use SSL/TLS (port 465). Leave unchecked for STARTTLS (port 587).
+              </Label>
+            </div>
+
+            {smtpTestResult && (
+              <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${smtpTestResult.success ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400" : "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400"}`}>
+                {smtpTestResult.success ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <XCircle className="h-3.5 w-3.5 shrink-0" />}
+                <span>{smtpTestResult.message}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                size="sm"
+                onClick={() => {
+                  const data: any = {
+                    smtpHost, smtpPort, smtpUsername, smtpSecure, fromEmail: smtpFromEmail,
+                  };
+                  if (smtpFromName) data.fromName = smtpFromName;
+                  if (smtpPassword && smtpPassword !== "••••••••") data.smtpPassword = smtpPassword;
+                  else if (!smtpSettings?.configured) data.smtpPassword = smtpPassword;
+                  else data.smtpPassword = smtpPassword;
+                  saveSmtpMutation.mutate(data);
+                }}
+                disabled={saveSmtpMutation.isPending || !smtpHost || !smtpUsername || !smtpFromEmail || (!smtpPassword)}
+                data-testid="button-save-user-smtp"
+              >
+                {saveSmtpMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => testSmtpMutation.mutate()}
+                disabled={testSmtpMutation.isPending || !smtpSettings?.configured}
+                data-testid="button-test-user-smtp"
+              >
+                {testSmtpMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <TestTube className="h-3.5 w-3.5 mr-1.5" />}
+                Send Test Email
+              </Button>
+              {smtpSettings?.configured && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  onClick={() => deleteSmtpMutation.mutate()}
+                  disabled={deleteSmtpMutation.isPending}
+                  data-testid="button-delete-user-smtp"
+                >
+                  {deleteSmtpMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+                  Remove
+                </Button>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Common providers: Gmail (smtp.gmail.com:587), Outlook (smtp-mail.outlook.com:587), 
+              Zoho (smtp.zoho.com:587). For Gmail, use an App Password instead of your regular password.
+            </p>
           </div>
         </div>
       </div>

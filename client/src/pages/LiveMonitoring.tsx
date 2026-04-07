@@ -43,7 +43,6 @@ interface LiveCall {
   callId: string;
   userId: string;
   twilioCallSid?: string;
-  plivoCallUuid?: string;
   direction: 'inbound' | 'outbound';
   status: string;
   fromNumber?: string;
@@ -92,8 +91,6 @@ const ENGINE_LABELS: Record<string, string> = {
   'twilio-elevenlabs': 'Twilio + ElevenLabs',
   'twilio-openai': 'Twilio + OpenAI',
   'twilio-bedrock-polly': 'Twilio + Bedrock',
-  'plivo-openai': 'Plivo + OpenAI',
-  'plivo-elevenlabs': 'Plivo + ElevenLabs',
   'sip': 'SIP',
 };
 
@@ -101,8 +98,6 @@ const ENGINE_COLORS: Record<string, string> = {
   'twilio-elevenlabs': 'bg-purple-500/10 text-purple-700 border-purple-500/30',
   'twilio-openai': 'bg-blue-500/10 text-blue-700 border-blue-500/30',
   'twilio-bedrock-polly': 'bg-orange-500/10 text-orange-700 border-orange-500/30',
-  'plivo-openai': 'bg-green-500/10 text-green-700 border-green-500/30',
-  'plivo-elevenlabs': 'bg-teal-500/10 text-teal-700 border-teal-500/30',
   'sip': 'bg-gray-500/10 text-gray-700 border-gray-500/30',
 };
 

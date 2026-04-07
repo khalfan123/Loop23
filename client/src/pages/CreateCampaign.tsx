@@ -49,7 +49,7 @@ interface Agent {
   name: string;
   personality: string;
   type: 'incoming' | 'natural' | 'flow';
-  telephonyProvider: 'twilio' | 'plivo' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
+  telephonyProvider: 'twilio' | 'twilio_openai' | 'elevenlabs-sip' | 'openai-sip' | null;
   sipPhoneNumberId?: string | null;
 }
 
@@ -65,12 +65,6 @@ interface SipPhoneNumber {
   label?: string;
   trunkId: string;
   engine: string;
-}
-
-interface PlivoPhoneNumber {
-  id: string;
-  phoneNumber: string;
-  friendlyName?: string;
 }
 
 interface UserData {
@@ -314,10 +308,6 @@ export default function CreateCampaign() {
 
   const sipPhoneNumbers = sipPhoneNumbersResponse?.data || [];
 
-  const { data: plivoPhoneNumbers = [] } = useQuery<PlivoPhoneNumber[]>({
-    queryKey: ["/api/plivo/phone-numbers"],
-  });
-
   const { data: flows = [] } = useQuery<Flow[]>({
     queryKey: ["/api/flow-automation/flows"],
   });
@@ -363,11 +353,9 @@ export default function CreateCampaign() {
 
   const selectedAgent = agents.find(a => a.id === formData.agentId);
   const isSipAgent = selectedAgent?.telephonyProvider === 'elevenlabs-sip' || selectedAgent?.telephonyProvider === 'openai-sip';
-  const isPlivoAgent = selectedAgent?.telephonyProvider === 'plivo';
 
-  const getAvailablePhoneNumbers = (): (PhoneNumber | SipPhoneNumber | PlivoPhoneNumber)[] => {
+  const getAvailablePhoneNumbers = (): (PhoneNumber | SipPhoneNumber)[] => {
     if (isSipAgent) return sipPhoneNumbers;
-    if (isPlivoAgent) return plivoPhoneNumbers;
     return phoneNumbers;
   };
 
@@ -463,7 +451,7 @@ export default function CreateCampaign() {
         agentId: formData.agentId,
         phoneNumberId: isSipAgent ? formData.sipPhoneNumberId : formData.phoneNumberId,
         script: formData.script,
-        telephonyType: isSipAgent ? 'sip' : isPlivoAgent ? 'plivo' : 'twilio',
+        telephonyType: isSipAgent ? 'sip' : 'twilio',
       });
       return res.json();
     },
@@ -608,11 +596,6 @@ export default function CreateCampaign() {
         return;
       }
       if (!formData.sipPhoneNumberId) {
-        toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
-        return;
-      }
-    } else if (isPlivoAgent) {
-      if (!formData.phoneNumberId) {
         toast({ title: t("campaigns.toast.pleaseSelectPhone"), variant: "destructive" });
         return;
       }
@@ -1522,7 +1505,7 @@ export default function CreateCampaign() {
                       >
                         <SelectTrigger className="h-9" data-testid="select-from-number">
                           <SelectValue placeholder={availablePhoneNumbers.length === 0
-                            ? (isSipAgent ? "No SIP numbers" : isPlivoAgent ? "No Plivo numbers" : t("campaigns.create.noPhoneNumbers"))
+                            ? (isSipAgent ? "No SIP numbers" : t("campaigns.create.noPhoneNumbers"))
                             : t('campaigns.selectNumber', 'Select a phone number')}
                           />
                         </SelectTrigger>

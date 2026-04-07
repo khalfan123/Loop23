@@ -923,7 +923,7 @@ function LeadDetailModal({ lead, open, onClose, stageColor }: { lead: Lead | nul
                       if (isPlaying) {
                         audio.pause();
                       } else {
-                        audio.play();
+                        audio.play().catch(() => {});
                       }
                       setIsPlaying(!isPlaying);
                     }

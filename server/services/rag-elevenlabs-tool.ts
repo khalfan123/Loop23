@@ -110,7 +110,7 @@ export function getAskKnowledgeWebhookTool(elevenLabsAgentId: string): RAGWebhoo
   return {
     type: "webhook",
     name: toolName,
-    description: "Search your knowledge base for relevant information to help answer the caller. Use when the caller asks something you want to verify or get details on.",
+    description: "Search your knowledge base for product details, pricing, features, availability, and business information. ALWAYS use this tool FIRST when the caller asks about products, prices, services, plans, packages, or any factual question. Search in ENGLISH even if the caller speaks another language. Never guess — always search first. If the first search returns nothing, try different keywords and search again.",
     api_schema: {
       url: webhookUrl,
       method: "POST",
@@ -122,7 +122,7 @@ export function getAskKnowledgeWebhookTool(elevenLabsAgentId: string): RAGWebhoo
         properties: {
           query: {
             type: "string",
-            description: "The search query - the question or keywords to search for in the knowledge base"
+            description: "The search query in ENGLISH - translate the caller's question to English keywords for best results. Focus on product names, categories, or features."
           }
         },
         required: ["query"]

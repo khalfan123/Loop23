@@ -25,8 +25,8 @@ import {
   getStatusWebhookUrl,
   getStreamWebhookUrl 
 } from '../config/twilio-openai-config';
-import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
-import { OpenAIAgentFactory } from '../../plivo/services/openai-agent-factory';
+import { OpenAIPoolService } from '../../../services/openai-pool.service';
+import { OpenAIAgentFactory } from '../../../services/openai-agent-factory';
 import { TwilioOpenAIAudioBridge } from './audio-bridge.service';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { 
@@ -102,6 +102,9 @@ export class TwilioOpenAICallService {
 
       const callId = nanoid();
       
+      const { enrichKnowledgeBaseIdsWithProducts } = await import('../../../utils/product-kb-enrichment');
+      const enrichedKbIds = await enrichKnowledgeBaseIdsWithProducts(agent.knowledgeBaseIds || [], userId);
+      
       let agentConfig;
       
       const effectiveFlowId = overrideFlowId || agent.flowId;
@@ -132,7 +135,7 @@ export class TwilioOpenAICallService {
               userId,
               agentId,
               callId,
-              knowledgeBaseIds: agent.knowledgeBaseIds || [],
+              knowledgeBaseIds: enrichedKbIds,
               transferPhoneNumber: agent.transferPhoneNumber || undefined,
             });
             
@@ -157,7 +160,7 @@ export class TwilioOpenAICallService {
                 language,
                 voice: (agent.openaiVoice as string) || 'alloy',
                 model: 'gpt-4o-realtime-preview',
-                knowledgeBaseIds: agent.knowledgeBaseIds || [],
+                knowledgeBaseIds: enrichedKbIds,
                 transferEnabled: agent.transferEnabled || false,
                 transferPhoneNumber: agent.transferPhoneNumber || undefined,
                 endConversationEnabled: agent.endConversationEnabled ?? true,
@@ -179,7 +182,7 @@ export class TwilioOpenAICallService {
                 callId,
               },
               language,
-              knowledgeBaseIds: agent.knowledgeBaseIds || [],
+              knowledgeBaseIds: enrichedKbIds,
               transferPhoneNumber: agent.transferPhoneNumber || undefined,
               transferEnabled: agent.transferEnabled || false,
             });
@@ -205,11 +208,10 @@ export class TwilioOpenAICallService {
           },
         });
 
-        // Add supplemental tools only for natural agents
-        if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
+        if (enrichedKbIds.length > 0) {
           naturalConfig = OpenAIAgentFactory.addKnowledgeBaseTool(
             naturalConfig, 
-            agent.knowledgeBaseIds, 
+            enrichedKbIds, 
             userId
           );
         }
@@ -248,7 +250,6 @@ export class TwilioOpenAICallService {
         fromNumber: normalizedFromNumber,
         toNumber: normalizedToNumber,
         callDirection: 'outbound',
-        credentialId: openaiCredential.id,
       });
 
       const client = await getTwilioClient();

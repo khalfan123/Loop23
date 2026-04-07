@@ -58,6 +58,9 @@ import {
   Users,
   Megaphone,
   ClipboardList,
+  X,
+  AudioWaveform,
+  Zap,
 } from "lucide-react";
 
 interface PhoneNumber {
@@ -91,15 +94,15 @@ interface LanguageAgent {
 }
 
 const NATIVE_NAME_EXAMPLES: Record<string, string[]> = {
-  en: ["Sarah Mitchell", "James Anderson", "Emily Parker", "David Thompson", "Rachel Foster"],
-  es: ["María García López", "Carlos Rodríguez", "Sofía Martínez", "Alejandro Herrera", "Lucía Fernández"],
-  fr: ["Marie Dupont", "Pierre Laurent", "Camille Moreau", "Antoine Lefevre", "Chloé Bernard"],
+  en: ["Sarah Mitchell", "James Anderson", "Emily Parker", "David Thompson", "Rachel Foster", "Michael Chen", "Olivia Bennett", "Daniel Harris", "Jessica Morgan", "Christopher Lee", "Natalie Brooks", "Andrew Wilson", "Sophia Taylor", "Ryan Clark", "Lauren Adams"],
+  es: ["María García López", "Carlos Rodríguez", "Sofía Martínez", "Alejandro Herrera", "Lucía Fernández", "Diego Morales", "Valentina Torres", "Sebastián Ramírez", "Camila Ortiz", "Mateo Jiménez", "Isabella Vargas", "Andrés Castillo", "Daniela Reyes", "Nicolás Mendoza", "Paula Ríos"],
+  fr: ["Marie Dupont", "Pierre Laurent", "Camille Moreau", "Antoine Lefevre", "Chloé Bernard", "Julien Martin", "Élodie Dubois", "Lucas Fontaine", "Manon Girard", "Hugo Petit", "Léa Roux", "Thomas Mercier", "Clara Bonnet", "Maxime Chevalier", "Inès Blanc"],
   de: ["Anna Schmidt", "Hans Müller", "Lena Fischer", "Maximilian Weber", "Sophie Bauer"],
   it: ["Giulia Rossi", "Marco Bianchi", "Francesca Conti", "Alessandro Ferrari", "Elena Moretti"],
   pt: ["Ana Silva", "João Oliveira", "Beatriz Santos", "Pedro Costa", "Mariana Ferreira"],
-  zh: ["李小明", "王美玲", "张小红", "陈志强", "刘晓芳"],
-  hi: ["प्रिया शर्मा", "राहुल वर्मा", "अनिता गुप्ता", "विकास सिंह", "नेहा पटेल"],
-  ar: ["خلفان السلامي", "فاطمة الزهراء", "أحمد المنصوري", "نور الهدى", "سلطان الكعبي"],
+  zh: ["李小明", "王美玲", "张小红", "陈志强", "刘晓芳", "赵雅婷", "黄俊杰", "吴佳琪", "周明华", "林思远", "杨子涵", "何雨桐", "马晓燕", "孙浩然", "朱丽华"],
+  hi: ["प्रिया शर्मा", "राहुल वर्मा", "अनिता गुप्ता", "विकास सिंह", "नेहा पटेल", "अमित कुमार", "सुनीता देवी", "रोहित मिश्रा", "कविता चौहान", "मनीष यादव", "पूजा राजपूत", "दीपक त्रिपाठी", "रश्मि अग्रवाल", "संदीप जोशी", "अंजली भट्ट"],
+  ar: ["فاطمة الزهراء", "أحمد المنصوري", "نور الهدى", "سلطان الكعبي", "ليلى العمري", "محمد الشامسي", "عائشة البلوشي", "عبدالله الحمادي", "مريم الكتبي", "سعيد الدرمكي", "هند المهيري", "راشد النعيمي", "شمّا الفلاسي", "يوسف الزعابي"],
   ja: ["田中さくら", "佐藤太郎", "山本花子", "鈴木一郎", "高橋美咲"],
   ko: ["김지민", "이민수", "박서연", "최준호", "정하윤"],
   nl: ["Sophie de Vries", "Jan van den Berg", "Emma Bakker", "Thomas Visser", "Lisa Jansen"],
@@ -241,23 +244,11 @@ const DEFAULT_FIRST_MESSAGES: Record<string, string> = {
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "es", label: "Spanish" },
-  { code: "fr", label: "French" },
-  { code: "de", label: "German" },
-  { code: "it", label: "Italian" },
-  { code: "pt", label: "Portuguese" },
   { code: "zh", label: "Chinese" },
   { code: "hi", label: "Hindi" },
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
   { code: "ar", label: "Arabic" },
-  { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" },
-  { code: "nl", label: "Dutch" },
-  { code: "pl", label: "Polish" },
-  { code: "sv", label: "Swedish" },
-  { code: "no", label: "Norwegian" },
-  { code: "fi", label: "Finnish" },
-  { code: "da", label: "Danish" },
-  { code: "tr", label: "Turkish" },
 ];
 
 const POLLY_VOICES = [
@@ -344,7 +335,67 @@ const ELEVENLABS_VOICES = [
   { id: "el_omar", name: "Omar (ElevenLabs)", gender: "male", style: "deep", languages: ["ar"] },
 ];
 
-const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_");
+const CARTESIA_DEFAULT_VOICES = [
+  { id: "cartesia_a0e99841-438c-4a64-b679-ae501e7d6091", name: "Barbershop Man (Cartesia)", gender: "male", style: "warm", languages: ["en"] },
+  { id: "cartesia_79a125e8-cd45-4c13-8a67-188112f4dd22", name: "British Lady (Cartesia)", gender: "female", style: "professional", languages: ["en"] },
+  { id: "cartesia_87748186-23bb-4571-8b85-4d0e4e7e7196", name: "Calm Lady (Cartesia)", gender: "female", style: "calm", languages: ["en"] },
+  { id: "cartesia_ee7ea9f8-c0c1-498c-9f62-dc2627e1e3ef", name: "Confident Man (Cartesia)", gender: "male", style: "professional", languages: ["en"] },
+  { id: "cartesia_c2ac25f9-ecc4-4f56-9095-651354df60c0", name: "Customer Support (Cartesia)", gender: "female", style: "friendly", languages: ["en"] },
+  { id: "cartesia_41534e16-2966-4c6b-9670-111411def906", name: "Wise Man (Cartesia)", gender: "male", style: "deep", languages: ["en"] },
+  { id: "cartesia_248be419-c632-4f23-adf1-5324ed7dbf1d", name: "Pleasant Man (Cartesia)", gender: "male", style: "friendly", languages: ["en"] },
+  { id: "cartesia_bf991597-6c13-47e4-8411-91ec2de5c466", name: "Newsman (Cartesia)", gender: "male", style: "crisp", languages: ["en"] },
+  { id: "cartesia_b7d50908-b179-4d51-8d53-8b2a5d5e1bf3", name: "Friendly Sidekick (Cartesia)", gender: "male", style: "expressive", languages: ["en"] },
+  { id: "cartesia_00a77add-48d5-4ef6-8157-71e5437b282d", name: "Sarah (Cartesia)", gender: "female", style: "soft", languages: ["en", "es", "fr", "de", "it", "pt", "zh", "hi", "ar", "ja", "ko"] },
+  { id: "cartesia_f114a467-c40a-4db8-964d-aaba89cd08fa", name: "Friendly French Man (Cartesia)", gender: "male", style: "warm", languages: ["fr"] },
+  { id: "cartesia_a3520a8f-226a-428d-9fcd-b0a4711a6829", name: "French Narrator Lady (Cartesia)", gender: "female", style: "professional", languages: ["fr"] },
+  { id: "cartesia_ab7c61f5-3daa-47dd-a23b-4ac0aac5f5c3", name: "Spanish Narrator Lady (Cartesia)", gender: "female", style: "warm", languages: ["es"] },
+  { id: "cartesia_846d6cb0-2301-48b6-9683-48f5618ea2f6", name: "Spanish Narrator Man (Cartesia)", gender: "male", style: "professional", languages: ["es"] },
+  { id: "cartesia_5c42302c-f55f-481a-b895-80c1cda8c4e2", name: "Chinese Female Voice (Cartesia)", gender: "female", style: "clear", languages: ["zh"] },
+  { id: "cartesia_daf747c6-6bc2-4083-bd59-aa94dce23f5d", name: "Hindi Female Voice (Cartesia)", gender: "female", style: "warm", languages: ["hi"] },
+  { id: "cartesia_2b568345-1d48-4047-b25f-7baccf842eb0", name: "Arabic Male Voice (Cartesia)", gender: "male", style: "professional", languages: ["ar"] },
+];
+
+const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_") || (/^[a-zA-Z0-9]{10,}$/.test(voiceId) && !voiceId.startsWith("cartesia_"));
+const isCartesiaVoice = (voiceId: string) => voiceId.startsWith("cartesia_");
+
+const LANG_CODE_MAP: Record<string, string> = {
+  english: 'en', arabic: 'ar', french: 'fr', spanish: 'es', hindi: 'hi',
+  chinese: 'zh', italian: 'it', german: 'de', portuguese: 'pt', japanese: 'ja',
+  korean: 'ko', dutch: 'nl', polish: 'pl', swedish: 'sv', norwegian: 'no',
+  finnish: 'fi', danish: 'da', turkish: 'tr',
+};
+
+interface ElevenLabsApiVoice {
+  voice_id: string;
+  name: string;
+  category?: string;
+  labels?: Record<string, string>;
+}
+
+function mapApiVoicesToLocal(apiVoices: ElevenLabsApiVoice[]): typeof ELEVENLABS_VOICES {
+  const seenIds = new Set(ELEVENLABS_VOICES.map(v => v.id));
+  const mapped = apiVoices
+    .filter(v => {
+      if (seenIds.has(v.voice_id)) return false;
+      seenIds.add(v.voice_id);
+      return true;
+    })
+    .map(v => {
+      const lang = v.labels?.language?.toLowerCase() || '';
+      const langCode = LANG_CODE_MAP[lang] || lang.substring(0, 2) || 'en';
+      const gender = v.labels?.gender?.toLowerCase() || 'unknown';
+      const accent = v.labels?.accent || '';
+      const style = v.category || v.labels?.use_case || 'professional';
+      return {
+        id: v.voice_id,
+        name: `${v.name} (ElevenLabs)`,
+        gender: gender as 'male' | 'female',
+        style,
+        languages: [langCode],
+      };
+    });
+  return mapped;
+}
 
 const ALL_IVR_VOICES = [...ELEVENLABS_VOICES];
 
@@ -352,22 +403,39 @@ const getPollyVoicesForLanguage = (languageCode: string) => {
   return POLLY_VOICES.filter(voice => voice.languages.includes(languageCode));
 };
 
-const getElevenLabsVoicesForLanguage = (languageCode: string) => {
-  return ELEVENLABS_VOICES.filter(voice => voice.languages.includes(languageCode));
+const getCartesiaVoicesForLanguage = (languageCode: string, dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []) => {
+  const allVoices = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
+  return allVoices.filter(voice => voice.languages.includes(languageCode));
 };
 
-const getVoicesForLanguage = (languageCode: string) => {
-  return ALL_IVR_VOICES.filter(voice => voice.languages.includes(languageCode));
+const getElevenLabsVoicesForLanguage = (languageCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = []) => {
+  const allElVoices = [...ELEVENLABS_VOICES, ...dynamicVoices];
+  return allElVoices.filter(voice => voice.languages.includes(languageCode));
 };
 
-const getDefaultVoiceForLanguage = (langCode: string) => {
-  const voices = getVoicesForLanguage(langCode);
+const getVoicesForLanguage = (languageCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = [], voiceProvider?: VoiceProviderOption, dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []) => {
+  if (voiceProvider === 'cartesia') {
+    return getCartesiaVoicesForLanguage(languageCode, dynamicCartesiaVoices);
+  }
+  const allVoices = [...ALL_IVR_VOICES, ...dynamicVoices];
+  return allVoices.filter(voice => voice.languages.includes(languageCode));
+};
+
+const getDefaultVoiceForLanguage = (langCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = [], voiceProvider?: VoiceProviderOption, dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []) => {
+  const voices = getVoicesForLanguage(langCode, dynamicVoices, voiceProvider, dynamicCartesiaVoices);
+  if (voiceProvider === 'cartesia') {
+    const fallbackVoices = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
+    return voices[0]?.id || fallbackVoices[0]?.id || "cartesia_a0e99841-438c-4a64-b679-ae501e7d6091";
+  }
   return voices[0]?.id || "el_rachel";
 };
 
-const getBestVoiceForDept = (deptType: string, langCode: string): string => {
-  const voices = getVoicesForLanguage(langCode);
-  if (voices.length === 0) return "el_rachel";
+const getBestVoiceForDept = (deptType: string, langCode: string, dynamicVoices: typeof ELEVENLABS_VOICES = [], voiceProvider?: VoiceProviderOption, dynamicCartesiaVoices: typeof CARTESIA_DEFAULT_VOICES = []): string => {
+  const voices = getVoicesForLanguage(langCode, dynamicVoices, voiceProvider, dynamicCartesiaVoices);
+  if (voices.length === 0) {
+    const fallbackVoices = dynamicCartesiaVoices.length > 0 ? dynamicCartesiaVoices : CARTESIA_DEFAULT_VOICES;
+    return voiceProvider === 'cartesia' ? fallbackVoices[0]?.id : "el_rachel";
+  }
 
   const stylePreference: Record<string, string[]> = {
     sales: ["warm", "friendly", "expressive"],
@@ -803,8 +871,9 @@ const departmentTemplates = [
 
 const WIZARD_STEPS = [
   { id: 1, title: "Phone Numbers", icon: Phone },
-  { id: 2, title: "Departments", icon: Building2 },
-  { id: 3, title: "IVR Router", icon: GitBranch },
+  { id: 2, title: "Voice Provider", icon: AudioWaveform },
+  { id: 3, title: "Departments", icon: Building2 },
+  { id: 4, title: "IVR Router", icon: GitBranch },
 ];
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
@@ -955,6 +1024,122 @@ function PhoneSelectionStep({
   );
 }
 
+type VoiceProviderOption = 'elevenlabs' | 'cartesia';
+
+function VoiceProviderStep({
+  selectedProvider,
+  onSelectProvider,
+}: {
+  selectedProvider: VoiceProviderOption;
+  onSelectProvider: (provider: VoiceProviderOption) => void;
+}) {
+  const providers: {
+    id: VoiceProviderOption;
+    name: string;
+    description: string;
+    tier: string;
+    costLabel: string;
+    features: string[];
+    color: string;
+    recommended?: boolean;
+  }[] = [
+    {
+      id: 'cartesia',
+      name: 'Cartesia Sonic',
+      description: 'Ultra-low latency AI voices optimized for real-time phone conversations',
+      tier: 'Standard',
+      costLabel: '~$0.02/min',
+      features: [
+        'Ultra-low latency (~200ms)',
+        '16+ languages supported',
+        'Natural conversational tone',
+        'Cost-effective — lower per-minute rate',
+        'Real-time streaming optimized',
+      ],
+      color: 'text-blue-500',
+      recommended: true,
+    },
+    {
+      id: 'elevenlabs',
+      name: 'ElevenLabs',
+      description: 'Premium AI voices with studio-quality voice cloning and emotion control',
+      tier: 'Premium',
+      costLabel: '~$0.08/min',
+      features: [
+        'Voice cloning capability',
+        '29+ languages supported',
+        'Professional studio quality',
+        'Emotion-rich delivery',
+        'Higher per-minute rate',
+      ],
+      color: 'text-purple-500',
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg sm:text-xl font-semibold" data-testid="text-step2-title">Choose Voice Provider</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          Select the text-to-speech engine for your AI agents. This affects voice quality, latency, and cost.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        {providers.map((provider) => {
+          const isSelected = selectedProvider === provider.id;
+          return (
+            <Card
+              key={provider.id}
+              className={`glass-card cursor-pointer transition-all toggle-elevate relative ${
+                isSelected ? "toggle-elevated border-primary ring-1 ring-primary/30" : "hover:border-muted-foreground/30"
+              }`}
+              onClick={() => onSelectProvider(provider.id)}
+              data-testid={`card-voice-provider-${provider.id}`}
+            >
+              {provider.recommended && (
+                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                  <Badge variant="default" className="text-[10px] px-2 py-0.5 bg-primary">
+                    <Zap className="h-3 w-3 mr-0.5" />
+                    Recommended
+                  </Badge>
+                </div>
+              )}
+              <CardHeader className="pb-2 pt-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold">{provider.name}</CardTitle>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="secondary" className="text-[10px]">{provider.costLabel}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{provider.tier}</Badge>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{provider.description}</p>
+              </CardHeader>
+              <CardContent className="pt-0 pb-4">
+                <ul className="space-y-1.5">
+                  {provider.features.map((feature, i) => (
+                    <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Check className={`h-3 w-3 flex-shrink-0 ${isSelected ? 'text-primary' : provider.color}`} />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                {isSelected && (
+                  <div className="mt-3 flex items-center justify-center">
+                    <div className="p-1 bg-primary rounded-full">
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DepartmentCard({
   dept,
   agents,
@@ -964,6 +1149,10 @@ function DepartmentCard({
   onDelete,
   toast,
   externalGeneratingIds,
+  externalGeneratingNameIds,
+  dynamicElVoices = [],
+  voiceProvider,
+  dynamicCartesiaVoices = [],
 }: {
   dept: CanvasDepartment;
   agents: Agent[];
@@ -973,16 +1162,23 @@ function DepartmentCard({
   onDelete: () => void;
   toast: ReturnType<typeof useToast>["toast"];
   externalGeneratingIds?: Set<string>;
+  externalGeneratingNameIds?: Set<string>;
+  dynamicElVoices?: typeof ELEVENLABS_VOICES;
+  voiceProvider: VoiceProviderOption;
+  dynamicCartesiaVoices?: typeof CARTESIA_DEFAULT_VOICES;
 }) {
   const [activeTabIdx, setActiveTabIdx] = useState(0);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [generatingLangIds, setGeneratingLangIds] = useState<Set<string>>(new Set());
+  const [generatingNameLangIds, setGeneratingNameLangIds] = useState<Set<string>>(new Set());
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isLangGenerating = (langId: string) =>
     generatingLangIds.has(langId) || (externalGeneratingIds?.has(langId) ?? false);
+  const isNameGenerating = (langId: string) =>
+    generatingNameLangIds.has(langId) || (externalGeneratingNameIds?.has(langId) ?? false);
 
   const languageAgents = dept.languageAgents || [];
 
@@ -1044,15 +1240,15 @@ function DepartmentCard({
 
   const handleLanguageChange = (langAgentId: string, newLangCode: string) => {
     const bestAgent = dept.type !== "custom" ? getBestAgentForLang(dept.type, newLangCode) : null;
-    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, newLangCode) : getDefaultVoiceForLanguage(newLangCode);
+    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, newLangCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices) : getDefaultVoiceForLanguage(newLangCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
     const bestTone = dept.type !== "custom" ? getBestToneForDept(dept.type) : null;
 
     const agentFound = !!bestAgent;
     const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
     const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
 
-    // Use placeholder name initially, will be replaced by AI generation
-    const placeholderName = bestAgent?.name || "AI Assistant";
+    const nativeExamples = NATIVE_NAME_EXAMPLES[newLangCode] || NATIVE_NAME_EXAMPLES.en;
+    const placeholderName = nativeExamples[Math.floor(Math.random() * nativeExamples.length)];
     const updates: Partial<LanguageAgent> = {
       language: newLangCode,
       agentId: bestAgent?.id || null,
@@ -1065,14 +1261,14 @@ function DepartmentCard({
 
     updateLanguageAgent(langAgentId, updates);
 
+    generateAiAgentName(langAgentId, newLangCode);
+
     if (agentFound) {
       toast({
         title: "Language Changed",
-        description: `Auto-selected agent "${bestAgent.name}" for ${SUPPORTED_LANGUAGES.find(l => l.code === newLangCode)?.label}`,
+        description: `Auto-selected agent for ${SUPPORTED_LANGUAGES.find(l => l.code === newLangCode)?.label}`,
       });
     } else {
-      // Generate unique AI name and first message
-      generateAiAgentName(langAgentId, newLangCode);
       if (dept.type !== "custom") {
         const updatedList = languageAgents.map(la => la.id === langAgentId ? { ...la, ...updates } : la);
         toast({
@@ -1086,9 +1282,14 @@ function DepartmentCard({
 
   const generatePromptForLangAgent = async (langAgentId: string, deptType: string, deptName: string, langCode: string, currentAgents: LanguageAgent[]) => {
     setGeneratingLangIds((prev) => new Set(prev).add(langAgentId));
+    const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || "English";
+    const translatedName = translateDeptName(deptName, deptType, langCode);
+    const t = toast({
+      title: (<div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /><span>Generating System Prompt</span></div>),
+      description: `Building an AI prompt for ${translatedName} (${langLabel})...`,
+      duration: 120000,
+    });
     try {
-      const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || "English";
-      const translatedName = translateDeptName(deptName, deptType, langCode);
       const response = await apiRequest("POST", "/api/deprock/generate-prompt", {
         departmentType: deptType,
         departmentName: translatedName,
@@ -1101,17 +1302,10 @@ function DepartmentCard({
             la.id === langAgentId ? { ...la, systemPrompt: data.prompt } : la
           ),
         });
-        toast({
-          title: "Prompt Generated",
-          description: `AI-generated prompt for ${translatedName} (${langLabel})`,
-        });
+        t.update({ id: t.id, title: "✅ System Prompt Generated", description: `AI prompt ready for ${translatedName} (${langLabel})`, duration: 3000 });
       }
     } catch {
-      toast({
-        title: "Could not auto-generate prompt",
-        description: "You can write one manually or try generating later",
-        variant: "destructive",
-      });
+      t.update({ id: t.id, title: "❌ Generation Failed", description: "You can write one manually or try generating later", duration: 4000 });
     } finally {
       setGeneratingLangIds((prev) => {
         const next = new Set(prev);
@@ -1129,18 +1323,21 @@ function DepartmentCard({
     const langCode = availableLang.code;
     const langAgentId = `la-${Date.now()}`;
     const bestAgent = dept.type !== "custom" ? getBestAgentForLang(dept.type, langCode) : null;
-    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, langCode) : null;
+    const bestVoice = dept.type !== "custom" ? getBestVoiceForDept(dept.type, langCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices) : null;
     const bestTone = dept.type !== "custom" ? getBestToneForDept(dept.type) : null;
 
     const agentFound = !!bestAgent;
     const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
     const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
 
+    const nativeExamples = NATIVE_NAME_EXAMPLES[langCode] || NATIVE_NAME_EXAMPLES.en;
+    const placeholderName = nativeExamples[Math.floor(Math.random() * nativeExamples.length)];
+
     const newLangAgent: LanguageAgent = {
       id: langAgentId,
       language: langCode,
       agentId: bestAgent?.id || null,
-      agentName: bestAgent?.name || "AI Assistant",
+      agentName: placeholderName,
       firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
       systemPrompt,
       voiceId: bestVoice || null,
@@ -1151,10 +1348,7 @@ function DepartmentCard({
     onUpdate({ languageAgents: updatedList });
     setActiveTabIdx(languageAgents.length);
 
-    if (!agentFound) {
-      // Generate unique AI name and first message
-      generateAiAgentName(langAgentId, langCode);
-    }
+    generateAiAgentName(langAgentId, langCode);
 
     if (dept.type !== "custom") {
       const agentMsg = agentFound ? ` — "${bestAgent.name}" selected,` : " added —";
@@ -1180,15 +1374,29 @@ function DepartmentCard({
   };
 
   const updateLanguageAgent = (id: string, updates: Partial<LanguageAgent>) => {
-    const newList = languageAgents.map((la) =>
-      la.id === id ? { ...la, ...updates } : la
-    );
+    const newList = languageAgents.map((la) => {
+      if (la.id !== id) return la;
+      const merged = { ...la, ...updates };
+      if ('agentName' in updates && updates.agentName !== undefined) {
+        const currentAgent = agents?.find((a: Agent) => a.id === la.agentId);
+        if (currentAgent && updates.agentName !== currentAgent.name) {
+          merged.agentId = null;
+        }
+      }
+      return merged;
+    });
     onUpdate({ languageAgents: newList });
   };
 
   const generateAiAgentName = async (langAgentId: string, langCode: string) => {
     const langAgent = languageAgents.find(la => la.id === langAgentId);
-    setGeneratingLangIds(prev => new Set(prev).add(langAgentId));
+    const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || langCode;
+    setGeneratingNameLangIds(prev => new Set(prev).add(langAgentId));
+    const t = toast({
+      title: (<div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /><span>Generating Agent Name</span></div>),
+      description: `Creating an AI-powered name for your ${langLabel} agent...`,
+      duration: 60000,
+    });
     try {
       const response = await apiRequest("POST", "/api/deprock/generate-name", {
         language: langCode,
@@ -1198,13 +1406,19 @@ function DepartmentCard({
       });
       const data = await response.json();
       if (data.name) {
-        updateLanguageAgent(langAgentId, { agentName: data.name });
-        // After generating name, also generate first message with the new name
+        updateLanguageAgent(langAgentId, { agentName: data.name, agentId: null });
+        setGeneratingNameLangIds(prev => {
+          const next = new Set(prev);
+          next.delete(langAgentId);
+          return next;
+        });
+        t.update({ id: t.id, title: "✅ Agent Name Generated", description: `${data.name} — ready for your ${langLabel} agent`, duration: 3000 });
         setTimeout(() => generateAiFirstMessage(langAgentId, langCode), 300);
       }
     } catch {
+      t.update({ id: t.id, title: "❌ Name Generation Failed", description: "Could not generate agent name", duration: 3000 });
     } finally {
-      setGeneratingLangIds(prev => {
+      setGeneratingNameLangIds(prev => {
         const next = new Set(prev);
         next.delete(langAgentId);
         return next;
@@ -1215,7 +1429,13 @@ function DepartmentCard({
   const generateAiFirstMessage = async (langAgentId: string, langCode: string) => {
     const langAgent = languageAgents.find(la => la.id === langAgentId);
     const translatedDeptName = translateDeptName(dept.name, dept.type, langCode);
+    const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === langCode)?.label || langCode;
     setGeneratingLangIds(prev => new Set(prev).add(langAgentId));
+    const t = toast({
+      title: (<div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /><span>Generating First Message</span></div>),
+      description: `Crafting a greeting for your ${langLabel} agent...`,
+      duration: 60000,
+    });
     try {
       const response = await apiRequest("POST", "/api/deprock/generate-first-message", {
         language: langCode,
@@ -1227,8 +1447,10 @@ function DepartmentCard({
       const data = await response.json();
       if (data.firstMessage) {
         updateLanguageAgent(langAgentId, { firstMessage: data.firstMessage });
+        t.update({ id: t.id, title: "✅ First Message Generated", description: `Greeting ready for your ${langLabel} agent`, duration: 3000 });
       }
     } catch {
+      t.update({ id: t.id, title: "❌ Generation Failed", description: "Could not generate first message", duration: 3000 });
     } finally {
       setGeneratingLangIds(prev => {
         const next = new Set(prev);
@@ -1240,9 +1462,14 @@ function DepartmentCard({
 
   const generatePromptForAgent = async (langAgentId: string, agentName: string, language: string, preserveUpdates?: Partial<LanguageAgent>) => {
     setIsGeneratingPrompt(true);
+    const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === language)?.label || "English";
+    const translatedDeptName = translateDeptName(dept.name, dept.type, language);
+    const t = toast({
+      title: (<div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /><span>Generating System Prompt</span></div>),
+      description: `Building an AI prompt for ${translatedDeptName} (${langLabel})...`,
+      duration: 120000,
+    });
     try {
-      const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === language)?.label || "English";
-      const translatedDeptName = translateDeptName(dept.name, dept.type, language);
       const response = await apiRequest("POST", "/api/deprock/generate-prompt", {
         departmentType: dept.type,
         departmentName: translatedDeptName,
@@ -1259,17 +1486,10 @@ function DepartmentCard({
       const data = await response.json();
       if (data.prompt) {
         updateLanguageAgent(langAgentId, { ...preserveUpdates, systemPrompt: data.prompt });
-        toast({
-          title: "Prompt Generated",
-          description: `AI-generated system prompt for ${translatedDeptName} (${langLabel})`,
-        });
+        t.update({ id: t.id, title: "✅ System Prompt Generated", description: `AI prompt ready for ${translatedDeptName} (${langLabel})`, duration: 3000 });
       }
     } catch (err: any) {
-      toast({
-        title: "Generation Failed",
-        description: err.message || "Could not generate prompt",
-        variant: "destructive",
-      });
+      t.update({ id: t.id, title: "❌ Generation Failed", description: err.message || "Could not generate prompt", duration: 4000 });
     } finally {
       setIsGeneratingPrompt(false);
     }
@@ -1280,7 +1500,7 @@ function DepartmentCard({
     if (agent) {
       const langAgent = languageAgents.find(la => la.id === langAgentId);
       const language = langAgent?.language || "en";
-      const bestVoice = getBestVoiceForDept(dept.type, language);
+      const bestVoice = getBestVoiceForDept(dept.type, language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
       const bestTone = getBestToneForDept(dept.type);
       const agentUpdates: Partial<LanguageAgent> = {
         agentId: agent.id,
@@ -1316,11 +1536,12 @@ function DepartmentCard({
       const response = await apiRequest("POST", "/api/deprock/voice-preview", {
         voiceId,
         text: sampleText,
+        language: langCode,
       });
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       audioRef.current.src = url;
-      audioRef.current.play();
+      audioRef.current.play().catch(() => {});
       audioRef.current.onended = () => {
         setPlayingVoiceId(null);
         URL.revokeObjectURL(url);
@@ -1379,7 +1600,7 @@ function DepartmentCard({
       </div>
 
       {isExpanded && (
-        <CardContent className="px-3 pb-3 pt-0 space-y-3 border-t">
+        <CardContent className="px-3 pb-3 pt-0 space-y-3 border-t min-h-[320px]">
           <div className="pt-3 grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs text-muted-foreground">Department Name</Label>
@@ -1443,7 +1664,15 @@ function DepartmentCard({
           </div>
 
           {activeLangAgent && (
-            <div className="p-2.5 space-y-2.5 border rounded bg-muted/20">
+            <div className="p-2.5 space-y-2.5 border rounded bg-muted/20 relative min-h-[200px]">
+              {(isNameGenerating(activeLangAgent.id) || isLangGenerating(activeLangAgent.id) || isGeneratingPrompt) && (
+                <div className="flex items-center gap-2 px-2 py-1.5 mb-1 rounded-md bg-primary/5 border border-primary/10" data-testid="lang-loading-overlay">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                  <span className="text-xs font-medium text-primary">
+                    {isNameGenerating(activeLangAgent.id) ? "Generating agent name..." : isLangGenerating(activeLangAgent.id) ? "Generating first message..." : "Generating system prompt..."}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Select
@@ -1481,29 +1710,41 @@ function DepartmentCard({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <div className="flex items-center justify-between">
-                    <Label className="text-[11px] text-muted-foreground">Agent Name</Label>
+                    <Label className="text-[11px] text-muted-foreground">
+                      Agent Name
+                      {isNameGenerating(activeLangAgent.id) && (
+                        <span className="ml-1 text-[10px] text-primary animate-pulse">generating...</span>
+                      )}
+                    </Label>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-5 px-1"
-                      disabled={isLangGenerating(activeLangAgent.id)}
+                      disabled={isNameGenerating(activeLangAgent.id) || isLangGenerating(activeLangAgent.id)}
                       onClick={() => generateAiAgentName(activeLangAgent.id, activeLangAgent.language)}
                       data-testid="button-generate-agent-name"
                     >
-                      {isLangGenerating(activeLangAgent.id) ? (
+                      {isNameGenerating(activeLangAgent.id) ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
                         <Sparkles className="h-3 w-3" />
                       )}
                     </Button>
                   </div>
-                  <Input
-                    className="mt-0.5 h-7 text-xs"
-                    value={activeLangAgent.agentName || ""}
-                    onChange={(e) => updateLanguageAgent(activeLangAgent.id, { agentName: e.target.value })}
-                    placeholder={getRandomName(activeLangAgent.language, activeLangAgent.id)}
-                    data-testid="input-agent-name"
-                  />
+                  <div className="relative mt-0.5">
+                    <Input
+                      className="h-7 text-xs"
+                      value={activeLangAgent.agentName || ""}
+                      onChange={(e) => updateLanguageAgent(activeLangAgent.id, { agentName: e.target.value })}
+                      placeholder={isNameGenerating(activeLangAgent.id) ? "Generating name..." : getRandomName(activeLangAgent.language, activeLangAgent.id)}
+                      data-testid="input-agent-name"
+                    />
+                    {isNameGenerating(activeLangAgent.id) && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-[11px] text-muted-foreground">Voice Tone</Label>
@@ -1526,12 +1767,17 @@ function DepartmentCard({
 
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] text-muted-foreground">First Message</Label>
+                  <Label className="text-[11px] text-muted-foreground">
+                    First Message
+                    {isLangGenerating(activeLangAgent.id) && (
+                      <span className="ml-1 text-[10px] text-primary animate-pulse">generating...</span>
+                    )}
+                  </Label>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-5 px-1"
-                    disabled={isLangGenerating(activeLangAgent.id)}
+                    disabled={isLangGenerating(activeLangAgent.id) || isNameGenerating(activeLangAgent.id)}
                     onClick={() => generateAiFirstMessage(activeLangAgent.id, activeLangAgent.language)}
                     data-testid="button-generate-first-message"
                   >
@@ -1542,13 +1788,20 @@ function DepartmentCard({
                     )}
                   </Button>
                 </div>
-                <Input
-                  className="mt-0.5 h-7 text-xs"
-                  value={activeLangAgent.firstMessage || ""}
-                  onChange={(e) => updateLanguageAgent(activeLangAgent.id, { firstMessage: e.target.value })}
-                  placeholder={DEFAULT_FIRST_MESSAGES[activeLangAgent.language] || DEFAULT_FIRST_MESSAGES.en}
-                  data-testid="input-first-message"
-                />
+                <div className="relative mt-0.5">
+                  <Input
+                    className="h-7 text-xs"
+                    value={activeLangAgent.firstMessage || ""}
+                    onChange={(e) => updateLanguageAgent(activeLangAgent.id, { firstMessage: e.target.value })}
+                    placeholder={isLangGenerating(activeLangAgent.id) ? "Generating first message..." : (DEFAULT_FIRST_MESSAGES[activeLangAgent.language] || DEFAULT_FIRST_MESSAGES.en)}
+                    data-testid="input-first-message"
+                  />
+                  {isLangGenerating(activeLangAgent.id) && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -1562,9 +1815,9 @@ function DepartmentCard({
                       <SelectValue placeholder="Select a voice..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {getVoicesForLanguage(activeLangAgent.language).length > 0 ? (
+                      {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices).length > 0 ? (
                         <>
-                          {getElevenLabsVoicesForLanguage(activeLangAgent.language).map((voice) => (
+                          {getVoicesForLanguage(activeLangAgent.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices).map((voice) => (
                             <SelectItem key={voice.id} value={voice.id}>
                               {voice.name} - {voice.gender}, {voice.style}
                             </SelectItem>
@@ -1595,7 +1848,12 @@ function DepartmentCard({
 
               <div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] text-muted-foreground">System Prompt</Label>
+                  <Label className="text-[11px] text-muted-foreground">
+                    System Prompt
+                    {isGeneratingPrompt && (
+                      <span className="ml-1 text-[10px] text-primary animate-pulse">generating...</span>
+                    )}
+                  </Label>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1622,12 +1880,10 @@ function DepartmentCard({
                     placeholder={isLangGenerating(activeLangAgent.id) ? "Generating prompt with AI..." : "Instructions for the AI agent..."}
                     data-testid="input-agent-prompt"
                   />
-                  {isLangGenerating(activeLangAgent.id) && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-md">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>Generating AI prompt...</span>
-                      </div>
+                  {(isLangGenerating(activeLangAgent.id) || isGeneratingPrompt) && !activeLangAgent.systemPrompt && (
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1.5 text-xs text-primary">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Generating AI prompt...</span>
                     </div>
                   )}
                 </div>
@@ -1776,17 +2032,24 @@ function DepartmentsStep({
   setCanvasDepartments,
   agents,
   toast,
+  dynamicElVoices = [],
+  voiceProvider,
+  dynamicCartesiaVoices = [],
 }: {
   canvasDepartments: CanvasDepartment[];
   setCanvasDepartments: (fn: (prev: CanvasDepartment[]) => CanvasDepartment[]) => void;
   agents: Agent[];
   toast: ReturnType<typeof useToast>["toast"];
+  dynamicElVoices?: typeof ELEVENLABS_VOICES;
+  voiceProvider: VoiceProviderOption;
+  dynamicCartesiaVoices?: typeof CARTESIA_DEFAULT_VOICES;
 }) {
   const [customDeptName, setCustomDeptName] = useState("");
   const [activeDeptId, setActiveDeptId] = useState<string | null>(null);
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [editDeptName, setEditDeptName] = useState("");
   const [generatingDeptLangIds, setGeneratingDeptLangIds] = useState<Set<string>>(new Set());
+  const [generatingNameDeptIds, setGeneratingNameDeptIds] = useState<Set<string>>(new Set());
 
   const getBestAgentForDept = (deptType: string, langCode: string): { id: string; name: string; systemPrompt: string | null; voiceTone: string | null } | null => {
     const langAgents = agents.filter((a) => (a.language || "en").toLowerCase() === langCode.toLowerCase());
@@ -1816,7 +2079,7 @@ function DepartmentsStep({
   };
 
   const generateAiNameForNewDept = async (deptId: string, langAgentId: string, langCode: string, deptType: string, deptName: string) => {
-    setGeneratingDeptLangIds((prev) => new Set(prev).add(langAgentId));
+    setGeneratingNameDeptIds((prev) => new Set(prev).add(langAgentId));
     try {
       // Generate AI name with the provided department info
       const nameResponse = await apiRequest("POST", "/api/deprock/generate-name", {
@@ -1827,20 +2090,26 @@ function DepartmentsStep({
       const nameData = await nameResponse.json();
       
       if (nameData.name) {
-        // Update with the generated name
+        // Update with the generated name, then switch loading state to first message
         setCanvasDepartments((prev) =>
           prev.map((d) => {
             if (d.id !== deptId) return d;
             return {
               ...d,
               languageAgents: (d.languageAgents || []).map((la) =>
-                la.id === langAgentId ? { ...la, agentName: nameData.name } : la
+                la.id === langAgentId ? { ...la, agentName: nameData.name, agentId: null } : la
               ),
             };
           })
         );
+        setGeneratingNameDeptIds((prev) => {
+          const next = new Set(prev);
+          next.delete(langAgentId);
+          return next;
+        });
 
         // Then generate the first message with the new name
+        setGeneratingDeptLangIds((prev) => new Set(prev).add(langAgentId));
         try {
           const translatedDeptName = translateDeptName(deptName, deptType, langCode);
           
@@ -1867,11 +2136,17 @@ function DepartmentsStep({
           }
         } catch {
           // If first message generation fails, that's ok - at least we have the name
+        } finally {
+          setGeneratingDeptLangIds((prev) => {
+            const next = new Set(prev);
+            next.delete(langAgentId);
+            return next;
+          });
         }
       }
     } catch {
     } finally {
-      setGeneratingDeptLangIds((prev) => {
+      setGeneratingNameDeptIds((prev) => {
         const next = new Set(prev);
         next.delete(langAgentId);
         return next;
@@ -1933,18 +2208,21 @@ function DepartmentsStep({
 
     const languageAgents: LanguageAgent[] = langsToAdd.map((langCode, idx) => {
       const langAgentId = `la-${Date.now()}-${idx}`;
-      const bestVoice = deptType !== "custom" ? getBestVoiceForDept(deptType, langCode) : getDefaultVoiceForLanguage(langCode);
+      const bestVoice = deptType !== "custom" ? getBestVoiceForDept(deptType, langCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices) : getDefaultVoiceForLanguage(langCode, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
       const bestTone = deptType !== "custom" ? getBestToneForDept(deptType) : null;
       const bestAgent = deptType !== "custom" ? getBestAgentForDept(deptType, langCode) : null;
       const agentFound = !!bestAgent;
       const systemPrompt = agentFound ? (bestAgent.systemPrompt || "") : "";
       const voiceTone = agentFound ? (bestAgent.voiceTone || bestTone) : bestTone;
 
+      const nativeExamples = NATIVE_NAME_EXAMPLES[langCode] || NATIVE_NAME_EXAMPLES.en;
+      const placeholderName = nativeExamples[Math.floor(Math.random() * nativeExamples.length)];
+
       return {
         id: langAgentId,
         language: langCode,
         agentId: bestAgent?.id || null,
-        agentName: bestAgent?.name || "AI Assistant",
+        agentName: placeholderName,
         firstMessage: DEFAULT_FIRST_MESSAGES[langCode] || DEFAULT_FIRST_MESSAGES.en,
         systemPrompt,
         voiceId: bestVoice || null,
@@ -2213,6 +2491,10 @@ function DepartmentsStep({
             onDelete={() => deleteDepartment(activeDept.id)}
             toast={toast}
             externalGeneratingIds={generatingDeptLangIds}
+            externalGeneratingNameIds={generatingNameDeptIds}
+            dynamicElVoices={dynamicElVoices}
+            voiceProvider={voiceProvider}
+            dynamicCartesiaVoices={dynamicCartesiaVoices}
           />
         )}
       </div>
@@ -2237,7 +2519,13 @@ function IVRRouterStep({
   selectedPhoneIds,
   ivrVoiceSpeed,
   setIvrVoiceSpeed,
+  selectedLangTab,
+  setSelectedLangTab,
   toast,
+  dynamicElVoices = [],
+  voiceProvider,
+  dynamicCartesiaVoices = [],
+  customizedDeptGreetings,
 }: {
   ivrEnabled: boolean;
   setIvrEnabled: (val: boolean) => void;
@@ -2255,11 +2543,16 @@ function IVRRouterStep({
   selectedPhoneIds: string[];
   ivrVoiceSpeed: number;
   setIvrVoiceSpeed: (val: number) => void;
+  selectedLangTab: string;
+  setSelectedLangTab: (val: string) => void;
   toast: ReturnType<typeof useToast>["toast"];
+  dynamicElVoices?: typeof ELEVENLABS_VOICES;
+  voiceProvider: VoiceProviderOption;
+  dynamicCartesiaVoices?: typeof CARTESIA_DEFAULT_VOICES;
+  customizedDeptGreetings: React.MutableRefObject<Set<string>>;
 }) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const customizedDeptGreetings = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     audioRef.current = new Audio();
@@ -2278,23 +2571,6 @@ function IVRRouterStep({
   }, [languageOptions, companyDisplayName]);
 
   const deptInfos: DeptInfo[] = canvasDepartments.map(d => ({ name: d.name || "Department", type: d.type }));
-  const deptNamesKey = deptInfos.map(d => `${d.name}:${d.type}`).join("||");
-
-  useEffect(() => {
-    if (canvasDepartments.length === 0) return;
-    const updatedOptions = languageOptions.map((opt) => {
-      if (customizedDeptGreetings.current.has(opt.id)) return opt;
-      return {
-        ...opt,
-        greeting: generateDeptGreeting(deptInfos, opt.language),
-        selectedDepartments: canvasDepartments.map(d => d.id),
-      };
-    });
-    const changed = updatedOptions.some((opt, i) => opt.greeting !== languageOptions[i].greeting);
-    if (changed) {
-      setLanguageOptions(updatedOptions);
-    }
-  }, [deptNamesKey, canvasDepartments.length]);
 
   const addLanguageOption = () => {
     const usedLangs = languageOptions.map((o) => o.language);
@@ -2303,14 +2579,16 @@ function IVRRouterStep({
 
     const allDeptIds = canvasDepartments.map(d => d.id);
 
+    const newId = `lang-${Date.now()}`;
     const newOption: LanguageOption = {
-      id: `lang-${Date.now()}`,
+      id: newId,
       language: availableLang.code,
-      voiceId: getDefaultVoiceForLanguage(availableLang.code),
+      voiceId: getDefaultVoiceForLanguage(availableLang.code, dynamicElVoices, voiceProvider, dynamicCartesiaVoices),
       greeting: generateDeptGreeting(deptInfos, availableLang.code),
       selectedDepartments: allDeptIds,
     };
     setLanguageOptions([...languageOptions, newOption]);
+    setSelectedLangTab(newId);
   };
 
   const updateLanguageOption = (id: string, updates: Partial<LanguageOption>) => {
@@ -2325,7 +2603,7 @@ function IVRRouterStep({
             } else {
               updated.greeting = DEFAULT_GREETINGS[updates.language] || DEFAULT_GREETINGS.en;
             }
-            updated.voiceId = getDefaultVoiceForLanguage(updates.language);
+            updated.voiceId = getDefaultVoiceForLanguage(updates.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
           }
           return updated;
         }
@@ -2339,7 +2617,7 @@ function IVRRouterStep({
     setLanguageOptions(languageOptions.filter((opt) => opt.id !== id));
   };
 
-  const handlePlayVoice = async (voiceId: string, text?: string, speed?: number) => {
+  const handlePlayVoice = async (voiceId: string, text?: string, speed?: number, language?: string) => {
     if (!audioRef.current) return;
 
     if (playingVoiceId === voiceId) {
@@ -2352,7 +2630,7 @@ function IVRRouterStep({
     const sampleText = text || DEFAULT_GREETINGS.en;
     try {
       setPlayingVoiceId(voiceId);
-      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: sampleText, speed });
+      const response = await apiRequest("POST", "/api/deprock/voice-preview", { voiceId, text: sampleText, speed, language });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -2368,7 +2646,7 @@ function IVRRouterStep({
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
       audioRef.current.src = audioUrl;
-      audioRef.current.play();
+      audioRef.current.play().catch(() => {});
       audioRef.current.onended = () => {
         setPlayingVoiceId(null);
         URL.revokeObjectURL(audioUrl);
@@ -2472,17 +2750,20 @@ function IVRRouterStep({
                         <SelectValue placeholder="Select a voice..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {ELEVENLABS_VOICES.filter(v => v.languages.includes('en')).map((voice) => (
+                        {getVoicesForLanguage('en', dynamicElVoices, voiceProvider, dynamicCartesiaVoices).map((voice) => (
                           <SelectItem key={voice.id} value={voice.id}>
                             {voice.name} - {voice.gender}, {voice.style}
                           </SelectItem>
                         ))}
+                        {getVoicesForLanguage('en', dynamicElVoices, voiceProvider, dynamicCartesiaVoices).length === 0 && (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">No voices available</div>
+                        )}
                       </SelectContent>
                     </Select>
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => handlePlayVoice(languageSelectionGreetingVoice, languageSelectionGreetingText, ivrVoiceSpeed)}
+                      onClick={() => handlePlayVoice(languageSelectionGreetingVoice, languageSelectionGreetingText, ivrVoiceSpeed, 'en')}
                       data-testid="button-preview-greeting-voice"
                     >
                       {playingVoiceId === languageSelectionGreetingVoice ? (
@@ -2511,157 +2792,191 @@ function IVRRouterStep({
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <Label>Language Options</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addLanguageOption}
-                    disabled={languageOptions.length >= SUPPORTED_LANGUAGES.length}
-                    data-testid="button-add-language"
-                  >
-                    <Plus className="h-3.5 w-3.5 mr-1" />
-                    Add
-                  </Button>
-                </div>
-
-                {languageOptions.map((opt, idx) => (
-                  <div key={opt.id} className="p-3 sm:p-4 border rounded-lg space-y-3">
-                    <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="font-mono">Press {idx + 1}</Badge>
-                        <Select
-                          value={opt.language}
-                          onValueChange={(val) => updateLanguageOption(opt.id, { language: val })}
+              <div className="space-y-0">
+                <Label className="mb-2 block">Language Options</Label>
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="flex items-end bg-muted/40 border-b overflow-x-auto" data-testid="language-tab-bar">
+                    {languageOptions.map((opt, idx) => {
+                      const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === opt.language)?.label || opt.language;
+                      const isActive = selectedLangTab === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => setSelectedLangTab(opt.id)}
+                          className={`relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap border-r transition-colors ${
+                            isActive
+                              ? 'bg-background text-foreground border-b-2 border-b-primary -mb-px z-10'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                          }`}
+                          data-testid={`tab-lang-${idx}`}
                         >
-                          <SelectTrigger className="w-32" data-testid={`select-lang-option-${idx}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SUPPORTED_LANGUAGES.map((lang) => (
-                              <SelectItem
-                                key={lang.code}
-                                value={lang.code}
-                                disabled={languageOptions.some((o) => o.id !== opt.id && o.language === lang.code)}
-                              >
-                                {lang.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeLanguageOption(opt.id)}
-                        data-testid={`button-remove-lang-${idx}`}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </div>
+                          <span className="text-xs font-mono opacity-60">{idx + 1}</span>
+                          <span>{langLabel}</span>
+                          {languageOptions.length > 1 && (
+                            <span
+                              role="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeLanguageOption(opt.id);
+                                if (selectedLangTab === opt.id) {
+                                  const remaining = languageOptions.filter(o => o.id !== opt.id);
+                                  if (remaining.length > 0) setSelectedLangTab(remaining[0].id);
+                                }
+                              }}
+                              className="ml-1 rounded-sm hover:bg-destructive/10 hover:text-destructive p-0.5"
+                              data-testid={`button-remove-lang-${idx}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={addLanguageOption}
+                      disabled={languageOptions.length >= SUPPORTED_LANGUAGES.length}
+                      className="flex items-center gap-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      data-testid="button-add-language"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Add</span>
+                    </button>
+                  </div>
 
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Voice</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Select
-                          value={opt.voiceId}
-                          onValueChange={(val) => updateLanguageOption(opt.id, { voiceId: val })}
-                        >
-                          <SelectTrigger className="flex-1" data-testid={`select-voice-${idx}`}>
-                            <SelectValue placeholder="Select a voice..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getVoicesForLanguage(opt.language).length > 0 ? (
-                              <>
-                                {getVoicesForLanguage(opt.language).map((voice) => (
-                                  <SelectItem key={voice.id} value={voice.id}>
-                                    {voice.name} - {voice.gender}, {voice.style}
+                  {(() => {
+                    const activeOpt = languageOptions.find(o => o.id === selectedLangTab) || languageOptions[0];
+                    if (!activeOpt) {
+                      return (
+                        <div className="text-center py-8 text-muted-foreground text-sm">
+                          Click "Add" to configure language options
+                        </div>
+                      );
+                    }
+                    const activeIdx = languageOptions.findIndex(o => o.id === activeOpt.id);
+                    return (
+                      <div className="p-3 sm:p-4 space-y-3" data-testid={`lang-panel-${activeIdx}`}>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono">Press {activeIdx + 1}</Badge>
+                            <Select
+                              value={activeOpt.language}
+                              onValueChange={(val) => updateLanguageOption(activeOpt.id, { language: val })}
+                            >
+                              <SelectTrigger className="w-32" data-testid={`select-lang-option-${activeIdx}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {SUPPORTED_LANGUAGES.map((lang) => (
+                                  <SelectItem
+                                    key={lang.code}
+                                    value={lang.code}
+                                    disabled={languageOptions.some((o) => o.id !== activeOpt.id && o.language === lang.code)}
+                                  >
+                                    {lang.label}
                                   </SelectItem>
                                 ))}
-                              </>
-                            ) : (
-                              <div className="px-2 py-2 text-sm text-muted-foreground">No voices available for this language</div>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Voice</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Select
+                              value={activeOpt.voiceId}
+                              onValueChange={(val) => updateLanguageOption(activeOpt.id, { voiceId: val })}
+                            >
+                              <SelectTrigger className="flex-1" data-testid={`select-voice-${activeIdx}`}>
+                                <SelectValue placeholder="Select a voice..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {getVoicesForLanguage(activeOpt.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices).length > 0 ? (
+                                  <>
+                                    {getVoicesForLanguage(activeOpt.language, dynamicElVoices, voiceProvider, dynamicCartesiaVoices).map((voice) => (
+                                      <SelectItem key={voice.id} value={voice.id}>
+                                        {voice.name} - {voice.gender}, {voice.style}
+                                      </SelectItem>
+                                    ))}
+                                  </>
+                                ) : (
+                                  <div className="px-2 py-2 text-sm text-muted-foreground">No voices available for this language</div>
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handlePlayVoice(activeOpt.voiceId, activeOpt.greeting, activeOpt.speed ?? 0.92, activeOpt.language)}
+                              data-testid={`button-preview-voice-${activeIdx}`}
+                            >
+                              {playingVoiceId === activeOpt.voiceId ? (
+                                <Square className="h-4 w-4" />
+                              ) : (
+                                <Volume2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <Label className="text-xs text-muted-foreground">Voice Speed</Label>
+                            <span className="text-xs font-mono text-muted-foreground" data-testid={`text-voice-speed-${activeIdx}`}>{(activeOpt.speed ?? 0.92).toFixed(2)}x</span>
+                          </div>
+                          <Slider
+                            value={[activeOpt.speed ?? 0.92]}
+                            onValueChange={([value]) => updateLanguageOption(activeOpt.id, { speed: value })}
+                            min={0.5}
+                            max={1.5}
+                            step={0.05}
+                            className="mt-1.5"
+                            data-testid={`slider-voice-speed-${activeIdx}`}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">Slower speeds improve clarity for IVR menus (recommended: 0.85-0.95)</p>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <Label className="text-xs text-muted-foreground">Deprock Department Menu Greeting</Label>
+                            {customizedDeptGreetings.current.has(activeOpt.id) && canvasDepartments.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs"
+                                onClick={() => {
+                                  customizedDeptGreetings.current.delete(activeOpt.id);
+                                  updateLanguageOption(activeOpt.id, {
+                                    greeting: generateDeptGreeting(deptInfos, activeOpt.language),
+                                  });
+                                }}
+                                data-testid={`button-reset-dept-greeting-${activeIdx}`}
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Reset
+                              </Button>
                             )}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handlePlayVoice(opt.voiceId, opt.greeting, opt.speed ?? 0.92)}
-                          data-testid={`button-preview-voice-${idx}`}
-                        >
-                          {playingVoiceId === opt.voiceId ? (
-                            <Square className="h-4 w-4" />
-                          ) : (
-                            <Volume2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <Label className="text-xs text-muted-foreground">Voice Speed</Label>
-                        <span className="text-xs font-mono text-muted-foreground" data-testid={`text-voice-speed-${idx}`}>{(opt.speed ?? 0.92).toFixed(2)}x</span>
-                      </div>
-                      <Slider
-                        value={[opt.speed ?? 0.92]}
-                        onValueChange={([value]) => updateLanguageOption(opt.id, { speed: value })}
-                        min={0.5}
-                        max={1.5}
-                        step={0.05}
-                        className="mt-1.5"
-                        data-testid={`slider-voice-speed-${idx}`}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">Slower speeds improve clarity for IVR menus (recommended: 0.85-0.95)</p>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <Label className="text-xs text-muted-foreground">Deprock Department Menu Greeting</Label>
-                        {customizedDeptGreetings.current.has(opt.id) && canvasDepartments.length > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 text-xs"
-                            onClick={() => {
-                              customizedDeptGreetings.current.delete(opt.id);
-                              updateLanguageOption(opt.id, {
-                                greeting: generateDeptGreeting(deptInfos, opt.language),
-                              });
+                          </div>
+                          <Textarea
+                            value={activeOpt.greeting}
+                            onChange={(e) => {
+                              customizedDeptGreetings.current.add(activeOpt.id);
+                              updateLanguageOption(activeOpt.id, { greeting: e.target.value });
                             }}
-                            data-testid={`button-reset-dept-greeting-${idx}`}
-                          >
-                            <RotateCcw className="h-3 w-3 mr-1" />
-                            Reset
-                          </Button>
-                        )}
+                            rows={2}
+                            className="mt-1"
+                            data-testid={`input-greeting-${activeIdx}`}
+                          />
+                          {canvasDepartments.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Auto-generated from deprock departments. Edit to customize.
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <Textarea
-                        value={opt.greeting}
-                        onChange={(e) => {
-                          customizedDeptGreetings.current.add(opt.id);
-                          updateLanguageOption(opt.id, { greeting: e.target.value });
-                        }}
-                        rows={2}
-                        className="mt-1"
-                        data-testid={`input-greeting-${idx}`}
-                      />
-                      {canvasDepartments.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Auto-generated from deprock departments. Edit to customize.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {languageOptions.length === 0 && (
-                  <div className="text-center py-6 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-                    Click "Add" to configure language options
-                  </div>
-                )}
+                    );
+                  })()}
+                </div>
               </div>
             </>
           )}
@@ -2677,7 +2992,7 @@ function IVRRouterStep({
                       setLanguageOptions([{
                         id: "default",
                         language: "en",
-                        voiceId: "el_rachel",
+                        voiceId: getDefaultVoiceForLanguage('en', dynamicElVoices, voiceProvider, dynamicCartesiaVoices),
                         greeting: e.target.value,
                       }]);
                     } else {
@@ -2717,15 +3032,15 @@ function IVRRouterStep({
                       {(() => {
                         const lang = languageOptions[0]?.language || 'en';
                         const langLabel = SUPPORTED_LANGUAGES.find(l => l.code === lang)?.label || 'English';
-                        const elVoices = ELEVENLABS_VOICES.filter(v => v.languages.includes(lang));
+                        const allVoices = getVoicesForLanguage(lang, dynamicElVoices, voiceProvider, dynamicCartesiaVoices);
                         return (
                           <>
-                            {elVoices.map((voice) => (
+                            {allVoices.map((voice) => (
                               <SelectItem key={voice.id} value={voice.id}>
                                 {voice.name} - {voice.gender}, {voice.style}
                               </SelectItem>
                             ))}
-                            {elVoices.length === 0 && (
+                            {allVoices.length === 0 && (
                               <div className="px-2 py-1.5 text-xs text-muted-foreground">No voices for this language</div>
                             )}
                           </>
@@ -2739,7 +3054,8 @@ function IVRRouterStep({
                     onClick={() => handlePlayVoice(
                       languageOptions[0]?.voiceId || "el_rachel",
                       languageOptions[0]?.greeting || DEFAULT_GREETINGS.en,
-                      languageOptions[0]?.speed ?? ivrVoiceSpeed
+                      languageOptions[0]?.speed ?? ivrVoiceSpeed,
+                      languageOptions[0]?.language || 'en'
                     )}
                     data-testid="button-preview-default-voice"
                   >
@@ -2806,11 +3122,41 @@ export default function DeprockCanvas() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  const { data: dynamicElVoices = [] } = useQuery<ElevenLabsApiVoice[], Error, typeof ELEVENLABS_VOICES>({
+    queryKey: ["/api/elevenlabs/voices"],
+    select: (data) => mapApiVoicesToLocal(data || []),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: apiCartesiaVoices = [] } = useQuery<any[], Error, typeof CARTESIA_DEFAULT_VOICES>({
+    queryKey: ["/api/deprock/cartesia-voices"],
+    select: (data) => {
+      if (!Array.isArray(data) || data.length === 0) return CARTESIA_DEFAULT_VOICES;
+      const seenIds = new Set<string>();
+      return data
+        .filter((v: any) => {
+          if (seenIds.has(v.id)) return false;
+          seenIds.add(v.id);
+          return true;
+        })
+        .map((v: any) => ({
+          id: `cartesia_${v.id}`,
+          name: `${v.name || "Unknown"} (Cartesia)`,
+          gender: (v.gender || "unknown") as string,
+          style: "professional",
+          languages: [v.language || "en"],
+        }));
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPhoneIds, setSelectedPhoneIds] = useState<string[]>([]);
+  const [selectedVoiceProvider, setSelectedVoiceProvider] = useState<VoiceProviderOption>('elevenlabs');
   const [canvasDepartments, setCanvasDepartments] = useState<CanvasDepartment[]>([]);
   const [ivrEnabled, setIvrEnabled] = useState(true);
   const [multiLangEnabled, setMultiLangEnabled] = useState(false);
+  const [selectedLangTab, setSelectedLangTab] = useState<string>("default");
   const [languageOptions, setLanguageOptions] = useState<LanguageOption[]>([
     { id: "default", language: "en", voiceId: "el_rachel", greeting: DEFAULT_GREETINGS.en },
   ]);
@@ -2818,44 +3164,56 @@ export default function DeprockCanvas() {
   const [languageSelectionGreetingVoice, setLanguageSelectionGreetingVoice] = useState('el_rachel');
   const [ivrVoiceSpeed, setIvrVoiceSpeed] = useState(0.92);
   const isGreetingCustomized = useRef(false);
+  const customizedDeptGreetings = useRef<Set<string>>(new Set());
 
-  const { data: userProfile } = useQuery<{ company?: string; name?: string }>({
+  const { data: userProfile, isLoading: loadingProfile } = useQuery<{ company?: string; name?: string }>({
     queryKey: ["/api/auth/me"],
   });
   const companyDisplayName = userProfile?.company || userProfile?.name || '';
 
-  const { data: phoneNumbers = [] } = useQuery<PhoneNumber[]>({
+  const { data: phoneNumbers = [], isLoading: loadingPhones } = useQuery<PhoneNumber[]>({
     queryKey: ["/api/phone-numbers"],
   });
 
-  const { data: agents = [] } = useQuery<Agent[]>({
+  const { data: agents = [], isLoading: loadingAgents } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
   });
 
-  const { data: knowledgeBases = [] } = useQuery<any[]>({
+  const { data: knowledgeBases = [], isLoading: loadingKB } = useQuery<any[]>({
     queryKey: ["/api/knowledge-base"],
   });
 
-  const { data: allIvrConfigs = [] } = useQuery<{ id: string; phoneNumberId: string | null; name: string | null; engineType: string | null }[]>({
+  const { data: allIvrConfigs = [], isLoading: loadingIvr } = useQuery<{ id: string; phoneNumberId: string | null; name: string | null; engineType: string | null; isActive: boolean | null }[]>({
     queryKey: ["/api/deprock/ivr-configs-all"],
   });
 
-  const { data: incomingConnsData } = useQuery<{ allConnections: { id: number; phoneNumberId: string | null; name: string }[] }>({
+  const { data: incomingConnsData, isLoading: loadingConns } = useQuery<{ connections: { id: number; phoneNumberId: string | null; agentId?: string | null }[] }>({
     queryKey: ["/api/incoming-connections"],
   });
-  const allIncomingConns = incomingConnsData?.allConnections ?? [];
+
+  const dataLoading = loadingProfile || loadingPhones || loadingAgents || loadingKB || loadingIvr || loadingConns;
+  const [initialReady, setInitialReady] = useState(false);
+  useEffect(() => {
+    if (!dataLoading && !initialReady) {
+      const timer = setTimeout(() => setInitialReady(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [dataLoading, initialReady]);
+  const pageLoading = !initialReady;
+  const allIncomingConns = incomingConnsData?.connections ?? [];
 
   const usedPhoneMap = useMemo(() => {
     const map = new Map<string, string>();
+    // Only active IVR configs block a phone number
     allIvrConfigs.forEach((ivr) => {
-      if (ivr.phoneNumberId) {
+      if (ivr.phoneNumberId && ivr.isActive !== false) {
         const label = ivr.name || (ivr.engineType === 'bedrock-polly' ? 'Deprock IVR' : 'Department IVR');
         map.set(ivr.phoneNumberId, label);
       }
     });
     allIncomingConns.forEach((conn) => {
       if (conn.phoneNumberId && !map.has(conn.phoneNumberId)) {
-        map.set(conn.phoneNumberId, `Connection: ${conn.name || 'Incoming'}`);
+        map.set(conn.phoneNumberId, 'Incoming Connection');
       }
     });
     return map;
@@ -2888,7 +3246,7 @@ export default function DeprockCanvas() {
       const newOptions: LanguageOption[] = missingLangs.map(langCode => ({
         id: `lang-${Date.now()}-${langCode}`,
         language: langCode,
-        voiceId: getDefaultVoiceForLanguage(langCode),
+        voiceId: getDefaultVoiceForLanguage(langCode, dynamicElVoices, selectedVoiceProvider, apiCartesiaVoices),
         greeting: canvasDepartments.length > 0
           ? generateDeptGreeting(deptInfos, langCode)
           : (DEFAULT_GREETINGS[langCode as keyof typeof DEFAULT_GREETINGS] || DEFAULT_GREETINGS.en),
@@ -2909,6 +3267,43 @@ export default function DeprockCanvas() {
     }
   }, [allDeptLanguages.join(",")]);
 
+  const parentDeptInfos: DeptInfo[] = useMemo(() =>
+    canvasDepartments.map(d => ({ name: d.name || "Department", type: d.type })),
+    [canvasDepartments]
+  );
+  const parentDeptNamesKey = parentDeptInfos.map(d => `${d.name}:${d.type}`).join("||");
+
+  useEffect(() => {
+    if (canvasDepartments.length === 0) return;
+    setLanguageOptions(prev => {
+      const updatedOptions = prev.map((opt) => {
+        if (customizedDeptGreetings.current.has(opt.id)) return opt;
+        return {
+          ...opt,
+          greeting: generateDeptGreeting(parentDeptInfos, opt.language),
+          selectedDepartments: canvasDepartments.map(d => d.id),
+        };
+      });
+      const changed = updatedOptions.some((opt, i) => opt.greeting !== prev[i]?.greeting);
+      return changed ? updatedOptions : prev;
+    });
+  }, [parentDeptNamesKey, canvasDepartments.length]);
+
+  const prevVoiceProviderRef = useRef(selectedVoiceProvider);
+  useEffect(() => {
+    if (prevVoiceProviderRef.current === selectedVoiceProvider) return;
+    prevVoiceProviderRef.current = selectedVoiceProvider;
+    setLanguageOptions(prev =>
+      prev.map(opt => ({
+        ...opt,
+        voiceId: getDefaultVoiceForLanguage(opt.language, dynamicElVoices, selectedVoiceProvider, apiCartesiaVoices),
+      }))
+    );
+    setLanguageSelectionGreetingVoice(
+      getDefaultVoiceForLanguage('en', dynamicElVoices, selectedVoiceProvider, apiCartesiaVoices)
+    );
+  }, [selectedVoiceProvider, dynamicElVoices, apiCartesiaVoices]);
+
   const selectedPhones = useMemo(() => {
     return phoneNumbers.filter((p) => selectedPhoneIds.includes(p.id));
   }, [phoneNumbers, selectedPhoneIds]);
@@ -2923,9 +3318,10 @@ export default function DeprockCanvas() {
 
   const canGoNext = useMemo(() => {
     if (currentStep === 1) return selectedPhoneIds.length > 0;
-    if (currentStep === 2) return canvasDepartments.length > 0;
+    if (currentStep === 2) return !!selectedVoiceProvider;
+    if (currentStep === 3) return canvasDepartments.length > 0;
     return true;
-  }, [currentStep, selectedPhoneIds.length, canvasDepartments.length]);
+  }, [currentStep, selectedPhoneIds.length, selectedVoiceProvider, canvasDepartments.length]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -2954,8 +3350,10 @@ export default function DeprockCanvas() {
               language: la.language || "en",
               isPrimary: i === 0,
               systemPrompt: la.systemPrompt || undefined,
+              firstMessage: la.firstMessage || DEFAULT_FIRST_MESSAGES[la.language] || DEFAULT_FIRST_MESSAGES.en,
               voiceTone: la.voiceTone || undefined,
               voiceId: la.voiceId || undefined,
+              ttsProvider: selectedVoiceProvider,
             });
           }
         }
@@ -2994,6 +3392,8 @@ export default function DeprockCanvas() {
       queryClient.invalidateQueries({ queryKey: ["/api/deprock"] });
       queryClient.invalidateQueries({ queryKey: ["/api/deprock/stats/overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/deprock-linked"] });
       toast({
         title: "Configuration Saved",
         description: "All deprock departments and routing have been created successfully.",
@@ -3020,6 +3420,20 @@ export default function DeprockCanvas() {
     }
     saveMutation.mutate();
   };
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center" data-testid="page-loading">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full border-4 border-muted" />
+            <Loader2 className="h-12 w-12 animate-spin text-primary absolute inset-0" />
+          </div>
+          <p className="text-sm text-muted-foreground font-medium">Loading your workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh]">
@@ -3048,14 +3462,23 @@ export default function DeprockCanvas() {
             />
           )}
           {currentStep === 2 && (
+            <VoiceProviderStep
+              selectedProvider={selectedVoiceProvider}
+              onSelectProvider={setSelectedVoiceProvider}
+            />
+          )}
+          {currentStep === 3 && (
             <DepartmentsStep
               canvasDepartments={canvasDepartments}
               setCanvasDepartments={setCanvasDepartments}
               agents={agents}
               toast={toast}
+              dynamicElVoices={dynamicElVoices}
+              voiceProvider={selectedVoiceProvider}
+              dynamicCartesiaVoices={apiCartesiaVoices}
             />
           )}
-          {currentStep === 3 && (
+          {currentStep === 4 && (
             <IVRRouterStep
               ivrEnabled={ivrEnabled}
               setIvrEnabled={setIvrEnabled}
@@ -3073,7 +3496,13 @@ export default function DeprockCanvas() {
               selectedPhoneIds={selectedPhoneIds}
               ivrVoiceSpeed={ivrVoiceSpeed}
               setIvrVoiceSpeed={setIvrVoiceSpeed}
+              selectedLangTab={selectedLangTab}
+              setSelectedLangTab={setSelectedLangTab}
               toast={toast}
+              dynamicElVoices={dynamicElVoices}
+              voiceProvider={selectedVoiceProvider}
+              dynamicCartesiaVoices={apiCartesiaVoices}
+              customizedDeptGreetings={customizedDeptGreetings}
             />
           )}
         </div>
@@ -3090,9 +3519,9 @@ export default function DeprockCanvas() {
             <span className="sm:hidden">Back</span>
           </Button>
 
-          {currentStep < 3 ? (
+          {currentStep < 4 ? (
             <Button
-              onClick={() => setCurrentStep((s) => Math.min(3, s + 1))}
+              onClick={() => setCurrentStep((s) => Math.min(4, s + 1))}
               disabled={!canGoNext}
               data-testid="button-next"
             >

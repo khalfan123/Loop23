@@ -32,11 +32,14 @@ import { DeepScrapeService, type DeepScrapeProgress } from "../services/deep-scr
 import { KnowledgeSynthesisService, type SynthesizedKnowledge } from "../services/knowledge-synthesis";
 import { storage } from "../storage";
 import { db } from "../db";
-import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowledgeEntities, knowledgeTopics } from "@shared/schema";
+import { knowledgeBase, knowledgeChunks, knowledgeFolders, knowledgeFaqs, knowledgeEntities, knowledgeTopics, knowledgePipelineJobs } from "@shared/schema";
 import { eq, and, sql, desc, asc, count, inArray } from "drizzle-orm";
 import { generateUseCasesFromKB } from "../services/use-case-generator";
 import { bedrockKBService } from "../services/bedrock-knowledge-base.service";
 import { kbMediaGenerator } from "../services/kb-media-generator";
+import { detectBusinessType } from "../services/business-type-detector";
+import { awsBedrockService } from "../services/aws-bedrock";
+import { BedrockClaudeGenerator } from "../services/bedrock-claude-generator";
 
 const mediaGenerationJobs = new Map<string, { status: string; result?: any; error?: string; startedAt: number }>();
 
@@ -125,17 +128,441 @@ const ALLOWED_URL_PROTOCOLS = ['http:', 'https:'];
 const CALL_CENTER_FOLDERS = [
   { name: 'Account Management', icon: 'user-cog', sortOrder: 1 },
   { name: 'Billing & Payments', icon: 'credit-card', sortOrder: 2 },
-  { name: 'Contact Info', icon: 'phone', sortOrder: 3 },
-  { name: 'Delivery', icon: 'truck', sortOrder: 4 },
-  { name: 'Escalation', icon: 'alert-triangle', sortOrder: 5 },
-  { name: 'FAQs', icon: 'help-circle', sortOrder: 6 },
-  { name: 'Glossary', icon: 'book-open', sortOrder: 7 },
-  { name: 'Orders', icon: 'shopping-cart', sortOrder: 8 },
-  { name: 'Policies', icon: 'shield', sortOrder: 9 },
-  { name: 'Products', icon: 'package', sortOrder: 10 },
-  { name: 'Security & Privacy', icon: 'lock', sortOrder: 11 },
-  { name: 'Technical Support', icon: 'wrench', sortOrder: 12 },
+  { name: 'Call Center Operations', icon: 'headphones', sortOrder: 3 },
+  { name: 'Contact Info', icon: 'phone', sortOrder: 4 },
+  { name: 'Conversation Scenarios', icon: 'message-square', sortOrder: 5 },
+  { name: 'Delivery', icon: 'truck', sortOrder: 6 },
+  { name: 'Escalation', icon: 'alert-triangle', sortOrder: 7 },
+  { name: 'FAQs', icon: 'help-circle', sortOrder: 8 },
+  { name: 'Glossary', icon: 'book-open', sortOrder: 9 },
+  { name: 'Orders', icon: 'shopping-cart', sortOrder: 10 },
+  { name: 'Policies', icon: 'shield', sortOrder: 11 },
+  { name: 'Products', icon: 'package', sortOrder: 12 },
+  { name: 'Security & Privacy', icon: 'lock', sortOrder: 13 },
+  { name: 'Technical Support', icon: 'wrench', sortOrder: 14 },
 ];
+
+/** Article counts per category for URL-enrichment pipeline (14 categories, 175 total) */
+const URL_ENRICHMENT_ARTICLE_COUNTS: Record<string, number> = {
+  "FAQs": 20,
+  "Escalation": 20,
+  "Policies": 20,
+  "Billing & Payments": 15,
+  "Account Management": 15,
+  "Technical Support": 15,
+  "Orders": 10,
+  "Delivery": 10,
+  "Products": 10,
+  "Glossary": 10,
+  "Contact Info": 10,
+  "Security & Privacy": 10,
+  "Conversation Scenarios": 10,
+  "Call Center Operations": 10,
+};
+
+// ---------- Typed interfaces for the URL enrichment pipeline ----------
+interface UrlEnrichmentAnalyzing {
+  itemsTotal: number;
+  itemsProcessed: number;
+  entitiesFound: number;
+  topicsFound: number;
+  faqsFound: number;
+  isUrlEnrichment: boolean;
+  sourceUrl: string;
+  businessType?: string;
+  businessIndustry?: string;
+  businessDescription?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+interface UrlEnrichmentGenerating {
+  articlesPlanned: number;
+  articlesGenerated: number;
+  currentCategory?: string;
+  currentArticleTitle?: string;
+  startedAt?: string;
+  completedAt?: string;
+  isUrlEnrichment?: boolean;
+  folderResults?: Record<string, number>;
+}
+
+interface UrlEnrichmentStageDetails {
+  crawling: { pagesDiscovered: number; pagesCrawled: number };
+  analyzing: UrlEnrichmentAnalyzing;
+  generating: UrlEnrichmentGenerating;
+}
+
+type UrlBusinessType = { type: string; industry: string; description: string };
+
+// Helper: build base stageDetails (crawling + analyzing filled, generating empty)
+function buildStageDetails(
+  analyzing: UrlEnrichmentAnalyzing,
+  generating: UrlEnrichmentGenerating
+): UrlEnrichmentStageDetails {
+  return {
+    crawling: { pagesDiscovered: 0, pagesCrawled: 0 },
+    analyzing,
+    generating,
+  };
+}
+
+/**
+ * Background URL enrichment pipeline.
+ * Stages (currentStage): fetching → analyzing_content → detecting_business → generating_articles → done | error
+ * DB status column:       analyzing               analyzing        generating       completed | failed
+ */
+async function runUrlEnrichmentPipeline(
+  pipelineJobId: string,
+  userId: string,
+  scrapedContent: string,
+  url: string,
+  folderMap: Map<string, string>,
+  sourceKbItemId: string | null
+): Promise<void> {
+  /** Typed job updater — stageDetails is cast to Record<string, unknown> at the DB boundary */
+  const updateJob = async (fields: {
+    status?: string;
+    currentStage?: string;
+    overallProgress?: number;
+    stageProgress?: number;
+    startedAt?: Date;
+    completedAt?: Date;
+    errorMessage?: string;
+    stageDetails?: UrlEnrichmentStageDetails;
+  }) => {
+    await db
+      .update(knowledgePipelineJobs)
+      .set({
+        updatedAt: new Date(),
+        ...(fields.status !== undefined && { status: fields.status }),
+        ...(fields.currentStage !== undefined && { currentStage: fields.currentStage }),
+        ...(fields.overallProgress !== undefined && { overallProgress: fields.overallProgress }),
+        ...(fields.stageProgress !== undefined && { stageProgress: fields.stageProgress }),
+        ...(fields.startedAt !== undefined && { startedAt: fields.startedAt }),
+        ...(fields.completedAt !== undefined && { completedAt: fields.completedAt }),
+        ...(fields.errorMessage !== undefined && { errorMessage: fields.errorMessage }),
+        // stageDetails is JSONB — one cast at the DB boundary is necessary
+        ...(fields.stageDetails !== undefined && {
+          stageDetails: fields.stageDetails as Record<string, unknown>,
+        }),
+      })
+      .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+  };
+
+  // Base analyzing details (before business type is known)
+  const baseAnalyzing: UrlEnrichmentAnalyzing = {
+    itemsTotal: 1, itemsProcessed: 0,
+    entitiesFound: 0, topicsFound: 0, faqsFound: 0,
+    isUrlEnrichment: true, sourceUrl: url,
+    startedAt: new Date().toISOString(),
+  };
+
+  try {
+    // Stage: analyzing_content (brief intermediate stage so UI shows "Analyzing content…")
+    await updateJob({
+      status: "analyzing",
+      currentStage: "analyzing_content",
+      overallProgress: 5,
+      stageProgress: 0,
+      startedAt: new Date(),
+      stageDetails: buildStageDetails(baseAnalyzing, { articlesPlanned: 0, articlesGenerated: 0 }),
+    });
+
+    // Stage: detecting_business
+    await updateJob({
+      currentStage: "detecting_business",
+      overallProgress: 8,
+      stageDetails: buildStageDetails(
+        { ...baseAnalyzing, startedAt: new Date().toISOString() },
+        { articlesPlanned: 0, articlesGenerated: 0 }
+      ),
+    });
+
+    console.log(`[URLEnrichment] ${pipelineJobId} — detecting business type for ${url}`);
+    const businessType: UrlBusinessType = await detectBusinessType(scrapedContent, url);
+    console.log(`[URLEnrichment] ${pipelineJobId} — business type: ${businessType.type}`);
+
+    // Persist business type on the source KB record's metadata
+    if (sourceKbItemId) {
+      try {
+        await db.update(knowledgeBase)
+          .set({
+            metadata: sql`COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({
+              businessType: businessType.type,
+              businessIndustry: businessType.industry,
+              businessDescription: businessType.description,
+            })}::jsonb`,
+          })
+          .where(eq(knowledgeBase.id, sourceKbItemId));
+        console.log(`[URLEnrichment] Stored business type on KB item ${sourceKbItemId}`);
+      } catch (updateErr: unknown) {
+        console.warn(`[URLEnrichment] Could not update KB item metadata:`, (updateErr as Error).message);
+      }
+    }
+
+    const analyzingWithBizType: UrlEnrichmentAnalyzing = {
+      ...baseAnalyzing,
+      itemsProcessed: 1,
+      completedAt: new Date().toISOString(),
+      businessType: businessType.type,
+      businessIndustry: businessType.industry,
+      businessDescription: businessType.description,
+    };
+
+    const totalArticlesPlanned = Object.values(URL_ENRICHMENT_ARTICLE_COUNTS).reduce((s, n) => s + n, 0);
+    const foldersToProcess = Object.entries(URL_ENRICHMENT_ARTICLE_COUNTS);
+
+    // Stage: generating_articles
+    await updateJob({
+      status: "generating",
+      currentStage: "generating_articles",
+      overallProgress: 10,
+      stageProgress: 0,
+      stageDetails: buildStageDetails(analyzingWithBizType, {
+        articlesPlanned: totalArticlesPlanned,
+        articlesGenerated: 0,
+        currentCategory: foldersToProcess[0]?.[0] ?? "",
+        currentArticleTitle: "Starting article generation…",
+        startedAt: new Date().toISOString(),
+        isUrlEnrichment: true,
+      }),
+    });
+
+    let totalGenerated = 0;
+    const folderResults: Record<string, number> = {};
+
+    for (let i = 0; i < foldersToProcess.length; i++) {
+      const [folderName, targetCount] = foldersToProcess[i];
+      const folderId = folderMap.get(folderName);
+      if (!folderId) {
+        console.warn(`[URLEnrichment] Folder "${folderName}" not found in folderMap, skipping`);
+        folderResults[folderName] = 0;
+        continue;
+      }
+
+      const progressFraction = 10 + Math.round((i / foldersToProcess.length) * 88);
+      await updateJob({
+        overallProgress: progressFraction,
+        stageProgress: Math.round((i / foldersToProcess.length) * 100),
+        stageDetails: buildStageDetails(analyzingWithBizType, {
+          articlesPlanned: totalArticlesPlanned,
+          articlesGenerated: totalGenerated,
+          currentCategory: folderName,
+          currentArticleTitle: `Generating ${targetCount} articles…`,
+          isUrlEnrichment: true,
+        }),
+      });
+
+      try {
+        const generatedCount = await generateArticlesWithRetry(
+          userId, folderId, folderName, targetCount,
+          scrapedContent, url, businessType
+        );
+        totalGenerated += generatedCount;
+        folderResults[folderName] = generatedCount;
+        console.log(`[URLEnrichment] ${pipelineJobId} — "${folderName}": ${generatedCount}/${targetCount} articles`);
+      } catch (folderErr: unknown) {
+        console.error(`[URLEnrichment] Error generating for "${folderName}":`, (folderErr as Error).message);
+        folderResults[folderName] = 0;
+      }
+
+      // Update folderResults incrementally so the last polled state has full per-category data
+      await updateJob({
+        overallProgress: 10 + Math.round(((i + 1) / foldersToProcess.length) * 88),
+        stageDetails: buildStageDetails(analyzingWithBizType, {
+          articlesPlanned: totalArticlesPlanned,
+          articlesGenerated: totalGenerated,
+          currentCategory: folderName,
+          isUrlEnrichment: true,
+          folderResults: { ...folderResults },
+        }),
+      });
+    }
+
+    // Stage: done
+    await updateJob({
+      status: "completed",
+      currentStage: "done",
+      overallProgress: 100,
+      stageProgress: 100,
+      completedAt: new Date(),
+      stageDetails: buildStageDetails(analyzingWithBizType, {
+        articlesPlanned: totalArticlesPlanned,
+        articlesGenerated: totalGenerated,
+        currentCategory: "",
+        currentArticleTitle: "",
+        completedAt: new Date().toISOString(),
+        isUrlEnrichment: true,
+        folderResults,
+      }),
+    });
+
+    console.log(`[URLEnrichment] ${pipelineJobId} — done. ${totalGenerated}/${totalArticlesPlanned} articles generated.`);
+  } catch (err: unknown) {
+    const msg = (err as Error).message || "Unknown error";
+    console.error(`[URLEnrichment] Pipeline ${pipelineJobId} failed:`, msg);
+    await updateJob({
+      status: "failed",
+      currentStage: "error",
+      errorMessage: msg,
+      completedAt: new Date(),
+    });
+  }
+}
+
+/**
+ * Generate articles for a single folder with batching + retry to hit target count.
+ * Generates in batches of up to BATCH_SIZE, retrying until target is met (max MAX_ATTEMPTS).
+ */
+const ARTICLE_BATCH_SIZE = 10;
+const ARTICLE_MAX_ATTEMPTS = 3;
+
+async function generateArticlesWithRetry(
+  userId: string,
+  folderId: string,
+  folderName: string,
+  targetCount: number,
+  scrapedContent: string,
+  sourceUrl: string,
+  businessType: UrlBusinessType
+): Promise<number> {
+  let totalInserted = 0;
+  let attempts = 0;
+
+  while (totalInserted < targetCount && attempts < ARTICLE_MAX_ATTEMPTS) {
+    const needed = targetCount - totalInserted;
+    const batchSize = Math.min(needed, ARTICLE_BATCH_SIZE);
+    attempts++;
+
+    const inserted = await generateArticlesForFolder(
+      userId, folderId, folderName, batchSize,
+      scrapedContent, sourceUrl, businessType
+    );
+    totalInserted += inserted;
+
+    if (inserted === 0) {
+      // If nothing was generated, don't retry indefinitely
+      break;
+    }
+  }
+
+  return totalInserted;
+}
+
+/**
+ * Generate one batch of articles for a folder.
+ * Primary path: BedrockClaudeGenerator.generateArticlesBatch() via the existing generator service.
+ * Fallback: OpenAI gpt-4o-mini when Bedrock is unavailable.
+ */
+async function generateArticlesForFolder(
+  userId: string,
+  folderId: string,
+  folderName: string,
+  batchCount: number,
+  scrapedContent: string,
+  sourceUrl: string,
+  businessType: UrlBusinessType
+): Promise<number> {
+  const businessContext = `${businessType.type} — ${businessType.description || `a ${businessType.industry} business`}`;
+  let articles: Array<{ title: string; content: string }> = [];
+
+  // Primary: use BedrockClaudeGenerator (the existing generator service)
+  const bedrockGen = new BedrockClaudeGenerator(userId);
+  const bedrockIsConfigured = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+
+  if (bedrockIsConfigured) {
+    try {
+      articles = await bedrockGen.generateArticlesBatch(folderName, batchCount, scrapedContent, businessContext);
+    } catch (bedrockErr: unknown) {
+      console.warn(`[URLEnrichment] BedrockClaudeGenerator failed for "${folderName}", falling back to OpenAI: ${(bedrockErr as Error).message}`);
+    }
+  }
+
+  // Fallback: OpenAI when Bedrock is unavailable or failed
+  if (articles.length === 0) {
+    const systemPrompt = "You are a professional knowledge base content writer. Always respond with valid JSON only. No markdown, no code blocks, no explanations.";
+    const prompt = `You are a professional knowledge base writer for ${businessContext}.
+
+SOURCE CONTENT (scraped from ${sourceUrl}):
+---
+${scrapedContent.slice(0, 4000)}
+---
+
+Generate exactly ${batchCount} knowledge base articles for the "${folderName}" support category.
+Requirements:
+- Ground each article in the ACTUAL content above
+- Each article must be 300-500 words, professional customer-support style
+- Each article must cover a DIFFERENT, specific topic relevant to "${folderName}"
+- Do NOT invent information not present in the source content
+
+Return ONLY a valid JSON array: [{"title": "...", "content": "..."}]`;
+
+    const responseText = await callOpenAIForArticles(prompt, systemPrompt, userId);
+    articles = parseArticlesJson(responseText, folderName);
+  }
+
+  let insertedCount = 0;
+  for (const article of articles) {
+    if (!article.title || !article.content) continue;
+    const storageSize = Buffer.byteLength(article.content, "utf8");
+    const [inserted] = await db.insert(knowledgeBase).values({
+      userId,
+      folderId,
+      type: "text",
+      title: article.title,
+      content: article.content,
+      url: null,
+      fileUrl: null,
+      elevenLabsDocId: null,
+      metadata: { ragEnabled: true, aiGenerated: true, sourceUrl, businessType: businessType.type },
+      storageSize,
+    }).returning();
+    insertedCount++;
+    if (inserted?.id) {
+      RAGKnowledgeService.processKnowledgeItem(inserted.id, userId, article.content, {
+        source: "text",
+      }).catch(() => {});
+    }
+  }
+
+  return insertedCount;
+}
+
+async function callOpenAIForArticles(
+  prompt: string,
+  systemPrompt: string,
+  userId: string
+): Promise<string> {
+  try {
+    const { getOpenAIClient } = await import("../services/openai-modelfarm");
+    const openai = await getOpenAIClient(userId);
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 8000,
+    });
+    return completion.choices[0]?.message?.content ?? "[]";
+  } catch (err: unknown) {
+    console.error("[URLEnrichment] OpenAI call failed:", (err as Error).message);
+    return "[]";
+  }
+}
+
+function parseArticlesJson(raw: string, folderName: string): Array<{ title: string; content: string }> {
+  const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  try {
+    const parsed: unknown = JSON.parse(cleaned);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    console.error(`[URLEnrichment] JSON parse failed for "${folderName}":`, cleaned.substring(0, 200));
+    return [];
+  }
+}
 
 /**
  * Ensure call-center knowledge folders exist for a user
@@ -727,6 +1154,23 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
    * Fetches content with security validation and size limits
    */
   router.post("/url", authenticateToken, async (req: AuthRequest, res: Response) => {
+    let pipelineJobId: string | null = null;
+
+    const failPipeline = async (msg: string) => {
+      if (!pipelineJobId) return;
+      try {
+        await db.update(knowledgePipelineJobs)
+          .set({
+            status: "failed",
+            currentStage: "error",
+            errorMessage: msg,
+            completedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(knowledgePipelineJobs.id, pipelineJobId));
+      } catch {}
+    };
+
     try {
       const { url, name } = req.body;
 
@@ -743,6 +1187,35 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
       // Ensure call-center folders exist for this user
       const folderMap = await ensureCallCenterFolders(req.userId!);
 
+      // Create pipeline job BEFORE the fetch so the UI can track from the very start
+      try {
+        const hostname = (() => { try { return new URL(url).hostname; } catch { return url; } })();
+        const initialStageDetails: UrlEnrichmentStageDetails = {
+          crawling: { pagesDiscovered: 0, pagesCrawled: 0 },
+          analyzing: {
+            itemsTotal: 1, itemsProcessed: 0,
+            entitiesFound: 0, topicsFound: 0, faqsFound: 0,
+            isUrlEnrichment: true, sourceUrl: url,
+          },
+          generating: { articlesPlanned: 0, articlesGenerated: 0 },
+        };
+        const [pipelineJob] = await db.insert(knowledgePipelineJobs).values({
+          userId: req.userId!,
+          crawlJobId: null,
+          name: `Enriching: ${hostname}`,
+          status: "analyzing",
+          currentStage: "fetching",
+          overallProgress: 2,
+          stageProgress: 0,
+          startedAt: new Date(),
+          stageDetails: initialStageDetails as Record<string, unknown>,
+        }).returning();
+        pipelineJobId = pipelineJob.id;
+        console.log(`[RAG Routes] Created URL enrichment pipeline job ${pipelineJobId} for ${url} (stage: fetching)`);
+      } catch (pipelineErr: unknown) {
+        console.error("[RAG Routes] Failed to create pipeline job:", (pipelineErr as Error).message);
+      }
+
       // Fetch URL content with limits
       let content: string;
       let rawHtml: string = '';
@@ -757,12 +1230,13 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         contentSize = result.size;
       } catch (fetchError: any) {
         console.error("[RAG Routes] URL fetch error:", fetchError.message, fetchError.cause || '');
+        await failPipeline(`URL fetch failed: ${fetchError.message}`);
         const userMessage = fetchError.message?.includes('fetch failed') || fetchError.message?.includes('ENOTFOUND')
           ? `Could not reach this URL. Please check the address and try again.`
           : fetchError.message?.includes('abort')
           ? `The URL took too long to respond (30s timeout). Try again later.`
           : `Failed to fetch URL: ${fetchError.message}`;
-        return res.status(400).json({ error: userMessage });
+        return res.status(400).json({ error: userMessage, pipelineJobId });
       }
 
       const isHtml = contentType.includes('text/html');
@@ -772,11 +1246,13 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
       }
 
       if (content.trim().length < 50) {
+        await failPipeline("URL content is too short or empty");
         return res.status(400).json({ error: "URL content is too short or empty" });
       }
 
       const hasSpace = await RAGKnowledgeService.checkStorageSpace(req.userId!, contentSize);
       if (!hasSpace) {
+        await failPipeline("Storage limit exceeded");
         return res.status(400).json({ 
           error: "Storage limit exceeded. Please delete some items or upgrade your plan.",
           code: "STORAGE_LIMIT_EXCEEDED"
@@ -814,7 +1290,41 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
 
       generateUseCasesFromKB(req.userId!).catch(err => console.error("[RAG] Use case generation error:", err));
 
-      // Advanced scraping: sub-pages, metadata, contact info, FAQs (async background)
+      // Advance pipeline to 'analyzing_content' stage now that content is fetched
+      if (pipelineJobId) {
+        const postFetchDetails: UrlEnrichmentStageDetails = {
+          crawling: { pagesDiscovered: 0, pagesCrawled: 0 },
+          analyzing: {
+            itemsTotal: 1, itemsProcessed: 0,
+            entitiesFound: 0, topicsFound: 0, faqsFound: 0,
+            isUrlEnrichment: true, sourceUrl: url,
+            startedAt: new Date().toISOString(),
+          },
+          generating: { articlesPlanned: 0, articlesGenerated: 0 },
+        };
+        db.update(knowledgePipelineJobs).set({
+          currentStage: "analyzing_content",
+          overallProgress: 5,
+          stageProgress: 0,
+          stageDetails: postFetchDetails as Record<string, unknown>,
+          updatedAt: new Date(),
+        }).where(eq(knowledgePipelineJobs.id, pipelineJobId)).catch(() => {});
+      }
+
+      // Launch enrichment pipeline (business detection + article generation) in background
+      if (pipelineJobId) {
+        const capturedPipelineJobId = pipelineJobId;
+        const capturedUserId = req.userId!;
+        const capturedContent = content;
+        const capturedFolderMap = new Map(folderMap);
+        const capturedItemId = item.id;
+        setImmediate(() => {
+          runUrlEnrichmentPipeline(capturedPipelineJobId, capturedUserId, capturedContent, url, capturedFolderMap, capturedItemId)
+            .catch(err => console.error("[RAG Routes] Enrichment pipeline error:", err));
+        });
+      }
+
+      // Advanced scraping: sub-pages, metadata, contact info (async background)
       if (isHtml && rawHtml.length > 100) {
         (async () => {
           try {
@@ -829,17 +1339,6 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
               (data: any) => storage.createKnowledgeBaseItem(data)
             );
 
-            // Auto-generate FAQs from main content
-            const faqFolderId = folderMap.get('FAQs') || null;
-            await generateAutoFAQs(content, url, req.userId!, item.id, faqFolderId);
-
-            // Also generate FAQs for each discovered sub-page
-            for (const subPage of scrapeResult.subPages) {
-              if (subPage.content.length > 100) {
-                await generateAutoFAQs(subPage.content, subPage.url, req.userId!, item.id, faqFolderId);
-              }
-            }
-
             console.log(`[RAG Routes] Advanced scrape complete: ${scrapeResult.totalPages} pages, ${scrapeResult.subPages.length} sub-pages discovered`);
           } catch (err: any) {
             console.error(`[RAG Routes] Advanced scrape error:`, err.message);
@@ -852,10 +1351,12 @@ export function createRAGKnowledgeRoutes(authenticateToken: any): Router {
         ragStatus: 'processing',
         categories: mainCategories,
         folderId: mainFolderId,
-        message: "URL content fetched. Processing embeddings, discovering related pages, and generating FAQs in background.",
+        pipelineJobId,
+        message: "URL content fetched. Detecting business type and generating knowledge articles in background.",
       });
     } catch (error: any) {
       console.error("[RAG Routes] URL add error:", error);
+      await failPipeline(error.message || "Unexpected error");
       res.status(500).json({ error: error.message || "Failed to add URL" });
     }
   });

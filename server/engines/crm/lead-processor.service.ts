@@ -9,7 +9,6 @@
  * 
  * Supported Engines:
  * - ElevenLabs + Twilio (calls table)
- * - Plivo + OpenAI (plivo_calls table)
  * - Twilio + OpenAI (twilio_openai_calls table)
  * 
  * Qualification Criteria (in priority order):
@@ -24,9 +23,10 @@
  */
 
 import { db } from '../../db';
-import { leads, calls, plivoCalls, twilioOpenaiCalls, AI_LEAD_CATEGORIES, type AILeadCategory } from '@shared/schema';
+import { leads, calls, twilioOpenaiCalls, AI_LEAD_CATEGORIES, type AILeadCategory } from '@shared/schema';
 import { CRMStorage } from '../../storage/crm-storage';
 import { eq, and } from 'drizzle-orm';
+import { createFallbackFormSubmission } from '../../services/dynamic-form-tools';
 
 export interface CallData {
   id: string;
@@ -47,7 +47,7 @@ export interface CallData {
   incomingConnectionId?: string | null;
   metadata?: Record<string, unknown> | null;
   aiInsights?: Record<string, unknown> | null;  // ElevenLabs stores insights here
-  engine: 'elevenlabs-twilio' | 'plivo-openai' | 'twilio-openai';
+  engine: 'elevenlabs-twilio' | 'twilio-openai';
 }
 
 export interface LeadQualification {
@@ -247,6 +247,21 @@ export class CRMLeadProcessor {
   static async processCall(callData: CallData): Promise<{ leadId: string | null; qualification: LeadQualification }> {
     console.log(`${this.LOG_PREFIX} Processing call ${callData.id} from engine: ${callData.engine}`);
     
+    // Attempt fallback form extraction before quality/qualification gates
+    // This ensures conversationally collected data is always saved as form_submissions
+    try {
+      const hasExistingFormSubmission = this.checkFormSubmitted(callData, {
+        ...(callData.metadata || {}),
+        ...((callData.aiInsights || {}) as Record<string, unknown>),
+      });
+      if (!hasExistingFormSubmission) {
+        await this.attemptFallbackFormExtraction(callData);
+      }
+    } catch (fallbackErr: unknown) {
+      const msg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+      console.warn(`${this.LOG_PREFIX} Fallback form extraction failed for ${callData.id}: ${msg}`);
+    }
+
     // Check minimum quality threshold first
     const qualityCheck = this.meetsQualityThreshold(callData);
     if (!qualityCheck.passed) {
@@ -859,56 +874,6 @@ export class CRMLeadProcessor {
   }
 
   /**
-   * Process a call from the Plivo+OpenAI engine (plivo_calls table)
-   */
-  static async processPlivoOpenAICall(callId: string): Promise<{ leadId: string | null; qualification: LeadQualification } | null> {
-    const [call] = await db
-      .select()
-      .from(plivoCalls)
-      .where(eq(plivoCalls.id, callId))
-      .limit(1);
-
-    if (!call || !call.userId) {
-      console.log(`${this.LOG_PREFIX} Plivo call not found or no user: ${callId}`);
-      return null;
-    }
-
-    // Only process completed calls
-    if (call.status !== 'completed' && call.status !== 'done') {
-      console.log(`${this.LOG_PREFIX} Plivo call ${callId} not completed (status: ${call.status})`);
-      return null;
-    }
-
-    // For Plivo+OpenAI, extract aiInsights from metadata if available
-    const plivoMetadata = call.metadata as Record<string, unknown> || {};
-    const plivoAiInsights = plivoMetadata.aiInsights || this.parseAiSummaryAsInsights(call.aiSummary);
-
-    const callData: CallData = {
-      id: call.id,
-      userId: call.userId,
-      phoneNumber: call.fromNumber || call.toNumber || '',
-      fromNumber: call.fromNumber,
-      toNumber: call.toNumber,
-      callDirection: call.callDirection as 'incoming' | 'outgoing',
-      status: call.status,
-      duration: call.duration,
-      transcript: call.transcript,
-      aiSummary: call.aiSummary,
-      sentiment: call.sentiment,
-      classification: call.classification,
-      wasTransferred: call.wasTransferred || false,
-      transferredTo: call.transferredTo,
-      campaignId: call.campaignId,
-      incomingConnectionId: null, // Plivo uses plivoPhoneNumberId instead
-      metadata: plivoMetadata,
-      aiInsights: plivoAiInsights as Record<string, unknown>,
-      engine: 'plivo-openai',
-    };
-
-    return this.processCall(callData);
-  }
-
-  /**
    * Process a call from the Twilio+OpenAI engine (twilio_openai_calls table)
    */
   static async processTwilioOpenAICall(callId: string): Promise<{ leadId: string | null; qualification: LeadQualification } | null> {
@@ -975,6 +940,68 @@ export class CRMLeadProcessor {
     }
     
     return null;
+  }
+
+  private static async attemptFallbackFormExtraction(callData: CallData): Promise<void> {
+    const metadata = callData.metadata || {};
+    const metadataInsights = (metadata as Record<string, unknown>)?.aiInsights;
+    const aiInsights = (callData.aiInsights || metadataInsights || {}) as Record<string, unknown>;
+    const mergedData = { ...metadata, ...aiInsights } as Record<string, unknown>;
+
+    const extractedData: Record<string, string> = {};
+    let contactName: string | null = null;
+    let contactPhone: string | null = null;
+
+    const nameFields = ['callerName', 'contactName', 'customerName', 'name', 'fullName', 'caller_name'];
+    for (const f of nameFields) {
+      if (mergedData[f] && typeof mergedData[f] === 'string') {
+        contactName = mergedData[f] as string;
+        break;
+      }
+    }
+
+    const phoneFields = ['callerPhone', 'contactPhone', 'customerPhone', 'phone', 'phoneNumber', 'caller_phone'];
+    for (const f of phoneFields) {
+      if (mergedData[f] && typeof mergedData[f] === 'string') {
+        contactPhone = mergedData[f] as string;
+        break;
+      }
+    }
+
+    if (!contactPhone) {
+      contactPhone = this.resolveLeadPhone(callData) || null;
+    }
+
+    const dataFields = ['email', 'company', 'address', 'feedback', 'notes', 'complaint', 'reason', 'preference', 'product', 'service', 'orderNumber', 'accountNumber'];
+    for (const f of dataFields) {
+      if (mergedData[f] && typeof mergedData[f] === 'string' && (mergedData[f] as string).trim() !== '') {
+        extractedData[f] = mergedData[f] as string;
+      }
+    }
+
+    if (mergedData.collectedData && typeof mergedData.collectedData === 'object') {
+      for (const [k, v] of Object.entries(mergedData.collectedData as Record<string, unknown>)) {
+        if (v && typeof v === 'string') {
+          extractedData[k] = v;
+        }
+      }
+    }
+
+    if (Object.keys(extractedData).length === 0 && !contactName) {
+      return;
+    }
+
+    if (callData.aiSummary && callData.aiSummary.length > 10) {
+      extractedData['call_summary'] = callData.aiSummary.substring(0, 500);
+    }
+
+    await createFallbackFormSubmission({
+      userId: callData.userId,
+      callId: callData.id,
+      contactName,
+      contactPhone,
+      extractedData,
+    });
   }
 }
 

@@ -21,26 +21,6 @@ type InsertSipPhoneNumber = typeof sipPhoneNumbers.$inferInsert;
 type SipCall = typeof sipCalls.$inferSelect;
 type InsertSipCall = typeof sipCalls.$inferInsert;
 
-interface ElevenLabsPhoneNumberConfig {
-  phone_number: string;
-  agent_id: string;
-  label?: string;
-  sip_trunk_id?: string;
-}
-
-interface ElevenLabsSipTrunkConfig {
-  name: string;
-  sip_host: string;
-  sip_port?: number;
-  transport?: 'udp' | 'tcp' | 'tls';
-  media_encryption?: 'require' | 'prefer' | 'none';
-  username?: string;
-  password?: string;
-  realm?: string;
-  codecs_allowed?: string[];
-  inbound_transport?: 'udp' | 'tcp' | 'tls';
-  inbound_port?: number;
-}
 
 export class ElevenLabsSipService {
   private static async getElevenLabsApiKey(userId?: string): Promise<string> {
@@ -98,46 +78,6 @@ export class ElevenLabsSipService {
   }): Promise<SipTrunk> {
     const providerDefaults = getProviderDefaults(params.provider);
     
-    const apiKey = await this.getElevenLabsApiKey(params.userId);
-    
-    const sipTrunkConfig: ElevenLabsSipTrunkConfig = {
-      name: params.name,
-      sip_host: params.sipHost,
-      sip_port: params.sipPort || providerDefaults.defaultPort,
-      transport: params.transport || providerDefaults.defaultTransport,
-      media_encryption: params.mediaEncryption || providerDefaults.defaultMediaEncryption,
-      username: params.username,
-      password: params.password,
-      realm: params.realm,
-      codecs_allowed: params.codecsAllowed || ELEVENLABS_SIP_CONFIG.defaultCodecs,
-      inbound_transport: params.inboundTransport || providerDefaults.inboundTransport || 'tcp',
-      inbound_port: params.inboundPort || providerDefaults.inboundPort || 5060,
-    };
-    
-    let externalElevenLabsId: string | null = null;
-    
-    try {
-      const response = await fetch(`${ELEVENLABS_SIP_CONFIG.apiBaseUrl}/convai/sip-trunks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': apiKey,
-        },
-        body: JSON.stringify(sipTrunkConfig),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        externalElevenLabsId = data.sip_trunk_id || data.id;
-        console.log(`[SIP Engine] Created ElevenLabs SIP trunk: ${externalElevenLabsId}`);
-      } else {
-        const errorText = await response.text();
-        console.warn(`[SIP Engine] ElevenLabs SIP trunk creation failed: ${response.status} - ${errorText}`);
-      }
-    } catch (error: any) {
-      console.warn(`[SIP Engine] ElevenLabs API call failed, storing locally: ${error.message}`);
-    }
-    
     const [trunk] = await db
       .insert(sipTrunks)
       .values({
@@ -155,9 +95,9 @@ export class ElevenLabsSipService {
         username: params.username,
         password: params.password,
         realm: params.realm,
-        externalElevenLabsId,
+        externalElevenLabsId: null,
         isActive: true,
-        healthStatus: externalElevenLabsId ? 'healthy' : 'unknown',
+        healthStatus: 'unknown',
       } as InsertSipTrunk)
       .returning();
     
@@ -178,31 +118,6 @@ export class ElevenLabsSipService {
     
     if (!existing) {
       return null;
-    }
-    
-    if (existing.externalElevenLabsId) {
-      try {
-        const apiKey = await this.getElevenLabsApiKey(existing.userId);
-        
-        const updatePayload: Partial<ElevenLabsSipTrunkConfig> = {};
-        if (updates.name) updatePayload.name = updates.name;
-        if (updates.sipHost) updatePayload.sip_host = updates.sipHost;
-        if (updates.sipPort) updatePayload.sip_port = updates.sipPort;
-        if (updates.transport) updatePayload.transport = updates.transport as 'udp' | 'tcp' | 'tls';
-        if (updates.username) updatePayload.username = updates.username;
-        if (updates.password) updatePayload.password = updates.password;
-        
-        await fetch(`${ELEVENLABS_SIP_CONFIG.apiBaseUrl}/convai/sip-trunks/${existing.externalElevenLabsId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'xi-api-key': apiKey,
-          },
-          body: JSON.stringify(updatePayload),
-        });
-      } catch (error: any) {
-        console.warn(`[SIP Engine] Failed to update ElevenLabs trunk: ${error.message}`);
-      }
     }
     
     const [updated] = await db
@@ -227,23 +142,28 @@ export class ElevenLabsSipService {
     if (!existing) {
       return false;
     }
-    
-    if (existing.externalElevenLabsId) {
-      try {
-        const apiKey = await this.getElevenLabsApiKey(existing.userId);
-        
-        await fetch(`${ELEVENLABS_SIP_CONFIG.apiBaseUrl}/convai/sip-trunks/${existing.externalElevenLabsId}`, {
-          method: 'DELETE',
-          headers: {
-            'xi-api-key': apiKey,
-          },
-        });
-        console.log(`[SIP Engine] Deleted ElevenLabs SIP trunk: ${existing.externalElevenLabsId}`);
-      } catch (error: any) {
-        console.warn(`[SIP Engine] Failed to delete ElevenLabs trunk: ${error.message}`);
+
+    const phoneNumbers = await db
+      .select()
+      .from(sipPhoneNumbers)
+      .where(eq(sipPhoneNumbers.sipTrunkId, trunkId));
+
+    for (const phone of phoneNumbers) {
+      if (phone.externalElevenLabsPhoneId) {
+        try {
+          const apiKey = await this.getElevenLabsApiKey(existing.userId);
+          await fetch(`${ELEVENLABS_SIP_CONFIG.apiBaseUrl}/convai/phone-numbers/${phone.externalElevenLabsPhoneId}`, {
+            method: 'DELETE',
+            headers: { 'xi-api-key': apiKey },
+          });
+          console.log(`[SIP Engine] Deleted ElevenLabs phone: ${phone.externalElevenLabsPhoneId}`);
+        } catch (error: any) {
+          console.warn(`[SIP Engine] Failed to delete ElevenLabs phone ${phone.phoneNumber}: ${error.message}`);
+        }
       }
     }
-    
+
+    await db.delete(sipPhoneNumbers).where(eq(sipPhoneNumbers.sipTrunkId, trunkId));
     await db.delete(sipTrunks).where(eq(sipTrunks.id, trunkId));
     
     return true;
@@ -288,42 +208,85 @@ export class ElevenLabsSipService {
     
     let externalElevenLabsPhoneId: string | null = null;
     
-    if (trunk.externalElevenLabsId && params.agentId) {
-      try {
+    try {
+      const apiKey = await this.getElevenLabsApiKey(params.userId);
+
+      let agentElevenLabsId: string | undefined;
+      if (params.agentId) {
         const [agent] = await db
           .select()
           .from(agents)
           .where(eq(agents.id, params.agentId))
           .limit(1);
-        
-        if (agent?.elevenLabsAgentId) {
-          const apiKey = await this.getElevenLabsApiKey(params.userId);
-          
-          const phoneConfig: ElevenLabsPhoneNumberConfig = {
-            phone_number: params.phoneNumber,
-            agent_id: agent.elevenLabsAgentId,
-            label: params.label,
-            sip_trunk_id: trunk.externalElevenLabsId,
-          };
-          
-          const response = await fetch(`${ELEVENLABS_SIP_CONFIG.apiBaseUrl}/convai/phone-numbers`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'xi-api-key': apiKey,
-            },
-            body: JSON.stringify(phoneConfig),
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            externalElevenLabsPhoneId = data.phone_number_id || data.id;
-            console.log(`[SIP Engine] Registered phone ${params.phoneNumber} with ElevenLabs: ${externalElevenLabsPhoneId}`);
-          }
-        }
-      } catch (error: any) {
-        console.warn(`[SIP Engine] Failed to register phone with ElevenLabs: ${error.message}`);
+        agentElevenLabsId = agent?.elevenLabsAgentId || undefined;
       }
+
+      const mediaEncryptionMap: Record<string, string> = {
+        'require': 'required',
+        'prefer': 'allowed',
+        'none': 'disabled',
+      };
+      const mediaEnc = mediaEncryptionMap[trunk.mediaEncryption || 'require'] || 'allowed';
+      const transportProto = (trunk.transport === 'tls' ? 'tls' : 'tcp');
+
+      const sipTrunkPayload: any = {
+        phone_number: params.phoneNumber,
+        label: params.label || params.phoneNumber,
+        sip_trunk: {
+          inbound_trunk: {
+            transport: transportProto,
+            media_encryption: mediaEnc,
+          },
+          outbound_trunk: {
+            address: trunk.sipHost,
+            transport: transportProto,
+            port: trunk.sipPort || 5061,
+            media_encryption: mediaEnc,
+          },
+        },
+      };
+
+      if (trunk.username && trunk.password) {
+        sipTrunkPayload.sip_trunk.outbound_trunk.username = trunk.username;
+        sipTrunkPayload.sip_trunk.outbound_trunk.password = trunk.password;
+      }
+
+      if (agentElevenLabsId) {
+        sipTrunkPayload.agent_id = agentElevenLabsId;
+      }
+
+      console.log(`[SIP Engine] Registering phone ${params.phoneNumber} with ElevenLabs SIP trunk...`);
+
+      const response = await fetch(`${ELEVENLABS_SIP_CONFIG.apiBaseUrl}/convai/phone-numbers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey,
+        },
+        body: JSON.stringify(sipTrunkPayload),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        externalElevenLabsPhoneId = data.phone_number_id || data.id;
+        console.log(`[SIP Engine] Registered phone ${params.phoneNumber} with ElevenLabs: ${externalElevenLabsPhoneId}`);
+
+        if (!trunk.externalElevenLabsId && externalElevenLabsPhoneId) {
+          await db
+            .update(sipTrunks)
+            .set({
+              externalElevenLabsId: `sip-${trunk.id}`,
+              healthStatus: 'healthy',
+              updatedAt: new Date(),
+            })
+            .where(eq(sipTrunks.id, trunk.id));
+        }
+      } else {
+        const errorText = await response.text();
+        console.warn(`[SIP Engine] ElevenLabs phone registration failed: ${response.status} - ${errorText}`);
+      }
+    } catch (error: any) {
+      console.warn(`[SIP Engine] Failed to register phone with ElevenLabs: ${error.message}`);
     }
     
     const [phoneNumber] = await db
@@ -638,51 +601,45 @@ export class ElevenLabsSipService {
     if (!trunk) {
       return { status: 'error', message: 'Trunk not found' };
     }
+
+    const phoneNumbers = await db
+      .select()
+      .from(sipPhoneNumbers)
+      .where(and(eq(sipPhoneNumbers.sipTrunkId, trunkId), eq(sipPhoneNumbers.isActive, true)));
+
+    const registeredCount = phoneNumbers.filter(p => p.externalElevenLabsPhoneId).length;
     
-    if (!trunk.externalElevenLabsId) {
-      return { status: 'unknown', message: 'Not registered with ElevenLabs' };
+    if (registeredCount === 0) {
+      await db
+        .update(sipTrunks)
+        .set({ healthStatus: 'unknown', lastHealthCheck: new Date() })
+        .where(eq(sipTrunks.id, trunkId));
+      return { status: 'unknown', message: 'No phone numbers registered with ElevenLabs yet' };
     }
-    
+
     try {
       const apiKey = await this.getElevenLabsApiKey(trunk.userId);
+      const testPhone = phoneNumbers.find(p => p.externalElevenLabsPhoneId);
       
-      const response = await fetch(`${ELEVENLABS_SIP_CONFIG.apiBaseUrl}/convai/sip-trunks/${trunk.externalElevenLabsId}`, {
+      const response = await fetch(`${ELEVENLABS_SIP_CONFIG.apiBaseUrl}/convai/phone-numbers/${testPhone!.externalElevenLabsPhoneId}`, {
         method: 'GET',
-        headers: {
-          'xi-api-key': apiKey,
-        },
+        headers: { 'xi-api-key': apiKey },
       });
       
-      if (response.ok) {
-        await db
-          .update(sipTrunks)
-          .set({
-            healthStatus: 'healthy',
-            lastHealthCheck: new Date(),
-          })
-          .where(eq(sipTrunks.id, trunkId));
-        
-        return { status: 'healthy', message: 'SIP trunk is operational' };
-      } else {
-        await db
-          .update(sipTrunks)
-          .set({
-            healthStatus: 'unhealthy',
-            lastHealthCheck: new Date(),
-          })
-          .where(eq(sipTrunks.id, trunkId));
-        
-        return { status: 'unhealthy', message: `ElevenLabs API returned ${response.status}` };
-      }
+      const healthStatus = response.ok ? 'healthy' : 'unhealthy';
+      await db
+        .update(sipTrunks)
+        .set({ healthStatus, lastHealthCheck: new Date() })
+        .where(eq(sipTrunks.id, trunkId));
+      
+      return response.ok
+        ? { status: 'healthy', message: `SIP trunk operational (${registeredCount} numbers registered)` }
+        : { status: 'unhealthy', message: `ElevenLabs API returned ${response.status}` };
     } catch (error: any) {
       await db
         .update(sipTrunks)
-        .set({
-          healthStatus: 'degraded',
-          lastHealthCheck: new Date(),
-        })
+        .set({ healthStatus: 'degraded', lastHealthCheck: new Date() })
         .where(eq(sipTrunks.id, trunkId));
-      
       return { status: 'degraded', message: error.message };
     }
   }

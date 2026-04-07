@@ -47,6 +47,19 @@ const flagSvgs: Record<string, JSX.Element> = {
       </g>
     </svg>
   ),
+  zh: (
+    <svg viewBox="0 0 512 512" className="w-full h-full">
+      <mask id="zh_mask"><circle cx="256" cy="256" r="256" fill="#fff"/></mask>
+      <g mask="url(#zh_mask)">
+        <path fill="#d80027" d="M0 0h512v512H0z"/>
+        <path fill="#ffda44" d="M140.1 145.5l22.1 68h71.5l-57.8 42 22.1 68-57.9-42-57.9 42 22.1-68-57.8-42h71.5z"/>
+        <path fill="#ffda44" d="M264 81l6.4 19.7h20.7l-16.8 12.2 6.4 19.7-16.7-12.1-16.7 12.1 6.4-19.7-16.8-12.2h20.7z"/>
+        <path fill="#ffda44" d="M312 114l6.4 19.7h20.7l-16.8 12.2 6.4 19.7-16.7-12.1-16.7 12.1 6.4-19.7-16.8-12.2h20.7z"/>
+        <path fill="#ffda44" d="M312 178l6.4 19.7h20.7l-16.8 12.2 6.4 19.7-16.7-12.1-16.7 12.1 6.4-19.7-16.8-12.2h20.7z"/>
+        <path fill="#ffda44" d="M264 211l6.4 19.7h20.7l-16.8 12.2 6.4 19.7-16.7-12.1-16.7 12.1 6.4-19.7-16.8-12.2h20.7z"/>
+      </g>
+    </svg>
+  ),
   de: (
     <svg viewBox="0 0 512 512" className="w-full h-full">
       <mask id="de_mask"><circle cx="256" cy="256" r="256" fill="#fff"/></mask>

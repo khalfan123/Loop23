@@ -16,7 +16,7 @@
 import type { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { TwilioOpenAIAudioBridge } from '../services/audio-bridge.service';
-import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
+import { OpenAIPoolService } from '../../../services/openai-pool.service';
 import { OpenAIAgentFactory } from '../services/openai-agent-factory';
 import { hydrateCompiledTools, type CompiledFunctionTool } from '../../../services/openai-voice-agent';
 import { db } from '../../../db';
@@ -309,8 +309,12 @@ async function initializeSession(
         language: (metadata?.language as string) || 'en',
       });
 
-      // Add knowledge base tool if configured
-      const knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
+      // Add knowledge base tool if configured (enriched with product KB entries)
+      let knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
+      if (callRecord.userId) {
+        const { enrichKnowledgeBaseIdsWithProducts } = await import('../../../utils/product-kb-enrichment');
+        knowledgeBaseIds = await enrichKnowledgeBaseIdsWithProducts(knowledgeBaseIds || [], callRecord.userId);
+      }
       if (knowledgeBaseIds && knowledgeBaseIds.length > 0 && callRecord.userId) {
         agentConfig = OpenAIAgentFactory.addKnowledgeBaseTool(
           agentConfig,
@@ -375,7 +379,6 @@ async function initializeSession(
       fromNumber: callRecord.fromNumber || undefined,
       toNumber: callRecord.toNumber || undefined,
       callDirection: callRecord.callDirection as 'inbound' | 'outbound' || 'inbound',
-      credentialId: callRecord.openaiCredentialId || undefined,
     });
 
     logger.info(`Session created for incoming call ${callSid}`, undefined, 'TwilioOpenAI Stream');

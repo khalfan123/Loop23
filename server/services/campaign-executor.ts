@@ -32,7 +32,6 @@ import {
   hasAnyAvailableCapacity,
   PhoneMigrator 
 } from '../engines/elevenlabs-migration';
-import { PlivoBatchCallingService } from '../engines/plivo/services/plivo-batch-calling.service';
 import { TwilioOpenAIBatchCallingService } from '../engines/twilio-openai/services/twilio-openai-batch-calling.service';
 import { BedrockPollyBatchCallingService } from '../engines/twilio-bedrock-polly/services/bedrock-polly-batch-calling.service';
 import { batchInsertCalls, batchInsertFlowExecutions, FlowExecutionInsert } from '../utils/batch-utils';
@@ -102,7 +101,7 @@ export class CampaignExecutor {
 
   /**
    * Pre-validate campaign before execution
-   * Checks all requirements for the appropriate engine (ElevenLabs, Plivo+OpenAI, Twilio+OpenAI)
+   * Checks all requirements for the appropriate engine (ElevenLabs, Twilio+OpenAI)
    * Returns detailed error messages if validation fails
    */
   async validateCampaign(campaignId: string): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
@@ -180,12 +179,7 @@ export class CampaignExecutor {
       if (agent) {
         const provider = agent.telephonyProvider || 'twilio';
 
-        if (provider === 'plivo') {
-          // Plivo + OpenAI engine validation
-          if (!agent.openaiCredentialId) {
-            warnings.push('No OpenAI credential assigned to agent. Will use default pool.');
-          }
-        } else if (provider === 'twilio_openai') {
+        if (provider === 'twilio_openai') {
           // Twilio + OpenAI engine validation
           if (!agent.openaiCredentialId) {
             warnings.push('No OpenAI credential assigned to agent. Will use default pool.');
@@ -280,149 +274,6 @@ export class CampaignExecutor {
         throw new Error('Agent not found');
       }
 
-      // Route to Plivo engine if agent uses Plivo telephony
-      if (agent.telephonyProvider === 'plivo') {
-        console.log(`📞 [Campaign Executor] Routing to Plivo + OpenAI engine for campaign ${campaignId}`);
-        
-        // Get all contacts for the campaign
-        const campaignContacts = await db
-          .select()
-          .from(contacts)
-          .where(eq(contacts.campaignId, campaignId));
-
-        if (campaignContacts.length === 0) {
-          throw new Error('Campaign has no contacts');
-        }
-
-        // Get campaign phone number for fromNumber
-        const [campaignPhoneNumber] = await db
-          .select()
-          .from(phoneNumbers)
-          .where(eq(phoneNumbers.id, campaign.phoneNumberId!))
-          .limit(1);
-
-        if (!campaignPhoneNumber) {
-          throw new Error('Campaign phone number not found');
-        }
-
-        // Store Plivo-specific batch job ID for tracking
-        const plivoBatchJobId = `plivo-${campaignId}`;
-        
-        // Update campaign status to 'running' and set startedAt BEFORE execution
-        await db
-          .update(campaigns)
-          .set({
-            status: 'running',
-            startedAt: new Date(),
-            batchJobId: plivoBatchJobId,
-            batchJobStatus: 'running',
-            totalContacts: campaignContacts.length,
-          })
-          .where(eq(campaigns.id, campaignId));
-
-        // PRE-CREATE CALL RECORDS using batch insert for scalability (10,000+ contacts)
-        const callInserts = campaignContacts.map(contact => ({
-          userId: campaign.userId,
-          campaignId: campaign.id,
-          contactId: contact.id,
-          phoneNumber: contact.phone,
-          fromNumber: campaignPhoneNumber.phoneNumber,
-          toNumber: contact.phone,
-          status: 'pending' as const,
-          callDirection: 'outgoing' as const,
-          metadata: {
-            batchCall: true,
-            batchJobId: plivoBatchJobId,
-            agentId: agent.id,
-            telephonyProvider: 'plivo',
-            contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
-          },
-        }));
-
-        const callResult = await batchInsertCalls(callInserts, '📞 [Plivo Campaign]');
-        const preCreatedCalls = callResult.results;
-        
-        // Create flow execution records for flow-based agents using batch insert
-        // Use campaign.flowId if set, otherwise fall back to agent.flowId
-        const effectiveFlowId = campaign.flowId || agent.flowId;
-        if (effectiveFlowId && preCreatedCalls.length > 0) {
-          const flowExecInserts: FlowExecutionInsert[] = preCreatedCalls.map(callRecord => ({
-            callId: callRecord.id,
-            flowId: effectiveFlowId,
-            campaignId: campaign.id,
-            campaignName: campaign.name,
-            contactPhone: callRecord.phoneNumber || '',
-            telephonyProvider: 'plivo',
-          }));
-          
-          await batchInsertFlowExecutions(flowExecInserts, '🔀 [Plivo Campaign]');
-        }
-        
-        const plivoBatchService = PlivoBatchCallingService.getInstance(campaignId);
-        const result = await plivoBatchService.executeCampaign(campaignId);
-        
-        // Trigger campaign.completed webhook for Plivo campaigns
-        if (campaign.userId && result.status === 'completed') {
-          const campaignContacts = await db
-            .select()
-            .from(contacts)
-            .where(eq(contacts.campaignId, campaignId));
-          
-          webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.completed', {
-            campaign: {
-              id: campaign.id,
-              name: campaign.name,
-              type: campaign.type,
-              status: 'completed',
-              totalContacts: result.totalCalls,
-              startedAt: campaign.startedAt,
-              completedAt: new Date().toISOString(),
-              createdAt: campaign.createdAt,
-            },
-            stats: {
-              successfulCalls: result.completedCalls,
-              failedCalls: result.failedCalls,
-              totalCalls: result.totalCalls,
-              completedCalls: result.completedCalls + result.failedCalls,
-            },
-            contacts: campaignContacts.map(c => ({
-              id: c.id,
-              firstName: c.firstName,
-              lastName: c.lastName,
-              phone: c.phone,
-              email: c.email,
-              status: c.status,
-            })),
-          }, campaignId).catch(err => {
-            console.error('❌ [Webhook] Error triggering campaign.completed event:', err);
-          });
-          
-          // Send campaign completed email
-          try {
-            await emailService.sendCampaignCompleted(campaignId);
-          } catch (emailError: any) {
-            console.error(`❌ [Campaign] Failed to send campaign completed email:`, emailError);
-          }
-        }
-        
-        // Return a compatible BatchJob object for API consistency
-        return {
-          batchJob: {
-            id: plivoBatchJobId,
-            name: campaign.name,
-            agent_id: agent.id,
-            agent_name: agent.name,
-            created_at_unix: Math.floor(Date.now() / 1000),
-            scheduled_time_unix: 0,
-            last_updated_at_unix: Math.floor(Date.now() / 1000),
-            total_calls_scheduled: result.totalCalls,
-            total_calls_dispatched: result.completedCalls + result.failedCalls,
-            status: result.status === 'completed' ? 'completed' as const : 
-                   result.status === 'cancelled' ? 'cancelled' as const : 'failed' as const,
-          }
-        };
-      }
-
       // Route to Twilio-OpenAI engine if agent uses twilio_openai telephony
       if (agent.telephonyProvider === 'twilio_openai') {
         console.log(`📞 [Campaign Executor] Routing to Twilio + OpenAI engine for campaign ${campaignId}`);
@@ -475,7 +326,7 @@ export class CampaignExecutor {
             batchJobId: twilioOpenAIBatchJobId,
             agentId: agent.id,
             telephonyProvider: 'twilio_openai',
-            contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
+            contactName: contact.firstName || '',
           },
         }));
 
@@ -697,7 +548,7 @@ export class CampaignExecutor {
             batchJobId: bedrockPollyBatchJobId,
             agentId: agent.id,
             telephonyProvider: 'bedrock-polly',
-            contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
+            contactName: contact.firstName || '',
           },
         }));
 
@@ -934,7 +785,7 @@ export class CampaignExecutor {
           batchCall: true,
           agentId: agent.id,
           elevenLabsAgentId: agent.elevenLabsAgentId,
-          contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
+          contactName: contact.firstName || '',
         },
       }));
 
@@ -1396,45 +1247,6 @@ export class CampaignExecutor {
       throw new Error('Agent not found');
     }
 
-    // Route to Plivo engine if agent uses Plivo telephony
-    if (agent.telephonyProvider === 'plivo') {
-      const plivoBatchService = PlivoBatchCallingService.getInstance(campaignId);
-      plivoBatchService.pause();
-      
-      await db
-        .update(campaigns)
-        .set({ 
-          status: 'paused',
-          batchJobStatus: 'paused',
-          config: sql`jsonb_set(COALESCE(config, '{}'::jsonb), '{pauseReason}', ${JSON.stringify(reason)}::jsonb)`
-        })
-        .where(eq(campaigns.id, campaignId));
-      
-      console.log(`⏸️ [Campaign Executor] Paused Plivo campaign ${campaignId} (reason: ${reason})`);
-      
-      // Trigger webhook event for Plivo pause
-      if (campaign.userId) {
-        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.paused', {
-          campaign: { 
-            id: campaign.id, 
-            name: campaign.name,
-            type: campaign.type,
-            totalContacts: campaign.totalContacts,
-            completedCalls: campaign.completedCalls,
-            successfulCalls: campaign.successfulCalls,
-            failedCalls: campaign.failedCalls,
-          },
-          pausedAt: new Date().toISOString(),
-          reason,
-          engine: 'plivo',
-        }, campaignId).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.paused event:', err);
-        });
-      }
-      
-      return null;
-    }
-
     // ElevenLabs flow - requires batchJobId
     if (!campaign.batchJobId) {
       throw new Error('Campaign has no active batch job');
@@ -1513,64 +1325,6 @@ export class CampaignExecutor {
       throw new Error('Agent not found');
     }
 
-    // Route to Plivo engine if agent uses Plivo telephony
-    if (agent.telephonyProvider === 'plivo') {
-      const plivoBatchService = PlivoBatchCallingService.getInstance(campaignId);
-      await plivoBatchService.cancel();
-      
-      // Query current stats from database for accurate webhook payload
-      const campaignCalls = await db.select().from(calls).where(eq(calls.campaignId, campaignId));
-      const completedCallsCount = campaignCalls.filter(c => 
-        ['completed', 'failed', 'busy', 'no-answer'].includes(c.status)
-      ).length;
-      const successfulCallsCount = campaignCalls.filter(c => c.status === 'completed').length;
-      const failedCallsCount = campaignCalls.filter(c => 
-        ['failed', 'busy', 'no-answer'].includes(c.status)
-      ).length;
-      
-      await db
-        .update(campaigns)
-        .set({ 
-          status: 'cancelled',
-          batchJobStatus: 'cancelled',
-          completedAt: new Date(),
-          completedCalls: completedCallsCount,
-          successfulCalls: successfulCallsCount,
-          failedCalls: failedCallsCount,
-        })
-        .where(eq(campaigns.id, campaignId));
-      
-      console.log(`🛑 [Campaign Executor] Cancelled Plivo campaign ${campaignId}`);
-      
-      // Trigger webhook event for Plivo campaign cancellation
-      if (campaign.userId) {
-        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.cancelled', {
-          campaign: { 
-            id: campaign.id, 
-            name: campaign.name,
-            type: campaign.type,
-            totalContacts: campaign.totalContacts,
-            startedAt: campaign.startedAt,
-            cancelledAt: new Date().toISOString(),
-            createdAt: campaign.createdAt,
-          },
-          stats: {
-            completedCalls: completedCallsCount,
-            successfulCalls: successfulCallsCount,
-            failedCalls: failedCallsCount,
-            totalCalls: campaignCalls.length,
-          },
-          cancelledAt: new Date().toISOString(),
-          engine: 'plivo',
-        }, campaignId).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.cancelled event:', err);
-        });
-      }
-      
-      PlivoBatchCallingService.removeInstance(campaignId);
-      return null;
-    }
-
     // ElevenLabs flow - requires batchJobId
     if (!campaign.batchJobId) {
       throw new Error('Campaign has no active batch job');
@@ -1627,64 +1381,6 @@ export class CampaignExecutor {
 
     if (!agent) {
       throw new Error('Agent not found');
-    }
-
-    // Route to Plivo engine if agent uses Plivo telephony
-    if (agent.telephonyProvider === 'plivo') {
-      // For Plivo, resume means re-executing the campaign with pending contacts
-      const plivoBatchService = PlivoBatchCallingService.getInstance(campaignId);
-      
-      // If paused, just resume; if completed/failed, re-execute
-      if (plivoBatchService.isRunning() === false) {
-        plivoBatchService.resume();
-      }
-      
-      // Update campaign status to running BEFORE re-execution, clear completedAt, add resumeReason
-      await db
-        .update(campaigns)
-        .set({ 
-          status: 'running',
-          batchJobStatus: 'running',
-          completedAt: null,
-          config: sql`jsonb_set(COALESCE(config, '{}'::jsonb), '{resumeReason}', ${JSON.stringify(reason)}::jsonb)`
-        })
-        .where(eq(campaigns.id, campaignId));
-      
-      // Re-execute the campaign (it will pick up pending contacts)
-      const result = await plivoBatchService.executeCampaign(campaignId);
-      
-      console.log(`▶️ [Campaign Executor] Resumed Plivo campaign ${campaignId} (reason: ${reason})`);
-      
-      // Trigger webhook event for Plivo resume
-      if (campaign.userId) {
-        webhookDeliveryService.triggerEvent(campaign.userId, 'campaign.resumed', {
-          campaign: { 
-            id: campaign.id, 
-            name: campaign.name,
-            type: campaign.type,
-            totalContacts: campaign.totalContacts,
-          },
-          resumedAt: new Date().toISOString(),
-          reason,
-          engine: 'plivo',
-        }, campaignId).catch(err => {
-          console.error('❌ [Webhook] Error triggering campaign.resumed event:', err);
-        });
-      }
-      
-      return {
-        id: campaignId,
-        name: campaign.name,
-        agent_id: agent.id,
-        agent_name: agent.name,
-        created_at_unix: Math.floor(Date.now() / 1000),
-        scheduled_time_unix: 0,
-        last_updated_at_unix: Math.floor(Date.now() / 1000),
-        total_calls_scheduled: result.totalCalls,
-        total_calls_dispatched: result.completedCalls + result.failedCalls,
-        status: result.status === 'completed' ? 'completed' as const : 
-               result.status === 'cancelled' ? 'cancelled' as const : 'failed' as const,
-      };
     }
 
     // ElevenLabs flow - requires batchJobId
@@ -1803,7 +1499,7 @@ export class CampaignExecutor {
         .returning();
 
       console.log(`[Campaign Executor] 📞 Initiating call via ElevenLabs native integration`);
-      console.log(`   Contact: ${contact.firstName} ${contact.lastName || ''} (${contact.phone})`);
+      console.log(`   Contact: ${contact.firstName || ''} (${contact.phone})`);
       console.log(`   From: ${phoneNumber.phoneNumber} (ElevenLabs ID: ${phoneNumber.elevenLabsPhoneNumberId})`);
       console.log(`   Agent: ${agent.name} (ElevenLabs ID: ${agent.elevenLabsAgentId})`);
       console.log(`   Credential: ${credential.name}`);
@@ -1889,9 +1585,6 @@ export class CampaignExecutor {
     }
     if (message.includes('twilio')) {
       return 'TWILIO_API_ERROR';
-    }
-    if (message.includes('plivo')) {
-      return 'PLIVO_API_ERROR';
     }
     if (message.includes('phone') && (message.includes('not found') || message.includes('not synced'))) {
       return 'PHONE_NUMBER_ERROR';

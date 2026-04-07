@@ -15,9 +15,23 @@
  * ============================================================
  */
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, boolean, jsonb, decimal, doublePrecision, serial, date, time, unique, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, boolean, jsonb, decimal, doublePrecision, serial, date, time, unique, real, pgEnum, customType } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+const vector = customType<{ data: number[] | null; driverData: string | null }>({
+  dataType() {
+    return 'vector(1536)';
+  },
+  fromDriver(value: string | null) {
+    if (!value) return null;
+    return JSON.parse(value.replace('[', '[').replace(']', ']')) as number[];
+  },
+  toDriver(value: number[] | null) {
+    if (!value) return null;
+    return `[${value.join(',')}]`;
+  },
+});
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1214,6 +1228,7 @@ export const knowledgeChunks = pgTable("knowledge_chunks", {
   chunkIndex: integer("chunk_index").notNull(), // Order within the document
   chunkText: text("chunk_text").notNull(), // The actual text content
   embedding: jsonb("embedding"), // Vector embedding as JSON array of floats
+  embeddingVec: vector("embedding_vec"), // pgvector native column for fast cosine search
   tokenCount: integer("token_count").notNull().default(0),
   metadata: jsonb("metadata"), // Page number, section, source info
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -1240,6 +1255,7 @@ export const insertUserKnowledgeStorageLimitSchema = createInsertSchema(userKnow
 
 export const insertKnowledgeChunkSchema = createInsertSchema(knowledgeChunks).omit({
   id: true,
+  embeddingVec: true,
   createdAt: true,
 });
 
@@ -3271,6 +3287,47 @@ export const insertSipCallSchema = createInsertSchema(sipCalls).omit({
 export type InsertSipCall = z.infer<typeof insertSipCallSchema>;
 export type SipCall = typeof sipCalls.$inferSelect;
 
+// Port Requests - Number porting requests for bringing external numbers to Twilio
+export const portRequests = pgTable("port_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  phoneNumber: text("phone_number").notNull(),
+  countryCode: text("country_code").notNull(),
+  currentCarrier: text("current_carrier").notNull(),
+  accountNumber: text("account_number"),
+  accountPin: text("account_pin"),
+  authorizedName: text("authorized_name").notNull(),
+  companyName: text("company_name"),
+  addressLine1: text("address_line1").notNull(),
+  addressLine2: text("address_line2"),
+  city: text("city").notNull(),
+  region: text("region"),
+  postalCode: text("postal_code"),
+  country: text("country").notNull(),
+  loaText: text("loa_text"),
+  supportingDocUrl: text("supporting_doc_url"),
+  status: text("status").notNull().default("draft"),
+  adminNotes: text("admin_notes"),
+  requestedPortDate: timestamp("requested_port_date"),
+  completedAt: timestamp("completed_at"),
+  twilioPortSid: text("twilio_port_sid"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertPortRequestSchema = createInsertSchema(portRequests).omit({
+  id: true,
+  loaText: true,
+  status: true,
+  adminNotes: true,
+  completedAt: true,
+  twilioPortSid: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertPortRequest = z.infer<typeof insertPortRequestSchema>;
+export type PortRequest = typeof portRequests.$inferSelect;
+
 // User Addresses - Addresses submitted by users for phone number regulatory compliance
 export const userAddresses = pgTable("user_addresses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -3522,7 +3579,7 @@ export const knowledgePipelineJobs = pgTable("knowledge_pipeline_jobs", {
   stageDetails: jsonb("stage_details").$type<{
     crawling: { pagesDiscovered: number; pagesCrawled: number; startedAt?: string; completedAt?: string };
     analyzing: { itemsTotal: number; itemsProcessed: number; entitiesFound: number; topicsFound: number; faqsFound: number; startedAt?: string; completedAt?: string };
-    generating: { articlesPlanned: number; articlesGenerated: number; startedAt?: string; completedAt?: string };
+    generating: { articlesPlanned: number; articlesGenerated: number; currentArticleTitle?: string; currentCategory?: string; startedAt?: string; completedAt?: string };
   }>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -4026,3 +4083,186 @@ export const insertCallErrorLogSchema = createInsertSchema(callErrorLogs).omit({
 });
 export type InsertCallErrorLog = z.infer<typeof insertCallErrorLogSchema>;
 export type CallErrorLog = typeof callErrorLogs.$inferSelect;
+
+// Callpilot — AI-generated tasks from call transcriptions
+export const opsTaskTypeEnum = pgEnum("ops_task_type", ["refund", "callback", "followup", "escalation", "other"]);
+export const opsPriorityEnum = pgEnum("ops_priority", ["high", "medium", "low"]);
+export const opsStatusEnum = pgEnum("ops_status", ["pending", "in_progress", "completed", "cancelled"]);
+
+export const opsTasks = pgTable("ops_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  callId: varchar("call_id"),
+  trackingSerial: text("tracking_serial"),
+  title: text("title").notNull(),
+  description: text("description"),
+  taskType: opsTaskTypeEnum("task_type").notNull().default("other"),
+  priority: opsPriorityEnum("priority").notNull().default("medium"),
+  status: opsStatusEnum("status").notNull().default("pending"),
+  assignedTo: text("assigned_to"),
+  dueDate: timestamp("due_date"),
+  intent: text("intent"),
+  entities: jsonb("entities").$type<Record<string, string | string[] | null>>(),
+  sourceExcerpt: text("source_excerpt"),
+  isDeleted: boolean("is_deleted").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertOpsTaskSchema = createInsertSchema(opsTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertOpsTask = z.infer<typeof insertOpsTaskSchema>;
+export type OpsTask = typeof opsTasks.$inferSelect;
+
+// Callpilot — Tracks which calls have been analyzed (even if zero tasks extracted)
+export const opsAnalysisRuns = pgTable("ops_analysis_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  callId: varchar("call_id").notNull(),
+  tasksCreated: integer("tasks_created").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueUserCall: unique().on(table.userId, table.callId),
+}));
+
+export const insertOpsAnalysisRunSchema = createInsertSchema(opsAnalysisRuns).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertOpsAnalysisRun = z.infer<typeof insertOpsAnalysisRunSchema>;
+export type OpsAnalysisRun = typeof opsAnalysisRuns.$inferSelect;
+
+// Products — User product/pricing inventory for AI agent sales
+export const products = pgTable("products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  price: real("price").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  category: text("category"),
+  sku: text("sku"),
+  availability: text("availability").notNull().default("in_stock"), // in_stock, out_of_stock, pre_order
+  productUrl: text("product_url"), // Link to e-commerce store product page
+  features: jsonb("features").$type<string[]>(),
+  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  ragKnowledgeBaseId: varchar("rag_knowledge_base_id"), // Links to knowledge_base entry for RAG sync
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertProductSchema = createInsertSchema(products).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  ragKnowledgeBaseId: true,
+});
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type Product = typeof products.$inferSelect;
+
+export const userSmtpSettings = pgTable("user_smtp_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  smtpHost: text("smtp_host").notNull(),
+  smtpPort: integer("smtp_port").notNull().default(587),
+  smtpUsername: text("smtp_username").notNull(),
+  smtpPassword: text("smtp_password").notNull(),
+  smtpSecure: boolean("smtp_secure").notNull().default(false),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  isVerified: boolean("is_verified").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertUserSmtpSettingsSchema = createInsertSchema(userSmtpSettings).omit({
+  id: true,
+  isVerified: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserSmtpSettings = z.infer<typeof insertUserSmtpSettingsSchema>;
+export type UserSmtpSettings = typeof userSmtpSettings.$inferSelect;
+
+export const agentNames = pgTable("agent_names", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  language: text("language").notNull(),
+  gender: text("gender").notNull().default("unisex"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAgentNameSchema = createInsertSchema(agentNames).omit({ id: true, createdAt: true });
+export type InsertAgentName = z.infer<typeof insertAgentNameSchema>;
+export type AgentName = typeof agentNames.$inferSelect;
+
+export const ciCalls = pgTable("ci_calls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  callId: varchar("call_id").notNull().unique(),
+  userId: varchar("user_id").notNull(),
+  agentId: varchar("agent_id"),
+  duration: integer("duration"),
+  outcome: text("outcome"),
+  callTimestamp: timestamp("call_timestamp"),
+  rawTranscript: text("raw_transcript"),
+  sentiment: text("sentiment"),
+  customerIntent: text("customer_intent"),
+  summary: text("summary"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCiCallSchema = createInsertSchema(ciCalls).omit({ id: true, createdAt: true });
+export type InsertCiCall = z.infer<typeof insertCiCallSchema>;
+export type CiCall = typeof ciCalls.$inferSelect;
+
+export const ciAnalyses = pgTable("ci_analyses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  analysisId: varchar("analysis_id").notNull().unique(),
+  callId: varchar("call_id").notNull().references(() => ciCalls.callId, { onDelete: "cascade" }),
+  topics: jsonb("topics").$type<string[]>(),
+  objections: jsonb("objections").$type<string[]>(),
+  keywords: jsonb("keywords").$type<string[]>(),
+  agentScore: jsonb("agent_score").$type<{ accuracy: number; clarity: number; tone: number; completion: number; overall: number }>(),
+  failedResponses: jsonb("failed_responses").$type<string[]>(),
+  missedOpportunities: jsonb("missed_opportunities").$type<string[]>(),
+  recommendations: jsonb("recommendations").$type<string[]>(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCiAnalysisSchema = createInsertSchema(ciAnalyses).omit({ id: true, createdAt: true });
+export type InsertCiAnalysis = z.infer<typeof insertCiAnalysisSchema>;
+export type CiAnalysis = typeof ciAnalyses.$inferSelect;
+
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("open"),
+  priority: varchar("priority", { length: 50 }).notNull().default("medium"),
+  assignedTo: varchar("assigned_to", { length: 255 }),
+  category: varchar("category", { length: 255 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
+export type SupportTicket = typeof supportTickets.$inferSelect;
+
+export const supportMessages = pgTable("support_messages", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").notNull().references(() => supportTickets.id, { onDelete: "cascade" }),
+  senderName: varchar("sender_name", { length: 255 }).notNull(),
+  senderType: varchar("sender_type", { length: 50 }).notNull().default("user"),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({ id: true, createdAt: true });
+export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
+export type SupportMessage = typeof supportMessages.$inferSelect;

@@ -1,8 +1,9 @@
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Workflow, BarChart3, Globe, CreditCard, ChevronRight, UserCog as UserCogIcon } from "lucide-react";
+import { Settings as SettingsIcon, Workflow, BarChart3, Globe, CreditCard, ChevronRight, UserCog as UserCogIcon, LifeBuoy } from "lucide-react";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
+import { BUILD_VERSION_FULL } from "@/lib/build-version";
 import Settings from "@/pages/Settings";
 import FlowsPage from "@/pages/FlowsPage";
 import FlowBuilderPage from "@/pages/FlowBuilderPage";
@@ -11,6 +12,7 @@ import WebhookConfigPage from "@/pages/WebhookConfigPage";
 import FormsPage from "@/pages/FormsPage";
 import WidgetsPage from "@/pages/WidgetsPage";
 import PlanBillingPage from "@/pages/PlanBillingPage";
+import SupportTicketsPage from "@/pages/SupportTicketsPage";
 
 const settingsItems = [
   {
@@ -58,6 +60,15 @@ const settingsItems = [
     iconColor: "text-green-500",
     bgColor: "bg-green-50 dark:bg-green-950/30",
   },
+  {
+    id: "support",
+    title: "Support Tickets",
+    description: "Create and track support requests",
+    url: "/app/settings/support",
+    icon: LifeBuoy,
+    iconColor: "text-rose-500",
+    bgColor: "bg-rose-50 dark:bg-rose-950/30",
+  },
 ];
 
 function SettingsOverview({ onNavigate }: { onNavigate: (url: string) => void }) {
@@ -94,6 +105,10 @@ function SettingsOverview({ onNavigate }: { onNavigate: (url: string) => void })
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="pt-4 text-center">
+        <span className="text-xs text-muted-foreground/50" data-testid="text-settings-build-version">{BUILD_VERSION_FULL}</span>
       </div>
     </div>
   );
@@ -143,7 +158,7 @@ export default function SettingsHub() {
         <Route path="/app/settings/flows/new" component={FlowBuilderPage} />
         <Route path="/app/settings/flows/forms" component={FormsPage} />
         <Route path="/app/settings/flows/appointments">
-          <Redirect to="/app/appointments" />
+          <Redirect to="/app/ops" />
         </Route>
         <Route path="/app/settings/flows/:id" component={FlowBuilderPage} />
         <Route path="/app/settings/flows" component={FlowsPage} />
@@ -154,6 +169,7 @@ export default function SettingsHub() {
           <Redirect to="/app/settings/billing" />
         </Route>
         <Route path="/app/settings/billing" component={PlanBillingPage} />
+        <Route path="/app/settings/support" component={SupportTicketsPage} />
         <Route path="/app/settings">
           <SettingsOverview onNavigate={setLocation} />
         </Route>

@@ -35,13 +35,87 @@ const SYSTEM_USER_ID = "system";
 
 async function seedLlmModels() {
   console.log("\n📊 Seeding LLM Models...");
+
+  const DEPRECATED_MODEL_IDS: Record<string, string> = {
+    "claude-3-haiku": "claude-3-5-haiku",
+  };
+
   const existing = await db.select().from(llmModels);
-  if (existing.length > 0) {
-    console.log(`   ⚠️  Found ${existing.length} existing models. Skipping.`);
-    return;
+
+  let renamed = 0;
+  const existingModelIds = new Set(existing.map(m => m.modelId));
+  for (const row of existing) {
+    const newModelId = DEPRECATED_MODEL_IDS[row.modelId];
+    if (newModelId) {
+      const seedEntry = MODELS_SEED_DATA.find(m => m.modelId === newModelId);
+      if (seedEntry) {
+        if (existingModelIds.has(newModelId)) {
+          await db.delete(llmModels).where(sql`model_id = ${row.modelId}`);
+          console.log(`   🗑️ Removed deprecated model: ${row.modelId} (replacement ${newModelId} already exists)`);
+        } else {
+          await db.update(llmModels)
+            .set({
+              modelId: seedEntry.modelId,
+              name: seedEntry.name,
+              provider: seedEntry.provider,
+              tier: seedEntry.tier,
+              sortOrder: seedEntry.sortOrder,
+              updatedAt: new Date(),
+            })
+            .where(sql`model_id = ${row.modelId}`);
+          existingModelIds.add(newModelId);
+          console.log(`   🔄 Renamed deprecated model: ${row.modelId} → ${newModelId}`);
+        }
+        existingModelIds.delete(row.modelId);
+        renamed++;
+      }
+    }
   }
-  await db.insert(llmModels).values(MODELS_SEED_DATA);
-  console.log(`   ✅ Inserted ${MODELS_SEED_DATA.length} LLM models`);
+
+  const currentModels = renamed > 0
+    ? await db.select().from(llmModels)
+    : existing;
+
+  if (currentModels.length === 0) {
+    await db.insert(llmModels).values(MODELS_SEED_DATA);
+    console.log(`   ✅ Inserted ${MODELS_SEED_DATA.length} LLM models`);
+  } else {
+    let inserted = 0;
+    let updated = 0;
+    const existingByModelId = new Map(currentModels.map(m => [m.modelId, m]));
+
+    for (const seedModel of MODELS_SEED_DATA) {
+      const existingModel = existingByModelId.get(seedModel.modelId);
+      if (!existingModel) {
+        await db.insert(llmModels).values(seedModel);
+        inserted++;
+      } else if (
+        existingModel.name !== seedModel.name ||
+        existingModel.provider !== seedModel.provider ||
+        existingModel.tier !== seedModel.tier ||
+        existingModel.sortOrder !== seedModel.sortOrder
+      ) {
+        await db.update(llmModels)
+          .set({
+            name: seedModel.name,
+            provider: seedModel.provider,
+            tier: seedModel.tier,
+            sortOrder: seedModel.sortOrder,
+            updatedAt: new Date(),
+          })
+          .where(sql`model_id = ${seedModel.modelId}`);
+        updated++;
+      }
+    }
+
+    if (inserted === 0 && updated === 0 && renamed === 0) {
+      console.log(`   ✅ All ${MODELS_SEED_DATA.length} models already up to date.`);
+    } else {
+      if (renamed > 0) console.log(`   ✅ Renamed ${renamed} deprecated LLM model(s)`);
+      if (inserted > 0) console.log(`   ✅ Inserted ${inserted} new LLM models`);
+      if (updated > 0) console.log(`   ✅ Updated ${updated} existing LLM models`);
+    }
+  }
   console.log(`      - Free tier: ${MODELS_SEED_DATA.filter((m: { tier: string }) => m.tier === 'free').length}`);
   console.log(`      - Pro tier: ${MODELS_SEED_DATA.filter((m: { tier: string }) => m.tier === 'pro').length}`);
 }
@@ -386,7 +460,7 @@ async function runAllSeeds() {
     console.log("║           🎉 All Seeds Completed Successfully!            ║");
     console.log("╚════════════════════════════════════════════════════════════╝");
     console.log("\n📋 Seed Summary:");
-    console.log("   - LLM Models: Up to 14 models (Free + Pro tiers)");
+    console.log(`   - LLM Models: Up to ${MODELS_SEED_DATA.length} models (Free + Pro tiers)`);
     console.log("   - Subscription Plans: Free & Pro plans");
     console.log("   - Credit Packages: 6 packages ($9.99 - $699.99)");
     console.log("   - Prompt Templates: 15 professional templates");
@@ -405,13 +479,8 @@ async function runAllSeeds() {
   }
 }
 
-import { fileURLToPath } from 'url';
-
-const isDirectExecution = process.argv[1]?.includes('seed-all') || 
-  (typeof import.meta.url !== 'undefined' && 
-   process.argv[1] === fileURLToPath(import.meta.url));
-
-if (isDirectExecution) {
+// Allow running standalone (only when invoked directly, not from app bundle)
+if (process.env.RUN_SEED === 'all') {
   runAllSeeds()
     .then(() => {
       process.exit(0);

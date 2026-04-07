@@ -1,0 +1,209 @@
+Needs to Be Built 🔧
+Users
+
+POST   /users                          ← Create user
+DELETE /users/:id                      ← Delete user
+PATCH  /users/:id                      ← Update user (name, email, role)
+POST   /users/:id/block                ← Block user
+POST   /users/:id/unblock              ← Unblock user
+POST   /users/:id/recover              ← Recover deleted user
+GET    /users/:id/contacts             ← User's contacts
+GET    /users/:id/webhooks             ← User's webhooks
+DELETE /users/:id/webhooks/:webhookId  ← Delete webhook
+
+Phone Numbers
+
+GET    /phone-numbers                  ← List all numbers
+POST   /phone-numbers/search-available ← Search by area code
+POST   /phone-numbers/buy              ← Purchase via Twilio
+POST   /phone-numbers/import           ← Bulk import
+POST   /phone-numbers/:id/assign       ← Assign to user
+POST   /phone-numbers/:id/reassign     ← Reassign
+POST   /phone-numbers/:id/release      ← Release to Twilio
+POST   /phone-numbers/:id/configure-webhook
+POST   /phone-numbers/migrate          ← Migrate between providers
+GET    /phone-numbers/migration-status
+POST   /phone-numbers/:id/migrate
+POST   /phone-numbers/migrate-all
+POST   /phone-numbers/migrate-by-agent
+POST   /phone-numbers/sync-elevenlabs
+POST   /phone-numbers/cleanup-orphaned
+
+Calls
+
+GET    /calls                          ← List all calls (filterable)
+GET    /calls/:id                      ← Call detail
+GET    /calls/:id/transcript
+GET    /calls/:id/recording
+POST   /calls/:id/scan-violations      ← Scan for banned words
+POST   /calls/sync-elevenlabs
+POST   /calls/sync-recordings
+GET    /calls/errors                   ← Error log
+GET    /calls/errors/summary
+
+Campaigns
+
+GET    /campaigns
+GET    /campaigns/:id
+GET    /campaigns/:id/contacts
+GET    /campaigns/:id/calls
+GET    /campaigns/:id/batches
+
+Batch Jobs
+
+GET    /batch-jobs
+GET    /batch-jobs/:id
+POST   /batch-jobs/:id/retry
+
+ElevenLabs Pool
+
+GET    /elevenlabs/pool
+GET    /elevenlabs/pool/stats
+POST   /elevenlabs/pool                ← Add credential
+POST   /elevenlabs/pool/:id/test
+POST   /elevenlabs/pool/:id/activate
+POST   /elevenlabs/pool/:id/deactivate
+DELETE /elevenlabs/pool/:id
+POST   /elevenlabs/pool/health-check
+POST   /elevenlabs/pool/sync-agents
+GET    /elevenlabs/pool/:id/users
+POST   /elevenlabs/pool/:id/set-threshold
+POST   /elevenlabs/pool/:id/migrate-users
+GET    /elevenlabs/pool/retry-queue
+POST   /elevenlabs/pool/retry-queue/process
+POST   /elevenlabs/pool/sync-voices
+GET    /elevenlabs/pool/voice-status
+
+OpenAI Pool
+
+GET    /openai/pool
+GET    /openai/pool/stats
+POST   /openai/pool
+POST   /openai/pool/:id/test
+POST   /openai/pool/:id/activate
+POST   /openai/pool/:id/deactivate
+DELETE /openai/pool/:id
+POST   /openai/pool/:id/migrate-users
+
+LLM Models
+
+GET    /llm-models
+PATCH  /llm-models/:id
+POST   /llm-models/:id/toggle
+
+Content Moderation
+
+GET    /banned-words
+POST   /banned-words
+PATCH  /banned-words/:id
+DELETE /banned-words/:id
+POST   /banned-words/scan-all-calls
+GET    /violations
+PATCH  /violations/:id/review
+
+Prompt Templates
+
+GET    /prompt-templates
+POST   /prompt-templates
+PATCH  /prompt-templates/:id
+DELETE /prompt-templates/:id
+
+Billing — Plans
+
+GET    /plans
+POST   /plans
+PATCH  /plans/:id
+DELETE /plans/:id
+GET    /plans/:id/users
+POST   /plans/:id/migrate-users
+POST   /plans/sync-stripe
+POST   /plans/sync-razorpay
+POST   /plans/sync-paypal
+POST   /plans/sync-paystack
+POST   /plans/sync-mercadopago
+
+Billing — Credit Packages
+
+GET    /credit-packages
+POST   /credit-packages
+PATCH  /credit-packages/:id
+DELETE /credit-packages/:id
+POST   /credit-packages/:id/toggle
+
+Billing — Transactions
+
+GET    /transactions
+GET    /transactions/:id
+POST   /transactions/:id/refund
+
+Settings
+
+GET    /settings
+PATCH  /settings
+GET    /system/status
+GET    /analytics
+GET    /settings/smtp
+PATCH  /settings/smtp
+POST   /settings/smtp/test
+POST   /settings/smtp/reinitialize
+GET    /email-event-templates
+PATCH  /email-event-templates/:type
+GET    /email-templates
+GET    /email-templates/:type
+POST   /email-templates
+PATCH  /email-templates/:id
+DELETE /email-templates/:id
+
+Branding
+
+GET    /branding
+PATCH  /branding
+POST   /branding/logo              ← Upload (main/light/dark)
+DELETE /branding/logo/:type
+POST   /branding/favicon
+
+SEO
+
+GET    /seo
+PATCH  /seo
+GET    /seo/sitemap
+POST   /seo/sitemap
+DELETE /seo/sitemap/:id
+POST   /seo/sitemap/rebuild
+GET    /seo/analytics-scripts
+POST   /seo/analytics-scripts
+DELETE /seo/analytics-scripts/:id
+
+AWS
+
+GET    /aws/status
+POST   /aws/test-polly
+POST   /aws/test-bedrock
+GET    /aws/polly/voices
+GET    /aws/bedrock/models
+POST   /aws/polly/synthesize
+POST   /aws/bedrock/chat
+
+Languages & Plugins
+
+GET    /languages
+POST   /languages
+PATCH  /languages/:id
+DELETE /languages/:id
+POST   /languages/seed-defaults
+POST   /languages/:id/translation-keys
+DELETE /languages/:id/translation-keys/:key
+GET    /plugins
+GET    /plugins/:id
+POST   /plugins/:id/enable
+POST   /plugins/:id/disable
+GET    /plugins/discover
+
+Integrations & Auth
+
+POST   /integrations/:name/test        ← twilio, stripe, openai, etc.
+POST   /integrations/:name/setup-webhook
+POST   /admin-users                    ← Create admin user
+DELETE /admin-users/:id
+POST   /auth/cleanup-expired-tokens
+GET    /auth/sessions

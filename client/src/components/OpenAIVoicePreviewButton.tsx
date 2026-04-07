@@ -82,7 +82,7 @@ export default function OpenAIVoicePreviewButton({
     if (audioRef.current) {
       audioRef.current.src = url;
       audioRef.current.load();
-      await audioRef.current.play();
+      await audioRef.current.play().catch(() => {});
       setIsPlaying(true);
     }
   }, []);

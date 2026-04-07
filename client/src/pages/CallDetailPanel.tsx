@@ -89,7 +89,7 @@ interface Call {
   callDirection: string | null;
   contact?: Contact | null;
   campaign?: Campaign | null;
-  engine?: "elevenlabs" | "twilio-openai" | "plivo-openai" | "openai";
+  engine?: "elevenlabs" | "twilio-openai" | "openai";
   agent?: { id: string; name: string } | null;
   widgetId?: string | null;
   widget?: { id: string; name: string } | null;
@@ -264,13 +264,6 @@ export default function CallDetailPanel({
       return (
         <Badge className="bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20">
           Twilio+OpenAI
-        </Badge>
-      );
-    }
-    if (engine === "plivo-openai") {
-      return (
-        <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20">
-          Plivo+OpenAI
         </Badge>
       );
     }
@@ -568,7 +561,7 @@ export default function CallDetailPanel({
                               if (isPlaying) {
                                 audioRef.current.pause();
                               } else {
-                                audioRef.current.play();
+                                audioRef.current.play().catch(() => {});
                               }
                             }
                           }}

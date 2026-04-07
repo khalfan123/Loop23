@@ -226,8 +226,11 @@ function createKnowledgeBaseHandler(
       const topicSummary = ctx.topics.length > 0 
         ? `Topics already discussed in this call: ${ctx.topics.join(', ')}. ` 
         : '';
+      const previousAnswers = ctx.answersGiven.length > 0
+        ? `Previous answers given: ${ctx.answersGiven.slice(-3).join('; ')}. `
+        : '';
       const contextualQuery = ctx.questionsAsked.length > 1
-        ? `${topicSummary}Current question: ${query}`
+        ? `${topicSummary}${previousAnswers}Current question: ${query}`
         : query;
 
       const reasoningEngine = new ReasoningEngine();
@@ -241,13 +244,22 @@ function createKnowledgeBaseHandler(
       });
       
       if (!result.answer || result.answer.includes('No relevant information') || result.answer.includes("don't have")) {
-        const basicResults = await RAGKnowledgeService.searchKnowledge(query, knowledgeBaseIds, userId, 5);
+        const basicResults = await RAGKnowledgeService.searchKnowledge(query, knowledgeBaseIds, userId, 10);
         if (basicResults.length > 0) {
-          const formattedResponse = RAGKnowledgeService.formatResultsForAgent(basicResults, 800);
-          ctx.history.push({ role: 'assistant', content: formattedResponse.substring(0, 200) });
+          const formattedResponse = RAGKnowledgeService.formatResultsForAgent(basicResults, 1200);
+          ctx.history.push({ role: 'assistant', content: formattedResponse.substring(0, 300) });
           return { found: true, information: formattedResponse };
         }
-        return { found: false, message: result.answer || "I don't have that specific information right now, but let me see what else I can help you with." };
+        const englishQuery = query.replace(/[^\u0000-\u007F]/g, ' ').trim();
+        if (englishQuery !== query && englishQuery.length > 3) {
+          const retryResults = await RAGKnowledgeService.searchKnowledge(englishQuery, knowledgeBaseIds, userId, 10);
+          if (retryResults.length > 0) {
+            const formattedResponse = RAGKnowledgeService.formatResultsForAgent(retryResults, 1200);
+            ctx.history.push({ role: 'assistant', content: formattedResponse.substring(0, 300) });
+            return { found: true, information: formattedResponse };
+          }
+        }
+        return { found: false, message: "I couldn't find an exact match for that specific query. Could you try asking in a different way, or let me know what product category you're interested in so I can help you better?" };
       }
 
       const topicWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 4).slice(0, 3);
@@ -807,7 +819,7 @@ export function hydrateCompiledTools(
       handler,
     };
     
-    // Attach metadata properties for serialization (needed by Plivo call service)
+    // Attach metadata properties for serialization (needed by call service)
     // These allow the tool to be recreated after being stored in call metadata
     const toolMetadata = (compiledTool as any)._metadata;
     if (toolMetadata) {

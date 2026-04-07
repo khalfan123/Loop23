@@ -211,14 +211,10 @@ export class KycService {
    * Submit KYC for review
    */
   static async submitForReview(userId: string): Promise<UserKycStatus> {
-    // Validate all documents are uploaded
     const documents = await this.getUserDocuments(userId);
-    const docTypes = documents.map(d => d.documentType);
-    const missingDocs = KycEngineConfig.documentTypes.filter(type => !docTypes.includes(type));
 
-    if (missingDocs.length > 0) {
-      const missingLabels = missingDocs.map(t => KycEngineConfig.documentLabels[t]);
-      throw new Error(`Missing required documents: ${missingLabels.join(', ')}`);
+    if (documents.length === 0) {
+      throw new Error('Please upload at least one document before submitting for review');
     }
 
     // Check current status
@@ -337,12 +333,11 @@ export class KycService {
   /**
    * Check if user can purchase phone numbers
    */
-  static async canPurchasePhoneNumbers(userId: string, provider: 'twilio' | 'plivo', settings: KycSettings): Promise<{
+  static async canPurchasePhoneNumbers(userId: string, provider: 'twilio', settings: KycSettings): Promise<{
     allowed: boolean;
     reason?: string;
   }> {
-    // Check if KYC is required for this provider
-    const kycRequired = provider === 'twilio' ? settings.twilioKycRequired : settings.plivoKycRequired;
+    const kycRequired = settings.twilioKycRequired;
     
     if (!kycRequired) {
       return { allowed: true };

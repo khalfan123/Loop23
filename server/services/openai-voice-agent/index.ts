@@ -3,7 +3,7 @@
  * ============================================================
  * Shared OpenAI Voice Agent Service
  * 
- * Common module for both Plivo and Twilio-OpenAI engines
+ * Common module for Twilio-OpenAI engine
  * Following OpenAI's official Voice Agents documentation
  * ============================================================
  */

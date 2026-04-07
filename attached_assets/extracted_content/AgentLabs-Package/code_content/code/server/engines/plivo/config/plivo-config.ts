@@ -64,7 +64,7 @@ export function getStreamUrl(baseUrl: string, callUuid: string): string {
   // Handle baseUrl that may or may not include protocol
   let wsBaseUrl: string;
   if (baseUrl.startsWith('http://')) {
-    wsBaseUrl = baseUrl.replace('http://', 'ws://');
+    wsBaseUrl = baseUrl.replace('http://', 'wss://');
   } else if (baseUrl.startsWith('https://')) {
     wsBaseUrl = baseUrl.replace('https://', 'wss://');
   } else {

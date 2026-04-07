@@ -34,6 +34,7 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { llmModels } from '@shared/schema';
 import { setupRAGToolForAgent, isRAGEnabled } from './rag-elevenlabs-tool';
+import { buildElevenLabsDynamicFormWebhookTools, DYNAMIC_FORM_PROMPT } from './dynamic-form-tools';
 
 const DEFAULT_VOICE_IDS = [
   "21m00Tcm4TlvDq8ikWAM", "CYw3kZ02Hs0563khs1Fj", "CwhRBWXzGAHq8TQ4Fs17",
@@ -238,11 +239,13 @@ export class IncomingAgentService {
     // Fetch knowledge bases
     const knowledgeBases = await this.fetchKnowledgeBases(params.knowledgeBaseIds || []);
 
+    const enhancedPrompt = params.systemPrompt + DYNAMIC_FORM_PROMPT;
+
     // Create agent with skipWorkflow: true - CRITICAL for incoming agents
     const agentResponse = await elevenLabsService.createAgent({
       name: params.name,
       voice_id: params.elevenLabsVoiceId,
-      prompt: params.systemPrompt,
+      prompt: enhancedPrompt,
       first_message: params.firstMessage || "Hello! How can I help you today?",
       language: params.language || "en",
       model: effectiveLlmModelId,
@@ -254,19 +257,30 @@ export class IncomingAgentService {
       transferPhoneNumber: params.transferPhoneNumber || undefined,
       detectLanguageEnabled: params.detectLanguageEnabled || false,
       endConversationEnabled: params.endConversationEnabled || false,
-      // Appointment booking webhook tool
       appointmentBookingEnabled: params.appointmentBookingEnabled || false,
       knowledgeBaseOnly: (params.knowledgeBaseIds && params.knowledgeBaseIds.length > 0) ? (params.knowledgeBaseOnly !== undefined ? params.knowledgeBaseOnly : true) : false,
       databaseAgentId: params.databaseAgentId,
       voiceStability: params.voiceStability,
       voiceSimilarityBoost: params.voiceSimilarityBoost,
       voiceSpeed: params.voiceSpeed,
-      // CRITICAL: Skip workflow for incoming agents
-      // Workflows cause "Invalid message received" errors with ElevenLabs native Twilio integration
       skipWorkflow: true,
     });
 
     console.log(`✅ [Incoming Agent] Created in ElevenLabs: ${agentResponse.agent_id}`);
+
+    const dynamicFormWebhookTools = buildElevenLabsDynamicFormWebhookTools(
+      params.userId,
+      agentResponse.agent_id
+    );
+    try {
+      await elevenLabsService.updateAgent(agentResponse.agent_id, {
+        webhookTools: dynamicFormWebhookTools,
+        skipWorkflowRebuild: true,
+      });
+      console.log(`   Dynamic form webhook tools added for data collection`);
+    } catch (toolErr: any) {
+      console.warn(`   Could not add dynamic form tools: ${toolErr.message}`);
+    }
     
     // Log voice pool info for multi-key awareness
     this.logVoicePoolInfo(params.elevenLabsVoiceId, params.name);

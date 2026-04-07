@@ -1,6 +1,6 @@
 'use strict';
 import { db } from '../db';
-import { leads, leadStages, contacts, plivoCalls, twilioOpenaiCalls, campaigns, incomingConnections, agents } from '@shared/schema';
+import { leads, leadStages, contacts, twilioOpenaiCalls, campaigns, incomingConnections, agents } from '@shared/schema';
 import { eq, and, or, asc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import OpenAI from 'openai';
@@ -8,7 +8,7 @@ import OpenAI from 'openai';
 interface CallData {
   userId: string;
   callId: string;
-  engine: 'plivo' | 'twilio-openai' | 'twilio-elevenlabs';
+  engine: 'twilio-openai' | 'twilio-elevenlabs';
   sourceType: 'campaign' | 'incoming';
   campaignId?: string | null;
   incomingConnectionId?: string | null;
@@ -81,9 +81,7 @@ export class CRMLeadService {
         if (callData.aiSummary) updateData.aiSummary = callData.aiSummary;
         if (callData.sentiment) updateData.sentiment = callData.sentiment;
         if (callData.recordingUrl) updateData.recordingUrl = callData.recordingUrl;
-        if (callData.engine === 'plivo') {
-          updateData.plivoCallId = callData.callId;
-        } else if (callData.engine === 'twilio-openai') {
+        if (callData.engine === 'twilio-openai') {
           updateData.twilioOpenaiCallId = callData.callId;
         } else {
           updateData.callId = callData.callId;
@@ -161,9 +159,7 @@ export class CRMLeadService {
         leadData.incomingConnectionId = callData.incomingConnectionId;
       }
 
-      if (callData.engine === 'plivo') {
-        leadData.plivoCallId = callData.callId;
-      } else if (callData.engine === 'twilio-openai') {
+      if (callData.engine === 'twilio-openai') {
         leadData.twilioOpenaiCallId = callData.callId;
       } else {
         leadData.callId = callData.callId;

@@ -25,7 +25,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Search, ChevronDown, Play, Pause, Volume2, Loader2, Check } from "lucide-react";
+import { Search, ChevronDown, Play, Square, Volume2, Loader2, Check } from "lucide-react";
+import { AuthStorage } from "@/lib/auth-storage";
+import { useToast } from "@/hooks/use-toast";
 
 interface AccountVoice {
   voice_id: string;
@@ -77,12 +79,16 @@ function VoiceItem({
   onSelect,
   onPreview,
   isPlaying,
+  isPreviewLoading,
+  hasPreview,
 }: { 
   voice: AccountVoice; 
   isSelected: boolean;
   onSelect: () => void;
   onPreview: () => void;
   isPlaying: boolean;
+  isPreviewLoading?: boolean;
+  hasPreview: boolean;
 }) {
   const tags: string[] = [];
   
@@ -132,20 +138,23 @@ function VoiceItem({
         </div>
       </div>
       
-      {voice.preview_url && (
+      {hasPreview && (
         <Button
           type="button"
           variant="ghost"
           size="icon"
           className="flex-shrink-0 h-8 w-8"
+          disabled={isPreviewLoading}
           onClick={(e) => {
             e.stopPropagation();
             onPreview();
           }}
           data-testid={`voice-preview-${voice.voice_id}`}
         >
-          {isPlaying ? (
-            <Pause className="h-4 w-4" />
+          {isPreviewLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isPlaying ? (
+            <Square className="h-4 w-4" />
           ) : (
             <Play className="h-4 w-4" />
           )}
@@ -161,11 +170,14 @@ export default function VoiceSearchPicker({
   placeholder,
 }: VoiceSearchPickerProps) {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [cartesiaLoadingId, setCartesiaLoadingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const cartesiaAudioUrlRef = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -181,29 +193,66 @@ export default function VoiceSearchPicker({
     }
   }, [open]);
 
-  const { data: accountVoices, isLoading } = useQuery<AccountVoice[]>({
+  const { data: accountVoices, isLoading: elevenLabsLoading } = useQuery<AccountVoice[]>({
     queryKey: ["/api/elevenlabs/voices"],
     staleTime: 60000,
   });
 
+  const { data: cartesiaVoicesRaw, isLoading: cartesiaLoading } = useQuery<Array<{ id: string; name: string; language: string; description?: string }>>({
+    queryKey: ["/api/deprock/cartesia-voices"],
+    staleTime: 60000,
+  });
+
+  const isLoading = elevenLabsLoading || cartesiaLoading;
+
+  const openaiVoices: AccountVoice[] = [
+    { voice_id: "alloy", name: "Alloy", category: "OpenAI", labels: { description: "Versatile and balanced" } },
+    { voice_id: "echo", name: "Echo", category: "OpenAI", labels: { description: "Warm and confident" } },
+    { voice_id: "shimmer", name: "Shimmer", category: "OpenAI", labels: { description: "Clear and expressive" } },
+    { voice_id: "ash", name: "Ash", category: "OpenAI", labels: { description: "Soft and gentle" } },
+    { voice_id: "ballad", name: "Ballad", category: "OpenAI", labels: { description: "Melodic and soothing" } },
+    { voice_id: "coral", name: "Coral", category: "OpenAI", labels: { description: "Bright and friendly" } },
+    { voice_id: "sage", name: "Sage", category: "OpenAI", labels: { description: "Calm and wise" } },
+    { voice_id: "verse", name: "Verse", category: "OpenAI", labels: { description: "Poetic and articulate" } },
+    { voice_id: "cedar", name: "Cedar", category: "OpenAI", labels: { description: "Deep and grounded" } },
+    { voice_id: "marin", name: "Marin", category: "OpenAI", labels: { description: "Fresh and lively" } },
+  ];
+
+  const allVoices = useMemo(() => {
+    const voices: AccountVoice[] = [];
+    if (accountVoices) {
+      voices.push(...accountVoices);
+    }
+    voices.push(...openaiVoices);
+    if (cartesiaVoicesRaw) {
+      cartesiaVoicesRaw.forEach(cv => {
+        voices.push({
+          voice_id: cv.id,
+          name: cv.name,
+          category: "Cartesia Sonic",
+          labels: { language: cv.language || "en" },
+        });
+      });
+    }
+    return voices;
+  }, [accountVoices, cartesiaVoicesRaw]);
+
   const filteredVoices = useMemo(() => {
-    if (!accountVoices) return [];
-    if (!debouncedSearch) return accountVoices;
+    if (!allVoices.length) return [];
+    if (!debouncedSearch) return allVoices;
     const searchLower = debouncedSearch.toLowerCase();
-    return accountVoices.filter(v => 
+    return allVoices.filter(v => 
       v.name.toLowerCase().includes(searchLower) ||
       v.labels?.language?.toLowerCase().includes(searchLower) ||
       v.labels?.gender?.toLowerCase().includes(searchLower) ||
       v.labels?.accent?.toLowerCase().includes(searchLower) ||
       v.category?.toLowerCase().includes(searchLower)
     );
-  }, [accountVoices, debouncedSearch]);
+  }, [allVoices, debouncedSearch]);
 
-  const selectedVoice = accountVoices?.find(v => v.voice_id === value);
+  const selectedVoice = allVoices.find(v => v.voice_id === value);
 
-  const handlePreview = useCallback((voice: AccountVoice) => {
-    if (!voice.preview_url) return;
-
+  const handlePreview = useCallback(async (voice: AccountVoice) => {
     if (playingVoiceId === voice.voice_id) {
       audioRef.current?.pause();
       setPlayingVoiceId(null);
@@ -214,6 +263,61 @@ export default function VoiceSearchPicker({
       audioRef.current.pause();
     }
 
+    const isCartesia = voice.category?.toLowerCase().includes("cartesia");
+
+    if (isCartesia) {
+      setCartesiaLoadingId(voice.voice_id);
+      try {
+        const authHeader = AuthStorage.getAuthHeader();
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (authHeader) headers["Authorization"] = authHeader;
+
+        const response = await fetch("/api/deprock/cartesia-voices/preview", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ voiceId: voice.voice_id }),
+        });
+
+        if (!response.ok) {
+          let errorMessage = "Failed to generate preview";
+          try {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              const errorData = await response.json();
+              errorMessage = errorData.error || errorData.message || errorMessage;
+            }
+          } catch {}
+          throw new Error(errorMessage);
+        }
+
+        const blob = await response.blob();
+        if (cartesiaAudioUrlRef.current) {
+          URL.revokeObjectURL(cartesiaAudioUrlRef.current);
+        }
+        const url = URL.createObjectURL(blob);
+        cartesiaAudioUrlRef.current = url;
+
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.play().catch(console.error);
+        setPlayingVoiceId(voice.voice_id);
+        audio.onended = () => setPlayingVoiceId(null);
+        audio.onerror = () => setPlayingVoiceId(null);
+      } catch (err: any) {
+        console.error("Cartesia preview error:", err);
+        toast({
+          title: t('voicePreview.error', 'Preview Error'),
+          description: err?.message || t('voicePreview.failedToGenerate', 'Failed to generate voice preview'),
+          variant: "destructive",
+        });
+      } finally {
+        setCartesiaLoadingId(null);
+      }
+      return;
+    }
+
+    if (!voice.preview_url) return;
+
     const audio = new Audio(voice.preview_url);
     audioRef.current = audio;
     
@@ -222,12 +326,15 @@ export default function VoiceSearchPicker({
     
     audio.onended = () => setPlayingVoiceId(null);
     audio.onerror = () => setPlayingVoiceId(null);
-  }, [playingVoiceId]);
+  }, [playingVoiceId, toast, t]);
 
   useEffect(() => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
+      }
+      if (cartesiaAudioUrlRef.current) {
+        URL.revokeObjectURL(cartesiaAudioUrlRef.current);
       }
     };
   }, []);
@@ -257,6 +364,16 @@ export default function VoiceSearchPicker({
             <div className="flex items-center gap-2 min-w-0 overflow-hidden flex-1 max-w-[calc(100%-24px)]">
               <VoiceAvatar name={selectedVoice.name} />
               <span className="truncate block max-w-full">{selectedVoice.name}</span>
+            </div>
+          ) : value && isLoading ? (
+            <div className="flex items-center gap-2 min-w-0 overflow-hidden flex-1">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <span className="text-muted-foreground">{t('voicePicker.loadingVoice', 'Loading voice...')}</span>
+            </div>
+          ) : value && !isLoading ? (
+            <div className="flex items-center gap-2 min-w-0 overflow-hidden flex-1 max-w-[calc(100%-24px)]">
+              <VoiceAvatar name={value} />
+              <span className="truncate block max-w-full">{value}</span>
             </div>
           ) : (
             <span className="text-muted-foreground">
@@ -291,7 +408,7 @@ export default function VoiceSearchPicker({
             />
           </div>
           <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-            <span>{accountVoices?.length || 0} {t('voicePicker.voicesAvailable', 'voices available')}</span>
+            <span>{allVoices.length || 0} {t('voicePicker.voicesAvailable', 'voices available')}</span>
             {isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
           </div>
         </div>
@@ -317,6 +434,8 @@ export default function VoiceSearchPicker({
                 onSelect={() => handleSelect(voice)}
                 onPreview={() => handlePreview(voice)}
                 isPlaying={playingVoiceId === voice.voice_id}
+                isPreviewLoading={cartesiaLoadingId === voice.voice_id}
+                hasPreview={!!voice.preview_url || !!voice.category?.toLowerCase().includes("cartesia")}
               />
             ))
           )}

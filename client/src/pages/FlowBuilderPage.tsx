@@ -26,10 +26,15 @@ import {
   useEdgesState,
   Handle,
   Position,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
   type Node,
   type Edge,
+  type EdgeProps,
   type Connection,
   type NodeTypes,
+  type EdgeTypes,
   BackgroundVariant,
   Panel,
 } from "@xyflow/react";
@@ -63,6 +68,7 @@ import {
   Volume2,
   Upload,
   AlertTriangle,
+  Check,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
@@ -119,116 +125,131 @@ const nodeTypeIcons = {
   play_audio: Volume2,
 };
 
-// Minimal iOS 18 theme for each node type
+// Color theme for each node type
+// handle = accent hex for header band, handles, and outlines
+// band  = header background (may be darker for emphasis)
 const nodeTypeColors = {
-  message: {
-    iconBg: "bg-blue-500/10 dark:bg-blue-500/20",
-    icon: "text-blue-600 dark:text-blue-400",
-    handle: "#3b82f6",
-  },
-  question: {
-    iconBg: "bg-purple-500/10 dark:bg-purple-500/20",
-    icon: "text-purple-600 dark:text-purple-400",
-    handle: "#a855f7",
-  },
-  condition: {
-    iconBg: "bg-amber-500/10 dark:bg-amber-500/20",
-    icon: "text-amber-600 dark:text-amber-400",
-    handle: "#f59e0b",
-  },
-  appointment: {
-    iconBg: "bg-emerald-500/10 dark:bg-emerald-500/20",
-    icon: "text-emerald-600 dark:text-emerald-400",
-    handle: "#10b981",
-  },
-  form: {
-    iconBg: "bg-cyan-500/10 dark:bg-cyan-500/20",
-    icon: "text-cyan-600 dark:text-cyan-400",
-    handle: "#06b6d4",
-  },
-  webhook: {
-    iconBg: "bg-violet-500/10 dark:bg-violet-500/20",
-    icon: "text-violet-600 dark:text-violet-400",
-    handle: "#8b5cf6",
-  },
-  transfer: {
-    iconBg: "bg-pink-500/10 dark:bg-pink-500/20",
-    icon: "text-pink-600 dark:text-pink-400",
-    handle: "#ec4899",
-  },
-  delay: {
-    iconBg: "bg-orange-500/10 dark:bg-orange-500/20",
-    icon: "text-orange-600 dark:text-orange-400",
-    handle: "#f97316",
-  },
-  end: {
-    iconBg: "bg-red-500/10 dark:bg-red-500/20",
-    icon: "text-red-600 dark:text-red-400",
-    handle: "#ef4444",
-  },
-  play_audio: {
-    iconBg: "bg-cyan-500/10 dark:bg-cyan-500/20",
-    icon: "text-cyan-600 dark:text-cyan-400",
-    handle: "#06b6d4",
-  },
+  message:     { handle: "#3b82f6", band: "#3b82f6" },
+  question:    { handle: "#a855f7", band: "#a855f7" },
+  condition:   { handle: "#f59e0b", band: "#f59e0b" },
+  appointment: { handle: "#10b981", band: "#10b981" },
+  form:        { handle: "#06b6d4", band: "#06b6d4" },
+  webhook:     { handle: "#8b5cf6", band: "#8b5cf6" },
+  transfer:    { handle: "#ec4899", band: "#ec4899" },
+  delay:       { handle: "#f97316", band: "#f97316" },
+  end:         { handle: "#ef4444", band: "#b91c1c" },  // darker red for end node
+  play_audio:  { handle: "#06b6d4", band: "#06b6d4" },
 };
 
-// Custom node component with connection handles
+// Human-readable display labels for each node type
+const nodeTypeLabels: Record<string, string> = {
+  message:     "Message",
+  question:    "Question",
+  condition:   "Condition",
+  appointment: "Appointment",
+  form:        "Form",
+  webhook:     "Webhook",
+  transfer:    "Transfer",
+  delay:       "Delay",
+  end:         "End Call",
+  play_audio:  "Play Audio",
+};
+
+// Node palette organized into sections for the sidebar
+const nodePaletteSections = [
+  { label: "Basic",       types: ["message", "question", "play_audio"] },
+  { label: "Logic",       types: ["condition"] },
+  { label: "Integration", types: ["webhook", "form", "appointment"] },
+  { label: "Control",     types: ["transfer", "delay", "end"] },
+];
+
+// Redesigned call-center style node card with colored top header band
 function FlowNode({ data, selected }: { data: any; selected?: boolean }) {
   const Icon = nodeTypeIcons[data.type as keyof typeof nodeTypeIcons] || MessageSquare;
   const colors = nodeTypeColors[data.type as keyof typeof nodeTypeColors] || nodeTypeColors.message;
   const hasMultipleOutputs = data.type === "condition";
-  
+
+  // Build a single content preview string from whichever config field is most relevant
+  const previewText =
+    data.config?.message ||
+    data.config?.question ||
+    data.config?.condition ||
+    data.config?.webhookUrl ||
+    (data.config?.duration ? `${data.config.duration}s delay` : null) ||
+    data.config?.endMessage;
+
   return (
-    <div className="relative">
-      {/* Input Handle (top) */}
+    <div
+      className={`relative min-w-[260px] rounded-2xl overflow-hidden transition-all ${
+        selected ? "shadow-lg" : "shadow-md hover:shadow-lg"
+      }`}
+      style={selected ? { outline: `2.5px solid ${colors.handle}`, outlineOffset: "2px" } : undefined}
+    >
+      {/* Input handle (top) */}
       <Handle
         type="target"
         position={Position.Top}
         style={{ background: colors.handle }}
-        className="!w-3 !h-3 !border-2 !border-white dark:!border-gray-900"
+        className="!w-3.5 !h-3.5 !border-2 !border-white dark:!border-gray-900"
       />
-      
+
+      {/* Colored header band */}
       <div
-        className={`bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl rounded-2xl border border-white/60 dark:border-white/[0.08] shadow-sm overflow-hidden p-3 min-w-[220px] ${selected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} transition-all`}
-        style={{ borderLeftWidth: '4px', borderLeftColor: colors.handle }}
+        className="px-3 py-2 flex items-center gap-2"
+        style={{ backgroundColor: colors.band }}
       >
-        <div className="flex items-center gap-2.5">
-          <div className={`w-7 h-7 rounded-md ${colors.iconBg} flex items-center justify-center flex-shrink-0`}>
-            <Icon className={`w-4 h-4 ${colors.icon}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm text-foreground">{data.label}</div>
-            {data.config?.message && (
-              <div className="text-xs text-muted-foreground mt-1 truncate">
-                {data.config.message.substring(0, 50)}...
-              </div>
-            )}
-            {data.config?.question && (
-              <div className="text-xs text-muted-foreground mt-1 truncate">
-                {data.config.question.substring(0, 50)}...
-              </div>
-            )}
-          </div>
+        <div
+          className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+          style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
+        >
+          <Icon className="w-5 h-5 text-white" />
         </div>
+        <span className="text-white text-[11px] font-semibold uppercase tracking-wider">
+          {nodeTypeLabels[data.type] || data.type}
+        </span>
+        {selected && (
+          <span className="ml-auto text-white/70 text-[10px]">●</span>
+        )}
       </div>
-      
-      {/* Output Handle (bottom) - single or multiple */}
+
+      {/* Card body */}
+      <div className="bg-card border-x border-b border-border px-3 py-2.5 rounded-b-2xl">
+        <div className="font-semibold text-sm text-foreground leading-snug">{data.label}</div>
+        {previewText && (
+          <div className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-snug">
+            {previewText.length > 70 ? previewText.substring(0, 70) + "…" : previewText}
+          </div>
+        )}
+
+        {/* Condition node: Yes / No branch labels */}
+        {hasMultipleOutputs && (
+          <div className="flex justify-between mt-2.5">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/15 text-green-700 dark:text-green-400">
+              Yes ↙
+            </span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 text-red-700 dark:text-red-400">
+              ↘ No
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Output handle(s) — bottom */}
       {hasMultipleOutputs ? (
         <>
           <Handle
             type="source"
             position={Position.Bottom}
             id="true"
-            style={{ left: '30%', background: '#22c55e' }}
-            className="!w-3 !h-3 !border-2 !border-white dark:!border-gray-900"
+            style={{ left: "28%", background: "#22c55e" }}
+            className="!w-3.5 !h-3.5 !border-2 !border-white dark:!border-gray-900"
           />
           <Handle
             type="source"
             position={Position.Bottom}
             id="false"
-            style={{ left: '70%', background: '#ef4444' }}
-            className="!w-3 !h-3 !border-2 !border-white dark:!border-gray-900"
+            style={{ left: "72%", background: "#ef4444" }}
+            className="!w-3.5 !h-3.5 !border-2 !border-white dark:!border-gray-900"
           />
         </>
       ) : (
@@ -236,25 +257,70 @@ function FlowNode({ data, selected }: { data: any; selected?: boolean }) {
           type="source"
           position={Position.Bottom}
           style={{ background: colors.handle }}
-          className="!w-3 !h-3 !border-2 !border-white dark:!border-gray-900"
+          className="!w-3.5 !h-3.5 !border-2 !border-white dark:!border-gray-900"
         />
       )}
     </div>
   );
 }
 
+// Custom edge that renders Yes/No labels on condition branch edges
+function LabeledEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourceHandle,
+  markerEnd,
+  style,
+}: EdgeProps) {
+  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY });
+  const label =
+    sourceHandle === "true" ? "Yes" : sourceHandle === "false" ? "No" : null;
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      {label && (
+        <EdgeLabelRenderer>
+          <div
+            className="absolute nodrag nopan pointer-events-none"
+            style={{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}
+          >
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border shadow-sm ${
+                label === "Yes"
+                  ? "bg-green-500 text-white border-green-600"
+                  : "bg-red-500 text-white border-red-600"
+              }`}
+            >
+              {label}
+            </span>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
+
 const nodeTypes: NodeTypes = {
-  message: FlowNode,
-  question: FlowNode,
-  condition: FlowNode,
+  message:     FlowNode,
+  question:    FlowNode,
+  condition:   FlowNode,
   appointment: FlowNode,
-  form: FlowNode,
-  webhook: FlowNode,
-  transfer: FlowNode,
-  delay: FlowNode,
-  end: FlowNode,
-  play_audio: FlowNode,
-  custom: FlowNode,
+  form:        FlowNode,
+  webhook:     FlowNode,
+  transfer:    FlowNode,
+  delay:       FlowNode,
+  end:         FlowNode,
+  play_audio:  FlowNode,
+  custom:      FlowNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  default: LabeledEdge,
+  labeled: LabeledEdge,
 };
 
 export default function FlowBuilderPage() {
@@ -274,6 +340,7 @@ export default function FlowBuilderPage() {
   const [agentId, setAgentId] = useState<string>("");
   const [selectedNode, setSelectedNode] = useState<FlowNode | null>(null);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -406,6 +473,8 @@ export default function FlowBuilderPage() {
       return data;
     },
     onSuccess: (data: any) => {
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 3000);
       toast({
         title: t("flows.toast.saved"),
         description: t("flows.toast.savedDescription"),
@@ -489,7 +558,7 @@ export default function FlowBuilderPage() {
   return (
     <div className="flex h-screen w-full">
       {/* Sidebar - Node Types */}
-      <div className="w-60 flex-shrink-0 flex flex-col border-r bg-card">
+      <div className="w-48 flex-shrink-0 flex flex-col border-r bg-card">
         {/* Sidebar Header */}
         <div className="p-4 border-b">
           <Button
@@ -515,40 +584,50 @@ export default function FlowBuilderPage() {
           </div>
         </div>
 
-        {/* Node Types */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">
-            {t("flows.addNodes")}
-          </div>
-          <div className="rounded-xl bg-background border overflow-hidden">
-            {availableNodeTypes.map((nodeType, index) => {
-              const Icon = nodeType.icon;
-              const colors = nodeTypeColors[nodeType.type as keyof typeof nodeTypeColors];
-              return (
-                <button
-                  key={nodeType.type}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover-elevate ${index > 0 ? 'border-t' : ''}`}
-                  onClick={() => addNode(nodeType.type)}
-                  data-testid={`button-add-${nodeType.type}-node`}
-                >
-                  <div className={`w-7 h-7 rounded-md ${colors.iconBg} flex items-center justify-center flex-shrink-0`}>
-                    <Icon className={`w-3.5 h-3.5 ${colors.icon}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{nodeType.label}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {nodeType.description}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+        {/* Node Palette — 2-column icon grid organized by category */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+          {nodePaletteSections.map((section) => {
+            const sectionNodes = availableNodeTypes.filter((n) =>
+              section.types.includes(n.type)
+            );
+            return (
+              <div key={section.label}>
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5 px-0.5">
+                  {section.label}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {sectionNodes.map((nodeType) => {
+                    const Icon = nodeType.icon;
+                    const color = nodeTypeColors[nodeType.type as keyof typeof nodeTypeColors]?.handle || "#6b7280";
+                    return (
+                      <button
+                        key={nodeType.type}
+                        onClick={() => addNode(nodeType.type)}
+                        className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl border bg-background hover-elevate transition-all text-center"
+                        data-testid={`button-add-${nodeType.type}-node`}
+                        title={nodeType.description}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: `${color}20` }}
+                        >
+                          <Icon className="w-4 h-4" style={{ color }} />
+                        </div>
+                        <span className="text-[11px] font-medium leading-tight text-foreground">
+                          {nodeTypeLabels[nodeType.type] || nodeType.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Sidebar Footer Tip */}
-        <div className="p-4 border-t">
-          <p className="text-xs text-muted-foreground">
+        <div className="p-3 border-t">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
             {t("flows.tipClickNodes")}
           </p>
         </div>
@@ -557,13 +636,13 @@ export default function FlowBuilderPage() {
       {/* Main Canvas */}
       <div className="flex-1 flex flex-col">
         {/* Top Toolbar */}
-        <div className="border-b px-4 py-3 flex items-center justify-between gap-4 bg-card">
-          <div className="flex-1">
+        <div className="border-b px-4 py-2.5 flex items-center gap-3 bg-card">
+          <div className="flex-1 min-w-0">
             <input
               type="text"
               value={flowName}
               onChange={(e) => setFlowName(e.target.value)}
-              className="text-lg font-semibold bg-transparent border-none outline-none w-full"
+              className="text-base font-semibold bg-transparent border-none outline-none w-full focus:border-b focus:border-primary pb-px leading-tight"
               placeholder={t("flows.flowName")}
               data-testid="input-flow-name"
             />
@@ -571,7 +650,7 @@ export default function FlowBuilderPage() {
               type="text"
               value={flowDescription}
               onChange={(e) => setFlowDescription(e.target.value)}
-              className="text-sm text-muted-foreground bg-transparent border-none outline-none w-full mt-1"
+              className="text-xs text-muted-foreground bg-transparent border-none outline-none w-full mt-0.5"
               placeholder={t("flows.flowDescriptionPlaceholder")}
               data-testid="input-flow-description"
             />
@@ -649,6 +728,7 @@ export default function FlowBuilderPage() {
               </Popover>
             </TooltipProvider>
             
+            <div className="w-px h-5 bg-border mx-1" />
             <Button
               variant="outline"
               size="sm"
@@ -666,17 +746,23 @@ export default function FlowBuilderPage() {
               disabled={!flowId}
               data-testid="button-test-flow"
             >
-              <Play className="w-4 h-4 mr-2" />
+              <Phone className="w-4 h-4 mr-2" />
               {t("flows.test")}
             </Button>
             <Button
               size="sm"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
+              className={justSaved ? "bg-green-600 hover:bg-green-700 text-white border-green-700" : ""}
               data-testid="button-save-flow"
             >
-              <Save className="w-4 h-4 mr-2" />
-              {saveMutation.isPending ? t("flows.saving") : t("flows.save")}
+              {justSaved ? (
+                <><Check className="w-4 h-4 mr-2" />Saved</>
+              ) : saveMutation.isPending ? (
+                <><Save className="w-4 h-4 mr-2" />{t("flows.saving")}</>
+              ) : (
+                <><Save className="w-4 h-4 mr-2" />{t("flows.save")}</>
+              )}
             </Button>
           </div>
         </div>
@@ -691,11 +777,13 @@ export default function FlowBuilderPage() {
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             fitView
             snapToGrid
             snapGrid={[15, 15]}
             defaultEdgeOptions={{ 
-              animated: true, 
+              animated: true,
+              type: "labeled",
               style: { 
                 strokeWidth: 2,
                 stroke: 'hsl(var(--border))',
@@ -705,7 +793,7 @@ export default function FlowBuilderPage() {
           >
             <Background 
               variant={BackgroundVariant.Dots} 
-              gap={20} 
+              gap={24} 
               size={1.5} 
               className="!bg-background" 
             />

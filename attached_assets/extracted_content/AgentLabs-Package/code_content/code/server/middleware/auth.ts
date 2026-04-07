@@ -24,7 +24,7 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
     throw new Error("JWT_SECRET environment variable must be set in production");
   }
   console.warn("⚠️  WARNING: Using insecure default JWT_SECRET in development. Set JWT_SECRET environment variable for production!");
-  return "insecure-dev-secret-CHANGE-ME";
+  return require("crypto").randomBytes(64).toString("hex");
 })();
 
 // Refresh token settings

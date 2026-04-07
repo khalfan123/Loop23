@@ -41,7 +41,6 @@ const INTEGRATIONS = [
   { name: 'Bitrix24', slug: 'bitrix24', category: 'crm', nodeType: 'n8n-nodes-base.httpRequest' },
   { name: 'Insightly', slug: 'insightly', category: 'crm', nodeType: 'n8n-nodes-base.httpRequest' },
   { name: 'Twilio', slug: 'twilio', category: 'telephony', nodeType: 'n8n-nodes-base.twilio' },
-  { name: 'Plivo', slug: 'plivo', category: 'telephony', nodeType: 'n8n-nodes-base.httpRequest' },
   { name: 'Vonage', slug: 'vonage', category: 'telephony', nodeType: 'n8n-nodes-base.httpRequest' },
   { name: 'Bandwidth', slug: 'bandwidth', category: 'telephony', nodeType: 'n8n-nodes-base.httpRequest' },
   { name: 'Telnyx', slug: 'telnyx', category: 'telephony', nodeType: 'n8n-nodes-base.httpRequest' },

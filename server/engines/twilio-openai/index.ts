@@ -6,7 +6,6 @@
  * Isolated engine for Twilio telephony with OpenAI Realtime API.
  * Completely separate from:
  * - Twilio + ElevenLabs integration (existing)
- * - Plivo + OpenAI integration (existing)
  * ============================================================
  */
 

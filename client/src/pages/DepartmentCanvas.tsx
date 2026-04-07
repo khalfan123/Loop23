@@ -90,10 +90,10 @@ interface LanguageAgent {
 
 const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "fr", label: "French" },
-  { code: "it", label: "Italian" },
   { code: "zh", label: "Chinese" },
   { code: "hi", label: "Hindi" },
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
   { code: "ar", label: "Arabic" },
 ];
 
@@ -112,14 +112,14 @@ const VOICE_PREVIEWS: Record<string, string> = {
 const isElevenLabsVoice = (voiceId: string) => voiceId.startsWith("el_");
 
 const OPENAI_VOICES = [
-  { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "echo", name: "Echo (OpenAI)", gender: "male", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "shimmer", name: "Shimmer (OpenAI)", gender: "female", style: "friendly", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "ash", name: "Ash (OpenAI)", gender: "male", style: "professional", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "coral", name: "Coral (OpenAI)", gender: "female", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "sage", name: "Sage (OpenAI)", gender: "neutral", style: "calm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "verse", name: "Verse (OpenAI)", gender: "male", style: "expressive", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
-  { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm", languages: ["en", "fr", "it", "zh", "hi", "ar"] },
+  { id: "alloy", name: "Alloy (OpenAI)", gender: "neutral", style: "balanced", languages: ["en", "zh", "hi", "es", "fr", "ar"] },
+  { id: "echo", name: "Echo (OpenAI)", gender: "male", style: "warm", languages: ["en", "zh", "hi", "es", "fr", "ar"] },
+  { id: "shimmer", name: "Shimmer (OpenAI)", gender: "female", style: "friendly", languages: ["en", "zh", "hi", "es", "fr", "ar"] },
+  { id: "ash", name: "Ash (OpenAI)", gender: "male", style: "professional", languages: ["en", "zh", "hi", "es", "fr", "ar"] },
+  { id: "coral", name: "Coral (OpenAI)", gender: "female", style: "warm", languages: ["en", "zh", "hi", "es", "fr", "ar"] },
+  { id: "sage", name: "Sage (OpenAI)", gender: "neutral", style: "calm", languages: ["en", "zh", "hi", "es", "fr", "ar"] },
+  { id: "verse", name: "Verse (OpenAI)", gender: "male", style: "expressive", languages: ["en", "zh", "hi", "es", "fr", "ar"] },
+  { id: "nova", name: "Nova (OpenAI)", gender: "female", style: "warm", languages: ["en", "zh", "hi", "es", "fr", "ar"] },
 ];
 
 const ELEVENLABS_VOICES = [
@@ -1024,7 +1024,7 @@ function DepartmentCard({
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         audioRef.current.src = url;
-        audioRef.current.play();
+        audioRef.current.play().catch(() => {});
         audioRef.current.onended = () => {
           setPlayingVoiceId(null);
           URL.revokeObjectURL(url);
@@ -1049,7 +1049,7 @@ function DepartmentCard({
 
     setPlayingVoiceId(voiceId);
     audioRef.current.src = previewUrl;
-    audioRef.current.play();
+    audioRef.current.play().catch(() => {});
     audioRef.current.onended = () => setPlayingVoiceId(null);
     audioRef.current.onerror = () => setPlayingVoiceId(null);
   };
@@ -2040,7 +2040,7 @@ function IVRRouterStep({
         const blob = await response.blob();
         const audioUrl = URL.createObjectURL(blob);
         audioRef.current.src = audioUrl;
-        audioRef.current.play();
+        audioRef.current.play().catch(() => {});
         audioRef.current.onended = () => {
           setPlayingVoiceId(null);
           URL.revokeObjectURL(audioUrl);
@@ -2063,7 +2063,7 @@ function IVRRouterStep({
     }
 
     audioRef.current.src = previewUrl;
-    audioRef.current.play();
+    audioRef.current.play().catch(() => {});
     setPlayingVoiceId(voiceId);
     audioRef.current.onended = () => setPlayingVoiceId(null);
     audioRef.current.onerror = () => setPlayingVoiceId(null);

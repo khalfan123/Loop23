@@ -19,6 +19,7 @@
 import { Router, Request, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { eq, desc, and, sql, inArray, gte, lt } from "drizzle-orm";
 import { 
   users, plans, userSubscriptions, otpVerifications, refreshTokens,
@@ -40,6 +41,25 @@ export function createAuthRoutes(ctx: RouteContext): Router {
   const router = Router();
   const { db, storage, authenticateToken, requireRole, generateTokenAsync, 
           checkUserActive, authRateLimiter, emailService } = ctx;
+
+  // ============================================
+  // CHECK EMAIL ENDPOINT
+  // ============================================
+
+  router.post("/api/auth/check-email", authRateLimiter, async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      return res.json({ exists: !!user });
+    } catch (error: any) {
+      return res.status(500).json({ error: "Failed to check email" });
+    }
+  });
 
   // ============================================
   // OTP ENDPOINTS FOR EMAIL VERIFICATION
@@ -421,67 +441,6 @@ export function createAuthRoutes(ctx: RouteContext): Router {
   });
 
   // ============================================
-  // ADMIN USER CREATION
-  // ============================================
-
-  router.post("/api/admin/users", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const { email, password, name, role, credits } = req.body;
-
-      if (!email || !password || !name || !role) {
-        return res.status(400).json({ error: "Email, password, name, and role are required" });
-      }
-
-      const validRoles = ["user", "manager", "admin"];
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({ error: "Invalid role" });
-      }
-
-      const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ error: "Email already registered" });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await storage.createUser({
-        email,
-        password: hashedPassword,
-        name,
-        role,
-      });
-
-      const [freePlan] = await db.select().from(plans).where(eq(plans.name, 'free')).limit(1);
-      
-      const initialCredits = credits !== undefined ? credits : (freePlan?.includedCredits ?? 0);
-      
-      if (initialCredits > 0) {
-        await storage.updateUserCredits(user.id, initialCredits);
-      }
-      
-      if (freePlan) {
-        const now = new Date();
-        const oneYearFromNow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
-        await db.insert(userSubscriptions).values({
-          userId: user.id,
-          planId: freePlan.id,
-          status: 'active',
-          currentPeriodStart: now,
-          currentPeriodEnd: oneYearFromNow,
-          billingPeriod: 'monthly',
-        });
-      }
-
-      const updatedUser = await storage.getUser(user.id);
-      res.json({
-        user: { id: updatedUser!.id, email: updatedUser!.email, name: updatedUser!.name, role: updatedUser!.role, credits: updatedUser!.credits },
-      });
-    } catch (error: any) {
-      logger.error('Create user error', error, 'Auth');
-      res.status(500).json({ error: "Failed to create user" });
-    }
-  });
-
-  // ============================================
   // LOGIN ENDPOINT
   // ============================================
 
@@ -660,24 +619,6 @@ export function createAuthRoutes(ctx: RouteContext): Router {
     } catch (error: any) {
       logger.error('Revoke all sessions error', error, 'Auth');
       res.status(500).json({ error: "Failed to revoke sessions" });
-    }
-  });
-
-  // ============================================
-  // CLEANUP EXPIRED TOKENS (Admin endpoint)
-  // ============================================
-
-  router.post("/api/admin/auth/cleanup-tokens", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const result = await db
-        .delete(refreshTokens)
-        .where(lt(refreshTokens.expiresAt, new Date()));
-
-      logger.info('Cleaned up expired refresh tokens', undefined, 'Auth');
-      res.json({ success: true, message: "Expired tokens cleaned up" });
-    } catch (error: any) {
-      logger.error('Cleanup tokens error', error, 'Auth');
-      res.status(500).json({ error: "Failed to cleanup tokens" });
     }
   });
 
@@ -988,6 +929,201 @@ export function createAuthRoutes(ctx: RouteContext): Router {
     } catch (error: any) {
       logger.error('Delete account error', error, 'Auth');
       res.status(500).json({ error: "Failed to delete account" });
+    }
+  });
+
+  // ============================================
+  // UAE PASS OAUTH ENDPOINTS
+  // ============================================
+
+  const UAEPASS_CONFIG = {
+    clientId: process.env.UAEPASS_CLIENT_ID || 'sandbox_stage',
+    clientSecret: process.env.UAEPASS_CLIENT_SECRET || 'sandbox_stage',
+    baseUrl: process.env.UAEPASS_BASE_URL || 'https://stg-id.uaepass.ae/idshub',
+    redirectUri: process.env.UAEPASS_REDIRECT_URI || '',
+    scope: 'urn:uae:digitalid:profile:general',
+    acrValues: 'urn:safelayer:tws:policies:authentication:level:low',
+  };
+
+  const uaePassStates = new Map<string, { createdAt: number }>();
+
+  setInterval(() => {
+    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+    for (const [key, val] of uaePassStates.entries()) {
+      if (val.createdAt < tenMinutesAgo) uaePassStates.delete(key);
+    }
+  }, 60 * 1000);
+
+  router.get("/api/auth/uaepass/authorize", (req: Request, res: Response) => {
+    try {
+      if (!UAEPASS_CONFIG.redirectUri) {
+        return res.status(500).json({ error: "UAE Pass redirect URI not configured" });
+      }
+
+      const state = crypto.randomBytes(32).toString('hex');
+      uaePassStates.set(state, { createdAt: Date.now() });
+
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: UAEPASS_CONFIG.clientId,
+        scope: UAEPASS_CONFIG.scope,
+        state,
+        redirect_uri: UAEPASS_CONFIG.redirectUri,
+        acr_values: UAEPASS_CONFIG.acrValues,
+        ui_locales: 'en',
+      });
+
+      const authUrl = `${UAEPASS_CONFIG.baseUrl}/authorize?${params.toString()}`;
+      res.json({ authUrl, state });
+    } catch (error: any) {
+      logger.error('UAE Pass authorize error', error, 'Auth');
+      res.status(500).json({ error: "Failed to initiate UAE Pass authentication" });
+    }
+  });
+
+  router.get("/api/auth/uaepass/callback", async (req: Request, res: Response) => {
+    try {
+      const { code, state, error: uaeError } = req.query;
+
+      if (uaeError) {
+        logger.warn(`UAE Pass auth denied: ${uaeError}`, undefined, 'Auth');
+        return res.redirect(`/login?error=uaepass_denied`);
+      }
+
+      if (!code || !state) {
+        return res.redirect(`/login?error=uaepass_missing_params`);
+      }
+
+      const stateStr = state as string;
+      if (!uaePassStates.has(stateStr)) {
+        return res.redirect(`/login?error=uaepass_invalid_state`);
+      }
+      uaePassStates.delete(stateStr);
+
+      const formData = new URLSearchParams();
+      formData.append('grant_type', 'authorization_code');
+      formData.append('code', code as string);
+      formData.append('redirect_uri', UAEPASS_CONFIG.redirectUri);
+      formData.append('client_id', UAEPASS_CONFIG.clientId);
+      formData.append('client_secret', UAEPASS_CONFIG.clientSecret);
+
+      const tokenResponse = await fetch(`${UAEPASS_CONFIG.baseUrl}/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'multipart/form-data' },
+        body: formData,
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        logger.error(`UAE Pass token exchange failed: ${tokenResponse.status} ${errorText}`, undefined, 'Auth');
+        return res.redirect(`/login?error=uaepass_token_failed`);
+      }
+
+      const tokenData = await tokenResponse.json() as { access_token: string; token_type: string };
+      const accessToken = tokenData.access_token;
+
+      const userInfoResponse = await fetch(`${UAEPASS_CONFIG.baseUrl}/userinfo`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+
+      if (!userInfoResponse.ok) {
+        logger.error(`UAE Pass userinfo failed: ${userInfoResponse.status}`, undefined, 'Auth');
+        return res.redirect(`/login?error=uaepass_userinfo_failed`);
+      }
+
+      const uaeProfile = await userInfoResponse.json() as {
+        uuid?: string;
+        sub?: string;
+        email?: string;
+        firstnameEN?: string;
+        lastnameEN?: string;
+        firstnameAR?: string;
+        lastnameAR?: string;
+        gender?: string;
+        mobile?: string;
+        nationalityEN?: string;
+        idn?: string;
+      };
+
+      const uaePassId = uaeProfile.uuid || uaeProfile.sub || '';
+      const fullName = [uaeProfile.firstnameEN, uaeProfile.lastnameEN].filter(Boolean).join(' ') || 'UAE Pass User';
+      const email = uaeProfile.email || `${uaePassId}@uaepass.local`;
+
+      let user = await storage.getUserByEmail(email);
+
+      if (!user) {
+        const randomPassword = crypto.randomBytes(32).toString('hex');
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
+        user = await storage.createUser({
+          email,
+          password: hashedPassword,
+          name: fullName,
+          role: 'user',
+          kycStatus: 'pending',
+        });
+
+        const [freePlan] = await db.select().from(plans).where(eq(plans.name, 'free')).limit(1);
+        if (freePlan) {
+          const initialCredits = freePlan.includedCredits ?? 0;
+          if (initialCredits > 0) {
+            await storage.updateUserCredits(user.id, initialCredits);
+          }
+          const now = new Date();
+          const oneYearFromNow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+          await db.insert(userSubscriptions).values({
+            userId: user.id,
+            planId: freePlan.id,
+            status: 'active',
+            currentPeriodStart: now,
+            currentPeriodEnd: oneYearFromNow,
+            billingPeriod: 'monthly',
+          });
+        }
+
+        await NotificationService.notifyWelcome(user.id, user.name);
+        logger.info(`UAE Pass: New user created ${user.id} (${email})`, undefined, 'Auth');
+      }
+
+      const jwtToken = generateShortAccessToken(user.id, user.role);
+
+      const userAgent = req.headers['user-agent'] || undefined;
+      const ipAddress = req.ip || req.connection.remoteAddress || undefined;
+      const refreshTokenData = createRefreshTokenData(user.id, userAgent, ipAddress);
+
+      await db.insert(refreshTokens).values({
+        userId: user.id,
+        token: refreshTokenData.hashedToken,
+        expiresAt: refreshTokenData.expiresAt,
+        userAgent: refreshTokenData.userAgent,
+        ipAddress: refreshTokenData.ipAddress,
+        lastUsedAt: new Date(),
+      });
+
+      setRefreshTokenCookie(res, refreshTokenData.token);
+
+      const kycStatus = user.kycStatus || 'pending';
+      const redirectPath = (kycStatus === 'pending' || kycStatus === 'submitted') ? '/onboarding' : '/app';
+
+      const callbackHtml = `<!DOCTYPE html><html><head><title>Authenticating...</title></head><body><script>
+        try {
+          const authData = ${JSON.stringify({
+            token: jwtToken,
+            user: { id: user.id, email: user.email, name: user.name, role: user.role, credits: user.credits },
+            expiresIn: AUTH_CONSTANTS.ACCESS_TOKEN_EXPIRY_MINUTES * 60,
+          })};
+          localStorage.setItem('auth_token', authData.token);
+          localStorage.setItem('user', JSON.stringify(authData.user));
+          var expiryTime = Date.now() + authData.expiresIn * 1000;
+          localStorage.setItem('token_expiry', expiryTime.toString());
+          window.location.href = '${redirectPath}';
+        } catch(e) { window.location.href = '/login?error=uaepass_storage_failed'; }
+      </script></body></html>`;
+
+      res.setHeader('Content-Type', 'text/html');
+      res.send(callbackHtml);
+    } catch (error: any) {
+      logger.error('UAE Pass callback error', error, 'Auth');
+      res.redirect(`/login?error=uaepass_callback_failed`);
     }
   });
 

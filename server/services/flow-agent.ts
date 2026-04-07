@@ -583,6 +583,20 @@ export class FlowAgentService {
           console.log(`   Added form tool for: ${formNode.formName} (${formNode.formId})`);
         }
       }
+    } else {
+      const { buildElevenLabsDynamicFormWebhookTools, DYNAMIC_FORM_PROMPT } = await import('./dynamic-form-tools');
+      const dynamicTools = buildElevenLabsDynamicFormWebhookTools(params.userId, elevenLabsAgent.agent_id);
+      postCreationTools.push(...dynamicTools);
+      try {
+        await elevenLabsService.updateAgent(elevenLabsAgent.agent_id, {
+          prompt: (params.systemPrompt || '') + DYNAMIC_FORM_PROMPT,
+          skipWorkflowRebuild: true,
+        });
+      } catch (promptErr: unknown) {
+        const msg = promptErr instanceof Error ? promptErr.message : String(promptErr);
+        console.warn(`📋 [Flow Agent] Could not inject dynamic form prompt: ${msg}`);
+      }
+      console.log(`📋 [Flow Agent] Added dynamic form webhook tools (no pre-assigned forms)`);
     }
     
     // Build play audio tools after agent creation (they need agent ID for webhook URL)
@@ -785,6 +799,12 @@ export class FlowAgentService {
           console.log(`📋 [Flow] Including form submission webhook tool for ${formNode.formName}`);
         }
       }
+    } else {
+      const { buildElevenLabsDynamicFormWebhookTools, DYNAMIC_FORM_PROMPT: dynamicPrompt } = await import('./dynamic-form-tools');
+      const dynamicTools = buildElevenLabsDynamicFormWebhookTools(currentAgent.userId, elevenLabsAgentId);
+      webhookTools.push(...dynamicTools);
+      additionalOptions.dynamicFormPromptSuffix = dynamicPrompt;
+      console.log(`📋 [Flow] Added dynamic form webhook tools (no pre-assigned forms)`);
     }
     
     // Add play audio tools if flow has play audio nodes
@@ -903,7 +923,10 @@ When using a tool:
 - Only say a short acknowledgment if needed (e.g. "Let me check that for you.")`;
 
     // Use agent's custom prompt if set, otherwise use strict workflow prompt
-    const basePrompt = currentAgent.systemPrompt || params.systemPrompt || strictWorkflowPrompt;
+    let basePrompt = currentAgent.systemPrompt || params.systemPrompt || strictWorkflowPrompt;
+    if (additionalOptions.dynamicFormPromptSuffix) {
+      basePrompt += additionalOptions.dynamicFormPromptSuffix;
+    }
     additionalOptions.basePrompt = basePrompt;
     console.log(`📝 [Flow] Base prompt: ${basePrompt.substring(0, 50)}...`);
     

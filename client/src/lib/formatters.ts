@@ -269,8 +269,6 @@ export function formatSipEndpoint(
     engineLabel = 'OpenAI SIP';
   } else if (engine === 'twilio-openai') {
     engineLabel = 'Twilio+OpenAI';
-  } else if (engine === 'plivo-openai') {
-    engineLabel = 'Plivo+OpenAI';
   }
 
   return `${phoneNumber} (${engineLabel})`;

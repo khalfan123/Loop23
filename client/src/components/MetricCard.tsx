@@ -18,6 +18,24 @@ import { Card } from "@/components/ui/card";
 import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function MetricSparkline({ values, color = "currentColor" }: { values: number[]; color?: string }) {
+  if (values.length < 2) return null;
+  const w = 64, h = 20;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+  const points = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 2) - 1;
+    return `${x},${y}`;
+  }).join(' ');
+  return (
+    <svg width={w} height={h} className="inline-block">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
+    </svg>
+  );
+}
+
 interface MetricCardProps {
   title: string;
   value: string | number;
@@ -26,13 +44,15 @@ interface MetricCardProps {
     value: number;
     direction: "up" | "down";
   };
+  trendLabel?: string;
+  sparklineData?: number[];
   subtitle?: string;
   testId?: string;
   gradientClassName?: string;
   iconClassName?: string;
 }
 
-export function MetricCard({ title, value, icon: Icon, trend, subtitle, testId, gradientClassName, iconClassName }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, trend, trendLabel, sparklineData, subtitle, testId, gradientClassName, iconClassName }: MetricCardProps) {
   return (
     <Card className={cn("p-6 hover:shadow-md transition-all duration-300", gradientClassName)} data-testid={testId || `card-metric-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <div className="flex items-center justify-between space-y-0 pb-2">
@@ -42,7 +62,12 @@ export function MetricCard({ title, value, icon: Icon, trend, subtitle, testId, 
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <div className="text-3xl font-semibold tabular-nums tracking-tight" data-testid="text-metric-value">{value}</div>
+        <div className="flex items-center gap-2">
+          <span className="text-3xl font-semibold tabular-nums tracking-tight" data-testid="text-metric-value">{value}</span>
+          {sparklineData && sparklineData.length >= 2 && (
+            <MetricSparkline values={sparklineData} color={trend?.direction === "up" ? "#10b981" : trend?.direction === "down" ? "#f87171" : "#94a3b8"} />
+          )}
+        </div>
         {subtitle && (
           <p className="text-xs text-muted-foreground">{subtitle}</p>
         )}
@@ -56,7 +81,7 @@ export function MetricCard({ title, value, icon: Icon, trend, subtitle, testId, 
             <span className={trend.direction === "up" ? "text-emerald-500" : "text-red-400"}>
               {trend.value}%
             </span>
-            <span className="text-muted-foreground/70">vs last month</span>
+            <span className="text-muted-foreground/70">{trendLabel || 'vs previous period'}</span>
           </div>
         )}
       </div>

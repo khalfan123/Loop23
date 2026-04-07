@@ -55,7 +55,6 @@ const LOGO_MAP: Record<string, React.ReactNode> = {
   insightly: <Plug className="w-6 h-6 text-[#2E86C1]" />,
   dynamics365: <Plug className="w-6 h-6 text-[#002050]" />,
   twilio: <SiTwilio className="w-6 h-6 text-[#F22F46]" />,
-  plivo: <Plug className="w-6 h-6 text-[#57BB63]" />,
   vonage: <Plug className="w-6 h-6 text-[#6B1FAA]" />,
   bandwidth: <Plug className="w-6 h-6 text-[#079CEE]" />,
   telnyx: <Plug className="w-6 h-6 text-[#00C08B]" />,

@@ -437,14 +437,19 @@ function HumanAgentWizard({ embedded = false }: { embedded?: boolean }) {
             })}
 
             {unavailablePhones.map((phone) => (
-              <Card key={phone.id} className="opacity-50 cursor-not-allowed" data-testid={`card-phone-human-unavailable-${phone.id}`}>
+              <Card 
+                key={phone.id} 
+                className="opacity-50 cursor-not-allowed" 
+                title={phone.unavailableReason || "Unavailable"}
+                data-testid={`card-phone-human-unavailable-${phone.id}`}
+              >
                 <CardContent className="p-3 flex items-center gap-3">
                   <div className="flex items-center justify-center h-8 w-8 rounded-md bg-muted">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate text-muted-foreground">{phone.phoneNumber}</div>
-                    <div className="text-xs text-muted-foreground truncate">
+                    <div className="text-xs text-destructive/70 truncate">
                       {phone.unavailableReason || "Unavailable"}
                     </div>
                   </div>

@@ -26,6 +26,7 @@ import { appointments, appointmentSettings, formSubmissions, agents, forms, form
 import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { webhookDeliveryService } from '../../../services/webhook-delivery';
+import { buildDynamicFormTools, DYNAMIC_FORM_PROMPT } from '../../../services/dynamic-form-tools';
 
 export interface DataSchemaField {
   name: string;
@@ -110,9 +111,18 @@ export class OpenAIAgentFactory {
     console.log(`[Agent Factory] Creating config: voice=${voice}, model=${model}, tier=${tier}, language=${language}`);
 
     let systemPrompt = params.systemPrompt;
+
+    const now = new Date();
+    const hr = now.getHours();
+    const tod = hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening';
+    const timeContext = `CURRENT TIME CONTEXT: It is currently ${tod} (${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}). When greeting the caller, use the appropriate time-based greeting (e.g. "Good ${tod}").
+
+GREETING RULES: Your opening greeting must ONLY include the time-based greeting, the company name (if known), your name (if known), and ask how you can help. NEVER mention any products, plans, prices, or offers in the greeting. Do NOT search the knowledge base until the caller states their needs.`;
+    systemPrompt = `${timeContext}\n\n${systemPrompt}`;
+
     if (language && language !== 'en' && !params.systemPrompt.includes('LANGUAGE:')) {
       const languageName = this.getLanguageName(language);
-      systemPrompt = `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.\n\n${params.systemPrompt}`;
+      systemPrompt = `LANGUAGE: Speak in ${languageName}. Match the caller's language naturally.\n\n${systemPrompt}`;
     }
 
     return {
@@ -148,13 +158,13 @@ export class OpenAIAgentFactory {
 
     const kbTool: AgentTool = {
       name: 'lookup_knowledge_base',
-      description: 'Search your knowledge base for relevant information to help answer the caller. Use when the caller asks something you want to verify or get details on.',
+      description: 'Search your knowledge base for product details, pricing, features, availability, and any business information. ALWAYS use this tool FIRST when the caller asks about products, prices, services, plans, packages, or any factual question. Never guess — always search first. If the first search returns nothing, try rephrasing with different keywords and search again.',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'The search query to find relevant information.',
+            description: 'The search query in ENGLISH to find product details, pricing, and business information. Translate the caller question to English keywords for best results.',
           },
         },
         required: ['query'],
@@ -175,7 +185,7 @@ export class OpenAIAgentFactory {
             console.log(`[KB Tool] No results found`);
             return { 
               found: false, 
-              message: "No results found in the knowledge base. Say you don't have that specific information and offer escalation if needed." 
+              message: 'No exact match found for that query. Try searching again with different keywords, broader terms, or category names. If still no results, offer the closest alternative you know about.' 
             };
           }
           
@@ -190,7 +200,7 @@ export class OpenAIAgentFactory {
           console.error(`[KB Tool] Error:`, error.message);
           return { 
             found: false, 
-            message: "Knowledge base lookup failed. Clearly state uncertainty and offer a safe next step or escalation." 
+            message: 'Search temporarily unavailable. Acknowledge this naturally and offer to help with what you know from the conversation so far.' 
           };
         }
       },
@@ -198,11 +208,18 @@ export class OpenAIAgentFactory {
 
     const kbPrompt = `
 
-You have a knowledge base available. Use the lookup_knowledge_base tool when it would help you give a better answer.
-Grounding policy:
-- Treat tool results as the primary source of truth.
-- If tool results are missing or weak, clearly state uncertainty and offer escalation; do not invent policy/details.
-- Never mention the knowledge base or any internal systems to the caller.`;
+You have a knowledge base with product catalog, pricing, and business information. CRITICAL RULES:
+- ALWAYS use the lookup_knowledge_base tool BEFORE answering ANY question about products, prices, plans, packages, features, availability, or business details. Search in ENGLISH even if the caller speaks another language.
+- You are an elite sales agent. Your mission: understand the caller's needs deeply, match them with the perfect product, and guide them confidently toward a purchase.
+- When presenting products, lead with the benefit that matters most to THIS caller based on what they've told you, then follow with features and pricing.
+- Present pricing confidently as YOUR pricing. Never hesitate. Say "That plan is X per month" not "I believe it costs around X."
+- ALWAYS proactively suggest: related products, bundles, upgrades, or better value options. A great agent anticipates needs.
+- If one search returns nothing, rephrase and search AGAIN with different keywords before giving up. Try category names, synonyms, or broader terms.
+- When you find multiple relevant products, compare them briefly and recommend the best fit: "Based on what you've told me, I'd recommend X because..."
+- Never say "I don't have that information" or "check the website" — exhaust your knowledge base first, then offer alternatives.
+- Never mention the knowledge base, internal systems, databases, or that you are looking things up.
+- Respond with specific numbers, features, and details from search results — never give vague answers when you have exact data.
+- Remember everything discussed in this call. Reference earlier topics to show continuity and build rapport.`;
 
     return {
       ...config,
@@ -948,11 +965,7 @@ Grounding policy:
 
     const languageInstruction = `
 
-LANGUAGE & DIALECT LOCK:
-- Detect the caller language and keep responses in that language for stability.
-- Preserve dialect/register (for example Gulf/Levantine/Egyptian Arabic, US/UK English, Hinglish) once established.
-- Only switch language when the caller clearly switches for two consecutive turns.
-- Do not default to formal MSA/neutral style unless the caller uses it.`;
+LANGUAGE DETECTION: You have automatic language detection enabled. Listen carefully to the language the caller is speaking and ALWAYS respond in the SAME language they use. If they switch languages, you should switch too. Support all major world languages naturally.`;
 
     return {
       ...config,
@@ -1333,6 +1346,14 @@ LANGUAGE & DIALECT LOCK:
     
     // Build system prompt from flow structure with language
     let systemPrompt = this.buildFlowSystemPrompt(nodes, edges, variables, params.language || 'en');
+
+    const now = new Date();
+    const hr = now.getHours();
+    const tod = hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening';
+    const timeContext = `CURRENT TIME CONTEXT: It is currently ${tod} (${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}). When greeting the caller, use the appropriate time-based greeting (e.g. "Good ${tod}").
+
+GREETING RULES: Your opening greeting must ONLY include the time-based greeting, the company name (if known), your name (if known), and ask how you can help. NEVER mention any products, plans, prices, or offers in the greeting. Do NOT search the knowledge base until the caller states their needs.`;
+    systemPrompt = `${timeContext}\n\n${systemPrompt}`;
     
     // Find first message from start node
     let firstMessage: string | undefined;
@@ -1851,6 +1872,22 @@ LANGUAGE & DIALECT LOCK:
     // Add data collection tool if dataSchema is defined
     if (agent.dataSchema && agent.dataSchema.length > 0) {
       config = this.addDataCollectionTool(config, agent.dataSchema, callId);
+    }
+
+    // Add dynamic form tools when no pre-assigned form tool exists
+    const hasStaticFormTool = config.tools?.some(t => t.name.startsWith('submit_form'));
+    if (!hasStaticFormTool) {
+      const dynamicTools = buildDynamicFormTools({
+        userId: agent.userId,
+        agentId: agent.id,
+        callId,
+      });
+      if (!config.tools) config.tools = [];
+      for (const tool of dynamicTools) {
+        config.tools.push(tool);
+      }
+      config.systemPrompt = (config.systemPrompt || '') + DYNAMIC_FORM_PROMPT;
+      console.log(`[Agent Factory] Added dynamic form tools (list_available_forms, submit_dynamic_form)`);
     }
 
     console.log(`[Agent Factory] Created config with ${config.tools?.length || 0} tools`);

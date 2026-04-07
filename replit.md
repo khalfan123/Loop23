@@ -1,7 +1,7 @@
 # AgentLabs AI Calling Platform
 
 ## Overview
-AgentLabs is a multi-tenant SaaS platform for AI-powered bulk calling, offering comprehensive tools for businesses to automate and optimize outbound and inbound calling operations. It integrates various AI engines, telephony providers, and payment gateways, enabling users to create and manage calling campaigns, utilize AI voice agents with knowledge bases, design conversation flows, and manage contacts. The platform aims to provide a robust solution for advanced AI-driven communication.
+AgentLabs is a multi-tenant SaaS platform designed for AI-powered bulk calling, providing businesses with tools to automate and optimize outbound and inbound calling operations. It integrates various AI engines, telephony providers, and payment gateways. The platform enables users to create and manage calling campaigns, utilize AI voice agents with knowledge bases, design conversation flows, manage contacts, and leverage advanced AI-driven communication for business growth and efficiency.
 
 ## User Preferences
 I want to follow an iterative development approach.
@@ -12,209 +12,123 @@ Do not make changes to the `packages/diploy-core/` directory.
 Always test every feature or change you implement before marking it complete.
 
 ## System Architecture
-The application uses a client-server architecture with a React 18, Vite, TypeScript, TailwindCSS, and shadcn/ui frontend, and a Node.js/Express 4.x backend utilizing Drizzle ORM and PostgreSQL.
+The application employs a client-server architecture. The frontend uses React 18, Vite, TypeScript, TailwindCSS, and shadcn/ui. The backend is built with Node.js/Express 4.x, utilizing Drizzle ORM and PostgreSQL.
 
-- **UI/UX**: iOS 26-inspired minimal design with frosted glass cards (`glass-card`, `glass-panel`, `glass-surface` CSS classes), backdrop blur effects, clean Apple-like typography (Inter + SF Pro fallback), soft diffused shadows, and translucent borders. Features hero sections, template cards, category filtering, stats overviews, and quick action panels. Design tokens defined as CSS custom properties (`--glass-bg`, `--glass-border`, `--glass-shadow`) with full light/dark mode support. Cards use `bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl` by default. Border radius system: lg=1rem, md=0.75rem, sm=0.5rem.
-- **Hybrid Navigation System**: iOS 26 frosted glass sidebar with pill-shaped nav items, `glass-panel` treatment, and translucent active states (`bg-primary/[0.12]`). Sidebar state persists in localStorage.
-- **Real-time Communication**: WebSocket connections for real-time voice streaming.
-- **Background Processing**: Schedulers manage campaign execution, billing, and cleanup tasks.
-- **Modular Design**: Feature modules and engine integrations are organized within `server/modules/` and `server/engines/` respectively.
-- **Department Management System**: Manages agents and IVR configurations within departments via a 3-step wizard.
-- **Knowledge Base & AI Intelligence**: Integrated knowledge base for AI-powered topic analysis and content generation, with folder-based navigation. Supports "Knowledge Base Only" mode for AI agents. Dual-pipeline: local RAG (OpenAI embeddings + PostgreSQL cosine similarity) for text, plus per-user AWS Bedrock Knowledge Bases for multimodal content (images, audio, video, PDFs). Each user gets auto-provisioned Bedrock KB ID backed by S3. Agents have `lookup_bedrock_knowledge_base` tool alongside existing local KB tool during calls.
-- **Provider DID Marketplace**: Allows browsing and renting DIDs from various carrier providers.
-- **Bedrock + Polly Engine (RockCenter)**: Multi-LLM engine supporting AWS Bedrock (Claude Sonnet 4.6) and OpenAI (gpt-4o, gpt-4o-mini) for AI, with multi-provider TTS (AWS Polly or ElevenLabs) and Twilio telephony. Model routing via `isOpenAIModel()` in `types.ts`; OpenAI adapter in `openai-llm.service.ts`. Supports both outbound and inbound scenarios with natural agent behavior — no rigid scripted frameworks. System prompts kept as plain strings. KB tool is available but not mandatory — the model decides when to use it.
-- **Outbound Agent Prompt Chain**: Rich system prompt generation for outbound agents, including personalized call scripts with `{{variable}}` placeholders, integrated with a 3-phase no-response handling for call lifecycle.
-- **Deprock Department System**: Replicates the Department Management system specifically for the Bedrock + Polly engine, using AWS Polly voices and separate configuration via `engineType`.
-- **Deprock IVR System (Enterprise-Grade)**: Full Twilio IVR implementation for Bedrock+Polly, supporting dual-input (DTMF + speech), retry logic, fallback departments, and multi-language support. Includes ElevenLabs voice ID to Polly mapping.
-- **Inbound/Outbound Call Isolation**: Clean separation of outbound-specific behaviors (e.g., greeting follow-ups, relaxed silence thresholds) from inbound call handling.
-- **IVR Call Simulator with Live Voice Conversation**: Browser-based tool for testing IVR flows and interacting with AI agents in real-time, supporting both Deprock and Department IVR configurations.
-- **Outbound Canvas**: A 6-step wizard for outbound campaign creation, featuring use case selection, contact management, AI agent & voice configuration, knowledge base integration, AI-generated content, and personalized variables.
-- **Contact Import System**: Supports multi-source contact import from CSV/Excel, vCard, Google Contacts, Microsoft Outlook/365, HubSpot CRM, and Salesforce.
-- **Live Call Monitoring System**: Real-time supervisor dashboard for monitoring active calls, with WebSocket-based updates, transcript streaming, and role-based access.
+-   **UI/UX**: Features an iOS 26-inspired minimal design with frosted glass effects, clean typography (Inter + SF Pro fallback), soft shadows, and translucent borders. It supports full light/dark mode and includes components like hero sections, template cards, and quick action panels.
+-   **Hybrid Navigation System**: Incorporates an iOS 26-style frosted glass sidebar with pill-shaped navigation items and persistent state.
+-   **Real-time Communication**: Utilizes WebSocket connections for real-time voice streaming.
+-   **Background Processing**: Schedulers manage campaign execution, billing, and cleanup tasks.
+-   **Modular Design**: Feature modules and engine integrations are organized for scalability and maintainability.
+-   **Department Management System**: Manages AI agents and IVR configurations through a guided wizard.
+-   **Knowledge Base & AI Intelligence**: Integrates a knowledge base for AI-powered topic analysis and content generation, supporting both local RAG (OpenAI embeddings + PostgreSQL) and per-user AWS Bedrock Knowledge Bases for multimodal content (images, audio, video, PDFs). Cross-language search enabled (MIN_VECTOR_RELEVANCE=0.45, MIN_FALLBACK_RELEVANCE=0.30) with product query detection in all 6 system languages.
+-   **System Languages**: Restricted to 6 supported languages: English, Chinese, Hindi, Spanish, French, Arabic. Language selectors across all canvases (Deprock, Department, Agent Editor) and the app UI are locked to these languages only.
+-   **Product & Pricing Inventory**: Full product catalog management (`products` table) with CRUD operations, AI-powered CSV bulk import, bulk update, and bulk delete. Features sortable columns (name, price, category, SKU, status), client-side pagination with configurable page size, summary stat cards (total products, in-stock, categories, AI synced), and row selection with "select all" across pages. Products are stored with name, description, price, currency, category, SKU, availability, features, and e-commerce store URL. Auto-synced to the knowledge base so the AI agent can retrieve product/pricing info during calls. CSV import uses AI (OpenAI gpt-4o-mini via Replit AI Integrations) to analyze any CSV structure, intelligently map columns to product fields (supports synonyms like "item"→name, "cost"→price, "type"→category), detect currency from data, and normalize availability values. Multi-step flow: upload/paste/link → AI column mapping review → data preview → batched import with progress bar. Routes at `/api/products` (including `/api/products/ai-analyze-csv`, `/api/products/ai-transform-csv`, `/api/products/bulk-import`, `/api/products/bulk-delete` POST and `/api/products/bulk-update` PATCH). Frontend in Knowledge Base sidebar under "Products & Pricing". Product KB entries are automatically enriched into agent knowledge base searches at runtime via `server/utils/product-kb-enrichment.ts`, ensuring all call engines (ElevenLabs RAG webhook, Twilio-OpenAI, Plivo, Bedrock-Polly) can access product/pricing data even if not explicitly added to the agent's knowledgeBaseIds.
+-   **Per-User SMTP Email Setup**: Each user can configure their own SMTP server in Settings > Email Setup (e.g., sales@yourdomain.com). Stores per-user SMTP credentials in `user_smtp_settings` table with save, test, verify, and delete. Routes at `/api/user-smtp`. Used by the AI agent to send emails from the user's domain.
+-   **Provider DID Marketplace**: Allows users to browse and rent Direct Inward Dialing (DID) numbers from various carrier providers.
+-   **Bedrock + Polly Engine (RockCenter)**: A multi-LLM engine supporting AWS Bedrock (Claude Sonnet 4.6) and OpenAI (gpt-4o, gpt-4o-mini), with multi-provider TTS (AWS Polly, ElevenLabs, or Cartesia Sonic) and Twilio telephony. It supports natural agent behavior for both outbound and inbound scenarios. Uses the **Provider-Agnostic Agent Orchestration Layer** (`server/services/agent-orchestration/`) which replaces the old `[TOOL_CALL]` text marker approach with native structured tool calling: Bedrock uses the Converse API (`ConverseCommand`/`ConverseStreamCommand`) for native `toolUse` blocks, and OpenAI uses native `tool_calls`. The orchestration layer includes a unified `ToolRegistry`, Bedrock Converse API wrapper (`bedrock-converse.ts`), and structured `LLMStreamEvent` types. Legacy `[TOOL_CALL]` text parsing is retained as a fallback for edge cases.
+-   **Outbound Agent Prompt Chain**: Generates rich system prompts for outbound agents, including personalized call scripts with variable placeholders and a 3-phase no-response handling mechanism.
+-   **Deprock Department System**: A specialized Department Management system for the Bedrock + Polly engine, with a 4-step wizard (Phone Numbers → Voice Provider → Departments → IVR Router) supporting AWS Polly, ElevenLabs, and Cartesia Sonic voice providers. Deprock-created agents are linked via `department_agents` join table and appear on the `/app/agents` page under an "Inbound Deprock" sidebar filter with department badge labels. API endpoint: `GET /api/agents/deprock-linked` returns agent IDs and department mapping (scoped to `engineType='bedrock-polly'` departments only). **Important**: Deprock agents have database type `inbound` (not `incoming`), which the frontend normalizes to `incoming` for display, filtering, sorting, and editing. Deprock agents store voice IDs in the `openaiVoice` field (not `elevenLabsVoiceId`) when `voiceProvider` is `cartesia` or `aws_polly`.
+-   **Deprock IVR System (Enterprise-Grade)**: Full Twilio IVR implementation for Bedrock+Polly, supporting dual-input (DTMF + speech), retry logic, fallback departments, multi-language support, and ElevenLabs voice ID mapping.
+-   **Inbound/Outbound Call Isolation**: Ensures clear separation of behaviors between outbound and inbound call handling.
+-   **IVR Call Simulator with Live Voice Conversation**: A browser-based tool for real-time testing of IVR flows and AI agent interactions.
+-   **Outbound Canvas**: A 6-step wizard for creating outbound campaigns, covering use case selection, contact management, AI agent/voice configuration, knowledge base integration, AI-generated content, and personalized variables.
+-   **Contact Import System**: Supports multi-source contact import from various platforms including CSV/Excel, vCard, Google Contacts, Microsoft Outlook/365, HubSpot CRM, and Salesforce.
+-   **Live Call Monitoring System**: Provides a real-time supervisor dashboard with WebSocket-based updates, transcript streaming, and role-based access.
+-   **AI Reasoning Engine**: Implements quick, deep, and expert reasoning modes with query decomposition, multi-hop retrieval, chain-of-thought, semantic re-ranking, confidence scoring, and context window management.
+-   **Enhanced RAG**: Upgraded with LRU caching (embeddings, query expansion, search results), batch embedding generation, hybrid BM25+vector search with Reciprocal Rank Fusion, smart intent classification (FAQ/product/support/general), GPT-4o-mini re-ranking fallback when Bedrock unavailable, response quality guardrails with automatic query reformulation on low-confidence results, pgvector SQL-level search with graceful JS fallback, and chain-of-thought agent system prompts. **pgvector optimization**: Native `embedding_vec vector(1536)` column with HNSW index replaces slow JSONB cosine similarity (from 30s+ timeout to <2s). DB trigger auto-syncs new JSONB embeddings to pgvector format. Robust fallback: if pgvector query fails, automatically falls back to JSONB search with 3s timeout. pgvector setup retries every 60s on failure instead of permanent lockout.
+-   **Human-Like Conversation Patterns**: System prompts are designed to incorporate active listening, empathy patterns, clarification, conversational memory references, and personality consistency.
+-   **Knowledge Synthesis Pipeline**: Processes raw content via Bedrock to produce business profiles, structured FAQs, decision trees, objection handlers, and competitive intelligence.
+-   **Caller Memory**: Extracts facts from call transcripts, stores them per phone number, and retrieves context for repeat callers to inject into system prompts.
+-   **Corporate Call Center Enhancements**: Includes voice-optimized KB entries, scenario scripts, sentiment-adaptive response engine, proactive follow-up intelligence, operational scripts, and quality scoring for auto-learning.
+-   **Microsoft Call Center AI-Inspired Upgrades**: Features agent presets for industry-specific templates, dual LLM timeouts for engagement, configurable agent behavior flags, structured data extraction, and conversation resumption capabilities.
+-   **Production Hardening**: Includes robust Whisper Arabic hallucination filters, refined silence thresholds, hardened tool call parsing, truncated response guards, resilient session end handling, and cleanup for stale pending calls.
+-   **Human-Like Reasoning & Comprehension**: Features increased VAD silence thresholds, reduced barge-in sensitivity, comprehension-first prompts, refined KB tool queries, and enhanced conversation compilation.
+-   **Dynamic Form Collection During Calls**: AI agents can dynamically discover existing forms (`list_available_forms`), select the best match, or auto-create ad-hoc forms (`submit_dynamic_form`) when no form is pre-assigned via the flow builder. Collected data is stored as proper `form_submissions` records. Integrated across all four call engines: Twilio-OpenAI, Plivo, Bedrock-Polly (handler-based tools via `server/services/dynamic-form-tools.ts`) and ElevenLabs (webhook-based tools via `/api/webhooks/elevenlabs/dynamic-form/`). Ad-hoc forms are cached per call to prevent duplicates.
+-   **Human Agent Connections**: Supports direct call transfers to human agents, webhook handling for Twilio integration, and cross-feature exclusivity to prevent conflicts between AI and human agent assignments.
+-   **Use-Case-Driven Campaign Wizard**: Auto-generates dynamic forms and system prompts based on campaign use cases, supports reference URL import for knowledge base integration, and dynamically updates the frontend wizard.
+-   **KB-Driven Auto-Generated Use Cases**: Automatically generates tailored campaign use cases from user knowledge base entries using OpenAI, stored in a dedicated database table, and dynamically displayed in the campaign creation UI.
+-   **Real-Time Sentiment Analysis & Flagged Calls**: Provides real-time, keyword/pattern-based sentiment scoring across multiple languages, detects critical sentiments, broadcasts sentiment alerts via WebSockets, and offers a live monitoring UI for flagged calls.
+
+-   **Integrations Admin Panel**: Consolidated at `/app/integrations` with three tabs: Marketplace (browse/search/filter all integration apps by category), My Integrations (connected integrations with status, sync info, and quick actions), and API & Webhooks (webhook configuration and management). The detail view remains at `/app/integrations/:slug`. Full i18n support across 8 locales (en, es, ar, pt, hi, de, fr, zh) under the `integrationsPanel` namespace, with RTL Arabic support. Frontend-only restructure — no backend changes. Component: `IntegrationsPanel.tsx`.
+
+-   **Support Ticket System**: Users create/track support tickets at `/app/settings/support` (auto-fills name/email from profile, branded with company name). Data stored in `support_tickets` and `support_messages` tables. User API at `/api/support/tickets` (JWT auth). Public API at `/api/public/support/*` (secured with `SUPPORT_API_KEY` via `X-API-Key` header) for external admin access. Admin API at `/api/internal/admin/support/*` (secured with `INTERNAL_API_SECRET` via `X-Internal-API-Key` header) with full CRUD, search, filtering, stats, assignment, and categories. Supports statuses: open, in_progress, resolved, closed, on_hold. Route files: `server/routes/support-ticket-routes.ts`, `server/routes/admin/admin-support-routes.ts`. Frontend: `client/src/pages/SupportTicketsPage.tsx`.
+
+-   **Call Intelligence API**: External call analysis storage and retrieval at `/api/call-intelligence/*`. Protected by dual-auth middleware (`requireInternalOrUser`) supporting either JWT or internal API key (`x-internal-api-key` header checked against `INTERNAL_API_SECRET` env var). Endpoints: `GET /calls` (paginated, user-scoped), `GET /calls/:id` (single call + analysis), `GET /insights` (aggregated sentiment, topics, objections, agent scores per user), `GET /stats` (admin-wide stats, internal-key only), `POST /store` (store pre-analyzed call + analysis in a DB transaction). Data stored in `ci_calls` and `ci_analyses` tables. Route file: `server/routes/call-intelligence-routes.ts`.
+
+## UAE Pass Integration
+Authentication and registration use UAE Pass OAuth 2.0. The flow:
+1. Frontend calls `GET /api/auth/uaepass/authorize` to get the authorization URL
+2. User is redirected to UAE Pass staging (`stg-id.uaepass.ae`) for authentication
+3. UAE Pass redirects back to `GET /api/auth/uaepass/callback` with an authorization code
+4. Server exchanges the code for an access token, fetches user profile, creates/finds user account
+5. New users get `kycStatus: 'pending'` and are redirected to `/onboarding` for trade license upload
+6. Existing approved users are redirected to `/app`
+
+Environment variables: `UAEPASS_CLIENT_ID`, `UAEPASS_CLIENT_SECRET`, `UAEPASS_BASE_URL`, `UAEPASS_REDIRECT_URI`
+Staging credentials: `sandbox_stage` / `sandbox_stage`
+Registration is UAE Pass-only (no email/password sign-up). Login supports both email/password (for existing users) and UAE Pass.
+Trade license upload uses existing KYC infrastructure (`/api/kyc/upload` + `/api/kyc/submit`).
+
+## Build Versioning System
+Current approved baseline: **Build v1.0.2**. Version tracked in `build-version.json` (single source of truth) with major, minor, patch, and build number fields.
+
+**Version management commands:**
+- `node scripts/set-version.js build` — Increment build number (v1.0.2 Build 3 → Build 4)
+- `node scripts/set-version.js patch` — Increment patch (v1.0.2 → v1.0.3, resets build to 0)
+- `node scripts/set-version.js minor` — Increment minor (v1.0.2 → v1.1.0, resets patch & build)
+- `node scripts/set-version.js major` — Increment major (v1.0.2 → v2.0.0, resets all)
+- `node scripts/set-version.js show` — Display current version
+- `node scripts/set-version.js set X.Y.Z` — Set specific version
+
+**Version display:** The full version string (e.g., "v1.0.2 (Build 3)") is shown in the sidebar and settings page via `BUILD_VERSION_FULL` from `client/src/lib/build-version.ts`.
+
+**Rule:** Run `node scripts/set-version.js build` before every forward change to increment the build number.
 
 ## External Dependencies
-- **AI Engines**: ElevenLabs, OpenAI Realtime API, OpenAI Chat Completions (gpt-4o, gpt-4o-mini), Anthropic Claude, AWS Bedrock Claude Sonnet 4.6 (primary, `us.anthropic.claude-sonnet-4-6`) & Opus 4.5 (fallback, `us.anthropic.claude-opus-4-5-20251101-v1:0`), with legacy Sonnet 4/3.5 Haiku support.
-- **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly.
-- **Telephony Providers**: Twilio, Plivo, TCXC.
-- **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.
-- **Database**: Neon (PostgreSQL).
-- **Email**: SMTP.
+-   **AI Engines**: ElevenLabs, OpenAI (Realtime API, Chat Completions - gpt-4o, gpt-4o-mini), Anthropic Claude, AWS Bedrock (Claude Sonnet 4.6, Opus 4.5, 3.5 Haiku, 3 Sonnet, 3 Opus, 3.7 Sonnet). AWS Bedrock key (`BedrockAPIKey-8cdw`, expires June 17 2126) has access to the **Marketplace model catalog**, enabling use of marketplace-hosted models beyond default foundation models.
+-   **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly, Cartesia Sonic.
+-   **Telephony Providers**: Twilio, Plivo, TCXC.
+-   **Payment Gateways**: Stripe, Razorpay, PayPal, Paystack, MercadoPago.
+-   **Database**: Neon (PostgreSQL).
+-   **Email**: SMTP.
 
-## Recent Fixes
-- **AWS Bedrock Knowledge Bases — Multimodal Per-User Integration (Mar 2026)**:
-  - Per-user auto-provisioned Bedrock Knowledge Bases backed by S3 storage with OpenSearch Serverless vector store
-  - New DB columns on `users`: `bedrockKbId`, `bedrockKbStatus`, `bedrockS3Prefix`, `bedrockDataSourceId`; new `bedrock_kb_files` table for S3 file tracking
-  - Service: `server/services/bedrock-knowledge-base.service.ts` — provision, upload, sync/ingest, retrieve, delete
-  - API routes: `server/routes/bedrock-kb-routes.ts` — 8 endpoints (provision, status, upload, files, delete, sync, sync-status, query)
-  - Dual-pipeline upload: text files go through both local RAG (OpenAI embeddings) AND Bedrock KB; multimodal files (images, audio, video, PDFs) go to Bedrock only
-  - Agent integration: `stream.ts` loads user's `bedrockKbId` from DB and adds `lookup_bedrock_knowledge_base` tool to agent during calls if KB is active
-  - Frontend: "AI Knowledge Base" tab on Knowledge Base page with status card, multimodal upload, file list, sync button, and test query
-  - Auto-provision: KB is auto-created on first file upload if not yet provisioned
-  - Env vars needed: `BEDROCK_KB_S3_BUCKET`, `BEDROCK_KB_ROLE_ARN`, `BEDROCK_KB_OPENSEARCH_ARN`
-- **Post-Scrape Media Generation Pipeline (Mar 2026)**:
-  - New `server/services/kb-media-generator.ts` service generates PDF, audio (Polly TTS), and images (Bedrock Titan Image / Stability AI fallback) from synthesized knowledge
-  - Triggered automatically after knowledge synthesis completes, or manually via `POST /api/rag-knowledge/generate-media/:id`
-  - Status tracking via `GET /api/rag-knowledge/media-status/:id` with user-scoped job keys
-  - Deep scrape now supports `autoSynthesize` and `generateMedia` flags for one-shot scrape→synthesize→media pipeline
-  - Frontend: "Generate Media" button (Wand2 icon) on each KB entry, with status polling and progress indicators
-  - All generated files uploaded to user's Bedrock KB S3 and synced for multimodal retrieval
-- **Voice Isolation & Background Noise Rejection (Mar 2026)**:
-  - Multi-layer audio isolation system to filter out non-caller speech during AI calls
-  - **Layer 1 — Energy Gating**: Sustained energy check (45% of chunks must exceed threshold) + energy consistency filter (coefficient of variation < 4.0) to reject intermittent background bursts
-  - **Layer 2 — Whisper Confidence**: Switched to `verbose_json` response format; rejects transcriptions with `no_speech_prob > 0.6` or `avg_logprob < -1.0`
-  - **Layer 3 — Voice Fingerprint**: `server/services/voice-fingerprint.ts` — enrolls caller's voice profile on first valid utterance (zero-crossing rate, energy, spectral centroid, speaking rate), rejects different speakers on subsequent utterances
-  - **Layer 4 — Contextual Filter**: Background noise phrase blacklist (household, TV, sports, smart assistants) + topic-pattern regex with conversation context overlap check
-  - **Layer 5 — OpenAI Engine Defaults**: Both Twilio-OpenAI and Plivo-OpenAI engines now default to `semantic_vad` with threshold `0.8` + background noise prompt instructions
-  - All layers configurable per-agent via `behaviorConfig`: `voiceIsolation` (bool, default true), `backgroundNoiseRejection` (bool, default true)
-- **KB Pre-Fetch & Stream Abort Optimization (Mar 2026)**:
-  - Fixed critical Bedrock stream stall: hard timeout (15s) now actively aborts blocked streams via `Promise.race` with abort promise, instead of just setting a flag that was never checked when the stream iterator was blocked
-  - KB pre-fetch: when KB tools are present, the system pre-fetches knowledge base results using the caller's transcription BEFORE calling Bedrock, injects context directly into messages, and suppresses the KB tool for that turn — eliminating the slow Bedrock→tool_call→KB_query→Bedrock round-trip
-  - KB pre-fetch now works even when KB returns no results (`found: false`): injects "answer from identity" directive and still suppresses KB tool to prevent contradictory instructions
-  - System prompt gets KB override when pre-fetched: tells model "KB already searched, use provided context, do NOT call KB tool" — eliminates contradiction between brain function protocol and missing tool
-  - KB suppression persists through recursive `streamBedrockAndSpeak` calls (non-KB tool calls); cleared only after full turn completes
-  - KB pre-fetch has a 5-second timeout; falls back to normal tool-call flow if KB search is too slow
-  - Thinking filler now always plays for calls with KB tools (regardless of question length), giving the caller audio feedback while KB is being queried
-  - KB context is cleaned up from message history after each turn to prevent stale context contamination
-  - Fallback model changed from Claude Opus 4.5 (slower) to Claude 3.5 Haiku (fastest) for real-time voice
-  - Fallback model stream also wrapped with abort logic (previously only primary model had it)
-  - Inter-chunk timeout in `invokeStream` reduced from 30s to 10s — appropriate for real-time voice
-  - Token-level progress logging every 3s during streaming for diagnostics
-  - Files: `server/engines/twilio-bedrock-polly/services/audio-bridge.service.ts`, `server/engines/twilio-bedrock-polly/types.ts`, `server/services/aws-bedrock.ts`
-- **AWS Bedrock Parameter Fix (Mar 2026)**: Claude Sonnet 4.6 and Opus 4.5 reject requests with both `temperature` AND `top_p`. Fixed `invokeAnthropicModel` and `invokeStream` in `server/services/aws-bedrock.ts` to use only one parameter (temperature by default, top_p only when explicitly set).
-- **Deprock Inbound Agent Response Fix (Mar 2026)**: Fixed inbound Deprock IVR calls where the AI agent would go silent after greeting:
-  - Relaxed minimum audio buffer threshold (6400b → 3200b) for inbound calls during early conversation (< 2 user turns), allowing shorter Arabic phrases to be captured
-  - Added inbound-specific re-prompt after Whisper hallucination filtering — agent now says "I'm here, please go ahead" (language-aware) instead of going silent, up to 2 times
-  - Added inbound no-response timer: 8s follow-up prompt after greeting if no valid speech, then 12s graceful goodbye and hangup if still no response
-  - Cancels inbound timers on any detected speech (even if too short or filtered) to prevent premature hangup
-  - Properly cleans up new maps (`inboundHallucinationCount`, `inboundNoResponseTimers`) in `endSession` and `remapSession`
-  - Fixed Whisper Arabic prompt: replaced hallucination-inducing terms (e.g. "تغيير") with conversational cues ("ألو، مرحبا، أريد، ممكن، مساعدة...")
-  - Whitelisted valid short Arabic phrases ("ألو", "نعم", "أريد", etc.) so they are no longer filtered as hallucinations; whitelist tolerates punctuation and character elongation
-  - Increased inbound token limits: MIN=1024, MAX=2048, DEFAULT=1024 (outbound unchanged at 200/1024/400)
-  - Increased KB result formatting limit from 400 to 1200 chars for inbound calls to support thorough knowledge-base answers
-  - Added 600ms post-TTS echo cooldown (inbound only) — discards audio detected right after agent finishes speaking to prevent echo-to-Whisper feedback loop
-  - Always pass language code to Whisper (including English) so it can't transcribe echo as random foreign languages; normalizes locale codes (e.g. en-US → en)
-  - Added language mismatch filter: rejects Whisper transcriptions that don't match the agent's configured language (e.g. French text on English call = echo, not real speech)
-- **Widget Language + Flow Agent Fixes (Feb 2026)**: Fixed multiple widget issues:
-  - Fixed null crash in ephemeral-token endpoint when agent is null (OpenAI path `agent?.openaiModel`)
-  - Widget now passes selected language to ElevenLabs via `conversation_initiation_client_data` with language override
-  - Server returns language and detectLanguageEnabled in ElevenLabs ephemeral-token response
-  - Widget config loading now properly handles server error responses and sets unavailable state
-  - OpenAI model from server is now used in WebRTC connection URL instead of hardcoded model
-  - Improved ElevenLabs WebSocket error/close handlers with descriptive error messages
-  - **IVR handle-selection fix**: Deprock IVR now stores full agent metadata (systemPrompt, firstMessage, language, knowledgeBaseIds, flow agent data, TTS provider, voice config, transfer/booking settings) in call records, matching the pattern used by direct inbound calls. Fixes Arabic language errors and English flow agent connection failures via IVR.
-- **Outbound Campaign Call Behavior Fix (Mar 2026)**:
-  - Campaign call scripts now fully replace the agent's base system prompt (instead of keeping it as "BACKGROUND KNOWLEDGE") — prevents conflicting role instructions (e.g., HR agent vs. eSIM sales campaign)
-  - TASK-FIRST FRAMEWORK objection handling now distinguishes hard rejections ("no", "nope", "not interested") from soft objections ("I'm busy") — hard rejections trigger immediate polite wrap-up instead of pushing back
-  - Added "never push more than once" rule for any objection type
-  - Response length hard-capped at 2 sentences per turn for outbound calls
-  - Audio bridge voice instructions now differentiate outbound (brevity-focused) vs inbound (thorough answers)
-  - Max token limits lowered for outbound calls (80-200 range vs 150-1024 for inbound)
-  - Greeting generator now extracts business name from use case title (e.g., "Promotional Calls for Tejwal eSIM Plans" → "Tejwal") instead of using platform company name
-  - Campaign role detection tightened to match only AI/phone/outbound/sales/calling/campaign agent patterns
-- **Bedrock Agent Conversation Quality Fix (Mar 2026)**:
-  - Fixed corrupted Arabic firstMessage for agent "Nasser Al Rashid" in database (garbled "مeee" text replaced with proper Arabic greeting matching Tejwal eSIM billing context)
-  - Added script-based language detection to `localizeFirstMessage` — skips unnecessary translation when the message is already in the target language's script (Arabic, Chinese, Japanese, Korean, Hindi, Hebrew, Thai, Russian)
-  - Changed `localizeFirstMessage` model from `claude-3-5-sonnet` (unavailable for on-demand Bedrock invocation) to `claude-3-haiku` (available on-demand, sufficient for greeting translation)
-  - Fixed OpenAI Whisper API key resolution: `resolveOpenAIKey()` now validates keys against dummy/placeholder patterns before using them, allowing fallthrough to the valid database credential when env vars contain integration placeholder keys
-  - Fixed model tier detection: `stream.ts` now looks up user's `planType` from the `users` table and passes `userTier` to `BedrockAgentFactory.createAgentConfig()`, so pro users get claude-3-5-sonnet instead of defaulting to claude-3-haiku
-- **Corporate-Grade IVR Upgrade (Mar 2026)**:
-  - **Streaming Bedrock + Sentence-Level TTS (T001)**: Replaced buffered `getBedrockResponse()` with `streamBedrockAndSpeak()` that uses `invokeStream` to stream tokens from Bedrock, splits on sentence boundaries (`.!?؟،\n`), and sends each sentence to Polly TTS immediately while the next sentence generates. Reduces first-response latency from 2-4s to ~1s. Single-pass async generator consumption with `toolCallDetected` flag for tool calls.
-  - **Audio Pacing & Mark Events (T002)**: Added 10ms delay every 50 audio chunks sent to Twilio for congestion control. Added Twilio `mark` events after each TTS segment with `pendingMarks` tracking for playback completion.
-  - **Filler Audio (T003)**: 800ms timer fires a language-aware filler phrase ("لحظة من فضلك", "One moment please", etc.) if the first Bedrock sentence isn't ready yet. Filler completion is awaited before sending real speech to prevent audio overlap. Supports 12 languages.
-  - **Warm Transfer (T004)**: Already implemented — `transfer_call` tool in `handleToolCalls`, `executeTransfer` method, and `bedrock-agent-factory` adds transfer tool with phone number metadata.
-  - **Call Recording (T005)**: Added Twilio recording initiation to IVR-routed calls (`/handle-selection` and `/fallback` endpoints) via REST API with dual-channel recording. Recording URLs saved via existing `/voice/recording` callback.
-  - **Adaptive VAD (T006)**: Noise floor calibration during first 1.5s of call (greeting playback). Trimmed mean of energy samples (10% outlier removal). Dynamic speech threshold = 2.5x noise floor, barge-in threshold = 3x noise floor, with minimum floors (200/250) for clean lines. Per-call calibration maps with proper session cleanup.
-- **Latency Optimization Upgrade (Mar 2026)**:
-  - **Smart Turn-Taking (T001)**: Replaced fixed 1200ms silence timer with adaptive 400-600ms timers based on utterance length + energy falloff detection. Short utterances (<8KB) get 600ms, medium (8-16KB) get 500ms, long (16KB+) get 400ms. Energy falloff >70% from peak triggers fast 400ms timer. Tracks peak energy per utterance.
-  - **Whisper STT Optimization (T002)**: Added `response_format: 'text'` (skips JSON parsing), `temperature: 0` (deterministic), and `AbortController` to cancel stale requests when new speech arrives. Per-turn timing logs.
-  - **Bedrock Warmup + Prompt Compression (T003)**: Pre-warms Bedrock HTTP/2 connection during session creation with minimal invoke. Compressed tool call and voice instructions prompts. Default temperature lowered to 0.3.
-  - **Async TTS Queue + Cached Fillers (T004)**: 20-char eager synthesis threshold for first fragment. Filler audio buffers pre-synthesized at session start (3 phrases per language cached as mulaw). Filler playback from cache = 0ms Polly delay. Filler timer reduced from 500ms to 400ms.
-  - **Audio Delivery Optimization (T005)**: Chunk size increased from 320 to 640 bytes (fewer WebSocket frames). Synchronous chunk sending via `sendMulawToTwilio` helper eliminates per-chunk async overhead.
-  - **Per-Turn Latency Logging (T006)**: `[LATENCY]` log lines per turn with stt, llm_first, tts_start, tts_audio, stream_total breakdowns. Enables latency dashboard debugging.
-- **10x AI Reasoning & Human-Like Conversations Upgrade (Mar 2026)**:
-  - **Bedrock 500k Token Context (T001)**: Added `invokeWithLargeContext()` to `aws-bedrock.ts` for processing inputs up to 500k tokens through intelligent chunking with 5% overlap, per-chunk analysis, and synthesis. Added Claude 3.7 Sonnet and 3.5 Sonnet v2 model aliases. Added `selectModelForTask()` for cost-effective model routing (synthesis/reasoning/quick/rerank). Added `estimateTokenCount()` utility.
-  - **Deep Web Scraper (T002)**: New `server/services/deep-scraper.ts` — `DeepScrapeService` that crawls up to 50 sub-pages, 3 levels deep, with sitemap.xml parsing, recursive link discovery, content deduplication (85% Jaccard similarity), and progressive token accumulation up to 500k tokens. Concurrent fetching (5 parallel) with polite delays. Extracts structured content (pricing tables, feature comparisons, team bios, testimonials, case studies).
-  - **AI Reasoning Engine (T003)**: New `server/services/reasoning-engine.ts` — 3 reasoning modes: `quick` (single-shot), `deep` (query decomposition + multi-hop retrieval + chain-of-thought + semantic re-ranking), `expert` (deep + self-verification). Includes confidence scoring, context window management (~6000 tokens), reasoning traces for debugging.
-  - **Enhanced RAG (T004)**: Upgraded `rag-knowledge.ts` with query expansion (3 variants via Claude), semantic re-ranking (Bedrock-powered relevance scoring), and precise answer extraction. New `enhancedSearch()` method combines vector search + FAQ matching + re-ranking. Retrieves 15 chunks, re-ranks to top 5.
-  - **Human-Like Conversation Patterns (T005)**: Upgraded `conversation-states-compiler.ts` system prompts with active listening cues, thinking indicators, empathy patterns (frustration/confusion/urgency/hesitation detection), clarification-over-guessing, conversational memory references, personality consistency, and natural phrasing guidelines.
-  - **Knowledge Synthesis Pipeline (T006)**: New `server/services/knowledge-synthesis.ts` — processes raw content via Bedrock to produce: business profiles, 50-100 structured FAQs, decision trees, objection handlers, competitive intelligence, and escalation triggers. `formatAsRAGContent()` converts to RAG-storable text.
-  - **Reasoning Engine Integration (T007)**: Wired reasoning engine into voice agent pipeline — hydrator's `createKnowledgeBaseHandler` now uses `ReasoningEngine.process()` with configurable mode. ElevenLabs RAG tool upgraded to use `enhancedSearch()` with re-ranking and answer extraction. Function tool builder enhanced with mandatory knowledge base usage prompts. Graceful fallback to basic RAG on reasoning errors.
-  - **API Routes (T008)**: New routes in `rag-knowledge-routes.ts`: `POST /api/rag-knowledge/deep-scrape` (async with progress tracking), `GET /api/rag-knowledge/deep-scrape/:jobId/status`, `POST /api/rag-knowledge/synthesize/:knowledgeBaseId`, `POST /api/rag-knowledge/enhanced-search`. Added `reasoningMode` column to agents table (`quick`/`deep`/`expert`, default `deep`).
-  - **Caller Memory (T009)**: New `server/services/conversation-memory.ts` — extracts facts from call transcripts via Claude, stores per phone number, retrieves context for repeat callers, injects into system prompts. New `caller_memory` database table. Hydrator made async to support memory retrieval when `callerPhoneNumber` is provided.
-- **Corporate Call Center 10x Upgrade (Mar 2026)**:
-  - **Voice-Ready KB Rewrite (T001)**: All 273 KB entries rewritten as spoken-word conversational scripts (not encyclopedia text). Each entry now sounds like a call center agent speaking on the phone — natural contractions, no URLs/bullet points, follow-up suggestions included. All marked with `voiceOptimized: true` metadata.
-  - **50 Scenario Scripts (T002)**: New `server/seed-scenario-scripts.ts` with 50 scenario-based conversation scripts across 7 categories: Angry/Frustrated (8), First-Time User (8), Technical Issues (8), Purchase/Billing (8), Escalation Triggers (6), Positive/Upsell (6), Edge Cases (6). Each includes caller profile, emotional state, detection cues, full branching script, and resolution paths.
-  - **Sentiment-Adaptive Response Engine (T003)**: Added `detectSentiment()` to reasoning engine — detects frustrated/confused/neutral/happy/urgent from conversation history keywords. `getSentimentToneGuidance()` generates per-sentiment instructions. `adaptAnswerForSentiment()` enforces sentence limits. All 3 reasoning modes (quick/deep/expert) now auto-detect sentiment and inject tone guidance into prompts.
-  - **Proactive Follow-Up Intelligence (T004)**: RAG `extractAnswer()` now prompts LLM to suggest one related topic after answering. System prompt includes proactive suggestion rules. Conversation compiler updated with proactive suggestion guidelines.
-  - **30 Operational Scripts (T005)**: New `server/seed-operational-scripts.ts` with 30 call center operational scripts: Opening (5), Hold (5), Transfer (5), Verification (5), Closing (5), Compliance (5). Auto-injected into system prompts via `getOperationalScriptsForSystemPrompt()`.
-  - **Voice-Optimized Extraction (T006)**: `extractAnswer()` and `formatResultsForAgent()` upgraded with strict voice output rules — no URLs read aloud, lists converted to flowing sentences, jargon replaced with plain language, 4-sentence max, contractions enforced.
-  - **Multi-Turn Context Threading (T007)**: New `CallConversationContext` in hydrator tracks topics, questions, answers, and history per call. KB tool handler enriches queries with topic context from earlier in the call. Context cleaned up on `end_call`. Reasoning engine receives full conversation history for coherent multi-turn responses.
-  - **Quality Scoring & Auto-Learning (T008)**: New `scoreResponseQuality()` scores responses 0-100 on confidence, search quality, length, voice-readiness, formatting, hedging, and follow-up presence. `learnFromQuery()` only saves responses scoring 60+ as proven scripts. New `/api/rag-knowledge/analytics` endpoint for KB statistics.
-  - **Knowledge Base Stats**: 353 total KB entries across 14 folders (including 50 scenarios + 30 operational scripts), 797+ embedded chunks. All voice-optimized.
-- **Microsoft Call Center AI-Inspired Upgrade (Mar 2026)**:
-  - **Agent Presets (T001+T002)**: New `agent_presets` table with 6 industry-specific templates (Insurance Claims, IT Support, Healthcare Appointments, Sales Follow-up, Customer Service, Real Estate). Each preset bundles system prompt, task description, structured data schema, behavior rules, waiting messages, and voice/model suggestions. Preset selector UI added as first step in Agent Creation Wizard.
-  - **Dual LLM Timeout (T003)**: Soft timeout (default 4s) sends a random "please wait" message to keep the caller engaged. Hard timeout (default 15s) gracefully aborts with an apology. Configurable per-agent via `behaviorConfig`. Implemented in Twilio-OpenAI audio bridge.
-  - **Agent Behavior Feature Flags (T004)**: New `behaviorConfig` JSONB column on agents with runtime-configurable flags: silence timeout, max questions per turn, discourse markers, recognition retries, VAD settings, callback timeout. New `AgentBehaviorSettings` component in Agent Editor with sliders and toggles. Also includes editable waiting messages.
-  - **Structured Data Extraction (T005)**: New `dataSchema` JSONB column on agents for defining fields to extract during calls (like Microsoft's claim schemas). Auto-generates "Required Data to Collect" in system prompt. Adds `update_collected_data` tool for real-time data capture. Post-call summary includes structured data report. RAG queries enhanced with data collection status context.
-  - **Conversation Resumption (T006)**: New call fields: `resumable`, `lastDisconnectedAt`, `conversationContext`, `resumedFromCallId`. `ConversationResumptionService` checks for resumable calls when same phone number calls back within timeout window (default 3h). Generates resumption prompt with previous discussion summary. Auto-marks calls as resumable on disconnection.
-  - **Deprock Engine Linkage**: All 6 Microsoft Call Center AI features fully wired to Bedrock+Polly engine:
-    - `BedrockAgentFactory.createAgentConfig` accepts `behaviorConfig`, `waitingMessages`, `dataSchema` — applies behavior rules (max questions, discourse markers, silence prompts) to system prompt
-    - `BedrockPollyAudioBridge` uses agent-specific soft timeout (0.4s default without behaviorConfig, 4s with), hard timeout (15s), and custom waiting messages. Hard timeout aborts streaming and sends apology. VAD silence override from `behaviorConfig.vadSilenceTimeoutMs`
-    - `BedrockAgentFactory.addDataCollectionTool` / `buildDataSchemaPrompt` / `generateCollectedDataSummary` mirror OpenAI factory implementation for structured data extraction
-    - Incoming webhook checks `ConversationResumptionService.findResumableCall()`, injects resumption prompt, marks previous call non-resumable. `endSession` marks calls as resumable when no explicit `end_call` tool was invoked
-    - KB tool handler enriches RAG results with `RAGKnowledgeService.buildDataSchemaContext()` when agent has a data schema
-    - `AgentConfig` type extended with `behaviorConfig`, `waitingMessages`, `dataSchema` fields. `BedrockPollyBridgeSession` extended with `explicitEndCall` flag
-    - Inbound webhook passes `behaviorConfig`, `waitingMessages`, `dataSchema`, `resumedFromCallId` through call metadata for stream handler consumption
-- **Production Hardening — Call Error Analysis & Fixes (Mar 2026)**:
-  - **Whisper Arabic Hallucination Filter**: 35 exact-match + 14 substring-match hallucination phrases (YouTube phrases, religious repetitions, music symbols). N-gram repetition detector catches "التطبيقات الموجودة في التطبيقات..." style nonsense. Single-word repetition filter for 4+ word transcripts.
-  - **Silence Thresholds Retuned**: Short/medium/long silence 400/350/300ms, opening 800ms. Filler audio system removed entirely for immediate response. Barge-in min bytes reduced to 8000.
-  - **Tool Call Parsing Hardened**: `parseToolCall()` with 3 fallback strategies. `sanitizeForTTS()` strips `[TOOL_CALL]` tags/JSON/error messages before TTS. Localized recovery phrases (AR/EN/ES/FR/DE/HI) spoken on parse failure instead of raw errors.
-  - **Truncated Response Guard**: Min 3-char length check in `synthesizeAndSend()` and sentence loop prevents single-character TTS.
-  - **Session End Hardening**: Retry logic (3 attempts with exponential backoff) for DB writes. Duration/transcript saved first, AI insights separately. Fallback duration calculation from timestamps. Guard against double-end.
-  - **Stale Pending Calls Cleanup**: New `server/services/stale-calls-cleanup.ts` — 2-min interval marks calls pending >5min as failed. Covers both `calls` and `twilio_openai_calls` tables. Wired into server startup and graceful shutdown.
-  - **Conversation Prompts Simplified**: Removed forced "acknowledge/restate" patterns across all 4 engines + conversation compiler. Now: "Answer directly without repeating the question. Don't start with acknowledgments."
-- **Human-Like Reasoning & Comprehension Upgrade (Mar 2026)**:
-  - **VAD Silence Thresholds Increased**: OpenAI engines (Twilio/Plivo) silence_duration_ms 700ms→1000ms, threshold 0.6→0.7, prefix_padding 400→500ms, eagerness medium→low. Bedrock+Polly short/medium/long silence 800/600/500→1200/1000/800ms, opening silence 1800→2200ms.
-  - **Barge-in Sensitivity Reduced**: Bedrock+Polly speech energy threshold 500→600, barge-in threshold 600→800, min barge-in bytes 8000→12000. Prevents agent from cutting off mid-sentence too easily.
-  - **Comprehension-First Prompts**: All 3 engines (Twilio OpenAI, Plivo OpenAI, Bedrock+Polly) now inject "CRITICAL CONVERSATION BEHAVIOR" instructions — agent must acknowledge/restate what caller asked before answering, ask clarifying questions when unsure, break answers into 2-3 sentences then pause.
-  - **Reasoning Engine Upgraded**: Both `singleShotAnswer` (quick mode) and `chainOfThoughtAnswer` (deep/expert mode) prompts now enforce comprehension phase — "What is the caller REALLY asking?" with structured thinking steps. Temperature raised 0.4→0.5 for more natural variation.
-  - **KB Tool Query Refinement**: `lookup_knowledge_base` tool description now requires the agent to rephrase caller's question clearly before searching, not just pass raw/ambiguous text.
-  - **Conversation Compiler Enhanced**: Added "Understand Before Responding" as #1 priority behavior, strengthened "Clarification Over Guessing" section (ask if 30%+ unsure), added pacing rules (never dump 5+ sentences, break into shorter exchanges), natural thinking words.
-- **Deprock Human Agent Connections — End-to-End Wiring (Mar 2026)**:
-  - **Standalone Direct Transfer Feature**: Incoming calls to numbers with human agent connections now play an IVR greeting (if enabled) and dial the configured transfer number directly — completely independent from call center/department/IVR routing.
-  - **Webhook Handling**: `handleIncomingCallWebhook` in `webhook-routes.ts` checks `humanIncomingConnections` table before any IVR or AI agent routing. If found, generates TwiML with optional `<Say>` greeting + `<Dial>` to transfer number using caller's number as callerId.
-  - **Twilio Webhook Configuration**: Creating a human connection now configures the Twilio phone number's voice webhook (via `configurePhoneWebhook`). Deleting a connection clears the webhook only if no other connections (AI or IVR) still use the number.
-  - **Cross-Feature Exclusivity**: AI incoming connections GET endpoint now checks `humanIncomingConnections` to mark those numbers as unavailable ("Connected to human agent"). POST endpoint also blocks creating AI connections on numbers with human connections. Prevents conflicts between AI and human agent assignments.
-  - Files: `server/routes/webhook-routes.ts`, `server/routes/incoming-connections-routes.ts`
-- **Use-Case-Driven Campaign Wizard (Mar 2026)**:
-  - **Auto-Generate Dynamic Forms (T001)**: `POST /api/campaigns/generate-form` uses OpenAI to generate 4-8 form fields based on campaign use case. `POST /api/campaigns/create-form` persists the form to `forms`/`formFields` tables. Non-appointment use cases auto-generate data collection forms; results appear at `/app/forms`.
-  - **Auto-Regenerate System Prompt (T002)**: `POST /api/campaigns/generate-use-case-prompt` generates a tailored system prompt based on use case, agent personality, knowledge base context, and form fields. Appointment booking campaigns get appointment-focused prompts; other campaigns get data-collection prompts.
-  - **Reference URL Import (T003)**: `POST /api/campaigns/import-reference-url` fetches a URL, extracts text content, creates a knowledge base entry, and triggers RAG processing. Imported KBs are linked to the campaign.
-  - **Frontend Wizard Enhancement (T004)**: `CreateCampaignDialog.tsx` now has use-case-driven behavior: "Appointment Booking" type enables appointment tools; all other types auto-generate dynamic forms with preview in the right panel. Agent selection triggers system prompt auto-generation. Knowledge base selector + reference URL import added. Generated form fields visible in right preview panel.
-  - **Campaign Executor Wiring (T005)**: `bedrock-polly-batch-calling.service.ts` now passes `selectedFormId`, `campaignAppointmentBooking`, and `campaignKnowledgeBaseIds` in call metadata. `bedrock-polly-call.service.ts` reads these metadata fields and adds form tool (`addFormTool`), appointment tool, and campaign-level KB tool to the agent config for outbound calls.
-  - Files: `server/routes/campaign-routes.ts`, `client/src/components/CreateCampaignDialog.tsx`, `server/engines/twilio-bedrock-polly/services/bedrock-polly-batch-calling.service.ts`, `server/engines/twilio-bedrock-polly/services/bedrock-polly-call.service.ts`
-- **KB-Driven Auto-Generated Use Cases (Mar 2026)**:
-  - **Auto-Generation Service**: `server/services/use-case-generator.ts` — `generateUseCasesFromKB(userId)` fetches user's KB entries, sends business context to OpenAI (gpt-4o-mini), generates 8-12 tailored campaign use cases. Includes debounce (per-user lock), category validation, and input sanitization. `generateUseCasesOnDemand(userId, goal?)` supports on-demand generation with user goal.
-  - **Auto-Trigger on KB Creation**: All KB creation endpoints (legacy `/api/knowledge-base` POST/upload/url/text in `agent-routes.ts` and RAG `/rag-knowledge` upload/url/text in `rag-knowledge-routes.ts`) fire-and-forget call `generateUseCasesFromKB()` after successful KB creation.
-  - **Database Table**: `generated_use_cases` table stores per-user AI-generated use cases (id, userId, name, description, category, createdAt).
-  - **API Endpoints**: `GET /api/campaigns/use-cases` returns user's generated use cases or fallback defaults. `POST /api/campaigns/generate-use-cases` accepts `{ goal }` and generates on-demand use cases combining KB context + user's stated objective.
-  - **Dynamic UI**: `CreateCampaignDialog.tsx` campaign type selector replaced with dynamic card grid. Features a "What do you want to achieve?" textarea + "Generate Tailored Use Cases" button that calls AI to produce business-specific use cases combining KB content and user goal. Shows AI-tailored use cases as selectable cards. Falls back to generic defaults when no KB entries exist.
-  - Files: `server/services/use-case-generator.ts`, `server/routes/campaign-routes.ts`, `server/routes/agent-routes.ts`, `server/routes/rag-knowledge-routes.ts`, `client/src/components/CreateCampaignDialog.tsx`, `shared/schema.ts`
-- **Real-Time Sentiment Analysis & Flagged Calls (Mar 2026)**:
-  - **RealtimeSentimentService**: New `server/services/realtime-sentiment.service.ts` — keyword/pattern-based per-utterance sentiment scoring across all 7 languages (en, es, fr, de, pt, hi, ar). Detects profanity, escalation requests, cancellation intent, legal threats, strong dissatisfaction, frustration, fraud accusations, DNC requests. Cumulative scoring with negative streak tracking. Alert threshold at -6, critical at -10.
-  - **LiveCall Sentiment Fields**: `sentimentLevel`, `sentimentScore`, `sentimentAlert`, `sentimentReason` added to `LiveCall` interface. New `sentiment_alert` event type broadcast via WebSocket. `updateSentiment()` and `getFlaggedCalls()` methods on `LiveCallRegistry`.
-  - **Engine Integration**: Both Bedrock+Polly and Twilio-OpenAI engines call `RealtimeSentimentService.analyzeSentiment()` after each caller utterance. Alerts trigger `NotificationService.create()` with `sentiment_alert` type (bell + banner).
-  - **API Endpoint**: `GET /api/live-calls/flagged` returns all active calls with sentiment alerts.
-  - **Live Monitoring UI**: Flagged Calls stat card (clickable, pulsing indicator when count > 0), sentiment badges on call cards, sentiment filter dropdown, sentiment detail panel with alert reason, destructive toast on real-time sentiment alert events.
-  - Files: `server/services/realtime-sentiment.service.ts`, `server/services/live-call-registry.ts`, `server/services/live-monitoring-ws.ts`, `server/routes/live-monitoring-routes.ts`, `server/engines/twilio-bedrock-polly/services/audio-bridge.service.ts`, `server/engines/twilio-openai/services/audio-bridge.service.ts`, `client/src/pages/LiveMonitoring.tsx`
-- **Bedrock Model Upgrade to Claude Sonnet 4 & Opus 4 (Mar 2026)**:
-  - **Model Registry**: Added Claude Sonnet 4 (`us.anthropic.claude-sonnet-4-20250514-v1:0`) and Claude Opus 4 (`us.anthropic.claude-opus-4-20250514-v1:0`) to `BEDROCK_MODELS`. Fixed bug where `claude-3-5-sonnet` alias was incorrectly mapped to Haiku model ID.
-  - **Task Routing**: `selectModelForTask()` upgraded — synthesis→Opus 4, reasoning→Sonnet 4, rerank→Sonnet 4, quick→3.5 Haiku.
-  - **Tier Config**: Free tier upgraded to Claude 3.5 Haiku (from 3 Haiku). Pro tier includes Sonnet 4, Opus 4, 3.7 Sonnet, 3.5 Sonnet, 3.5 Haiku, 3 Haiku, 3 Opus.
-  - **Echo Fix**: Extended 600ms post-TTS echo cooldown to ALL calls (was inbound-only). Prevents agent from hearing its own speech through phone echo and processing it as user input.
-  - **Model Fallback**: `streamBedrockAndSpeak` now attempts primary model first; on failure, automatically falls back to `claude-3-5-haiku` with logged warning. Prevents silent call failures.
-  - **Agent Model Respect**: `stream.ts` now reads agent's configured `bedrockModel` from call record metadata/DB instead of always overriding with config default.
-  - **Stream Timeout Hardening**: `invokeStream` now has 10s connection timeout (via Promise.race on client.send), 15s first-text timeout (only actual content_block_delta text counts, not metadata events), and 30s inter-chunk timeout. All timeouts throw errors that trigger the fallback model path.
-  - **Startup Model Probe**: `warmConnection()` tests all registered models on startup and logs which are accessible vs blocked. Called automatically when Bedrock engine initializes.
-  - **AWS Legacy Model Status (Mar 2026)**: Only `claude-sonnet-4` and `claude-3-5-haiku` are accessible. AWS has blocked `claude-opus-4`, `claude-3-7-sonnet`, `claude-3-5-sonnet` as legacy (not used in 15 days). User must re-enable via AWS Console → Bedrock → Model Access.
-  - Files: `server/services/aws-bedrock.ts`, `server/engines/twilio-bedrock-polly/types.ts`, `server/engines/twilio-bedrock-polly/config/config.ts`, `server/engines/twilio-bedrock-polly/services/audio-bridge.service.ts`, `server/engines/twilio-bedrock-polly/routes/stream.ts`, `server/engines/twilio-bedrock-polly/services/bedrock-agent-factory.ts`, `server/engines/twilio-bedrock-polly/services/bedrock-polly-call.service.ts`, `server/services/knowledge-synthesis.ts`, `server/services/call-insights.service.ts`, `server/routes/campaign-routes.ts`, `server/seed-llm-models-data.ts`, `shared/schema.ts`
+## Admin Panel Separation
+The admin panel has been separated into a standalone Replit project for security isolation. All admin frontend components (`client/src/components/admin/`, `AdminDashboard`, `AdminCampaignDetail`, `AdminTeamLogin`, `AdminTeamMemberSidebar`) and admin backend routes (`server/routes/admin/`, `admin-routes.ts`, `admin-team-access.routes.ts`) have been removed. Inline admin API routes (credits, limits, notifications, email templates, batch jobs, campaigns, migration) were also removed from `server/routes.ts`.
+
+A secure internal API was added at `/api/internal/*` (`server/routes/internal-api-routes.ts`) protected by `INTERNAL_API_SECRET` env var via `X-Internal-API-Key` header. Base endpoints: health check, user listing, user details, credits management, limits management, notification broadcast, and KYC management.
+
+### Comprehensive Admin API (`/api/internal/admin/*`)
+All admin endpoints are mounted under `/api/internal/admin/` and organized into 16 route files in `server/routes/admin/`:
+
+- **Users** (`admin-users-routes.ts`): POST create, DELETE soft-delete, PATCH update, POST block/unblock/recover, GET contacts, GET/DELETE webhooks
+- **Phone Numbers** (`admin-phone-routes.ts`): GET list, POST search-available/buy/import, POST assign/reassign/release/configure-webhook, POST migrate/migrate-all/migrate-by-agent, POST sync-elevenlabs/cleanup-orphaned
+- **Calls** (`admin-calls-routes.ts`): GET list (paginated, filterable), GET detail/transcript/recording, POST scan-violations, POST sync-elevenlabs/sync-recordings, GET errors/errors-summary (static routes ordered before parameterized to prevent 401s)
+- **Campaigns** (`admin-campaigns-routes.ts`): GET list/detail/contacts/calls/batches, GET/POST batch-jobs with retry
+- **ElevenLabs Pool** (`admin-elevenlabs-routes.ts`): GET pool/stats, POST add/test/activate/deactivate, DELETE, POST health-check/sync-agents/sync-voices, GET users/voice-status/retry-queue, POST set-threshold/migrate-users
+- **OpenAI Pool** (`admin-openai-routes.ts`): GET pool/stats, POST add/test/activate/deactivate, DELETE, POST migrate-users
+- **LLM Models** (`admin-llm-routes.ts`): GET list, PATCH update, POST toggle
+- **Content Moderation** (`admin-moderation-routes.ts`): CRUD banned-words, POST scan-all-calls, GET violations, PATCH review violations
+- **Prompt Templates** (`admin-templates-routes.ts`): CRUD for system prompt templates
+- **Billing** (`admin-billing-routes.ts`): GET billing/overview, CRUD plans with toggle/duplicate, CRUD credit-packages with toggle, GET/PATCH subscriptions with stats, POST user credits adjust/subscription assign, GET transactions/summary/payment-transactions with revenue reporting, GET/PUT pricing/config
+- **Credentials** (`admin-credentials-routes.ts`): GET credentials/status (all services overview), GET/PUT/DELETE credentials/:service (Twilio, Stripe, Razorpay, PayPal, Paystack, MercadoPago, OpenAI, ElevenLabs, N8N, SMTP), POST test connectivity, GET system/status (platform health), CRUD Plivo/Fonoster/TCXC credentials
+- **Settings** (`admin-settings-routes.ts`): GET/PUT/batch settings, GET/PUT/test SMTP, CRUD email-templates
+- **Branding** (`admin-branding-routes.ts`): GET/PUT branding config, POST reset
+- **SEO** (`admin-seo-routes.ts`): GET/PUT SEO per page, CRUD analytics-scripts
+- **AWS** (`admin-aws-routes.ts`): CRUD AWS credentials (secrets masked), POST test with STS validation
+- **Languages** (`admin-languages-routes.ts`): CRUD platform languages
+- **Integrations & Auth** (`admin-integrations-routes.ts`): CRUD integration apps, GET user-integrations/sync-logs, GET/revoke API keys, GET audit logs
+
+All credential responses are sanitized — API keys, passwords, and secrets are masked in responses.
+
+The `checkAdmin` middleware in `server/middleware/admin-auth.ts` is retained — it's still used by the KYC engine and plugin auto-loader.
+
+## Enhanced BI-Grade Reporting & Analytics
+The analytics module (`/app/calls` → Analytics view) has been upgraded with enterprise-grade BI capabilities:
+
+- **Advanced Aggregation API**: `GET /api/analytics/advanced` endpoint provides hourly call heatmap (24h × 7 days matrix), call pipeline funnel (initiated → connected → completed → qualified), period-over-period comparison data with delta percentages, and campaign-vs-campaign comparison datasets with daily breakdown.
+- **Chart Components**: Located in `client/src/components/analytics/` — HeatmapChart (GitHub-style activity grid), FunnelChart (call pipeline), GaugeChart (radial KPI with color thresholds), TreemapChart (campaign proportional view), PeriodComparisonCard (side-by-side period metrics), CampaignComparisonChart (multi-campaign line overlay).
+- **Interactive Data Table**: Redash-inspired sortable/filterable table with column visibility toggles, status filters, search, client-side pagination, CSV export, and Excel (.xlsx) export via the `xlsx` package.
+- **Drill-Down**: Clicking pie chart segments (lead distribution, sentiment) filters the data table. Clicking treemap items filters by campaign.
+- **Real Trends**: MetricCard now shows actual period-over-period percentage changes from the advanced analytics API (replaces hardcoded 0%).
+- **Grafana-Inspired Layout**: Analytics page uses tabbed navigation (Overview, Campaigns, Calls) with collapsible Grafana-style panel sections.
+- **Backend**: `server/storage/advanced-analytics.ts` contains `calculateAdvancedAnalytics()` with heatmap, funnel, period comparison, campaign comparison, and trend calculations.

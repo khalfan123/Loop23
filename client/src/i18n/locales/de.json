@@ -181,7 +181,52 @@
   "landing": {
     "features": "Funktionen",
     "useCases": "Anwendungsfälle",
-    "pricing": "Preise",
+    "pricing": {
+      "title": "Einfache,",
+      "titleHighlight": "Transparente",
+      "titleEnd": "Preise",
+      "description": "Starten Sie kostenlos, upgraden Sie wenn Sie bereit sind",
+      "monthly": "Monatlich",
+      "yearly": "Jährlich",
+      "save20": "20% sparen",
+      "popular": "Beliebt",
+      "free": "Kostenlos",
+      "perMonth": "/Monat",
+      "perYear": "/Jahr",
+      "getStarted": "Jetzt starten",
+      "startFreeTrial": "Kostenlos testen",
+      "guarantee": "Alle Pläne beinhalten eine 14-tägige Geld-zurück-Garantie. Keine Kreditkarte für den kostenlosen Plan erforderlich.",
+      "features": {
+        "aiAgent": "{{count}} KI-Agent",
+        "aiAgents": "{{count}} KI-Agenten",
+        "unlimitedAgents": "Unbegrenzte KI-Agenten",
+        "campaign": "{{count}} Kampagne",
+        "campaigns": "{{count}} Kampagnen",
+        "unlimitedCampaigns": "Unbegrenzte Kampagnen",
+        "maxContacts": "Max. {{count}} Kontakte pro Kampagne",
+        "contactsPerCampaign": "{{count}} Kontakte/Kampagne",
+        "unlimitedContacts": "Unbegrenzte Kontakte",
+        "flowAutomation": "{{count}} Flow-Automatisierung",
+        "flowAutomations": "{{count}} Flow-Automatisierungen",
+        "unlimitedFlows": "Unbegrenzte Flow-Automatisierungen",
+        "knowledgeBase": "{{count}} Wissensdatenbank",
+        "knowledgeBases": "{{count}} Wissensdatenbanken",
+        "unlimitedKnowledgeBases": "Unbegrenzte Wissensdatenbanken",
+        "webhook": "{{count}} Webhook",
+        "webhooks": "{{count}} Webhooks",
+        "unlimitedWebhooks": "Unbegrenzte Webhooks",
+        "phoneNumber": "{{count}} Telefonnummer",
+        "phoneNumbers": "{{count}} Telefonnummern",
+        "unlimitedPhoneNumbers": "Unbegrenzte Telefonnummern",
+        "purchaseNumbers": "Eigene Telefonnummern kaufen",
+        "systemPhone": "Vom System zugewiesene Telefonnummer",
+        "freeCredits": "{{count}} Gratis-Credits",
+        "creditCalling": "Guthaben-basiertes Telefonieren",
+        "prioritySupport": "Prioritäts-Support",
+        "chooseLlm": "LLM-Modell wählen",
+        "advancedAnalytics": "Erweiterte Analysen"
+      }
+    },
     "customers": "Kunden",
     "poweredBy": "Unterstützt von ElevenLabs & Twilio AI",
     "heroTitle1": "Optimieren Sie Ihre",
@@ -578,52 +623,6 @@
     "integrations": {
       "title": "Integrationen",
       "description": "Verbinden Sie sich mit Ihren Lieblings-Tools und verbessern Sie Ihre {{appName}}-Erfahrung."
-    },
-    "pricing": {
-      "title": "Einfache,",
-      "titleHighlight": "Transparente",
-      "titleEnd": "Preise",
-      "description": "Starten Sie kostenlos, upgraden Sie wenn Sie bereit sind",
-      "monthly": "Monatlich",
-      "yearly": "Jährlich",
-      "save20": "20% sparen",
-      "popular": "Beliebt",
-      "free": "Kostenlos",
-      "perMonth": "/Monat",
-      "perYear": "/Jahr",
-      "getStarted": "Jetzt starten",
-      "startFreeTrial": "Kostenlos testen",
-      "guarantee": "Alle Pläne beinhalten eine 14-tägige Geld-zurück-Garantie. Keine Kreditkarte für den kostenlosen Plan erforderlich.",
-      "features": {
-        "aiAgent": "{{count}} KI-Agent",
-        "aiAgents": "{{count}} KI-Agenten",
-        "unlimitedAgents": "Unbegrenzte KI-Agenten",
-        "campaign": "{{count}} Kampagne",
-        "campaigns": "{{count}} Kampagnen",
-        "unlimitedCampaigns": "Unbegrenzte Kampagnen",
-        "maxContacts": "Max. {{count}} Kontakte pro Kampagne",
-        "contactsPerCampaign": "{{count}} Kontakte/Kampagne",
-        "unlimitedContacts": "Unbegrenzte Kontakte",
-        "flowAutomation": "{{count}} Flow-Automatisierung",
-        "flowAutomations": "{{count}} Flow-Automatisierungen",
-        "unlimitedFlows": "Unbegrenzte Flow-Automatisierungen",
-        "knowledgeBase": "{{count}} Wissensdatenbank",
-        "knowledgeBases": "{{count}} Wissensdatenbanken",
-        "unlimitedKnowledgeBases": "Unbegrenzte Wissensdatenbanken",
-        "webhook": "{{count}} Webhook",
-        "webhooks": "{{count}} Webhooks",
-        "unlimitedWebhooks": "Unbegrenzte Webhooks",
-        "phoneNumber": "{{count}} Telefonnummer",
-        "phoneNumbers": "{{count}} Telefonnummern",
-        "unlimitedPhoneNumbers": "Unbegrenzte Telefonnummern",
-        "purchaseNumbers": "Eigene Telefonnummern kaufen",
-        "systemPhone": "Vom System zugewiesene Telefonnummer",
-        "freeCredits": "{{count}} Gratis-Credits",
-        "creditCalling": "Guthaben-basiertes Telefonieren",
-        "prioritySupport": "Prioritäts-Support",
-        "chooseLlm": "LLM-Modell wählen",
-        "advancedAnalytics": "Erweiterte Analysen"
-      }
     },
     "contact": {
       "badge": "Kontakt aufnehmen",
@@ -1223,7 +1222,7 @@
     "integrationsPage": {
       "seo": {
         "title": "Integrationen - KI-Sprachagenten-Plattform",
-        "description": "Verbinden Sie Ihre KI-Sprachagenten mit Twilio, Plivo, OpenAI, ElevenLabs, Zapier und mehr."
+        "description": "Verbinden Sie Ihre KI-Sprachagenten mit Twilio, OpenAI, ElevenLabs, Zapier und mehr."
       },
       "hero": {
         "badge": "Leistungsstarke Integrationen",
@@ -1244,10 +1243,6 @@
         "twilio": {
           "name": "Twilio",
           "description": "Globaler Telefonie-Anbieter für Sprachanrufe, SMS und Telefonnummernverwaltung."
-        },
-        "plivo": {
-          "name": "Plivo",
-          "description": "Alternativer Telefonie-Anbieter mit hervorragender Abdeckung in Indien und internationalen Märkten."
         },
         "openai": {
           "name": "OpenAI",
@@ -1764,20 +1759,86 @@
   },
   "admin": {
     "settings": {
-      "title": "Einstellungen",
-      "description": "Plattformeinstellungen, SEO und Integrationen konfigurieren",
+      "title": "Globale Einstellungen",
+      "description": "Plattformweite Einstellungen, SEO und Integrationen konfigurieren",
       "tabs": {
         "master": "Haupteinstellungen",
         "elevenlabs": "ElevenLabs",
         "seo": "SEO-Modul",
-        "analytics": "Analysen",
+        "analytics": "Analytik",
         "languages": "Sprachen",
         "system": "System"
-      }
+      },
+      "autoRestart": {
+        "title": "Automatisches Neustarten",
+        "description": "Automatischen Neustart bei Überschreitung der Ressourcenlimits konfigurieren",
+        "enabled": "Aktiviert",
+        "disabled": "Deaktiviert",
+        "enableToggle": "Automatischen Neustart aktivieren",
+        "enableToggleDesc": "Automatisch neu starten, wenn Ressourcenschwellenwerte überschritten werden",
+        "loadingStatus": "Ressourcenstatus wird geladen...",
+        "statusError": "Ressourcenstatus konnte nicht geladen werden.",
+        "currentRam": "Aktuelle RAM-Nutzung",
+        "currentCpu": "Aktuelle CPU-Nutzung",
+        "processMemory": "Prozess",
+        "ramLimit": "RAM-Limit (%)",
+        "ramLimitTooltip": "Neustart, wenn die System-RAM-Nutzung diesen Prozentsatz überschreitet (50-95%)",
+        "ramLimitHint": "Empfohlen: 75-85%",
+        "cpuLimit": "CPU-Limit (%)",
+        "cpuLimitTooltip": "Neustart, wenn die CPU-Nutzung diesen Prozentsatz überschreitet (20-95%)",
+        "cpuLimitHint": "Empfohlen: 80-90%",
+        "activeMessage": "Automatischer Neustart ist aktiv. Das System wird ordnungsgemäß neu gestartet, wenn RAM- oder CPU-Limits für 3 aufeinanderfolgende Prüfungen (90 Sekunden) überschritten werden.",
+        "refreshStatus": "Status aktualisieren",
+        "refreshing": "Aktualisiere...",
+        "configuredLimits": "Konfigurierte Limits",
+        "ramLimitValue": "RAM: {{value}}%",
+        "cpuLimitValue": "CPU: {{value}}%",
+        "watchdogStatus": "Watchdog-Status",
+        "watchdogActive": "Aktiv",
+        "watchdogInactive": "Inaktiv",
+        "cores": "Kerne",
+        "loadAvg": "Last-Durchschnitt",
+        "envProduction": "Produktion",
+        "envDevelopment": "Entwicklung",
+        "envDocsTitle": "Umgebung & Einschränkungen",
+        "ramMonitoringTitle": "RAM-Überwachung",
+        "ramMonitoringDesc": "Verwendet echte Systemspeicher-Messwerte über Node.js APIs. Misst präzise den gesamten und freien Speicher auf dem Server. Funktioniert zuverlässig in allen Umgebungen.",
+        "cpuMonitoringTitle": "CPU-Überwachung",
+        "cpuMonitoringDesc": "Kombiniert Prozess-CPU-Zeit mit System-Lastdurchschnitt für genauere Messwerte. Zeigt CPU-Kerne und 1-Minuten-Lastdurchschnitt. In Entwicklungs-/Sandbox-Umgebungen können Messwerte variieren.",
+        "restartBehaviorTitle": "Auto-Neustart-Verhalten",
+        "restartBehaviorDesc": "Löst sanftes Herunterfahren nach 3 aufeinanderfolgenden Schwellenwertüberschreitungen aus (90 Sekunden). Erfordert einen Prozessmanager (PM2, systemd) zum Neustarten der Anwendung. In Entwicklungsumgebungen kann die App einfach beenden ohne Neustart.",
+        "productionNote": "Für beste Ergebnisse mit PM2 oder einem ähnlichen Prozessmanager bereitstellen, der die Anwendung nach dem Herunterfahren automatisch neu startet."
+      },
+      "connectionStatus": {
+        "refreshAll": "Alle Aktualisieren",
+        "connected": "Verbunden",
+        "disconnected": "Getrennt",
+        "checking": "Wird überprüft...",
+        "verifying": "API-Verbindung wird überprüft...",
+        "telephony": "Sprach- und SMS-Telefonie",
+        "aiVoice": "KI-Sprachsynthese",
+        "twilioReady": "Twilio ist konfiguriert und bereit für Anrufe",
+        "twilioSetup": "Konfigurieren Sie unten die Twilio-Anmeldedaten, um Anrufe zu aktivieren",
+        "elevenLabsReady": "ElevenLabs ist für KI-Sprachagenten konfiguriert",
+        "elevenLabsSetup": "Fügen Sie API-Schlüssel über den Schlüsselpool hinzu, um KI-Stimmen zu aktivieren",
+        "embeddings": "Embeddings & RAG",
+        "openaiReady": "OpenAI ist für RAG-Embeddings konfiguriert",
+        "openaiSetup": "OpenAI API-Schlüssel für Embeddings konfigurieren",
+        "edit": "Bearbeiten",
+        "manageKeys": "Schlüssel Verwalten"
+      },
+      "apiKeys": "API-Schlüssel",
+      "stripeKey": "Stripe-Schlüssel",
+      "twilioKey": "Twilio-Schlüssel",
+      "elevenLabsKey": "ElevenLabs-Schlüssel",
+      "openaiKey": "OpenAI-Schlüssel",
+      "systemSettings": "Systemeinstellungen",
+      "maxPhoneNumbers": "Max. Telefonnummern",
+      "maxAgents": "Max. Agenten"
     },
     "analytics": {
       "title": "Plattform-Analysen",
-      "description": "Überwachen Sie die Plattformleistung und Wachstumsmetriken",
+      "description": "Beschreibung",
       "scriptsTitle": "Analyse- & Tracking-Skripte",
       "scriptsDescription": "Verwalten Sie Drittanbieter-Analyse- und Tracking-Skripte, die in alle Seiten Ihrer Website eingefügt werden.",
       "addScript": "Skript hinzufügen",
@@ -1805,7 +1866,6 @@
       "priority": "Priorität",
       "name": "Name",
       "type": "Typ",
-      "description": "Beschreibung",
       "descriptionPlaceholder": "Optionale Notizen zu diesem Skript für Ihre Referenz...",
       "noScripts": "Noch keine Analyse-Skripte konfiguriert.",
       "noScriptsHint": "Fügen Sie Tracking-Skripte wie Google Analytics, Facebook Pixel oder andere Analysetools hinzu, um Ihre Website-Besucher zu verfolgen.",
@@ -2052,84 +2112,6 @@
       "updateFailed": "SMTP-Einstellungen konnten nicht aktualisiert werden",
       "testSuccess": "Verbindungstest erfolgreich! E-Mail-Versand funktioniert.",
       "testFailed": "Verbindungstest fehlgeschlagen"
-    },
-    "settings": {
-      "title": "Globale Einstellungen",
-      "description": "Plattformweite Einstellungen, SEO und Integrationen konfigurieren",
-      "tabs": {
-        "master": "Haupteinstellungen",
-        "elevenlabs": "ElevenLabs",
-        "seo": "SEO-Modul",
-        "analytics": "Analytik",
-        "languages": "Sprachen",
-        "system": "System"
-      },
-      "autoRestart": {
-        "title": "Automatisches Neustarten",
-        "description": "Automatischen Neustart bei Überschreitung der Ressourcenlimits konfigurieren",
-        "enabled": "Aktiviert",
-        "disabled": "Deaktiviert",
-        "enableToggle": "Automatischen Neustart aktivieren",
-        "enableToggleDesc": "Automatisch neu starten, wenn Ressourcenschwellenwerte überschritten werden",
-        "loadingStatus": "Ressourcenstatus wird geladen...",
-        "statusError": "Ressourcenstatus konnte nicht geladen werden.",
-        "currentRam": "Aktuelle RAM-Nutzung",
-        "currentCpu": "Aktuelle CPU-Nutzung",
-        "processMemory": "Prozess",
-        "ramLimit": "RAM-Limit (%)",
-        "ramLimitTooltip": "Neustart, wenn die System-RAM-Nutzung diesen Prozentsatz überschreitet (50-95%)",
-        "ramLimitHint": "Empfohlen: 75-85%",
-        "cpuLimit": "CPU-Limit (%)",
-        "cpuLimitTooltip": "Neustart, wenn die CPU-Nutzung diesen Prozentsatz überschreitet (20-95%)",
-        "cpuLimitHint": "Empfohlen: 80-90%",
-        "activeMessage": "Automatischer Neustart ist aktiv. Das System wird ordnungsgemäß neu gestartet, wenn RAM- oder CPU-Limits für 3 aufeinanderfolgende Prüfungen (90 Sekunden) überschritten werden.",
-        "refreshStatus": "Status aktualisieren",
-        "refreshing": "Aktualisiere...",
-        "configuredLimits": "Konfigurierte Limits",
-        "ramLimitValue": "RAM: {{value}}%",
-        "cpuLimitValue": "CPU: {{value}}%",
-        "watchdogStatus": "Watchdog-Status",
-        "watchdogActive": "Aktiv",
-        "watchdogInactive": "Inaktiv",
-        "cores": "Kerne",
-        "loadAvg": "Last-Durchschnitt",
-        "envProduction": "Produktion",
-        "envDevelopment": "Entwicklung",
-        "envDocsTitle": "Umgebung & Einschränkungen",
-        "ramMonitoringTitle": "RAM-Überwachung",
-        "ramMonitoringDesc": "Verwendet echte Systemspeicher-Messwerte über Node.js APIs. Misst präzise den gesamten und freien Speicher auf dem Server. Funktioniert zuverlässig in allen Umgebungen.",
-        "cpuMonitoringTitle": "CPU-Überwachung",
-        "cpuMonitoringDesc": "Kombiniert Prozess-CPU-Zeit mit System-Lastdurchschnitt für genauere Messwerte. Zeigt CPU-Kerne und 1-Minuten-Lastdurchschnitt. In Entwicklungs-/Sandbox-Umgebungen können Messwerte variieren.",
-        "restartBehaviorTitle": "Auto-Neustart-Verhalten",
-        "restartBehaviorDesc": "Löst sanftes Herunterfahren nach 3 aufeinanderfolgenden Schwellenwertüberschreitungen aus (90 Sekunden). Erfordert einen Prozessmanager (PM2, systemd) zum Neustarten der Anwendung. In Entwicklungsumgebungen kann die App einfach beenden ohne Neustart.",
-        "productionNote": "Für beste Ergebnisse mit PM2 oder einem ähnlichen Prozessmanager bereitstellen, der die Anwendung nach dem Herunterfahren automatisch neu startet."
-      },
-      "connectionStatus": {
-        "refreshAll": "Alle Aktualisieren",
-        "connected": "Verbunden",
-        "disconnected": "Getrennt",
-        "checking": "Wird überprüft...",
-        "verifying": "API-Verbindung wird überprüft...",
-        "telephony": "Sprach- und SMS-Telefonie",
-        "aiVoice": "KI-Sprachsynthese",
-        "twilioReady": "Twilio ist konfiguriert und bereit für Anrufe",
-        "twilioSetup": "Konfigurieren Sie unten die Twilio-Anmeldedaten, um Anrufe zu aktivieren",
-        "elevenLabsReady": "ElevenLabs ist für KI-Sprachagenten konfiguriert",
-        "elevenLabsSetup": "Fügen Sie API-Schlüssel über den Schlüsselpool hinzu, um KI-Stimmen zu aktivieren",
-        "embeddings": "Embeddings & RAG",
-        "openaiReady": "OpenAI ist für RAG-Embeddings konfiguriert",
-        "openaiSetup": "OpenAI API-Schlüssel für Embeddings konfigurieren",
-        "edit": "Bearbeiten",
-        "manageKeys": "Schlüssel Verwalten"
-      },
-      "apiKeys": "API-Schlüssel",
-      "stripeKey": "Stripe-Schlüssel",
-      "twilioKey": "Twilio-Schlüssel",
-      "elevenLabsKey": "ElevenLabs-Schlüssel",
-      "openaiKey": "OpenAI-Schlüssel",
-      "systemSettings": "Systemeinstellungen",
-      "maxPhoneNumbers": "Max. Telefonnummern",
-      "maxAgents": "Max. Agenten"
     },
     "seo": {
       "title": "SEO-Einstellungen",
@@ -2443,12 +2425,3360 @@
   },
   "integrations": {
     "title": "Integrationen",
-    "description": "Externe Dienste verbinden",
-    "connected": "Verbunden",
-    "notConnected": "Nicht verbunden",
-    "connect": "Verbinden",
-    "disconnect": "Trennen",
-    "configure": "Konfigurieren"
+    "panel": {
+      "title": "Integrationen",
+      "tabs": {
+        "marketplace": "Marktplatz",
+        "myIntegrations": "Meine Integrationen",
+        "apiWebhooks": "API & Webhooks"
+      },
+      "sidebar": {
+        "quickAccess": "Schnellzugriff",
+        "categories": "Kategorien",
+        "overview": "Übersicht",
+        "total": "Gesamt Verfügbar",
+        "connected": "Verbunden",
+        "available": "Verfügbar"
+      },
+      "categories": {
+        "all": "Alle Integrationen",
+        "crm": "CRM",
+        "telephony": "Telefonie",
+        "aiLlm": "KI & LLM",
+        "voiceSpeech": "Sprache & Stimme",
+        "marketing": "Marketing",
+        "communication": "Kommunikation",
+        "support": "Support",
+        "calendar": "Kalender",
+        "ecommerce": "E-Commerce",
+        "analytics": "Analytik",
+        "automation": "Automatisierung",
+        "dataStorage": "Daten & Speicher",
+        "hrRecruiting": "HR & Recruiting",
+        "other": "Sonstiges"
+      },
+      "marketplace": {
+        "searchPlaceholder": "Integrationen suchen...",
+        "connectedCount": "verbunden",
+        "clearFilters": "Filter löschen",
+        "popular": "Beliebte Integrationen",
+        "popularBadge": "Beliebt",
+        "noResults": "Keine Integrationen gefunden",
+        "noSearchResults": "Keine Integrationen für \"{{query}}\" gefunden. Versuche einen anderen Suchbegriff.",
+        "noFilterResults": "Noch keine Integrationen in dieser Kategorie.",
+        "connect": "Verbinden",
+        "manage": "Verwalten"
+      },
+      "myIntegrations": {
+        "emptyTitle": "Keine Integrationen verbunden",
+        "emptyDescription": "Verbinde deine erste Integration über den Marktplatz-Tab um zu starten.",
+        "active": "Aktiv",
+        "pending": "Ausstehend",
+        "errors": "Fehler",
+        "inactive": "Inaktiv",
+        "lastSync": "Letzte Synchronisierung",
+        "configure": "Konfigurieren",
+        "resync": "Neu synchronisieren",
+        "resyncSuccess": "Synchronisierung gestartet",
+        "resyncSuccessDesc": "Die Integration-Synchronisierung wurde erfolgreich ausgelöst",
+        "resyncFailed": "Synchronisierung fehlgeschlagen",
+        "resyncFailedDesc": "Integration-Synchronisierung konnte nicht ausgelöst werden",
+        "disconnect": "Trennen",
+        "disconnected": "Integration getrennt",
+        "disconnectedDesc": "Die Integration wurde erfolgreich getrennt",
+        "disconnectFailed": "Trennung fehlgeschlagen",
+        "disconnectTitle": "Integration trennen",
+        "disconnectConfirm": "Sind Sie sicher, dass Sie {{name}} trennen möchten? Dadurch wird die gesamte Datensynchronisierung gestoppt und zugehörige Workflows können betroffen sein.",
+        "cancel": "Abbrechen"
+      },
+      "webhooks": {
+        "title": "Webhooks & API-Schlüssel",
+        "subtitle": "Konfiguriere Webhooks um Anrufdaten an externe Systeme zu senden"
+      },
+      "status": {
+        "connected": "Verbunden",
+        "pendingAuth": "Authentifizierung ausstehend",
+        "error": "Fehler",
+        "inactive": "Inaktiv"
+      },
+      "breadcrumb": {
+        "backToIntegrations": "Integrationen"
+      }
+    },
+    "detail": {
+      "notFound": "Integration nicht gefunden",
+      "backToMarketplace": "Zurück zum Marktplatz",
+      "syncNow": "Jetzt synchronisieren",
+      "activate": "Aktivieren",
+      "waitingAuth": "Warte auf Autorisierung...",
+      "addTestConnection": "Testverbindung hinzufügen",
+      "tabs": {
+        "functions": "Funktionen",
+        "useCases": "Anwendungsfälle",
+        "settings": "Einstellungen",
+        "setupGuide": "API-Einrichtungsanleitung",
+        "logs": "Protokolle"
+      },
+      "functions": {
+        "connectFirst": "Verbinden Sie {{name}} zuerst, um Funktionen zu aktivieren und zu konfigurieren.",
+        "actions": "Aktionen",
+        "syncs": "Synchronisierungen",
+        "howToUse": "So verwenden Sie {{type}}",
+        "name": "Name",
+        "type": "Typ",
+        "enabled": "Aktiviert",
+        "template": "VORLAGE",
+        "noActions": "Keine {{type}} für diese Integration konfiguriert.",
+        "categories": {
+          "contacts": "Kontakte",
+          "leads": "Leads",
+          "deals": "Deals",
+          "files": "Dateien",
+          "activities": "Aktivitäten",
+          "notifications": "Benachrichtigungen",
+          "others": "Sonstige"
+        }
+      },
+      "useCases": {
+        "header": "Anwendungsfälle für {{name}}",
+        "trigger": "Auslöser",
+        "outcome": "Ergebnis",
+        "connectFirst": "Zuerst verbinden",
+        "executing": "Wird ausgeführt...",
+        "executeTemplate": "Vorlage ausführen",
+        "empty": "Keine Anwendungsfälle für {{name}} verfügbar."
+      },
+      "settings": {
+        "connectFirst": "Verbinden Sie {{name}} zuerst, um die Einstellungen anzuzeigen.",
+        "connectedAccount": "Verbundenes Konto",
+        "authenticated": "Authentifiziert",
+        "account": "Konto",
+        "email": "E-Mail",
+        "authorizedOn": "Autorisiert am",
+        "fieldMapping": "Feldzuordnung",
+        "fieldMappingDesc": "Konfigurieren Sie, wie Datenfelder von Loop9 zu {{name}} zugeordnet werden.",
+        "contactName": "Kontaktname",
+        "phoneNumber": "Telefonnummer",
+        "company": "Unternehmen",
+        "callSummary": "Anrufzusammenfassung",
+        "integrationDetails": "Integrationsdetails",
+        "authMethod": "Authentifizierungsmethode",
+        "apiKey": "API-Schlüssel",
+        "oauth2": "OAuth 2.0",
+        "displayName": "Anzeigename",
+        "integrationId": "Integrations-ID",
+        "category": "Kategorie",
+        "integration": "Integration",
+        "reconnect": "Erneut verbinden",
+        "dangerZone": "Gefahrenzone",
+        "dangerDesc": "Das Trennen widerruft den Zugriff auf Ihr {{name}}-Konto, stoppt alle automatischen Synchronisierungen und löscht die Integrationskonfiguration. Diese Aktion kann nicht rückgängig gemacht werden.",
+        "disconnect": "{{name}} trennen",
+        "placeholderContactName": "z.B. contact_name",
+        "placeholderPhoneNumber": "z.B. phone_number",
+        "placeholderCompany": "z.B. company",
+        "placeholderCallSummary": "z.B. call_summary"
+      },
+      "setupGuide": {
+        "oauth": {
+          "createApp": "Entwickler-App erstellen",
+          "createAppDesc": "Gehen Sie zu {{provider}} und erstellen Sie eine neue Anwendung. Wählen Sie \"Webanwendung\" als Typ.",
+          "configureRedirect": "Weiterleitungs-URI konfigurieren",
+          "configureRedirectDesc": "Fügen Sie in den App-Einstellungen die folgende Weiterleitungs-URL hinzu. Diese ist für den OAuth-Fluss erforderlich.",
+          "setScopes": "Erforderliche Berechtigungen festlegen",
+          "setScopesDesc": "Stellen Sie sicher, dass die folgenden Berechtigungen für Ihre Anwendung aktiviert sind.",
+          "enterCredentials": "Zugangsdaten eingeben",
+          "enterCredentialsDesc": "Kopieren Sie {{field1}} und {{field2}} von der Einstellungsseite Ihrer App.",
+          "authorizeAccess": "Zugriff autorisieren",
+          "authorizeAccessDesc": "Sie werden zur Einwilligungsseite des Anbieters weitergeleitet. Überprüfen Sie die Berechtigungen und klicken Sie auf \"Erlauben\".",
+          "verifyConnection": "Verbindung überprüfen",
+          "verifyConnectionDesc": "Überprüfen Sie auf der Registerkarte Einstellungen, ob Ihr Konto verbunden ist."
+        },
+        "apiKey": {
+          "findKey": "API-Schlüssel finden",
+          "findKeyDesc": "Navigieren Sie zur Einstellungsseite Ihres Kontos. Suchen Sie den Abschnitt \"API-Schlüssel\". Kopieren Sie den Schlüssel.",
+          "noteDomain": "Domain notieren",
+          "noteDomainDesc": "Ihre Domain ist die URL für den Zugriff auf den Dienst. Sie benötigen diese mit Ihrem API-Schlüssel.",
+          "enterCredentials": "Zugangsdaten eingeben",
+          "enterCredentialsDesc": "Klicken Sie auf \"Verbinden\" und geben Sie {{field1}} und {{field2}} ein. Diese werden sicher gespeichert.",
+          "verifyConnection": "Verbindung überprüfen",
+          "verifyConnectionDesc": "Überprüfen Sie auf der Registerkarte Einstellungen, ob Ihr Konto verknüpft ist."
+        },
+        "header": "Einrichtungsanleitung für {{name}}",
+        "redirectUri": "Weiterleitungs-URI",
+        "requiredScopes": "Erforderliche Berechtigungen"
+      },
+      "logs": {
+        "connectFirst": "Verbinden Sie {{name}} zuerst, um Synchronisierungsprotokolle anzuzeigen.",
+        "syncHistory": "Synchronisierungsverlauf",
+        "entries": "Einträge",
+        "all": "Alle",
+        "success": "Erfolgreich",
+        "failed": "Fehlgeschlagen",
+        "inProgress": "In Bearbeitung",
+        "event": "Ereignis",
+        "status": "Status",
+        "records": "Datensätze",
+        "duration": "Dauer",
+        "date": "Datum",
+        "errorDetails": "Fehlerdetails",
+        "noHistory": "Noch kein Synchronisierungsverlauf"
+      },
+      "sidebar": {
+        "authMethod": "Authentifizierungsmethode",
+        "apiKey": "API-Schlüssel",
+        "oauth2": "OAuth 2",
+        "displayName": "Anzeigename",
+        "integrationId": "Integrations-ID",
+        "apiDocs": "API-Dokumentation",
+        "created": "Erstellt"
+      },
+      "disconnect": {
+        "title": "{{name}} trennen?",
+        "description": "Dies entfernt die Integration, widerruft den Zugriff auf Ihr {{name}}-Konto, stoppt alle automatischen Synchronisierungen und löscht den Workflow. Diese Aktion kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen",
+        "confirm": "Trennen"
+      },
+      "connect": {
+        "title": "{{name}} verbinden",
+        "redirectUri": "Weiterleitungs- / Callback-URL (fügen Sie dies zu Ihrer {{name}}-App hinzu)",
+        "requiredScopes": "Erforderliche Berechtigungen / Umfänge",
+        "securityNoteApiKey": "Ihr {{field1}} und {{field2}} werden verschlüsselt und sicher gespeichert. Sie werden nur zur Authentifizierung bei {{name}} in Ihrem Namen verwendet.",
+        "securityNoteOAuth": "Ihre Anmeldedaten werden verschlüsselt und sicher gespeichert. Nach der Eingabe werden Sie zu {{name}} weitergeleitet, um den Zugriff auf Ihr Konto zu autorisieren.",
+        "cancel": "Abbrechen",
+        "connecting": "Verbindung wird hergestellt...",
+        "connectButton": "Verbinden",
+        "connectAuthorize": "Verbinden & autorisieren"
+      },
+      "copied": "Kopiert",
+      "copiedDesc": "{{label}} in die Zwischenablage kopiert.",
+      "toast": {
+        "accountConnected": "Konto verbunden",
+        "accountConnectedDesc": "Ihr Konto wurde authentifiziert und synchronisiert jetzt Daten.",
+        "authFailed": "Authentifizierung fehlgeschlagen",
+        "authFailedDefault": "Bei der Authentifizierung ist ein Fehler aufgetreten.",
+        "authErrors": {
+          "accessDenied": "Sie haben den Zugriff auf Ihr Konto verweigert. Bitte versuchen Sie es erneut.",
+          "missingParams": "Die Authentifizierungsantwort war unvollständig. Bitte versuchen Sie es erneut.",
+          "invalidState": "Die Authentifizierungssitzung ist abgelaufen oder war ungültig. Bitte versuchen Sie es erneut.",
+          "integrationNotFound": "Der Integrationsdatensatz wurde nicht gefunden. Bitte verbinden Sie sich erneut.",
+          "tokenExchangeFailed": "Die Authentifizierung mit dem Dienst konnte nicht abgeschlossen werden. Überprüfen Sie Ihre Anmeldedaten und versuchen Sie es erneut.",
+          "missingCredentials": "Ihre gespeicherten Anmeldedaten konnten nicht gefunden werden. Bitte verbinden Sie sich erneut.",
+          "credentialError": "Es gab ein Problem mit Ihren gespeicherten Anmeldedaten. Bitte verbinden Sie sich erneut.",
+          "serverError": "Bei der Authentifizierung ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es erneut."
+        },
+        "signIn": "Melden Sie sich bei Ihrem Konto an",
+        "signInDesc": "Ein neues Fenster wurde geöffnet, um den Zugriff auf Ihr {{name}}-Konto zu autorisieren.",
+        "connected": "Integration verbunden",
+        "connectedDesc": "{{name}} ist jetzt verbunden und aktiv.",
+        "connectionFailed": "Verbindung fehlgeschlagen",
+        "connectionFailedDefault": "Integration konnte nicht verbunden werden",
+        "missingCredentials": "Fehlende Anmeldedaten",
+        "missingCredentialsDesc": "Bitte geben Sie sowohl {{field1}} als auch {{field2}} ein.",
+        "activated": "Integration aktiviert",
+        "activatedDesc": "Die Integration ist jetzt aktiv und synchronisiert Daten.",
+        "activationFailed": "Aktivierung fehlgeschlagen",
+        "activationFailedDefault": "Integration konnte nicht aktiviert werden",
+        "disconnected": "Integration getrennt",
+        "disconnectedDesc": "Die Integration wurde entfernt.",
+        "disconnectFailed": "Trennung fehlgeschlagen",
+        "disconnectFailedDefault": "Trennung fehlgeschlagen",
+        "syncCompleted": "Synchronisierung abgeschlossen",
+        "syncCompletedDesc": "Die Daten wurden erfolgreich synchronisiert.",
+        "syncFailed": "Synchronisierung fehlgeschlagen",
+        "syncFailedDesc": "Bei der Synchronisierung ist ein Fehler aufgetreten.",
+        "syncFailedDefault": "Synchronisierung konnte nicht gestartet werden",
+        "templateExecuted": "Vorlage ausgeführt",
+        "templateExecutedDesc": "Die n8n-Workflow-Vorlage wurde erfolgreich ausgelöst.",
+        "executionFailed": "Ausführung fehlgeschlagen",
+        "executionFailedDesc": "Die Vorlage konnte nicht ausgeführt werden.",
+        "executionFailedDefault": "Die Anwendungsfall-Vorlage konnte nicht ausgeführt werden"
+      },
+      "providers": {
+        "salesforce": {
+          "field1Label": "Consumer-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Salesforce Consumer Key",
+          "field2Label": "Consumer-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Salesforce Consumer Secret",
+          "helpText": "Create a Connected App in Salesforce: go to Setup > App Manager > New Connected App. Enable OAuth settings and add the callback URL below. Copy the Consumer Key and Consumer Secret from the app details.",
+          "setupLinkText": "Öffnen Salesforce Setup",
+          "actions": {
+            "sync-contacts": {
+              "name": "Synchronisieren Contacts",
+              "description": "Synchronisieren Kontakte von Salesforce"
+            },
+            "push-call-summary": {
+              "name": "Senden Zusammenfassung de Anruf",
+              "description": "Senden Zusammenfassungen de Anruf zu Salesforce Aktivitäten"
+            },
+            "sync-leads": {
+              "name": "Synchronisieren Leads",
+              "description": "Synchronisieren Leads von Salesforce"
+            },
+            "update-contact-status": {
+              "name": "Aktualisieren Status de Kontakt",
+              "description": "Aktualisieren Status de Kontakt nach call"
+            }
+          },
+          "useCases": {
+            "sf-log-calls": {
+              "title": "automatisch-protokollieren Anrufe als Aktivitäten",
+              "description": "Automatically create activity records in Salesforce for every completed call with full transcript and outcome data.",
+              "n8nTemplateName": "Salesforce Protokollieren de Anrufe",
+              "n8nTemplateDescription": "Protokolliert Daten de Anruf als Salesforce Task Aktivitäten",
+              "expectedOutcome": "New Task activity created in Salesforce with call details"
+            },
+            "sf-create-leads": {
+              "title": "Erstellen Leads von neuer Anrufer",
+              "description": "Automatically create new Lead records when unknown callers are detected during conversations.",
+              "n8nTemplateName": "Salesforce Erstellen de Leads",
+              "n8nTemplateDescription": "Erstellt Leads von nicht erkannte Telefonnummer",
+              "expectedOutcome": "Neuer Datensätze de Lead erstellt mit Informationen del Anrufer"
+            },
+            "sf-sync-contacts": {
+              "title": "Synchronisieren Daten de Kontakt nach Gespräche",
+              "description": "Aktualisieren Salesforce Kontakt Datensätze mit neueste Erkenntnisse de Gespräch und extrahiert Daten points.",
+              "n8nTemplateName": "Salesforce Synchronisieren de Kontakte",
+              "n8nTemplateDescription": "Synchronisiert Daten de Gespräch zu Datensätze de Kontakt",
+              "expectedOutcome": "Datensätze de Kontakt aktualisiert mit neueste Daten de Gespräch"
+            },
+            "sf-update-opps": {
+              "title": "Aktualisieren Status de oportunidad",
+              "description": "Aktualisieren automatisch oder update Oportunidad stages basierend auf Ergebnisse de Anruf und AI Analyse.",
+              "n8nTemplateName": "Salesforce Aktualisieren de Deals",
+              "n8nTemplateDescription": "Aktualisiert Status de oportunidad von call Ergebnisse",
+              "expectedOutcome": "Oportunidad stage aktualisiert basierend auf call Analyse"
+            }
+          }
+        },
+        "hubspot": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein HubSpot Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein HubSpot Client Secret",
+          "helpText": "Create an app in the HubSpot Developer Portal. Go to your app's Auth settings, add the redirect URL below, and select the required scopes. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open HubSpot Developer Portal",
+          "actions": {
+            "sync-contacts": {
+              "name": "Synchronisieren Contacts",
+              "description": "Synchronisieren Kontakte von HubSpot"
+            },
+            "sync-deals": {
+              "name": "Synchronisieren Deals",
+              "description": "Synchronisieren Deals von HubSpot"
+            },
+            "create-engagement": {
+              "name": "Erstellen Engagement",
+              "description": "Erstellen call engagement Datensätze"
+            },
+            "push-call-notes": {
+              "name": "Senden Notizen de Anruf",
+              "description": "Senden Notizen de Anruf zu contact timeline"
+            }
+          },
+          "useCases": {
+            "hs-create-deals": {
+              "title": "Erstellen Deals von qualified Anrufe",
+              "description": "Automatically create new deals in HubSpot when calls are identified as sales-qualified opportunities.",
+              "n8nTemplateName": "HubSpot Ersteller de Deal",
+              "n8nTemplateDescription": "Erstellt Deals von qualified Ergebnisse de Anruf",
+              "expectedOutcome": "New deal created in HubSpot pipeline"
+            },
+            "hs-push-notes": {
+              "title": "Senden Notizen de Anruf zu timeline",
+              "description": "Hinzufügen detailed Notizen de Anruf und Transkripte zu  HubSpot contact timeline für complete interaction Verlauf.",
+              "n8nTemplateName": "HubSpot Protokollierer de Zeitachse",
+              "n8nTemplateDescription": "Sendet Notizen de Anruf zu contact timeline",
+              "expectedOutcome": "Call notes added to contact timeline in HubSpot"
+            },
+            "hs-sync-contacts": {
+              "title": "Synchronisieren Kontakte bi-directionally",
+              "description": "Keep contact information synchronized between your calling platform and HubSpot in both directions.",
+              "n8nTemplateName": "HubSpot Synchronisieren de Kontakte",
+              "n8nTemplateDescription": "Bidirektionale Kontaktsynchronisierung",
+              "expectedOutcome": "Contact data synced between platforms"
+            },
+            "hs-followup": {
+              "title": "Auslösen Sequenzen de Nachverfolgung",
+              "description": "Automatically enroll contacts into HubSpot email sequences based on call outcomes and qualification status.",
+              "n8nTemplateName": "HubSpot Auslöser de Sequenz",
+              "n8nTemplateDescription": "Enrolls contacts in follow-up sequences",
+              "expectedOutcome": "Contact enrolled in appropriate follow-up sequence"
+            }
+          }
+        },
+        "zoho": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Zoho Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Zoho Client Secret",
+          "helpText": "Register a Server-based Application in the Zoho API Console. Add the redirect URL below as an authorized redirect URI. Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Zoho API Console",
+          "actions": {
+            "sync-contacts": {
+              "name": "Synchronisieren Contacts",
+              "description": "Synchronisieren Kontakte von Zoho CRM"
+            },
+            "sync-leads": {
+              "name": "Synchronisieren Leads",
+              "description": "Synchronisieren Leads von Zoho"
+            },
+            "push-call-log": {
+              "name": "Senden Call Log",
+              "description": "Senden Datensätze de Anruf zu Zoho"
+            },
+            "update-lead-status": {
+              "name": "Aktualisieren Lead Status",
+              "description": "Aktualisieren lead Status nach call"
+            }
+          },
+          "useCases": {
+            "zoho-log-calls": {
+              "title": "Protokollieren call Aktivitäten",
+              "description": "Create call activity records in Zoho CRM with complete conversation details and outcomes.",
+              "n8nTemplateName": "Zoho Protokollieren de Anrufe",
+              "n8nTemplateDescription": "Protokolliert Anrufe als Zoho Aktivitäten",
+              "expectedOutcome": "Call activity logged in Zoho CRM"
+            },
+            "zoho-sync-leads": {
+              "title": "Synchronisieren Leads nach Gespräche",
+              "description": "Synchronize lead Daten und Erkenntnisse de Gespräch zu Zoho CRM Datensätze de Lead.",
+              "n8nTemplateName": "Zoho Synchronisierung de Lead",
+              "n8nTemplateDescription": "Synchronisiert lead Daten post-Gespräch",
+              "expectedOutcome": "Lead record updated in Zoho CRM"
+            },
+            "zoho-update-deals": {
+              "title": "Aktualisieren deal stages",
+              "description": "Advance deal stages in Zoho CRM based on call outcomes and qualification criteria.",
+              "n8nTemplateName": "Zoho Aktualisieren de Deals",
+              "n8nTemplateDescription": "Aktualisiert deal stages von call Ergebnisse",
+              "expectedOutcome": "Deal stage updated in Zoho CRM"
+            },
+            "zoho-create-tasks": {
+              "title": "Erstellen Nachverfolgung Aufgaben",
+              "description": "Automatically create follow-up tasks in Zoho CRM based on action items from calls.",
+              "n8nTemplateName": "Zoho Ersteller de Aufgabe",
+              "n8nTemplateDescription": "Erstellt Aufgaben von call action items",
+              "expectedOutcome": "Follow-up task created in Zoho CRM"
+            }
+          }
+        },
+        "google-sheets": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Google Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Google Client Secret",
+          "helpText": "In Google Cloud Console, create an OAuth 2.0 Client ID (Web application type). Add the redirect URL below as an authorized redirect URI. Enable the Google Sheets API and Google People API for your project.",
+          "setupLinkText": "Open Google Cloud Console",
+          "actions": {
+            "export-call-data": {
+              "name": "Exportieren Daten de Anruf",
+              "description": "Exportieren Daten de Anruf zu Google Sheets"
+            },
+            "read-contact-list": {
+              "name": "Read Kontakt List",
+              "description": "Read contact list von Google Sheets"
+            },
+            "sync-campaign-results": {
+              "name": "Synchronisieren Campaign Results",
+              "description": "Synchronisieren Kampagne Ergebnisse zu sheets"
+            }
+          },
+          "useCases": {
+            "gsheets-export": {
+              "title": "Exportieren Daten de Anruf",
+              "description": "Exportieren Daten de Anruf und Metriken zu Google Sheets.",
+              "n8nTemplateName": "Google Sheets Exporteur de Daten",
+              "n8nTemplateDescription": "Exports Daten de Anruf",
+              "expectedOutcome": "Call Daten exported zu Google Sheets"
+            },
+            "gsheets-import": {
+              "title": "Importieren contact lists",
+              "description": "Importieren contact lists von Google Sheets für Kampagnen.",
+              "n8nTemplateName": "Google Sheets Kontakt Importer",
+              "n8nTemplateDescription": "Imports Kontakte",
+              "expectedOutcome": "Contacts imported von Google Sheets"
+            },
+            "gsheets-reports": {
+              "title": "Berichterstattung de Kampagne",
+              "description": "Generate campaign reports in Google Sheets.",
+              "n8nTemplateName": "Google Sheets Bericht Generator",
+              "n8nTemplateDescription": "Generiert reports",
+              "expectedOutcome": "Report generated in Google Sheets"
+            },
+            "gsheets-dashboards": {
+              "title": "Analyse-Dashboards",
+              "description": "Create analytics dashboards in Google Sheets.",
+              "n8nTemplateName": "Google Sheets Dashboard",
+              "n8nTemplateDescription": "Erstellt dashboards",
+              "expectedOutcome": "Dashboard created in Google Sheets"
+            }
+          }
+        },
+        "pipedrive": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Pipedrive Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Pipedrive Client Secret",
+          "helpText": "Create an app in the Pipedrive Developer Hub (Marketplace Manager). Set the callback URL to the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Pipedrive Developer Hub",
+          "actions": {
+            "sync-contacts": {
+              "name": "Synchronisieren Persons",
+              "description": "Synchronisieren persons von Pipedrive"
+            },
+            "sync-deals": {
+              "name": "Synchronisieren Deals",
+              "description": "Synchronisieren Deals von Pipedrive"
+            },
+            "create-activity": {
+              "name": "Erstellen Activity",
+              "description": "Erstellen Aktivitäten de Anruf Datensätze"
+            },
+            "push-call-outcome": {
+              "name": "Senden Call Outcome",
+              "description": "Senden call outcome zu deal"
+            }
+          },
+          "useCases": {
+            "pd-create-activities": {
+              "title": "Erstellen Aktivitäten von Anrufe",
+              "description": "Log call activities in Pipedrive with detailed notes and outcome tracking.",
+              "n8nTemplateName": "Pipedrive Ersteller de Aktivität",
+              "n8nTemplateDescription": "Erstellt Aktivitäten von abgeschlossen Anrufe",
+              "expectedOutcome": "Activity created in Pipedrive"
+            },
+            "pd-update-deals": {
+              "title": "Aktualisieren deal Fortschritt",
+              "description": "Move Deals durch Pipeline stages basierend auf Ergebnisse de Anruf und buyer signals.",
+              "n8nTemplateName": "Pipedrive Aktualisieren de Deals",
+              "n8nTemplateDescription": "Aktualisiert deal stages von call Analyse",
+              "expectedOutcome": "Deal stage updated in Pipedrive"
+            },
+            "pd-sync-persons": {
+              "title": "Synchronisieren person Daten",
+              "description": "Keep person records in Pipedrive synchronized with caller information.",
+              "n8nTemplateName": "Pipedrive Person Synchronisierung",
+              "n8nTemplateDescription": "Synchronisiert Daten del Anrufer zu person Datensätze",
+              "expectedOutcome": "Person record updated in Pipedrive"
+            },
+            "pd-push-outcomes": {
+              "title": "Senden Ergebnisse de Anruf",
+              "description": "Aufzeichnen Ergebnisse de Anruf und dispositions directly zu Pipedrive deal und Datensätze de Aktivitäten.",
+              "n8nTemplateName": "Pipedrive Outcome Protokollierer",
+              "n8nTemplateDescription": "Sendet Ergebnisse de Anruf zu Pipedrive",
+              "expectedOutcome": "Call outcome recorded in Pipedrive"
+            }
+          }
+        },
+        "dynamics365": {
+          "field1Label": "Anwendungs-(Client-)ID",
+          "field1Placeholder": "Geben Sie ein Azure Application (Client) ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Azure Client Secret value",
+          "helpText": "Register an application in Azure Portal > App Registrations. Under Authentication, add the redirect URL below as a Web redirect URI. Under Certificates & secrets, create a new Client Secret and copy the value. Grant Dynamics CRM API permissions.",
+          "setupLinkText": "Open Azure Portal",
+          "actions": {
+            "sync-contacts": {
+              "name": "Synchronisieren Contacts",
+              "description": "Synchronisieren Kontakte von Dynamics 365"
+            },
+            "sync-leads": {
+              "name": "Synchronisieren Leads",
+              "description": "Synchronisieren Leads von Dynamics"
+            },
+            "create-phone-call": {
+              "name": "Erstellen Phone Call",
+              "description": "Erstellen phone Aktivitäten de Anruf"
+            },
+            "update-lead-qualification": {
+              "name": "Aktualisieren Lead Qualification",
+              "description": "Aktualisieren lead qualification"
+            }
+          },
+          "useCases": {
+            "d365-create-calls": {
+              "title": "Erstellen phone call Aktivitäten",
+              "description": "Create Phone Call activity records in Dynamics 365 for every completed conversation.",
+              "n8nTemplateName": "Dynamics 365 Ersteller de Anruf",
+              "n8nTemplateDescription": "Erstellt phone call Aktivitäten",
+              "expectedOutcome": "Phone Call activity created in Dynamics 365"
+            },
+            "d365-sync-leads": {
+              "title": "Synchronisieren Leads",
+              "description": "Synchronize lead data between your calling platform and Dynamics 365.",
+              "n8nTemplateName": "Dynamics 365 Synchronisierung de Lead",
+              "n8nTemplateDescription": "Synchronisiert Datensätze de Lead",
+              "expectedOutcome": "Lead synced in Dynamics 365"
+            },
+            "d365-update-quals": {
+              "title": "Aktualisieren lead qualifications",
+              "description": "Update lead qualification status in Dynamics 365 based on call analysis results.",
+              "n8nTemplateName": "Dynamics 365 Qualification Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert lead qualification von Anrufe",
+              "expectedOutcome": "Lead qualification updated in Dynamics 365"
+            },
+            "d365-log-outcomes": {
+              "title": "Protokollieren Gespräch Ergebnisse",
+              "description": "Record detailed conversation outcomes and notes in Dynamics 365 activity records.",
+              "n8nTemplateName": "Dynamics 365 Outcome Protokollierer",
+              "n8nTemplateDescription": "Protokolliert Gespräch Ergebnisse",
+              "expectedOutcome": "Outcome logged in Dynamics 365"
+            }
+          }
+        },
+        "freshsales": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Freshsales API Key",
+          "field2Label": "Domain",
+          "field2Placeholder": "z.B. yourcompany.freshsales.io",
+          "helpText": "Find your API Key in Freshsales: go to Settings > API Settings > Your API Key. Your domain is the URL you use to access Freshsales (e.g., yourcompany.freshsales.io).",
+          "setupLinkText": "Öffnen Freshsales",
+          "actions": {
+            "sync-contacts": {
+              "name": "Synchronisieren Contacts",
+              "description": "Synchronisieren Kontakte von Freshsales"
+            },
+            "sync-leads": {
+              "name": "Synchronisieren Leads",
+              "description": "Synchronisieren Leads von Freshsales"
+            },
+            "log-call-activity": {
+              "name": "Protokollieren Aktivitäten de Anruf",
+              "description": "Protokollieren call Aktivitäten"
+            },
+            "update-lead-score": {
+              "name": "Aktualisieren Lead Score",
+              "description": "Aktualisieren lead score basierend auf call"
+            }
+          },
+          "useCases": {
+            "fs-log-outcomes": {
+              "title": "Protokollieren Ergebnisse de Anruf",
+              "description": "Record call outcomes and dispositions in Freshsales for complete activity tracking.",
+              "n8nTemplateName": "Freshsales Protokollieren de Anrufe",
+              "n8nTemplateDescription": "Logs call outcomes in Freshsales",
+              "expectedOutcome": "Call outcome logged in Freshsales"
+            },
+            "fs-update-scores": {
+              "title": "Aktualisieren lead Bewertungen",
+              "description": "Automatically adjust lead scores in Freshsales based on call engagement and outcomes.",
+              "n8nTemplateName": "Freshsales Score Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert lead Bewertungen von Daten de Anruf",
+              "expectedOutcome": "Lead score updated in Freshsales"
+            },
+            "fs-create-tasks": {
+              "title": "Erstellen Aufgaben von Anrufe",
+              "description": "Generate follow-up tasks in Freshsales from action items identified during calls.",
+              "n8nTemplateName": "Freshsales Ersteller de Aufgabe",
+              "n8nTemplateDescription": "Erstellt Aufgaben von call action items",
+              "expectedOutcome": "Task created in Freshsales"
+            },
+            "fs-sync-contacts": {
+              "title": "Synchronisieren Daten de Kontakt",
+              "description": "Synchronize contact information between your calling platform and Freshsales.",
+              "n8nTemplateName": "Freshsales Synchronisieren de Kontakte",
+              "n8nTemplateDescription": "Synchronisiert Daten de Kontakt bi-directionally",
+              "expectedOutcome": "Contact synced in Freshsales"
+            }
+          }
+        },
+        "monday-com": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Monday.com Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Monday.com Client Secret",
+          "helpText": "Create an app at monday.com Developers. Under OAuth settings, add the redirect URL below. Copy the Client ID and Client Secret from the app's Basic Information section.",
+          "setupLinkText": "Öffnen Monday.com Developers",
+          "actions": {
+            "sync-board-items": {
+              "name": "Synchronisieren Board Items",
+              "description": "Synchronisieren items von Monday.com boards"
+            },
+            "update-item-status": {
+              "name": "Aktualisieren Item Status",
+              "description": "Aktualisieren item Status nach call"
+            },
+            "push-call-summary": {
+              "name": "Senden Zusammenfassung de Anruf",
+              "description": "Senden Zusammenfassungen de Anruf zu items"
+            }
+          }
+        },
+        "airtable": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Airtable Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Airtable Client Secret",
+          "helpText": "Register an OAuth integration at the Airtable Developer Hub. Add the redirect URL below. Select the required scopes (data.records:read, data.records:write, schema.bases:read). Copy the Client ID and Client Secret.",
+          "setupLinkText": "Open Airtable Developer Hub",
+          "actions": {
+            "sync-records": {
+              "name": "Synchronisieren Records",
+              "description": "Synchronisieren Datensätze von Airtable base"
+            },
+            "export-call-data": {
+              "name": "Exportieren Daten de Anruf",
+              "description": "Exportieren Daten de Anruf zu Airtable"
+            },
+            "update-record-status": {
+              "name": "Aktualisieren Record Status",
+              "description": "Aktualisieren Datensätze Status"
+            }
+          },
+          "useCases": {
+            "at-sync": {
+              "title": "Synchronisieren call Datensätze",
+              "description": "Synchronisieren call Datensätze zu Airtable bases.",
+              "n8nTemplateName": "Airtable Record Synchronisierung",
+              "n8nTemplateDescription": "Synchronisiert call Datensätze",
+              "expectedOutcome": "Records synced zu Airtable"
+            },
+            "at-update": {
+              "title": "Aktualisieren bases",
+              "description": "Aktualisieren Airtable bases mit Daten de Anruf und Ergebnisse.",
+              "n8nTemplateName": "Airtable Base Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert bases",
+              "expectedOutcome": "Base updated in Airtable"
+            },
+            "at-campaigns": {
+              "title": "Kampagnen-Tracking",
+              "description": "Track campaign performance in Airtable.",
+              "n8nTemplateName": "Airtable Verfolger de Kampagne",
+              "n8nTemplateDescription": "Verfolgt Kampagnen",
+              "expectedOutcome": "Campaign tracked in Airtable"
+            },
+            "at-contacts": {
+              "title": "Kontakt management",
+              "description": "Manage contacts in Airtable from call interactions.",
+              "n8nTemplateName": "Airtable Kontakt Manager",
+              "n8nTemplateDescription": "Manages Kontakte",
+              "expectedOutcome": "Contact managed in Airtable"
+            }
+          }
+        },
+        "slack": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Slack Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Slack Client Secret",
+          "helpText": "Create a Slack App at api.slack.com/apps. Under OAuth & Permissions, add the redirect URL below. Add the required Bot Token Scopes (chat:write, channels:read, users:read). Copy the Client ID and Client Secret from Basic Information.",
+          "setupLinkText": "Öffnen Slack API",
+          "actions": {
+            "send-call-notification": {
+              "name": "Senden Call Notification",
+              "description": "Senden call completion Benachrichtigungen"
+            },
+            "send-campaign-summary": {
+              "name": "Senden Campaign Summary",
+              "description": "Senden Kampagne Zusammenfassung reports"
+            },
+            "send-alert": {
+              "name": "Senden Alert",
+              "description": "Senden Echtzeit Warnungen für important Anrufe"
+            }
+          },
+          "useCases": {
+            "slack-summaries": {
+              "title": "Veröffentlichen Zusammenfassungen de Anruf zu Kanäle",
+              "description": "Veröffentlichen automatisch AI-generiert Zusammenfassungen de Anruf zu designated Slack Kanäle.",
+              "n8nTemplateName": "Slack Zusammenfassung de Anruf Poster",
+              "n8nTemplateDescription": "Posts Zusammenfassungen de Anruf zu Slack",
+              "expectedOutcome": "Call Zusammenfassung posted zu Slack channel"
+            },
+            "slack-alerts": {
+              "title": "Alert on high-priority calls",
+              "description": "Senden instant Slack Warnungen für high-priority oder escalated Anrufe.",
+              "n8nTemplateName": "Slack Priority Alarm",
+              "n8nTemplateDescription": "Alerts on priority calls",
+              "expectedOutcome": "Priority alert gesendet zu Slack"
+            },
+            "slack-reports": {
+              "title": "Daily Kampagne reports",
+              "description": "Senden daily Kampagne performance reports zu Slack Kanäle.",
+              "n8nTemplateName": "Slack Daily Bericht",
+              "n8nTemplateDescription": "Daily Kampagne reports",
+              "expectedOutcome": "Daily report posted zu Slack"
+            },
+            "slack-realtime": {
+              "title": "Echtzeit call Benachrichtigungen",
+              "description": "Senden Echtzeit Benachrichtigungen zu Slack für Ereignisse de Anruf.",
+              "n8nTemplateName": "Slack Echtzeit Notifier",
+              "n8nTemplateDescription": "Echtzeit call Benachrichtigungen",
+              "expectedOutcome": "Echtzeit Benachrichtigung gesendet"
+            }
+          }
+        },
+        "mailchimp": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Mailchimp Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Mailchimp Client Secret",
+          "helpText": "Register an app in the Mailchimp Developer Portal. Add the redirect URL below as a redirect URI. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Mailchimp Developer Portal",
+          "actions": {
+            "sync-audience": {
+              "name": "Synchronisieren Audience",
+              "description": "Synchronisieren audience/subscriber lists"
+            },
+            "update-tags": {
+              "name": "Aktualisieren Tags",
+              "description": "Aktualisieren subscriber Tags basierend auf Ergebnisse de Anruf"
+            },
+            "push-campaign-results": {
+              "name": "Senden Campaign Results",
+              "description": "Senden calling Kampagne Ergebnisse"
+            }
+          },
+          "useCases": {
+            "mc-add-contacts": {
+              "title": "Hinzufügen Kontakte zu lists",
+              "description": "Hinzufügen caller Kontakte zu Mailchimp audience lists.",
+              "n8nTemplateName": "Mailchimp Kontakt Adder",
+              "n8nTemplateDescription": "Fügt hinzu Kontakte zu lists",
+              "expectedOutcome": "Kontakt added zu Mailchimp list"
+            },
+            "mc-tag": {
+              "title": "Tag basierend auf call outcome",
+              "description": "Tag Mailchimp Kontakte basierend auf Ergebnisse de Anruf.",
+              "n8nTemplateName": "Mailchimp Ergebnis Tagger",
+              "n8nTemplateDescription": "Tags contacts by outcome",
+              "expectedOutcome": "Contact tagged in Mailchimp"
+            },
+            "mc-sequences": {
+              "title": "Auslösen Sequenzen de correo",
+              "description": "Auslösen Mailchimp email automation Sequenzen von Anrufe.",
+              "n8nTemplateName": "Mailchimp Auslöser de Sequenz",
+              "n8nTemplateDescription": "Löst aus Sequenzen de correo",
+              "expectedOutcome": "Email sequence triggered in Mailchimp"
+            },
+            "mc-sync": {
+              "title": "Synchronisieren subscriber Daten",
+              "description": "Sync subscriber data between platforms and Mailchimp.",
+              "n8nTemplateName": "Mailchimp Subscriber Synchronisierung",
+              "n8nTemplateDescription": "Synchronisiert subscriber Daten",
+              "expectedOutcome": "Subscriber data synced in Mailchimp"
+            }
+          }
+        },
+        "intercom": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Intercom Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Intercom Client Secret",
+          "helpText": "Create an app in the Intercom Developer Hub. Under Authentication, add the redirect URL below. Copy the Client ID and Client Secret from your app settings.",
+          "setupLinkText": "Open Intercom Developer Hub",
+          "actions": {
+            "sync-contacts": {
+              "name": "Synchronisieren Contacts",
+              "description": "Synchronisieren Kontakte von Intercom"
+            },
+            "create-conversation-note": {
+              "name": "Erstellen Conversation Note",
+              "description": "Hinzufügen Notizen de Anruf zu Gespräche"
+            },
+            "update-contact-attributes": {
+              "name": "Aktualisieren Kontakt Attributes",
+              "description": "Aktualisieren contact attributes"
+            }
+          },
+          "useCases": {
+            "ic-create-convs": {
+              "title": "Erstellen Gespräche",
+              "description": "Erstellen Intercom Gespräche von inbound Anrufe.",
+              "n8nTemplateName": "Intercom Ersteller de Gespräch",
+              "n8nTemplateDescription": "Erstellt Gespräche",
+              "expectedOutcome": "Conversation created in Intercom"
+            },
+            "ic-update-contacts": {
+              "title": "Aktualisieren Daten de Kontakt",
+              "description": "Aktualisieren Intercom Daten de Kontakt mit call Erkenntnisse.",
+              "n8nTemplateName": "Intercom Kontakt Updater",
+              "n8nTemplateDescription": "Aktualisiert Daten de Kontakt",
+              "expectedOutcome": "Contact data updated in Intercom"
+            },
+            "ic-trigger": {
+              "title": "Auslösen Arbeitsablauf",
+              "description": "Auslösen Intercom Arbeitsablauf basierend auf Ergebnisse de Anruf.",
+              "n8nTemplateName": "Intercom Workflow Auslöser",
+              "n8nTemplateDescription": "Löst aus Arbeitsablauf",
+              "expectedOutcome": "Workflow triggered in Intercom"
+            },
+            "ic-notes": {
+              "title": "Protokollieren Notizen de Anruf",
+              "description": "Hinzufügen Notizen de Anruf zu Intercom Gespräch Datensätze.",
+              "n8nTemplateName": "Intercom Note Protokollierer",
+              "n8nTemplateDescription": "Protokolliert Notizen de Anruf",
+              "expectedOutcome": "Notes logged in Intercom"
+            }
+          }
+        },
+        "twilio": {
+          "field1Label": "Konto-SID",
+          "field1Placeholder": "Geben Sie ein Twilio Account SID",
+          "field2Label": "Auth-Token",
+          "field2Placeholder": "Geben Sie ein Twilio Auth Token",
+          "helpText": "Find your Account SID and Auth Token in the Twilio Console dashboard under Account Info.",
+          "setupLinkText": "Open Twilio Console",
+          "actions": {
+            "check-number": {
+              "name": "Prüfen Telefonnummer",
+              "description": "Verify Telefonnummer availability"
+            },
+            "send-sms": {
+              "name": "Senden SMS Nachverfolgung",
+              "description": "Senden SMS nach call completion"
+            }
+          },
+          "useCases": {
+            "twilio-sms-followup": {
+              "title": "Senden SMS Nachverfolgung nach Anrufe",
+              "description": "Senden automatisch SMS Nachverfolgung Nachrichten über Twilio nach call completion.",
+              "n8nTemplateName": "Twilio SMS Nachverfolgung",
+              "n8nTemplateDescription": "Sendet post-call SMS Nachrichten",
+              "expectedOutcome": "SMS Nachverfolgung gesendet über Twilio"
+            },
+            "twilio-route-calls": {
+              "title": "Weiterleiten Anrufe basierend auf AI Analyse",
+              "description": "Intelligently route incoming calls using AI analysis of caller intent.",
+              "n8nTemplateName": "Twilio Router de Anruf",
+              "n8nTemplateDescription": "Routes Anrufe mit AI Analyse",
+              "expectedOutcome": "Call routed zu appropriate destination"
+            },
+            "twilio-track-metrics": {
+              "title": "Verfolgen Metriken de Anruf",
+              "description": "Verfolgen und aggregate Metriken de Anruf und Analysen über Twilio.",
+              "n8nTemplateName": "Twilio Metrics Verfolger",
+              "n8nTemplateDescription": "Verfolgt call performance Metriken",
+              "expectedOutcome": "Call Metriken recorded und aggregated"
+            },
+            "twilio-verify": {
+              "title": "Verify Telefonnummer",
+              "description": "Verify caller Telefonnummer mit Twilio Lookup API.",
+              "n8nTemplateName": "Twilio Number Verifizierer",
+              "n8nTemplateDescription": "Verifies Telefonnummer",
+              "expectedOutcome": "Telefonnummer verified über Twilio"
+            }
+          }
+        },
+        "openai": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein OpenAI API Key (sk-...)",
+          "field2Label": "Organisations-ID",
+          "field2Placeholder": "Geben Sie ein Organization ID (optional)",
+          "helpText": "Find your API key at platform.openai.com/api-keys. Organization ID is optional and found in Settings > Organization.",
+          "setupLinkText": "Öffnen OpenAI Platform",
+          "actions": {
+            "generate-summary": {
+              "name": "Generieren Zusammenfassung de Anruf",
+              "description": "Generate AI summary of call transcript"
+            },
+            "sentiment-analysis": {
+              "name": "Analyse de Stimmung",
+              "description": "Analysieren caller Stimmung von Transkript"
+            }
+          },
+          "useCases": {
+            "oai-summaries": {
+              "title": "Generieren Zusammenfassungen de Anruf",
+              "description": "Use OpenAI to generate concise, structured summaries of call transcripts.",
+              "n8nTemplateName": "OpenAI Call Zusammenfasser",
+              "n8nTemplateDescription": "Generiert AI Zusammenfassungen de Anruf",
+              "expectedOutcome": "AI-generiert Zusammenfassung de Anruf erstellt"
+            },
+            "oai-sentiment": {
+              "title": "Sentiment analysis of transcripts",
+              "description": "Analysieren caller Stimmung throughout  Gespräch mit OpenAI.",
+              "n8nTemplateName": "OpenAI Analyse de Stimmung",
+              "n8nTemplateDescription": "Analyzes Transkript Stimmung",
+              "expectedOutcome": "Sentiment Bewertungen generiert für call"
+            },
+            "oai-action-items": {
+              "title": "Aktionselemente extrahieren",
+              "description": "Extract und categorize action items von Transkripte de Anruf mit OpenAI.",
+              "n8nTemplateName": "OpenAI Action Extraktor",
+              "n8nTemplateDescription": "Extracts action items von Anrufe",
+              "expectedOutcome": "Action items extrahiert und categorized"
+            },
+            "oai-classify": {
+              "title": "Anrufabsichten klassifizieren",
+              "description": "Classify caller intent und call purpose mit OpenAI models.",
+              "n8nTemplateName": "OpenAI Klassifikator de Absicht",
+              "n8nTemplateDescription": "Klassifiziert Anrufabsichten",
+              "expectedOutcome": "Anrufabsicht klassifiziert"
+            }
+          }
+        },
+        "anthropic": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Anthropic API Key",
+          "field2Label": "Organisations-ID",
+          "field2Placeholder": "Geben Sie ein Organization ID (optional)",
+          "helpText": "Generate an API key in the Anthropic Console under API Keys.",
+          "setupLinkText": "Open Anthropic Console",
+          "useCases": {
+            "anth-summarize": {
+              "title": "Summarize Gespräche",
+              "description": "Use Anthropic Claude to create detailed conversation summaries.",
+              "n8nTemplateName": "Anthropic Zusammenfasser",
+              "n8nTemplateDescription": "Summarizes Gespräche",
+              "expectedOutcome": "Conversation Zusammenfassung generiert"
+            },
+            "anth-intent": {
+              "title": "Analysieren caller intent",
+              "description": "Analysieren und categorize caller intent mit Anthropic Claude.",
+              "n8nTemplateName": "Anthropic Analysator de Absicht",
+              "n8nTemplateDescription": "Analysiert Anruferabsicht",
+              "expectedOutcome": "Anruferabsicht analysiert"
+            },
+            "anth-emails": {
+              "title": "Generieren Nachverfolgung emails",
+              "description": "Generieren personalized Nachverfolgung emails basierend auf call Inhalt.",
+              "n8nTemplateName": "Anthropic E-Mail Generator",
+              "n8nTemplateDescription": "Generiert Nachverfolgung emails",
+              "expectedOutcome": "Nachverfolgung email draft generiert"
+            },
+            "anth-quality": {
+              "title": "Qualitätsbewertung",
+              "description": "Score call quality und agent performance mit Anthropic.",
+              "n8nTemplateName": "Anthropic Qualität Bewerter",
+              "n8nTemplateDescription": "Bewertet Anrufqualität",
+              "expectedOutcome": "Quality score generiert"
+            }
+          }
+        },
+        "google-gemini": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Google AI API Key",
+          "field2Label": "Projekt-ID",
+          "field2Placeholder": "Geben Sie ein Google Cloud Project ID (optional)",
+          "helpText": "Get your API key from Google AI Studio or Google Cloud Console with the Generative AI API enabled.",
+          "setupLinkText": "Öffnen Google AI Studio",
+          "useCases": {
+            "gemini-transcript": {
+              "title": "Transcript Analyse",
+              "description": "Analysieren Transkripte de Anruf mit Google Gemini für Erkenntnisse.",
+              "n8nTemplateName": "Gemini Analysator de Transkript",
+              "n8nTemplateDescription": "Analyzes Transkripte",
+              "expectedOutcome": "Transcript Analyse abgeschlossen"
+            },
+            "gemini-multilang": {
+              "title": "Mehrsprachige Zusammenfassung",
+              "description": "Summarize calls in multiple languages using Gemini.",
+              "n8nTemplateName": "Gemini Multi-lang Zusammenfasser",
+              "n8nTemplateDescription": "Multi-language Zusammenfassungen",
+              "expectedOutcome": "Multi-language Zusammenfassung generiert"
+            },
+            "gemini-intent": {
+              "title": "Absichtserkennung",
+              "description": "Extract caller intents von Gespräche mit Gemini.",
+              "n8nTemplateName": "Gemini Intent Extraktor",
+              "n8nTemplateDescription": "Extrahiert Anruferabsichten",
+              "expectedOutcome": "Intents extrahiert von call"
+            },
+            "gemini-knowledge": {
+              "title": "Wissensabruf",
+              "description": "Retrieve relevant knowledge base articles mit Gemini.",
+              "n8nTemplateName": "Gemini Abrufer de Wissen",
+              "n8nTemplateDescription": "Ruft Wissensartikel ab",
+              "expectedOutcome": "Relevantes Wissen abgerufen"
+            }
+          }
+        },
+        "elevenlabs": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein ElevenLabs API Key",
+          "field2Label": "Standard-Stimmen-ID",
+          "field2Placeholder": "Enter default voice ID (optional)",
+          "helpText": "Find your API key in ElevenLabs Profile Settings. Voice IDs are found in the Voices section.",
+          "setupLinkText": "Open ElevenLabs Settings",
+          "useCases": {
+            "el-clone-voice": {
+              "title": "Clone brand Stimme",
+              "description": "Clone and use your brand voice for consistent AI agent responses.",
+              "n8nTemplateName": "ElevenLabs Stimme Kloner",
+              "n8nTemplateDescription": "Clones brand Stimme",
+              "expectedOutcome": "Brand Stimme cloned und ready"
+            },
+            "el-multilang": {
+              "title": "Mehrsprachige TTS",
+              "description": "Generate speech in multiple languages using ElevenLabs.",
+              "n8nTemplateName": "ElevenLabs Mehrsprachige TTS",
+              "n8nTemplateDescription": "Multi-language speech",
+              "expectedOutcome": "Multi-language speech generiert"
+            },
+            "el-quality": {
+              "title": "Sprachqualitätsoptimierung",
+              "description": "Optimize voice output quality settings for ElevenLabs.",
+              "n8nTemplateName": "ElevenLabs Qualität Optimierer",
+              "n8nTemplateDescription": "Optimizes Stimme quality",
+              "expectedOutcome": "Sprachqualität optimiert"
+            },
+            "el-pronunciations": {
+              "title": "Benutzerdefinierte Aussprache",
+              "description": "Configure custom pronunciations für names und terms.",
+              "n8nTemplateName": "ElevenLabs Aussprache Konfigurator",
+              "n8nTemplateDescription": "Configures pronunciations",
+              "expectedOutcome": "Benutzerdefinierte Aussprache configured"
+            }
+          }
+        },
+        "deepgram": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Deepgram API Key",
+          "field2Label": "Projekt-ID",
+          "field2Placeholder": "Geben Sie ein Deepgram Project ID",
+          "helpText": "Create an API key in the Deepgram Console under your project settings.",
+          "setupLinkText": "Open Deepgram Console",
+          "useCases": {
+            "dg-realtime": {
+              "title": "Echtzeit Transkription",
+              "description": "Transcribe calls in real-time using Deepgram speech-to-text.",
+              "n8nTemplateName": "Deepgram Echtzeit STT",
+              "n8nTemplateDescription": "Echtzeit Transkription",
+              "expectedOutcome": "Echtzeit Transkript generiert"
+            },
+            "dg-diarization": {
+              "title": "Sprecherdiarisierung",
+              "description": "Identify and separate speakers in call recordings using Deepgram.",
+              "n8nTemplateName": "Deepgram Sprecher Diarisierer",
+              "n8nTemplateDescription": "Identifies speakers",
+              "expectedOutcome": "Speakers identified und separated"
+            },
+            "dg-keywords": {
+              "title": "Schlüsselworterkennung",
+              "description": "Detect specific keywords and phrases in real-time.",
+              "n8nTemplateName": "Deepgram Keyword Detektor",
+              "n8nTemplateDescription": "Detects keywords",
+              "expectedOutcome": "Keywords detected in conversation"
+            },
+            "dg-sentiment": {
+              "title": "Sentiment von Stimme",
+              "description": "Analysieren Stimmung von Stimme tone mit Deepgram.",
+              "n8nTemplateName": "Deepgram Stimme Stimmung",
+              "n8nTemplateDescription": "Analyzes Stimme Stimmung",
+              "expectedOutcome": "Voice Stimmung analyzed"
+            }
+          }
+        },
+        "zendesk": {
+          "field1Label": "API-Token",
+          "field1Placeholder": "Geben Sie ein Zendesk API Token",
+          "field2Label": "Subdomain",
+          "field2Placeholder": "e.g. yourcompany (von yourcompany.zendesk.com)",
+          "helpText": "Generate an API token in Zendesk Admin > Apps and Integrations > APIs > Zendesk API.",
+          "setupLinkText": "Öffnen Zendesk Admin",
+          "actions": {
+            "create-ticket": {
+              "name": "Erstellen Ticket",
+              "description": "Erstellen support ticket von call"
+            },
+            "update-ticket": {
+              "name": "Aktualisieren Ticket",
+              "description": "Aktualisieren existing ticket mit Notizen de Anruf"
+            }
+          },
+          "useCases": {
+            "zd-create-tickets": {
+              "title": "Erstellen Tickets von Anrufe",
+              "description": "Erstellen automatisch Zendesk support Tickets von customer Anrufe.",
+              "n8nTemplateName": "Zendesk Ersteller de Ticket",
+              "n8nTemplateDescription": "Erstellt Tickets von Anrufe",
+              "expectedOutcome": "Support ticket created in Zendesk"
+            },
+            "zd-update-status": {
+              "title": "Aktualisieren ticket Status",
+              "description": "Aktualisieren Zendesk ticket Status basierend auf call resolution.",
+              "n8nTemplateName": "Zendesk Status Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert ticket Status",
+              "expectedOutcome": "Ticket status updated in Zendesk"
+            },
+            "zd-escalate": {
+              "title": "Probleme eskalieren",
+              "description": "Escalate high-priority issues zu Zendesk support teams.",
+              "n8nTemplateName": "Zendesk Problem Eskalierer",
+              "n8nTemplateDescription": "Escalates issues",
+              "expectedOutcome": "Issue escalated in Zendesk"
+            },
+            "zd-transcripts": {
+              "title": "Protokollieren Transkripte de Anruf",
+              "description": "Attach Transkripte de Anruf zu Zendesk Tickets.",
+              "n8nTemplateName": "Zendesk Protokollierer de Transkript",
+              "n8nTemplateDescription": "Protokolliert Transkripte zu Tickets",
+              "expectedOutcome": "Transcript attached zu Zendesk ticket"
+            }
+          }
+        },
+        "freshdesk": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Freshdesk API Key",
+          "field2Label": "Domain",
+          "field2Placeholder": "z.B. yourcompany.freshdesk.com",
+          "helpText": "Find your API key in Freshdesk: Profile Settings > Your API Key.",
+          "setupLinkText": "Öffnen Freshdesk",
+          "actions": {
+            "create-ticket": {
+              "name": "Erstellen Ticket",
+              "description": "Erstellen Freshdesk ticket von call"
+            },
+            "sync-contacts": {
+              "name": "Synchronisieren Contacts",
+              "description": "Synchronisieren Kontakte von Freshdesk"
+            }
+          },
+          "useCases": {
+            "fd-create-tickets": {
+              "title": "automatisch-erstellen Tickets",
+              "description": "Erstellen automatisch Freshdesk Tickets von support Anrufe.",
+              "n8nTemplateName": "Freshdesk Ersteller de Ticket",
+              "n8nTemplateDescription": "Erstellt Tickets automatisch",
+              "expectedOutcome": "Ticket created in Freshdesk"
+            },
+            "fd-update-status": {
+              "title": "Aktualisieren support Status",
+              "description": "Aktualisieren Freshdesk ticket Status nach call resolution.",
+              "n8nTemplateName": "Freshdesk Status Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert support Status",
+              "expectedOutcome": "Support Status aktualisiert"
+            },
+            "fd-assign": {
+              "title": "Zuweisen agents",
+              "description": "Zuweisen agents zu Freshdesk Tickets basierend auf call routing.",
+              "n8nTemplateName": "Freshdesk Agent Zuweiser",
+              "n8nTemplateDescription": "Assigns agents",
+              "expectedOutcome": "Agent assigned zu ticket"
+            },
+            "fd-log": {
+              "title": "Protokollieren Interaktionen",
+              "description": "Log call interactions in Freshdesk conversation history.",
+              "n8nTemplateName": "Freshdesk Interaction Protokollierer",
+              "n8nTemplateDescription": "Protokolliert Interaktionen",
+              "expectedOutcome": "Interaction logged in Freshdesk"
+            }
+          }
+        },
+        "google-calendar": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Google Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Google Client Secret",
+          "helpText": "In Google Cloud Console, create an OAuth 2.0 Client ID. Enable the Google Calendar API for your project and add the redirect URL below.",
+          "setupLinkText": "Open Google Cloud Console",
+          "actions": {
+            "create-event": {
+              "name": "Book Appointment",
+              "description": "Erstellen calendar event während call"
+            },
+            "check-availability": {
+              "name": "Prüfen Availability",
+              "description": "Prüfen calendar availability"
+            }
+          },
+          "useCases": {
+            "gcal-book": {
+              "title": "Book appointments während Anrufe",
+              "description": "Book appointments on Google Calendar during live calls.",
+              "n8nTemplateName": "Google Calendar Bucher",
+              "n8nTemplateDescription": "Books appointments",
+              "expectedOutcome": "Termin gebucht auf Google Calendar"
+            },
+            "gcal-availability": {
+              "title": "Prüfen availability",
+              "description": "Prüfen Google Calendar availability während scheduling Anrufe.",
+              "n8nTemplateName": "Google Calendar Availability Prüfer",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "Verfügbarkeit geprüft auf Google Calendar"
+            },
+            "gcal-reminders": {
+              "title": "Senden reminders",
+              "description": "Senden appointment reminders über Google Calendar.",
+              "n8nTemplateName": "Google Calendar Erinnerung",
+              "n8nTemplateDescription": "Sendet reminders",
+              "expectedOutcome": "Reminder gesendet über Google Calendar"
+            },
+            "gcal-block": {
+              "title": "Zeitfenster blockieren",
+              "description": "Block time slots on Google Calendar after booking.",
+              "n8nTemplateName": "Google Calendar Blocker",
+              "n8nTemplateDescription": "Blocks time slots",
+              "expectedOutcome": "Zeitfenster blockiert auf Google Calendar"
+            }
+          }
+        },
+        "calendly": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Calendly Personal Access Token",
+          "field2Label": "Organisations-URI",
+          "field2Placeholder": "Geben Sie ein Calendly Organization URI",
+          "helpText": "Generate a Personal Access Token in Calendly: Integrations > API & Webhooks. Find your Organization URI in the API response.",
+          "setupLinkText": "Öffnen Calendly Integrations",
+          "actions": {
+            "create-scheduling-link": {
+              "name": "Senden Scheduling Link",
+              "description": "Generieren und share Calendly link"
+            },
+            "check-availability": {
+              "name": "Prüfen Availability",
+              "description": "Prüfen available time slots"
+            }
+          },
+          "useCases": {
+            "calendly-links": {
+              "title": "Generieren scheduling links",
+              "description": "Generieren Calendly scheduling links während Anrufe.",
+              "n8nTemplateName": "Calendly Link Generator",
+              "n8nTemplateDescription": "Generiert scheduling links",
+              "expectedOutcome": "Scheduling link generiert"
+            },
+            "calendly-availability": {
+              "title": "Prüfen availability",
+              "description": "Prüfen Calendly availability für scheduling.",
+              "n8nTemplateName": "Calendly Availability Prüfer",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "Verfügbarkeit geprüft auf Calendly"
+            },
+            "calendly-confirm": {
+              "title": "Buchungen bestätigen",
+              "description": "Confirm Calendly bookings nach call scheduling.",
+              "n8nTemplateName": "Calendly Buchung Bestätiger",
+              "n8nTemplateDescription": "Confirms bookings",
+              "expectedOutcome": "Buchung bestätigt auf Calendly"
+            },
+            "calendly-reminders": {
+              "title": "Senden reminders",
+              "description": "Senden appointment reminders durch Calendly.",
+              "n8nTemplateName": "Calendly Erinnerung",
+              "n8nTemplateDescription": "Sendet reminders",
+              "expectedOutcome": "Reminder gesendet über Calendly"
+            }
+          }
+        },
+        "stripe": {
+          "field1Label": "Geheimer Schlüssel",
+          "field1Placeholder": "Geben Sie ein Stripe Secret Key (sk_...)",
+          "field2Label": "Webhook-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Stripe Webhook Secret (whsec_...)",
+          "helpText": "Find your API keys in the Stripe Dashboard > Developers > API Keys. Create a webhook endpoint and copy the signing secret.",
+          "setupLinkText": "Öffnen Stripe Dashboard",
+          "actions": {
+            "lookup-customer": {
+              "name": "Lookup Customer",
+              "description": "Look up customer payment info"
+            },
+            "create-invoice": {
+              "name": "Erstellen Invoice",
+              "description": "Erstellen invoice nach call"
+            }
+          },
+          "useCases": {
+            "stripe-payments": {
+              "title": "Zahlungen verarbeiten",
+              "description": "Process payments während Anrufe mit Stripe.",
+              "n8nTemplateName": "Stripe Payment Verarbeiter",
+              "n8nTemplateDescription": "Processes payments",
+              "expectedOutcome": "Payment processed über Stripe"
+            },
+            "stripe-invoices": {
+              "title": "Erstellen invoices",
+              "description": "Erstellen und send invoices durch Stripe nach Anrufe.",
+              "n8nTemplateName": "Stripe Invoice Ersteller",
+              "n8nTemplateDescription": "Erstellt invoices",
+              "expectedOutcome": "Invoice created in Stripe"
+            },
+            "stripe-subscriptions": {
+              "title": "Abonnements nachschlagen",
+              "description": "Look up customer subscription details during calls.",
+              "n8nTemplateName": "Stripe Subscription Suche",
+              "n8nTemplateDescription": "Looks up subscriptions",
+              "expectedOutcome": "Subscription Details retrieved"
+            },
+            "stripe-refunds": {
+              "title": "Rückerstattungen bearbeiten",
+              "description": "Process refund requests während support Anrufe.",
+              "n8nTemplateName": "Stripe Refund Bearbeiter",
+              "n8nTemplateDescription": "Handles refunds",
+              "expectedOutcome": "Refund processed über Stripe"
+            }
+          }
+        },
+        "shopify": {
+          "field1Label": "Zugriffstoken",
+          "field1Placeholder": "Geben Sie ein Shopify Admin API Access Token",
+          "field2Label": "Shop-Domain",
+          "field2Placeholder": "z.B. yourstore.myshopify.com",
+          "helpText": "Create a Custom App in Shopify Admin > Settings > Apps and sales channels > Develop apps. Install and copy the Admin API access token.",
+          "setupLinkText": "Öffnen Shopify Admin",
+          "actions": {
+            "lookup-order": {
+              "name": "Lookup Order",
+              "description": "Look up customer order details"
+            },
+            "lookup-product": {
+              "name": "Lookup Product",
+              "description": "Prüfen product availability"
+            }
+          },
+          "useCases": {
+            "shopify-orders": {
+              "title": "Bestellungen nachschlagen",
+              "description": "Look up customer orders in Shopify during calls.",
+              "n8nTemplateName": "Shopify Order Suche",
+              "n8nTemplateDescription": "Looks up orders",
+              "expectedOutcome": "Order Details retrieved von Shopify"
+            },
+            "shopify-inventory": {
+              "title": "Prüfen inventory",
+              "description": "Check product inventory levels in Shopify.",
+              "n8nTemplateName": "Shopify Inventory Prüfer",
+              "n8nTemplateDescription": "Prüft Bestand",
+              "expectedOutcome": "Inventory checked in Shopify"
+            },
+            "shopify-returns": {
+              "title": "Rücksendungen verarbeiten",
+              "description": "Process return requests durch Shopify.",
+              "n8nTemplateName": "Shopify Return Verarbeiter",
+              "n8nTemplateDescription": "Processes returns",
+              "expectedOutcome": "Return processed in Shopify"
+            },
+            "shopify-customers": {
+              "title": "Kundenkontosuche",
+              "description": "Look up customer account details in Shopify.",
+              "n8nTemplateName": "Shopify Customer Suche",
+              "n8nTemplateDescription": "Looks up customers",
+              "expectedOutcome": "Customer Details retrieved von Shopify"
+            }
+          }
+        },
+        "activecampaign": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein ActiveCampaign API Key",
+          "field2Label": "Konto-URL",
+          "field2Placeholder": "z.B. yourcompany.api-us1.com",
+          "helpText": "Find your API Key and URL in ActiveCampaign: Settings > Developer > API Access.",
+          "setupLinkText": "Öffnen ActiveCampaign",
+          "actions": {
+            "add-contact": {
+              "name": "Hinzufügen Kontakt",
+              "description": "Hinzufügen contact zu ActiveCampaign"
+            },
+            "add-tag": {
+              "name": "Hinzufügen Tag",
+              "description": "Tag contact basierend auf call outcome"
+            }
+          },
+          "useCases": {
+            "ac-add-contacts": {
+              "title": "Hinzufügen Kontakte",
+              "description": "Hinzufügen neuer Kontakte zu ActiveCampaign von Anrufe.",
+              "n8nTemplateName": "ActiveCampaign Kontakt Adder",
+              "n8nTemplateDescription": "Fügt hinzu Kontakte",
+              "expectedOutcome": "Kontakt added zu ActiveCampaign"
+            },
+            "ac-tags": {
+              "title": "Apply Tags",
+              "description": "Apply Tags zu ActiveCampaign Kontakte basierend auf Daten de Anruf.",
+              "n8nTemplateName": "ActiveCampaign Tag Anwender",
+              "n8nTemplateDescription": "Applies Tags",
+              "expectedOutcome": "Tags applied in ActiveCampaign"
+            },
+            "ac-automations": {
+              "title": "Auslösen automations",
+              "description": "Auslösen ActiveCampaign automations von Ereignisse de Anruf.",
+              "n8nTemplateName": "ActiveCampaign Automation Auslöser",
+              "n8nTemplateDescription": "Löst aus automations",
+              "expectedOutcome": "Automation triggered in ActiveCampaign"
+            },
+            "ac-deals": {
+              "title": "Aktualisieren deal stages",
+              "description": "Update deal stages in ActiveCampaign based on call outcomes.",
+              "n8nTemplateName": "ActiveCampaign Aktualisieren de Deals",
+              "n8nTemplateDescription": "Aktualisiert deal stages",
+              "expectedOutcome": "Deal stage updated in ActiveCampaign"
+            }
+          }
+        },
+        "sendgrid": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein SendGrid API Key",
+          "field2Label": "Absender-E-Mail",
+          "field2Placeholder": "Geben Sie ein verified sender email",
+          "helpText": "Create an API key in SendGrid: Settings > API Keys > Create API Key. Verify a sender identity first.",
+          "setupLinkText": "Open SendGrid Settings",
+          "useCases": {
+            "sg-transactional": {
+              "title": "Senden transactional emails",
+              "description": "Senden transactional emails über SendGrid nach Anrufe.",
+              "n8nTemplateName": "SendGrid Transaktional E-Mail",
+              "n8nTemplateDescription": "Sendet transactional emails",
+              "expectedOutcome": "Transactional email gesendet über SendGrid"
+            },
+            "sg-followup": {
+              "title": "Sequenzen de Nachverfolgung",
+              "description": "Auslösen Nachverfolgung Sequenzen de correo durch SendGrid.",
+              "n8nTemplateName": "SendGrid Nachverfolgung Sequence",
+              "n8nTemplateDescription": "Sequenzen de Nachverfolgung",
+              "expectedOutcome": "Nachverfolgung sequence started"
+            },
+            "sg-notifications": {
+              "title": "Email Benachrichtigungen",
+              "description": "Senden Benachrichtigungen por correo für Ereignisse de Anruf über SendGrid.",
+              "n8nTemplateName": "SendGrid Email Benachrichtiger",
+              "n8nTemplateDescription": "Email Benachrichtigungen",
+              "expectedOutcome": "Email Benachrichtigung gesendet"
+            },
+            "sg-templates": {
+              "title": "Vorlagenverwaltung",
+              "description": "Manage and use SendGrid email templates for communications.",
+              "n8nTemplateName": "SendGrid Template Manager",
+              "n8nTemplateDescription": "Manages Vorlagen",
+              "expectedOutcome": "Template configured in SendGrid"
+            }
+          }
+        },
+        "microsoft-teams": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Azure Application Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Azure Client Secret",
+          "helpText": "Register an app in Azure Portal > App Registrations. Under API Permissions, add Microsoft Graph permissions for Teams. Add the redirect URL below.",
+          "setupLinkText": "Open Azure Portal",
+          "actions": {
+            "send-notification": {
+              "name": "Senden Notification",
+              "description": "Veröffentlichen call alert zu Teams channel"
+            }
+          },
+          "useCases": {
+            "teams-outcomes": {
+              "title": "Share Ergebnisse de Anruf",
+              "description": "Share call outcomes and summaries in Microsoft Teams channels.",
+              "n8nTemplateName": "Teams Ergebnis Teiler",
+              "n8nTemplateDescription": "Shares Ergebnisse de Anruf",
+              "expectedOutcome": "Call outcome shared in Teams"
+            },
+            "teams-alerts": {
+              "title": "Campaign Warnungen",
+              "description": "Senden Kampagne performance Warnungen zu Teams Kanäle.",
+              "n8nTemplateName": "Teams Campaign Alarm",
+              "n8nTemplateDescription": "Campaign performance Warnungen",
+              "expectedOutcome": "Campaign alert gesendet zu Teams"
+            },
+            "teams-notifications": {
+              "title": "Team Benachrichtigungen",
+              "description": "Senden team-wide Benachrichtigungen für important Ereignisse de Anruf.",
+              "n8nTemplateName": "Teams Benachrichtiger",
+              "n8nTemplateDescription": "Team Benachrichtigungen",
+              "expectedOutcome": "Team Benachrichtigung gesendet"
+            },
+            "teams-followups": {
+              "title": "Meeting-Nachverfolgung",
+              "description": "Senden meeting Nachverfolgung Nachrichten nach Anrufe.",
+              "n8nTemplateName": "Teams Meeting Nachverfolgung",
+              "n8nTemplateDescription": "Meeting-Nachverfolgung",
+              "expectedOutcome": "Follow-up message sent in Teams"
+            }
+          }
+        },
+        "telegram": {
+          "field1Label": "Bot-Token",
+          "field1Placeholder": "Geben Sie ein Telegram Bot Token",
+          "field2Label": "Chat-ID",
+          "field2Placeholder": "Enter the target Chat/Group ID",
+          "helpText": "Create a bot via @BotFather on Telegram. Use @userinfobot or the getUpdates API method to find your Chat ID.",
+          "setupLinkText": "Öffnen BotFather",
+          "actions": {
+            "send-notification": {
+              "name": "Senden Notification",
+              "description": "Senden call alert zu Telegram"
+            },
+            "send-report": {
+              "name": "Senden Campaign Report",
+              "description": "Senden Kampagne Zusammenfassung zu Telegram"
+            }
+          },
+          "useCases": {
+            "tg-alerts": {
+              "title": "Senden call Warnungen",
+              "description": "Senden instant call Warnungen zu Telegram groups oder Kanäle.",
+              "n8nTemplateName": "Telegram Call Alarm",
+              "n8nTemplateDescription": "Sendet call Warnungen",
+              "expectedOutcome": "Call alert gesendet zu Telegram"
+            },
+            "tg-status": {
+              "title": "Campaign Status updates",
+              "description": "Senden Kampagne Status updates zu Telegram.",
+              "n8nTemplateName": "Telegram Status Aktualisierer",
+              "n8nTemplateDescription": "Campaign Status updates",
+              "expectedOutcome": "Status update gesendet zu Telegram"
+            },
+            "tg-leads": {
+              "title": "Lead Benachrichtigungen",
+              "description": "Benachrichtigen team about neuer Leads über Telegram.",
+              "n8nTemplateName": "Telegram Benachrichtiger de Lead",
+              "n8nTemplateDescription": "Lead Benachrichtigungen",
+              "expectedOutcome": "Lead Benachrichtigung gesendet zu Telegram"
+            },
+            "tg-reports": {
+              "title": "Tägliche Berichte",
+              "description": "Senden daily performance reports zu Telegram.",
+              "n8nTemplateName": "Telegram Daily Bericht",
+              "n8nTemplateDescription": "Tägliche Berichte",
+              "expectedOutcome": "Daily report gesendet zu Telegram"
+            }
+          }
+        },
+        "whatsapp": {
+          "field1Label": "Zugriffstoken",
+          "field1Placeholder": "Geben Sie ein WhatsApp Business API Access Token",
+          "field2Label": "Telefonnummer-ID",
+          "field2Placeholder": "Geben Sie ein WhatsApp Phone Number ID",
+          "helpText": "Set up WhatsApp Business API through Meta for Developers. Create an app, add the WhatsApp product, and generate a permanent access token.",
+          "setupLinkText": "Open Meta for Developers",
+          "actions": {
+            "send-followup": {
+              "name": "Senden Nachverfolgung",
+              "description": "Senden WhatsApp Nachverfolgung message"
+            },
+            "send-template": {
+              "name": "Senden Template Message",
+              "description": "Senden pre-approved template message"
+            }
+          },
+          "useCases": {
+            "wa-followup": {
+              "title": "Senden Nachverfolgung Nachrichten",
+              "description": "Senden personalized Nachverfolgung Nachrichten über WhatsApp nach Anrufe.",
+              "n8nTemplateName": "WhatsApp Nachverfolgung",
+              "n8nTemplateDescription": "Sendet Nachverfolgung Nachrichten",
+              "expectedOutcome": "Nachverfolgung message gesendet über WhatsApp"
+            },
+            "wa-recordings": {
+              "title": "Share Aufnahmen de Anruf",
+              "description": "Share call recording Zusammenfassungen über WhatsApp.",
+              "n8nTemplateName": "WhatsApp Aufnahme Teiler",
+              "n8nTemplateDescription": "Shares Aufnahmen de Anruf",
+              "expectedOutcome": "Recording Zusammenfassung shared über WhatsApp"
+            },
+            "wa-appointments": {
+              "title": "Terminbestätigungen",
+              "description": "Senden appointment confirmation Nachrichten über WhatsApp.",
+              "n8nTemplateName": "WhatsApp Termin Bestätiger",
+              "n8nTemplateDescription": "Confirms appointments",
+              "expectedOutcome": "Appointment confirmation gesendet über WhatsApp"
+            },
+            "wa-nurture": {
+              "title": "Lead nurture Nachrichten",
+              "description": "Senden lead nurture Nachrichten über WhatsApp.",
+              "n8nTemplateName": "WhatsApp Lead Pfleger",
+              "n8nTemplateDescription": "Nurtures Leads",
+              "expectedOutcome": "Nurture message gesendet über WhatsApp"
+            }
+          }
+        },
+        "discord": {
+          "field1Label": "Bot-Token",
+          "field1Placeholder": "Geben Sie ein Discord Bot Token",
+          "field2Label": "Kanal-ID",
+          "field2Placeholder": "Enter the target Channel ID",
+          "helpText": "Create a bot in the Discord Developer Portal. Enable Developer Mode in Discord settings to copy Channel IDs.",
+          "setupLinkText": "Open Discord Developer Portal",
+          "actions": {
+            "send-notification": {
+              "name": "Senden Notification",
+              "description": "Veröffentlichen call update zu Discord channel"
+            }
+          },
+          "useCases": {
+            "discord-updates": {
+              "title": "Veröffentlichen call updates",
+              "description": "Veröffentlichen call updates und Zusammenfassungen zu Discord Kanäle.",
+              "n8nTemplateName": "Discord Aktualisierer de Anruf",
+              "n8nTemplateDescription": "Posts call updates",
+              "expectedOutcome": "Call update posted zu Discord"
+            },
+            "discord-campaign": {
+              "title": "Campaign Warnungen",
+              "description": "Senden Kampagne performance Warnungen zu Discord.",
+              "n8nTemplateName": "Discord Campaign Alarm",
+              "n8nTemplateDescription": "Campaign Warnungen",
+              "expectedOutcome": "Campaign alert posted zu Discord"
+            },
+            "discord-team": {
+              "title": "Team Benachrichtigungen",
+              "description": "Senden team Benachrichtigungen für important Ereignisse zu Discord.",
+              "n8nTemplateName": "Discord Team Benachrichtiger",
+              "n8nTemplateDescription": "Team Benachrichtigungen",
+              "expectedOutcome": "Team Benachrichtigung gesendet zu Discord"
+            },
+            "discord-leads": {
+              "title": "Lead Warnungen",
+              "description": "Alert team about new leads in Discord channels.",
+              "n8nTemplateName": "Discord Lead Alarm",
+              "n8nTemplateDescription": "Lead Warnungen",
+              "expectedOutcome": "Lead alert posted zu Discord"
+            }
+          }
+        },
+        "zapier": {
+          "field1Label": "Webhook-URL",
+          "field1Placeholder": "Geben Sie ein Zapier Webhook URL",
+          "field2Label": "Geheimer Schlüssel",
+          "field2Placeholder": "Enter a shared secret key (optional)",
+          "helpText": "Create a Zap with a 'Webhooks by Zapier' trigger. Copy the webhook URL provided and paste it here.",
+          "setupLinkText": "Öffnen Zapier",
+          "actions": {
+            "trigger-webhook": {
+              "name": "Trigger Webhook",
+              "description": "Senden Daten de Anruf zu Zapier webhook"
+            }
+          },
+          "useCases": {
+            "zapier-trigger": {
+              "title": "Auslösen zaps von Anrufe",
+              "description": "Auslösen Zapier zaps mit Daten de Anruf für cross-app automation.",
+              "n8nTemplateName": "Zapier Zap Auslöser",
+              "n8nTemplateDescription": "Löst aus zaps",
+              "expectedOutcome": "Zap triggered in Zapier"
+            },
+            "zapier-multi": {
+              "title": "Multi-step Arbeitsablauf",
+              "description": "Execute multi-step Zapier Arbeitsablauf von Ereignisse de Anruf.",
+              "n8nTemplateName": "Zapier Mehrstufig Workflow",
+              "n8nTemplateDescription": "Multi-step Arbeitsablauf",
+              "expectedOutcome": "Multi-step Arbeitsablauf executed"
+            },
+            "zapier-cross": {
+              "title": "App-übergreifende Automatisierung",
+              "description": "Automate cross-app workflows triggered by calls.",
+              "n8nTemplateName": "Zapier App-übergreifend Automation",
+              "n8nTemplateDescription": "App-übergreifende Automatisierung",
+              "expectedOutcome": "App-übergreifende Automatisierung triggered"
+            },
+            "zapier-routing": {
+              "title": "Bedingtes Routing",
+              "description": "Weiterleiten Daten de Anruf conditionally durch Zapier paths.",
+              "n8nTemplateName": "Zapier Bedingt Router",
+              "n8nTemplateDescription": "Bedingtes Routing",
+              "expectedOutcome": "Daten bedingt geroutet"
+            }
+          }
+        },
+        "make": {
+          "field1Label": "Webhook-URL",
+          "field1Placeholder": "Geben Sie ein Make.com Webhook URL",
+          "field2Label": "Geheimer Schlüssel",
+          "field2Placeholder": "Enter a shared secret key (optional)",
+          "helpText": "Create a scenario in Make with a Webhooks module. Copy the webhook URL and paste it here.",
+          "setupLinkText": "Öffnen Make.com",
+          "useCases": {
+            "make-scenarios": {
+              "title": "Auslösen scenarios",
+              "description": "Auslösen Make (Integromat) scenarios von Ereignisse de Anruf.",
+              "n8nTemplateName": "Make Scenario Auslöser",
+              "n8nTemplateDescription": "Löst aus scenarios",
+              "expectedOutcome": "Scenario triggered in Make"
+            },
+            "make-complex": {
+              "title": "Complex Arbeitsablauf",
+              "description": "Execute complex multi-module workflows in Make.",
+              "n8nTemplateName": "Make Komplex Workflow",
+              "n8nTemplateDescription": "Complex Arbeitsablauf",
+              "expectedOutcome": "Complex Arbeitsablauf executed"
+            },
+            "make-transform": {
+              "title": "Datentransformation",
+              "description": "Transform Daten de Anruf mit Make Daten processing modules.",
+              "n8nTemplateName": "Make Daten Transformer",
+              "n8nTemplateDescription": "Transforms Daten",
+              "expectedOutcome": "Data transformed in Make"
+            },
+            "make-multi": {
+              "title": "Multi-App-Integration",
+              "description": "Integrate multiple apps durch Make scenarios.",
+              "n8nTemplateName": "Make Multi-app Integration",
+              "n8nTemplateDescription": "Multi-App-Integration",
+              "expectedOutcome": "Multi-App-Integration executed"
+            }
+          }
+        },
+        "notion": {
+          "field1Label": "Integrations-Token",
+          "field1Placeholder": "Geben Sie ein Notion Integration Token",
+          "field2Label": "Datenbank-ID",
+          "field2Placeholder": "Enter the target Notion Database ID",
+          "helpText": "Create an integration at notion.so/my-integrations. Share the target database with your integration. Find the Database ID in the database URL.",
+          "setupLinkText": "Öffnen Notion Integrations",
+          "actions": {
+            "create-page": {
+              "name": "Erstellen Page",
+              "description": "Erstellen Notion page mit Notizen de Anruf"
+            },
+            "update-database": {
+              "name": "Aktualisieren Database",
+              "description": "Hinzufügen call Datensätze zu Notion database"
+            }
+          },
+          "useCases": {
+            "notion-pages": {
+              "title": "Erstellen pages von Notizen de Anruf",
+              "description": "Erstellen Notion pages von Notizen de Anruf und Transkripte.",
+              "n8nTemplateName": "Notion Page Ersteller",
+              "n8nTemplateDescription": "Erstellt pages von Anrufe",
+              "expectedOutcome": "Page created in Notion"
+            },
+            "notion-databases": {
+              "title": "Aktualisieren databases",
+              "description": "Aktualisieren Notion databases mit call Datensätze und Daten.",
+              "n8nTemplateName": "Notion Database Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert databases",
+              "expectedOutcome": "Database updated in Notion"
+            },
+            "notion-meetings": {
+              "title": "Protokollieren meetings",
+              "description": "Log meeting notes and call summaries in Notion.",
+              "n8nTemplateName": "Notion Protokollierer de Meeting",
+              "n8nTemplateDescription": "Protokolliert meetings",
+              "expectedOutcome": "Meeting logged in Notion"
+            },
+            "notion-kb": {
+              "title": "Wissensdatenbank-Updates",
+              "description": "Aktualisieren Notion knowledge base mit Erkenntnisse von Anrufe.",
+              "n8nTemplateName": "Notion KB Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert knowledge base",
+              "expectedOutcome": "Knowledge base updated in Notion"
+            }
+          }
+        },
+        "helpscout": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Help Scout API Key",
+          "field2Label": "Postfach-ID",
+          "field2Placeholder": "Geben Sie ein Help Scout Mailbox ID",
+          "helpText": "Generate an API key in Help Scout: Your Profile > API Keys. Find your Mailbox ID in Mailbox settings.",
+          "setupLinkText": "Öffnen Help Scout",
+          "useCases": {
+            "hs-create-convs": {
+              "title": "Erstellen Gespräche",
+              "description": "Erstellen Help Scout Gespräche von support Anrufe.",
+              "n8nTemplateName": "Help Scout Ersteller de Gespräch",
+              "n8nTemplateDescription": "Erstellt Gespräche",
+              "expectedOutcome": "Conversation created in Help Scout"
+            },
+            "hs-add-notes": {
+              "title": "Hinzufügen Notizen de Anruf",
+              "description": "Hinzufügen Notizen de Anruf und Transkripte zu Help Scout Gespräche.",
+              "n8nTemplateName": "Help Scout Notiz Hinzufüger",
+              "n8nTemplateDescription": "Fügt hinzu Notizen de Anruf",
+              "expectedOutcome": "Notes added zu Help Scout"
+            },
+            "hs-update-mailbox": {
+              "title": "Aktualisieren mailbox",
+              "description": "Aktualisieren Help Scout mailbox mit call-related Informationen.",
+              "n8nTemplateName": "Help Scout Mailbox Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert mailbox",
+              "expectedOutcome": "Mailbox updated in Help Scout"
+            },
+            "hs-followup": {
+              "title": "Customer Nachverfolgung",
+              "description": "Senden customer Nachverfolgung Nachrichten durch Help Scout.",
+              "n8nTemplateName": "Help Scout Nachverfolgung",
+              "n8nTemplateDescription": "Customer Nachverfolgung",
+              "expectedOutcome": "Nachverfolgung gesendet über Help Scout"
+            }
+          }
+        },
+        "google-analytics": {
+          "field1Label": "Mess-ID",
+          "field1Placeholder": "Geben Sie ein GA4 Measurement ID (G-...)",
+          "field2Label": "API-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Measurement Protocol API Secret",
+          "helpText": "Find your Measurement ID in GA4: Admin > Data Streams > Web. Create an API Secret under the same stream's Measurement Protocol API secrets.",
+          "setupLinkText": "Öffnen Google Analytics",
+          "useCases": {
+            "ga-events": {
+              "title": "Verfolgen Ereignisse de Anruf",
+              "description": "Track call events in Google Analytics for attribution.",
+              "n8nTemplateName": "GA Call Verfolger de Ereignis",
+              "n8nTemplateDescription": "Verfolgt Ereignisse de Anruf",
+              "expectedOutcome": "Call event tracked in GA"
+            },
+            "ga-attribution": {
+              "title": "Konversions-Zuordnung",
+              "description": "Attribute conversions to specific calls in Google Analytics.",
+              "n8nTemplateName": "GA Conversion Zuordner",
+              "n8nTemplateDescription": "Attributes conversions",
+              "expectedOutcome": "Conversion attributed in GA"
+            },
+            "ga-campaigns": {
+              "title": "Campaign Analysen",
+              "description": "Track campaign performance analytics in Google Analytics.",
+              "n8nTemplateName": "GA Analysator de Kampagne",
+              "n8nTemplateDescription": "Campaign Analysen",
+              "expectedOutcome": "Campaign analytics updated in GA"
+            },
+            "ga-behavior": {
+              "title": "User Verhalten",
+              "description": "Verfolgen user Verhalten Muster related zu Anrufe.",
+              "n8nTemplateName": "GA Behavior Verfolger",
+              "n8nTemplateDescription": "Verfolgt user Verhalten",
+              "expectedOutcome": "Behavior tracked in GA"
+            }
+          }
+        },
+        "aws-s3": {
+          "field1Label": "Zugriffsschlüssel-ID",
+          "field1Placeholder": "Geben Sie ein AWS Access Key ID",
+          "field2Label": "Geheimer Zugriffsschlüssel",
+          "field2Placeholder": "Geben Sie ein AWS Secret Access Key",
+          "helpText": "Create an IAM user with S3 permissions in AWS Console. Generate access keys under Security Credentials.",
+          "setupLinkText": "Open AWS IAM Console",
+          "useCases": {
+            "s3-recordings": {
+              "title": "Speichern Aufnahmen",
+              "description": "Store call recordings in AWS S3 buckets.",
+              "n8nTemplateName": "S3 Aufnahme Speicher",
+              "n8nTemplateDescription": "Stores Aufnahmen",
+              "expectedOutcome": "Recording stored in S3"
+            },
+            "s3-transcripts": {
+              "title": "Archive Transkripte",
+              "description": "Archive call transcripts in AWS S3.",
+              "n8nTemplateName": "S3 Transkript Archivierer",
+              "n8nTemplateDescription": "Archives Transkripte",
+              "expectedOutcome": "Transcript archived in S3"
+            },
+            "s3-backup": {
+              "title": "Backup Daten",
+              "description": "Backup Daten de Anruf und configurations zu AWS S3.",
+              "n8nTemplateName": "S3 Daten Sicherung",
+              "n8nTemplateDescription": "Backs up data",
+              "expectedOutcome": "Data backed up to S3"
+            },
+            "s3-media": {
+              "title": "Medienverwaltung",
+              "description": "Manage media files and assets in AWS S3.",
+              "n8nTemplateName": "S3 Media Manager",
+              "n8nTemplateDescription": "Verwaltet Medien",
+              "expectedOutcome": "Media managed in S3"
+            }
+          }
+        },
+        "bamboohr": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein BambooHR API Key",
+          "field2Label": "Subdomain",
+          "field2Placeholder": "e.g. yourcompany (von yourcompany.bamboohr.com)",
+          "helpText": "Generate an API key in BambooHR: Account > API Keys.",
+          "setupLinkText": "Öffnen BambooHR",
+          "useCases": {
+            "bamboo-sync": {
+              "title": "Synchronisieren employee Daten",
+              "description": "Synchronisieren employee Daten von BambooHR für internal Anrufe.",
+              "n8nTemplateName": "BambooHR Employee Synchronisierung",
+              "n8nTemplateDescription": "Synchronisiert employee Daten",
+              "expectedOutcome": "Employee Daten synced von BambooHR"
+            },
+            "bamboo-interviews": {
+              "title": "Protokollieren interviews",
+              "description": "Log interview call details in BambooHR.",
+              "n8nTemplateName": "BambooHR Interview Protokollierer",
+              "n8nTemplateDescription": "Protokolliert interviews",
+              "expectedOutcome": "Interview logged in BambooHR"
+            },
+            "bamboo-candidates": {
+              "title": "Aktualisieren candidate Status",
+              "description": "Update candidate status in BambooHR after interview calls.",
+              "n8nTemplateName": "BambooHR Candidate Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert candidate Status",
+              "expectedOutcome": "Candidate Status aktualisiert"
+            },
+            "bamboo-followups": {
+              "title": "Schedule follow-ups",
+              "description": "Schedule follow-up activities in BambooHR.",
+              "n8nTemplateName": "BambooHR Nachverfolgung Scheduler",
+              "n8nTemplateDescription": "Schedules follow-ups",
+              "expectedOutcome": "Follow-up scheduled in BambooHR"
+            }
+          }
+        },
+        "acuity-scheduling": {
+          "field1Label": "Benutzer-ID",
+          "field1Placeholder": "Geben Sie ein Acuity Scheduling User ID",
+          "field2Label": "API-Schlüssel",
+          "field2Placeholder": "Geben Sie ein Acuity Scheduling API Key",
+          "helpText": "Find your API credentials in Acuity: Integrations > API. Copy your User ID and API Key.",
+          "setupLinkText": "Öffnen Acuity Scheduling",
+          "useCases": {
+            "acuity-book": {
+              "title": "Buchen appointments",
+              "description": "Book appointments durch Acuity Scheduling während Anrufe.",
+              "n8nTemplateName": "Acuity Termin Bucher",
+              "n8nTemplateDescription": "Books appointments",
+              "expectedOutcome": "Termin gebucht auf Acuity"
+            },
+            "acuity-openings": {
+              "title": "Prüfen openings",
+              "description": "Check available openings on Acuity Scheduling.",
+              "n8nTemplateName": "Acuity Opening Prüfer",
+              "n8nTemplateDescription": "Checks openings",
+              "expectedOutcome": "Openings checked on Acuity"
+            },
+            "acuity-confirm": {
+              "title": "Senden confirmations",
+              "description": "Senden booking confirmations durch Acuity.",
+              "n8nTemplateName": "Acuity Confirmation Sender",
+              "n8nTemplateDescription": "Sendet confirmations",
+              "expectedOutcome": "Confirmation gesendet über Acuity"
+            },
+            "acuity-reschedule": {
+              "title": "Verwalten reschedules",
+              "description": "Handle appointment reschedules durch Acuity.",
+              "n8nTemplateName": "Acuity Reschedule Manager",
+              "n8nTemplateDescription": "Manages reschedules",
+              "expectedOutcome": "Umplanung verwaltet auf Acuity"
+            }
+          }
+        },
+        "amazon-connect": {
+          "field1Label": "Zugriffsschlüssel-ID",
+          "field1Placeholder": "Geben Sie ein AWS Access Key ID",
+          "field2Label": "Geheimer Zugriffsschlüssel",
+          "field2Placeholder": "Geben Sie ein AWS Secret Access Key",
+          "helpText": "Create an IAM user with Amazon Connect permissions. Generate access keys under Security Credentials. Note your Instance ID from the Amazon Connect console.",
+          "setupLinkText": "Open Amazon Connect Console",
+          "useCases": {
+            "ac-route-agents": {
+              "title": "Weiterleiten zu live agents",
+              "description": "Route calls to live agents in Amazon Connect based on AI analysis.",
+              "n8nTemplateName": "Amazon Connect Agent Router",
+              "n8nTemplateDescription": "Routes zu live agents",
+              "expectedOutcome": "Call routed zu live agent"
+            },
+            "ac-track-metrics": {
+              "title": "Verfolgen Metriken de Anruf",
+              "description": "Track and report on call center metrics through Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect Metriken",
+              "n8nTemplateDescription": "Verfolgt Metriken de Anruf",
+              "expectedOutcome": "Metrics tracked in Amazon Connect"
+            },
+            "ac-queue": {
+              "title": "Warteschlangenverwaltung",
+              "description": "Manage call queues and routing in Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect Queue Manager",
+              "n8nTemplateDescription": "Manages call queues",
+              "expectedOutcome": "Queue managed in Amazon Connect"
+            },
+            "ac-surveys": {
+              "title": "Nachgesprächsumfragen",
+              "description": "Auslösen post-call surveys durch Amazon Connect.",
+              "n8nTemplateName": "Amazon Connect Umfrage",
+              "n8nTemplateDescription": "Sendet post-call surveys",
+              "expectedOutcome": "Survey triggered über Amazon Connect"
+            }
+          }
+        },
+        "amazon-polly": {
+          "field1Label": "Zugriffsschlüssel-ID",
+          "field1Placeholder": "Geben Sie ein AWS Access Key ID",
+          "field2Label": "Geheimer Zugriffsschlüssel",
+          "field2Placeholder": "Geben Sie ein AWS Secret Access Key",
+          "helpText": "Create an IAM user with Amazon Polly permissions in AWS Console. Generate access keys under Security Credentials.",
+          "setupLinkText": "Open Amazon Polly Console",
+          "useCases": {
+            "polly-prompts": {
+              "title": "Generieren Stimme prompts",
+              "description": "Generieren Stimme prompts und IVR Nachrichten mit Amazon Polly.",
+              "n8nTemplateName": "Amazon Polly Prompt Generator",
+              "n8nTemplateDescription": "Generiert Stimme prompts",
+              "expectedOutcome": "Voice prompts generiert"
+            },
+            "polly-multilang": {
+              "title": "Mehrsprachige Unterstützung",
+              "description": "Support multiple languages für Stimme synthesis.",
+              "n8nTemplateName": "Amazon Polly Mehrsprachig",
+              "n8nTemplateDescription": "Mehrsprachige TTS",
+              "expectedOutcome": "Multi-language audio generiert"
+            },
+            "polly-neural": {
+              "title": "Neural Stimme synthesis",
+              "description": "Use neural voice models for natural-sounding speech.",
+              "n8nTemplateName": "Amazon Polly Neural Stimme",
+              "n8nTemplateDescription": "Neural Stimme synthesis",
+              "expectedOutcome": "Neural Stimme audio generiert"
+            },
+            "polly-lexicons": {
+              "title": "Benutzerdefinierte Lexika",
+              "description": "Configure custom lexicons für pronunciation rules.",
+              "n8nTemplateName": "Amazon Polly Lexicon Konfigurator",
+              "n8nTemplateDescription": "Configures lexicons",
+              "expectedOutcome": "Benutzerdefiniertes Lexikon konfiguriert"
+            }
+          }
+        },
+        "azure-speech": {
+          "field1Label": "Abonnement-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Azure Speech Services Key",
+          "field2Label": "Region",
+          "field2Placeholder": "z.B. eastus, westeurope",
+          "helpText": "Create a Speech Services resource in Azure Portal. Find your key and region under Keys and Endpoint.",
+          "setupLinkText": "Open Azure Portal",
+          "useCases": {
+            "azure-neural": {
+              "title": "Benutzerdefinierte neuronale Stimmen",
+              "description": "Create and use custom neural voice models via Azure.",
+              "n8nTemplateName": "Azure Benutzerdefiniert Neural Stimme",
+              "n8nTemplateDescription": "Benutzerdefiniert neural voices",
+              "expectedOutcome": "Custom neural Stimme erstellt"
+            },
+            "azure-translate": {
+              "title": "Echtzeit translation",
+              "description": "Translate speech in real-time during calls.",
+              "n8nTemplateName": "Azure Echtzeit Translator",
+              "n8nTemplateDescription": "Echtzeit translation",
+              "expectedOutcome": "Echtzeit translation aktiv"
+            },
+            "azure-pronunciation": {
+              "title": "Aussprache-Feinabstimmung",
+              "description": "Fine-tune pronunciation für specific terms und names.",
+              "n8nTemplateName": "Azure Aussprache Abstimmer",
+              "n8nTemplateDescription": "Tunes pronunciation",
+              "expectedOutcome": "Aussprache-Feinabstimmung angewendet"
+            },
+            "azure-profiles": {
+              "title": "Voice Profile",
+              "description": "Erstellen und manage Stimme Profile für different scenarios.",
+              "n8nTemplateName": "Azure Stimme Profiles",
+              "n8nTemplateDescription": "Manages Stimme Profile",
+              "expectedOutcome": "Stimmprofil konfiguriert"
+            }
+          }
+        },
+        "bandwidth": {
+          "field1Label": "API-Token",
+          "field1Placeholder": "Geben Sie ein Bandwidth API Token",
+          "field2Label": "API-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Bandwidth API Secret",
+          "helpText": "Find your API credentials in the Bandwidth Dashboard under Account > API Credentials.",
+          "setupLinkText": "Öffnen Bandwidth Dashboard",
+          "useCases": {
+            "bw-sms": {
+              "title": "SMS Nachverfolgung",
+              "description": "Senden SMS Nachverfolgung Nachrichten über Bandwidth nach Anrufe.",
+              "n8nTemplateName": "Bandwidth Sender de SMS",
+              "n8nTemplateDescription": "Sendet Nachverfolgung SMS",
+              "expectedOutcome": "SMS gesendet über Bandwidth"
+            },
+            "bw-tracking": {
+              "title": "Anrufverfolgung",
+              "description": "Verfolgen Ereignisse de Anruf und Metriken durch Bandwidth.",
+              "n8nTemplateName": "Bandwidth Verfolger de Anruf",
+              "n8nTemplateDescription": "Verfolgt Daten de Anruf",
+              "expectedOutcome": "Call data tracked in Bandwidth"
+            },
+            "bw-numbers": {
+              "title": "Nummernverwaltung",
+              "description": "Verwalten Telefonnummer und provisioning durch Bandwidth.",
+              "n8nTemplateName": "Bandwidth Manager de Nummer",
+              "n8nTemplateDescription": "Manages Telefonnummer",
+              "expectedOutcome": "Numbers managed über Bandwidth"
+            },
+            "bw-routing": {
+              "title": "Anruf-Routing",
+              "description": "Weiterleiten Anrufe durch Bandwidth network mit custom logic.",
+              "n8nTemplateName": "Bandwidth Router de Anruf",
+              "n8nTemplateDescription": "Routes Anrufe",
+              "expectedOutcome": "Call routed über Bandwidth"
+            }
+          }
+        },
+        "bitrix24": {
+          "field1Label": "Webhook-URL",
+          "field1Placeholder": "Geben Sie ein Bitrix24 Webhook URL",
+          "field2Label": "Benutzer-ID",
+          "field2Placeholder": "Geben Sie ein Bitrix24 User ID",
+          "helpText": "Create an inbound webhook in Bitrix24: Developer resources > Other > Inbound webhook. Copy the webhook URL.",
+          "setupLinkText": "Öffnen Bitrix24",
+          "useCases": {
+            "bitrix-push-calls": {
+              "title": "Senden Daten de Anruf",
+              "description": "Senden Daten de Anruf und Aufnahmen zu Bitrix24 CRM Aktivitäten.",
+              "n8nTemplateName": "Bitrix24 Anruf Sender",
+              "n8nTemplateDescription": "Sendet Daten de Anruf zu Bitrix24",
+              "expectedOutcome": "Call Daten pushed zu Bitrix24"
+            },
+            "bitrix-sync-leads": {
+              "title": "Synchronisieren Leads",
+              "description": "Synchronize lead records between your platform and Bitrix24.",
+              "n8nTemplateName": "Bitrix24 Synchronisierung de Lead",
+              "n8nTemplateDescription": "Synchronisiert lead Daten",
+              "expectedOutcome": "Lead synced in Bitrix24"
+            },
+            "bitrix-create-activities": {
+              "title": "Erstellen Aktivitäten",
+              "description": "Create activity records in Bitrix24 from call events.",
+              "n8nTemplateName": "Bitrix24 Ersteller de Aktivität",
+              "n8nTemplateDescription": "Erstellt Aktivitäten von Anrufe",
+              "expectedOutcome": "Activity created in Bitrix24"
+            },
+            "bitrix-update-deals": {
+              "title": "Aktualisieren Deals",
+              "description": "Update deal stages in Bitrix24 based on call outcomes.",
+              "n8nTemplateName": "Bitrix24 Aktualisieren de Deals",
+              "n8nTemplateDescription": "Aktualisiert Deals von call Ergebnisse",
+              "expectedOutcome": "Deal updated in Bitrix24"
+            }
+          }
+        },
+        "brevo": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Brevo API Key",
+          "field2Label": "Absender-E-Mail",
+          "field2Placeholder": "Geben Sie ein verified sender email",
+          "helpText": "Generate an API key in Brevo: Settings > SMTP & API > API Keys. Verify a sender identity first.",
+          "setupLinkText": "Open Brevo Settings",
+          "useCases": {
+            "brevo-contacts": {
+              "title": "Hinzufügen Kontakte",
+              "description": "Hinzufügen Kontakte zu Brevo von call Interaktionen.",
+              "n8nTemplateName": "Brevo Kontakt Adder",
+              "n8nTemplateDescription": "Fügt hinzu Kontakte",
+              "expectedOutcome": "Kontakt added zu Brevo"
+            },
+            "brevo-emails": {
+              "title": "Senden emails",
+              "description": "Senden emails durch Brevo nach Anrufe.",
+              "n8nTemplateName": "Brevo E-Mail Sender",
+              "n8nTemplateDescription": "Sendet emails",
+              "expectedOutcome": "Email gesendet über Brevo"
+            },
+            "brevo-workflows": {
+              "title": "Auslösen Arbeitsablauf",
+              "description": "Auslösen Brevo automation Arbeitsablauf von Ereignisse de Anruf.",
+              "n8nTemplateName": "Brevo Workflow Auslöser",
+              "n8nTemplateDescription": "Löst aus Arbeitsablauf",
+              "expectedOutcome": "Workflow triggered in Brevo"
+            },
+            "brevo-segments": {
+              "title": "Segment Kontakte",
+              "description": "Segment contacts in Brevo based on call outcomes.",
+              "n8nTemplateName": "Brevo Kontakt Segmenter",
+              "n8nTemplateDescription": "Segments Kontakte",
+              "expectedOutcome": "Contact segmented in Brevo"
+            }
+          }
+        },
+        "cal-com": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Cal.com API Key",
+          "field2Label": "Ereignistyp-ID",
+          "field2Placeholder": "Geben Sie ein default Event Type ID",
+          "helpText": "Generate an API key in Cal.com: Settings > Developer > API Keys. Find Event Type IDs in your event type settings.",
+          "setupLinkText": "Open Cal.com Settings",
+          "useCases": {
+            "calcom-book": {
+              "title": "Erstellen bookings",
+              "description": "Erstellen Cal.com bookings von call Gespräche.",
+              "n8nTemplateName": "Cal.com Booking Ersteller",
+              "n8nTemplateDescription": "Erstellt bookings",
+              "expectedOutcome": "Booking created on Cal.com"
+            },
+            "calcom-slots": {
+              "title": "Prüfen slots",
+              "description": "Check available time slots on Cal.com.",
+              "n8nTemplateName": "Cal.com Slot Prüfer",
+              "n8nTemplateDescription": "Checks time slots",
+              "expectedOutcome": "Verfügbare Termine geprüft auf Cal.com"
+            },
+            "calcom-confirm": {
+              "title": "Senden confirmations",
+              "description": "Senden booking confirmations durch Cal.com.",
+              "n8nTemplateName": "Cal.com Confirmation Sender",
+              "n8nTemplateDescription": "Sendet confirmations",
+              "expectedOutcome": "Confirmation gesendet über Cal.com"
+            },
+            "calcom-sync": {
+              "title": "Synchronisieren calendars",
+              "description": "Synchronisieren Cal.com bookings mit external calendars.",
+              "n8nTemplateName": "Cal.com Calendar Synchronisierung",
+              "n8nTemplateDescription": "Synchronisiert calendars",
+              "expectedOutcome": "Calendars synced mit Cal.com"
+            }
+          }
+        },
+        "close-crm": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Close CRM API Key",
+          "field2Label": "Organisations-ID",
+          "field2Placeholder": "Geben Sie ein Close Organization ID (optional)",
+          "helpText": "Find your API key in Close: Settings > Your API Keys. Generate a new key if needed.",
+          "setupLinkText": "Open Close Settings",
+          "useCases": {
+            "close-log-calls": {
+              "title": "automatisch-protokollieren Anrufe",
+              "description": "Automatically log all call activities in Close CRM with transcripts and outcomes.",
+              "n8nTemplateName": "Close CRM Protokollieren de Anrufe",
+              "n8nTemplateDescription": "Logs calls in Close CRM",
+              "expectedOutcome": "Call logged in Close CRM"
+            },
+            "close-update-leads": {
+              "title": "Aktualisieren lead statuses",
+              "description": "Update lead status in Close CRM based on call outcomes and engagement levels.",
+              "n8nTemplateName": "Close CRM Aktualisierer de Lead",
+              "n8nTemplateDescription": "Aktualisiert lead statuses von Anrufe",
+              "expectedOutcome": "Lead status updated in Close CRM"
+            },
+            "close-sync-contacts": {
+              "title": "Synchronisieren contact info",
+              "description": "Keep contact information synchronized between your calling platform and Close CRM.",
+              "n8nTemplateName": "Close CRM Synchronisieren de Kontakte",
+              "n8nTemplateDescription": "Synchronisiert Daten de Kontakt",
+              "expectedOutcome": "Contact synced in Close CRM"
+            },
+            "close-create-tasks": {
+              "title": "Erstellen Aufgaben",
+              "description": "Generate follow-up tasks in Close CRM from call action items.",
+              "n8nTemplateName": "Close CRM Ersteller de Aufgabe",
+              "n8nTemplateDescription": "Erstellt Aufgaben von Anrufe",
+              "expectedOutcome": "Task created in Close CRM"
+            }
+          }
+        },
+        "cohere": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Cohere API Key",
+          "field2Label": "Modell-ID",
+          "field2Placeholder": "z.B. command-r-plus (optional)",
+          "helpText": "Generate an API key in the Cohere Dashboard under API Keys.",
+          "setupLinkText": "Öffnen Cohere Dashboard",
+          "useCases": {
+            "cohere-search": {
+              "title": "Semantic search over Transkripte",
+              "description": "Suchen across Transkripte de Anruf mit Cohere semantic search.",
+              "n8nTemplateName": "Cohere Transkript Suche",
+              "n8nTemplateDescription": "Semantic Transkript search",
+              "expectedOutcome": "Relevant Transkripte found"
+            },
+            "cohere-cluster": {
+              "title": "Themen-Clustering",
+              "description": "Cluster calls by topic using Cohere embedding models.",
+              "n8nTemplateName": "Cohere Thema Gruppierer",
+              "n8nTemplateDescription": "Clusters call topics",
+              "expectedOutcome": "Anrufe nach Themen gruppiert"
+            },
+            "cohere-summarize": {
+              "title": "Zusammenfassung",
+              "description": "Summarize Transkripte de Anruf mit Cohere summarization models.",
+              "n8nTemplateName": "Cohere Zusammenfasser",
+              "n8nTemplateDescription": "Summarizes Transkripte",
+              "expectedOutcome": "Transkript zusammengefasst"
+            },
+            "cohere-classify": {
+              "title": "Klassifizierung",
+              "description": "Classify Anrufe mit Cohere classification models.",
+              "n8nTemplateName": "Cohere Klassifikator",
+              "n8nTemplateDescription": "Classifies Anrufe",
+              "expectedOutcome": "Anruf klassifiziert"
+            }
+          }
+        },
+        "convertkit": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein ConvertKit API Key",
+          "field2Label": "API-Geheimnis",
+          "field2Placeholder": "Geben Sie ein ConvertKit API Secret",
+          "helpText": "Find your API credentials in ConvertKit: Settings > Advanced > API.",
+          "setupLinkText": "Open ConvertKit Settings",
+          "useCases": {
+            "ck-subscribers": {
+              "title": "Hinzufügen subscribers",
+              "description": "Hinzufügen neuer subscribers zu ConvertKit von Anrufe.",
+              "n8nTemplateName": "ConvertKit Abonnent Hinzufüger",
+              "n8nTemplateDescription": "Fügt hinzu subscribers",
+              "expectedOutcome": "Subscriber added zu ConvertKit"
+            },
+            "ck-tags": {
+              "title": "Apply Tags",
+              "description": "Apply Tags zu ConvertKit subscribers basierend auf Daten de Anruf.",
+              "n8nTemplateName": "ConvertKit Tag Anwender",
+              "n8nTemplateDescription": "Applies Tags",
+              "expectedOutcome": "Tags applied in ConvertKit"
+            },
+            "ck-sequences": {
+              "title": "Auslösen Sequenzen",
+              "description": "Auslösen ConvertKit Sequenzen de correo von Ereignisse de Anruf.",
+              "n8nTemplateName": "ConvertKit Auslöser de Sequenz",
+              "n8nTemplateDescription": "Löst aus Sequenzen",
+              "expectedOutcome": "Sequence triggered in ConvertKit"
+            },
+            "ck-fields": {
+              "title": "Aktualisieren custom fields",
+              "description": "Update custom fields on ConvertKit subscribers.",
+              "n8nTemplateName": "ConvertKit Field Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert custom fields",
+              "expectedOutcome": "Custom fields updated in ConvertKit"
+            }
+          }
+        },
+        "copper-crm": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Copper API Key",
+          "field2Label": "E-Mail",
+          "field2Placeholder": "Geben Sie ein Copper account email",
+          "helpText": "Find your API key in Copper: Settings > Integrations > API Keys.",
+          "setupLinkText": "Öffnen Copper CRM",
+          "useCases": {
+            "copper-push-summaries": {
+              "title": "Senden Zusammenfassungen de Anruf",
+              "description": "Senden AI-generiert Zusammenfassungen de Anruf zu Copper CRM contact und opportunity Datensätze.",
+              "n8nTemplateName": "Copper Zusammenfassung de Anruf Pusher",
+              "n8nTemplateDescription": "Sendet Zusammenfassungen de Anruf zu Copper",
+              "expectedOutcome": "Call Zusammenfassung added zu Copper Datensätze"
+            },
+            "copper-create-contacts": {
+              "title": "Erstellen Kontakte von Anrufer",
+              "description": "Automatically create new contacts in Copper CRM from unrecognized callers.",
+              "n8nTemplateName": "Copper Kontakt Creator",
+              "n8nTemplateDescription": "Erstellt Kontakte von neuer Anrufer",
+              "expectedOutcome": "Contact created in Copper CRM"
+            },
+            "copper-sync-activities": {
+              "title": "Synchronisieren Aktivitäten",
+              "description": "Synchronize call activities between your platform and Copper CRM.",
+              "n8nTemplateName": "Copper Synchronisierung de Aktivität",
+              "n8nTemplateDescription": "Synchronisiert call Aktivitäten",
+              "expectedOutcome": "Activity synced in Copper CRM"
+            },
+            "copper-update-opps": {
+              "title": "Aktualisieren opportunities",
+              "description": "Update opportunity records in Copper CRM based on call outcomes.",
+              "n8nTemplateName": "Copper Aktualisieren de Deals",
+              "n8nTemplateDescription": "Aktualisiert opportunities von Anrufe",
+              "expectedOutcome": "Opportunity updated in Copper CRM"
+            }
+          }
+        },
+        "firebase": {
+          "field1Label": "Projekt-ID",
+          "field1Placeholder": "Geben Sie ein Firebase Project ID",
+          "field2Label": "Dienstkonto-Schlüssel",
+          "field2Placeholder": "Paste your Firebase service account JSON key",
+          "helpText": "In Firebase Console, go to Project Settings > Service Accounts > Generate New Private Key. Copy the JSON contents.",
+          "setupLinkText": "Open Firebase Console",
+          "useCases": {
+            "fb-store": {
+              "title": "Speichern Daten de Anruf",
+              "description": "Store call data and transcripts in Firebase.",
+              "n8nTemplateName": "Firebase Daten Speicher",
+              "n8nTemplateDescription": "Stores Daten de Anruf",
+              "expectedOutcome": "Data stored in Firebase"
+            },
+            "fb-realtime": {
+              "title": "Echtzeit sync",
+              "description": "Sync call data in real-time using Firebase.",
+              "n8nTemplateName": "Firebase Echtzeit Sync",
+              "n8nTemplateDescription": "Echtzeit Daten sync",
+              "expectedOutcome": "Data synced in real-time"
+            },
+            "fb-analytics": {
+              "title": "User Analysen",
+              "description": "Track user analytics and call metrics in Firebase.",
+              "n8nTemplateName": "Firebase Analytics Verfolger",
+              "n8nTemplateDescription": "Verfolgt Analysen",
+              "expectedOutcome": "Analytics tracked in Firebase"
+            },
+            "fb-push": {
+              "title": "Senden Benachrichtigungen",
+              "description": "Senden push Benachrichtigungen für Ereignisse de Anruf über Firebase.",
+              "n8nTemplateName": "Firebase Push Benachrichtiger",
+              "n8nTemplateDescription": "Sendet push Benachrichtigungen",
+              "expectedOutcome": "Senden Benachrichtigung gesendet"
+            }
+          }
+        },
+        "front": {
+          "field1Label": "API-Token",
+          "field1Placeholder": "Geben Sie ein Front API Token",
+          "field2Label": "Kanal-ID",
+          "field2Placeholder": "Geben Sie ein Front Channel ID",
+          "helpText": "Generate an API token in Front: Settings > Developers > API Tokens. Find Channel IDs in your channel settings.",
+          "setupLinkText": "Open Front Settings",
+          "useCases": {
+            "front-create-convs": {
+              "title": "Erstellen Gespräche",
+              "description": "Erstellen Front Gespräche von call Interaktionen.",
+              "n8nTemplateName": "Front Ersteller de Gespräch",
+              "n8nTemplateDescription": "Erstellt Gespräche",
+              "expectedOutcome": "Conversation created in Front"
+            },
+            "front-route": {
+              "title": "Weiterleiten Nachrichten",
+              "description": "Weiterleiten call-related Nachrichten zu appropriate Front inboxes.",
+              "n8nTemplateName": "Front Nachricht Router",
+              "n8nTemplateDescription": "Routes Nachrichten",
+              "expectedOutcome": "Message routed in Front"
+            },
+            "front-context": {
+              "title": "Hinzufügen Inhalt de Anruf",
+              "description": "Hinzufügen Inhalt de Anruf und Notizen zu Front Gespräche.",
+              "n8nTemplateName": "Front Kontext Hinzufüger",
+              "n8nTemplateDescription": "Fügt hinzu Inhalt de Anruf",
+              "expectedOutcome": "Call context added zu Front"
+            },
+            "front-assign": {
+              "title": "Teamzuweisungen",
+              "description": "Zuweisen Front Gespräche zu Teammitglieder basierend auf call routing.",
+              "n8nTemplateName": "Front Team Zuweiser",
+              "n8nTemplateDescription": "Assigns zu teams",
+              "expectedOutcome": "Conversation assigned in Front"
+            }
+          }
+        },
+        "gohighlevel": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein GoHighLevel API Key",
+          "field2Label": "Standort-ID",
+          "field2Placeholder": "Geben Sie ein GoHighLevel Location ID",
+          "helpText": "Find your API key in GoHighLevel: Settings > Business Profile > API Key. The Location ID is in your account URL.",
+          "setupLinkText": "Öffnen GoHighLevel",
+          "useCases": {
+            "ghl-trigger-workflows": {
+              "title": "Auslösen Nachverfolgung Arbeitsablauf",
+              "description": "Trigger automated follow-up workflows in GoHighLevel based on call outcomes.",
+              "n8nTemplateName": "GHL Workflow Auslöser",
+              "n8nTemplateDescription": "Löst aus Nachverfolgung Arbeitsablauf",
+              "expectedOutcome": "Follow-up workflow triggered in GoHighLevel"
+            },
+            "ghl-sync-contacts": {
+              "title": "Synchronisieren Kontakte",
+              "description": "Synchronize contact data between your calling platform and GoHighLevel.",
+              "n8nTemplateName": "GHL Synchronisieren de Kontakte",
+              "n8nTemplateDescription": "Synchronisiert Datensätze de Kontakt",
+              "expectedOutcome": "Contact synced in GoHighLevel"
+            },
+            "ghl-update-pipeline": {
+              "title": "Aktualisieren Pipeline stages",
+              "description": "Move opportunities durch GoHighLevel Pipeline stages basierend auf call Analyse.",
+              "n8nTemplateName": "GHL Aktualisierer de Pipeline",
+              "n8nTemplateDescription": "Aktualisiert Pipeline stages",
+              "expectedOutcome": "Pipeline stage updated in GoHighLevel"
+            },
+            "ghl-send-sms": {
+              "title": "Senden Nachverfolgung SMS",
+              "description": "Send automated SMS follow-ups via GoHighLevel after call completion.",
+              "n8nTemplateName": "GHL Sender de SMS",
+              "n8nTemplateDescription": "Sendet Nachverfolgung SMS Nachrichten",
+              "expectedOutcome": "Nachverfolgung SMS gesendet über GoHighLevel"
+            }
+          }
+        },
+        "google-cloud-tts": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Google Cloud API Key",
+          "field2Label": "Projekt-ID",
+          "field2Placeholder": "Geben Sie ein Google Cloud Project ID",
+          "helpText": "Enable the Cloud Text-to-Speech API in Google Cloud Console. Create an API key under APIs & Services > Credentials.",
+          "setupLinkText": "Open Google Cloud Console",
+          "useCases": {
+            "gctts-multilang": {
+              "title": "Mehrsprachige Synthese",
+              "description": "Synthesize speech in multiple languages using Google Cloud TTS.",
+              "n8nTemplateName": "Google TTS Mehrsprachig",
+              "n8nTemplateDescription": "Multi-language synthesis",
+              "expectedOutcome": "Multi-language speech synthesized"
+            },
+            "gctts-profiles": {
+              "title": "Custom Stimme Profile",
+              "description": "Create custom voice profiles for different use cases.",
+              "n8nTemplateName": "Google TTS Stimme Profiles",
+              "n8nTemplateDescription": "Erstellt Stimme Profile",
+              "expectedOutcome": "Voice profile erstellt"
+            },
+            "gctts-ssml": {
+              "title": "SSML-Formatierung",
+              "description": "Use SSML formatting for advanced speech control.",
+              "n8nTemplateName": "Google TTS SSML Formatierer",
+              "n8nTemplateDescription": "SSML speech control",
+              "expectedOutcome": "SSML-formatted speech generiert"
+            },
+            "gctts-adapt": {
+              "title": "Stimmanpassung",
+              "description": "Adapt Stimme output zu different contexts und scenarios.",
+              "n8nTemplateName": "Google TTS Stimme Adapter",
+              "n8nTemplateDescription": "Adapts Stimme output",
+              "expectedOutcome": "Voice adapted zu context"
+            }
+          }
+        },
+        "greenhouse": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Greenhouse Harvest API Key",
+          "field2Label": "Stellvertreter-Benutzer-ID",
+          "field2Placeholder": "Enter the user ID for API actions",
+          "helpText": "Generate a Harvest API key in Greenhouse: Configure > Dev Center > API Credential Management.",
+          "setupLinkText": "Öffnen Greenhouse",
+          "useCases": {
+            "gh-log-interviews": {
+              "title": "Protokollieren interview Anrufe",
+              "description": "Log interview call details and scores in Greenhouse.",
+              "n8nTemplateName": "Greenhouse Interview Protokollierer",
+              "n8nTemplateDescription": "Protokolliert interview Anrufe",
+              "expectedOutcome": "Interview logged in Greenhouse"
+            },
+            "gh-update-stage": {
+              "title": "Aktualisieren candidate stage",
+              "description": "Update candidate pipeline stage in Greenhouse after interviews.",
+              "n8nTemplateName": "Greenhouse Stage Aktualisierer",
+              "n8nTemplateDescription": "Aktualisiert candidate stage",
+              "expectedOutcome": "Candidate stage aktualisiert"
+            },
+            "gh-sync-jobs": {
+              "title": "Synchronisieren job Daten",
+              "description": "Synchronisieren job Daten und requirements von Greenhouse.",
+              "n8nTemplateName": "Greenhouse Job Synchronisierung",
+              "n8nTemplateDescription": "Synchronisiert job Daten",
+              "expectedOutcome": "Job Daten synced von Greenhouse"
+            },
+            "gh-schedule": {
+              "title": "Planen interviews",
+              "description": "Planen interview Anrufe durch Greenhouse.",
+              "n8nTemplateName": "Greenhouse Interview Planer",
+              "n8nTemplateDescription": "Schedules interviews",
+              "expectedOutcome": "Interview scheduled in Greenhouse"
+            }
+          }
+        },
+        "groq": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Groq API Key",
+          "field2Label": "Modell-ID",
+          "field2Placeholder": "z.B. llama-3.1-70b-versatile (optional)",
+          "helpText": "Generate an API key at console.groq.com under API Keys.",
+          "setupLinkText": "Open Groq Console",
+          "useCases": {
+            "groq-realtime": {
+              "title": "Echtzeit Transkript processing",
+              "description": "Process transcripts in real-time using Groq for ultra-fast inference.",
+              "n8nTemplateName": "Groq Echtzeit Processor",
+              "n8nTemplateDescription": "Echtzeit Transkript processing",
+              "expectedOutcome": "Transcript processed in real-time"
+            },
+            "groq-sentiment": {
+              "title": "Fast Analyse de Stimmung",
+              "description": "Perform instant sentiment analysis on calls using Groq.",
+              "n8nTemplateName": "Groq Analyse de Stimmung",
+              "n8nTemplateDescription": "Fast Analyse de Stimmung",
+              "expectedOutcome": "Sentiment analyzed instantly"
+            },
+            "groq-classify": {
+              "title": "Absichtsklassifizierung",
+              "description": "Classify call intents at high speed using Groq inference.",
+              "n8nTemplateName": "Groq Klassifikator de Absicht",
+              "n8nTemplateDescription": "Classifies intents quickly",
+              "expectedOutcome": "Intent classified"
+            },
+            "groq-summarize": {
+              "title": "Schnelle Zusammenfassung",
+              "description": "Generieren rapid Zusammenfassungen de Anruf mit Groq models.",
+              "n8nTemplateName": "Groq Quick Zusammenfasser",
+              "n8nTemplateDescription": "Quick Zusammenfassungen de Anruf",
+              "expectedOutcome": "Summary generiert quickly"
+            }
+          }
+        },
+        "insightly": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Insightly API Key",
+          "field2Label": "Pod-URL",
+          "field2Placeholder": "z.B. api.na1.insightly.com",
+          "helpText": "Find your API key in Insightly: User Settings > API. Your pod URL depends on your data center region.",
+          "setupLinkText": "Öffnen Insightly",
+          "useCases": {
+            "insightly-create-leads": {
+              "title": "Erstellen Leads von Anrufe",
+              "description": "Create new lead records in Insightly from incoming call data.",
+              "n8nTemplateName": "Insightly Erstellen de Leads",
+              "n8nTemplateDescription": "Erstellt Leads von Anrufe",
+              "expectedOutcome": "Lead created in Insightly"
+            },
+            "insightly-log-notes": {
+              "title": "Protokollieren Notizen de Anruf",
+              "description": "Hinzufügen Notizen de Anruf und Transkripte zu Insightly Datensätze de Kontakt.",
+              "n8nTemplateName": "Insightly Note Protokollierer",
+              "n8nTemplateDescription": "Protokolliert Notizen de Anruf",
+              "expectedOutcome": "Notes logged in Insightly"
+            },
+            "insightly-sync-contacts": {
+              "title": "Synchronisieren Kontakte",
+              "description": "Synchronize contact information between platforms and Insightly.",
+              "n8nTemplateName": "Insightly Synchronisieren de Kontakte",
+              "n8nTemplateDescription": "Synchronisiert Daten de Kontakt",
+              "expectedOutcome": "Contact synced in Insightly"
+            },
+            "insightly-update-pipelines": {
+              "title": "Aktualisieren pipelines",
+              "description": "Update pipeline stages in Insightly based on call analysis.",
+              "n8nTemplateName": "Insightly Aktualisierer de Pipeline",
+              "n8nTemplateDescription": "Aktualisiert pipelines von Anrufe",
+              "expectedOutcome": "Pipeline updated in Insightly"
+            }
+          }
+        },
+        "keap": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Keap Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Keap Client Secret",
+          "helpText": "Erstellen ein app in  Keap Developer Portal. Add  redirect URL below. Copy  Client ID und Client Secret.",
+          "setupLinkText": "Open Keap Developer Portal",
+          "useCases": {
+            "keap-tag-leads": {
+              "title": "Tag Leads basierend auf call outcome",
+              "description": "Automatically apply Tags zu Keap Kontakte basierend auf call disposition und Ergebnisse.",
+              "n8nTemplateName": "Keap Lead Tagger",
+              "n8nTemplateDescription": "Tags Kontakte von Ergebnisse de Anruf",
+              "expectedOutcome": "Tags applied to contact in Keap"
+            },
+            "keap-create-contacts": {
+              "title": "Erstellen Kontakte",
+              "description": "Create new contacts in Keap from unrecognized callers.",
+              "n8nTemplateName": "Keap Kontakt Creator",
+              "n8nTemplateDescription": "Erstellt Kontakte von neuer Anrufer",
+              "expectedOutcome": "Contact created in Keap"
+            },
+            "keap-trigger-campaigns": {
+              "title": "Auslösen Kampagnen",
+              "description": "Auslösen Keap marketing Kampagnen basierend auf Ergebnisse de Anruf und lead qualification.",
+              "n8nTemplateName": "Keap Auslöser de Kampagne",
+              "n8nTemplateDescription": "Löst aus Kampagnen von call Ergebnisse",
+              "expectedOutcome": "Campaign triggered in Keap"
+            },
+            "keap-log-activities": {
+              "title": "Protokollieren call Aktivitäten",
+              "description": "Log call activities in Keap contact records for complete interaction history.",
+              "n8nTemplateName": "Keap Protokollierer de Aktivität",
+              "n8nTemplateDescription": "Protokolliert call Aktivitäten",
+              "expectedOutcome": "Activity logged in Keap"
+            }
+          }
+        },
+        "lever": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Lever API Key",
+          "field2Label": "Umgebung",
+          "field2Placeholder": "e.g. sandbox oder production",
+          "helpText": "Generate an API key in Lever: Settings > Integrations and API > API Credentials.",
+          "setupLinkText": "Open Lever Settings"
+        },
+        "microsoft-outlook": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Azure Application Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Azure Client Secret",
+          "helpText": "Register an app in Azure Portal > App Registrations. Under API Permissions, add Microsoft Graph permissions for Mail and Calendar. Add the redirect URL below.",
+          "setupLinkText": "Open Azure Portal",
+          "useCases": {
+            "outlook-schedule": {
+              "title": "Planen meetings",
+              "description": "Schedule meetings in Microsoft Outlook during calls.",
+              "n8nTemplateName": "Outlook Planer de Meeting",
+              "n8nTemplateDescription": "Schedules meetings",
+              "expectedOutcome": "Meeting scheduled in Outlook"
+            },
+            "outlook-availability": {
+              "title": "Prüfen availability",
+              "description": "Prüfen Outlook calendar availability.",
+              "n8nTemplateName": "Outlook Availability Prüfer",
+              "n8nTemplateDescription": "Checks availability",
+              "expectedOutcome": "Availability checked in Outlook"
+            },
+            "outlook-invites": {
+              "title": "Senden invites",
+              "description": "Senden meeting invitations über Outlook.",
+              "n8nTemplateName": "Outlook Einladung Sender",
+              "n8nTemplateDescription": "Sendet meeting invites",
+              "expectedOutcome": "Meeting invite gesendet über Outlook"
+            },
+            "outlook-sync": {
+              "title": "Kalender-Synchronisierung",
+              "description": "Synchronisieren calendar Ereignisse mit Microsoft Outlook.",
+              "n8nTemplateName": "Outlook Calendar Synchronisierung",
+              "n8nTemplateDescription": "Synchronisiert calendar Ereignisse",
+              "expectedOutcome": "Calendar synced mit Outlook"
+            }
+          }
+        },
+        "mistral": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Mistral AI API Key",
+          "field2Label": "Modell-ID",
+          "field2Placeholder": "e.g. mistral-large-neueste (optional)",
+          "helpText": "Generate an API key in the Mistral AI platform under API Keys.",
+          "setupLinkText": "Open Mistral Console",
+          "useCases": {
+            "mistral-summarize": {
+              "title": "Anrufzusammenfassung",
+              "description": "Generieren concise Zusammenfassungen de Anruf mit Mistral AI models.",
+              "n8nTemplateName": "Mistral Zusammenfasser",
+              "n8nTemplateDescription": "Summarizes Anrufe",
+              "expectedOutcome": "Call Zusammenfassung generiert"
+            },
+            "mistral-topics": {
+              "title": "Themenextraktion",
+              "description": "Extract key topics und themes von Gespräche mit Mistral.",
+              "n8nTemplateName": "Mistral Topic Extraktor",
+              "n8nTemplateDescription": "Extracts Gespräch topics",
+              "expectedOutcome": "Topics extrahiert von call"
+            },
+            "mistral-sentiment": {
+              "title": "Stimmungsbewertung",
+              "description": "Score call Stimmung mit Mistral AI Analyse.",
+              "n8nTemplateName": "Mistral Sentiment Bewerter",
+              "n8nTemplateDescription": "Scores Stimmung",
+              "expectedOutcome": "Sentiment score generiert"
+            },
+            "mistral-suggestions": {
+              "title": "Antwortvorschläge",
+              "description": "Generieren Echtzeit response suggestions mit Mistral.",
+              "n8nTemplateName": "Mistral Response Vorschlager",
+              "n8nTemplateDescription": "Suggests Antworten",
+              "expectedOutcome": "Response suggestions generiert"
+            }
+          }
+        },
+        "mixpanel": {
+          "field1Label": "Projekt-Token",
+          "field1Placeholder": "Geben Sie ein Mixpanel Project Token",
+          "field2Label": "API-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Mixpanel API Secret",
+          "helpText": "Find your Project Token and API Secret in Mixpanel: Settings > Project Settings.",
+          "setupLinkText": "Open Mixpanel Settings",
+          "useCases": {
+            "mp-events": {
+              "title": "Verfolgen Ereignisse de Anruf",
+              "description": "Track call events and user actions in Mixpanel.",
+              "n8nTemplateName": "Mixpanel Verfolger de Ereignis",
+              "n8nTemplateDescription": "Verfolgt Ereignisse de Anruf",
+              "expectedOutcome": "Event tracked in Mixpanel"
+            },
+            "mp-funnels": {
+              "title": "Funnel Analyse",
+              "description": "Analyze call-to-conversion funnels in Mixpanel.",
+              "n8nTemplateName": "Mixpanel Funnel Analysator",
+              "n8nTemplateDescription": "Analyzes funnels",
+              "expectedOutcome": "Funnel analysis updated in Mixpanel"
+            },
+            "mp-segments": {
+              "title": "Benutzersegmentierung",
+              "description": "Segment users based on call behavior in Mixpanel.",
+              "n8nTemplateName": "Mixpanel Benutzer Segmentierer",
+              "n8nTemplateDescription": "Segments users",
+              "expectedOutcome": "Users segmented in Mixpanel"
+            },
+            "mp-ab": {
+              "title": "A/B-Tests",
+              "description": "Track A/B test results for call scripts in Mixpanel.",
+              "n8nTemplateName": "Mixpanel A/B Verfolger",
+              "n8nTemplateDescription": "A/B test tracking",
+              "expectedOutcome": "A/B results tracked in Mixpanel"
+            }
+          }
+        },
+        "murf": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Murf AI API Key",
+          "field2Label": "Standard-Stimmen-ID",
+          "field2Placeholder": "Enter default voice ID (optional)",
+          "helpText": "Generate an API key in Murf Studio: Account Settings > API. Browse available voices in the Voice Library.",
+          "setupLinkText": "Öffnen Murf Studio",
+          "useCases": {
+            "murf-voiceovers": {
+              "title": "Studioqualität-Voiceovers",
+              "description": "Generieren studio-quality voiceovers mit Murf AI.",
+              "n8nTemplateName": "Murf Studio Voiceover",
+              "n8nTemplateDescription": "Studio-quality voiceovers",
+              "expectedOutcome": "Studio-quality voiceover generiert"
+            },
+            "murf-brand": {
+              "title": "Brand Stimme creation",
+              "description": "Erstellen consistent brand voices mit Murf.",
+              "n8nTemplateName": "Murf Brand Ersteller de Stimme",
+              "n8nTemplateDescription": "Erstellt brand Stimme",
+              "expectedOutcome": "Brand Stimme erstellt"
+            },
+            "murf-script": {
+              "title": "Script zu speech",
+              "description": "Konvertieren scripts zu natural-sounding speech.",
+              "n8nTemplateName": "Murf Script zu Speech",
+              "n8nTemplateDescription": "Converts scripts zu speech",
+              "expectedOutcome": "Script converted zu speech"
+            },
+            "murf-pronunciation": {
+              "title": "Aussprache-Editor",
+              "description": "Edit und customize pronunciation für specific terms.",
+              "n8nTemplateName": "Murf Aussprache Editor",
+              "n8nTemplateDescription": "Edits pronunciation",
+              "expectedOutcome": "Pronunciation customized"
+            }
+          }
+        },
+        "n8n": {
+          "field1Label": "Webhook-URL",
+          "field1Placeholder": "Geben Sie ein n8n Webhook URL",
+          "field2Label": "Header-Auth-Wert",
+          "field2Placeholder": "Enter authentication header value (optional)",
+          "helpText": "Create a workflow in n8n with a Webhook trigger node. Copy the Production Webhook URL. Optionally set up Header Auth for security.",
+          "setupLinkText": "Öffnen n8n",
+          "useCases": {
+            "n8n-templates": {
+              "title": "Execute Arbeitsablauf Vorlagen",
+              "description": "Execute pre-built n8n Arbeitsablauf Vorlagen für common Aufgaben.",
+              "n8nTemplateName": "n8n Template Ausführer",
+              "n8nTemplateDescription": "Executes Arbeitsablauf Vorlagen",
+              "expectedOutcome": "Workflow template executed"
+            },
+            "n8n-custom": {
+              "title": "Benutzerdefinierte Automatisierungsabläufe",
+              "description": "Run custom n8n automation flows triggered by call events.",
+              "n8nTemplateName": "n8n Benutzerdefiniert Ablauf",
+              "n8nTemplateDescription": "Benutzerdefiniert automation flows",
+              "expectedOutcome": "Custom flow executed"
+            },
+            "n8n-processing": {
+              "title": "Datenverarbeitung",
+              "description": "Process Daten de Anruf durch n8n Daten transformation nodes.",
+              "n8nTemplateName": "n8n Data Verarbeiter",
+              "n8nTemplateDescription": "Daten processing",
+              "expectedOutcome": "Data processed in n8n"
+            },
+            "n8n-multi": {
+              "title": "Mehrstufige Integrationen",
+              "description": "Execute multi-step integration workflows in n8n.",
+              "n8nTemplateName": "n8n Mehrstufig Integration",
+              "n8nTemplateDescription": "Mehrstufig integrations",
+              "expectedOutcome": "Multi-step integration abgeschlossen"
+            }
+          }
+        },
+        "perplexity": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Perplexity API Key",
+          "field2Label": "Modell-ID",
+          "field2Placeholder": "z.B. llama-3.1-sonar-large-128k-online (optional)",
+          "helpText": "Generate an API key in Perplexity Settings under API.",
+          "setupLinkText": "Open Perplexity Settings",
+          "useCases": {
+            "pplx-research": {
+              "title": "Anruferhintergrund recherchieren",
+              "description": "Research caller und company background mit Perplexity.",
+              "n8nTemplateName": "Perplexity Anrufer Recherche",
+              "n8nTemplateDescription": "Researches caller background",
+              "expectedOutcome": "Caller background research abgeschlossen"
+            },
+            "pplx-insights": {
+              "title": "Industry Erkenntnisse",
+              "description": "Abrufen Echtzeit industry Erkenntnisse für Gespräche mit Perplexity.",
+              "n8nTemplateName": "Perplexity Branche Einblicke",
+              "n8nTemplateDescription": "Provides industry Erkenntnisse",
+              "expectedOutcome": "Industry Erkenntnisse generiert"
+            },
+            "pplx-competitive": {
+              "title": "Competitive Analyse",
+              "description": "Perform competitive Analyse während sales Anrufe mit Perplexity.",
+              "n8nTemplateName": "Perplexity Wettbewerb Analyse",
+              "n8nTemplateDescription": "Analyzes competition",
+              "expectedOutcome": "Competitive Analyse delivered"
+            },
+            "pplx-factcheck": {
+              "title": "Echtzeit fact checking",
+              "description": "Fact-check claims made during calls using Perplexity.",
+              "n8nTemplateName": "Perplexity Fact Prüfer",
+              "n8nTemplateDescription": "Fact-checks in real-time",
+              "expectedOutcome": "Facts verified in real-time"
+            }
+          }
+        },
+        "playht": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein PlayHT API Key",
+          "field2Label": "Benutzer-ID",
+          "field2Placeholder": "Geben Sie ein PlayHT User ID",
+          "helpText": "Find your API Key and User ID in PlayHT: Settings > API Access.",
+          "setupLinkText": "Open PlayHT Settings",
+          "useCases": {
+            "playht-realistic": {
+              "title": "Ultrareal. Stimmen",
+              "description": "Generieren ultra-realistic Stimme output mit PlayHT.",
+              "n8nTemplateName": "PlayHT Realistisch Stimme",
+              "n8nTemplateDescription": "Ultrarealistisch TTS",
+              "expectedOutcome": "Realistic Stimme audio generiert"
+            },
+            "playht-clone": {
+              "title": "Stimmenklonen",
+              "description": "Clone voices für personalized AI agent Antworten.",
+              "n8nTemplateName": "PlayHT Stimme Kloner",
+              "n8nTemplateDescription": "Klont Stimmen",
+              "expectedOutcome": "Stimme geklont successfully"
+            },
+            "playht-emotion": {
+              "title": "Emotionskontrolle",
+              "description": "Control emotional tone in voice synthesis.",
+              "n8nTemplateName": "PlayHT Emotion Controller",
+              "n8nTemplateDescription": "Controls Stimme emotion",
+              "expectedOutcome": "Emotional tone applied zu Stimme"
+            },
+            "playht-accents": {
+              "title": "Multi-Akzent-Unterstützung",
+              "description": "Support multiple accents und speaking styles.",
+              "n8nTemplateName": "PlayHT Akzent Selektor",
+              "n8nTemplateDescription": "Multi-accent support",
+              "expectedOutcome": "Accent configured für Stimme"
+            }
+          }
+        },
+        "segment": {
+          "field1Label": "Schreibschlüssel",
+          "field1Placeholder": "Geben Sie ein Segment Source Write Key",
+          "field2Label": "Workspace-Slug",
+          "field2Placeholder": "Geben Sie ein Segment workspace slug (optional)",
+          "helpText": "Find your Write Key in Segment: Sources > Your Source > Settings > API Keys.",
+          "setupLinkText": "Öffnen Segment",
+          "useCases": {
+            "seg-events": {
+              "title": "Ereignisverfolgung",
+              "description": "Verfolgen Ereignisse de Anruf durch Segment für Daten routing.",
+              "n8nTemplateName": "Segment Verfolger de Ereignis",
+              "n8nTemplateDescription": "Verfolgt Ereignisse",
+              "expectedOutcome": "Event tracked in Segment"
+            },
+            "seg-identify": {
+              "title": "Benutzeridentifizierung",
+              "description": "Identify und track users durch Segment.",
+              "n8nTemplateName": "Segment Benutzer Identifizierer",
+              "n8nTemplateDescription": "Identifies users",
+              "expectedOutcome": "User identified in Segment"
+            },
+            "seg-cross": {
+              "title": "Cross-platform Analysen",
+              "description": "Weiterleiten call Analysen across platforms über Segment.",
+              "n8nTemplateName": "Segment Plattformübergreifend Router",
+              "n8nTemplateDescription": "Plattformübergreifend routing",
+              "expectedOutcome": "Analytics routed über Segment"
+            },
+            "seg-routing": {
+              "title": "Datenrouting",
+              "description": "Weiterleiten Daten de Anruf zu multiple destinations durch Segment.",
+              "n8nTemplateName": "Segment Router de Daten",
+              "n8nTemplateDescription": "Routes Daten",
+              "expectedOutcome": "Data routed durch Segment"
+            }
+          }
+        },
+        "sugarcrm": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein SugarCRM OAuth Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein SugarCRM OAuth Client Secret",
+          "helpText": "Create an OAuth Key in SugarCRM: Administration > OAuth Keys. Enter your instance URL during setup.",
+          "setupLinkText": "Öffnen SugarCRM",
+          "useCases": {
+            "sugar-log-calls": {
+              "title": "Protokollieren call Aktivitäten",
+              "description": "Create call activity records in SugarCRM with conversation details.",
+              "n8nTemplateName": "SugarCRM Protokollieren de Anrufe",
+              "n8nTemplateDescription": "Logs calls in SugarCRM",
+              "expectedOutcome": "Call activity logged in SugarCRM"
+            },
+            "sugar-sync-leads": {
+              "title": "Synchronisieren Leads",
+              "description": "Synchronize lead data between your calling platform and SugarCRM.",
+              "n8nTemplateName": "SugarCRM Synchronisierung de Lead",
+              "n8nTemplateDescription": "Synchronisiert Datensätze de Lead",
+              "expectedOutcome": "Lead synced in SugarCRM"
+            },
+            "sugar-update-opps": {
+              "title": "Aktualisieren opportunities",
+              "description": "Update opportunity stages in SugarCRM based on call outcomes.",
+              "n8nTemplateName": "SugarCRM Aktualisieren de Deals",
+              "n8nTemplateDescription": "Aktualisiert opportunities von Anrufe",
+              "expectedOutcome": "Opportunity updated in SugarCRM"
+            },
+            "sugar-create-tasks": {
+              "title": "Erstellen Nachverfolgung Aufgaben",
+              "description": "Generate follow-up tasks in SugarCRM from call action items.",
+              "n8nTemplateName": "SugarCRM Ersteller de Aufgabe",
+              "n8nTemplateDescription": "Erstellt Aufgaben von Anrufe",
+              "expectedOutcome": "Task created in SugarCRM"
+            }
+          }
+        },
+        "supabase": {
+          "field1Label": "API-URL",
+          "field1Placeholder": "Geben Sie ein Supabase Project URL",
+          "field2Label": "Dienstrolle-Schlüssel",
+          "field2Placeholder": "Geben Sie ein Supabase Service Role Key",
+          "helpText": "Find your Project URL and Service Role Key in Supabase: Project Settings > API.",
+          "setupLinkText": "Öffnen Supabase Dashboard",
+          "useCases": {
+            "supa-transcripts": {
+              "title": "Speichern Transkripte",
+              "description": "Store call transcripts in Supabase database.",
+              "n8nTemplateName": "Supabase Transkript Speicher",
+              "n8nTemplateDescription": "Stores Transkripte",
+              "expectedOutcome": "Transcript stored in Supabase"
+            },
+            "supa-realtime": {
+              "title": "Echtzeit Daten",
+              "description": "Sync call data in real-time using Supabase.",
+              "n8nTemplateName": "Supabase Echtzeit Sync",
+              "n8nTemplateDescription": "Echtzeit Daten sync",
+              "expectedOutcome": "Data synced in Supabase"
+            },
+            "supa-users": {
+              "title": "Benutzerverwaltung",
+              "description": "Manage user data and preferences in Supabase.",
+              "n8nTemplateName": "Supabase Benutzer Manager",
+              "n8nTemplateDescription": "Manages users",
+              "expectedOutcome": "User data managed in Supabase"
+            },
+            "supa-analytics": {
+              "title": "Analyse-Speicherung",
+              "description": "Store analytics and metrics data in Supabase.",
+              "n8nTemplateName": "Supabase Analytics Speicher",
+              "n8nTemplateDescription": "Stores Analysen",
+              "expectedOutcome": "Analytics stored in Supabase"
+            }
+          }
+        },
+        "telnyx": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Telnyx API Key (KEY...)",
+          "field2Label": "Verbindungs-ID",
+          "field2Placeholder": "Geben Sie ein Telnyx SIP Connection ID",
+          "helpText": "Generate an API key in the Telnyx Portal: Auth > API Keys. Find your Connection ID under SIP Connections.",
+          "setupLinkText": "Open Telnyx Portal",
+          "useCases": {
+            "telnyx-messaging": {
+              "title": "Nachgesprächsnachrichten",
+              "description": "Senden post-call Nachrichten über Telnyx messaging API.",
+              "n8nTemplateName": "Telnyx Messenger",
+              "n8nTemplateDescription": "Sendet post-call Nachrichten",
+              "expectedOutcome": "Message gesendet über Telnyx"
+            },
+            "telnyx-analytics": {
+              "title": "Call Analysen",
+              "description": "Verfolgen call Analysen und performance durch Telnyx.",
+              "n8nTemplateName": "Telnyx Analytik",
+              "n8nTemplateDescription": "Verfolgt call Analysen",
+              "expectedOutcome": "Analytics recorded in Telnyx"
+            },
+            "telnyx-provision": {
+              "title": "Nummernbereitstellung",
+              "description": "Provision und manage Telefonnummer durch Telnyx.",
+              "n8nTemplateName": "Telnyx Nummer Bereitsteller",
+              "n8nTemplateDescription": "Stellt Nummern bereit",
+              "expectedOutcome": "Numbers provisioned über Telnyx"
+            },
+            "telnyx-sip": {
+              "title": "SIP-Routing",
+              "description": "Configure SIP routing durch Telnyx für advanced call handling.",
+              "n8nTemplateName": "Telnyx SIP Router",
+              "n8nTemplateDescription": "Configures SIP routing",
+              "expectedOutcome": "SIP routing configured über Telnyx"
+            }
+          }
+        },
+        "vonage": {
+          "field1Label": "API-Schlüssel",
+          "field1Placeholder": "Geben Sie ein Vonage API Key",
+          "field2Label": "API-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Vonage API Secret",
+          "helpText": "Find your API Key and Secret on the Vonage Dashboard under API Settings.",
+          "setupLinkText": "Öffnen Vonage Dashboard",
+          "useCases": {
+            "vonage-sms": {
+              "title": "Senden SMS Benachrichtigungen",
+              "description": "Senden SMS Benachrichtigungen über Vonage für Ereignisse de Anruf und Ergebnisse.",
+              "n8nTemplateName": "Vonage Benachrichtiger de SMS",
+              "n8nTemplateDescription": "Sendet SMS Benachrichtigungen",
+              "expectedOutcome": "SMS Benachrichtigung gesendet über Vonage"
+            },
+            "vonage-quality": {
+              "title": "Verfolgen call quality",
+              "description": "Monitor und track call quality Metriken durch Vonage.",
+              "n8nTemplateName": "Vonage Quality Verfolger",
+              "n8nTemplateDescription": "Verfolgt call quality",
+              "expectedOutcome": "Quality Metriken recorded"
+            },
+            "vonage-route": {
+              "title": "Weiterleiten Anrufe",
+              "description": "Weiterleiten Anrufe durch Vonage mit intelligent call distribution.",
+              "n8nTemplateName": "Vonage Router de Anruf",
+              "n8nTemplateDescription": "Routes Anrufe",
+              "expectedOutcome": "Call routed über Vonage"
+            },
+            "vonage-lookup": {
+              "title": "Nummernsuche",
+              "description": "Look up phone number details using Vonage Number Insight.",
+              "n8nTemplateName": "Vonage Number Suche",
+              "n8nTemplateDescription": "Looks up number info",
+              "expectedOutcome": "Number Details retrieved"
+            }
+          }
+        },
+        "woocommerce": {
+          "field1Label": "Consumer-Schlüssel",
+          "field1Placeholder": "Geben Sie ein WooCommerce Consumer Key (ck_...)",
+          "field2Label": "Consumer-Geheimnis",
+          "field2Placeholder": "Geben Sie ein WooCommerce Consumer Secret (cs_...)",
+          "helpText": "Generate REST API keys in WooCommerce: Settings > Advanced > REST API > Add Key. Set permissions to Read/Write.",
+          "setupLinkText": "Öffnen WooCommerce",
+          "useCases": {
+            "woo-orders": {
+              "title": "Bestellverfolgung",
+              "description": "Track and look up orders in WooCommerce during calls.",
+              "n8nTemplateName": "WooCommerce Order Verfolger",
+              "n8nTemplateDescription": "Verfolgt orders",
+              "expectedOutcome": "Order tracked in WooCommerce"
+            },
+            "woo-products": {
+              "title": "Produktverfügbarkeit",
+              "description": "Check product availability in WooCommerce.",
+              "n8nTemplateName": "WooCommerce Product Prüfer",
+              "n8nTemplateDescription": "Checks products",
+              "expectedOutcome": "Product availability checked"
+            },
+            "woo-process": {
+              "title": "Bestellungen verarbeiten",
+              "description": "Process neuer orders durch WooCommerce.",
+              "n8nTemplateName": "WooCommerce Order Verarbeiter",
+              "n8nTemplateDescription": "Processes orders",
+              "expectedOutcome": "Order processed in WooCommerce"
+            },
+            "woo-customers": {
+              "title": "Kundensuche",
+              "description": "Look up customer information in WooCommerce.",
+              "n8nTemplateName": "WooCommerce Customer Suche",
+              "n8nTemplateDescription": "Looks up customers",
+              "expectedOutcome": "Customer info retrieved"
+            }
+          }
+        },
+        "default": {
+          "field1Label": "Client-ID",
+          "field1Placeholder": "Geben Sie ein Client ID",
+          "field2Label": "Client-Geheimnis",
+          "field2Placeholder": "Geben Sie ein Client Secret",
+          "helpText": "Enter your OAuth app credentials. You can find these in the provider's developer console or admin settings.",
+          "setupLinkText": "Open Developer Console"
+        }
+      },
+      "never": "Nie",
+      "notAvailable": "K.A.",
+      "status": {
+        "connected": "Verbunden",
+        "pendingAuth": "Authentifizierung ausstehend",
+        "error": "Fehler",
+        "inactive": "Inaktiv"
+      }
+    },
+    "subtitle": "Webhooks konfigurieren, um Anrufdaten an externe Systeme wie CRMs zu senden",
+    "createWebhook": "Webhook erstellen",
+    "loading": "Wird geladen...",
+    "loadingWebhooks": "Webhooks werden geladen...",
+    "error": {
+      "title": "Fehler beim Laden",
+      "description": "Webhooks konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+    },
+    "dialog": {
+      "createTitle": "Neuen Webhook erstellen",
+      "createDescription": "Konfigurieren Sie einen neuen Webhook zum Senden von Anrufdaten.",
+      "deleteTitle": "Delete Webhook",
+      "deleteDescription": "Sind Sie sicher? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "logsTitle": "Zustellungsprotokolle",
+      "logsDescription": "Verlauf der letzten Zustellungsversuche."
+    },
+    "form": {
+      "nameLabel": "Webhook-Name",
+      "namePlaceholder": "z.B. CRM-Update",
+      "urlLabel": "Ziel-URL",
+      "urlPlaceholder": "https://ihre-api.com/webhook",
+      "campaignLabel": "Kampagne",
+      "allCampaigns": "Alle Kampagnen"
+    },
+    "actions": {
+      "creating": "Erstellen...",
+      "testWebhook": "Webhook testen",
+      "viewLogs": "Protokolle anzeigen"
+    },
+    "empty": {
+      "title": "Keine Webhooks konfiguriert",
+      "description": "Erstellen Sie Ihren ersten Webhook, um Daten an externe Systeme zu senden."
+    },
+    "status": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv"
+    },
+    "logs": {
+      "noLogs": "Noch keine Protokolle.",
+      "success": "Erfolg",
+      "failed": "Fehlgeschlagen",
+      "http": "HTTP",
+      "attempt": "Versuch",
+      "viewResponse": "Antwort anzeigen"
+    },
+    "webhook": {
+      "campaign": "Kampagne",
+      "secret": "Geheimnis"
+    },
+    "unlock": {
+      "title": "Leistungsstarke Webhooks freischalten",
+      "description": "Automatisieren Sie Workflows mit Echtzeit-Webhooks",
+      "proFeaturesTitle": "Pro-Funktionen",
+      "realTimeEvents": "Echtzeit-Ereignisse",
+      "realTimeEventsDesc": "Sofortige Benachrichtigungen bei Anrufabschluss",
+      "crmAutoSync": "CRM-Auto-Sync",
+      "crmAutoSyncDesc": "Daten automatisch an Ihr CRM senden",
+      "customWorkflows": "Benutzerdefinierte Workflows",
+      "customWorkflowsDesc": "Aktionen basierend auf Ergebnissen auslösen",
+      "secureReliable": "Sicher und zuverlässig",
+      "secureReliableDesc": "HMAC-Signatur und automatische Wiederholungen",
+      "upgradeButton": "Auf Pro upgraden",
+      "upgradeDesc": "Webhooks sind im Pro-Plan und höher verfügbar"
+    },
+    "toast": {
+      "created": "Webhook erstellt",
+      "createdDesc": "Webhook erfolgreich erstellt.",
+      "createFailed": "Fehler beim Erstellen",
+      "createFailedDesc": "Webhook konnte nicht erstellt werden.",
+      "updated": "Webhook aktualisiert",
+      "updatedDesc": "Webhook erfolgreich aktualisiert.",
+      "updateFailed": "Fehler beim Aktualisieren",
+      "updateFailedDesc": "Webhook konnte nicht aktualisiert werden.",
+      "deleted": "Webhook deleted",
+      "deletedDesc": "Your webhook has been deleted successfully.",
+      "deleteFailed": "Fehler beim Löschen",
+      "deleteFailedDesc": "Failed to delete webhook",
+      "testSent": "Test gesendet",
+      "testSentDesc": "Testereignis an Webhook gesendet.",
+      "testFailed": "Test fehlgeschlagen",
+      "testFailedDesc": "Testereignis konnte nicht gesendet werden.",
+      "missingFields": "Pflichtfelder",
+      "missingFieldsDesc": "Bitte füllen Sie alle Pflichtfelder aus.",
+      "copied": "Kopiert",
+      "copiedDesc": "In die Zwischenablage kopiert."
+    },
+    "apiKeys": {
+      "title": "API-Schlüsselverwaltung",
+      "description": "Verwalten Sie Ihre API-Schlüssel für den programmatischen Zugriff auf die Plattform",
+      "keyLabel": "API-Schlüssel",
+      "noKey": "Kein API-Schlüssel generiert",
+      "warning": "Halten Sie Ihren API-Schlüssel sicher. Teilen Sie ihn nicht öffentlich.",
+      "regenerate": "Schlüssel neu generieren",
+      "regenerateTitle": "API-Schlüssel neu generieren",
+      "regenerateConfirm": "Dadurch wird Ihr aktueller API-Schlüssel ungültig und ein neuer generiert. Bestehende Integrationen, die den alten Schlüssel verwenden, funktionieren nicht mehr. Diese Aktion kann nicht rückgängig gemacht werden.",
+      "regenerated": "API-Schlüssel neu generiert",
+      "regeneratedDesc": "Ihr neuer API-Schlüssel wurde erfolgreich generiert",
+      "regenerateFailed": "Fehler beim Neugenerieren des API-Schlüssels"
+    }
   },
   "campaignDetail": {
     "sections": {

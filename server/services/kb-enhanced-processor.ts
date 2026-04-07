@@ -49,6 +49,28 @@ async function generateEmbedding(text: string): Promise<number[]> {
   return response.data[0].embedding;
 }
 
+async function generateEmbeddingBatch(texts: string[]): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  if (texts.length === 1) return [await generateEmbedding(texts[0])];
+  
+  const openai = await getOpenAIClient();
+  const BATCH_SIZE = 100;
+  const results: number[][] = [];
+  
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batch = texts.slice(i, i + BATCH_SIZE).map(t => t.substring(0, 8000));
+    const response = await openai.embeddings.create({
+      model: EMBEDDING_MODEL,
+      input: batch,
+    });
+    for (const item of response.data) {
+      results.push(item.embedding);
+    }
+  }
+  
+  return results;
+}
+
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
@@ -363,16 +385,31 @@ Rules:
         const semanticChunks = this.semanticChunk(cleanedContent, entry.title);
         console.log(`[KB Enhanced] Created ${semanticChunks.length} semantic chunks for "${entry.title}"`);
         
-        for (const chunk of semanticChunks) {
+        const chunkTexts = semanticChunks.map(c => c.text);
+        let chunkEmbeddings: number[][];
+        try {
+          chunkEmbeddings = await generateEmbeddingBatch(chunkTexts);
+        } catch (batchErr: any) {
+          console.error(`[KB Enhanced] Batch embedding failed, falling back to individual:`, batchErr.message);
+          chunkEmbeddings = [];
+          for (const text of chunkTexts) {
+            try {
+              chunkEmbeddings.push(await generateEmbedding(text));
+            } catch {
+              chunkEmbeddings.push([]);
+            }
+          }
+        }
+
+        for (let ci = 0; ci < semanticChunks.length; ci++) {
+          const chunk = semanticChunks[ci];
           try {
-            const embedding = await generateEmbedding(chunk.text);
-            
             await db.insert(knowledgeChunks).values({
               knowledgeBaseId: entry.id,
               userId,
               chunkIndex: chunk.index,
               chunkText: chunk.text,
-              embedding: embedding as any,
+              embedding: (chunkEmbeddings[ci]?.length > 0 ? chunkEmbeddings[ci] : null) as any,
               tokenCount: estimateTokens(chunk.text),
               metadata: { 
                 heading: chunk.heading, 
@@ -380,24 +417,28 @@ Rules:
                 enhancedProcessing: true 
               },
             });
-            
             result.chunksCreated++;
           } catch (chunkError: any) {
-            console.error(`[KB Enhanced] Chunk embedding error:`, chunkError.message);
+            console.error(`[KB Enhanced] Chunk storage error:`, chunkError.message);
             result.errors.push(`Chunk error for ${entry.title}: ${chunkError.message}`);
           }
-          
-          await new Promise(resolve => setTimeout(resolve, 150));
         }
         
         const faqs = await this.extractFAQs(cleanedContent, entry.title, entry.id, userId);
-        for (const faq of faqs) {
+        
+        const faqTexts = faqs.map(f => f.question + ' ' + f.answer);
+        let faqEmbeddings: number[][] = [];
+        if (faqTexts.length > 0) {
           try {
-            let faqEmbedding: number[] | null = null;
-            try {
-              faqEmbedding = await generateEmbedding(faq.question + ' ' + faq.answer);
-            } catch (e) {}
-            
+            faqEmbeddings = await generateEmbeddingBatch(faqTexts);
+          } catch {
+            faqEmbeddings = faqs.map(() => []);
+          }
+        }
+
+        for (let fi = 0; fi < faqs.length; fi++) {
+          const faq = faqs[fi];
+          try {
             await db.insert(knowledgeFaqs).values({
               userId,
               knowledgeBaseId: entry.id,
@@ -406,15 +447,12 @@ Rules:
               confidence: faq.confidence,
               isVerified: false,
               usageCount: 0,
-              embedding: faqEmbedding as any,
+              embedding: (faqEmbeddings[fi]?.length > 0 ? faqEmbeddings[fi] : null) as any,
             });
-            
             result.faqsExtracted++;
           } catch (faqError: any) {
             console.error(`[KB Enhanced] FAQ storage error:`, faqError.message);
           }
-          
-          await new Promise(resolve => setTimeout(resolve, 100));
         }
         
         const { entities, topics } = await this.extractEntitiesAndTopics(cleanedContent, entry.title);

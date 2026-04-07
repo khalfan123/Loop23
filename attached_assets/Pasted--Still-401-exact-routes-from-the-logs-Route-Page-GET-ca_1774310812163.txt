@@ -1,0 +1,39 @@
+❌ Still 401 — exact routes from the logs
+Route	Page
+GET calls/errors + calls/errors/summary	Calling → Errors
+GET elevenlabs/pool + elevenlabs/pool/stats	AI → ElevenLabs
+GET openai/pool + openai/pool/stats	AI → OpenAI
+GET subscriptions/stats	Billing → Subscriptions
+GET system/status	Dashboard home
+GET settings/smtp	Settings → Email
+GET seo/sitemap + seo/analytics-scripts	Settings → SEO
+GET aws/status + aws/polly/voices + aws/bedrock/models	Settings → AWS
+GET plugins/discover	Settings → Plugins
+GET credentials/status	System → Credentials
+GET auth/sessions	System → Auth
+POST integrations/:type/test	System → Integrations
+
+The pattern is identical to what was fixed for settings/smtp — sub-path routes being shadowed by a parent dynamic route. Send this to your developer:
+
+    Same root cause as the settings/smtp fix — dynamic parent routes are shadowing specific child routes. These all need static child routes declared before any dynamic /:param handler:
+
+    # Still returning 401 — static sub-routes being eaten by dynamic parent handlers:
+    GET  /calls/errors              ← shadowed by /calls/:id dynamic route
+    GET  /calls/errors/summary      ← same
+    GET  /elevenlabs/pool           ← shadowed by dynamic elevenlabs route
+    GET  /elevenlabs/pool/stats     ← same
+    GET  /openai/pool               ← shadowed by dynamic openai route
+    GET  /openai/pool/stats         ← same
+    GET  /subscriptions/stats       ← shadowed by /subscriptions/:id dynamic route
+    GET  /seo/sitemap               ← shadowed by /seo/:key dynamic route
+    GET  /seo/analytics-scripts     ← same
+    GET  /aws/status                ← shadowed by /aws/:service or similar
+    GET  /aws/polly/voices          ← same
+    GET  /aws/bedrock/models        ← same
+    GET  /plugins/discover          ← shadowed by /plugins/:id dynamic route
+    GET  /settings/smtp             ← still 401, the reorder didn't fully take effect
+    GET  /credentials/status        ← shadowed by /credentials/:service dynamic route
+    GET  /auth/sessions             ← shadowed by /auth/:action dynamic route
+    POST /integrations/:type/test   ← write method missing handler
+    GET  /system/status             ← may be a separate standalone file issue
+    Fix: In each route file, move all static string routes (e.g. /errors, /stats, /pool, /discover, /status) BEFORE any dynamic route (/:id, /:key, /:service, /:type).

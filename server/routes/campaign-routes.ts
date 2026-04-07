@@ -1388,12 +1388,11 @@ OUTPUT RULES:
 
       const batchJobId = campaign.batchJobId;
       const provider = batchJobId.startsWith('bedrock-polly-') ? 'bedrock-polly'
-        : agent.telephonyProvider === 'plivo' ? 'plivo'
         : agent.telephonyProvider === 'twilio_openai' ? 'twilio-openai'
         : (agent.telephonyProvider === 'elevenlabs-sip' || agent.telephonyProvider === 'openai-sip') ? 'sip'
         : 'elevenlabs';
 
-      if (provider === 'bedrock-polly' || provider === 'plivo' || provider === 'twilio-openai' || provider === 'sip') {
+      if (provider === 'bedrock-polly' || provider === 'twilio-openai' || provider === 'sip') {
         const completedCalls = campaign.completedCalls || 0;
         const successfulCalls = campaign.successfulCalls || 0;
         const totalContacts = campaign.totalContacts || 0;

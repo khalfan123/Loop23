@@ -168,10 +168,7 @@ export function BrandingProvider({ children }: BrandingProviderProps) {
 
   useEffect(() => {
     if (branding.app_name && hasLoaded) {
-      const currentTitle = document.title;
-      if (currentTitle === 'Loading...' || !currentTitle) {
-        document.title = branding.app_name;
-      }
+      document.title = branding.app_name;
     }
   }, [branding.app_name, hasLoaded]);
 

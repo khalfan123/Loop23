@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UAE Pass Authentication Flow — Workflow Diagram</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #1a365d;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #718096;
+      font-size: 15px;
+      margin-bottom: 48px;
+    }
+
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      align-items: center;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 24px;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    .step-number-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 48px;
+    }
+
+    .step-number {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .connector {
+      width: 3px;
+      height: 32px;
+      background: #cbd5e0;
+      flex-shrink: 0;
+    }
+
+    .step-card {
+      flex: 1;
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      border-left: 4px solid;
+      margin-bottom: 0;
+    }
+
+    .step-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .step-card p {
+      font-size: 14px;
+      color: #4a5568;
+      line-height: 1.6;
+    }
+
+    .step-card .actor {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .step-card code {
+      background: #edf2f7;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    /* Color coding by actor */
+    .actor-user { background: #ebf8ff; color: #2b6cb0; }
+    .actor-frontend { background: #faf5ff; color: #6b46c1; }
+    .actor-backend { background: #f0fff4; color: #276749; }
+    .actor-uaepass { background: #fff5f5; color: #c53030; }
+    .actor-database { background: #fffff0; color: #975a16; }
+
+    .color-user { background: #3182ce; }
+    .border-user { border-left-color: #3182ce; }
+    .color-frontend { background: #805ad5; }
+    .border-frontend { border-left-color: #805ad5; }
+    .color-backend { background: #38a169; }
+    .border-backend { border-left-color: #38a169; }
+    .color-uaepass { background: #e53e3e; }
+    .border-uaepass { border-left-color: #e53e3e; }
+    .color-database { background: #d69e2e; }
+    .border-database { border-left-color: #d69e2e; }
+
+    .legend {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #4a5568;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .section-divider {
+      width: 100%;
+      max-width: 800px;
+      text-align: center;
+      margin: 24px 0;
+      position: relative;
+    }
+
+    .section-divider span {
+      background: #f0f4f8;
+      padding: 0 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #a0aec0;
+    }
+
+    .section-divider::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: #e2e8f0;
+      z-index: 0;
+    }
+
+    .section-divider span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .error-note {
+      max-width: 800px;
+      margin: 40px auto 0;
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+
+    .error-note h3 {
+      color: #c53030;
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    .error-note ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .error-note li {
+      font-size: 13px;
+      color: #4a5568;
+      padding: 4px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .error-note li::before {
+      content: '•';
+      position: absolute;
+      left: 4px;
+      color: #e53e3e;
+    }
+
+    .print-footer {
+      text-align: center;
+      margin-top: 48px;
+      font-size: 12px;
+      color: #a0aec0;
+    }
+
+    @media print {
+      body { background: #fff; padding: 20px; }
+      .step-card { box-shadow: none; border: 1px solid #e2e8f0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>UAE Pass Authentication Flow</h1>
+    <p class="subtitle">OAuth 2.0 Authorization Code Grant — End-to-End Workflow</p>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot color-user"></div> User (Browser)</div>
+      <div class="legend-item"><div class="legend-dot color-frontend"></div> Frontend (React)</div>
+      <div class="legend-item"><div class="legend-dot color-backend"></div> Backend (Express)</div>
+      <div class="legend-item"><div class="legend-dot color-uaepass"></div> UAE Pass IDP</div>
+      <div class="legend-item"><div class="legend-dot color-database"></div> Database (PostgreSQL)</div>
+    </div>
+
+    <div class="flow">
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-user">1</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-user">
+          <span class="actor actor-user">User</span>
+          <h3>User Clicks "Sign in with UAE Pass"</h3>
+          <p>On the Login page, the user clicks the UAE Pass sign-in button. This triggers a call from the frontend to the backend.</p>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-frontend">2</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-frontend">
+          <span class="actor actor-frontend">Frontend</span>
+          <h3>Frontend Requests Authorization URL</h3>
+          <p><code>GET /api/auth/uaepass/authorize</code> — The React frontend calls the backend to get the UAE Pass authorization URL.</p>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-backend">3</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-backend">
+          <span class="actor actor-backend">Backend</span>
+          <h3>Backend Generates State &amp; Authorization URL</h3>
+          <p>The Express server generates a cryptographic <code>state</code> parameter (32-byte random hex), stores it in an in-memory map with a timestamp, and constructs the OAuth2 authorization URL with parameters: <code>response_type=code</code>, <code>client_id</code>, <code>scope</code>, <code>state</code>, <code>redirect_uri</code>, <code>acr_values</code>, <code>ui_locales=en</code>.</p>
+          <p style="margin-top: 6px;">Returns <code>{ authUrl, state }</code> to the frontend.</p>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-frontend">4</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-frontend">
+          <span class="actor actor-frontend">Frontend</span>
+          <h3>Browser Redirects to UAE Pass</h3>
+          <p>The frontend sets <code>window.location.href = authUrl</code>, redirecting the user's browser to the UAE Pass identity provider login page.</p>
+        </div>
+      </div>
+
+      <div class="section-divider"><span>User authenticates on UAE Pass</span></div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-uaepass">5</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-uaepass">
+          <span class="actor actor-uaepass">UAE Pass IDP</span>
+          <h3>User Authenticates via UAE Pass</h3>
+          <p>The user completes authentication on the UAE Pass platform (biometric, smart pass, or other supported method). Upon success, UAE Pass redirects the browser back to the application's callback URL with <code>code</code> and <code>state</code> query parameters.</p>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-backend">6</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-backend">
+          <span class="actor actor-backend">Backend</span>
+          <h3>Callback: Validate State Parameter</h3>
+          <p><code>GET /api/auth/uaepass/callback?code=...&amp;state=...</code> — The backend receives the callback, validates the <code>state</code> parameter against the stored map to prevent CSRF attacks, then deletes the state entry. Invalid or expired states redirect to <code>/login?error=uaepass_invalid_state</code>.</p>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-backend">7</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-backend">
+          <span class="actor actor-backend">Backend</span>
+          <h3>Token Exchange with UAE Pass</h3>
+          <p>The backend sends a <code>POST</code> request to <code>{baseUrl}/token</code> with <code>grant_type=authorization_code</code>, <code>code</code>, <code>redirect_uri</code>, <code>client_id</code>, and <code>client_secret</code>. UAE Pass returns an <code>access_token</code>.</p>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-uaepass">8</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-uaepass">
+          <span class="actor actor-uaepass">UAE Pass IDP</span>
+          <h3>Fetch User Profile</h3>
+          <p>Using the <code>access_token</code>, the backend calls <code>GET {baseUrl}/userinfo</code> with <code>Authorization: Bearer {token}</code>. UAE Pass returns the user's profile: <code>uuid</code>, <code>sub</code>, <code>email</code>, <code>firstnameEN</code>, <code>lastnameEN</code>, <code>firstnameAR</code>, <code>lastnameAR</code>, <code>gender</code>, <code>mobile</code>, <code>nationalityEN</code>, <code>idn</code>.</p>
+        </div>
+      </div>
+
+      <div class="section-divider"><span>Account provisioning &amp; session creation</span></div>
+
+      <!-- Step 9 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-database">9</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-database">
+          <span class="actor actor-database">Database</span>
+          <h3>Account Lookup or Creation</h3>
+          <p>The backend looks up the user by email in the <code>users</code> table. If no account exists, a new user is created with: the name from UAE Pass (<code>firstnameEN + lastnameEN</code>), email (or fallback <code>{uuid}@uaepass.local</code>), a random bcrypt-hashed password, role <code>user</code>, and KYC status <code>pending</code>. A free plan subscription is also created in <code>user_subscriptions</code> with initial credits.</p>
+        </div>
+      </div>
+
+      <!-- Step 10 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-backend">10</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-backend">
+          <span class="actor actor-backend">Backend</span>
+          <h3>Generate JWT Access Token</h3>
+          <p>A short-lived JWT access token is generated (15-minute expiry) containing <code>userId</code> and <code>role</code>, signed with the application's JWT secret.</p>
+        </div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-database">11</div>
+          <div class="connector"></div>
+        </div>
+        <div class="step-card border-database">
+          <span class="actor actor-database">Database</span>
+          <h3>Create Refresh Token</h3>
+          <p>A secure refresh token (64-byte random hex) is generated, SHA-256 hashed, and stored in the <code>refresh_tokens</code> table with <code>userId</code>, <code>expiresAt</code> (30 days), <code>userAgent</code>, and <code>ipAddress</code>. The raw token is set as an HttpOnly, Secure, SameSite=Lax cookie scoped to <code>/api/auth</code>.</p>
+        </div>
+      </div>
+
+      <!-- Step 12 -->
+      <div class="step">
+        <div class="step-number-col">
+          <div class="step-number color-frontend">12</div>
+        </div>
+        <div class="step-card border-frontend">
+          <span class="actor actor-frontend">Frontend</span>
+          <h3>Redirect to Application</h3>
+          <p>The backend serves an HTML page with inline JavaScript that stores the JWT token, user data, and token expiry in <code>localStorage</code>, then redirects to <code>/onboarding</code> (if KYC is pending/submitted) or <code>/app</code> (if KYC is approved). The user is now fully authenticated.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="error-note">
+      <h3>Error Handling Flows</h3>
+      <ul>
+        <li><strong>User denies consent on UAE Pass:</strong> Redirected to <code>/login?error=uaepass_denied</code></li>
+        <li><strong>Missing code/state in callback:</strong> Redirected to <code>/login?error=uaepass_missing_params</code></li>
+        <li><strong>Invalid or expired state:</strong> Redirected to <code>/login?error=uaepass_invalid_state</code> (state entries expire after 10 minutes)</li>
+        <li><strong>Token exchange failure:</strong> Redirected to <code>/login?error=uaepass_token_failed</code></li>
+        <li><strong>User profile fetch failure:</strong> Redirected to <code>/login?error=uaepass_userinfo_failed</code></li>
+        <li><strong>localStorage write failure:</strong> Redirected to <code>/login?error=uaepass_storage_failed</code></li>
+        <li><strong>Any unhandled error:</strong> Redirected to <code>/login?error=uaepass_callback_failed</code></li>
+      </ul>
+    </div>
+
+    <p class="print-footer">UAE Pass Integration Workflow Diagram — Generated for Onboarding Documentation</p>
+  </div>
+</body>
+</html>

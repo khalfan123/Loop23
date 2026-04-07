@@ -80,13 +80,13 @@ export class FunctionToolBuilder {
       type: 'function',
       function: {
         name: 'lookup_knowledge_base',
-        description: 'Search your knowledge base for relevant information to help answer the caller. Use when the caller asks something you want to verify or get details on.',
+        description: 'Search your knowledge base for product details, pricing, features, availability, and any business information. ALWAYS use this tool FIRST when the caller asks about products, prices, services, plans, packages, or any factual question. Never guess — always search first. If the first search returns nothing, try rephrasing with different keywords and search again before saying you do not have the info.',
         parameters: {
           type: 'object',
           properties: {
             query: {
               type: 'string',
-              description: 'A clear, specific rephrasing of what the caller is asking. Include relevant context from the conversation. For example, if they say "what about the other one?" refer to what "the other one" means based on the conversation. Do NOT pass vague or ambiguous queries.',
+              description: 'The search query in ENGLISH to find product details, pricing, and business information. Translate the caller question to English keywords for best results. Include relevant context from the conversation.',
             },
           },
           required: ['query'],

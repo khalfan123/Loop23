@@ -18,6 +18,7 @@
 import WebSocket from 'ws';
 import { awsBedrockService } from '../../../services/aws-bedrock';
 import { awsPollyService } from '../../../services/aws-polly';
+import { cartesiaTTSService } from '../../../services/cartesia-tts';
 import { getTwilioClient } from '../../../services/twilio-connector';
 import { generateTransferTwiML, generateHangupTwiML } from '../config/config';
 import { db } from '../../../db';
@@ -32,11 +33,14 @@ import type {
   BedrockConversationMessage,
 } from '../types';
 import { isOpenAIModel } from '../types';
-import { openaiInvokeStream, openaiInvoke } from './openai-llm.service';
+import { openaiInvokeStream, openaiInvoke, openaiInvokeStreamStructured } from './openai-llm.service';
+import { ToolRegistry, toBedrockToolSpecs, agentToolToDefinition } from '../../../services/agent-orchestration/tool-registry';
+import { converseStream, converseWithToolResults } from '../../../services/agent-orchestration/bedrock-converse';
+import type { LLMStreamEvent, StructuredToolCall, StructuredToolResult, ToolDefinition } from '../../../services/agent-orchestration/tool-registry';
 import { humanizeToSSML } from './ssml-humanizer';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { calls } from '@shared/schema';
-import { RealtimeSentimentService, type SentimentLevel } from '../../../services/realtime-sentiment.service';
+import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
@@ -176,83 +180,6 @@ export class BedrockPollyAudioBridge {
   private static readonly ENERGY_FALLOFF_RATIO = 0.3;
   private static readonly SUSTAINED_ENERGY_RATIO = 0.45;
   private static readonly ENERGY_VARIANCE_MAX_RATIO = 4.0;
-  private static readonly KB_MIN_CONFIDENCE = 0.68;
-
-  private static readonly SPOKEN_RESPONSE_SYSTEM_ADDENDUM = `
-
-PHONE RESPONSE STYLE:
-- Keep answers short and spoken-first: 1-3 sentences by default.
-- Use one brief acknowledgment only when it adds value; do not stack acknowledgments.
-- Avoid essay structure, bullet lists, and long clauses.
-- Ask at most one clarifying question when needed.
-- If policy/details are uncertain, state uncertainty clearly and offer escalation.`;
-
-  private static readonly SENTIMENT_TONE_HINTS: Record<SentimentLevel, string> = {
-    positive: '',
-    neutral: '',
-    cautious: 'Tone guidance: caller may be uncertain. Keep a calm, reassuring tone and confirm one concrete next step.',
-    negative: 'Tone guidance: caller may be frustrated. Start with a brief empathy acknowledgment, keep sentences short, and move directly to resolution.',
-    critical: 'Tone guidance: caller may be highly upset. Lead with empathy, avoid defensive or promotional language, and prioritize clear escalation or immediate resolution steps.',
-  };
-
-  private static normalizeLanguageCode(language?: string): string {
-    if (!language) return 'en';
-    const normalized = language.toLowerCase();
-    if (normalized === 'hinglish') return 'hi';
-    return normalized.split('-')[0];
-  }
-
-  private static detectPrimaryLanguageCode(text: string): string | null {
-    const trimmed = text.trim();
-    if (trimmed.length < 3) return null;
-
-    const arabicChars = (trimmed.match(/[\u0600-\u06FF]/g) || []).length;
-    const latinChars = (trimmed.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
-    const cjkChars = (trimmed.match(/[\u4e00-\u9fff]/g) || []).length;
-    const devanagariChars = (trimmed.match(/[\u0900-\u097F]/g) || []).length;
-    const totalAlpha = arabicChars + latinChars + cjkChars + devanagariChars;
-
-    if (totalAlpha < 3) return null;
-
-    if (arabicChars / totalAlpha >= 0.45) return 'ar';
-    if (cjkChars / totalAlpha >= 0.35) return 'zh';
-    if (devanagariChars / totalAlpha >= 0.35) return 'hi';
-    if (latinChars / totalAlpha >= 0.45) return 'en';
-    return null;
-  }
-
-  private static appendSpokenStylePromptIfMissing(basePrompt: string): string {
-    if (basePrompt.includes('PHONE RESPONSE STYLE:')) {
-      return basePrompt;
-    }
-    return `${basePrompt}${this.SPOKEN_RESPONSE_SYSTEM_ADDENDUM}`;
-  }
-
-  private static applySentimentAdaptiveInstruction(callSid: string, prompt: string): string {
-    const toneHint = this.getSentimentToneHint(callSid);
-    if (!toneHint) return prompt;
-    if (prompt.includes('SENTIMENT-ADAPTIVE TONE:')) return prompt;
-    return `${prompt}\n\nSENTIMENT-ADAPTIVE TONE:\n${toneHint}`;
-  }
-
-  private static estimateKbConfidenceFromPayload(kbResult: any): number {
-    if (!kbResult || kbResult.found === false) return 0;
-    const information = typeof kbResult.information === 'string' ? kbResult.information : '';
-    const relevanceMatches = [...information.matchAll(/Relevance:\s*(\d+)%/gi)];
-    if (relevanceMatches.length === 0) return 0;
-    const scores = relevanceMatches
-      .map((m) => Number(m[1]))
-      .filter((n) => Number.isFinite(n))
-      .map((n) => n / 100);
-    if (scores.length === 0) return 0;
-    const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-    return avg;
-  }
-
-  private static getSentimentToneHint(callSid: string): string {
-    const level = RealtimeSentimentService.getCurrentLevel(callSid);
-    return this.SENTIMENT_TONE_HINTS[level] || '';
-  }
 
   private static calculateMulawEnergy(chunk: Buffer): number {
     if (chunk.length === 0) return 0;
@@ -318,9 +245,10 @@ PHONE RESPONSE STYLE:
   static async createSession(params: CreateSessionParams): Promise<BedrockPollyBridgeSession> {
     const { callSid, agentConfig, twilioWs, streamSid, fromNumber, toNumber, callDirection } = params;
 
-    const ttsLabel = agentConfig.ttsProvider === 'elevenlabs' ? 'ElevenLabs' : 'AWS Polly';
+    const ttsLabel = agentConfig.ttsProvider === 'elevenlabs' ? 'ElevenLabs' : agentConfig.ttsProvider === 'cartesia' ? 'Cartesia Sonic' : 'AWS Polly';
+    const ttsVoiceId = agentConfig.ttsProvider === 'elevenlabs' ? agentConfig.elevenLabsVoiceId : agentConfig.ttsProvider === 'cartesia' ? agentConfig.cartesiaVoiceId : agentConfig.voice;
     console.log(`[BedrockPolly Bridge] Creating session for call ${callSid} (direction: ${callDirection || 'unknown'})`);
-    console.log(`[BedrockPolly Bridge] TTS: ${ttsLabel}, Voice: ${agentConfig.ttsProvider === 'elevenlabs' ? agentConfig.elevenLabsVoiceId : agentConfig.voice}, Model: ${agentConfig.model}`);
+    console.log(`[BedrockPolly Bridge] TTS: ${ttsLabel}, Voice: ${ttsVoiceId}, Model: ${agentConfig.model}`);
 
     const session: BedrockPollyBridgeSession = {
       callSid,
@@ -348,8 +276,6 @@ PHONE RESPONSE STYLE:
       ttsProvider: agentConfig.ttsProvider || 'aws_polly',
       isOutbound: callDirection === 'outbound',
       explicitEndCall: false,
-      _languageLock: this.normalizeLanguageCode(agentConfig.language),
-      _languageMismatchStreak: 0,
     };
 
     if (agentConfig.tools) {
@@ -783,23 +709,49 @@ PHONE RESPONSE STYLE:
   }
 
   private static readonly ACKNOWLEDGMENT_FILLERS: Record<string, string[]> = {
-    en: ['Mm-hmm.', 'Right.', 'Sure.', 'Got it.', 'Okay.', 'Yeah.'],
-    ar: ['حسناً.', 'تمام.', 'نعم.', 'فهمت.', 'أها.', 'ماشي.'],
-    es: ['Ajá.', 'Claro.', 'Sí.', 'Entendido.', 'Vale.', 'Bien.'],
-    fr: ['D\'accord.', 'Oui.', 'Bien sûr.', 'Compris.', 'Hmm.', 'Okay.'],
-    de: ['Ja.', 'Klar.', 'Verstehe.', 'Genau.', 'Okay.', 'Richtig.'],
-    pt: ['Certo.', 'Sim.', 'Entendi.', 'Okay.', 'Claro.', 'Tá.'],
-    hi: ['हाँ.', 'ठीक है.', 'अच्छा.', 'समझ गया.', 'बिलकुल.', 'जी.'],
+    en: ['Mm-hmm.', 'Right.', 'Yeah.', 'Okay.', 'Yep.', 'Uh-huh.'],
+    ar: ['تمام.', 'أها.', 'ماشي.', 'أوكي.', 'اه.', 'صح.'],
+    es: ['Ajá.', 'Sí.', 'Vale.', 'Okey.', 'Claro.', 'Mmm.'],
+    fr: ['Ouais.', 'Oui.', 'Okay.', 'Hmm.', 'Mmm.', 'D\'accord.'],
+    de: ['Ja.', 'Klar.', 'Okay.', 'Mmm.', 'Genau.', 'Jo.'],
+    pt: ['Sim.', 'Tá.', 'Okay.', 'Aham.', 'Certo.', 'Mmm.'],
+    hi: ['हाँ.', 'अच्छा.', 'हम्म.', 'जी.', 'ठीक.', 'ओके.'],
   };
   private static readonly THINKING_FILLERS: Record<string, string[]> = {
-    en: ['Hmm, good question.', 'Let me think about that.', 'So,', 'Well,', 'That\'s a great question.'],
-    ar: ['سؤال جيد.', 'خليني أفكر.', 'حسناً،', 'يعني،', 'سؤال ممتاز.'],
-    es: ['Buena pregunta.', 'Déjame pensar.', 'A ver,', 'Bueno,', 'Excelente pregunta.'],
-    fr: ['Bonne question.', 'Laissez-moi réfléchir.', 'Alors,', 'Eh bien,', 'Excellente question.'],
-    de: ['Gute Frage.', 'Lassen Sie mich überlegen.', 'Also,', 'Nun,', 'Sehr gute Frage.'],
-    pt: ['Boa pergunta.', 'Deixe-me pensar.', 'Então,', 'Bom,', 'Excelente pergunta.'],
-    hi: ['अच्छा सवाल.', 'मुझे सोचने दीजिए.', 'तो,', 'देखिए,', 'बहुत अच्छा सवाल.'],
+    en: ['Hmm,', 'So,', 'Well,', 'Okay so,', 'Right,', 'Let me see,'],
+    ar: ['هم،', 'يعني،', 'طيب،', 'أوكي،', 'خلني أشوف،', 'حسناً،'],
+    es: ['A ver,', 'Bueno,', 'Mmm,', 'Okay,', 'Entonces,', 'Mira,'],
+    fr: ['Alors,', 'Bon,', 'Hmm,', 'Okay,', 'Voyons,', 'Donc,'],
+    de: ['Also,', 'Hmm,', 'Okay,', 'Nun,', 'Mal sehen,', 'So,'],
+    pt: ['Então,', 'Bom,', 'Hmm,', 'Okay,', 'Deixa eu ver,', 'Olha,'],
+    hi: ['तो,', 'हम्म,', 'देखो,', 'अच्छा,', 'ओके,', 'एक सेकंड,'],
   };
+
+  private static getPollyFallbackVoice(language?: string): string {
+    const langVoiceMap: Record<string, string> = {
+      ar: 'Hala',
+      en: 'Joanna',
+      es: 'Lupe',
+      fr: 'Lea',
+      de: 'Vicki',
+      it: 'Bianca',
+      pt: 'Camila',
+      hi: 'Kajal',
+      ja: 'Kazuha',
+      ko: 'Seoyeon',
+      zh: 'Zhiyu',
+      tr: 'Burcu',
+      nl: 'Laura',
+      pl: 'Ola',
+      sv: 'Elin',
+      da: 'Sofie',
+      nb: 'Ida',
+      fi: 'Suvi',
+    };
+    if (!language) return 'Joanna';
+    const langPrefix = language.split('-')[0].toLowerCase();
+    return langVoiceMap[langPrefix] || 'Joanna';
+  }
 
   private static getRandomFiller(fillers: string[]): string {
     return fillers[Math.floor(Math.random() * fillers.length)];
@@ -807,27 +759,9 @@ PHONE RESPONSE STYLE:
 
   private static async playFillerAudio(session: BedrockPollyBridgeSession, filler: string): Promise<void> {
     try {
-      const voiceId = session.agentConfig.voice || 'Joanna';
-      let audioBuffer: Buffer;
-      if (session.ttsProvider === 'elevenlabs' && session.agentConfig.elevenLabsVoiceId) {
-        const apiKey = session.agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
-        if (apiKey) {
-          try {
-            audioBuffer = await this.synthesizeWithElevenLabs(
-              filler,
-              session.agentConfig.elevenLabsVoiceId,
-              apiKey
-            );
-          } catch (ttsErr: any) {
-            console.warn(`[BedrockPolly Bridge] ElevenLabs filler failed, falling back to Polly: ${ttsErr.message}`);
-            audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
-          }
-        } else {
-          audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
-        }
-      } else {
-        audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
-      }
+      const rawVoice = session.agentConfig.voice || 'Joanna';
+      const voiceId = rawVoice.match(/^[0-9a-f-]{36}$/i) ? this.getPollyFallbackVoice(session.agentConfig.language) : rawVoice;
+      const audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
       const mulawAudio = this.pcmToMulaw(audioBuffer);
       const chunkSize = 640;
       for (let offset = 0; offset < mulawAudio.length; offset += chunkSize) {
@@ -856,7 +790,7 @@ PHONE RESPONSE STYLE:
    * 6. Stream audio back to Twilio
    */
   private static async processUserTurn(session: BedrockPollyBridgeSession): Promise<void> {
-    const { callSid } = session;
+    const { callSid, agentConfig } = session;
 
     if (session.status === 'disconnected') {
       console.log(`[BedrockPolly Bridge] processUserTurn skipped — session disconnected for ${callSid}`);
@@ -981,8 +915,8 @@ PHONE RESPONSE STYLE:
         return;
       }
 
-      const expectedLang = this.normalizeLanguageCode(session._languageLock || session.agentConfig.language);
-      if (this.isLikelyLanguageMismatchWithLock(session, transcription)) {
+      const expectedLang = session.agentConfig.language || 'en';
+      if (this.isLanguageMismatch(transcription, expectedLang)) {
         console.log(`[BedrockPolly Bridge] Language mismatch filtered for ${callSid} (expected=${expectedLang}): "${transcription.substring(0, 100)}"`);
         session.isProcessing = false;
         return;
@@ -1057,7 +991,7 @@ PHONE RESPONSE STYLE:
       const isComplex = (hasQuestion && words.length > 8) || words.length > 15 || hasKBTools;
 
       let kbPreFetched = false;
-      const KB_PREFETCH_TIMEOUT_MS = 2000;
+      const KB_PREFETCH_TIMEOUT_MS = 5000;
 
       const kbTool = hasKBTools ? session.agentConfig.tools!.find(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base') : null;
 
@@ -1102,37 +1036,36 @@ PHONE RESPONSE STYLE:
         kbPreFetched = true;
         session._kbPreFetched = true;
         const kbResultStr = typeof kbResultHolder === 'string' ? kbResultHolder : JSON.stringify(kbResultHolder);
-        const kbConfidence = this.estimateKbConfidenceFromPayload(kbResultHolder);
 
-        if (kbResultHolder.found !== false && kbConfidence >= this.KB_MIN_CONFIDENCE) {
+        if (kbResultHolder.found !== false) {
+          const rawInfo = kbResultHolder.information || kbResultStr;
+          const kbInfo = typeof rawInfo === 'string' ? rawInfo : JSON.stringify(rawInfo);
           session.messages.push({
             role: 'user',
-            content: `[Reference information]\n${kbResultStr}`,
+            content: `[IMPORTANT — Reference data from your knowledge base for this question. Use this information to answer the caller's question directly and confidently. Do NOT say you need to look it up — you already have the answer below:]\n\n${kbInfo}`,
             timestamp: new Date(),
           });
-          console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, confidence=${kbConfidence.toFixed(2)} (threshold=${this.KB_MIN_CONFIDENCE})`);
+          console.log(`[BedrockPolly Bridge] KB context injected for ${callSid}, skipping tool call round-trip`);
         } else {
           session.messages.push({
             role: 'user',
-            content: `[No sufficiently grounded reference data found — do not invent details. Clearly state uncertainty and offer escalation.]`,
+            content: `[No matching information found in your knowledge base for this query. Answer using your general knowledge and what you know from this conversation. Try to be helpful — suggest alternatives or offer to help with something else.]`,
             timestamp: new Date(),
           });
-          console.log(`[BedrockPolly Bridge] KB grounding insufficient for ${callSid} (found=${kbResultHolder?.found}, confidence=${kbConfidence.toFixed(2)}), forcing safe fallback`);
+          console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
         }
       }
 
-      const llmProvider = isOpenAIModel(session.agentConfig.model) ? 'OpenAI' : 'Bedrock';
+      const llmProvider = isOpenAIModel(agentConfig.model) ? 'OpenAI' : 'Bedrock';
       console.log(`[BedrockPolly Bridge] Calling ${llmProvider} for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
+      const bedrockStart = Date.now();
       const responseText = await this.streamBedrockAndSpeak(session, sttMs);
 
       if (kbPreFetched) {
         session._kbPreFetched = false;
         const kbContextIdx = session.messages.findIndex(m =>
-          m.role === 'user'
-            && (m.content.startsWith('[Reference information]')
-              || m.content.startsWith('[No additional reference data')
-              || m.content.startsWith('[No sufficiently grounded reference data'))
+          m.role === 'user' && (m.content.startsWith('[IMPORTANT — Reference data') || m.content.startsWith('[No matching information found'))
         );
         if (kbContextIdx !== -1) {
           session.messages.splice(kbContextIdx, 1);
@@ -1453,31 +1386,6 @@ PHONE RESPONSE STYLE:
     return false;
   }
 
-  private static isLikelyLanguageMismatchWithLock(
-    session: BedrockPollyBridgeSession,
-    transcription: string
-  ): boolean {
-    const expectedLang = this.normalizeLanguageCode(session._languageLock || session.agentConfig.language);
-    if (!this.isLanguageMismatch(transcription, expectedLang)) {
-      session._languageMismatchStreak = 0;
-      return false;
-    }
-
-    const detected = this.detectPrimaryLanguageCode(transcription);
-    const mismatchStreak = (session._languageMismatchStreak || 0) + 1;
-    session._languageMismatchStreak = mismatchStreak;
-
-    // Single mismatch can happen from STT drift/noise; require stability before switching lock.
-    if (detected && detected !== expectedLang && mismatchStreak >= 2) {
-      session._languageLock = detected;
-      session._languageMismatchStreak = 0;
-      console.log(`[BedrockPolly Bridge] Language lock switched for ${session.callSid}: ${expectedLang} -> ${detected}`);
-      return false;
-    }
-
-    return true;
-  }
-
   private static cachedOpenAIKey: string | null = null;
   private static cachedKeyTimestamp: number = 0;
   private static readonly KEY_CACHE_TTL_MS = 300_000;
@@ -1678,6 +1586,69 @@ PHONE RESPONSE STYLE:
     return msgs;
   }
 
+  private static buildSystemPromptForStructured(session: BedrockPollyBridgeSession, includeToolInstructions: boolean): string {
+    const { agentConfig } = session;
+    const kbAlreadySearched = !!session._kbPreFetched;
+
+    let kbOverride = '';
+    if (kbAlreadySearched) {
+      kbOverride = `\n\nKB already searched — results are in the conversation above. Do not call lookup_knowledge_base or lookup_bedrock_knowledge_base again.`;
+    }
+
+    const agentLang = agentConfig.language || 'en';
+    const behaviorCfg = agentConfig.behaviorConfig || {};
+
+    let behaviorPromptAdditions = '';
+    if (behaviorCfg.maxQuestionsPerTurn) {
+      behaviorPromptAdditions += `\n- Ask a MAXIMUM of ${behaviorCfg.maxQuestionsPerTurn} questions at a time. Never overwhelm the caller.`;
+    }
+    if (behaviorCfg.useDiscourseMarkers !== false) {
+      behaviorPromptAdditions += `\n- Use casual discourse markers to sound natural (e.g., "So basically...", "Okay so here's the thing...", "Right, so...", "Yeah so...", "Alright...")`;
+    }
+    if (behaviorCfg.silenceTimeoutSec) {
+      behaviorPromptAdditions += `\n- If the caller is silent for a while, gently prompt them: "Are you still there?" or "Take your time, I'm here when you're ready."`;
+    }
+
+    const conversationStyle = `
+
+CONVERSATION STYLE:
+- Give complete, thorough answers. Do not cut yourself short or ask "would you like to know more?" after every response. Provide ALL the relevant information the caller needs.
+- If something is unclear, ask ONE specific clarifying question.
+- Do NOT start every response with acknowledgments like "yes", "okay", "sure", "right" — just answer naturally.
+- CRITICAL: After delivering your greeting, you MUST wait for the user to actually speak before responding. Do NOT assume the user has said something if you have not clearly heard their words. If there is silence or unclear noise, do NOT fabricate or guess what the user said — instead, wait patiently or say something brief like "Hello, are you there?" Do NOT respond as if the user said something negative (e.g., "I understand you don't have...") unless you clearly heard them say that.
+- LANGUAGE CONSISTENCY: You MUST maintain the SAME language throughout the ENTIRE call — greeting, conversation, AND farewell/goodbye. ${agentLang !== 'en' ? `You are configured for ${agentLang} — every single word including your closing/goodbye message when ending the call MUST be in the same language. NEVER switch to English.` : ''}${behaviorPromptAdditions}`;
+
+    const backgroundNoiseInstruction = `\n\nBACKGROUND NOISE HANDLING:\n- If you hear what seems like background conversation not directed at you, ignore it and wait for the caller to address you directly.\n- Do NOT respond to ambient noise, TV audio, or other people talking nearby.\n- Only respond when you are confident the caller is speaking directly to you.`;
+
+    let toolBehaviorInstructions = '';
+    if (includeToolInstructions) {
+      toolBehaviorInstructions = `\n\nIMPORTANT FUNCTION CALLING REQUIREMENTS:
+1. After collecting all form information from the user, you MUST call the submit_form function with the collected data. Do NOT just say "I have recorded your information" - you MUST actually call the submit_form function to save the data.
+2. After completing the main task (like form submission), say a friendly closing message and ask if there's anything else. Wait for the user to respond.
+3. Only call the end_call function AFTER the user confirms they are done or says goodbye. Do not hang up immediately after completing a task - give the user a chance to respond.
+4. When the user says goodbye or confirms they are done, say a brief farewell in the SAME language you have been speaking, THEN call the end_call function to disconnect.
+5. These function calls are MANDATORY. Data will NOT be saved unless you call the functions.`;
+    }
+
+    let languageReminder = '';
+    if (agentLang !== 'en') {
+      const langNames: Record<string, string> = { ar: 'Arabic', es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese', hi: 'Hindi', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', tr: 'Turkish', nl: 'Dutch' };
+      const langName = langNames[agentLang.split('-')[0]] || agentLang;
+      languageReminder = `\n\nREMINDER: Respond ONLY in fluent ${langName}. Do NOT use any English.`;
+    }
+
+    return agentConfig.systemPrompt + kbOverride + conversationStyle + backgroundNoiseInstruction + toolBehaviorInstructions + languageReminder;
+  }
+
+  private static getActiveToolsForSession(session: BedrockPollyBridgeSession): Array<{ name: string; description: string; parameters: Record<string, unknown>; handler?: (params: Record<string, unknown>) => Promise<unknown> }> {
+    const { agentConfig } = session;
+    const kbToolNames = new Set(['lookup_knowledge_base', 'lookup_bedrock_knowledge_base']);
+    const kbAlreadySearched = !!session._kbPreFetched;
+    return kbAlreadySearched
+      ? (agentConfig.tools || []).filter(t => !kbToolNames.has(t.name))
+      : (agentConfig.tools || []);
+  }
+
   private static async streamBedrockAndSpeak(session: BedrockPollyBridgeSession, sttMs?: number): Promise<string> {
     const { callSid, agentConfig, messages } = session;
 
@@ -1686,33 +1657,12 @@ PHONE RESPONSE STYLE:
       content: m.content,
     })));
 
-    const kbToolNames = new Set(['lookup_knowledge_base', 'lookup_bedrock_knowledge_base']);
-    const kbAlreadySearched = !!session._kbPreFetched;
-    const activeTools = kbAlreadySearched
-      ? (agentConfig.tools || []).filter(t => !kbToolNames.has(t.name))
-      : (agentConfig.tools || []);
+    const activeTools = this.getActiveToolsForSession(session);
+    const hasTools = activeTools.length > 0;
+    const useStructured = true;
+    const isBedrock = !isOpenAIModel(agentConfig.model);
 
-    let toolCallInstructions = '';
-    if (activeTools.length > 0) {
-      const toolDescriptions = activeTools.map((t) => {
-        const paramsDesc = JSON.stringify(t.parameters || {});
-        return `- ${t.name}: ${t.description}. Parameters: ${paramsDesc}`;
-      }).join('\n');
-
-      toolCallInstructions = `\n\nTools (respond with [TOOL_CALL] {"name":"<name>","params":{...}}):\n${toolDescriptions}\nCall tools after collecting info. Say closing message after task. Only end_call when user confirms done.`;
-    }
-
-    let kbOverride = '';
-    if (kbAlreadySearched) {
-      kbOverride = `\n\nKB already searched — results are in the conversation above. Do not call lookup_knowledge_base or lookup_bedrock_knowledge_base again.`;
-    }
-
-    const systemPrompt = this.applySentimentAdaptiveInstruction(
-      callSid,
-      this.appendSpokenStylePromptIfMissing(
-        agentConfig.systemPrompt + kbOverride + toolCallInstructions
-      )
-    );
+    const systemPrompt = this.buildSystemPromptForStructured(session, hasTools);
 
     if (session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid) {
       session.twilioWs.send(JSON.stringify({
@@ -1722,44 +1672,104 @@ PHONE RESPONSE STYLE:
     }
 
     const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt);
-    const provider = isOpenAIModel(agentConfig.model) ? 'OpenAI' : 'Bedrock';
-    console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: ${provider} model=${agentConfig.model}, adaptive maxTokens=${adaptiveTokens}, messages=${bedrockMessages.length}`);
+    const provider = isBedrock ? 'Bedrock/Converse' : 'OpenAI';
+    console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: ${provider} model=${agentConfig.model}, adaptive maxTokens=${adaptiveTokens}, messages=${bedrockMessages.length}, tools=${activeTools.length}, structured=${useStructured}`);
 
     try {
       let fullText = '';
       let sentenceBuffer = '';
       let sentencesSent = 0;
-      let toolCallDetected = false;
       let pendingSynthesis: Promise<void> | null = null;
       const startTime = Date.now();
       let firstTokenTime = 0;
       let firstTtsStartTime = 0;
       let firstTtsAudioTime = 0;
+      const collectedToolCalls: StructuredToolCall[] = [];
 
       bargeInFlags.set(callSid, false);
       bargeInAccum.set(callSid, 0);
 
       let primaryModel = agentConfig.model;
 
-      const consumeStream = async (stream: AsyncGenerator<string>) => {
-        let lastStreamLog = 0;
-        for await (const token of stream) {
-          if (!firstTokenTime) {
-            firstTokenTime = Date.now();
+      const synthesizeSentenceFragment = async (sentence: string) => {
+        if (sentence.length < 3) return;
+        if (pendingSynthesis) {
+          await pendingSynthesis;
+          pendingSynthesis = null;
+        }
+        sentencesSent++;
+        if (sentencesSent === 1) {
+          firstTtsStartTime = Date.now();
+          const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
+          console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
+        }
+        pendingSynthesis = this.synthesizeAndSend(session, sentence).then(() => {
+          if (!firstTtsAudioTime) {
+            firstTtsAudioTime = Date.now();
           }
+        });
+      };
+
+      const consumeStructuredStream = async (eventStream: AsyncGenerator<LLMStreamEvent>) => {
+        let lastStreamLog = 0;
+        for await (const event of eventStream) {
+          if (event.type === 'text') {
+            if (!firstTokenTime) firstTokenTime = Date.now();
+            fullText += event.text;
+            sentenceBuffer += event.text;
+
+            const now = Date.now();
+            if (now - (lastStreamLog || startTime) >= 3000) {
+              lastStreamLog = now;
+              console.log(`[BedrockPolly Bridge] Stream progress for ${callSid}: ${now - startTime}ms, ${fullText.length} chars`);
+            }
+
+            if (bargeInFlags.get(callSid) && sentencesSent > 0) {
+              console.log(`[BedrockPolly Bridge] Barge-in during streaming for ${callSid} (after ${sentencesSent} segments)`);
+              break;
+            }
+            if (session.status === 'disconnected') break;
+
+            const useEager = sentencesSent === 0;
+            const shouldSynth = useEager
+              ? (sentenceBuffer.length >= 12 && this.splitSentences(sentenceBuffer, true).length > 1)
+              : this.splitSentences(sentenceBuffer, false).length > 1;
+
+            if (shouldSynth) {
+              const sentences = this.splitSentences(sentenceBuffer, useEager);
+              for (let i = 0; i < sentences.length - 1; i++) {
+                await synthesizeSentenceFragment(sentences[i]);
+                if (i < sentences.length - 2 && pendingSynthesis) {
+                  await pendingSynthesis;
+                  pendingSynthesis = null;
+                }
+                if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
+              }
+              sentenceBuffer = sentences[sentences.length - 1];
+            }
+          } else if (event.type === 'tool_call') {
+            console.log(`[BedrockPolly Bridge] Structured tool_call received: ${event.toolCall.name} for ${callSid}`);
+            collectedToolCalls.push(event.toolCall);
+          } else if (event.type === 'done') {
+            console.log(`[BedrockPolly Bridge] Stream done: stopReason=${event.stopReason}, inputTokens=${event.inputTokens}, outputTokens=${event.outputTokens}`);
+          }
+        }
+      };
+
+      const consumeLegacyStream = async (stream: AsyncGenerator<string>) => {
+        let lastStreamLog = 0;
+        let toolCallDetected = false;
+        for await (const token of stream) {
+          if (!firstTokenTime) firstTokenTime = Date.now();
           fullText += token;
 
           const now = Date.now();
           if (now - (lastStreamLog || startTime) >= 3000) {
             lastStreamLog = now;
-            const elapsed = now - startTime;
-            console.log(`[BedrockPolly Bridge] Stream progress for ${callSid}: ${elapsed}ms, ${fullText.length} chars, preview="${fullText.slice(0, 50).replace(/\n/g, ' ')}"`);
+            console.log(`[BedrockPolly Bridge] Stream progress for ${callSid}: ${now - startTime}ms, ${fullText.length} chars`);
           }
 
-          if (toolCallDetected) {
-            continue;
-          }
-
+          if (toolCallDetected) continue;
           sentenceBuffer += token;
 
           if (sentenceBuffer.includes('[TOOL_CALL]')) {
@@ -1767,11 +1777,7 @@ PHONE RESPONSE STYLE:
             continue;
           }
 
-          if (bargeInFlags.get(callSid) && sentencesSent > 0) {
-            console.log(`[BedrockPolly Bridge] Barge-in during streaming for ${callSid} (after ${sentencesSent} segments)`);
-            break;
-          }
-
+          if (bargeInFlags.get(callSid) && sentencesSent > 0) break;
           if (session.status === 'disconnected') break;
 
           const useEager = sentencesSent === 0;
@@ -1782,46 +1788,27 @@ PHONE RESPONSE STYLE:
           if (shouldSynth) {
             const sentences = this.splitSentences(sentenceBuffer, useEager);
             for (let i = 0; i < sentences.length - 1; i++) {
-              const sentence = sentences[i];
-              if (sentence.length < 3) continue;
-
-              if (pendingSynthesis) {
+              await synthesizeSentenceFragment(sentences[i]);
+              if (i < sentences.length - 2 && pendingSynthesis) {
                 await pendingSynthesis;
                 pendingSynthesis = null;
               }
-
-              sentencesSent++;
-              if (sentencesSent === 1) {
-                firstTtsStartTime = Date.now();
-                const llmFirstMs = firstTokenTime ? firstTokenTime - startTime : 0;
-                console.log(`[BedrockPolly Bridge] First fragment ready for ${callSid} (llm_first=${llmFirstMs}ms): "${sentence.substring(0, 80)}"`);
-              }
-
-              pendingSynthesis = this.synthesizeAndSend(session, this.applyPhoneSpeechStyle(sentence)).then(() => {
-                if (!firstTtsAudioTime) {
-                  firstTtsAudioTime = Date.now();
-                }
-              });
-
-              if (i < sentences.length - 2) {
-                await pendingSynthesis;
-                pendingSynthesis = null;
-              }
-
               if (bargeInFlags.get(callSid) || session.status === 'disconnected') break;
             }
             sentenceBuffer = sentences[sentences.length - 1];
           }
         }
+        return toolCallDetected;
       };
 
-      const openaiToolDefs = isOpenAIModel(primaryModel) && activeTools.length > 0
-        ? activeTools.map(t => ({ name: t.name, description: t.description, parameters: t.parameters }))
-        : undefined;
-
-      const createLLMStream = (model: string) => {
-        if (isOpenAIModel(model)) {
-          return openaiInvokeStream({
+      const createStructuredStream = (model: string): AsyncGenerator<LLMStreamEvent> | null => {
+        if (isOpenAIModel(model) && hasTools) {
+          const openaiToolDefs = activeTools.map(t => ({
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters,
+          }));
+          return openaiInvokeStreamStructured({
             model,
             messages: bedrockMessages,
             systemPrompt,
@@ -1830,28 +1817,77 @@ PHONE RESPONSE STYLE:
             tools: openaiToolDefs,
           });
         }
+
+        if (isBedrock) {
+          const toolDefs: ToolDefinition[] = hasTools
+            ? activeTools
+                .map(t => agentToolToDefinition(t))
+                .filter((d): d is ToolDefinition => d !== null)
+            : [];
+          const bedrockToolSpecs = toolDefs.length > 0 ? toBedrockToolSpecs(toolDefs) : undefined;
+
+          return converseStream({
+            model,
+            messages: bedrockMessages as Array<{ role: 'user' | 'assistant'; content: string }>,
+            systemPrompt,
+            temperature: 0.3,
+            maxTokens: adaptiveTokens,
+            tools: bedrockToolSpecs,
+          });
+        }
+
+        return null;
+      };
+
+      const legacyToolCallMarkerClause = hasTools && !isOpenAIModel(primaryModel)
+        ? `\n\nTOOL CALL FORMAT (LEGACY FALLBACK): When you need to call a tool, output [TOOL_CALL] followed by a JSON object with "name" and "params" keys. Example: [TOOL_CALL]{"name":"tool_name","params":{"key":"value"}}`
+        : '';
+
+      const createLegacyStream = (model: string): AsyncGenerator<string> => {
+        const legacyPrompt = systemPrompt + legacyToolCallMarkerClause;
+        if (isOpenAIModel(model)) {
+          const openaiToolDefs = hasTools
+            ? activeTools.map(t => ({ name: t.name, description: t.description, parameters: t.parameters }))
+            : undefined;
+          return openaiInvokeStream({
+            model,
+            messages: bedrockMessages,
+            systemPrompt: legacyPrompt,
+            temperature: 0.3,
+            maxTokens: adaptiveTokens,
+            tools: openaiToolDefs,
+          });
+        }
         return awsBedrockService.invokeStream({
           model,
           messages: bedrockMessages,
-          systemPrompt,
+          systemPrompt: legacyPrompt,
           temperature: 0.3,
           maxTokens: adaptiveTokens,
         });
       };
 
+      let usedLegacyToolCallDetection = false;
+
       try {
-        const stream = createLLMStream(primaryModel);
-        await consumeStream(stream);
+        const structuredStream = createStructuredStream(primaryModel);
+        if (structuredStream) {
+          await consumeStructuredStream(structuredStream);
+        } else {
+          const legacyStream = createLegacyStream(primaryModel);
+          usedLegacyToolCallDetection = await consumeLegacyStream(legacyStream);
+        }
       } catch (streamErr: any) {
-        console.warn(`[BedrockPolly Bridge] Stream failed for ${callSid}: ${streamErr.message}. Retrying...`);
+        console.warn(`[BedrockPolly Bridge] Stream failed for ${callSid}: ${streamErr.message}. Retrying with legacy...`);
         fullText = '';
         sentenceBuffer = '';
         sentencesSent = 0;
         firstTokenTime = 0;
+        collectedToolCalls.length = 0;
         const retryModel = isOpenAIModel(primaryModel) ? 'gpt-4o-mini' : 'claude-sonnet-4-6';
         try {
-          const retryStream = createLLMStream(retryModel);
-          await consumeStream(retryStream);
+          const retryStream = createLegacyStream(retryModel);
+          usedLegacyToolCallDetection = await consumeLegacyStream(retryStream);
         } catch (retryErr: any) {
           console.error(`[BedrockPolly Bridge] Retry also failed for ${callSid}: ${retryErr.message}`);
         }
@@ -1861,16 +1897,19 @@ PHONE RESPONSE STYLE:
         await pendingSynthesis;
       }
 
-      if (sentencesSent === 0 && !toolCallDetected && fullText.trim().length < 5) {
+      const hasStructuredToolCalls = collectedToolCalls.length > 0;
+
+      if (sentencesSent === 0 && !hasStructuredToolCalls && !usedLegacyToolCallDetection && fullText.trim().length < 5) {
         console.warn(`[BedrockPolly Bridge] Model produced insufficient output for ${callSid}: "${fullText.trim().slice(0, 30)}". Retrying...`);
         fullText = '';
         sentenceBuffer = '';
         sentencesSent = 0;
         firstTokenTime = 0;
+        collectedToolCalls.length = 0;
         const stallRetryModel = isOpenAIModel(primaryModel) ? 'gpt-4o-mini' : 'claude-sonnet-4-6';
         try {
-          const retryStream = createLLMStream(stallRetryModel);
-          await consumeStream(retryStream);
+          const retryStream = createLegacyStream(stallRetryModel);
+          usedLegacyToolCallDetection = await consumeLegacyStream(retryStream);
           if (pendingSynthesis) {
             await pendingSynthesis;
           }
@@ -1878,7 +1917,7 @@ PHONE RESPONSE STYLE:
           console.error(`[BedrockPolly Bridge] Stall retry also failed for ${callSid}: ${retryErr.message}`);
         }
 
-        if (sentencesSent === 0) {
+        if (sentencesSent === 0 && !usedLegacyToolCallDetection) {
           const apologyMsg = session.agentConfig?.language?.startsWith('ar') ? 'عذراً، لم أتمكن من فهم ذلك. هل يمكنك إعادة المحاولة؟' : 'I\'m sorry, I had trouble processing that. Could you repeat what you said?';
           await this.synthesizeAndSend(session, apologyMsg);
           session.messages.push({ role: 'assistant', content: apologyMsg });
@@ -1887,7 +1926,11 @@ PHONE RESPONSE STYLE:
         }
       }
 
-      if (toolCallDetected) {
+      if (hasStructuredToolCalls) {
+        return this.handleStructuredToolCalls(session, fullText, collectedToolCalls, systemPrompt, sentencesSent > 0);
+      }
+
+      if (usedLegacyToolCallDetection) {
         return this.handleStreamToolCall(session, fullText, systemPrompt);
       }
 
@@ -1896,7 +1939,7 @@ PHONE RESPONSE STYLE:
         if (sentencesSent === 1) {
           firstTtsStartTime = Date.now();
         }
-        await this.synthesizeAndSend(session, this.applyPhoneSpeechStyle(sentenceBuffer.trim()));
+        await this.synthesizeAndSend(session, sentenceBuffer.trim());
         if (!firstTtsAudioTime) firstTtsAudioTime = Date.now();
       }
 
@@ -1934,6 +1977,190 @@ PHONE RESPONSE STYLE:
       await this.synthesizeAndSend(session, fallback);
       return fallback;
     }
+  }
+
+  private static buildToolRegistry(session: BedrockPollyBridgeSession): ToolRegistry {
+    const registry = new ToolRegistry();
+    const activeTools = this.getActiveToolsForSession(session);
+    for (const t of activeTools) {
+      const def = agentToolToDefinition(t);
+      if (def) registry.register(def);
+    }
+    return registry;
+  }
+
+  private static validateToolCallInput(
+    registry: ToolRegistry,
+    toolCall: StructuredToolCall
+  ): { valid: boolean; error?: string } {
+    return registry.validateInput(toolCall.name, toolCall.params);
+  }
+
+  private static async handleStructuredToolCalls(
+    session: BedrockPollyBridgeSession,
+    textBeforeTools: string,
+    toolCalls: StructuredToolCall[],
+    systemPrompt: string,
+    textAlreadySpoken = false
+  ): Promise<string> {
+    const { callSid, agentConfig } = session;
+    const isBedrock = !isOpenAIModel(agentConfig.model);
+
+    if (!textAlreadySpoken && textBeforeTools.trim().length > 2) {
+      await this.synthesizeAndSend(session, textBeforeTools.trim());
+    }
+
+    const registry = this.buildToolRegistry(session);
+    const toolResults: StructuredToolResult[] = [];
+
+    for (const tc of toolCalls) {
+      console.log(`[BedrockPolly Bridge] Executing structured tool: ${tc.name} (id=${tc.id}) for ${callSid}`);
+
+      const validation = this.validateToolCallInput(registry, tc);
+      if (!validation.valid) {
+        console.error(`[BedrockPolly Bridge] Zod validation failed for tool "${tc.name}": ${validation.error}`);
+        toolResults.push({
+          toolCallId: tc.id,
+          name: tc.name,
+          result: { error: `Invalid parameters: ${validation.error}` },
+          isError: true,
+        });
+        continue;
+      }
+
+      try {
+        const toolResultStr = await this.handleToolCalls(session, [{ name: tc.name, params: tc.params }]);
+
+        let resultObj: unknown;
+        try {
+          resultObj = JSON.parse(toolResultStr);
+        } catch {
+          resultObj = { result: toolResultStr };
+        }
+
+        toolResults.push({
+          toolCallId: tc.id,
+          name: tc.name,
+          result: resultObj,
+        });
+      } catch (execError: unknown) {
+        const errorMsg = execError instanceof Error ? execError.message : 'Tool execution failed';
+        console.error(`[BedrockPolly Bridge] Structured tool execution error for ${tc.name}:`, errorMsg);
+        callErrorLogger.logCallError({
+          engineType: 'bedrock-polly',
+          errorCategory: 'tool_execution', severity: 'error',
+          message: `Structured tool execution error: ${errorMsg.substring(0, 300)}`,
+          metadata: { callSid, toolName: tc.name },
+        });
+
+        toolResults.push({
+          toolCallId: tc.id,
+          name: tc.name,
+          result: { error: errorMsg },
+          isError: true,
+        });
+      }
+    }
+
+    if (isBedrock) {
+      try {
+        const bedrockMessages = this.ensureUserFirst(session.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })));
+
+        const activeTools = this.getActiveToolsForSession(session);
+        const toolDefs: ToolDefinition[] = activeTools
+          .map(t => agentToolToDefinition(t))
+          .filter((d): d is ToolDefinition => d !== null);
+        const bedrockToolSpecs = toolDefs.length > 0 ? toBedrockToolSpecs(toolDefs) : undefined;
+
+        const converseOptions = {
+          model: agentConfig.model,
+          messages: bedrockMessages as Array<{ role: 'user' | 'assistant'; content: string }>,
+          systemPrompt,
+          temperature: agentConfig.temperature ?? 0.7,
+          maxTokens: this.estimateMaxTokens(bedrockMessages, systemPrompt),
+          tools: bedrockToolSpecs,
+        };
+
+        const assistantContent: Array<{ text?: string; toolUse?: { toolUseId: string; name: string; input: unknown } }> = [];
+        if (textBeforeTools) {
+          assistantContent.push({ text: textBeforeTools });
+        }
+        for (const tc of toolCalls) {
+          assistantContent.push({
+            toolUse: {
+              toolUseId: tc.id,
+              name: tc.name,
+              input: tc.params,
+            },
+          });
+        }
+
+        console.log(`[BedrockPolly Bridge] Using native Bedrock tool result continuation for ${callSid} (${toolResults.length} results)`);
+        const continuationResult = await converseWithToolResults(converseOptions, assistantContent, toolResults);
+
+        const toolSummary = toolResults.map(tr => {
+          const resultStr = typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result);
+          return `Tool "${tr.name}" returned: ${resultStr}`;
+        }).join('\n');
+        session.messages.push({
+          role: 'assistant',
+          content: textBeforeTools || `[Called tools: ${toolCalls.map(tc => tc.name).join(', ')}]`,
+          timestamp: new Date(),
+        });
+        session.messages.push({
+          role: 'user',
+          content: toolSummary,
+          timestamp: new Date(),
+        });
+
+        if (continuationResult.toolCalls.length > 0) {
+          session.messages.push({
+            role: 'assistant',
+            content: continuationResult.content || `[Called tools: ${continuationResult.toolCalls.map(tc => tc.name).join(', ')}]`,
+            timestamp: new Date(),
+          });
+          return this.handleStructuredToolCalls(
+            session,
+            continuationResult.content,
+            continuationResult.toolCalls,
+            systemPrompt,
+            false
+          );
+        }
+
+        const responseText = continuationResult.content;
+        if (responseText.trim().length > 0) {
+          await this.synthesizeAndSend(session, responseText.trim());
+        }
+        session.messages.push({ role: 'assistant', content: responseText, timestamp: new Date() });
+        session.transcriptParts.push({ role: 'assistant', text: responseText, timestamp: new Date() });
+        return responseText;
+      } catch (nativeErr: unknown) {
+        const errMsg = nativeErr instanceof Error ? nativeErr.message : 'Unknown error';
+        console.warn(`[BedrockPolly Bridge] Native tool continuation failed for ${callSid}: ${errMsg}. Falling back to text-based continuation.`);
+      }
+    }
+
+    const toolSummary = toolResults.map(tr => {
+      const resultStr = typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result);
+      return `Tool "${tr.name}" returned: ${resultStr}`;
+    }).join('\n');
+
+    session.messages.push({
+      role: 'assistant',
+      content: textBeforeTools || `[Called tools: ${toolCalls.map(tc => tc.name).join(', ')}]`,
+      timestamp: new Date(),
+    });
+    session.messages.push({
+      role: 'user',
+      content: toolSummary,
+      timestamp: new Date(),
+    });
+
+    return await this.streamBedrockAndSpeak(session);
   }
 
   private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string): number {
@@ -2085,13 +2312,6 @@ PHONE RESPONSE STYLE:
     }
   }
 
-  /**
-   * Send the conversation history to AWS Bedrock and return the
-   * text response. Handles tool-use blocks by executing registered
-   * tool handlers and recursing until a final text answer is produced.
-   * NOTE: This is the non-streaming fallback. The streaming version
-   * (streamBedrockAndSpeak) is used for real-time conversation.
-   */
   private static async getBedrockResponse(session: BedrockPollyBridgeSession): Promise<string> {
     const { agentConfig, messages } = session;
 
@@ -2100,32 +2320,22 @@ PHONE RESPONSE STYLE:
       content: m.content,
     })));
 
-    let toolCallInstructions = '';
-    if (agentConfig.tools && agentConfig.tools.length > 0) {
-      const toolDescriptions = agentConfig.tools.map((t) => {
-        const paramsDesc = JSON.stringify(t.parameters || {});
-        return `- ${t.name}: ${t.description}. Parameters: ${paramsDesc}`;
-      }).join('\n');
+    const activeTools = this.getActiveToolsForSession(session);
+    const hasTools = activeTools.length > 0;
+    const isBedrock = !isOpenAIModel(agentConfig.model);
 
-      toolCallInstructions = `\n\nYou have access to the following tools. To call a tool, respond with a JSON block in this exact format on its own line:
-[TOOL_CALL] {"name": "<tool_name>", "params": {<parameters>}}
-
-Available tools:
-${toolDescriptions}
-
-IMPORTANT: After collecting all required information, you MUST call the relevant tool. Do NOT just describe what you would do — actually call the tool. After completing the main task, say a friendly closing message and ask if there's anything else. Only call end_call after the user confirms they are done.`;
-    }
-
-    const systemPrompt = agentConfig.systemPrompt + toolCallInstructions;
+    const systemPrompt = this.buildSystemPromptForStructured(session, hasTools);
 
     const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt);
     console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}, maxTokens=${adaptiveTokens}`);
 
     try {
       let content: string;
+      let structuredToolCalls: StructuredToolCall[] = [];
+
       if (isOpenAIModel(agentConfig.model)) {
-        const openaiTools = agentConfig.tools && agentConfig.tools.length > 0
-          ? agentConfig.tools.map(t => ({ name: t.name, description: t.description, parameters: t.parameters }))
+        const openaiTools = hasTools
+          ? activeTools.map(t => ({ name: t.name, description: t.description, parameters: t.parameters }))
           : undefined;
         const response = await openaiInvoke({
           model: agentConfig.model,
@@ -2138,15 +2348,103 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
         content = response.content || '';
         console.log(`[BedrockPolly Bridge] OpenAI response: ${content.length} chars, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);
       } else {
-        const response = await awsBedrockService.invoke({
+        const { converseInvoke } = await import('../../../services/agent-orchestration/bedrock-converse');
+
+        const toolDefs: ToolDefinition[] = hasTools
+          ? activeTools
+              .map(t => agentToolToDefinition(t))
+              .filter((d): d is ToolDefinition => d !== null)
+          : [];
+        const bedrockToolSpecs = toolDefs.length > 0 ? toBedrockToolSpecs(toolDefs) : undefined;
+
+        const response = await converseInvoke({
           model: agentConfig.model,
-          messages: bedrockMessages,
+          messages: bedrockMessages as Array<{ role: 'user' | 'assistant'; content: string }>,
           systemPrompt,
           temperature: agentConfig.temperature ?? 0.7,
           maxTokens: adaptiveTokens,
+          tools: bedrockToolSpecs,
         });
         content = response.content || '';
-        console.log(`[BedrockPolly Bridge] Bedrock response: ${content.length} chars, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);
+        structuredToolCalls = response.toolCalls || [];
+        console.log(`[BedrockPolly Bridge] Bedrock Converse response: ${content.length} chars, toolCalls=${structuredToolCalls.length}, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}, stopReason=${response.stopReason}`);
+      }
+
+      if (structuredToolCalls.length > 0) {
+        const registry = this.buildToolRegistry(session);
+        const toolResults: StructuredToolResult[] = [];
+        for (const tc of structuredToolCalls) {
+          const validation = registry.validateInput(tc.name, tc.params);
+          if (!validation.valid) {
+            console.error(`[BedrockPolly Bridge] Zod validation failed for tool "${tc.name}" in getBedrockResponse: ${validation.error}`);
+            toolResults.push({ toolCallId: tc.id, name: tc.name, result: { error: `Invalid parameters: ${validation.error}` }, isError: true });
+            continue;
+          }
+
+          try {
+            const toolResultStr = await this.handleToolCalls(session, [{ name: tc.name, params: tc.params }]);
+            let resultObj: unknown;
+            try { resultObj = JSON.parse(toolResultStr); } catch { resultObj = { result: toolResultStr }; }
+            toolResults.push({ toolCallId: tc.id, name: tc.name, result: resultObj });
+          } catch (execError: unknown) {
+            const errorMsg = execError instanceof Error ? execError.message : 'Tool execution failed';
+            console.error(`[BedrockPolly Bridge] Tool execution error in getBedrockResponse:`, errorMsg);
+            toolResults.push({ toolCallId: tc.id, name: tc.name, result: { error: errorMsg }, isError: true });
+          }
+        }
+
+        if (isBedrock) {
+          try {
+            const assistantContent: Array<{ text?: string; toolUse?: { toolUseId: string; name: string; input: unknown } }> = [];
+            if (content) assistantContent.push({ text: content });
+            for (const tc of structuredToolCalls) {
+              assistantContent.push({ toolUse: { toolUseId: tc.id, name: tc.name, input: tc.params } });
+            }
+
+            const continuationToolDefs: ToolDefinition[] = hasTools
+              ? activeTools.map(t => agentToolToDefinition(t)).filter((d): d is ToolDefinition => d !== null)
+              : [];
+            const continuationToolSpecs = continuationToolDefs.length > 0 ? toBedrockToolSpecs(continuationToolDefs) : undefined;
+
+            const converseOpts = {
+              model: agentConfig.model,
+              messages: bedrockMessages as Array<{ role: 'user' | 'assistant'; content: string }>,
+              systemPrompt,
+              temperature: agentConfig.temperature ?? 0.7,
+              maxTokens: adaptiveTokens,
+              tools: continuationToolSpecs,
+            };
+
+            console.log(`[BedrockPolly Bridge] Using native Bedrock tool continuation in getBedrockResponse for ${session.callSid}`);
+            const continuationResult = await converseWithToolResults(converseOpts, assistantContent, toolResults);
+
+            const toolSummary = toolResults.map(tr => {
+              const resultStr = typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result);
+              return `Tool "${tr.name}" returned: ${resultStr}`;
+            }).join('\n');
+            session.messages.push({ role: 'assistant', content: content || `[Called tools: ${structuredToolCalls.map(tc => tc.name).join(', ')}]`, timestamp: new Date() });
+            session.messages.push({ role: 'user', content: toolSummary, timestamp: new Date() });
+
+            if (continuationResult.toolCalls.length > 0) {
+              session.messages.push({ role: 'assistant', content: continuationResult.content || `[Called tools: ${continuationResult.toolCalls.map(tc => tc.name).join(', ')}]`, timestamp: new Date() });
+              return this.handleStructuredToolCalls(session, continuationResult.content, continuationResult.toolCalls, systemPrompt, false);
+            }
+
+            session.messages.push({ role: 'assistant', content: continuationResult.content, timestamp: new Date() });
+            return continuationResult.content;
+          } catch (nativeErr: unknown) {
+            const errMsg = nativeErr instanceof Error ? nativeErr.message : 'Unknown error';
+            console.warn(`[BedrockPolly Bridge] Native tool continuation failed in getBedrockResponse: ${errMsg}. Falling back to text recursion.`);
+          }
+        }
+
+        const toolSummary = toolResults.map(tr => {
+          const resultStr = typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result);
+          return `Tool "${tr.name}" returned: ${resultStr}`;
+        }).join('\n');
+        session.messages.push({ role: 'assistant', content: content || `[Called tools: ${structuredToolCalls.map(tc => tc.name).join(', ')}]`, timestamp: new Date() });
+        session.messages.push({ role: 'user', content: toolSummary, timestamp: new Date() });
+        return await this.getBedrockResponse(session);
       }
 
       if (content.indexOf('[TOOL_CALL]') !== -1) {
@@ -2155,40 +2453,16 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
         if (!toolCall) {
           console.error(`[BedrockPolly Bridge] Tool call parsing failed in getBedrockResponse for ${session.callSid}`);
-          callErrorLogger.logCallError({
-            engineType: 'bedrock-polly',
-            errorCategory: 'tool_call', severity: 'warning',
-            message: `Tool call parsing failed in getBedrockResponse`,
-            metadata: { callSid: session.callSid },
-          });
           return textBefore || this.getToolParseRecoveryPhrase(agentConfig.language);
         }
 
         try {
           const toolResult = await this.handleToolCalls(session, [toolCall]);
-
-          session.messages.push({
-            role: 'assistant',
-            content: content,
-            timestamp: new Date(),
-          });
-
-          session.messages.push({
-            role: 'user',
-            content: `Tool "${toolCall.name}" returned: ${toolResult}`,
-            timestamp: new Date(),
-          });
-
-          const followUp = await this.getBedrockResponse(session);
-          return followUp;
+          session.messages.push({ role: 'assistant', content: content, timestamp: new Date() });
+          session.messages.push({ role: 'user', content: `Tool "${toolCall.name}" returned: ${toolResult}`, timestamp: new Date() });
+          return await this.getBedrockResponse(session);
         } catch (execError: any) {
           console.error(`[BedrockPolly Bridge] Tool execution error in getBedrockResponse:`, execError.message);
-          callErrorLogger.logCallError({
-            engineType: 'bedrock-polly',
-            errorCategory: 'tool_execution', severity: 'error',
-            message: `Tool execution error in getBedrockResponse: ${execError.message?.substring(0, 300)}`,
-            metadata: { callSid: session.callSid, toolName: toolCall?.name },
-          });
           return textBefore || this.getToolParseRecoveryPhrase(agentConfig.language);
         }
       }
@@ -2323,7 +2597,15 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
       let pcmBuffer: Buffer;
 
-      if (ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId) {
+      if (ttsProvider === 'cartesia' && agentConfig.cartesiaVoiceId) {
+        try {
+          pcmBuffer = await this.synthesizeWithCartesia(synthesisText, agentConfig.cartesiaVoiceId, agentConfig.language);
+        } catch (cartesiaError: any) {
+          console.warn(`[BedrockPolly Bridge] Cartesia TTS failed for ${callSid}, falling back to Polly: ${cartesiaError.message}`);
+          const pollyFallbackVoice = (agentConfig.voice && !agentConfig.voice.match(/^[0-9a-f-]{36}$/i)) ? agentConfig.voice : this.getPollyFallbackVoice(agentConfig.language);
+          pcmBuffer = await this.synthesizeWithPolly(synthesisText, pollyFallbackVoice);
+        }
+      } else if (ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId) {
         const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
         if (!apiKey) {
           console.warn(`[BedrockPolly Bridge] No ElevenLabs API key for ${callSid}, falling back to Polly`);
@@ -2385,23 +2667,23 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     return sanitized.trim();
   }
 
-  private static applyPhoneSpeechStyle(text: string): string {
-    const trimmed = text.trim();
-    if (!trimmed) return trimmed;
-    const sentenceParts = trimmed
-      .split(/(?<=[.!?؟])\s+/)
-      .map(part => part.trim())
-      .filter(Boolean);
-    if (sentenceParts.length <= 3) return trimmed;
-    return sentenceParts.slice(0, 3).join(' ');
-  }
-
   private static ssmlBlockedVoices: Set<string> = new Set();
   private static neuralBlockedVoices: Set<string> = new Set();
 
   /**
    * Synthesize text using AWS Polly returning 8kHz PCM buffer.
    */
+  private static async synthesizeWithCartesia(text: string, voiceId: string, language?: string): Promise<Buffer> {
+    const result = await cartesiaTTSService.synthesizeSpeech({
+      text,
+      voiceId,
+      language: language || 'en',
+      sampleRate: 8000,
+      speed: 1.25,
+    });
+    return result.audioStream;
+  }
+
   private static async synthesizeWithPolly(text: string, voiceId: string): Promise<Buffer> {
     const useSSML = !this.ssmlBlockedVoices.has(voiceId);
     const useNeural = !this.neuralBlockedVoices.has(voiceId);
@@ -2529,13 +2811,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
 
       console.log(`[BedrockPolly Bridge] Tool call: ${name} for ${callSid}`);
 
-      let paramsKey = '';
-      try {
-        paramsKey = JSON.stringify(params ?? {});
-      } catch {
-        paramsKey = '[unserializable_params]';
-      }
-      const toolId = `${name}:${paramsKey}`;
+      const toolId = `${name}-${Date.now()}`;
       if (session.processedToolCallIds.has(toolId)) {
         console.log(`[BedrockPolly Bridge] Skipping duplicate tool call: ${name}`);
         continue;
@@ -2555,32 +2831,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
           continue;
         }
 
-        if (name === 'transfer_to_agent' || name.startsWith('transfer_agent_')) {
-          let targetAgentId = '';
-          if (session.agentConfig.tools) {
-            for (const tool of session.agentConfig.tools) {
-              const toolAny = tool as unknown as Record<string, unknown>;
-              if (tool.name === name) {
-                if (toolAny._transferAgentId) {
-                  targetAgentId = toolAny._transferAgentId as string;
-                } else if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).agentId) {
-                  targetAgentId = (toolAny._metadata as Record<string, unknown>).agentId as string;
-                }
-                break;
-              }
-            }
-          }
-
-          if (targetAgentId) {
-            console.log(`[BedrockPolly Bridge] Agent transfer to ${targetAgentId} for ${callSid}`);
-            results.push(`Transferring to agent ${targetAgentId}`);
-          } else {
-            results.push('Agent transfer failed — no target agent specified');
-          }
-          continue;
-        }
-
-        if (name === 'transfer_call' || (name.startsWith('transfer_') && !name.startsWith('transfer_agent_'))) {
+        if (name === 'transfer_call' || name.startsWith('transfer_')) {
           let targetNumber = (params.destination as string) || (params.phoneNumber as string) || '';
 
           if (!targetNumber && session.agentConfig.tools) {
@@ -2605,6 +2856,31 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
             });
           } else {
             results.push('Transfer failed — no destination number specified');
+          }
+          continue;
+        }
+
+        if (name === 'transfer_to_agent' || name.startsWith('transfer_agent_')) {
+          let targetAgentId = '';
+          if (session.agentConfig.tools) {
+            for (const tool of session.agentConfig.tools) {
+              const toolAny = tool as unknown as Record<string, unknown>;
+              if (tool.name === name) {
+                if (toolAny._transferAgentId) {
+                  targetAgentId = toolAny._transferAgentId as string;
+                } else if (toolAny._metadata && (toolAny._metadata as Record<string, unknown>).agentId) {
+                  targetAgentId = (toolAny._metadata as Record<string, unknown>).agentId as string;
+                }
+                break;
+              }
+            }
+          }
+
+          if (targetAgentId) {
+            console.log(`[BedrockPolly Bridge] Agent transfer to ${targetAgentId} for ${callSid}`);
+            results.push(`Transferring to agent ${targetAgentId}`);
+          } else {
+            results.push('Agent transfer failed — no target agent specified');
           }
           continue;
         }
@@ -2660,12 +2936,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
   ): Promise<void> {
     try {
       const client = await getTwilioClient();
-      const callerId = session.callDirection === 'inbound'
-        ? (session.toNumber || '')
-        : (session.fromNumber || '');
-      if (!callerId) {
-        throw new Error(`Cannot transfer call ${session.callSid}: missing callerId for ${session.callDirection || 'unknown'} call`);
-      }
+      const callerId = session.fromNumber || '';
       const twiml = generateTransferTwiML(targetNumber, callerId);
 
       await client.calls(session.callSid).update({
@@ -2912,7 +3183,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     console.log(`[BedrockPolly Bridge] Inbound greeting finished for ${callSid} — now listening`);
     lastTtsEndTime.set(callSid, Date.now());
 
-    const INBOUND_NO_RESPONSE_MS = 8000;
+    const INBOUND_NO_RESPONSE_MS = 15000;
     const INBOUND_FINAL_TIMEOUT_MS = 12000;
 
     const inboundFollowUpTimer = setTimeout(async () => {
@@ -3117,6 +3388,7 @@ IMPORTANT: After collecting all required information, you MUST call the relevant
     }
 
     this.activeSessions.delete(callSid);
+
     console.log(`[BedrockPolly Bridge] Session ended for ${callSid}: duration=${duration}s, transcript=${transcript.length} chars`);
     return { duration, transcript };
   }

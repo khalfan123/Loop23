@@ -269,7 +269,7 @@
   function createWidget() {
     var container = document.createElement('div');
     container.id = 'vw-container';
-    container.innerHTML = getWidgetHTML();
+    var parser = new DOMParser(); var doc = parser.parseFromString('<div>' + getWidgetHTML() + '</div>', 'text/html'); var parsed = doc.body.firstChild; while (parsed && parsed.firstChild) { container.appendChild(parsed.firstChild); }
     document.body.appendChild(container);
     injectStyles();
     bindEvents();
@@ -287,7 +287,7 @@
       '<div id="vw-state-idle" class="vw-state">' +
         '<div class="vw-card">' +
           '<div class="vw-avatar-wrap">' +
-            (faviconUrl ? '<img src="' + faviconUrl + '" alt="" class="vw-avatar-img">' : 
+            (faviconUrl ? '<img src="' + escapeHtml(faviconUrl) + '" alt="" class="vw-avatar-img">' : 
              '<svg class="vw-avatar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>') +
           '</div>' +
           '<button id="vw-start-btn" class="vw-start-btn" ' + (!config.isAvailable ? 'disabled' : '') + '>' +
@@ -309,7 +309,7 @@
             '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="vw-powered">' + t('poweredBy') + ' <a href="' + getBaseUrl() + '" target="_blank" class="vw-brand-link">' + appName + '</a></div>' +
+        '<div class="vw-powered">' + t('poweredBy') + ' <a href="' + getBaseUrl() + '" target="_blank" class="vw-brand-link">' + escapeHtml(appName) + '</a></div>' +
       '</div>' +
       '<div id="vw-state-terms" class="vw-state" style="display:none">' +
         '<div class="vw-card vw-terms-card">' +
@@ -323,12 +323,12 @@
             '<button id="vw-terms-accept" class="vw-terms-btn vw-terms-submit" disabled>' + t('continue') + '</button>' +
           '</div>' +
         '</div>' +
-        '<div class="vw-powered">' + t('poweredBy') + ' <a href="' + getBaseUrl() + '" target="_blank" class="vw-brand-link">' + appName + '</a></div>' +
+        '<div class="vw-powered">' + t('poweredBy') + ' <a href="' + getBaseUrl() + '" target="_blank" class="vw-brand-link">' + escapeHtml(appName) + '</a></div>' +
       '</div>' +
       '<div id="vw-state-connecting" class="vw-state" style="display:none">' +
         '<div class="vw-card">' +
           '<div class="vw-avatar-wrap vw-spinning">' +
-            (faviconUrl ? '<img src="' + faviconUrl + '" alt="" class="vw-avatar-img">' : 
+            (faviconUrl ? '<img src="' + escapeHtml(faviconUrl) + '" alt="" class="vw-avatar-img">' : 
              '<svg class="vw-avatar-icon vw-loader" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>') +
           '</div>' +
           '<span class="vw-connecting-text">' + t('connecting') + '</span>' +
@@ -336,12 +336,12 @@
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
           '</button>' +
         '</div>' +
-        '<div class="vw-powered">' + t('poweredBy') + ' <a href="' + getBaseUrl() + '" target="_blank" class="vw-brand-link">' + appName + '</a></div>' +
+        '<div class="vw-powered">' + t('poweredBy') + ' <a href="' + getBaseUrl() + '" target="_blank" class="vw-brand-link">' + escapeHtml(appName) + '</a></div>' +
       '</div>' +
       '<div id="vw-state-active" class="vw-state" style="display:none">' +
         '<div class="vw-card">' +
           '<div class="vw-avatar-wrap vw-avatar-active">' +
-            (faviconUrl ? '<img src="' + faviconUrl + '" alt="" class="vw-avatar-img-lg">' : 
+            (faviconUrl ? '<img src="' + escapeHtml(faviconUrl) + '" alt="" class="vw-avatar-img-lg">' : 
              '<svg class="vw-avatar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></svg>') +
           '</div>' +
           '<div id="vw-timer-pill" class="vw-timer-pill">' +
@@ -356,7 +356,7 @@
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg>' +
           '</button>' +
         '</div>' +
-        '<div class="vw-powered">' + t('poweredBy') + ' <a href="' + getBaseUrl() + '" target="_blank" class="vw-brand-link">' + appName + '</a></div>' +
+        '<div class="vw-powered">' + t('poweredBy') + ' <a href="' + getBaseUrl() + '" target="_blank" class="vw-brand-link">' + escapeHtml(appName) + '</a></div>' +
       '</div>' +
     '</div>';
   }
@@ -508,7 +508,7 @@
     
     var termsLabel = document.querySelector('.vw-terms-label span');
     if (termsLabel) {
-      termsLabel.innerHTML = t('termsAgree') + ' <a href="' + getBaseUrl() + '/terms" target="_blank" class="vw-terms-link">' + t('terms') + '</a>';
+      termsLabel.textContent = ''; var agreeText = document.createTextNode(t('termsAgree') + ' '); var termsLink = document.createElement('a'); termsLink.href = getBaseUrl() + '/terms'; termsLink.target = '_blank'; termsLink.className = 'vw-terms-link'; termsLink.textContent = t('terms'); termsLabel.appendChild(agreeText); termsLabel.appendChild(termsLink);
     }
     
     var cancelBtn = document.getElementById('vw-terms-cancel');
@@ -520,7 +520,7 @@
     var poweredBys = document.querySelectorAll('.vw-powered');
     var appName = (config && config.platformName) ? config.platformName : (brandingData?.app_name || 'AgentLabs');
     poweredBys.forEach(function(el) {
-      el.innerHTML = t('poweredBy') + ' <span class="vw-brand">' + escapeHtml(appName) + '</span>';
+      el.textContent = ''; var pt = document.createTextNode(t('poweredBy') + ' '); var bs = document.createElement('span'); bs.className = 'vw-brand'; bs.textContent = appName; el.appendChild(pt); el.appendChild(bs);
     });
   }
   

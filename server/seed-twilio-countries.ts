@@ -624,8 +624,8 @@ export async function seedTwilioCountries() {
   }
 }
 
-// Allow running standalone
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Allow running standalone (only when invoked directly, not from app bundle)
+if (process.env.RUN_SEED === 'twilio-countries') {
   seedTwilioCountries()
     .then(() => {
       console.log("✅ Twilio Countries seeding complete!");

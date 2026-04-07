@@ -266,44 +266,5 @@ export function createTemplateRoutes(ctx: RouteContext): Router {
     }
   });
 
-  // Admin: Create system template
-  router.post("/api/admin/prompt-templates/system", authenticateToken, requireRole("admin"), async (req: AuthRequest, res: Response) => {
-    try {
-      const { 
-        name, 
-        description, 
-        category, 
-        systemPrompt, 
-        firstMessage, 
-        variables,
-        suggestedVoiceTone,
-        suggestedPersonality
-      } = req.body;
-
-      if (!name || !systemPrompt) {
-        return res.status(400).json({ error: "Name and system prompt are required" });
-      }
-
-      const template = await storage.createPromptTemplate({
-        userId: null,
-        name,
-        description: description || null,
-        category: category || 'general',
-        systemPrompt,
-        firstMessage: firstMessage || null,
-        variables: variables || null,
-        suggestedVoiceTone: suggestedVoiceTone || null,
-        suggestedPersonality: suggestedPersonality || null,
-        isSystemTemplate: true,
-        isPublic: true,
-      });
-
-      res.json(template);
-    } catch (error: any) {
-      console.error("Create system prompt template error:", error);
-      res.status(500).json({ error: "Failed to create system prompt template" });
-    }
-  });
-
   return router;
 }

@@ -7,7 +7,7 @@ import {
   Settings, LogOut, Coins, Menu, ChevronDown,
   ChevronLeft, ChevronRight, BarChart3, Users, Phone,
   Building2, PhoneIncoming, PhoneOutgoing,
-  Bot, BookOpen, Calendar, FileText, Home, Plus, Plug, Webhook, Zap, Mountain,
+  Bot, BookOpen, Calendar, FileText, Home, Plus, Plug, Webhook, Zap, Mountain, Cpu, Mic,
   type LucideIcon
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -79,7 +79,7 @@ export function useSidebarState() {
 }
 
 interface HybridNavigationProps {
-  variant?: 'user' | 'admin' | 'team' | 'admin-team';
+  variant?: 'user' | 'team';
   showNotifications?: boolean;
   children: React.ReactNode;
 }
@@ -118,31 +118,22 @@ export function HybridNavigation({
 
   const setupItems: NavItem[] = [
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers", icon: Phone },
-    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents", icon: Bot },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base", icon: BookOpen },
     { title: t('nav.inbound', 'Inbound'), url: "/app/deprock", icon: PhoneIncoming },
-    { title: t('nav.outbound', 'Outbound'), url: "/app/campaigns", icon: PhoneOutgoing },
-    { title: 'Call Simulator', url: "/app/call-simulator", icon: PhoneIncoming },
+    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents", icon: Bot },
     { title: t('nav.integrations', 'Integrations'), url: "/app/integrations", icon: Plug },
   ];
 
-  const adminSetupItems: NavItem[] = [
-    { title: 'RockCenter', url: "/admin/rock-center", icon: Zap },
-  ];
-
   const manageItems: NavItem[] = [
-    { title: t('nav.leads', 'Leads'), url: "/app/crm", icon: Users },
-    { title: t('nav.forms', 'Forms'), url: "/app/forms", icon: FileText },
-    { title: t('nav.appointments'), url: "/app/appointments", icon: Calendar },
+    { title: t('nav.operations', 'Operations'), url: "/app/ops", icon: Cpu },
+    { title: t('nav.voices', 'Voices'), url: "/app/voices", icon: Mic },
   ];
 
   const settingsItems: NavItem[] = [
     { title: t('nav.settings', 'Settings'), url: "/app/settings", icon: Settings },
   ];
 
-  const navSections: NavSection[] = variant === 'admin' || variant === 'admin-team' ? [
-    { label: 'Tools', items: adminSetupItems },
-  ] : [
+  const navSections: NavSection[] = [
     { label: t('sidebar.setup', 'Setup'), items: setupItems },
     { label: t('sidebar.manage', 'Manage'), items: manageItems },
     { label: '', items: settingsItems },
@@ -181,7 +172,7 @@ export function HybridNavigation({
   };
 
   const isActive = (url: string) => {
-    if (url === '/app' || url === '/admin') {
+    if (url === '/app') {
       return location === url || location === url + '/dashboard';
     }
     if (url === '/app/settings') {
@@ -234,7 +225,7 @@ export function HybridNavigation({
       {/* Navigation Content with Logo merged in */}
       <div className="flex-1 min-h-0 px-3 overflow-y-auto">
         <Link 
-          href={variant === 'admin' || variant === 'admin-team' ? "/admin" : "/app"}
+          href="/app"
           className="flex flex-col items-center py-3"
           data-testid="link-logo-sidebar"
         >
@@ -257,12 +248,6 @@ export function HybridNavigation({
           <NavItemComponent key={item.url} item={item} showLabel={true} />
         ))}
 
-        {(variant === 'admin' || variant === 'admin-team') && (
-          <div className="pt-1">
-            <NavItemComponent item={returnToAppItem} showLabel={true} />
-          </div>
-        )}
-
         {navSections.map((section, idx) => (
           <div key={section.label || idx} className="pt-3">
             {section.label && (
@@ -278,17 +263,6 @@ export function HybridNavigation({
           </div>
         ))}
 
-        {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-          <div className="pt-3">
-            <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
-              {t('nav.administration')}
-            </div>
-            <NavItemComponent 
-              item={{ title: t('nav.adminDashboard'), url: "/admin", icon: Settings }} 
-              showLabel={true} 
-            />
-          </div>
-        )}
         </div>
       </div>
 
@@ -396,17 +370,6 @@ export function HybridNavigation({
             </div>
           ))}
 
-          {user.role === 'admin' && (variant === 'user' || variant === 'team') && (
-            <div className="pt-3">
-              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-foreground/40">
-                {t('nav.administration')}
-              </div>
-              <NavItemComponent 
-                item={{ title: t('nav.adminDashboard'), url: "/admin" }} 
-                showLabel={true} 
-              />
-            </div>
-          )}
         </div>
 
         <div className="flex-shrink-0 p-3 border-t space-y-2" style={{ borderColor: 'var(--glass-border)' }}>
@@ -548,14 +511,6 @@ export function UserHybridNavigation({ children }: { children: React.ReactNode }
   return <HybridNavigation variant="user" showNotifications={true}>{children}</HybridNavigation>;
 }
 
-export function AdminHybridNavigation({ children }: { children: React.ReactNode }) {
-  return <HybridNavigation variant="admin" showNotifications={true}>{children}</HybridNavigation>;
-}
-
 export function TeamHybridNavigation({ children }: { children: React.ReactNode }) {
   return <HybridNavigation variant="team" showNotifications={false}>{children}</HybridNavigation>;
-}
-
-export function AdminTeamHybridNavigation({ children }: { children: React.ReactNode }) {
-  return <HybridNavigation variant="admin-team" showNotifications={false}>{children}</HybridNavigation>;
 }

@@ -178,7 +178,7 @@ export interface AgentTool {
   handler: (params: Record<string, unknown>) => Promise<unknown>;
 }
 
-export type TtsProvider = 'aws_polly' | 'elevenlabs';
+export type TtsProvider = 'aws_polly' | 'elevenlabs' | 'cartesia';
 
 /**
  * Agent configuration for a Bedrock+Polly call session.
@@ -197,6 +197,7 @@ export interface AgentConfig {
   ttsProvider?: TtsProvider;
   elevenLabsVoiceId?: string;
   elevenLabsApiKey?: string;
+  cartesiaVoiceId?: string;
   agentName?: string;
   language?: string;
   behaviorConfig?: Record<string, any>;
@@ -352,8 +353,6 @@ export interface BedrockPollyBridgeSession {
   _mediaLogThrottle?: number;
   _kbPreFetched?: boolean;
   _retryAttempted?: boolean;
-  _languageLock?: string;
-  _languageMismatchStreak?: number;
 }
 
 /**

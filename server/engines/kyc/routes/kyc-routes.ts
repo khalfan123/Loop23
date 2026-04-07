@@ -54,8 +54,7 @@ const upload = multer({
 
 export function registerKycRoutes(
   router: Router,
-  requireAuth: (req: any, res: Response, next: any) => void,
-  requireAdmin: (req: any, res: Response, next: any) => void
+  requireAuth: (req: any, res: Response, next: any) => void
 ): void {
   
   // ============================================================
@@ -167,21 +166,18 @@ export function registerKycRoutes(
     try {
       const { provider } = req.params;
       
-      if (provider !== 'twilio' && provider !== 'plivo') {
-        return res.status(400).json({ error: 'Invalid provider. Must be twilio or plivo.' });
+      if (provider !== 'twilio') {
+        return res.status(400).json({ error: 'Invalid provider. Must be twilio.' });
       }
 
-      // Get KYC settings from database
       const { db } = await import('../../../db');
       const { globalSettings } = await import('@shared/schema');
       const { eq } = await import('drizzle-orm');
       
       const twilioSetting = await db.select().from(globalSettings).where(eq(globalSettings.key, 'twilio_kyc_required')).limit(1);
-      const plivoSetting = await db.select().from(globalSettings).where(eq(globalSettings.key, 'plivo_kyc_required')).limit(1);
       
       const kycSettings: KycSettings = {
         twilioKycRequired: (twilioSetting[0]?.value as any) === true || twilioSetting[0]?.value === 'true',
-        plivoKycRequired: (plivoSetting[0]?.value as any) === true || plivoSetting[0]?.value === 'true',
       };
 
       const result = await KycService.canPurchasePhoneNumbers(req.userId!, provider, kycSettings);
@@ -192,133 +188,4 @@ export function registerKycRoutes(
     }
   });
 
-  // ============================================================
-  // ADMIN ENDPOINTS
-  // ============================================================
-
-  /**
-   * GET /api/admin/users/:userId/kyc
-   * Get a user's KYC status and documents (admin)
-   */
-  router.get('/api/admin/users/:userId/kyc', requireAdmin, async (req: any, res: Response) => {
-    try {
-      const { userId } = req.params;
-      const status = await KycService.getUserKycStatus(userId);
-      res.json(status);
-    } catch (error: any) {
-      console.error('[KYC] Error fetching user KYC:', error);
-      res.status(500).json({ error: 'Failed to fetch user KYC' });
-    }
-  });
-
-  /**
-   * GET /api/admin/users/:userId/kyc/documents
-   * Get a user's KYC documents (admin)
-   */
-  router.get('/api/admin/users/:userId/kyc/documents', requireAdmin, async (req: any, res: Response) => {
-    try {
-      const { userId } = req.params;
-      const documents = await KycService.getUserDocuments(userId);
-      res.json(documents);
-    } catch (error: any) {
-      console.error('[KYC] Error fetching user KYC documents:', error);
-      res.status(500).json({ error: 'Failed to fetch user KYC documents' });
-    }
-  });
-
-  /**
-   * POST /api/admin/users/:userId/kyc/approve
-   * Approve a user's KYC (admin)
-   */
-  router.post('/api/admin/users/:userId/kyc/approve', requireAdmin, async (req: any, res: Response) => {
-    try {
-      const { userId } = req.params;
-      const status = await KycService.approveKyc(userId);
-      res.json(status);
-    } catch (error: any) {
-      console.error('[KYC] Error approving KYC:', error);
-      res.status(400).json({ error: error.message || 'Failed to approve KYC' });
-    }
-  });
-
-  /**
-   * POST /api/admin/users/:userId/kyc/reject
-   * Reject a user's KYC (admin)
-   */
-  router.post('/api/admin/users/:userId/kyc/reject', requireAdmin, async (req: any, res: Response) => {
-    try {
-      const { userId } = req.params;
-      const { reason } = req.body;
-      const status = await KycService.rejectKyc(userId, reason);
-      res.json(status);
-    } catch (error: any) {
-      console.error('[KYC] Error rejecting KYC:', error);
-      res.status(400).json({ error: error.message || 'Failed to reject KYC' });
-    }
-  });
-
-  /**
-   * GET /api/kyc/document/:userId/:filename
-   * Serve KYC document file (admin only)
-   */
-  router.get('/api/kyc/document/:userId/:filename', requireAdmin, async (req: any, res: Response) => {
-    try {
-      const { userId, filename } = req.params;
-      
-      // Validate no path traversal in params
-      if (userId.includes('..') || filename.includes('..') || userId.includes('/') || filename.includes('/')) {
-        return res.status(400).json({ error: 'Invalid path' });
-      }
-      
-      const baseDir = path.resolve(process.cwd(), KycEngineConfig.storagePath);
-      const filePath = path.resolve(baseDir, userId, filename);
-      
-      // Ensure resolved path is within base directory (prevent traversal)
-      if (!filePath.startsWith(baseDir)) {
-        return res.status(400).json({ error: 'Invalid path' });
-      }
-      
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'Document not found' });
-      }
-
-      res.sendFile(filePath);
-    } catch (error: any) {
-      console.error('[KYC] Error serving document:', error);
-      res.status(500).json({ error: 'Failed to serve document' });
-    }
-  });
-
-  /**
-   * GET /api/admin/kyc/documents/:documentId/download
-   * Download KYC document by ID (admin only)
-   */
-  router.get('/api/admin/kyc/documents/:documentId/download', requireAdmin, async (req: any, res: Response) => {
-    try {
-      const { documentId } = req.params;
-      
-      const document = await KycService.getDocumentById(documentId);
-      if (!document) {
-        return res.status(404).json({ error: 'Document not found' });
-      }
-
-      const baseDir = path.resolve(process.cwd(), KycEngineConfig.storagePath);
-      const filePath = path.resolve(process.cwd(), document.filePath);
-      
-      // Ensure resolved path is within base directory (prevent traversal)
-      if (!filePath.startsWith(baseDir)) {
-        console.error(`[KYC] Path traversal attempt detected: ${document.filePath}`);
-        return res.status(400).json({ error: 'Invalid document path' });
-      }
-      
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'Document file not found' });
-      }
-
-      res.sendFile(filePath);
-    } catch (error: any) {
-      console.error('[KYC] Error downloading document:', error);
-      res.status(500).json({ error: 'Failed to download document' });
-    }
-  });
 }

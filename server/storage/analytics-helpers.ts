@@ -2,7 +2,7 @@
 import { db } from "../db";
 import { 
   users, calls, campaigns, contacts, phoneNumbers, knowledgeBase,
-  userSubscriptions, plans, incomingConnections, twilioOpenaiCalls, plivoCalls,
+  userSubscriptions, plans, incomingConnections, twilioOpenaiCalls,
   appointments, forms, formSubmissions, webhookSubscriptions, promptTemplates,
   type Call, type User, type Campaign
 } from "@shared/schema";
@@ -480,7 +480,7 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
       status: toc.status,
       callDirection: toc.callDirection,
       duration: toc.duration,
-      classification: null,
+      classification: toc.classification,
       sentiment: toc.sentiment,
       createdAt: toc.createdAt,
       metadata: toc.metadata,
@@ -488,36 +488,6 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
     } as Call;
     if (toc.campaignId && toc.contactId) {
       const dupIdx = allUserCalls.findIndex(c => c.campaignId === toc.campaignId && c.contactId === toc.contactId);
-      if (dupIdx !== -1) {
-        allUserCalls[dupIdx] = engineCall;
-        continue;
-      }
-    }
-    allUserCalls.push(engineCall);
-  }
-
-  const plivoAnalyticsCallsData = await db.select()
-    .from(plivoCalls)
-    .where(and(eq(plivoCalls.userId, userId), gte(plivoCalls.createdAt, startDate)));
-
-  for (const pc of plivoAnalyticsCallsData) {
-    const engineCall = {
-      id: pc.id,
-      userId: pc.userId,
-      campaignId: pc.campaignId,
-      contactId: pc.contactId,
-      phoneNumber: pc.fromNumber,
-      status: pc.status,
-      callDirection: pc.callDirection,
-      duration: pc.duration,
-      classification: null,
-      sentiment: pc.sentiment,
-      createdAt: pc.createdAt,
-      metadata: pc.metadata,
-      incomingConnectionId: null,
-    } as Call;
-    if (pc.campaignId && pc.contactId) {
-      const dupIdx = allUserCalls.findIndex(c => c.campaignId === pc.campaignId && c.contactId === pc.contactId);
       if (dupIdx !== -1) {
         allUserCalls[dupIdx] = engineCall;
         continue;
@@ -534,8 +504,10 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
   const incomingDirections = ['incoming', 'inbound', 'bridged', 'simulcall'];
   const outgoingDirections = ['outgoing', 'outbound'];
   
-  const isIncomingCall = (c: Call): boolean => 
-    incomingDirections.includes(c.callDirection || '') || !!c.incomingConnectionId;
+  const isIncomingCall = (c: Call): boolean => {
+    if (isBatchCall(c)) return false;
+    return incomingDirections.includes(c.callDirection || '') || !!c.incomingConnectionId;
+  };
   
   const isOutgoingCall = (c: Call): boolean => {
     if (isBatchCall(c)) return false;
@@ -567,8 +539,9 @@ export async function calculateUserAnalytics(userId: string, timeRange: string =
     c.classification === 'hot' || c.classification === 'warm'
   ).length;
   
-  const totalDuration = allCalls.reduce((sum, call) => sum + (call.duration || 0), 0);
-  const avgDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
+  const callsWithDuration = allCalls.filter(c => c.duration && c.duration > 0);
+  const totalDuration = callsWithDuration.reduce((sum, call) => sum + (call.duration || 0), 0);
+  const avgDuration = callsWithDuration.length > 0 ? totalDuration / callsWithDuration.length : 0;
 
   const leadCounts = {
     hot: allCalls.filter(c => c.classification === 'hot' || c.classification === 'qualified').length,
@@ -727,7 +700,7 @@ export async function calculateDashboardData(userId: string): Promise<DashboardD
 
   const twilioOpenAICallsData = await db.select().from(twilioOpenaiCalls).where(eq(twilioOpenaiCalls.userId, userId));
   for (const toc of twilioOpenAICallsData) {
-    allUserCalls.push({
+    const engineCall = {
       id: toc.id,
       userId: toc.userId,
       campaignId: toc.campaignId,
@@ -741,26 +714,23 @@ export async function calculateDashboardData(userId: string): Promise<DashboardD
       createdAt: toc.createdAt,
       metadata: toc.metadata,
       incomingConnectionId: null,
-    } as Call);
-  }
-
-  const plivoCallsData = await db.select().from(plivoCalls).where(eq(plivoCalls.userId, userId));
-  for (const pc of plivoCallsData) {
-    allUserCalls.push({
-      id: pc.id,
-      userId: pc.userId,
-      campaignId: pc.campaignId,
-      contactId: pc.contactId,
-      phoneNumber: pc.fromNumber,
-      status: pc.status,
-      callDirection: pc.callDirection,
-      duration: pc.duration,
-      classification: pc.classification,
-      sentiment: pc.sentiment,
-      createdAt: pc.createdAt,
-      metadata: pc.metadata,
-      incomingConnectionId: null,
-    } as Call);
+    } as Call;
+    if (allUserCalls.find(c => c.id === toc.id)) {
+      continue;
+    }
+    if (toc.campaignId && toc.contactId) {
+      const tocTime = new Date(toc.createdAt).getTime();
+      const dupIdx = allUserCalls.findIndex(c => {
+        if (c.campaignId !== toc.campaignId || c.contactId !== toc.contactId) return false;
+        const cTime = new Date(c.createdAt).getTime();
+        return Math.abs(tocTime - cTime) < 5 * 60 * 1000;
+      });
+      if (dupIdx !== -1) {
+        allUserCalls[dupIdx] = engineCall;
+        continue;
+      }
+    }
+    allUserCalls.push(engineCall);
   }
 
   const incomingDirections = ['incoming', 'inbound', 'bridged', 'simulcall'];
@@ -771,8 +741,10 @@ export async function calculateDashboardData(userId: string): Promise<DashboardD
     return !!(meta?.batch_call || meta?.batchCall || meta?.batchId || meta?.batchJobId || meta?.batch_calling);
   };
 
-  const isIncomingCall = (c: Call): boolean => 
-    incomingDirections.includes(c.callDirection || '') || !!c.incomingConnectionId;
+  const isIncomingCall = (c: Call): boolean => {
+    if (isBatchCall(c)) return false;
+    return incomingDirections.includes(c.callDirection || '') || !!c.incomingConnectionId;
+  };
   
   const isOutgoingCall = (c: Call): boolean => {
     if (isBatchCall(c)) return false;

@@ -15,6 +15,13 @@
       "when": 1771315839325,
       "tag": "0001_fearless_microbe",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774556039152,
+      "tag": "0002_agent_names",
+      "breakpoints": true
     }
   ]
 }

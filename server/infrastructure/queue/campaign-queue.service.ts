@@ -25,7 +25,7 @@ export interface CampaignJob {
   id: string;
   campaignId: string;
   contactId: string;
-  engine: 'plivo' | 'twilio';
+  engine: 'twilio';
   status: 'pending' | 'processing' | 'completed' | 'failed';
   attempts: number;
   lastError?: string;
@@ -65,7 +65,7 @@ export class CampaignQueueService {
     }
   }
 
-  addJob(campaignId: string, contactId: string, engine: 'plivo' | 'twilio'): CampaignJob {
+  addJob(campaignId: string, contactId: string, engine: 'twilio'): CampaignJob {
     const queue = this.ensureQueue(campaignId);
     
     const job: CampaignJob = {
@@ -85,7 +85,7 @@ export class CampaignQueueService {
     return job;
   }
 
-  addBulkJobs(campaignId: string, contacts: { contactId: string; engine: 'plivo' | 'twilio' }[]): CampaignJob[] {
+  addBulkJobs(campaignId: string, contacts: { contactId: string; engine: 'twilio' }[]): CampaignJob[] {
     const queue = this.ensureQueue(campaignId);
     const jobs: CampaignJob[] = [];
     const startIndex = queue.jobs.length;

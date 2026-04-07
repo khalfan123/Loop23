@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next';
 import { useBranding } from "@/components/BrandingProvider";
 import { AuthStorage } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
+import { BUILD_VERSION_FULL } from "@/lib/build-version";
 import {
   Tooltip,
   TooltipContent,
@@ -151,14 +152,15 @@ export function AppSidebar() {
 
   const setupItems = [
     { title: t('nav.phoneNumbers'), url: "/app/phone-numbers" },
-    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
     { title: t('nav.knowledgeBase'), url: "/app/knowledge-base" },
+    { title: t('nav.inbound', 'Inbound'), url: "/app/deprock" },
+    { title: t('nav.aiStaff', 'AI Staff'), url: "/app/agents" },
     { title: t('nav.batchCall', 'Batch Call'), url: "/app/campaigns" },
   ];
 
   const manageItems = [
-    { title: t('nav.leads', 'Leads'), url: "/app/crm" },
-    { title: t('nav.appointments'), url: "/app/appointments" },
+    { title: t('nav.operations', 'Operations'), url: "/app/ops" },
+    { title: t('nav.voices', 'Voices'), url: "/app/voices" },
   ];
 
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -257,17 +259,12 @@ export function AppSidebar() {
             onClick={handleNavClick}
             isCollapsed={isCollapsed}
           />
+          {!isCollapsed && (
+            <div className="px-3 pt-0.5">
+              <span className="text-[10px] text-muted-foreground/40" data-testid="text-sidebar-build-below-settings">{BUILD_VERSION_FULL}</span>
+            </div>
+          )}
         </div>
-
-        {user.role === 'admin' && (
-          <NavSection
-            label={t('nav.administration')}
-            items={[{ title: t('nav.adminDashboard'), url: "/admin" }]}
-            location={location}
-            onNavClick={handleNavClick}
-            isCollapsed={isCollapsed}
-          />
-        )}
 
         {!isCollapsed && (
           <div className="mx-1 mt-2">
@@ -303,6 +300,12 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="px-3 py-2 border-t border-sidebar-border/50">
+        {!isCollapsed && (
+          <div className="px-2 pb-1 flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground/50" data-testid="text-sidebar-copyright">© 2025 B24 Payment</span>
+            <span className="text-[10px] text-muted-foreground/40" data-testid="text-sidebar-version">{BUILD_VERSION_FULL}</span>
+          </div>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button 

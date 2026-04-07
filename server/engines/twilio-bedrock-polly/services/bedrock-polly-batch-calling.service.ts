@@ -378,7 +378,7 @@ export class BedrockPollyBatchCallingService {
         contactId: contact.id,
         metadata: {
           batchCall: true,
-          contactName: `${contact.firstName} ${contact.lastName || ''}`.trim(),
+          contactName: contact.firstName || '',
           contactFirstName: contact.firstName || '',
           contactLastName: contact.lastName || '',
           contactEmail: contact.email || null,

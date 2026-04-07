@@ -1,7 +1,8 @@
 import { awsPollyService, SynthesizeSpeechOptions } from './aws-polly';
+import { cartesiaTTSService } from './cartesia-tts';
 import { Readable } from 'stream';
 
-export type VoiceProvider = 'elevenlabs' | 'aws_polly' | 'openai';
+export type VoiceProvider = 'elevenlabs' | 'aws_polly' | 'openai' | 'cartesia';
 
 export interface VoiceProviderConfig {
   provider: VoiceProvider;
@@ -41,6 +42,8 @@ export class VoiceProviderService {
         return this.synthesizeWithElevenLabs(text, config);
       case 'openai':
         return this.synthesizeWithOpenAI(text, config);
+      case 'cartesia':
+        return this.synthesizeWithCartesia(text, config);
       default:
         throw new Error(`Unsupported voice provider: ${config.provider}`);
     }
@@ -87,6 +90,24 @@ export class VoiceProviderService {
       audioStream: audioBuffer,
       contentType: 'audio/mpeg',
       provider: 'elevenlabs',
+    };
+  }
+
+  private async synthesizeWithCartesia(
+    text: string,
+    config: VoiceProviderConfig
+  ): Promise<VoiceSynthesisResult> {
+    const result = await cartesiaTTSService.synthesizeSpeech({
+      text,
+      voiceId: config.voiceId,
+      language: config.language,
+      sampleRate: 8000,
+    });
+
+    return {
+      audioStream: result.audioStream,
+      contentType: result.contentType,
+      provider: 'cartesia',
     };
   }
 
@@ -141,6 +162,8 @@ export class VoiceProviderService {
         return this.listElevenLabsVoices(options?.apiKey);
       case 'openai':
         return this.listOpenAIVoices();
+      case 'cartesia':
+        return this.listCartesiaVoices();
       default:
         throw new Error(`Unsupported voice provider: ${provider}`);
     }
@@ -199,6 +222,22 @@ export class VoiceProviderService {
     }
   }
 
+  private async listCartesiaVoices(): Promise<VoiceInfo[]> {
+    try {
+      const voices = await cartesiaTTSService.listVoices();
+      return voices.map((voice) => ({
+        id: voice.id,
+        name: voice.name,
+        gender: voice.gender,
+        language: voice.language,
+        provider: 'cartesia' as VoiceProvider,
+      }));
+    } catch (error) {
+      console.error('Error fetching Cartesia voices:', error);
+      return [];
+    }
+  }
+
   private listOpenAIVoices(): VoiceInfo[] {
     const openAIVoices = [
       { id: 'alloy', name: 'Alloy', gender: 'neutral' },
@@ -248,6 +287,11 @@ export class VoiceProviderService {
         return [
           { code: 'en', name: 'English', voiceCount: 11 },
         ];
+      case 'cartesia':
+        return cartesiaTTSService.getSupportedLanguages().map(l => ({
+          ...l,
+          voiceCount: 10,
+        }));
       default:
         return [];
     }
@@ -297,6 +341,19 @@ export class VoiceProviderService {
           'Fast inference',
           'Simple integration',
           'Works with OpenAI ecosystem',
+        ],
+        tier: 'standard',
+      },
+      {
+        id: 'cartesia',
+        name: 'Cartesia Sonic',
+        description: 'Ultra-low latency AI voices optimized for real-time conversations',
+        features: [
+          'Ultra-low latency (~200ms)',
+          '16+ languages supported',
+          'Real-time streaming',
+          'Natural conversational voices',
+          'Cost-effective pricing',
         ],
         tier: 'standard',
       },

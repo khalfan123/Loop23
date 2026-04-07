@@ -132,3 +132,23 @@ The analytics module (`/app/calls` → Analytics view) has been upgraded with en
 - **Real Trends**: MetricCard now shows actual period-over-period percentage changes from the advanced analytics API (replaces hardcoded 0%).
 - **Grafana-Inspired Layout**: Analytics page uses tabbed navigation (Overview, Campaigns, Calls) with collapsible Grafana-style panel sections.
 - **Backend**: `server/storage/advanced-analytics.ts` contains `calculateAdvancedAnalytics()` with heatmap, funnel, period comparison, campaign comparison, and trend calculations.
+
+## Competitive Benchmark System (Diploy vs Retell)
+Backend-only competitive analysis and benchmarking tool that compares Diploy against Retell AI across 40 call scenarios. All endpoints are under `/api/internal/benchmark/` and require the `X-Internal-API-Key` header (`INTERNAL_API_SECRET`).
+
+- **Test Harness**: 40 realistic call scenarios across 3 categories: customer support (17), appointment booking (10), lead qualification (13). Each scenario includes multi-turn conversations, expected tools, and difficulty ratings (easy/medium/hard).
+- **Benchmark Engine**: Executes scenarios against the system's LLM (GPT-4o by default), with proper OpenAI tool calling, simulated tool execution, and per-turn latency tracking. Supports batched concurrent execution.
+- **Retell Baseline**: Simulated benchmark data based on Retell's documented capabilities (~800ms avg latency, ~92.5% success rate). Includes documented feature comparison, known strengths, and known weaknesses.
+- **LLM Judge Evaluator**: Automated GPT-4o-based evaluation scoring coherence, response quality, naturalness, interruption handling, and task completion for each scenario with strengths/weaknesses analysis.
+- **Report Generator**: Produces structured JSON comparison report + human-readable text summary with: scoring table (composite score), quantitative comparison (latency, success rate, turns, tool reliability), qualitative assessment, 25-item feature parity checklist, failure cases (sorted by severity), prioritized improvements, and 10 architectural recommendations.
+- **API Endpoints**:
+  - `GET /api/internal/benchmark/health` — Service health status
+  - `GET /api/internal/benchmark/scenarios` — List all scenarios (filterable by category)
+  - `GET /api/internal/benchmark/scenarios/:id` — Get scenario details
+  - `GET /api/internal/benchmark/retell-baseline` — Retell's documented baseline metrics
+  - `GET /api/internal/benchmark/feature-parity` — 25-item feature comparison checklist
+  - `GET /api/internal/benchmark/status` — Benchmark engine run status
+  - `POST /api/internal/benchmark/run` — Full benchmark run (configurable: categories, scenarioIds, model, maxConcurrent, includeRetellBaseline, includeLLMJudge)
+  - `POST /api/internal/benchmark/run-category` — Run by category
+  - `POST /api/internal/benchmark/run-scenario` — Run single scenario
+- **Files**: `server/services/competitive-benchmark/` (scenarios, benchmark-engine, llm-evaluator, report-generator, retell-baseline, index), `server/routes/benchmark-routes.ts`

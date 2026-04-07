@@ -94,6 +94,7 @@ import { platformLanguagesPublicRouter } from "./routes/platform-languages-route
 import transactionsRouter from "./routes/transactions-routes";
 import invoiceRouter from "./routes/invoice-routes";
 import internalApiRouter from "./routes/internal-api-routes";
+import benchmarkRouter from "./routes/benchmark-routes";
 import audioRoutes from "./routes/audio-routes";
 import { createRAGKnowledgeRoutes } from "./routes/rag-knowledge-routes";
 import { createProductRoutes } from "./routes/product-routes";
@@ -1474,6 +1475,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   app.use("/api/transactions", transactionsRouter);
 
   app.use("/api/internal", internalApiRouter);
+  app.use("/api/internal/benchmark", benchmarkRouter);
 
   // User-accessible refund note download (separate from admin routes)
   app.get("/api/refunds/:id/download", authenticateToken, async (req: AuthRequest, res: Response) => {

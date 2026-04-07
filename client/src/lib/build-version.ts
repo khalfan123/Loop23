@@ -7,3 +7,4 @@ export const BUILD_NUMBER = buildVersion.build;
 
 export const BUILD_VERSION_STRING = `Build v${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_PATCH}`;
 export const BUILD_VERSION_SHORT = `v${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_PATCH}`;
+export const BUILD_VERSION_FULL = `v${BUILD_MAJOR}.${BUILD_MINOR}.${BUILD_PATCH} (Build ${BUILD_NUMBER})`;

@@ -69,6 +69,21 @@ Staging credentials: `sandbox_stage` / `sandbox_stage`
 Registration is UAE Pass-only (no email/password sign-up). Login supports both email/password (for existing users) and UAE Pass.
 Trade license upload uses existing KYC infrastructure (`/api/kyc/upload` + `/api/kyc/submit`).
 
+## Build Versioning System
+Current approved baseline: **Build v1.0.2**. Version tracked in `build-version.json` (single source of truth) with major, minor, patch, and build number fields.
+
+**Version management commands:**
+- `node scripts/set-version.js build` — Increment build number (v1.0.2 Build 3 → Build 4)
+- `node scripts/set-version.js patch` — Increment patch (v1.0.2 → v1.0.3, resets build to 0)
+- `node scripts/set-version.js minor` — Increment minor (v1.0.2 → v1.1.0, resets patch & build)
+- `node scripts/set-version.js major` — Increment major (v1.0.2 → v2.0.0, resets all)
+- `node scripts/set-version.js show` — Display current version
+- `node scripts/set-version.js set X.Y.Z` — Set specific version
+
+**Version display:** The full version string (e.g., "v1.0.2 (Build 3)") is shown in the sidebar and settings page via `BUILD_VERSION_FULL` from `client/src/lib/build-version.ts`.
+
+**Rule:** Run `node scripts/set-version.js build` before every forward change to increment the build number.
+
 ## External Dependencies
 -   **AI Engines**: ElevenLabs, OpenAI (Realtime API, Chat Completions - gpt-4o, gpt-4o-mini), Anthropic Claude, AWS Bedrock (Claude Sonnet 4.6, Opus 4.5, 3.5 Haiku, 3 Sonnet, 3 Opus, 3.7 Sonnet). AWS Bedrock key (`BedrockAPIKey-8cdw`, expires June 17 2126) has access to the **Marketplace model catalog**, enabling use of marketplace-hosted models beyond default foundation models.
 -   **Voice Synthesis**: ElevenLabs, OpenAI TTS, AWS Polly, Cartesia Sonic.

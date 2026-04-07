@@ -7,8 +7,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION_FILE = path.join(__dirname, '..', 'build-version.json');
 
 function readVersion() {
-  const raw = fs.readFileSync(VERSION_FILE, 'utf8');
-  return JSON.parse(raw);
+  let raw;
+  try {
+    raw = fs.readFileSync(VERSION_FILE, 'utf8');
+  } catch (e) {
+    console.error(`Failed to read ${VERSION_FILE}: ${e.message}`);
+    process.exit(1);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    console.error(`Malformed JSON in ${VERSION_FILE}: ${e.message}`);
+    process.exit(1);
+  }
+  for (const key of ['major', 'minor', 'patch', 'build']) {
+    if (typeof parsed[key] !== 'number' || parsed[key] < 0 || !Number.isInteger(parsed[key])) {
+      console.error(`Invalid "${key}" in ${VERSION_FILE}: expected non-negative integer, got ${parsed[key]}`);
+      process.exit(1);
+    }
+  }
+  return parsed;
 }
 
 function writeVersion(version) {

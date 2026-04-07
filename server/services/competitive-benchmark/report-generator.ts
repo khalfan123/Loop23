@@ -159,7 +159,7 @@ export function generateComparisonReport(
         acc[cat] = scenarios.filter(s => s.category === cat).length;
         return acc;
       }, {} as Record<string, number>),
-      model: options?.model || 'gpt-4o',
+      model: options?.model || 'gpt-4o-mini',
       benchmarkDurationMs: options?.benchmarkDurationMs || (Date.now() - startTime),
     },
     scoringTable,
@@ -203,7 +203,7 @@ function computeMetrics(results: ScenarioResult[], judgeResults: LLMJudgeResult[
     (coherence / 10) * 15 +
     (quality / 10) * 15 +
     (naturalness / 10) * 10 +
-    Math.max(0, (1 - avgLatencyMs / 3000)) * 5
+    Math.max(0, (1 - avgLatencyMs / 5000)) * 5
   );
 
   return {

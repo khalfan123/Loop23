@@ -85,7 +85,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Account Cancellation Save',
     description: 'Customer wants to cancel, agent tries to retain',
-    systemPrompt: 'You are a retention specialist. When a customer wants to cancel, understand their concerns and offer alternatives. Use lookup_account and apply_discount tools.',
+    systemPrompt: 'You are a retention specialist. When a customer wants to cancel, first use lookup_account to pull up their account details, then understand their concerns and offer alternatives. If they agree to stay with a discount, use apply_discount to apply it immediately.',
     conversationTurns: [
       { role: 'user', content: 'I want to cancel my subscription.', expectedIntent: 'cancellation_request' },
       { role: 'user', content: 'It\'s too expensive for what I\'m getting.', expectedIntent: 'reason_price' },
@@ -102,7 +102,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Shipping Address Change',
     description: 'Customer needs to change shipping address on pending order',
-    systemPrompt: 'You are a shipping support agent. Help customers modify their pending orders. Use lookup_order and update_shipping tools.',
+    systemPrompt: 'You are a shipping support agent. When a customer wants to change their shipping address, immediately use lookup_order to find the order, then use update_shipping to apply the new address. Confirm the change and any delivery impact.',
     conversationTurns: [
       { role: 'user', content: 'I need to change the shipping address on my order before it ships.', expectedIntent: 'address_change' },
       { role: 'user', content: 'Order number 55123. The new address is 456 Oak Ave, Miami FL 33101.', expectedIntent: 'provide_details' },
@@ -148,7 +148,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Warranty Claim',
     description: 'Customer wants to claim warranty on a product',
-    systemPrompt: 'You are a warranty specialist. Help customers with warranty claims. Use check_warranty_status and submit_warranty_claim tools.',
+    systemPrompt: 'You are a warranty specialist. When a customer reports a product issue, use check_warranty_status with their model number and purchase date to verify coverage. If covered, use submit_warranty_claim to file the claim and arrange service.',
     conversationTurns: [
       { role: 'user', content: 'My refrigerator stopped cooling. It\'s only 2 years old and should still be under warranty.', expectedIntent: 'warranty_claim' },
       { role: 'user', content: 'The model number is RF-2023X and I bought it on January 10, 2024.', expectedIntent: 'product_details' },
@@ -197,7 +197,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Service Outage Inquiry',
     description: 'Customer reporting a service outage',
-    systemPrompt: 'You are a service status agent. Help customers during outages. Use check_service_status and subscribe_to_updates tools.',
+    systemPrompt: 'You are a service status agent. When a customer reports an issue, immediately use check_service_status to check for ongoing incidents. Then use subscribe_to_updates to sign them up for status notifications so they stay informed.',
     conversationTurns: [
       { role: 'user', content: 'Is your service down? I can\'t access my files since 10 AM.', expectedIntent: 'outage_report' },
       { role: 'user', content: 'I\'m in the US East region. Is it affecting everyone?', expectedIntent: 'scope_inquiry' },
@@ -309,7 +309,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Rescheduling Existing Appointment',
     description: 'Patient needs to reschedule',
-    systemPrompt: 'You are a scheduling assistant. Help patients reschedule. Use lookup_appointment, cancel_appointment, and book_appointment tools.',
+    systemPrompt: 'You are a scheduling assistant. Rescheduling requires three mandatory steps that you must all complete: First, call lookup_appointment to retrieve the existing appointment details. Second, call cancel_appointment to formally release the old time slot. Third, call book_appointment to reserve the new time. You must call all three tools — never skip the cancellation step, as the old slot must be explicitly released.',
     conversationTurns: [
       { role: 'user', content: 'I need to reschedule my appointment for tomorrow. Something came up.', expectedIntent: 'reschedule_request' },
       { role: 'user', content: 'It\'s under the name Emily Chen. Confirmation number AP-7789.', expectedIntent: 'appointment_details' },
@@ -341,7 +341,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Spa Package Booking',
     description: 'Customer booking a multi-service spa package',
-    systemPrompt: 'You are a spa booking agent. Help customers select and book spa packages. Use list_packages, check_availability, and book_package tools.',
+    systemPrompt: 'You are a spa booking agent. Follow these steps exactly: (1) use list_packages to show available packages, (2) use check_availability to check the preferred time slot, (3) when the customer confirms, use book_package to finalize the booking. You must complete all three steps.',
     conversationTurns: [
       { role: 'user', content: 'I want to book a couples spa day for our anniversary this Saturday.', expectedIntent: 'package_inquiry' },
       { role: 'user', content: 'We want massages and facials. What packages include both?', expectedIntent: 'service_selection' },
@@ -373,7 +373,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Auto Service Appointment',
     description: 'Car owner booking maintenance service',
-    systemPrompt: 'You are an auto service center scheduler. Help customers book car services. Use list_services, check_availability, and book_service tools.',
+    systemPrompt: 'You are an auto service center scheduler. Follow these steps exactly: (1) use list_services to show available services and pricing, (2) use check_availability to find open slots, (3) when the customer confirms, use book_service to finalize the appointment. You must complete all three steps.',
     conversationTurns: [
       { role: 'user', content: 'I need an oil change and tire rotation for my 2022 Honda Civic.', expectedIntent: 'service_request' },
       { role: 'user', content: 'Can I drop it off early morning and pick it up after work?', expectedIntent: 'drop_off_preference' },
@@ -436,7 +436,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Multi-Provider Appointment',
     description: 'Patient needing appointments with multiple specialists',
-    systemPrompt: 'You are a hospital scheduling coordinator. Help patients book with multiple departments. Use check_availability, coordinate_appointments, and book_appointments tools.',
+    systemPrompt: 'You are a hospital scheduling coordinator. You MUST follow these three steps in order: Step 1: call check_availability to get available slots for EACH department. Step 2: call coordinate_appointments to find a same-day arrangement. Step 3: call book_appointments to confirm both bookings. Never skip step 1 — coordinate_appointments requires availability data from check_availability.',
     conversationTurns: [
       { role: 'user', content: 'My doctor referred me to both a cardiologist and an endocrinologist. Can I book both?', expectedIntent: 'multi_specialist' },
       { role: 'user', content: 'Ideally on the same day to avoid multiple trips. I live 2 hours away.', expectedIntent: 'same_day_preference' },
@@ -455,7 +455,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'B2B Software Lead',
     description: 'Qualifying a business lead for enterprise software',
-    systemPrompt: 'You are a sales development representative for an enterprise SaaS company. Qualify leads using BANT methodology (Budget, Authority, Need, Timeline). Use update_crm and schedule_demo tools.',
+    systemPrompt: 'You are a sales development representative for an enterprise SaaS company. Qualify leads using BANT methodology. When the lead shares their role or company info, call update_crm to log it. When they agree to a demo, call schedule_demo immediately to book it.',
     conversationTurns: [
       { role: 'user', content: 'Hi, I downloaded your whitepaper on AI analytics. I\'m interested in learning more.', expectedIntent: 'inbound_lead' },
       { role: 'user', content: 'I\'m the VP of Operations at TechCorp. We have about 500 employees.', expectedIntent: 'authority_company_size' },
@@ -472,7 +472,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Real Estate Buyer Lead',
     description: 'Qualifying a potential home buyer',
-    systemPrompt: 'You are a real estate qualification agent. Understand buyer requirements, budget, and timeline. Use update_lead and schedule_viewing tools.',
+    systemPrompt: 'You are a real estate qualification agent. When the buyer shares their requirements and budget, call update_lead to record their profile. When they request a viewing, call schedule_viewing immediately to book it.',
     conversationTurns: [
       { role: 'user', content: 'I saw your listing for the 3-bedroom on Maple Street. Is it still available?', expectedIntent: 'listing_inquiry' },
       { role: 'user', content: 'We\'re a family of 4. We need at least 3 bedrooms and a yard. Budget is around $450K.', expectedIntent: 'requirements_budget' },
@@ -488,7 +488,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Insurance Quote Lead',
     description: 'Qualifying lead for insurance coverage',
-    systemPrompt: 'You are an insurance qualification agent. Gather information for accurate quotes. Use calculate_quote and update_lead tools.',
+    systemPrompt: 'You are an insurance qualification agent. Gather vehicle details, driver info, and coverage preferences. Once you have enough info, use calculate_quote to generate a price. Use update_lead to record the prospect details and qualification status throughout the conversation.',
     conversationTurns: [
       { role: 'user', content: 'I need auto insurance. I just bought a new car.', expectedIntent: 'coverage_inquiry' },
       { role: 'user', content: 'It\'s a 2024 Tesla Model 3. I\'m 35 years old with a clean driving record.', expectedIntent: 'vehicle_driver_info' },
@@ -505,7 +505,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Unqualified Lead - No Budget',
     description: 'Lead that doesn\'t meet qualification criteria',
-    systemPrompt: 'You are an SDR. Qualify leads honestly. If they don\'t meet criteria, provide alternatives. Use update_crm tool.',
+    systemPrompt: 'You are an SDR. Qualify leads honestly. If they don\'t meet criteria, provide alternatives. Call update_crm to log the lead\'s qualification status and any details they share — do this as soon as you learn their situation.',
     conversationTurns: [
       { role: 'user', content: 'I\'m interested in your enterprise plan. How much does it cost?', expectedIntent: 'pricing_inquiry' },
       { role: 'user', content: 'Oh, that\'s way more than I expected. I\'m a solo freelancer with no real budget for this.', expectedIntent: 'budget_disqualifier' },
@@ -521,7 +521,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Decision Maker Identification',
     description: 'Reaching the actual decision maker through a gatekeeper',
-    systemPrompt: 'You are a B2B sales agent. Navigate gatekeepers professionally to reach decision makers. Use update_crm and schedule_callback tools.',
+    systemPrompt: 'You are a B2B sales agent. Navigate gatekeepers professionally. When you get the decision maker\'s contact info, call update_crm to log it. When you learn their availability, call schedule_callback to set up the follow-up call.',
     conversationTurns: [
       { role: 'user', content: 'Hello, this is Reception. How can I help you?', expectedIntent: 'gatekeeper_contact' },
       { role: 'user', content: 'I\'m not the right person for that. You\'d need to speak with our IT Director, Mark.', expectedIntent: 'redirect_to_dm' },
@@ -537,7 +537,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Competitor Comparison Lead',
     description: 'Lead currently using a competitor product',
-    systemPrompt: 'You are a sales agent handling competitive leads. Understand pain points with competitors. Use update_crm and send_comparison tools.',
+    systemPrompt: 'You are a sales agent handling competitive leads. When the lead shares their pain points and scale info, call update_crm to log their details. When they ask for a comparison or materials, call send_comparison to deliver it.',
     conversationTurns: [
       { role: 'user', content: 'We currently use CompetitorX but we\'re not happy with it.', expectedIntent: 'competitor_dissatisfaction' },
       { role: 'user', content: 'Their support is terrible and the API keeps breaking. We need something reliable.', expectedIntent: 'pain_points' },
@@ -553,7 +553,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Event Follow-up Lead',
     description: 'Following up with a trade show contact',
-    systemPrompt: 'You are a sales agent following up on trade show leads. Reference the event, qualify interest. Use update_crm and schedule_demo tools.',
+    systemPrompt: 'You are a sales agent following up on trade show leads. Reference the event and qualify interest. When the lead shares their scale or role, call update_crm to log the qualification data. When they request a demo, call schedule_demo immediately.',
     conversationTurns: [
       { role: 'user', content: 'Oh yes, I remember meeting your team at the conference last week.', expectedIntent: 'event_recognition' },
       { role: 'user', content: 'I was impressed by the real-time analytics demo. We could use that.', expectedIntent: 'feature_interest' },
@@ -569,7 +569,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Multi-Stakeholder Enterprise Deal',
     description: 'Complex sale with multiple decision makers',
-    systemPrompt: 'You are an enterprise sales agent. Map the buying committee and next steps. Use update_crm, add_stakeholder, and schedule_meeting tools.',
+    systemPrompt: 'You are an enterprise sales agent mapping a buying committee. Call update_crm to log the deal details early. Call add_stakeholder for each decision maker mentioned (CTO, CFO, etc.). When they request a meeting, call schedule_meeting to coordinate it.',
     conversationTurns: [
       { role: 'user', content: 'I\'m interested but this decision involves our CTO, CFO, and Head of Product.', expectedIntent: 'multi_stakeholder' },
       { role: 'user', content: 'Our CTO wants to evaluate the tech. The CFO needs an ROI analysis.', expectedIntent: 'stakeholder_needs' },
@@ -586,7 +586,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Pricing Objection Handling',
     description: 'Lead interested but pushing back on pricing',
-    systemPrompt: 'You are a sales agent handling price objections. Focus on value, not price. Use update_crm and generate_proposal tools.',
+    systemPrompt: 'You are a sales agent handling price objections. Focus on value, not price. Call update_crm to log the lead\'s budget and objections as they share them. When they\'re ready to move forward with a deal, call generate_proposal to create the custom pricing proposal.',
     conversationTurns: [
       { role: 'user', content: 'Your product looks great but honestly your pricing page scared me off.', expectedIntent: 'price_objection' },
       { role: 'user', content: 'We\'re a startup with limited runway. Can you work with us on pricing?', expectedIntent: 'budget_constraint' },
@@ -602,7 +602,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Inbound Demo Request',
     description: 'Warm lead requesting a product demonstration',
-    systemPrompt: 'You are a demo coordinator. Qualify the lead and schedule appropriately. Use update_crm and schedule_demo tools.',
+    systemPrompt: 'You are a demo coordinator. When the lead shares their role and company, call update_crm to log their info. When they provide scheduling availability, call schedule_demo immediately to book the demo.',
     conversationTurns: [
       { role: 'user', content: 'I\'d like to schedule a demo. I\'ve been reading your blog and I\'m impressed.', expectedIntent: 'demo_request' },
       { role: 'user', content: 'I\'m the Marketing Director at GrowthCo. About 75 people in the company.', expectedIntent: 'role_company' },
@@ -618,7 +618,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Referral Lead',
     description: 'Lead coming through a referral from existing customer',
-    systemPrompt: 'You are a sales agent handling referral leads. Leverage the referral relationship. Use lookup_referrer, update_crm, and schedule_demo tools.',
+    systemPrompt: 'You are a sales agent handling a referral lead. When they mention the referrer, call lookup_referrer to pull up the referral details. Call update_crm to log the new lead\'s info and qualification data. When they request a demo, call schedule_demo immediately.',
     conversationTurns: [
       { role: 'user', content: 'Hi, David Martinez from ABC Corp told me to call you. He loves your product.', expectedIntent: 'referral_intro' },
       { role: 'user', content: 'We have similar needs to ABC Corp. We\'re in the same industry.', expectedIntent: 'similarity_context' },
@@ -634,7 +634,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Skeptical Technical Buyer',
     description: 'Technical lead who needs proof before proceeding',
-    systemPrompt: 'You are a technical sales agent. Handle technical objections with specifics. Use update_crm, share_documentation, and schedule_poc tools.',
+    systemPrompt: 'You are a technical sales agent. Address technical skepticism with specific data and facts. Use share_documentation to send technical materials when asked. Use schedule_poc to set up a proof-of-concept trial. Use update_crm to log all prospect interactions and technical requirements.',
     conversationTurns: [
       { role: 'user', content: 'I\'ve seen a lot of voice AI tools and most don\'t deliver on their promises. What makes you different?', expectedIntent: 'skepticism' },
       { role: 'user', content: 'What\'s your actual P95 latency? Not marketing numbers, real production data.', expectedIntent: 'technical_challenge' },
@@ -650,7 +650,7 @@ const LEAD_QUALIFICATION_SCENARIOS: CallScenario[] = [
     category: 'lead_qualification',
     name: 'Cold Call - Generating Interest',
     description: 'Outbound cold call to a prospect',
-    systemPrompt: 'You are making outbound calls to qualified prospects. Build interest and secure a next step. Use update_crm tool.',
+    systemPrompt: 'You are making an outbound cold call to a prospect. Build interest and secure a next step. Call update_crm to log the prospect\'s contact info and interest level as soon as they share any details — especially their email or willingness to continue the conversation.',
     conversationTurns: [
       { role: 'user', content: 'Who is this? I\'m busy.', expectedIntent: 'cold_resistance' },
       { role: 'user', content: 'We actually just had a conversation about AI tools yesterday. What do you offer?', expectedIntent: 'opening_interest' },

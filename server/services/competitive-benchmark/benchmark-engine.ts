@@ -43,11 +43,93 @@ interface ToolCallDefinition {
     description: string;
     parameters: {
       type: 'object';
-      properties: Record<string, { type: string; description: string }>;
+      properties: Record<string, { type: string; description: string; enum?: string[] }>;
       required: string[];
     };
   };
 }
+
+const VOICE_AGENT_PREAMBLE = `You are a professional AI voice agent on a live phone call. Follow these rules strictly:
+
+RESPONSE STYLE:
+- Keep responses concise but complete — 2-3 sentences max. Give the caller all the info they need without rambling.
+- Sound warm, natural, and human. Use contractions (I'll, we'll, that's) and conversational phrasing.
+- Be specific — use actual details, numbers, dates, and names from tool results. Vague responses feel unhelpful.
+- Show empathy when the caller is frustrated or has a problem.
+- Always confirm what you understood before taking action ("So you'd like to reschedule for Tuesday at 3 PM — let me do that for you").
+- After calling a tool, share the key results with the caller — dates, times, confirmation numbers, statuses. Don't just say "done."
+
+ACTIONS:
+- You MUST use your available tools. Every tool listed is there because it needs to be called during this conversation. If you have a tool, use it — do not just talk about the action, execute it via the tool.
+- Call tools proactively as soon as you have enough context. Do not wait for the caller to explicitly ask you to use a tool.
+- When you have lookup/search/check tools, call them early to get real data before responding.
+- When you have action tools (booking, updating, scheduling, submitting), call them as soon as the caller confirms or provides enough info.
+- When you have CRM/logging tools (update_crm, update_lead), call them to record key information from the conversation.
+- Never verbally confirm an action without using the corresponding tool to execute it.
+
+CONVERSATION FLOW:
+- If the caller switches topics, acknowledge it smoothly and handle the new topic.
+- Proactively offer helpful next steps or alternatives when appropriate.
+- End each response with a clear next step or question to keep the conversation moving.
+
+`;
+
+const TOOL_DESCRIPTIONS: Record<string, string> = {
+  lookup_order: 'Look up an order by order number to get its current status, tracking info, and estimated delivery date. Call this whenever a customer mentions an order number or asks about an order.',
+  check_return_policy: 'Check whether an order is eligible for return based on purchase date and item condition. Call this before initiating any return.',
+  initiate_return: 'Start the return process for an eligible order. Generates a return shipping label and return ID. Call this after confirming the customer wants to proceed with the return.',
+  lookup_billing: 'Look up billing history and recent charges for a customer account. Call this when a customer asks about charges, disputes a charge, or needs billing information.',
+  issue_credit: 'Issue a credit or refund to a customer account. Call this to process refunds for billing disputes, overcharges, or service issues.',
+  check_system_status: 'Check the current system and service status for outages or incidents. Call this when a customer reports a technical issue to determine if it is a known problem.',
+  create_ticket: 'Create a support ticket for issues that need escalation or follow-up. Call this when the issue cannot be resolved immediately or when the customer requests escalation.',
+  lookup_account: 'Look up a customer account to see their current plan, usage, billing rate, and account history. Call this when a customer asks about their account, wants to cancel, or discusses pricing.',
+  apply_discount: 'Apply a discount to a customer account for retention purposes. Call this after negotiating a retention offer with the customer.',
+  update_shipping: 'Update the shipping address on a pending order before it ships. Call this when a customer wants to change their delivery address.',
+  check_availability: 'Check available appointment slots for a given provider or service. Call this when a patient/customer wants to know available times.',
+  book_appointment: 'Book a confirmed appointment slot. Call this after the customer has confirmed they want the specific date and time.',
+  lookup_appointment: 'Look up an existing appointment by confirmation number or patient name. Call this to find appointment details for rescheduling or cancellation.',
+  cancel_appointment: 'Cancel an existing appointment. Call this after confirming the customer wants to cancel.',
+  check_emergency_slots: 'Check for same-day emergency or urgent appointment slots. Call this when a patient has an urgent need and needs to be seen today.',
+  list_packages: 'List available service packages with descriptions and pricing. Call this when a customer asks about packages or bundle options.',
+  book_package: 'Book a service package for a specific date and time. Call this after the customer selects a package and confirms the time.',
+  check_recurring_availability: 'Check if a recurring weekly slot is available with a specific provider. Call this when a client wants to set up regular recurring appointments.',
+  book_recurring: 'Book a recurring weekly appointment. Call this after confirming the recurring slot with the client.',
+  list_services: 'List available services with pricing. Call this when a customer asks what services are offered or wants to know prices.',
+  book_service: 'Book a service appointment with date and time. Call this after the customer selects services and confirms the appointment time.',
+  update_crm: 'Update the CRM with lead information, qualification status, and notes from the conversation. Call this during or after qualifying a lead to capture key data points.',
+  schedule_demo: 'Schedule a product demo with a qualified lead. Call this when the lead agrees to a demo and provides timing preferences.',
+  update_lead: 'Update lead qualification data including score, status, and next actions. Call this to record buyer requirements, budget, and timeline.',
+  schedule_viewing: 'Schedule a property viewing for a qualified real estate buyer. Call this when a buyer wants to see a property.',
+  calculate_quote: 'Calculate an insurance quote based on vehicle info, driver details, and coverage preferences. Call this when you have enough information to generate a price.',
+  schedule_callback: 'Schedule a callback to a contact at a specific time. Call this when you need to reach someone who is unavailable.',
+  send_comparison: 'Send a product comparison document to a prospect. Call this when a lead asks for a comparison with competitors or wants written materials.',
+  lookup_referrer: 'Look up the referring customer to verify the referral and get context. Call this when a lead mentions being referred by an existing customer.',
+  add_stakeholder: 'Add a stakeholder to the deal record in the CRM. Call this when you learn about additional decision makers involved in the purchase.',
+  schedule_meeting: 'Schedule a multi-person meeting with stakeholders. Call this to coordinate meetings with multiple attendees.',
+  generate_proposal: 'Generate a custom pricing proposal with applicable discounts. Call this when negotiating pricing with a lead.',
+  share_documentation: 'Share technical documentation, architecture docs, or other materials with a prospect. Call this when a technical buyer requests documentation.',
+  schedule_poc: 'Schedule a proof-of-concept trial for a technical buyer. Call this when a prospect wants to test the product before committing.',
+  verify_identity: 'Verify a customer identity using personal information like date of birth, email, or security questions. Call this before performing sensitive account actions.',
+  send_reset_link: 'Send a password reset link to the customer. Call this after identity verification passes.',
+  check_warranty_status: 'Check if a product is still under warranty. Call this when a customer reports a product issue and wants to know about warranty coverage.',
+  submit_warranty_claim: 'Submit a warranty claim for a covered product to arrange repair or replacement. Call this after confirming the product is under warranty.',
+  search_products: 'Search the product catalog to find products matching customer criteria. Call this when a customer is looking for a product or comparing options.',
+  compare_products: 'Compare two or more products side-by-side on features, specs, and price. Call this when a customer wants help choosing between products.',
+  check_service_status: 'Check the current status of services and any ongoing incidents or outages. Call this when a customer reports they cannot access a service.',
+  subscribe_to_updates: 'Subscribe a customer to receive status updates about an ongoing incident or outage. Call this to keep the customer informed about resolution progress.',
+  check_shipping_rates: 'Check international shipping rates and delivery timeframes. Call this when a customer asks about shipping options to a specific destination.',
+  estimate_customs: 'Estimate customs duties and import fees for an international shipment. Call this when a customer asks about customs charges.',
+  get_current_plan: 'Get details about the customer current subscription plan including storage, usage, and pricing. Call this when a customer asks about their plan or wants to upgrade.',
+  upgrade_subscription: 'Upgrade a customer subscription to a higher tier plan. Call this after the customer confirms they want to upgrade.',
+  submit_data_request: 'Submit a GDPR/CCPA data subject request for data export or deletion. Call this when a customer requests their personal data.',
+  list_classes: 'List available group classes or workshops with schedules, capacity, and pricing. Call this when a customer asks about available classes.',
+  check_capacity: 'Check remaining capacity for a specific class and group discount availability. Call this when a customer wants to bring a group.',
+  register_group: 'Register a group of people for a class, applying any group discounts. Call this after confirming the group members and pricing.',
+  check_cancellation_policy: 'Check the cancellation policy for an appointment including any fees. Call this before cancelling to inform the customer of potential charges.',
+  coordinate_appointments: 'Coordinate multiple appointments on the same day across departments. IMPORTANT: You must call check_availability first to get available slots before calling this tool.',
+  book_appointments: 'Book multiple coordinated appointments at once. Call this after confirming the coordinated schedule with the patient.',
+  check_accessibility: 'Check accessibility accommodations available at a facility including wheelchair access, interpreters, and other special needs.',
+};
 
 export class BenchmarkEngine {
   private results: ScenarioResult[] = [];
@@ -63,7 +145,7 @@ export class BenchmarkEngine {
 
     try {
       const scenarios = this.selectScenarios(config);
-      const model = config.model || 'gpt-4o';
+      const model = config.model || 'gpt-4o-mini';
       const includeRetell = config.includeRetellBaseline !== false;
       const includeLLMJudge = config.includeLLMJudge !== false;
 
@@ -144,8 +226,9 @@ export class BenchmarkEngine {
     const turnLatencies: number[] = [];
 
     let actualTurnsCompleted = 0;
+    const enhancedSystemPrompt = VOICE_AGENT_PREAMBLE + scenario.systemPrompt;
     const messages: Array<any> = [
-      { role: 'system', content: scenario.systemPrompt },
+      { role: 'system', content: enhancedSystemPrompt },
     ];
 
     const tools = this.buildToolDefinitions(scenario);
@@ -153,7 +236,26 @@ export class BenchmarkEngine {
     try {
       const openai = await getOpenAIClient();
 
-      for (const turn of scenario.conversationTurns) {
+      const totalTurns = scenario.conversationTurns.length;
+      for (let turnIndex = 0; turnIndex < totalTurns; turnIndex++) {
+        const turn = scenario.conversationTurns[turnIndex];
+        const isLastTurn = turnIndex === totalTurns - 1;
+
+        if (scenario.expectedTools?.length) {
+          const isMidpoint = turnIndex === Math.floor(totalTurns / 2);
+          if (isLastTurn || isMidpoint) {
+            const expectedSet = new Set(scenario.expectedTools);
+            const calledSet = new Set(toolCallsMade);
+            const uncalled = [...expectedSet].filter(t => !calledSet.has(t));
+            if (uncalled.length > 0) {
+              const msg = isLastTurn
+                ? `This is the last turn. You MUST call these tools now: ${uncalled.join(', ')}. Use the information gathered so far.`
+                : `You have information to log. Call these tools now: ${uncalled.join(', ')}.`;
+              messages.push({ role: 'system', content: msg });
+            }
+          }
+        }
+
         messages.push({ role: 'user', content: turn.content });
 
         const turnStart = Date.now();
@@ -213,10 +315,30 @@ export class BenchmarkEngine {
                 content: JSON.stringify(toolResult),
               });
             }
-            const finalFollowUp = await openai.chat.completions.create({ model, messages, temperature: 0.7, max_tokens: 500 } as any);
-            const finalContent = finalFollowUp.choices[0].message.content || '';
-            responses.push(finalContent);
-            messages.push({ role: 'assistant', content: finalContent });
+            const finalParams: Record<string, unknown> = { model, messages, temperature: 0.7, max_tokens: 500 };
+            if (tools.length > 0) {
+              finalParams.tools = tools;
+              finalParams.tool_choice = 'auto';
+            }
+            const finalFollowUp = await openai.chat.completions.create(finalParams as any);
+            const finalChoice = finalFollowUp.choices[0];
+            if (finalChoice.message.tool_calls?.length) {
+              messages.push(finalChoice.message);
+              for (const tc of finalChoice.message.tool_calls) {
+                toolCallsMade.push(tc.function.name);
+                const tr = this.simulateToolExecution(tc.function.name, tc.function.arguments);
+                messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(tr) });
+              }
+              const lastCall = await openai.chat.completions.create({ model, messages, temperature: 0.7, max_tokens: 500 } as any);
+              const lastContent = lastCall.choices[0].message.content || '';
+              responses.push(lastContent);
+              messages.push({ role: 'assistant', content: lastContent });
+              totalTokens += lastCall.usage?.total_tokens || 0;
+            } else {
+              const finalContent = finalChoice.message.content || '';
+              responses.push(finalContent);
+              messages.push({ role: 'assistant', content: finalContent });
+            }
             totalTokens += finalFollowUp.usage?.total_tokens || 0;
           } else {
             const followUpContent = followUpChoice.message.content || '';
@@ -284,14 +406,14 @@ export class BenchmarkEngine {
       type: 'function' as const,
       function: {
         name: toolName,
-        description: `Execute ${toolName.replace(/_/g, ' ')} operation`,
+        description: TOOL_DESCRIPTIONS[toolName] || `Execute ${toolName.replace(/_/g, ' ')} operation`,
         parameters: {
           type: 'object' as const,
           properties: {
             query: { type: 'string', description: 'Search query or identifier' },
             data: { type: 'string', description: 'Additional data for the operation' },
           },
-          required: ['query'],
+          required: [] as string[],
         },
       },
     }));
@@ -309,7 +431,7 @@ export class BenchmarkEngine {
       lookup_account: { plan: 'Premium', monthlyRate: 29.99, since: '2023-06-01', usage: '75%' },
       apply_discount: { applied: true, discount: '50%', duration: '3 months', newRate: 14.99 },
       update_shipping: { updated: true, newAddress: '456 Oak Ave, Miami FL 33101', newEta: '3 business days' },
-      check_availability: { available: [{ date: 'Tuesday', time: '9:00 AM' }, { date: 'Thursday', time: '2:00 PM' }] },
+      check_availability: { available: [{ date: 'Tuesday', time: '9:00 AM' }, { date: 'Wednesday', time: '2:00 PM' }, { date: 'Thursday', time: '2:00 PM' }, { date: 'Saturday', time: '11:00 AM' }, { date: 'Monday', time: '7:30 AM' }, { date: 'Next Thursday', time: '9:00 AM' }] },
       book_appointment: { confirmationId: 'APT-5678', date: 'Tuesday', time: '9:00 AM', provider: 'Dr. Smith' },
       lookup_appointment: { confirmationId: 'AP-7789', date: 'Tomorrow', time: '10:00 AM', status: 'confirmed' },
       cancel_appointment: { cancelled: true, fee: 0, refundProcessed: true },

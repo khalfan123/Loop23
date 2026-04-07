@@ -259,6 +259,11 @@ export function AppSidebar() {
             onClick={handleNavClick}
             isCollapsed={isCollapsed}
           />
+          {!isCollapsed && (
+            <div className="px-3 pt-0.5">
+              <span className="text-[10px] text-muted-foreground/40" data-testid="text-sidebar-build-below-settings">{BUILD_VERSION_STRING}</span>
+            </div>
+          )}
         </div>
 
         {!isCollapsed && (

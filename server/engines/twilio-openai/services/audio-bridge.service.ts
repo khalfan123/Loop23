@@ -33,7 +33,7 @@ import { db } from '../../../db';
 import { twilioOpenaiCalls, agents, calls, incomingConnections } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { OpenAIAgentFactory } from './openai-agent-factory';
-import { OpenAIPoolService } from '../../plivo/services/openai-pool.service';
+import { OpenAIPoolService } from '../../../services/openai-pool.service';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
 import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';

@@ -80,11 +80,11 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
   const { start, end, prevStart, prevEnd } = getDateRange(timeRange);
 
   const currentCalls = await db.select().from(calls)
-    .where(and(eq(calls.userId, userId), gte(calls.startedAt, start)))
-    .orderBy(desc(calls.startedAt));
+    .where(and(eq(calls.userId, userId), gte(calls.createdAt, start)))
+    .orderBy(desc(calls.createdAt));
 
   const previousCalls = await db.select().from(calls)
-    .where(and(eq(calls.userId, userId), gte(calls.startedAt, prevStart), sql`${calls.startedAt} < ${start}`));
+    .where(and(eq(calls.userId, userId), gte(calls.createdAt, prevStart), sql`${calls.createdAt} < ${start}`));
 
   const heatmap: HeatmapPoint[] = [];
   for (let day = 0; day < 7; day++) {
@@ -93,8 +93,9 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
     }
   }
   for (const call of currentCalls) {
-    if (call.startedAt) {
-      const d = new Date(call.startedAt);
+    const callTime = call.startedAt || call.createdAt;
+    if (callTime) {
+      const d = new Date(callTime);
       const day = d.getDay();
       const hour = d.getHours();
       const point = heatmap.find(h => h.day === day && h.hour === hour);
@@ -155,8 +156,9 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
 
     const dailyMap = new Map<string, number>();
     for (const c of campCalls) {
-      if (c.startedAt) {
-        const dateKey = new Date(c.startedAt).toISOString().split('T')[0];
+      const cTime = c.startedAt || c.createdAt;
+      if (cTime) {
+        const dateKey = new Date(cTime).toISOString().split('T')[0];
         dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + 1);
       }
     }
@@ -179,8 +181,9 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
 
   const dailyMap = new Map<string, DailyTrend>();
   for (const c of currentCalls) {
-    if (c.startedAt) {
-      const dateKey = new Date(c.startedAt).toISOString().split('T')[0];
+    const cTime = c.startedAt || c.createdAt;
+    if (cTime) {
+      const dateKey = new Date(cTime).toISOString().split('T')[0];
       if (!dailyMap.has(dateKey)) {
         dailyMap.set(dateKey, { date: dateKey, completed: 0, failed: 0, qualified: 0, total: 0 });
       }

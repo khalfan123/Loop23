@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next';
 import { useBranding } from "@/components/BrandingProvider";
 import { AuthStorage } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
+import { BUILD_VERSION_SHORT } from "@/lib/build-version";
 import {
   Tooltip,
   TooltipContent,
@@ -296,8 +297,8 @@ export function AppSidebar() {
       <SidebarFooter className="px-3 py-2 border-t border-sidebar-border/50">
         {!isCollapsed && (
           <div className="px-2 pb-1 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground/50" data-testid="text-sidebar-copyright">© {new Date().getFullYear()} B24 Payment</span>
-            <span className="text-[10px] text-muted-foreground/40" data-testid="text-sidebar-version">v1.0.0</span>
+            <span className="text-[10px] text-muted-foreground/50" data-testid="text-sidebar-copyright">© 2025 B24 Payment</span>
+            <span className="text-[10px] text-muted-foreground/40" data-testid="text-sidebar-version">{BUILD_VERSION_SHORT}</span>
           </div>
         )}
         <DropdownMenu>

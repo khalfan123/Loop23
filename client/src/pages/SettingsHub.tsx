@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings as SettingsIcon, Workflow, BarChart3, Globe, CreditCard, ChevronRight, UserCog as UserCogIcon, LifeBuoy } from "lucide-react";
 import { ThreeColumnLayout, SubPanelSection, SubPanelItem } from "@/components/ThreeColumnLayout";
+import { BUILD_VERSION_STRING } from "@/lib/build-version";
 import Settings from "@/pages/Settings";
 import FlowsPage from "@/pages/FlowsPage";
 import FlowBuilderPage from "@/pages/FlowBuilderPage";
@@ -104,6 +105,10 @@ function SettingsOverview({ onNavigate }: { onNavigate: (url: string) => void })
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="pt-4 text-center">
+        <span className="text-xs text-muted-foreground/50" data-testid="text-settings-build-version">{BUILD_VERSION_STRING}</span>
       </div>
     </div>
   );

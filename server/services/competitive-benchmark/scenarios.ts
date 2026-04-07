@@ -22,7 +22,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Simple Order Status Inquiry',
     description: 'Customer asks about their order status',
-    systemPrompt: 'You are a customer support agent for an e-commerce company. Help customers with their orders. Use the lookup_order tool to find order details.',
+    systemPrompt: 'You are a customer support agent for an e-commerce company. When a customer asks about an order, immediately call lookup_order with their order number to retrieve status and tracking details. Share the specific delivery date and tracking info.',
     conversationTurns: [
       { role: 'user', content: 'Hi, I placed an order last week and I want to know where it is.', expectedIntent: 'order_status' },
       { role: 'user', content: 'My order number is 12345.', expectedIntent: 'provide_order_id' },
@@ -37,7 +37,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Product Return Request',
     description: 'Customer wants to return a defective product',
-    systemPrompt: 'You are a customer support agent. Help customers with returns and refunds. Use initiate_return to start a return process and check_return_policy to verify eligibility.',
+    systemPrompt: 'You are a customer support agent handling returns. When a customer mentions a return, call check_return_policy with the order details to verify eligibility. Once confirmed eligible, call initiate_return to generate a return label and process the refund.',
     conversationTurns: [
       { role: 'user', content: 'I received a broken laptop charger and I want to return it.', expectedIntent: 'return_request' },
       { role: 'user', content: 'I bought it 5 days ago. Order number 67890.', expectedIntent: 'provide_details' },
@@ -53,7 +53,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Billing Dispute',
     description: 'Customer disputes an unexpected charge',
-    systemPrompt: 'You are a billing support agent. Help customers resolve billing issues. Use lookup_billing to find charges and issue_credit to process adjustments.',
+    systemPrompt: 'You are a billing support agent. When a customer reports an unrecognized charge, call lookup_billing with their account to investigate. If the charge is invalid, call issue_credit to refund it and tell them when the refund will appear.',
     conversationTurns: [
       { role: 'user', content: 'I see a charge of $49.99 on my statement that I don\'t recognize.', expectedIntent: 'billing_dispute' },
       { role: 'user', content: 'My account email is john@example.com.', expectedIntent: 'provide_account' },
@@ -69,7 +69,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Technical Troubleshooting',
     description: 'Customer needs help with a software issue',
-    systemPrompt: 'You are a technical support agent for a SaaS product. Guide customers through troubleshooting steps. Use check_system_status and create_ticket tools.',
+    systemPrompt: 'You are a technical support agent. When a customer reports an issue, call check_system_status to check for known outages. If the issue persists, call create_ticket to escalate it with the customer\'s environment details and priority level.',
     conversationTurns: [
       { role: 'user', content: 'My dashboard keeps showing a loading error since this morning.', expectedIntent: 'report_issue' },
       { role: 'user', content: 'I\'ve already cleared my cache and tried a different browser.', expectedIntent: 'steps_taken' },
@@ -117,7 +117,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Multi-Issue Complex Call',
     description: 'Customer has multiple issues in one call',
-    systemPrompt: 'You are a customer service agent handling complex requests. Use lookup_order, check_return_policy, and lookup_billing tools as needed.',
+    systemPrompt: 'You are a customer service agent handling multiple issues in one call. Call lookup_order for the damaged item order, call check_return_policy to verify return eligibility, and call lookup_billing for the double-charge order. Handle each issue in sequence.',
     conversationTurns: [
       { role: 'user', content: 'I have two problems. First, one of my items arrived damaged. Second, I was charged twice for a different order.', expectedIntent: 'multi_issue' },
       { role: 'user', content: 'The damaged item is from order 11111. The double charge is on order 22222.', expectedIntent: 'provide_details' },
@@ -133,7 +133,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Password Reset Assistance',
     description: 'Customer locked out of their account',
-    systemPrompt: 'You are an account security agent. Help customers regain access. Use verify_identity and send_reset_link tools.',
+    systemPrompt: 'You are an account security agent. Call verify_identity with the customer\'s email and date of birth to confirm their identity. Once verified, call send_reset_link to send a password reset to their preferred email address.',
     conversationTurns: [
       { role: 'user', content: 'I can\'t log into my account. I forgot my password and the reset email isn\'t coming through.', expectedIntent: 'account_lockout' },
       { role: 'user', content: 'My email is sarah@example.com. My date of birth is March 15, 1990.', expectedIntent: 'identity_verification' },
@@ -164,7 +164,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Angry Customer De-escalation',
     description: 'Frustrated customer needing empathetic handling',
-    systemPrompt: 'You are a senior customer service agent. Handle frustrated customers with empathy and professionalism. Use lookup_order and issue_credit tools.',
+    systemPrompt: 'You are a senior customer service agent. Show empathy first, then call lookup_order to get the actual order status. Once you understand the situation, call issue_credit to provide compensation and resolve the issue with concrete next steps.',
     conversationTurns: [
       { role: 'user', content: 'This is ridiculous! I\'ve been waiting 3 weeks for my order and nobody can tell me where it is!', expectedIntent: 'angry_complaint' },
       { role: 'user', content: 'I\'ve called 4 times already and each time I get a different answer. My order is 99999.', expectedIntent: 'repeated_contact' },
@@ -181,7 +181,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Product Comparison Help',
     description: 'Customer needs help choosing between products',
-    systemPrompt: 'You are a product advisor. Help customers choose the right product. Use search_products and compare_products tools.',
+    systemPrompt: 'You are a product advisor. Call search_products with the customer\'s criteria to find matching options. Then call compare_products to provide a side-by-side comparison. Give a clear recommendation based on their use case and budget.',
     conversationTurns: [
       { role: 'user', content: 'I\'m looking for a wireless headphone but I can\'t decide between the ProMax 500 and the AudioElite X.', expectedIntent: 'product_comparison' },
       { role: 'user', content: 'I mainly use them for working out and making calls. Budget is around $150.', expectedIntent: 'use_case_budget' },
@@ -212,7 +212,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'International Shipping Query',
     description: 'Customer asking about international shipping options',
-    systemPrompt: 'You are a shipping specialist. Help customers with international orders. Use check_shipping_rates and estimate_customs tools.',
+    systemPrompt: 'You are a shipping specialist. Call check_shipping_rates with the package weight and destination to provide options. Call estimate_customs to calculate duties and fees. Present all options with prices and delivery times.',
     conversationTurns: [
       { role: 'user', content: 'I want to ship an order to Germany. What are my options?', expectedIntent: 'intl_shipping_inquiry' },
       { role: 'user', content: 'The package is about 5 pounds. I need it there within 2 weeks.', expectedIntent: 'package_details' },
@@ -228,7 +228,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Subscription Upgrade',
     description: 'Customer wants to upgrade their plan',
-    systemPrompt: 'You are a subscription advisor. Help customers choose the right plan. Use get_current_plan and upgrade_subscription tools.',
+    systemPrompt: 'You are a subscription advisor. Call get_current_plan to see the customer\'s existing plan and usage. When they decide to upgrade, call upgrade_subscription to process the change and confirm the new plan details and billing.',
     conversationTurns: [
       { role: 'user', content: 'I want to upgrade my plan. I keep running out of storage.', expectedIntent: 'upgrade_request' },
       { role: 'user', content: 'I\'m currently on the Basic plan. What are my options?', expectedIntent: 'plan_inquiry' },
@@ -244,7 +244,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Data Privacy Request',
     description: 'Customer requesting data export or deletion under GDPR',
-    systemPrompt: 'You are a privacy compliance agent. Handle data requests per GDPR/CCPA regulations. Use verify_identity and submit_data_request tools.',
+    systemPrompt: 'You are a privacy compliance agent. Call verify_identity to confirm the requester\'s identity before processing any data request. Then call submit_data_request to file the GDPR/CCPA request and provide the timeline and format details.',
     conversationTurns: [
       { role: 'user', content: 'I want to request all the data you have on me under GDPR.', expectedIntent: 'data_subject_request' },
       { role: 'user', content: 'My account email is privacy@example.com. I want a full data export.', expectedIntent: 'provide_identity' },
@@ -260,7 +260,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Barge-in Interruption Test',
     description: 'Customer interrupts the agent mid-sentence',
-    systemPrompt: 'You are a support agent. Handle interruptions gracefully. Acknowledge the customer\'s urgency and adapt your response.',
+    systemPrompt: 'You are a support agent. Handle interruptions gracefully by acknowledging the new topic and adapting. When the customer mentions a missing order, call lookup_order to check its status before responding.',
     conversationTurns: [
       { role: 'user', content: 'I need help with—actually wait, first tell me your hours.', expectedIntent: 'interruption_redirect' },
       { role: 'user', content: 'No no, forget the hours. My order is missing. Order 44444.', expectedIntent: 'topic_switch' },
@@ -275,7 +275,7 @@ const CUSTOMER_SUPPORT_SCENARIOS: CallScenario[] = [
     category: 'customer_support',
     name: 'Non-English Speaker Support',
     description: 'Customer communicates with limited English',
-    systemPrompt: 'You are a patient support agent. Help customers who may have limited English. Speak clearly, use simple words, and confirm understanding.',
+    systemPrompt: 'You are a patient support agent. Use simple, clear language. Call lookup_order when the customer provides an order number to check the status. Confirm each step in short sentences to ensure understanding.',
     conversationTurns: [
       { role: 'user', content: 'Hello, my order... not come. Long time wait.', expectedIntent: 'broken_english_inquiry' },
       { role: 'user', content: 'Number is... moment... 33333. Yes, 33333.', expectedIntent: 'order_number' },
@@ -293,7 +293,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Simple Doctor Appointment',
     description: 'Patient booking a routine checkup',
-    systemPrompt: 'You are a medical receptionist AI. Help patients book appointments. Use check_availability and book_appointment tools.',
+    systemPrompt: 'You are a medical receptionist. When a patient wants an appointment, call check_availability with the doctor\'s name and preferred time to find open slots. Once they choose a slot, call book_appointment with their name, DOB, and chosen time.',
     conversationTurns: [
       { role: 'user', content: 'I\'d like to book a checkup with Dr. Smith.', expectedIntent: 'booking_request' },
       { role: 'user', content: 'Any day next week works. Preferably morning.', expectedIntent: 'time_preference' },
@@ -325,7 +325,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Emergency Dental Appointment',
     description: 'Patient with urgent dental pain needs same-day slot',
-    systemPrompt: 'You are a dental office receptionist. Handle urgent appointment requests with priority. Use check_emergency_slots and book_appointment tools.',
+    systemPrompt: 'You are a dental office receptionist. For urgent requests, call check_emergency_slots immediately to find same-day openings. Once the patient confirms, call book_appointment with their info and the chosen slot. Express urgency and empathy.',
     conversationTurns: [
       { role: 'user', content: 'I have terrible tooth pain and need to see a dentist today. Is that possible?', expectedIntent: 'urgent_booking' },
       { role: 'user', content: 'The pain is in my lower right molar. It started last night and I can barely eat.', expectedIntent: 'symptom_description' },
@@ -357,7 +357,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Recurring Weekly Appointment',
     description: 'Client setting up a recurring therapy schedule',
-    systemPrompt: 'You are a therapy office scheduler. Help clients set up recurring sessions. Use check_recurring_availability and book_recurring tools.',
+    systemPrompt: 'You are a therapy office scheduler. Call check_recurring_availability with the preferred day and time to find a recurring slot. Once confirmed, call book_recurring to set up the weekly sessions with insurance details.',
     conversationTurns: [
       { role: 'user', content: 'I\'d like to set up weekly therapy sessions with Dr. Johnson.', expectedIntent: 'recurring_request' },
       { role: 'user', content: 'I prefer Wednesdays after 5 PM. I have a 9-to-5 job.', expectedIntent: 'time_constraint' },
@@ -389,7 +389,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Appointment with Specific Requirements',
     description: 'Patient with accessibility needs booking appointment',
-    systemPrompt: 'You are a clinic scheduler. Accommodate special requirements. Use check_availability, check_accessibility, and book_appointment tools.',
+    systemPrompt: 'You are a clinic scheduler. Call check_availability to find open slots, then call check_accessibility to verify wheelchair access and interpreter availability. Once a suitable slot is found, call book_appointment with all special requirements noted.',
     conversationTurns: [
       { role: 'user', content: 'I need to book an appointment but I use a wheelchair. Do you have accessible rooms?', expectedIntent: 'accessibility_request' },
       { role: 'user', content: 'I also need a sign language interpreter if possible.', expectedIntent: 'additional_requirement' },
@@ -405,7 +405,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Group Event Booking',
     description: 'Booking a group class or workshop',
-    systemPrompt: 'You are a fitness center scheduler. Help customers book group classes. Use list_classes, check_capacity, and register_group tools.',
+    systemPrompt: 'You are a fitness center scheduler. Call list_classes to show available classes and times. Call check_capacity to verify there are enough spots for the group. Once confirmed, call register_group with all participant names.',
     conversationTurns: [
       { role: 'user', content: 'I want to sign up for the Saturday morning yoga class. Can I bring 3 friends?', expectedIntent: 'group_booking' },
       { role: 'user', content: 'Is there a group discount for 4 people?', expectedIntent: 'pricing_inquiry' },
@@ -421,7 +421,7 @@ const APPOINTMENT_BOOKING_SCENARIOS: CallScenario[] = [
     category: 'appointment_booking',
     name: 'Cancellation with Policy Check',
     description: 'Customer trying to cancel within policy window',
-    systemPrompt: 'You are an appointment manager. Handle cancellations per policy. Use lookup_appointment, check_cancellation_policy, and cancel_appointment tools.',
+    systemPrompt: 'You are an appointment manager. Call lookup_appointment to retrieve the booking details. Call check_cancellation_policy to determine if any fee applies. Then call cancel_appointment to process the cancellation and confirm via email.',
     conversationTurns: [
       { role: 'user', content: 'I need to cancel my appointment for tomorrow morning.', expectedIntent: 'cancellation_request' },
       { role: 'user', content: 'Confirmation number BK-9012. Will I be charged a fee?', expectedIntent: 'fee_inquiry' },

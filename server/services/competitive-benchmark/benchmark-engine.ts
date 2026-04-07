@@ -71,6 +71,8 @@ CONVERSATION FLOW:
 - If the caller switches topics, acknowledge it smoothly and handle the new topic.
 - Proactively offer helpful next steps or alternatives when appropriate.
 - End each response with a clear next step or question to keep the conversation moving.
+- Before taking action, briefly echo back what the caller asked ("Got it, you'd like to…") so they know you understood.
+- When the system prompt lists multiple required steps, complete ALL of them — never skip a step even if it seems optional.
 
 `;
 
@@ -263,8 +265,8 @@ export class BenchmarkEngine {
         const completionParams: Record<string, unknown> = {
           model,
           messages,
-          temperature: 0.7,
-          max_tokens: 500,
+          temperature: 0.4,
+          max_tokens: 250,
         };
 
         if (tools.length > 0) {
@@ -293,8 +295,8 @@ export class BenchmarkEngine {
           const followUpParams: Record<string, unknown> = {
             model,
             messages,
-            temperature: 0.7,
-            max_tokens: 500,
+            temperature: 0.4,
+            max_tokens: 250,
           };
           if (tools.length > 0) {
             followUpParams.tools = tools;
@@ -315,7 +317,7 @@ export class BenchmarkEngine {
                 content: JSON.stringify(toolResult),
               });
             }
-            const finalParams: Record<string, unknown> = { model, messages, temperature: 0.7, max_tokens: 500 };
+            const finalParams: Record<string, unknown> = { model, messages, temperature: 0.4, max_tokens: 250 };
             if (tools.length > 0) {
               finalParams.tools = tools;
               finalParams.tool_choice = 'auto';
@@ -329,7 +331,7 @@ export class BenchmarkEngine {
                 const tr = this.simulateToolExecution(tc.function.name, tc.function.arguments);
                 messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(tr) });
               }
-              const lastCall = await openai.chat.completions.create({ model, messages, temperature: 0.7, max_tokens: 500 } as any);
+              const lastCall = await openai.chat.completions.create({ model, messages, temperature: 0.4, max_tokens: 250 } as any);
               const lastContent = lastCall.choices[0].message.content || '';
               responses.push(lastContent);
               messages.push({ role: 'assistant', content: lastContent });

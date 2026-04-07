@@ -294,6 +294,12 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="px-3 py-2 border-t border-sidebar-border/50">
+        {!isCollapsed && (
+          <div className="px-2 pb-1 flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground/50" data-testid="text-sidebar-copyright">© {new Date().getFullYear()} B24 Payment</span>
+            <span className="text-[10px] text-muted-foreground/40" data-testid="text-sidebar-version">v1.0.0</span>
+          </div>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button 

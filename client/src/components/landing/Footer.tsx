@@ -250,9 +250,14 @@ export function Footer() {
         </div>
 
         <div className="py-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-slate-500" data-testid="text-copyright">
-            © {new Date().getFullYear()} {branding.app_name}. All rights reserved.
-          </p>
+          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
+            <p className="text-sm text-slate-500" data-testid="text-copyright">
+              © {new Date().getFullYear()} B24 Payment. All rights reserved.
+            </p>
+            <span className="text-xs text-slate-600" data-testid="text-build-version">
+              Build v1.0.0
+            </span>
+          </div>
           <div className="flex items-center gap-6 text-sm text-slate-500">
             <Link href="/privacy" className="hover:text-amber-400 transition-colors">
               Privacy

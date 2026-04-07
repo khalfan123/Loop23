@@ -868,6 +868,19 @@ export default function DeprockManagement() {
     },
   });
 
+  const syncWebhooksMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/deprock/sync-webhooks", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/phone-numbers"] });
+      toast({ title: "All phone numbers synced for incoming calls" });
+    },
+    onError: () => {
+      toast({ title: "Failed to sync phone numbers", variant: "destructive" });
+    },
+  });
+
   const saveIvrConfigMutation = useMutation({
     mutationFn: async () => {
       const activeIvr = ivrConfigurations.find(i => i.isActive);
@@ -1483,6 +1496,19 @@ export default function DeprockManagement() {
                       <Badge variant="outline" className="text-[9px] px-1.5 py-0 cursor-pointer text-orange-500 border-orange-300 mt-0.5" onClick={() => setShowIvrSettingsDialog(true)} data-testid="deprock-unassigned-numbers-panel">
                         {unassignedPhones.length} unassigned
                       </Badge>
+                    )}
+                    {ivrConfigurations.some(i => i.isActive) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 text-[9px] px-1.5 py-0 text-blue-500 hover:text-blue-700"
+                        onClick={() => syncWebhooksMutation.mutate()}
+                        disabled={syncWebhooksMutation.isPending}
+                        data-testid="deprock-button-sync-webhooks"
+                      >
+                        {syncWebhooksMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3 mr-0.5" />}
+                        Sync All
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -2320,7 +2346,7 @@ export default function DeprockManagement() {
           <DialogHeader>
             <DialogTitle>Assign Phone Number</DialogTitle>
             <DialogDescription>
-              Assign a phone number to your call center departments
+              Assign a phone number to your call center. All your active phone numbers will be configured to route incoming calls through Deprock.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">

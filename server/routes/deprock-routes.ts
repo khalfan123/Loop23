@@ -1318,23 +1318,32 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
           })
           .returning();
 
-        if (phoneNumberId && (isActive ?? true)) {
+        if (isActive ?? true) {
           try {
-            const phoneRecord = await db
-              .select()
+            const domain = getDomain();
+            const webhookUrl = `${domain}/api/webhooks/twilio/incoming`;
+
+            const userPhones = await db
+              .select({ id: phoneNumbers.id, phoneNumber: phoneNumbers.phoneNumber, twilioSid: phoneNumbers.twilioSid })
               .from(phoneNumbers)
-              .where(eq(phoneNumbers.id, phoneNumberId))
-              .limit(1);
-            
-            if (phoneRecord.length > 0 && phoneRecord[0].twilioSid) {
-              const domain = getDomain();
-              const webhookUrl = `${domain}/api/webhooks/twilio/incoming`;
-              console.log(`[Deprock] Configuring Twilio webhook for phone ${phoneRecord[0].phoneNumber}: ${webhookUrl}`);
-              await twilioService.updatePhoneNumber(phoneRecord[0].twilioSid, { voiceUrl: webhookUrl });
-              console.log(`[Deprock] Twilio webhook configured successfully`);
+              .where(and(
+                eq(phoneNumbers.userId, req.userId!),
+                eq(phoneNumbers.isSystemPool, false),
+                eq(phoneNumbers.status, 'active')
+              ));
+
+            for (const ph of userPhones) {
+              if (!ph.twilioSid) continue;
+              try {
+                console.log(`[Deprock] Configuring Twilio webhook for phone ${ph.phoneNumber}: ${webhookUrl}`);
+                await twilioService.updatePhoneNumber(ph.twilioSid, { voiceUrl: webhookUrl });
+                console.log(`[Deprock] Twilio webhook configured for ${ph.phoneNumber}`);
+              } catch (phErr: any) {
+                console.error(`[Deprock] Failed to configure webhook for ${ph.phoneNumber}:`, phErr.message);
+              }
             }
           } catch (twilioError: any) {
-            console.error("[Deprock] Failed to configure Twilio webhook:", twilioError.message);
+            console.error("[Deprock] Failed to configure Twilio webhooks:", twilioError.message);
           }
         }
 
@@ -1387,6 +1396,59 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
     } catch (error: any) {
       console.error("[Deprock] Delete IVR config error:", error);
       res.status(500).json({ error: "Failed to delete IVR configuration" });
+    }
+  });
+
+  router.post("/sync-webhooks", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const hasActiveIvr = await db
+        .select({ id: ivrConfigurations.id })
+        .from(ivrConfigurations)
+        .where(and(
+          eq(ivrConfigurations.userId, req.userId!),
+          eq(ivrConfigurations.isActive, true),
+          eq(ivrConfigurations.engineType, 'bedrock-polly')
+        ))
+        .limit(1);
+
+      if (hasActiveIvr.length === 0) {
+        return res.status(400).json({ error: "No active Deprock IVR configuration found" });
+      }
+
+      const domain = getDomain();
+      const webhookUrl = `${domain}/api/webhooks/twilio/incoming`;
+
+      const userPhones = await db
+        .select({ id: phoneNumbers.id, phoneNumber: phoneNumbers.phoneNumber, twilioSid: phoneNumbers.twilioSid })
+        .from(phoneNumbers)
+        .where(and(
+          eq(phoneNumbers.userId, req.userId!),
+          eq(phoneNumbers.isSystemPool, false),
+          eq(phoneNumbers.status, 'active')
+        ));
+
+      const results: { phoneNumber: string; success: boolean; error?: string }[] = [];
+
+      for (const ph of userPhones) {
+        if (!ph.twilioSid) {
+          results.push({ phoneNumber: ph.phoneNumber, success: false, error: "No Twilio SID" });
+          continue;
+        }
+        try {
+          await twilioService.updatePhoneNumber(ph.twilioSid, { voiceUrl: webhookUrl });
+          results.push({ phoneNumber: ph.phoneNumber, success: true });
+          console.log(`[Deprock] Webhook synced for ${ph.phoneNumber}`);
+        } catch (err: any) {
+          results.push({ phoneNumber: ph.phoneNumber, success: false, error: err.message });
+          console.error(`[Deprock] Webhook sync failed for ${ph.phoneNumber}:`, err.message);
+        }
+      }
+
+      const successCount = results.filter(r => r.success).length;
+      res.json({ success: true, synced: successCount, total: userPhones.length, results });
+    } catch (error: any) {
+      console.error("[Deprock] Sync webhooks error:", error);
+      res.status(500).json({ error: "Failed to sync webhooks" });
     }
   });
 

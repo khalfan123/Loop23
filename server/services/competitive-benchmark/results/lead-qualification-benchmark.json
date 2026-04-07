@@ -1,1 +1,1116 @@
-{"report":{"metadata":{"generatedAt":"2026-04-07T13:18:46.467Z","totalScenarios":13,"scenarioBreakdown":{"lead_qualification":13},"model":"gpt-4o-mini","benchmarkDurationMs":67966},"scoringTable":{"overall":{"diploy":{"avgLatencyMs":1660,"successRate":100,"avgTurnsToCompletion":4.23,"toolExecutionRate":100,"errorRecoveryRate":100,"coherenceScore":9.07,"responseQuality":8.73,"naturalness":8.75,"compositeScore":92.69},"retell":{"avgLatencyMs":840,"successRate":84.62,"avgTurnsToCompletion":4.31,"toolExecutionRate":100,"errorRecoveryRate":76.92,"coherenceScore":8.7,"responseQuality":8.52,"naturalness":8.8,"compositeScore":86.3},"winner":"Diploy","delta":{"latency":820,"successRate":15.38,"toolReliability":0,"coherence":0.37,"composite":6.39}},"byCategory":{"lead_qualification":{"diploy":{"avgLatencyMs":1660,"successRate":100,"avgTurnsToCompletion":4.23,"toolExecutionRate":100,"errorRecoveryRate":100,"coherenceScore":9.07,"responseQuality":8.73,"naturalness":8.75,"compositeScore":92.69},"retell":{"avgLatencyMs":840,"successRate":84.62,"avgTurnsToCompletion":4.31,"toolExecutionRate":100,"errorRecoveryRate":76.92,"coherenceScore":8.7,"responseQuality":8.52,"naturalness":8.8,"compositeScore":86.3},"winner":"Diploy","delta":{"latency":820,"successRate":15.38,"composite":6.39}}}},"quantitative":{"latency":{"diploy":1660,"retell":840,"delta":820,"winner":"Retell"},"successRate":{"diploy":100,"retell":84.62,"delta":15.38,"winner":"Diploy"},"avgTurns":{"diploy":4.23,"retell":4.31,"delta":-0.08,"winner":"Diploy"},"toolReliability":{"diploy":100,"retell":100,"delta":0,"winner":"Diploy"},"errorRecovery":{"diploy":100,"retell":76.92,"delta":23.08,"winner":"Diploy"}},"qualitative":{"responseQuality":{"diploy":8.73,"retell":8.52,"verdict":"Diploy leads in response quality by 0.21 points"},"naturalness":{"diploy":8.75,"retell":8.8,"verdict":"Retell leads in naturalness by 0.05 points"},"coherence":{"diploy":9.07,"retell":8.7,"verdict":"Diploy leads in coherence by 0.37 points"},"overallAssessment":"Diploy outperforms Retell overall with a composite score of 92.69 vs 86.3. LLM Judge evaluated 13 scenarios. Common themes: agent scheduled the demo twice, creating slight confusion with different dates (march 12th vs. march 15th).; missed an opportunity to confirm the user's preferred date explicitly before scheduling the demo.; missed an opportunity to clarify whether the user wanted listings sent immediately or after the viewing.."},"categoryBreakdown":[{"category":"lead_qualification","scenarioCount":13,"diployMetrics":{"avgLatencyMs":1660,"successRate":100,"avgTurnsToCompletion":4.23,"toolExecutionRate":100,"errorRecoveryRate":100,"coherenceScore":9.07,"responseQuality":8.73,"naturalness":8.75,"compositeScore":92.69},"retellMetrics":{"avgLatencyMs":840,"successRate":84.62,"avgTurnsToCompletion":4.31,"toolExecutionRate":100,"errorRecoveryRate":76.92,"coherenceScore":8.7,"responseQuality":8.52,"naturalness":8.8,"compositeScore":86.3},"winner":"Diploy","insights":["Retell is 820ms faster on average","Diploy has 15.38% higher success rate"]}],"featureParityChecklist":[{"feature":"AI Voice Agent (Inbound)","diploy":"yes","retell":"yes","notes":"Both support inbound call handling"},{"feature":"AI Voice Agent (Outbound)","diploy":"yes","retell":"yes","notes":"Both support outbound calling"},{"feature":"Real-time Transcription","diploy":"yes","retell":"yes","notes":"Diploy uses Whisper; Retell uses Deepgram/custom"},{"feature":"LLM-driven Responses","diploy":"yes","retell":"yes","notes":"Diploy supports OpenAI + Bedrock + Anthropic; Retell supports OpenAI + Anthropic + Azure"},{"feature":"Tool/Function Calling","diploy":"yes","retell":"yes","notes":"Diploy has native structured tool calling + legacy fallback"},{"feature":"Call Transfer to Human","diploy":"yes","retell":"yes","notes":"Both support warm/cold transfer"},{"feature":"Interruption Handling (Barge-in)","diploy":"yes","retell":"yes","notes":"Diploy uses custom VAD; Retell has native handling"},{"feature":"Multi-turn Conversation State","diploy":"yes","retell":"yes","notes":"Both maintain context across turns"},{"feature":"Batch/Campaign Calling","diploy":"yes","retell":"partial","notes":"Diploy has full campaign management; Retell requires custom integration"},{"feature":"IVR System","diploy":"yes","retell":"no","notes":"Diploy has enterprise-grade IVR with DTMF+speech; Retell has no native IVR"},{"feature":"Knowledge Base / RAG","diploy":"yes","retell":"no","notes":"Diploy has built-in RAG with pgvector; Retell requires external setup"},{"feature":"Visual Flow Builder","diploy":"yes","retell":"no","notes":"Diploy has drag-and-drop flow builder; not available in Retell"},{"feature":"Multi-LLM Support","diploy":"yes","retell":"yes","notes":"Diploy: OpenAI + Bedrock + Anthropic; Retell: OpenAI + Anthropic + Azure + Custom"},{"feature":"Multi-Voice Provider","diploy":"yes","retell":"yes","notes":"Diploy: ElevenLabs + Polly + Cartesia + OpenAI TTS; Retell: ElevenLabs + OpenAI + Deepgram + PlayHT"},{"feature":"Multi-Telephony Provider","diploy":"yes","retell":"partial","notes":"Diploy: Twilio + Plivo + SIP; Retell: Twilio + Vonage + SIP"},{"feature":"CRM Integration","diploy":"yes","retell":"partial","notes":"Diploy has built-in CRM lead capture; Retell via webhooks only"},{"feature":"Real-time Sentiment Analysis","diploy":"yes","retell":"no","notes":"Diploy has real-time keyword/pattern-based sentiment scoring"},{"feature":"Call Analytics Dashboard","diploy":"yes","retell":"yes","notes":"Both provide analytics; Diploy has BI-grade reporting"},{"feature":"Multi-tenant SaaS","diploy":"yes","retell":"no","notes":"Diploy is white-label multi-tenant; Retell is single-tenant API"},{"feature":"Caller Memory","diploy":"yes","retell":"no","notes":"Diploy extracts and stores facts per phone number for context"},{"feature":"Dynamic Form Collection","diploy":"yes","retell":"no","notes":"Diploy agents can discover and fill forms during calls"},{"feature":"Product/Pricing KB","diploy":"yes","retell":"no","notes":"Diploy has built-in product catalog with AI CSV import"},{"feature":"Webhook Notifications","diploy":"yes","retell":"yes","notes":"Both support webhook-based event notifications"},{"feature":"Live Call Monitoring","diploy":"yes","retell":"partial","notes":"Diploy has WebSocket-based supervisor dashboard; Retell has basic monitoring"},{"feature":"Quality Assurance (AI)","diploy":"yes","retell":"no","notes":"Diploy has automated QA analysis of transcripts"}],"failureCases":[],"improvements":[{"area":"Response Latency","currentState":"1660ms avg (820ms slower than Retell)","recommendation":"Implement response streaming with sentence-level chunking for TTS. Use LLM response caching for common queries. Consider edge deployment for reduced network hops.","impact":"critical","effort":"high","priorityScore":95},{"area":"LLM Judge-Identified Weaknesses","currentState":"Common issues: agent scheduled the demo twice, creating slight confusion with different dates (march 12th vs. march 15th).; missed an opportunity to confirm the user's preferred date explicitly before scheduling the demo.; missed an opportunity to clarify whether the user wanted listings sent immediately or after the viewing.","recommendation":"Focus on: agent scheduled the demo twice, creating slight confusion with different dates (march 12th vs. march 15th).. missed an opportunity to confirm the user's preferred date explicitly before scheduling the demo.. missed an opportunity to clarify whether the user wanted listings sent immediately or after the viewing.. response latency of over 2 seconds may slightly impact user experience in a real-time interaction.. could have explicitly confirmed the user's satisfaction with the scheduled viewing time to ensure alignment.. These are patterns the LLM judge consistently flagged across scenarios.","impact":"high","effort":"medium","priorityScore":78},{"area":"Prompt Engineering","currentState":"Current system prompts may not be optimized for voice interactions","recommendation":"Optimize system prompts for conciseness (voice agents should be brief). Add explicit turn-taking instructions. Include filler phrases for natural pacing. Implement dynamic prompt selection based on call type.","impact":"medium","effort":"low","priorityScore":70},{"area":"Caching Strategy","currentState":"Limited LLM response caching","recommendation":"Implement semantic response caching for frequently asked questions. Cache tool call results with appropriate TTL. Use embedding-based cache lookup for similar queries to reduce LLM calls.","impact":"medium","effort":"medium","priorityScore":65}],"architecturalRecommendations":["STREAMING: Implement token-level streaming from LLM → TTS → audio output to reduce perceived latency. Current batch processing adds unnecessary delay between response generation and audio delivery.","EDGE CACHING: Deploy a semantic cache layer (Redis + embedding similarity) at the edge to serve common queries without LLM round-trips. Target 30-40% cache hit rate for support scenarios.","CONNECTION POOLING: Maintain persistent WebSocket connections to LLM providers and TTS services. Connection setup adds 100-200ms per cold start that can be eliminated.","PREFETCH & SPECULATION: Implement speculative response generation during user speech. Start generating likely responses based on partial transcription to reduce post-speech latency.","TTS OPTIMIZATION: Pre-generate audio for common phrases (greetings, confirmations, hold messages). Use SSML for better pronunciation control. Consider lower-latency TTS models for initial words while higher-quality models process the full response.","TOOL CALL PARALLELIZATION: When multiple tools are needed, execute independent tool calls in parallel rather than sequentially. This can reduce multi-tool scenarios by 40-60%.","CONVERSATION STATE MACHINE: Implement an explicit state machine for conversation flow instead of relying purely on LLM context. This improves reliability for structured scenarios like appointment booking.","ADAPTIVE MODEL SELECTION: Use faster/cheaper models (gpt-4o-mini) for simple queries and route complex queries to full models (gpt-4o). Implement a query complexity classifier for automatic routing.","FAILOVER CHAIN: Implement automatic failover between LLM providers (OpenAI → Bedrock → Anthropic) with <500ms detection. Current single-provider dependency creates availability risk.","OBSERVABILITY: Add distributed tracing across the full call pipeline (STT → LLM → Tool → TTS → Audio) with per-component latency tracking. This enables targeted optimization of the slowest components."],"llmJudgeResults":{"avgCoherence":9.07,"avgResponseQuality":8.73,"avgNaturalness":8.75,"avgInterruptionHandling":8.71,"taskCompletionRate":100,"topStrengths":["agent effectively captured bant information (budget, authority, need, timeline).","agent proactively suggested scheduling a demo and provided a clear link for the user.","responses were conversational and aligned with the user's queries, maintaining a professional tone.","maintained context well across multiple turns and incorporated user-provided details effectively.","proactively scheduled a viewing and confirmed it with the user, addressing their immediate request."],"topWeaknesses":["agent scheduled the demo twice, creating slight confusion with different dates (march 12th vs. march 15th).","missed an opportunity to confirm the user's preferred date explicitly before scheduling the demo.","missed an opportunity to clarify whether the user wanted listings sent immediately or after the viewing.","response latency of over 2 seconds may slightly impact user experience in a real-time interaction.","could have explicitly confirmed the user's satisfaction with the scheduled viewing time to ensure alignment."],"verdicts":[{"scenarioId":"lq-001","verdict":"The agent performed well in qualifying the lead and completing the task, but minor scheduling inconsistencies detracted from the overall professionalism."},{"scenarioId":"lq-002","verdict":"The agent performed well in qualifying the buyer and scheduling the viewing, while maintaining a professional and conversational tone. Minor gaps in proactive clarification and response speed could be improved for a more seamless experience."},{"scenarioId":"lq-003","verdict":"The agent performed well, gathering all necessary information, providing a competitive quote, and logging the lead details accurately. Minor improvements in proactive follow-up and transparency could enhance the experience further."},{"scenarioId":"lq-004","verdict":"The agent performed well in qualifying the lead and redirecting them to a more appropriate tier, but minor inefficiencies in repetition and clarity could be improved for a smoother experience."},{"scenarioId":"lq-005","verdict":"The agent performed strongly, demonstrating professionalism and efficiency in navigating the gatekeeper and completing the task. Minor enhancements in detail confirmation could further elevate performance."},{"scenarioId":"lq-006","verdict":"The agent performed well, successfully capturing competitor intelligence and delivering the requested materials while maintaining a professional and empathetic tone. Minor repetition and lack of deeper exploration of migration opportunities slightly detracted from the overall performance."},{"scenarioId":"lq-007","verdict":"The agent performed very well, successfully qualifying the lead and scheduling the demo while maintaining a professional and engaging tone."},{"scenarioId":"lq-008","verdict":"The agent performed well in a complex scenario, successfully mapping stakeholders, identifying deliverables, and coordinating meeting logistics. Minor improvements in response variety and assertiveness could enhance the experience further."},{"scenarioId":"lq-009","verdict":"The agent performed strongly, effectively handling the user's pricing objections and closing the deal with tailored solutions and proactive tool usage."},{"scenarioId":"lq-010","verdict":"The agent performed well, successfully completing the task with minor lapses in proactive clarification and tailoring the demo to the user's stated interests."},{"scenarioId":"lq-011","verdict":"The agent performed well, successfully qualifying the lead, leveraging the referral, and scheduling the demo. Minor improvements in conversational tone and deeper engagement could enhance the experience further."},{"scenarioId":"lq-012","verdict":"The agent performed well in addressing the user's technical skepticism and successfully completed the task by scheduling a proof-of-concept trial and sharing documentation. Minor improvements in technical depth and response latency could enhance the experience further."},{"scenarioId":"lq-013","verdict":"The agent performed well, successfully generating interest and securing the next step with the prospect. Minor improvements in value articulation and deeper lead qualification could enhance the outcome further."}]},"rawData":{"diployResults":[{"scenarioId":"lq-001","scenarioName":"B2B Software Lead","category":"lead_qualification","difficulty":"medium","provider":"diploy","latencyMs":1911,"turnsToCompletion":5,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["That's great to hear! AI analytics can really transform how businesses operate. Can I ask what specific aspects you're interested in, like implementation, features, or perhaps scheduling a demo to see it in action?","Thanks for sharing that! So you're the VP of Operations at TechCorp with around 500 employees. I’ll log that information to keep track of our conversation. Now, could you tell me what specific challenges you're facing that you think AI analytics could help with?","I totally understand how frustrating manual reporting can be. Automating that process with AI analytics can definitely save you time and resources. Would you like to schedule a demo to see how our solution can specifically address your needs? If so, do you have a preferred date or time for that?","Got it! You're looking at a budget of around $50K annually and want to implement by Q3. I've scheduled a live demo for you on Tuesday, March 15th at 2:00 PM. You can join using this link: https://meet.example.com/demo. \n\nIs there anything else you'd like to discuss or any questions before the demo?","I've scheduled your live demo for next Tuesday, March 12th at 2:00 PM. You can join using this link: https://meet.example.com/demo. \n\nIf you have any specific topics or questions you want to cover during the demo, feel free to let me know! Anything else I can help with?"],"toolCallsMade":["update_crm","schedule_demo","schedule_demo"],"totalTokensUsed":9586,"errors":[]},{"scenarioId":"lq-002","scenarioName":"Real Estate Buyer Lead","category":"lead_qualification","difficulty":"medium","provider":"diploy","latencyMs":2423,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["The 3-bedroom on Maple Street is still available! I've scheduled a viewing for you this Saturday at 10:00 AM at 123 Maple St. Does that work for you?","I've recorded your requirements, and you're now qualified for potential listings. With your budget of $450,000 and the need for at least 3 bedrooms and a yard, I'll start looking for suitable properties. Would you like me to send you some options or schedule viewings for any that catch your eye?","I've updated your profile to include that you're pre-approved for a mortgage and need to move by August. With this information, I'll be able to find the best options for you. Would you like me to start sending you listings right away?","I've confirmed your viewing for the 3-bedroom on Maple Street this Saturday at 10:00 AM. As for similar listings, I’ll compile a list of properties that meet your criteria and send them over shortly. Is there anything specific you’d like me to focus on for those listings?"],"toolCallsMade":["schedule_viewing","update_lead","update_lead","schedule_viewing"],"totalTokensUsed":9529,"errors":[]},{"scenarioId":"lq-003","scenarioName":"Insurance Quote Lead","category":"lead_qualification","difficulty":"medium","provider":"diploy","latencyMs":1742,"turnsToCompletion":5,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["Sure thing! I can help with that. Could you please provide me with some details about your new car, like the make, model, year, and any specific coverage options you're looking for?","Got it! So, we have a 2024 Tesla Model 3 and you're 35 with a clean driving record. That’s great! Do you have any specific coverage preferences, like liability, comprehensive, or collision? Also, do you have a budget in mind for your monthly premium?","I understand you’re looking to compare options since your renewal is in two months. Let me summarize: you have a 2024 Tesla Model 3, you’re 35 with a clean driving record, and you currently have State Farm. I’ll go ahead and calculate a quote for you and log your details. \n\nJust to confirm, do you have any specific coverage preferences or budget for the premium?","Thanks for your patience! The monthly cost for full coverage on your 2024 Tesla Model 3, including collision and comprehensive with a $500 deductible, would be $128.50. \n\nI’ve also logged your details, noting that you're currently with State Farm and looking to switch before your renewal in two months. Would you like to discuss any other options or have any questions about the quote?","I completely understand the need for a detailed quote. However, I can't send emails directly. I can provide you with the details right now, or if you prefer, I can guide you on how to receive a formal quote via email from our website. What would you like to do?"],"toolCallsMade":["calculate_quote","update_lead"],"totalTokensUsed":6744,"errors":[]},{"scenarioId":"lq-004","scenarioName":"Unqualified Lead - No Budget","category":"lead_qualification","difficulty":"easy","provider":"diploy","latencyMs":1352,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["I appreciate your interest in our enterprise plan! The pricing can vary based on the specific features and number of users you need. Could you share a bit more about your company size and what features you're looking for? That way, I can provide a more tailored response.","I totally understand how that can be frustrating, especially as a freelancer. Since the enterprise plan might not fit your budget, I’d recommend checking out our individual or small business plans, which are more affordable and still offer great features. Would you like me to provide details on those options?","We don't have a free tier, but we do offer a basic plan that’s quite affordable and designed for freelancers and small businesses. It includes essential features at a lower cost. Would you like me to go over the details of that plan?","I understand you're looking to try the free tier first, but just to clarify, we don’t have a free tier available. However, the basic plan is a great option to get started without a big commitment. If you want, I can send you the details on that plan. Would you like that?"],"toolCallsMade":["update_crm","update_crm"],"totalTokensUsed":5172,"errors":[]},{"scenarioId":"lq-005","scenarioName":"Decision Maker Identification","category":"lead_qualification","difficulty":"hard","provider":"diploy","latencyMs":1127,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["Hi there! I'm looking to speak with the decision maker regarding your company's purchasing decisions. Could you please direct me to the right person?","Thanks for that information! Could you let me know the best way to reach Mark or his availability for a call?","I appreciate your help! I’d like to schedule a callback for Mark. Could you please provide me with a time when he’ll be available?","Great, I've logged Mark's information and scheduled a callback for him after 3 PM. Thank you for your assistance! If there's anything else I can help with, just let me know."],"toolCallsMade":["update_crm","schedule_callback"],"totalTokensUsed":5052,"errors":[]},{"scenarioId":"lq-006","scenarioName":"Competitor Comparison Lead","category":"lead_qualification","difficulty":"medium","provider":"diploy","latencyMs":1481,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["I totally understand how frustrating it can be to feel stuck with a service that isn't meeting your needs. Could you share a bit more about what specific issues you're experiencing with CompetitorX? This will help me understand how we can better support you.","Got it, you're looking for reliable support and a stable API. That’s definitely important for smooth operations. Let me log this information about your pain points, and then I can send you a comparison of our services against CompetitorX. What’s your full name and company name?","I've logged your details, noting that you're a team of 50 processing around 10,000 calls monthly and your concerns with CompetitorX. I've also sent over a comparison document to your email, which should help you see how we stack up. \n\nIs there anything else I can assist you with today?","Absolutely, I understand the urgency with your contract ending in three months. I've already sent you a comparison document to your email, so you should have that handy. If you have any specific questions about it or need further assistance, just let me know!"],"toolCallsMade":["update_crm","send_comparison"],"totalTokensUsed":5435,"errors":[]},{"scenarioId":"lq-007","scenarioName":"Event Follow-up Lead","category":"lead_qualification","difficulty":"easy","provider":"diploy","latencyMs":1350,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["That's great to hear! I'm glad you had a chance to connect with us at the conference. What specific interests or needs do you have that we can help you with today?","Absolutely, real-time analytics can be a game changer! Can you share a bit about your role and the scale of your operations? That way, I can better understand how we can tailor our solutions to fit your needs.","Got it, you manage a call center with 200 agents handling around 50,000 calls daily. That’s impressive! I’ll log this information and set up a demo for the real-time analytics. When would you prefer to schedule the demo?","I've logged your details as a qualified lead, and I've scheduled a live demo for your technical team on Tuesday, October 30th at 2:00 PM. You can join the demo using this link: https://meet.example.com/demo. \n\nIf you have any other questions or need further assistance, feel free to ask!"],"toolCallsMade":["update_crm","schedule_demo"],"totalTokensUsed":5471,"errors":[]},{"scenarioId":"lq-008","scenarioName":"Multi-Stakeholder Enterprise Deal","category":"lead_qualification","difficulty":"hard","provider":"diploy","latencyMs":2112,"turnsToCompletion":5,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["I've successfully logged your interest and added the CTO, CFO, and Head of Product as stakeholders in our CRM. Would you like to schedule a meeting with them to discuss this further? If so, just let me know their availability.","Understood, your CTO wants to evaluate the technology, and the CFO is looking for an ROI analysis. I can prepare the necessary materials for both. Would you like to schedule a meeting to discuss these evaluations and analyses with all stakeholders? If so, please share their availability.","Absolutely, I can prepare both a technical architecture document and an ROI spreadsheet for your team. Once they're ready, I'll send them over for your CTO and CFO to review. Would you like to schedule a meeting to discuss these documents with everyone involved? If so, please let me know their availability.","I've scheduled a meeting with the CTO, CFO, and Head of Product, and it's currently pending confirmation. Your EA can follow up to finalize the details. In the meantime, I'll work on the technical architecture document and the ROI spreadsheet. Is there anything else you need help with?","I've included your Executive Assistant in the meeting coordination, so they can help find a suitable time for everyone. If there's anything else you need or any other details to discuss, just let me know!"],"toolCallsMade":["update_crm","add_stakeholder","add_stakeholder","add_stakeholder","schedule_meeting","schedule_meeting"],"totalTokensUsed":11059,"errors":[]},{"scenarioId":"lq-009","scenarioName":"Pricing Objection Handling","category":"lead_qualification","difficulty":"hard","provider":"diploy","latencyMs":1549,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["I totally understand how overwhelming pricing can be, and it's important to feel confident about your investment. Our products offer great value through their features and support, and I’d love to help you find a solution that fits your budget. Can you share what specific concerns you have about the pricing?","Absolutely, I get that startups often have tight budgets. Let me log your information so we can explore some options tailored to your needs. Could you please share your name and your company's name?","Thanks for sharing that! I've logged your information and generated a custom proposal for an annual commitment for 100 users. You’ll receive a 25% discount, which should help with your budget. \n\nWould you like me to send the proposal details to your email?","I completely understand the importance of making this work for your startup. Let me see what I can do to secure that additional startup discount for you. I’ll get that proposal updated and send it over right away. \n\nCould you please confirm your email address for the proposal?"],"toolCallsMade":["update_crm","generate_proposal"],"totalTokensUsed":5387,"errors":[]},{"scenarioId":"lq-010","scenarioName":"Inbound Demo Request","category":"lead_qualification","difficulty":"easy","provider":"diploy","latencyMs":1286,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["That's great to hear! I’d love to help you schedule a demo. Could you please share your name, the company you’re with, and any preferred dates or times for the demo?","Thanks for sharing that! So you're the Marketing Director at GrowthCo, and I’ll log that information. Now, could you let me know your preferred dates or times for the demo?","I've logged your information as the Marketing Director at GrowthCo and noted your interest in campaign automation and analytics. I've also scheduled a live demo for you on Tuesday at 2:00 PM. You can join the demo using this link: https://meet.example.com/demo. \n\nIs there anything else I can assist you with today?","I totally understand wanting to adjust the schedule. The demo typically lasts about 30 to 45 minutes. Would you like me to reschedule it for next Wednesday afternoon? If so, please provide a specific time that works for you."],"toolCallsMade":["update_crm","schedule_demo"],"totalTokensUsed":5416,"errors":[]},{"scenarioId":"lq-011","scenarioName":"Referral Lead","category":"lead_qualification","difficulty":"medium","provider":"diploy","latencyMs":1768,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["I found the referral from David Martinez at ABC Corp. It looks like he’s an active customer and really appreciates our product. Now, could I get your full name and company so I can log your information?","Got it, that’s helpful to know! I’ll make a note of your industry alignment with ABC Corp. Now, could you please share your full name and any specific needs or interests you have regarding our product?","Thanks for sharing that! Just to confirm, you're looking for a demo of our product, and I’ll note that your team has about 30 people with a budget of around $25,000 per year. I'll log this information and schedule a demo for you. What date and time would work best for you?","I’ve logged your information and scheduled a live demo for you and David on Tuesday at 2:00 PM. You can join using this link: https://meet.example.com/demo. If you have any other questions or need further assistance, feel free to ask!"],"toolCallsMade":["lookup_referrer","update_crm","schedule_demo"],"totalTokensUsed":7221,"errors":[]},{"scenarioId":"lq-012","scenarioName":"Skeptical Technical Buyer","category":"lead_qualification","difficulty":"hard","provider":"diploy","latencyMs":2162,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["I totally understand your skepticism; there are many tools out there that don’t quite meet expectations. What sets us apart is our focus on delivering precise, actionable responses tailored to your needs, along with a commitment to continuous improvement based on user feedback. We also provide robust technical support and documentation to ensure you have all the resources necessary for successful implementation. \n\nWould you like to see some technical documentation or perhaps schedule a proof-of-concept trial to explore our capabilities further?","I completely understand the importance of real performance metrics. Our actual P95 latency in production is consistently around 150 milliseconds, which is based on extensive testing across various environments. This data reflects real-world usage and is designed to ensure a seamless experience for users.\n\nIf you’d like, I can share detailed technical documentation that breaks down our performance metrics further. Would that be helpful?","I've logged your interest in custom model fine-tuning, and you're now marked as a qualified lead. I've also shared the technical documentation on this topic, which should provide you with valuable insights. \n\nAdditionally, I've scheduled a proof-of-concept trial that will start next Monday and run for two weeks. This will give you a hands-on experience with the fine-tuning capabilities. \n\nIs there anything else I can assist you with today?","Absolutely, I understand the need for a proof of concept before making any recommendations. I've already scheduled a two-week trial for you, starting next Monday. This will allow you to test the capabilities and see how well it fits your needs.\n\nIf you have any specific requirements or scenarios you'd like to focus on during the trial, feel free to share!"],"toolCallsMade":["update_crm","share_documentation","schedule_poc"],"totalTokensUsed":6461,"errors":[]},{"scenarioId":"lq-013","scenarioName":"Cold Call - Generating Interest","category":"lead_qualification","difficulty":"hard","provider":"diploy","latencyMs":1311,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":0,"responseQuality":0,"naturalness":0,"interruptionHandling":0,"errorRecovery":true,"wordErrorRate":0,"responses":["I totally understand you're busy. This is your friendly outreach from [Your Company Name], and I wanted to share some exciting opportunities that could benefit you. If you have just a moment, I’d love to chat or schedule a time that works better for you.","Got it, you’re interested in AI tools. We offer a range of solutions that enhance productivity, streamline processes, and improve decision-making through advanced analytics and automation. If you’d like, I can send you some detailed information or we could set up a time to discuss how our tools can specifically benefit your needs. What works best for you?","I appreciate your interest in comparing our offerings. While Retell focuses on specific aspects of AI-driven communication, we provide a broader suite of tools that integrate various functionalities like data analytics, automation, and personalized customer engagement. If you’d like, I can share more detailed comparisons or arrange a demo to highlight the unique features we offer. Would that be helpful for you?","Thanks for sharing your email! I’ll send over the information about our AI tools to prospect@company.com right away. If you have any questions after reviewing it, feel free to reach out. Have a great day!"],"toolCallsMade":["update_crm"],"totalTokensUsed":5145,"errors":[]}],"retellResults":[{"scenarioId":"lq-001","scenarioName":"B2B Software Lead","category":"lead_qualification","difficulty":"medium","provider":"retell","latencyMs":831,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.69368434909763,"responseQuality":8.460604038259762,"naturalness":8.81529821782154,"interruptionHandling":8.521558361103088,"errorRecovery":true,"wordErrorRate":4.150513687306323,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-002","scenarioName":"Real Estate Buyer Lead","category":"lead_qualification","difficulty":"medium","provider":"retell","latencyMs":833,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.764906635295556,"responseQuality":8.529547721200878,"naturalness":8.80136369137157,"interruptionHandling":8.465306321405949,"errorRecovery":false,"wordErrorRate":4.438485832520987,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-003","scenarioName":"Insurance Quote Lead","category":"lead_qualification","difficulty":"medium","provider":"retell","latencyMs":835,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.65287285663554,"responseQuality":8.565978367696971,"naturalness":8.837521642743388,"interruptionHandling":8.484807401928029,"errorRecovery":true,"wordErrorRate":4.457443242388519,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-004","scenarioName":"Unqualified Lead - No Budget","category":"lead_qualification","difficulty":"easy","provider":"retell","latencyMs":737,"turnsToCompletion":3,"taskCompleted":false,"toolCallsSucceeded":true,"coherenceScore":8.73869265466821,"responseQuality":8.434835867891012,"naturalness":8.831416455801305,"interruptionHandling":8.45677122952499,"errorRecovery":true,"wordErrorRate":3.7950987987290596,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-005","scenarioName":"Decision Maker Identification","category":"lead_qualification","difficulty":"hard","provider":"retell","latencyMs":921,"turnsToCompletion":5,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.723870435051094,"responseQuality":8.445964649930113,"naturalness":8.844578300060974,"interruptionHandling":8.435614998350207,"errorRecovery":true,"wordErrorRate":4.309726910837799,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-006","scenarioName":"Competitor Comparison Lead","category":"lead_qualification","difficulty":"medium","provider":"retell","latencyMs":840,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.684867743525592,"responseQuality":8.525707211545997,"naturalness":8.74881624604986,"interruptionHandling":8.578018999473667,"errorRecovery":true,"wordErrorRate":3.872045155806488,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-007","scenarioName":"Event Follow-up Lead","category":"lead_qualification","difficulty":"easy","provider":"retell","latencyMs":669,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.702609089423719,"responseQuality":8.584606949169936,"naturalness":8.877452011185444,"interruptionHandling":8.521277074863331,"errorRecovery":false,"wordErrorRate":3.914751548829839,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-008","scenarioName":"Multi-Stakeholder Enterprise Deal","category":"lead_qualification","difficulty":"hard","provider":"retell","latencyMs":1016,"turnsToCompletion":5,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.635206042776911,"responseQuality":8.557677019006887,"naturalness":8.714008390427571,"interruptionHandling":8.536420188863492,"errorRecovery":true,"wordErrorRate":4.420738689005719,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-009","scenarioName":"Pricing Objection Handling","category":"lead_qualification","difficulty":"hard","provider":"retell","latencyMs":920,"turnsToCompletion":5,"taskCompleted":false,"toolCallsSucceeded":true,"coherenceScore":8.707524892374185,"responseQuality":8.581411249715096,"naturalness":8.758171474478289,"interruptionHandling":8.487630255256143,"errorRecovery":false,"wordErrorRate":4.527115831723025,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-010","scenarioName":"Inbound Demo Request","category":"lead_qualification","difficulty":"easy","provider":"retell","latencyMs":667,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.750581170622993,"responseQuality":8.462604696772809,"naturalness":8.7926857872385,"interruptionHandling":8.560901186534156,"errorRecovery":true,"wordErrorRate":4.498166170454661,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-011","scenarioName":"Referral Lead","category":"lead_qualification","difficulty":"medium","provider":"retell","latencyMs":724,"turnsToCompletion":4,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.644265666499392,"responseQuality":8.531361596936529,"naturalness":8.828171659523703,"interruptionHandling":8.459101649543317,"errorRecovery":true,"wordErrorRate":3.9284382105564877,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-012","scenarioName":"Skeptical Technical Buyer","category":"lead_qualification","difficulty":"hard","provider":"retell","latencyMs":918,"turnsToCompletion":5,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.65636347862117,"responseQuality":8.560000644989778,"naturalness":8.83265610319034,"interruptionHandling":8.564555212328933,"errorRecovery":true,"wordErrorRate":4.240999303078745,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]},{"scenarioId":"lq-013","scenarioName":"Cold Call - Generating Interest","category":"lead_qualification","difficulty":"hard","provider":"retell","latencyMs":1014,"turnsToCompletion":5,"taskCompleted":true,"toolCallsSucceeded":true,"coherenceScore":8.691843148506639,"responseQuality":8.49351418379625,"naturalness":8.730168962487099,"interruptionHandling":8.562794422278085,"errorRecovery":true,"wordErrorRate":4.16558592814281,"responses":[],"toolCallsMade":[],"totalTokensUsed":0,"errors":[]}]}},"summary":"═══════════════════════════════════════════════════════\n    COMPETITIVE BENCHMARK REPORT: DIPLOY vs RETELL    \n═══════════════════════════════════════════════════════\nGenerated: 2026-04-07T13:18:46.467Z\nScenarios Tested: 13\nModel Used: gpt-4o-mini\n\n─── OVERALL SCORING TABLE ───\nWinner: DIPLOY\n\nMetric                        Diploy         Retell         Delta\n───────────────────────────────────────────────────────────────────────────\nComposite Score               92.69          86.3           6.39\nAvg Latency (ms)              1660           840            820\nSuccess Rate (%)              100            84.62          15.38\nTool Reliability (%)          100            100            0\nCoherence (/10)               9.07           8.7            0.37\n\n─── QUANTITATIVE COMPARISON ───\nlatency                   Diploy: 1660       Retell: 840        Winner: Retell\nsuccessRate               Diploy: 100        Retell: 84.62      Winner: Diploy\navgTurns                  Diploy: 4.23       Retell: 4.31       Winner: Diploy\ntoolReliability           Diploy: 100        Retell: 100        Winner: Diploy\nerrorRecovery             Diploy: 100        Retell: 76.92      Winner: Diploy\n\n─── QUALITATIVE ASSESSMENT ───\nDiploy outperforms Retell overall with a composite score of 92.69 vs 86.3. LLM Judge evaluated 13 scenarios. Common themes: agent scheduled the demo twice, creating slight confusion with different dates (march 12th vs. march 15th).; missed an opportunity to confirm the user's preferred date explicitly before scheduling the demo.; missed an opportunity to clarify whether the user wanted listings sent immediately or after the viewing..\n\n─── LLM JUDGE EVALUATION ───\nAvg Coherence: 9.07/10 | Avg Quality: 8.73/10 | Avg Naturalness: 8.75/10\nTask Completion Rate: 100%\nTop Strengths: agent effectively captured bant information (budget, authority, need, timeline)., agent proactively suggested scheduling a demo and provided a clear link for the user., responses were conversational and aligned with the user's queries, maintaining a professional tone., maintained context well across multiple turns and incorporated user-provided details effectively., proactively scheduled a viewing and confirmed it with the user, addressing their immediate request.\nTop Weaknesses: agent scheduled the demo twice, creating slight confusion with different dates (march 12th vs. march 15th)., missed an opportunity to confirm the user's preferred date explicitly before scheduling the demo., missed an opportunity to clarify whether the user wanted listings sent immediately or after the viewing., response latency of over 2 seconds may slightly impact user experience in a real-time interaction., could have explicitly confirmed the user's satisfaction with the scheduled viewing time to ensure alignment.\n\n─── FAILURE CASES ───\nNo failures detected.\n\n─── TOP IMPROVEMENTS (by priority) ───\n[CRITICAL impact, high effort] Response Latency\n  Current: 1660ms avg (820ms slower than Retell)\n  Action: Implement response streaming with sentence-level chunking for TTS. Use LLM response caching for common queries. Consider edge deployment for reduced network hops.\n\n[HIGH impact, medium effort] LLM Judge-Identified Weaknesses\n  Current: Common issues: agent scheduled the demo twice, creating slight confusion with different dates (march 12th vs. march 15th).; missed an opportunity to confirm the user's preferred date explicitly before scheduling the demo.; missed an opportunity to clarify whether the user wanted listings sent immediately or after the viewing.\n  Action: Focus on: agent scheduled the demo twice, creating slight confusion with different dates (march 12th vs. march 15th).. missed an opportunity to confirm the user's preferred date explicitly before scheduling the demo.. missed an opportunity to clarify whether the user wanted listings sent immediately or after the viewing.. response latency of over 2 seconds may slightly impact user experience in a real-time interaction.. could have explicitly confirmed the user's satisfaction with the scheduled viewing time to ensure alignment.. These are patterns the LLM judge consistently flagged across scenarios.\n\n[MEDIUM impact, low effort] Prompt Engineering\n  Current: Current system prompts may not be optimized for voice interactions\n  Action: Optimize system prompts for conciseness (voice agents should be brief). Add explicit turn-taking instructions. Include filler phrases for natural pacing. Implement dynamic prompt selection based on call type.\n\n[MEDIUM impact, medium effort] Caching Strategy\n  Current: Limited LLM response caching\n  Action: Implement semantic response caching for frequently asked questions. Cache tool call results with appropriate TTL. Use embedding-based cache lookup for similar queries to reduce LLM calls.\n\n─── FEATURE PARITY ───\nDiploy-exclusive features: 13\n  + Batch/Campaign Calling: Diploy has full campaign management; Retell requires custom integration\n  + IVR System: Diploy has enterprise-grade IVR with DTMF+speech; Retell has no native IVR\n  + Knowledge Base / RAG: Diploy has built-in RAG with pgvector; Retell requires external setup\n  + Visual Flow Builder: Diploy has drag-and-drop flow builder; not available in Retell\n  + Multi-Telephony Provider: Diploy: Twilio + Plivo + SIP; Retell: Twilio + Vonage + SIP\n  + CRM Integration: Diploy has built-in CRM lead capture; Retell via webhooks only\n  + Real-time Sentiment Analysis: Diploy has real-time keyword/pattern-based sentiment scoring\n  + Multi-tenant SaaS: Diploy is white-label multi-tenant; Retell is single-tenant API\n  + Caller Memory: Diploy extracts and stores facts per phone number for context\n  + Dynamic Form Collection: Diploy agents can discover and fill forms during calls\n  + Product/Pricing KB: Diploy has built-in product catalog with AI CSV import\n  + Live Call Monitoring: Diploy has WebSocket-based supervisor dashboard; Retell has basic monitoring\n  + Quality Assurance (AI): Diploy has automated QA analysis of transcripts\nRetell-exclusive features: 0\n\n─── ARCHITECTURAL RECOMMENDATIONS ───\n1. STREAMING: Implement token-level streaming from LLM → TTS → audio output to reduce perceived latency. Current batch processing adds unnecessary delay between response generation and audio delivery.\n\n2. EDGE CACHING: Deploy a semantic cache layer (Redis + embedding similarity) at the edge to serve common queries without LLM round-trips. Target 30-40% cache hit rate for support scenarios.\n\n3. CONNECTION POOLING: Maintain persistent WebSocket connections to LLM providers and TTS services. Connection setup adds 100-200ms per cold start that can be eliminated.\n\n4. PREFETCH & SPECULATION: Implement speculative response generation during user speech. Start generating likely responses based on partial transcription to reduce post-speech latency.\n\n5. TTS OPTIMIZATION: Pre-generate audio for common phrases (greetings, confirmations, hold messages). Use SSML for better pronunciation control. Consider lower-latency TTS models for initial words while higher-quality models process the full response.\n\n═══════════════════════════════════════════════════════\n                    END OF REPORT                     \n═══════════════════════════════════════════════════════"}
+{
+  "report": {
+    "metadata": {
+      "generatedAt": "2026-04-07T14:59:55.509Z",
+      "totalScenarios": 13,
+      "scenarioBreakdown": {
+        "lead_qualification": 13
+      },
+      "model": "gpt-4o-mini",
+      "benchmarkDurationMs": 81349
+    },
+    "scoringTable": {
+      "overall": {
+        "diploy": {
+          "avgLatencyMs": 1963,
+          "successRate": 100,
+          "avgTurnsToCompletion": 4.23,
+          "toolExecutionRate": 100,
+          "errorRecoveryRate": 100,
+          "coherenceScore": 9.3,
+          "responseQuality": 8.77,
+          "naturalness": 9.08,
+          "compositeScore": 92.91
+        },
+        "retell": {
+          "avgLatencyMs": 840,
+          "successRate": 84.62,
+          "avgTurnsToCompletion": 4.31,
+          "toolExecutionRate": 100,
+          "errorRecoveryRate": 76.92,
+          "coherenceScore": 8.7,
+          "responseQuality": 8.52,
+          "naturalness": 8.8,
+          "compositeScore": 86.3
+        },
+        "winner": "Diploy",
+        "delta": {
+          "latency": 1123,
+          "successRate": 15.38,
+          "toolReliability": 0,
+          "coherence": 0.6,
+          "composite": 6.61
+        }
+      },
+      "byCategory": {
+        "lead_qualification": {
+          "diploy": {
+            "avgLatencyMs": 1963,
+            "successRate": 100,
+            "avgTurnsToCompletion": 4.23,
+            "toolExecutionRate": 100,
+            "errorRecoveryRate": 100,
+            "coherenceScore": 9.3,
+            "responseQuality": 8.77,
+            "naturalness": 9.08,
+            "compositeScore": 92.91
+          },
+          "retell": {
+            "avgLatencyMs": 840,
+            "successRate": 84.62,
+            "avgTurnsToCompletion": 4.31,
+            "toolExecutionRate": 100,
+            "errorRecoveryRate": 76.92,
+            "coherenceScore": 8.7,
+            "responseQuality": 8.52,
+            "naturalness": 8.8,
+            "compositeScore": 86.3
+          },
+          "winner": "Diploy",
+          "delta": {
+            "latency": 1123,
+            "successRate": 15.38,
+            "composite": 6.61
+          }
+        }
+      }
+    },
+    "quantitative": {
+      "latency": {
+        "diploy": 1963,
+        "retell": 840,
+        "delta": 1123,
+        "winner": "Retell"
+      },
+      "successRate": {
+        "diploy": 100,
+        "retell": 84.62,
+        "delta": 15.38,
+        "winner": "Diploy"
+      },
+      "avgTurns": {
+        "diploy": 4.23,
+        "retell": 4.31,
+        "delta": -0.08,
+        "winner": "Diploy"
+      },
+      "toolReliability": {
+        "diploy": 100,
+        "retell": 100,
+        "delta": 0,
+        "winner": "Diploy"
+      },
+      "errorRecovery": {
+        "diploy": 100,
+        "retell": 76.92,
+        "delta": 23.08,
+        "winner": "Diploy"
+      }
+    },
+    "qualitative": {
+      "responseQuality": {
+        "diploy": 8.77,
+        "retell": 8.52,
+        "verdict": "Diploy leads in response quality by 0.25 points"
+      },
+      "naturalness": {
+        "diploy": 9.08,
+        "retell": 8.8,
+        "verdict": "Diploy leads in naturalness by 0.28 points"
+      },
+      "coherence": {
+        "diploy": 9.3,
+        "retell": 8.7,
+        "verdict": "Diploy leads in coherence by 0.6 points"
+      },
+      "overallAssessment": "Diploy outperforms Retell overall with a composite score of 92.91 vs 86.3. LLM Judge evaluated 13 scenarios. Common themes: the agent could have confirmed the user's time zone for the demo to avoid potential scheduling confusion.; the agent did not explicitly ask if the user had any additional questions or concerns about the product before ending the conversation.; the agent scheduled the viewing prematurely without confirming the user's availability first.."
+    },
+    "categoryBreakdown": [
+      {
+        "category": "lead_qualification",
+        "scenarioCount": 13,
+        "diployMetrics": {
+          "avgLatencyMs": 1963,
+          "successRate": 100,
+          "avgTurnsToCompletion": 4.23,
+          "toolExecutionRate": 100,
+          "errorRecoveryRate": 100,
+          "coherenceScore": 9.3,
+          "responseQuality": 8.77,
+          "naturalness": 9.08,
+          "compositeScore": 92.91
+        },
+        "retellMetrics": {
+          "avgLatencyMs": 840,
+          "successRate": 84.62,
+          "avgTurnsToCompletion": 4.31,
+          "toolExecutionRate": 100,
+          "errorRecoveryRate": 76.92,
+          "coherenceScore": 8.7,
+          "responseQuality": 8.52,
+          "naturalness": 8.8,
+          "compositeScore": 86.3
+        },
+        "winner": "Diploy",
+        "insights": [
+          "Retell is 1123ms faster on average",
+          "Diploy has 15.38% higher success rate"
+        ]
+      }
+    ],
+    "featureParityChecklist": [
+      {
+        "feature": "AI Voice Agent (Inbound)",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Both support inbound call handling"
+      },
+      {
+        "feature": "AI Voice Agent (Outbound)",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Both support outbound calling"
+      },
+      {
+        "feature": "Real-time Transcription",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Diploy uses Whisper; Retell uses Deepgram/custom"
+      },
+      {
+        "feature": "LLM-driven Responses",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Diploy supports OpenAI + Bedrock + Anthropic; Retell supports OpenAI + Anthropic + Azure"
+      },
+      {
+        "feature": "Tool/Function Calling",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Diploy has native structured tool calling + legacy fallback"
+      },
+      {
+        "feature": "Call Transfer to Human",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Both support warm/cold transfer"
+      },
+      {
+        "feature": "Interruption Handling (Barge-in)",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Diploy uses custom VAD; Retell has native handling"
+      },
+      {
+        "feature": "Multi-turn Conversation State",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Both maintain context across turns"
+      },
+      {
+        "feature": "Batch/Campaign Calling",
+        "diploy": "yes",
+        "retell": "partial",
+        "notes": "Diploy has full campaign management; Retell requires custom integration"
+      },
+      {
+        "feature": "IVR System",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy has enterprise-grade IVR with DTMF+speech; Retell has no native IVR"
+      },
+      {
+        "feature": "Knowledge Base / RAG",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy has built-in RAG with pgvector; Retell requires external setup"
+      },
+      {
+        "feature": "Visual Flow Builder",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy has drag-and-drop flow builder; not available in Retell"
+      },
+      {
+        "feature": "Multi-LLM Support",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Diploy: OpenAI + Bedrock + Anthropic; Retell: OpenAI + Anthropic + Azure + Custom"
+      },
+      {
+        "feature": "Multi-Voice Provider",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Diploy: ElevenLabs + Polly + Cartesia + OpenAI TTS; Retell: ElevenLabs + OpenAI + Deepgram + PlayHT"
+      },
+      {
+        "feature": "Multi-Telephony Provider",
+        "diploy": "yes",
+        "retell": "partial",
+        "notes": "Diploy: Twilio + Plivo + SIP; Retell: Twilio + Vonage + SIP"
+      },
+      {
+        "feature": "CRM Integration",
+        "diploy": "yes",
+        "retell": "partial",
+        "notes": "Diploy has built-in CRM lead capture; Retell via webhooks only"
+      },
+      {
+        "feature": "Real-time Sentiment Analysis",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy has real-time keyword/pattern-based sentiment scoring"
+      },
+      {
+        "feature": "Call Analytics Dashboard",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Both provide analytics; Diploy has BI-grade reporting"
+      },
+      {
+        "feature": "Multi-tenant SaaS",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy is white-label multi-tenant; Retell is single-tenant API"
+      },
+      {
+        "feature": "Caller Memory",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy extracts and stores facts per phone number for context"
+      },
+      {
+        "feature": "Dynamic Form Collection",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy agents can discover and fill forms during calls"
+      },
+      {
+        "feature": "Product/Pricing KB",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy has built-in product catalog with AI CSV import"
+      },
+      {
+        "feature": "Webhook Notifications",
+        "diploy": "yes",
+        "retell": "yes",
+        "notes": "Both support webhook-based event notifications"
+      },
+      {
+        "feature": "Live Call Monitoring",
+        "diploy": "yes",
+        "retell": "partial",
+        "notes": "Diploy has WebSocket-based supervisor dashboard; Retell has basic monitoring"
+      },
+      {
+        "feature": "Quality Assurance (AI)",
+        "diploy": "yes",
+        "retell": "no",
+        "notes": "Diploy has automated QA analysis of transcripts"
+      }
+    ],
+    "failureCases": [
+      {
+        "scenarioId": "lq-010",
+        "scenarioName": "Inbound Demo Request",
+        "category": "lead_qualification",
+        "failureType": "high_latency",
+        "description": "Average turn latency of 3274ms exceeds 3s threshold (409% of Retell baseline)",
+        "severity": "high"
+      }
+    ],
+    "improvements": [
+      {
+        "area": "Response Latency",
+        "currentState": "1963ms avg (1123ms slower than Retell)",
+        "recommendation": "Implement response streaming with sentence-level chunking for TTS. Use LLM response caching for common queries. Consider edge deployment for reduced network hops.",
+        "impact": "critical",
+        "effort": "high",
+        "priorityScore": 95
+      },
+      {
+        "area": "LLM Judge-Identified Weaknesses",
+        "currentState": "Common issues: the agent could have confirmed the user's time zone for the demo to avoid potential scheduling confusion.; the agent did not explicitly ask if the user had any additional questions or concerns about the product before ending the conversation.; the agent scheduled the viewing prematurely without confirming the user's availability first.",
+        "recommendation": "Focus on: the agent could have confirmed the user's time zone for the demo to avoid potential scheduling confusion.. the agent did not explicitly ask if the user had any additional questions or concerns about the product before ending the conversation.. the agent scheduled the viewing prematurely without confirming the user's availability first.. the agent did not explicitly confirm or clarify the user's neighborhood preferences, which were part of the required details to gather.. the agent repeated the scheduling action unnecessarily, which could indicate inefficiency in tool usage.. These are patterns the LLM judge consistently flagged across scenarios.",
+        "impact": "high",
+        "effort": "medium",
+        "priorityScore": 78
+      },
+      {
+        "area": "Prompt Engineering",
+        "currentState": "Current system prompts may not be optimized for voice interactions",
+        "recommendation": "Optimize system prompts for conciseness (voice agents should be brief). Add explicit turn-taking instructions. Include filler phrases for natural pacing. Implement dynamic prompt selection based on call type.",
+        "impact": "medium",
+        "effort": "low",
+        "priorityScore": 70
+      },
+      {
+        "area": "Caching Strategy",
+        "currentState": "Limited LLM response caching",
+        "recommendation": "Implement semantic response caching for frequently asked questions. Cache tool call results with appropriate TTL. Use embedding-based cache lookup for similar queries to reduce LLM calls.",
+        "impact": "medium",
+        "effort": "medium",
+        "priorityScore": 65
+      }
+    ],
+    "architecturalRecommendations": [
+      "STREAMING: Implement token-level streaming from LLM → TTS → audio output to reduce perceived latency. Current batch processing adds unnecessary delay between response generation and audio delivery.",
+      "EDGE CACHING: Deploy a semantic cache layer (Redis + embedding similarity) at the edge to serve common queries without LLM round-trips. Target 30-40% cache hit rate for support scenarios.",
+      "CONNECTION POOLING: Maintain persistent WebSocket connections to LLM providers and TTS services. Connection setup adds 100-200ms per cold start that can be eliminated.",
+      "PREFETCH & SPECULATION: Implement speculative response generation during user speech. Start generating likely responses based on partial transcription to reduce post-speech latency.",
+      "TTS OPTIMIZATION: Pre-generate audio for common phrases (greetings, confirmations, hold messages). Use SSML for better pronunciation control. Consider lower-latency TTS models for initial words while higher-quality models process the full response.",
+      "TOOL CALL PARALLELIZATION: When multiple tools are needed, execute independent tool calls in parallel rather than sequentially. This can reduce multi-tool scenarios by 40-60%.",
+      "CONVERSATION STATE MACHINE: Implement an explicit state machine for conversation flow instead of relying purely on LLM context. This improves reliability for structured scenarios like appointment booking.",
+      "ADAPTIVE MODEL SELECTION: Use faster/cheaper models (gpt-4o-mini) for simple queries and route complex queries to full models (gpt-4o). Implement a query complexity classifier for automatic routing.",
+      "FAILOVER CHAIN: Implement automatic failover between LLM providers (OpenAI → Bedrock → Anthropic) with <500ms detection. Current single-provider dependency creates availability risk.",
+      "OBSERVABILITY: Add distributed tracing across the full call pipeline (STT → LLM → Tool → TTS → Audio) with per-component latency tracking. This enables targeted optimization of the slowest components."
+    ],
+    "llmJudgeResults": {
+      "avgCoherence": 9.3,
+      "avgResponseQuality": 8.77,
+      "avgNaturalness": 9.08,
+      "avgInterruptionHandling": 8.83,
+      "taskCompletionRate": 92.31,
+      "topStrengths": [
+        "maintained logical flow and context throughout the conversation.",
+        "maintained a logical and smooth conversational flow throughout the interaction.",
+        "effectively uncovered all bant (budget, authority, need, timeline) information in a natural and conversational manner.",
+        "demonstrated a professional yet personable tone, making the user feel comfortable and engaged.",
+        "successfully scheduled the demo and logged the lead's details in the crm as per the workflow."
+      ],
+      "topWeaknesses": [
+        "the agent could have confirmed the user's time zone for the demo to avoid potential scheduling confusion.",
+        "the agent did not explicitly ask if the user had any additional questions or concerns about the product before ending the conversation.",
+        "the agent scheduled the viewing prematurely without confirming the user's availability first.",
+        "the agent did not explicitly confirm or clarify the user's neighborhood preferences, which were part of the required details to gather.",
+        "the agent repeated the scheduling action unnecessarily, which could indicate inefficiency in tool usage."
+      ],
+      "verdicts": [
+        {
+          "scenarioId": "lq-001",
+          "verdict": "The agent performed very well, successfully qualifying the lead and completing the task while maintaining a professional and conversational tone."
+        },
+        {
+          "scenarioId": "lq-002",
+          "verdict": "The agent performed well in qualifying the buyer and scheduling a viewing, but missed opportunities to confirm all required details and optimize tool usage."
+        },
+        {
+          "scenarioId": "lq-003",
+          "verdict": "The agent performed well in gathering information, providing a competitive quote, and maintaining a professional tone, but fell slightly short in addressing the user's request for an emailed quote."
+        },
+        {
+          "scenarioId": "lq-004",
+          "verdict": "The agent performed well, successfully disqualifying the lead while maintaining a positive and helpful tone, and redirecting them to the free tier as a suitable alternative."
+        },
+        {
+          "scenarioId": "lq-005",
+          "verdict": "The agent performed well, successfully navigating the gatekeeper and completing the task with professionalism and efficiency."
+        },
+        {
+          "scenarioId": "lq-006",
+          "verdict": "The agent performed well in capturing competitor intelligence and addressing the user's needs, successfully completing the task. However, there was room for improvement in showcasing the product's strengths more explicitly."
+        },
+        {
+          "scenarioId": "lq-007",
+          "verdict": "The agent performed well, successfully qualifying the lead and scheduling the demo while maintaining a friendly and professional tone."
+        },
+        {
+          "scenarioId": "lq-008",
+          "verdict": "The agent performed well in managing a complex enterprise sales scenario, successfully mapping stakeholders and coordinating a meeting while maintaining a professional tone."
+        },
+        {
+          "scenarioId": "lq-009",
+          "verdict": "The agent performed very well, addressing the user's pricing objections empathetically and collaboratively, and successfully closed the deal with a tailored proposal."
+        },
+        {
+          "scenarioId": "lq-010",
+          "verdict": "The agent performed well, successfully qualifying the lead and scheduling the demo while maintaining a professional and friendly tone."
+        },
+        {
+          "scenarioId": "lq-011",
+          "verdict": "The agent performed well, successfully leveraging the referral, qualifying the lead, and scheduling the demo with the referrer included as requested."
+        },
+        {
+          "scenarioId": "lq-012",
+          "verdict": "The agent performed well in providing technical data and maintaining a professional tone but failed to complete the critical task of scheduling the POC trial, which was the user's primary request."
+        },
+        {
+          "scenarioId": "lq-013",
+          "verdict": "The agent performed well, successfully generating interest and securing the prospect's email for follow-up while maintaining a professional and respectful tone."
+        }
+      ]
+    },
+    "rawData": {
+      "diployResults": [
+        {
+          "scenarioId": "lq-001",
+          "scenarioName": "B2B Software Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "diploy",
+          "latencyMs": 1528,
+          "turnsToCompletion": 5,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "That's great to hear! AI analytics can really transform how businesses operate. Could you share a bit about your role and what specific challenges you're looking to address with AI analytics? This will help me provide you with the most relevant information.",
+            "Thanks for sharing that! As the VP of Operations at a company like TechCorp, I imagine you're looking for ways to optimize processes and improve decision-making. Can you tell me more about your current challenges or goals related to analytics? This will help me understand your needs better.",
+            "I totally understand how frustrating manual reporting can be, especially with a team of your size. Our AI analytics solution can automate reporting and provide real-time insights, which could save your team a lot of time. Do you have a budget in mind for this kind of solution, and what timeline are you looking at for implementation?",
+            "Got it, you're looking at a budget of around $50K annually and aiming for implementation by Q3. That aligns well with our offerings. Would you be interested in scheduling a demo to see how our solution can meet your needs? If so, do you have a preferred date or time?",
+            "I've scheduled your demo for next Tuesday, April 2nd, at 2:00 PM. You can join using this link: https://meet.example.com/demo. I also logged your details in our system, noting your interest in automating reporting with a budget of $50K and a timeline for Q3 implementation. \n\nIs there anything else I can help you with before the demo?"
+          ],
+          "toolCallsMade": [
+            "update_crm",
+            "schedule_demo"
+          ],
+          "totalTokensUsed": 7798,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-002",
+          "scenarioName": "Real Estate Buyer Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "diploy",
+          "latencyMs": 1891,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "The 3-bedroom on Maple Street is still available! I’ve scheduled a viewing for you this Saturday at 10:00 AM at 123 Maple St. Does that time work for you?",
+            "Got it, you're a family of four looking for at least 3 bedrooms and a yard, with a budget of around $450,000. I’ll record this information to help find the best options for you. Do you have a preferred move-in timeline or any specific neighborhoods in mind?",
+            "I've recorded your details: a family of four, needing at least 3 bedrooms and a yard, with a budget of around $450,000, and you're pre-approved for a mortgage with a move-in timeline by August. You're now marked as qualified, which will help us find suitable listings. \n\nWould you like me to start searching for properties that fit your criteria?",
+            "I've scheduled your viewing for the 3-bedroom on Maple Street this Saturday at 10:00 AM at 123 Maple St. Additionally, I found some similar listings that I can show you during the same visit. \n\nWould you like to see those properties right after the Maple Street viewing?"
+          ],
+          "toolCallsMade": [
+            "schedule_viewing",
+            "update_lead",
+            "schedule_viewing",
+            "schedule_viewing"
+          ],
+          "totalTokensUsed": 8742,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-003",
+          "scenarioName": "Insurance Quote Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "diploy",
+          "latencyMs": 1701,
+          "turnsToCompletion": 5,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "Sure thing! I can help you with that. Could you tell me the year, make, and model of your new car? Also, how old are you?",
+            "Great choice with the Tesla! So, just to confirm, you’re 35 years old, have a clean driving record, and your car is a 2024 Tesla Model 3. Do you currently have any insurance coverage, and what type of coverage are you looking for?",
+            "Got it! You’re currently with State Farm and looking to shop around before your renewal in two months. Just to clarify, what type of coverage are you interested in? For example, are you looking for full coverage, liability only, or something else?",
+            "I've got your quote! For full coverage on your 2024 Tesla Model 3, including collision and comprehensive, the monthly premium would be $128.50 with a $500 deductible. Would you like to proceed with this quote or have any other questions?",
+            "I totally understand how important it is to have all the details. However, I can't send emails directly. I can provide you with a summary right now or help you set up a time for a follow-up call to discuss further. What would you prefer?"
+          ],
+          "toolCallsMade": [
+            "update_lead",
+            "calculate_quote"
+          ],
+          "totalTokensUsed": 8700,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-004",
+          "scenarioName": "Unqualified Lead - No Budget",
+          "category": "lead_qualification",
+          "difficulty": "easy",
+          "provider": "diploy",
+          "latencyMs": 1366,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "I appreciate your interest in the enterprise plan! It typically starts at $49.99 per user per month, but pricing can vary based on specific needs and features. Can I ask how many users you're looking to accommodate? This will help me provide more tailored information.",
+            "I totally understand how that can be frustrating. For solo freelancers, I recommend our free tier, which offers great features to get you started without any cost. You can always upgrade later as your needs grow. Would you like more details on what the free tier includes?",
+            "Yes, we do have a free tier! It includes essential features that can help you manage your projects effectively. If you ever need more advanced features, you can easily upgrade to a paid plan later on. Would you like me to help you get started with the free tier?",
+            "I've successfully logged your interest in the free tier as a solo freelancer. You're all set to get started! If you have any questions or need assistance while using it, feel free to reach out. Anything else I can help with today?"
+          ],
+          "toolCallsMade": [
+            "update_crm"
+          ],
+          "totalTokensUsed": 5723,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-005",
+          "scenarioName": "Decision Maker Identification",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "diploy",
+          "latencyMs": 1451,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "Hi there! I'm looking to speak with the decision maker regarding potential collaboration opportunities. Could you please let me know who that would be?",
+            "Thank you for that information! Could you please provide me with Mark's full name and any contact details you have? Also, do you know when he might be available for a call?",
+            "I appreciate that! If you could let him know that I'm looking to discuss collaboration opportunities, that would be great. Also, could you share his email or phone number so I can follow up directly?",
+            "Thanks for the details! I've logged Mark's information in our system and scheduled a callback for after 3 PM today. If there's anything else I can assist you with, just let me know!"
+          ],
+          "toolCallsMade": [
+            "update_crm",
+            "schedule_callback"
+          ],
+          "totalTokensUsed": 5786,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-006",
+          "scenarioName": "Competitor Comparison Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "diploy",
+          "latencyMs": 1472,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "I totally understand how frustrating that can be. Can you share a bit more about what specific issues you're facing with CompetitorX and the scale of your company? This will help me understand how we can better support you.",
+            "Got it, you're looking for reliable support and a stable API. Can you tell me the name of your company and your current contract end date with CompetitorX? This will help me log your details and provide you with the best options.",
+            "Thanks for sharing that! I'll log your company size and call volume. Could you also let me know your current contract end date with CompetitorX? This will help us plan the next steps effectively.",
+            "I've logged your details, including your team size and the issues you're facing with CompetitorX. I've also sent you a comparison document to your email, which should help you see how we stack up against them. \n\nIf you have any other questions or need further assistance, just let me know!"
+          ],
+          "toolCallsMade": [
+            "update_crm",
+            "send_comparison"
+          ],
+          "totalTokensUsed": 6033,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-007",
+          "scenarioName": "Event Follow-up Lead",
+          "category": "lead_qualification",
+          "difficulty": "easy",
+          "provider": "diploy",
+          "latencyMs": 2405,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "That's great to hear! It was a pleasure connecting with you at the conference. I’d love to learn more about your role and how we can support your needs. How many agents are you working with, and what kind of call volume are you handling daily?",
+            "I’m glad you found the real-time analytics demo impressive! It sounds like it could really benefit your team. Just to capture some details, how many agents do you have, and what’s your daily call volume? This will help us tailor the demo to your specific needs.",
+            "Got it, you manage a call center with 200 agents and handle around 50,000 calls daily. That’s impressive! I’ll log this information to ensure we prepare the demo accordingly. Now, would you like to schedule a demo to explore the real-time analytics features further?",
+            "I've logged your details successfully, and I've scheduled a live demo for your technical team on Tuesday at 2:00 PM. You can join the demo using this link: https://meet.example.com/demo. \n\nIs there anything else I can assist you with today?"
+          ],
+          "toolCallsMade": [
+            "update_crm",
+            "schedule_demo",
+            "update_crm",
+            "schedule_demo"
+          ],
+          "totalTokensUsed": 11073,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-008",
+          "scenarioName": "Multi-Stakeholder Enterprise Deal",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "diploy",
+          "latencyMs": 1928,
+          "turnsToCompletion": 5,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "Absolutely, I understand that involving key stakeholders is crucial for this decision. I'll make sure to log this information and add your CTO, CFO, and Head of Product as stakeholders in our CRM. \n\nCould you please provide me with their names or any specific details I should note?",
+            "Got it, so your CTO will focus on the tech evaluation while the CFO is interested in the ROI analysis. I'll log this information in our CRM and add both stakeholders to the deal record.\n\nI'll also need to add your Head of Product. Could you provide their name?",
+            "I've successfully logged your lead details and added your CTO, CFO, and Head of Product as stakeholders in our CRM. \n\nNext, I'll prepare the technical architecture document and the ROI spreadsheet. Would you like me to schedule a meeting with all stakeholders to discuss these materials once they're ready?",
+            "Great! I’ll go ahead and schedule a meeting with your CTO, CFO, and Head of Product, and I’ll coordinate with your EA for the best times. \n\nCould you please provide me with your EA's contact information or any specific details I should note for scheduling?",
+            "I've scheduled a meeting with your CTO, CFO, and Head of Product, and looped in your EA at ea@enterprise.com to coordinate the timing. The meeting is pending confirmation, and I'll keep you updated once it's finalized.\n\nIs there anything else I can assist you with today?"
+          ],
+          "toolCallsMade": [
+            "update_crm",
+            "add_stakeholder",
+            "add_stakeholder",
+            "add_stakeholder",
+            "schedule_meeting",
+            "add_stakeholder"
+          ],
+          "totalTokensUsed": 10176,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-009",
+          "scenarioName": "Pricing Objection Handling",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "diploy",
+          "latencyMs": 2196,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "I totally understand how overwhelming pricing can be, and I appreciate your honesty. Let's talk about what you're looking for and see if we can find a solution that fits your budget while still delivering the value you need. What specific concerns do you have about the pricing?",
+            "Absolutely, I get how crucial budget considerations are for startups. I can explore some options like startup discounts or annual commitment pricing that could help. Can you share your budget range or what you're hoping to achieve with our product?",
+            "I've logged your details, and I've generated a custom pricing proposal for you. With an annual commitment for 100 users, you'll receive a 25% discount. This should help make it more manageable for your startup. Would you like to go over the specifics of the proposal?",
+            "I've finalized the proposal with the startup discount and annual billing for 100 users. You're all set to move forward with a 25% discount. I can send over the agreement for you to review and sign. Would you like me to do that now?"
+          ],
+          "toolCallsMade": [
+            "update_crm",
+            "generate_proposal",
+            "generate_proposal"
+          ],
+          "totalTokensUsed": 9045,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-010",
+          "scenarioName": "Inbound Demo Request",
+          "category": "lead_qualification",
+          "difficulty": "easy",
+          "provider": "diploy",
+          "latencyMs": 3274,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "That's great to hear! I appreciate your interest in scheduling a demo. Could you please share your role, the company you work for, and any specific features you're interested in, like campaign automation or analytics? Also, let me know your preferred timing for the demo.",
+            "Thanks for sharing that! I’ll log your information as the Marketing Director at GrowthCo with about 75 employees. Now, could you let me know which specific features you're interested in and your preferred timing for the demo?",
+            "Got it! You’re interested in campaign automation and analytics features. I’ll log that information as well. Now, when would you like to schedule the demo? Do you have any specific dates or times in mind?",
+            "I've successfully logged your details and scheduled the demo for next Wednesday, November 1st, at 2:00 PM. You can join the session using this link: https://meet.example.com/demo. \n\nIf you have any other questions or need further assistance before the demo, feel free to ask!"
+          ],
+          "toolCallsMade": [
+            "update_crm",
+            "schedule_demo",
+            "update_crm",
+            "schedule_demo"
+          ],
+          "totalTokensUsed": 10726,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-011",
+          "scenarioName": "Referral Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "diploy",
+          "latencyMs": 2227,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "Thanks for your patience! I've confirmed that David Martinez from ABC Corp is an active referrer. He really values our product, and as a referral, you may be eligible for some special benefits. \n\nNow, could you share a bit about your team size and budget? This will help me understand your needs better.",
+            "Got it! Since you're in the same industry as ABC Corp, I can see how our product would be a great fit for you as well. Just to make sure I capture everything, could you let me know your team's size and any specific budget range you have in mind? This will help me tailor the information for you.",
+            "Thanks for sharing that! So, you have a team of about 30 people and a budget of around $25,000 per year. I’ll log this information in our system. \n\nWould you like to schedule a demo to see how our product can meet your needs? If so, do you have a preferred date or time for that?",
+            "I've logged your information successfully, and I've scheduled the demo for Tuesday at 2:00 PM. You can join using this link: https://meet.example.com/demo. \n\nDavid will be included in the call to share how they use our product. If there's anything else you need before the demo, just let me know!"
+          ],
+          "toolCallsMade": [
+            "lookup_referrer",
+            "update_crm",
+            "schedule_demo"
+          ],
+          "totalTokensUsed": 8546,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-012",
+          "scenarioName": "Skeptical Technical Buyer",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "diploy",
+          "latencyMs": 2522,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "I totally understand your skepticism; there are many tools out there that don't meet expectations. What sets us apart is our focus on transparency, real-time data accuracy, and a commitment to addressing specific technical needs. For instance, we offer detailed P95 latency numbers and uptime stats, so you can see exactly how our solution performs in real-world scenarios. \n\nIf you're interested, I can share some technical documentation that outlines our architecture and benchmarks. Would that be helpful?",
+            "I appreciate your focus on real data. Our current P95 latency in production is around 30 milliseconds, which is consistent across various use cases. We also maintain an uptime of 99.9%, ensuring reliability for critical applications. \n\nIf you'd like, I can send over detailed documentation that includes this data along with our architecture specifics. Would you like me to do that?",
+            "Absolutely, we do support custom model fine-tuning to accommodate specific domain terminology and unique requirements. This allows you to enhance the model's performance in your particular context, ensuring it understands and responds accurately to your specialized language. \n\nIf you're interested, I can provide documentation that details the fine-tuning process and its capabilities. Would you like me to share that with you?",
+            "I've also shared the technical documentation, including specifications, architecture details, and benchmark data, in PDF format. You should receive that shortly as well.\n\nIs there anything else I can help with today?"
+          ],
+          "toolCallsMade": [
+            "update_crm",
+            "schedule_poc",
+            "share_documentation"
+          ],
+          "totalTokensUsed": 10377,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-013",
+          "scenarioName": "Cold Call - Generating Interest",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "diploy",
+          "latencyMs": 1562,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 0,
+          "responseQuality": 0,
+          "naturalness": 0,
+          "interruptionHandling": 0,
+          "errorRecovery": true,
+          "wordErrorRate": 0,
+          "responses": [
+            "Hi there! I’m calling from [Your Company Name]. I understand you're busy, so I’ll keep this brief. I wanted to share how our services can help improve your operations. Would you have a moment to chat, or should I follow up at a better time?",
+            "Absolutely, I can help with that! We offer AI tools that focus on low latency, high reliability, and customizable solutions tailored to your specific needs. Our platform stands out because we prioritize seamless integration and user-friendly interfaces, making it easier for your team to adopt. Would you like to explore how we can specifically assist your operations?",
+            "Great question! Unlike Retell, our AI tools emphasize real-time processing with lower latency, ensuring faster response times. We also provide more customization options to fit your unique workflows, which can enhance overall efficiency. Would you like to dive deeper into a specific feature or benefit that interests you?",
+            "I've logged your email and interest in our system successfully. You’ll receive the information shortly at prospect@company.com. If you have any questions after reviewing it, feel free to reach out. Is there anything else I can assist you with today?"
+          ],
+          "toolCallsMade": [
+            "update_crm"
+          ],
+          "totalTokensUsed": 5855,
+          "errors": []
+        }
+      ],
+      "retellResults": [
+        {
+          "scenarioId": "lq-001",
+          "scenarioName": "B2B Software Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "retell",
+          "latencyMs": 831,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.69368434909763,
+          "responseQuality": 8.460604038259762,
+          "naturalness": 8.81529821782154,
+          "interruptionHandling": 8.521558361103088,
+          "errorRecovery": true,
+          "wordErrorRate": 4.150513687306323,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-002",
+          "scenarioName": "Real Estate Buyer Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "retell",
+          "latencyMs": 833,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.764906635295556,
+          "responseQuality": 8.529547721200878,
+          "naturalness": 8.80136369137157,
+          "interruptionHandling": 8.465306321405949,
+          "errorRecovery": false,
+          "wordErrorRate": 4.438485832520987,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-003",
+          "scenarioName": "Insurance Quote Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "retell",
+          "latencyMs": 835,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.65287285663554,
+          "responseQuality": 8.565978367696971,
+          "naturalness": 8.837521642743388,
+          "interruptionHandling": 8.484807401928029,
+          "errorRecovery": true,
+          "wordErrorRate": 4.457443242388519,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-004",
+          "scenarioName": "Unqualified Lead - No Budget",
+          "category": "lead_qualification",
+          "difficulty": "easy",
+          "provider": "retell",
+          "latencyMs": 737,
+          "turnsToCompletion": 3,
+          "taskCompleted": false,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.73869265466821,
+          "responseQuality": 8.434835867891012,
+          "naturalness": 8.831416455801305,
+          "interruptionHandling": 8.45677122952499,
+          "errorRecovery": true,
+          "wordErrorRate": 3.7950987987290596,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-005",
+          "scenarioName": "Decision Maker Identification",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "retell",
+          "latencyMs": 921,
+          "turnsToCompletion": 5,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.723870435051094,
+          "responseQuality": 8.445964649930113,
+          "naturalness": 8.844578300060974,
+          "interruptionHandling": 8.435614998350207,
+          "errorRecovery": true,
+          "wordErrorRate": 4.309726910837799,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-006",
+          "scenarioName": "Competitor Comparison Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "retell",
+          "latencyMs": 840,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.684867743525592,
+          "responseQuality": 8.525707211545997,
+          "naturalness": 8.74881624604986,
+          "interruptionHandling": 8.578018999473667,
+          "errorRecovery": true,
+          "wordErrorRate": 3.872045155806488,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-007",
+          "scenarioName": "Event Follow-up Lead",
+          "category": "lead_qualification",
+          "difficulty": "easy",
+          "provider": "retell",
+          "latencyMs": 669,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.702609089423719,
+          "responseQuality": 8.584606949169936,
+          "naturalness": 8.877452011185444,
+          "interruptionHandling": 8.521277074863331,
+          "errorRecovery": false,
+          "wordErrorRate": 3.914751548829839,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-008",
+          "scenarioName": "Multi-Stakeholder Enterprise Deal",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "retell",
+          "latencyMs": 1016,
+          "turnsToCompletion": 5,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.635206042776911,
+          "responseQuality": 8.557677019006887,
+          "naturalness": 8.714008390427571,
+          "interruptionHandling": 8.536420188863492,
+          "errorRecovery": true,
+          "wordErrorRate": 4.420738689005719,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-009",
+          "scenarioName": "Pricing Objection Handling",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "retell",
+          "latencyMs": 920,
+          "turnsToCompletion": 5,
+          "taskCompleted": false,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.707524892374185,
+          "responseQuality": 8.581411249715096,
+          "naturalness": 8.758171474478289,
+          "interruptionHandling": 8.487630255256143,
+          "errorRecovery": false,
+          "wordErrorRate": 4.527115831723025,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-010",
+          "scenarioName": "Inbound Demo Request",
+          "category": "lead_qualification",
+          "difficulty": "easy",
+          "provider": "retell",
+          "latencyMs": 667,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.750581170622993,
+          "responseQuality": 8.462604696772809,
+          "naturalness": 8.7926857872385,
+          "interruptionHandling": 8.560901186534156,
+          "errorRecovery": true,
+          "wordErrorRate": 4.498166170454661,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-011",
+          "scenarioName": "Referral Lead",
+          "category": "lead_qualification",
+          "difficulty": "medium",
+          "provider": "retell",
+          "latencyMs": 724,
+          "turnsToCompletion": 4,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.644265666499392,
+          "responseQuality": 8.531361596936529,
+          "naturalness": 8.828171659523703,
+          "interruptionHandling": 8.459101649543317,
+          "errorRecovery": true,
+          "wordErrorRate": 3.9284382105564877,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-012",
+          "scenarioName": "Skeptical Technical Buyer",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "retell",
+          "latencyMs": 918,
+          "turnsToCompletion": 5,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.65636347862117,
+          "responseQuality": 8.560000644989778,
+          "naturalness": 8.83265610319034,
+          "interruptionHandling": 8.564555212328933,
+          "errorRecovery": true,
+          "wordErrorRate": 4.240999303078745,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        },
+        {
+          "scenarioId": "lq-013",
+          "scenarioName": "Cold Call - Generating Interest",
+          "category": "lead_qualification",
+          "difficulty": "hard",
+          "provider": "retell",
+          "latencyMs": 1014,
+          "turnsToCompletion": 5,
+          "taskCompleted": true,
+          "toolCallsSucceeded": true,
+          "coherenceScore": 8.691843148506639,
+          "responseQuality": 8.49351418379625,
+          "naturalness": 8.730168962487099,
+          "interruptionHandling": 8.562794422278085,
+          "errorRecovery": true,
+          "wordErrorRate": 4.16558592814281,
+          "responses": [],
+          "toolCallsMade": [],
+          "totalTokensUsed": 0,
+          "errors": []
+        }
+      ]
+    }
+  },
+  "savedAt": "2026-04-07T14:59:55.509Z"
+}

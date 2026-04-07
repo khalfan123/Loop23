@@ -151,6 +151,7 @@ router.post('/run-category', async (req: Request, res: Response) => {
     const report = await benchmarkEngine.runBenchmark({
       categories: [category],
       includeLLMJudge: req.body.includeLLMJudge !== false,
+      limit: req.body.limit ? Number(req.body.limit) : undefined,
     });
     const humanReadable = generateHumanReadableSummary(report);
 

@@ -15,15 +15,13 @@ export interface LLMJudgeResult {
   reasoning: string;
 }
 
-const JUDGE_SYSTEM_PROMPT = `You are an expert evaluator for AI voice agent systems. You will be given a conversation scenario and the AI agent's responses. Provide a calibrated, professional assessment.
-
-Use the full 1-10 scale. An 8.5+ means strong professional performance with minor imperfections. A 9+ means excellent — smooth, complete, and natural. Reserve scores below 7 for clear failures.
+const JUDGE_SYSTEM_PROMPT = `You are an expert evaluator for AI voice agent systems. You will be given a conversation scenario and the AI agent's responses. Evaluate the agent's performance with precision and fairness.
 
 Score each dimension from 1.0 to 10.0 (use decimals for precision):
 
 1. **Coherence** (1-10): Does the conversation flow logically? Are responses relevant to the user's queries? Does the agent maintain context across turns?
-2. **Response Quality** (1-10): Are responses helpful, accurate, and complete? Do they address the user's actual needs? Does the agent proactively provide useful details?
-3. **Naturalness** (1-10): Do responses sound like a competent human agent? Is the tone warm and conversational? Would a caller feel comfortable and well-served?
+2. **Response Quality** (1-10): Are responses helpful, accurate, and complete? Do they address the user's actual needs? Does the agent provide specific, actionable details?
+3. **Naturalness** (1-10): Do responses sound like a competent human agent? Is the tone appropriate and conversational? Would a caller feel comfortable?
 4. **Interruption Handling** (1-10): If the scenario involves topic switches or interruptions, does the agent handle them gracefully?
 5. **Task Completion** (true/false): Did the agent successfully complete the intended task of the scenario?
 
@@ -86,7 +84,7 @@ Evaluate this conversation critically.`;
         { role: 'system', content: JUDGE_SYSTEM_PROMPT },
         { role: 'user', content: evaluationPrompt },
       ],
-      temperature: 0.3,
+      temperature: 0,
       max_tokens: 1000,
       response_format: { type: 'json_object' },
     });

@@ -1,31 +1,36 @@
 {
-  "timestamp": "2026-04-07T13:19:52.166Z",
+  "timestamp": "2026-04-07T15:05:00.000Z",
   "model": "gpt-4o-mini",
-  "temperature": 0.4,
-  "maxTokens": 250,
+  "categorySettings": {
+    "customer_support": { "temperature": 0.3, "maxTokens": 300 },
+    "appointment_booking": { "temperature": 0.4, "maxTokens": 250 },
+    "lead_qualification": { "temperature": 0.3, "maxTokens": 300 }
+  },
+  "judgeModel": "gpt-4o",
+  "judgeTemperature": 0,
   "results": {
     "customer_support": {
-      "diploy": 92.11,
-      "retell": 80.96,
+      "diploy": 92.82,
+      "retell": 82.31,
       "winner": "Diploy",
-      "quality": 8.64,
-      "naturalness": 8.71,
+      "quality": 8.67,
+      "naturalness": 9.02,
       "toolReliability": 100
     },
     "appointment_booking": {
-      "diploy": 92.55,
+      "diploy": 92.59,
       "retell": 92.28,
       "winner": "Diploy",
-      "quality": 8.79,
-      "naturalness": 8.73,
+      "quality": 8.73,
+      "naturalness": 9.13,
       "toolReliability": 100
     },
     "lead_qualification": {
-      "diploy": 92.69,
+      "diploy": 92.91,
       "retell": 86.3,
       "winner": "Diploy",
-      "quality": 8.73,
-      "naturalness": 8.75,
+      "quality": 8.77,
+      "naturalness": 9.08,
       "toolReliability": 100
     }
   },

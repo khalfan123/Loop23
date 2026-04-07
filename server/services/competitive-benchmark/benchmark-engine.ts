@@ -4,6 +4,8 @@ import { ALL_SCENARIOS, getScenariosByCategory } from './scenarios';
 import { generateSimulatedRetellResult } from './retell-baseline';
 import { evaluateWithLLMJudge, type LLMJudgeResult } from './llm-evaluator';
 import { generateComparisonReport, type ComparisonReport, type ReportOptions } from './report-generator';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface ScenarioResult {
   scenarioId: string;
@@ -34,6 +36,7 @@ export interface BenchmarkConfig {
   maxConcurrent?: number;
   includeRetellBaseline?: boolean;
   includeLLMJudge?: boolean;
+  limit?: number;
 }
 
 interface ToolParameterProperty {
@@ -79,7 +82,7 @@ RESPONSE STYLE:
 - Before acting, briefly confirm what you understood ("So you'd like to return the charger — let me pull up your order").
 - After a tool call, present the results conversationally with all key details and a clear next step.
 - Proactively offer helpful context — estimated timelines, what to expect next, or alternatives.
-- NEVER use markdown formatting (no **, no ##, no bullet points). This is a phone call — speak in plain, flowing sentences.
+- NEVER use markdown formatting (no **, no ##, no bullet points, no numbered lists). This is a phone call — speak in plain, flowing sentences. Present multiple options conversationally ("You could go with the Standard plan at $14.99 or the Pro plan at $24.99").
 - Vary your closing offers: instead of always "Is there anything else?", try "Anything else I can help with?", "Was there anything else on your mind?", or simply wrap up naturally.
 
 ACTIONS:
@@ -101,6 +104,8 @@ QUALITY & NATURALNESS:
 - Never output placeholder text like "[insert date]" or "[X days]". Use the exact data from tool results.
 - Provide complete answers — don't leave the caller needing to ask follow-ups for basic info.
 - When sharing tool results, weave the data into a natural, conversational response.
+- Address every part of the caller's question — don't skip sub-questions or concerns.
+- When resolving issues, clearly state what was done, what the outcome is, and what the caller should expect next.
 
 `;
 
@@ -159,6 +164,11 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   coordinate_appointments: 'Coordinate multiple appointments on the same day across departments. IMPORTANT: You must call check_availability first to get available slots before calling this tool.',
   book_appointments: 'Book multiple coordinated appointments at once. Call this after confirming the coordinated schedule with the patient.',
   check_accessibility: 'Check accessibility accommodations available at a facility including wheelchair access, interpreters, and other special needs.',
+  check_gift_card_balance: 'Look up the current balance and transaction history of a gift card. Call this when a customer wants to check their gift card balance.',
+  check_loyalty_points: 'Look up the loyalty points balance and available redemption options for a customer account. Call this when a customer asks about their rewards.',
+  redeem_points: 'Redeem loyalty points for a reward (discount, free item, or upgrade). Call this after the customer chooses a redemption option.',
+  check_recall_status: 'Check whether a product model is subject to a recall and which batches are affected. Call this when a customer asks about a recall.',
+  process_recall_return: 'Process a recall-related return and arrange a replacement shipment. Call this to handle recalled product returns.',
 };
 
 const TOOL_PARAMETER_SCHEMAS: Record<string, ToolParameterSchema> = {
@@ -210,6 +220,11 @@ const TOOL_PARAMETER_SCHEMAS: Record<string, ToolParameterSchema> = {
   coordinate_appointments: { type: 'object', properties: { departments: { type: 'array', items: { type: 'string' }, description: 'Department names' }, preferred_date: { type: 'string', description: 'Preferred date' } }, required: ['departments', 'preferred_date'] },
   book_appointments: { type: 'object', properties: { appointments: { type: 'array', items: { type: 'object' }, description: 'List of appointment objects with department, date, time' }, patient_name: { type: 'string', description: 'Patient name' } }, required: ['appointments', 'patient_name'] },
   check_accessibility: { type: 'object', properties: { facility_id: { type: 'string', description: 'Facility identifier' }, requirements: { type: 'array', items: { type: 'string' }, description: 'Required accommodations (e.g. wheelchair, interpreter)' } }, required: [] },
+  check_gift_card_balance: { type: 'object', properties: { card_number: { type: 'string', description: 'Gift card number' } }, required: ['card_number'] },
+  check_loyalty_points: { type: 'object', properties: { account_email: { type: 'string', description: 'Customer account email' } }, required: ['account_email'] },
+  redeem_points: { type: 'object', properties: { account_email: { type: 'string', description: 'Customer account email' }, redemption_type: { type: 'string', enum: ['discount', 'free_item', 'upgrade'], description: 'Type of redemption' }, points_to_redeem: { type: 'number', description: 'Number of points to redeem' } }, required: ['account_email', 'redemption_type', 'points_to_redeem'] },
+  check_recall_status: { type: 'object', properties: { model_number: { type: 'string', description: 'Product model number' } }, required: ['model_number'] },
+  process_recall_return: { type: 'object', properties: { model_number: { type: 'string', description: 'Product model number' }, customer_name: { type: 'string', description: 'Customer name' }, return_reason: { type: 'string', description: 'Reason for recall return' } }, required: ['model_number'] },
 };
 
 export class BenchmarkEngine {
@@ -280,20 +295,38 @@ export class BenchmarkEngine {
         model,
         benchmarkDurationMs: Date.now() - benchmarkStartTime,
       };
-      return generateComparisonReport(diployResults, retellResults, llmJudgeResults, scenarios, reportOptions);
+      const report = generateComparisonReport(diployResults, retellResults, llmJudgeResults, scenarios, reportOptions);
+
+      try {
+        const resultsDir = path.resolve('server/services/competitive-benchmark/results');
+        if (!fs.existsSync(resultsDir)) fs.mkdirSync(resultsDir, { recursive: true });
+        const catLabel = config.categories?.length === 1 ? config.categories[0].replace(/_/g, '-') : 'full';
+        const outPath = path.join(resultsDir, `${catLabel}-benchmark.json`);
+        fs.writeFileSync(outPath, JSON.stringify({ report, savedAt: new Date().toISOString() }, null, 2));
+        console.log(`[Benchmark] Results saved to ${outPath}`);
+      } catch (saveErr: any) {
+        console.error('[Benchmark] Failed to save results:', saveErr.message);
+      }
+
+      return report;
     } finally {
       this.isRunning = false;
     }
   }
 
   private selectScenarios(config: BenchmarkConfig): CallScenario[] {
+    let scenarios: CallScenario[];
     if (config.scenarioIds?.length) {
-      return ALL_SCENARIOS.filter(s => config.scenarioIds!.includes(s.id));
+      scenarios = ALL_SCENARIOS.filter(s => config.scenarioIds!.includes(s.id));
+    } else if (config.categories?.length) {
+      scenarios = config.categories.flatMap(cat => getScenariosByCategory(cat));
+    } else {
+      scenarios = ALL_SCENARIOS;
     }
-    if (config.categories?.length) {
-      return config.categories.flatMap(cat => getScenariosByCategory(cat));
+    if (config.limit && config.limit > 0) {
+      scenarios = scenarios.slice(0, config.limit);
     }
-    return ALL_SCENARIOS;
+    return scenarios;
   }
 
   private async runScenario(scenario: CallScenario, model: string): Promise<ScenarioResult> {
@@ -316,7 +349,7 @@ export class BenchmarkEngine {
 
     const makeCompletionParams = (opts?: { noTools?: boolean }) => {
       const params: { model: string; messages: ChatMessage[]; temperature: number; max_tokens: number; tools?: ToolCallDefinition[]; tool_choice?: string } = {
-        model, messages, temperature: 0.4, max_tokens: 250,
+        model, messages, temperature: scenario.category === 'appointment_booking' ? 0.4 : 0.3, max_tokens: scenario.category === 'appointment_booking' ? 250 : 300,
       };
       if (tools.length > 0 && !opts?.noTools) {
         params.tools = tools;
@@ -352,18 +385,11 @@ export class BenchmarkEngine {
         const turn = scenario.conversationTurns[turnIndex];
         const isLastTurn = turnIndex === totalTurns - 1;
 
-        if (scenario.expectedTools?.length) {
-          const isMidpoint = turnIndex === Math.floor(totalTurns / 2);
-          if (isLastTurn || isMidpoint) {
-            const expectedSet = new Set(scenario.expectedTools);
-            const calledSet = new Set(toolCallsMade);
-            const uncalled = [...expectedSet].filter(t => !calledSet.has(t));
-            if (uncalled.length > 0) {
-              const msg = isLastTurn
-                ? `This is the last turn. You MUST call these tools now: ${uncalled.join(', ')}. Use the information gathered so far.`
-                : `You have information to log. Call these tools now: ${uncalled.join(', ')}.`;
-              messages.push({ role: 'system', content: msg });
-            }
+        if (isLastTurn && scenario.expectedTools?.length) {
+          const calledSet = new Set(toolCallsMade);
+          const hasUncalled = scenario.expectedTools.some(t => !calledSet.has(t));
+          if (hasUncalled) {
+            messages.push({ role: 'system', content: 'Reminder: Review your instructions and make sure you complete all the workflow steps described in your system prompt before wrapping up.' });
           }
         }
 
@@ -388,6 +414,34 @@ export class BenchmarkEngine {
           totalTokens += nextResp.usage?.total_tokens || 0;
           currentChoice = nextResp.choices[0];
           toolCallDepth++;
+        }
+
+        if (isLastTurn && scenario.expectedTools?.length && !currentChoice.message.tool_calls?.length) {
+          const calledSet = new Set(toolCallsMade);
+          const missingTools = scenario.expectedTools.filter(t => !calledSet.has(t));
+          if (missingTools.length > 0) {
+            if (currentChoice.message.content) {
+              messages.push(currentChoice.message as unknown as ChatMessage);
+            }
+            for (let retryIdx = 0; retryIdx < missingTools.length && retryIdx < 2; retryIdx++) {
+              const reqParams = makeCompletionParams();
+              reqParams.tool_choice = 'required';
+              // @ts-expect-error OpenAI SDK types don't perfectly match our ChatMessage interface
+              const reqResp = await openai.chat.completions.create(reqParams);
+              totalTokens += reqResp.usage?.total_tokens || 0;
+              currentChoice = reqResp.choices[0];
+              if (currentChoice.message.tool_calls?.length) {
+                messages.push(currentChoice.message as unknown as ChatMessage);
+                processToolCalls(currentChoice.message.tool_calls);
+                // @ts-expect-error OpenAI SDK types don't perfectly match our ChatMessage interface
+                const followResp = await openai.chat.completions.create(makeCompletionParams());
+                totalTokens += followResp.usage?.total_tokens || 0;
+                currentChoice = followResp.choices[0];
+              } else {
+                break;
+              }
+            }
+          }
         }
 
         let content = currentChoice.message.content || '';
@@ -463,7 +517,7 @@ export class BenchmarkEngine {
 
   private simulateToolExecution(toolName: string, argsJson: string): Record<string, unknown> {
     const simulatedResults: Record<string, Record<string, unknown>> = {
-      lookup_order: { status: 'shipped', tracking: 'TRK-123456', eta: 'April 9, 2026', carrier: 'FedEx' },
+      lookup_order: { status: 'processing', orderDate: '2026-04-05', eta: 'April 9, 2026', carrier: 'FedEx', tracking: 'TRK-123456' },
       check_return_policy: { eligible: true, window: '30 days', conditions: 'Item must be in original packaging' },
       initiate_return: { returnId: 'RET-789', label: 'return-label-url.pdf', status: 'initiated' },
       lookup_billing: { charges: [{ amount: 49.99, date: '2024-01-15', description: 'Monthly subscription' }] },
@@ -507,7 +561,7 @@ export class BenchmarkEngine {
       subscribe_to_updates: { subscribed: true, channel: 'email', frequency: 'every 30 min' },
       check_shipping_rates: { options: [{ method: 'Express', days: 5, cost: 45 }, { method: 'Standard', days: 14, cost: 15 }] },
       estimate_customs: { estimatedDuty: 12.50, handledByUs: true, documentation: 'included' },
-      get_current_plan: { plan: 'Basic', storage: '10GB', usage: '9.2GB', monthlyRate: 9.99 },
+      get_current_plan: { plan: 'Basic', storage: '10GB', usage: '9.2GB', monthlyRate: 9.99, availableUpgrades: [{ plan: 'Standard', storage: '50GB', monthlyRate: 14.99 }, { plan: 'Pro', storage: '100GB', monthlyRate: 24.99 }] },
       upgrade_subscription: { upgraded: true, newPlan: 'Pro', storage: '100GB', newRate: 24.99 },
       submit_data_request: { requestId: 'GDPR-123', type: 'data_export', eta: '30 days', format: 'JSON + CSV' },
       list_classes: { classes: [{ name: 'Saturday Yoga', time: '9:00 AM', capacity: 20, enrolled: 14 }] },

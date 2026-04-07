@@ -99,15 +99,14 @@ export interface AgentConfig {
   voice: OpenAIVoice;
   model: OpenAIRealtimeModel;
   systemPrompt: string;
+  agentName?: string;
+  language?: string;
   firstMessage?: string;
   temperature?: number;
   tools?: AgentTool[];
   knowledgeBaseIds?: string[];
   flowConfig?: CompiledFlowConfig;
   vadSettings?: VADSettings;
-  language?: string;
-  agentName?: string;
-  transferPhoneNumber?: string;
 }
 
 export interface CompiledFlowConfig {
@@ -225,9 +224,27 @@ export interface AudioBridgeSession {
   behaviorConfig: {
     softTimeoutSec?: number;
     hardTimeoutSec?: number;
+    vadThreshold?: number;
+    vadSilenceTimeoutMs?: number;
+    maxQuestionsPerTurn?: number;
+    useDiscourseMarkers?: boolean;
+    silenceTimeoutSec?: number;
   } | null;
   waitingMessages: string[] | null;
   explicitEndCall: boolean;
+  pendingClearTimerId: ReturnType<typeof setTimeout> | null;
+  sentimentMode: 'neutral' | 'cautious' | 'deescalate';
+  lastBargeInCancelAt: number;
+  activeResponseId: string | null;
+  suppressResponseOutputUntilDone: boolean;
+  suppressedResponseId: string | null;
+  runtimeInstructionBase?: string;
+  lastSyncedSentimentMode?: 'neutral' | 'cautious' | 'deescalate' | null;
+  speechGuardrailStrikes: number;
+  kbLowConfidenceGateActive: boolean;
+  unresolvedIntentStreak: number;
+  escalationCheckpointArmed: boolean;
+  userId?: string;
 }
 
 export interface CreateSessionParams {
@@ -240,6 +257,7 @@ export interface CreateSessionParams {
   toNumber?: string;
   callDirection?: CallDirection;
   credentialId?: string;
+  userId?: string;
 }
 
 export const OPENAI_VOICES: { id: OpenAIVoice; name: string; description: string }[] = [

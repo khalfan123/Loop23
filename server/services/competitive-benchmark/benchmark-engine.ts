@@ -36,28 +36,51 @@ export interface BenchmarkConfig {
   includeLLMJudge?: boolean;
 }
 
+interface ToolParameterProperty {
+  type: string;
+  description: string;
+  enum?: string[];
+  items?: { type: string };
+}
+
+interface ToolParameterSchema {
+  type: 'object';
+  properties: Record<string, ToolParameterProperty>;
+  required: string[];
+}
+
 interface ToolCallDefinition {
   type: 'function';
   function: {
     name: string;
     description: string;
-    parameters: {
-      type: 'object';
-      properties: Record<string, { type: string; description: string; enum?: string[] }>;
-      required: string[];
-    };
+    parameters: ToolParameterSchema;
   };
+}
+
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }>;
+  tool_call_id?: string;
 }
 
 const VOICE_AGENT_PREAMBLE = `You are a professional AI voice agent on a live phone call. Follow these rules strictly:
 
 RESPONSE STYLE:
-- Keep responses concise but complete — 2-3 sentences max. Give the caller all the info they need without rambling.
-- Sound warm, natural, and human. Use contractions (I'll, we'll, that's) and conversational phrasing.
-- Be specific — use actual details, numbers, dates, and names from tool results. Vague responses feel unhelpful.
-- Show empathy when the caller is frustrated or has a problem.
-- Always confirm what you understood before taking action ("So you'd like to reschedule for Tuesday at 3 PM — let me do that for you").
-- After calling a tool, share the key results with the caller — dates, times, confirmation numbers, statuses. Don't just say "done."
+- Keep responses concise but thorough — 2-3 sentences. Include every relevant detail the caller needs without requiring follow-up questions.
+- Sound warm and genuinely human. Use contractions (I'll, we'll, that's, you're), natural filler phrases ("Sure thing", "Absolutely", "Of course"), and varied openings — never start two consecutive responses the same way.
+- Be specific — use exact details from tool results: dates, confirmation numbers, amounts, timelines. Never use placeholder text like "[date]".
+- Show genuine empathy for problems. Acknowledge feelings before problem-solving ("I totally understand how frustrating that is").
+- Before acting, briefly confirm what you understood ("So you'd like to return the charger — let me pull up your order").
+- After a tool call, present the results conversationally with all key details and a clear next step.
+- Proactively offer helpful context — estimated timelines, what to expect next, or alternatives.
+- NEVER use markdown formatting (no **, no ##, no bullet points). This is a phone call — speak in plain, flowing sentences.
+- Vary your closing offers: instead of always "Is there anything else?", try "Anything else I can help with?", "Was there anything else on your mind?", or simply wrap up naturally.
 
 ACTIONS:
 - You MUST use your available tools. Every tool listed is there because it needs to be called during this conversation. If you have a tool, use it — do not just talk about the action, execute it via the tool.
@@ -73,6 +96,11 @@ CONVERSATION FLOW:
 - End each response with a clear next step or question to keep the conversation moving.
 - Before taking action, briefly echo back what the caller asked ("Got it, you'd like to…") so they know you understood.
 - When the system prompt lists multiple required steps, complete ALL of them — never skip a step even if it seems optional.
+
+QUALITY & NATURALNESS:
+- Never output placeholder text like "[insert date]" or "[X days]". Use the exact data from tool results.
+- Provide complete answers — don't leave the caller needing to ask follow-ups for basic info.
+- When sharing tool results, weave the data into a natural, conversational response.
 
 `;
 
@@ -133,7 +161,7 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   check_accessibility: 'Check accessibility accommodations available at a facility including wheelchair access, interpreters, and other special needs.',
 };
 
-const TOOL_PARAMETER_SCHEMAS: Record<string, { type: 'object'; properties: Record<string, any>; required: string[] }> = {
+const TOOL_PARAMETER_SCHEMAS: Record<string, ToolParameterSchema> = {
   lookup_order: { type: 'object', properties: { order_number: { type: 'string', description: 'The order number to look up' } }, required: ['order_number'] },
   check_return_policy: { type: 'object', properties: { order_number: { type: 'string', description: 'Order number' }, item_condition: { type: 'string', enum: ['new', 'used', 'damaged', 'defective'], description: 'Condition of the item' } }, required: ['order_number'] },
   initiate_return: { type: 'object', properties: { order_number: { type: 'string', description: 'Order number' }, reason: { type: 'string', description: 'Reason for return' }, refund_method: { type: 'string', enum: ['original_payment', 'store_credit'], description: 'Refund method' } }, required: ['order_number', 'reason'] },
@@ -280,14 +308,44 @@ export class BenchmarkEngine {
 
     let actualTurnsCompleted = 0;
     const enhancedSystemPrompt = VOICE_AGENT_PREAMBLE + scenario.systemPrompt;
-    const messages: Array<any> = [
+    const messages: ChatMessage[] = [
       { role: 'system', content: enhancedSystemPrompt },
     ];
 
     const tools = this.buildToolDefinitions(scenario);
 
+    const makeCompletionParams = (opts?: { noTools?: boolean }) => {
+      const params: { model: string; messages: ChatMessage[]; temperature: number; max_tokens: number; tools?: ToolCallDefinition[]; tool_choice?: string } = {
+        model, messages, temperature: 0.4, max_tokens: 250,
+      };
+      if (tools.length > 0 && !opts?.noTools) {
+        params.tools = tools;
+        params.tool_choice = 'auto';
+      }
+      return params;
+    };
+
+    const processToolCalls = (toolCalls: Array<{ id: string; function: { name: string; arguments: string } }>) => {
+      for (const toolCall of toolCalls) {
+        toolCallsMade.push(toolCall.function.name);
+        const toolResult = this.simulateToolExecution(toolCall.function.name, toolCall.function.arguments);
+        messages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(toolResult),
+        });
+      }
+    };
+
     try {
       const openai = await getOpenAIClient();
+
+      const getTextResponse = async (): Promise<string> => {
+        // @ts-expect-error OpenAI SDK types don't perfectly match our ChatMessage interface
+        const resp = await openai.chat.completions.create(makeCompletionParams({ noTools: true }));
+        totalTokens += resp.usage?.total_tokens || 0;
+        return resp.choices[0].message.content || '';
+      };
 
       const totalTurns = scenario.conversationTurns.length;
       for (let turnIndex = 0; turnIndex < totalTurns; turnIndex++) {
@@ -312,98 +370,32 @@ export class BenchmarkEngine {
         messages.push({ role: 'user', content: turn.content });
 
         const turnStart = Date.now();
-
-        const completionParams: Record<string, unknown> = {
-          model,
-          messages,
-          temperature: 0.4,
-          max_tokens: 250,
-        };
-
-        if (tools.length > 0) {
-          completionParams.tools = tools;
-          completionParams.tool_choice = 'auto';
-        }
-
-        const response = await openai.chat.completions.create(completionParams as any);
+        // @ts-expect-error OpenAI SDK types don't perfectly match our ChatMessage interface
+        const response = await openai.chat.completions.create(makeCompletionParams());
 
         const choice = response.choices[0];
         totalTokens += response.usage?.total_tokens || 0;
 
-        if (choice.message.tool_calls?.length) {
-          messages.push(choice.message);
+        let currentChoice = choice;
+        let toolCallDepth = 0;
+        const maxToolDepth = 4;
 
-          for (const toolCall of choice.message.tool_calls) {
-            toolCallsMade.push(toolCall.function.name);
-            const toolResult = this.simulateToolExecution(toolCall.function.name, toolCall.function.arguments);
-            messages.push({
-              role: 'tool',
-              tool_call_id: toolCall.id,
-              content: JSON.stringify(toolResult),
-            });
-          }
-
-          const followUpParams: Record<string, unknown> = {
-            model,
-            messages,
-            temperature: 0.4,
-            max_tokens: 250,
-          };
-          if (tools.length > 0) {
-            followUpParams.tools = tools;
-            followUpParams.tool_choice = 'auto';
-          }
-
-          const followUp = await openai.chat.completions.create(followUpParams as any);
-          const followUpChoice = followUp.choices[0];
-
-          if (followUpChoice.message.tool_calls?.length) {
-            messages.push(followUpChoice.message);
-            for (const toolCall of followUpChoice.message.tool_calls) {
-              toolCallsMade.push(toolCall.function.name);
-              const toolResult = this.simulateToolExecution(toolCall.function.name, toolCall.function.arguments);
-              messages.push({
-                role: 'tool',
-                tool_call_id: toolCall.id,
-                content: JSON.stringify(toolResult),
-              });
-            }
-            const finalParams: Record<string, unknown> = { model, messages, temperature: 0.4, max_tokens: 250 };
-            if (tools.length > 0) {
-              finalParams.tools = tools;
-              finalParams.tool_choice = 'auto';
-            }
-            const finalFollowUp = await openai.chat.completions.create(finalParams as any);
-            const finalChoice = finalFollowUp.choices[0];
-            if (finalChoice.message.tool_calls?.length) {
-              messages.push(finalChoice.message);
-              for (const tc of finalChoice.message.tool_calls) {
-                toolCallsMade.push(tc.function.name);
-                const tr = this.simulateToolExecution(tc.function.name, tc.function.arguments);
-                messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(tr) });
-              }
-              const lastCall = await openai.chat.completions.create({ model, messages, temperature: 0.4, max_tokens: 250 } as any);
-              const lastContent = lastCall.choices[0].message.content || '';
-              responses.push(lastContent);
-              messages.push({ role: 'assistant', content: lastContent });
-              totalTokens += lastCall.usage?.total_tokens || 0;
-            } else {
-              const finalContent = finalChoice.message.content || '';
-              responses.push(finalContent);
-              messages.push({ role: 'assistant', content: finalContent });
-            }
-            totalTokens += finalFollowUp.usage?.total_tokens || 0;
-          } else {
-            const followUpContent = followUpChoice.message.content || '';
-            responses.push(followUpContent);
-            messages.push({ role: 'assistant', content: followUpContent });
-          }
-          totalTokens += followUp.usage?.total_tokens || 0;
-        } else {
-          const content = choice.message.content || '';
-          responses.push(content);
-          messages.push({ role: 'assistant', content: content });
+        while (currentChoice.message.tool_calls?.length && toolCallDepth < maxToolDepth) {
+          messages.push(currentChoice.message as unknown as ChatMessage);
+          processToolCalls(currentChoice.message.tool_calls);
+          // @ts-expect-error OpenAI SDK types don't perfectly match our ChatMessage interface
+          const nextResp = await openai.chat.completions.create(makeCompletionParams());
+          totalTokens += nextResp.usage?.total_tokens || 0;
+          currentChoice = nextResp.choices[0];
+          toolCallDepth++;
         }
+
+        let content = currentChoice.message.content || '';
+        if (!content.trim()) {
+          content = await getTextResponse();
+        }
+        responses.push(content);
+        messages.push({ role: 'assistant', content });
 
         actualTurnsCompleted++;
         const turnLatency = Date.now() - turnStart;
@@ -471,7 +463,7 @@ export class BenchmarkEngine {
 
   private simulateToolExecution(toolName: string, argsJson: string): Record<string, unknown> {
     const simulatedResults: Record<string, Record<string, unknown>> = {
-      lookup_order: { status: 'shipped', tracking: 'TRK-123456', eta: '2 business days', carrier: 'FedEx' },
+      lookup_order: { status: 'shipped', tracking: 'TRK-123456', eta: 'April 9, 2026', carrier: 'FedEx' },
       check_return_policy: { eligible: true, window: '30 days', conditions: 'Item must be in original packaging' },
       initiate_return: { returnId: 'RET-789', label: 'return-label-url.pdf', status: 'initiated' },
       lookup_billing: { charges: [{ amount: 49.99, date: '2024-01-15', description: 'Monthly subscription' }] },

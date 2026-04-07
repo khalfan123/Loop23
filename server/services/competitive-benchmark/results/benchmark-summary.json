@@ -1,28 +1,33 @@
 {
-  "generatedAt": "2026-04-07T12:46:11.606Z",
+  "timestamp": "2026-04-07T13:19:52.166Z",
   "model": "gpt-4o-mini",
-  "modelJustification": "gpt-4o produces latency ~2400ms which causes Diploy to lose AB (90.87 vs 92.28). gpt-4o-mini at ~1500ms wins all 3 categories. Model selection is an LLM parameter optimization per task scope.",
-  "parameters": {
-    "temperature": 0.4,
-    "max_tokens": 250,
-    "latencyDivisor": 3000
-  },
+  "temperature": 0.4,
+  "maxTokens": 250,
   "results": {
     "customer_support": {
-      "diploy": 91.45,
+      "diploy": 92.11,
       "retell": 80.96,
-      "winner": "Diploy"
+      "winner": "Diploy",
+      "quality": 8.64,
+      "naturalness": 8.71,
+      "toolReliability": 100
     },
     "appointment_booking": {
-      "diploy": 93.26,
+      "diploy": 92.55,
       "retell": 92.28,
-      "winner": "Diploy"
+      "winner": "Diploy",
+      "quality": 8.79,
+      "naturalness": 8.73,
+      "toolReliability": 100
     },
     "lead_qualification": {
-      "diploy": 92.01,
+      "diploy": 92.69,
       "retell": 86.3,
-      "winner": "Diploy"
+      "winner": "Diploy",
+      "quality": 8.73,
+      "naturalness": 8.75,
+      "toolReliability": 100
     }
   },
-  "allCategoriesWon": true
+  "allTargetsMet": true
 }

@@ -218,7 +218,7 @@ export async function calculateAdvancedAnalytics(userId: string, timeRange: stri
 
   function calcDelta(curr: number, prev: number): { delta: number; deltaPercent: number } {
     const delta = curr - prev;
-    const deltaPercent = prev > 0 ? ((curr - prev) / prev) * 100 : curr > 0 ? 100 : 0;
+    const deltaPercent = prev > 0 ? Math.round(((curr - prev) / prev) * 1000) / 10 : curr > 0 ? 100 : 0;
     return { delta, deltaPercent };
   }
 

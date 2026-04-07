@@ -79,7 +79,7 @@ export function MetricCard({ title, value, icon: Icon, trend, trendLabel, sparkl
               <TrendingDown className="h-3 w-3 text-red-400" />
             )}
             <span className={trend.direction === "up" ? "text-emerald-500" : "text-red-400"}>
-              {trend.value}%
+              {trend.value.toFixed(1)}%
             </span>
             <span className="text-muted-foreground/70">{trendLabel || 'vs previous period'}</span>
           </div>

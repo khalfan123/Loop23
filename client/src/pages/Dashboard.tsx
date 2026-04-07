@@ -276,7 +276,7 @@ export default function Dashboard() {
     return (
       <span className={`inline-flex items-center gap-0.5 text-xs font-medium ml-2 ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
         {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-        {Math.abs(trend)}%
+        {Math.abs(trend).toFixed(1)}%
       </span>
     );
   };

@@ -276,7 +276,7 @@ export default function Analytics() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Call Trend</span>
                     <span className={`font-medium ${trends.totalCallsTrend >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {trends.totalCallsTrend > 0 ? '+' : ''}{trends.totalCallsTrend}%
+                      {trends.totalCallsTrend > 0 ? '+' : ''}{trends.totalCallsTrend.toFixed(1)}%
                     </span>
                   </div>
                 </>

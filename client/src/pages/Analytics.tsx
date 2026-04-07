@@ -149,14 +149,14 @@ export default function Analytics() {
       const rawCalls = Array.isArray(result) ? result : result.data || [];
       return rawCalls.map((c: Record<string, unknown>) => ({
         id: c.id,
-        phoneNumber: c.phoneNumber,
-        status: c.status,
-        duration: c.duration,
-        classification: c.classification,
-        sentiment: c.sentiment,
-        callDirection: c.callDirection,
-        createdAt: c.createdAt,
-        campaignName: c.campaignName || c.campaign?.name || undefined,
+        phone: (c.phoneNumber || c.fromNumber || c.toNumber || '') as string,
+        status: c.status as string | undefined,
+        duration: c.duration as number | undefined,
+        classification: c.classification as string | undefined,
+        sentiment: c.sentiment as string | undefined,
+        callDirection: c.callDirection as string | undefined,
+        date: c.createdAt ? new Date(c.createdAt as string).toLocaleDateString() : undefined,
+        campaign: ((c as any).campaignName || (c as any).campaign?.name || undefined) as string | undefined,
       }));
     }
   });

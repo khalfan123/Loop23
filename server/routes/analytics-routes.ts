@@ -18,14 +18,15 @@
 
 import { Router, Response } from "express";
 import { RouteContext, AuthRequest } from "./common";
-import { calls, agents, incomingConnections, callResponses } from "@shared/schema";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { calls, agents, incomingConnections, callResponses, twilioOpenaiCalls } from "@shared/schema";
+import { eq, and, sql, inArray, isNull, isNotNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { getTwilioClient } from "../services/twilio-connector";
 import { fetchElevenLabsConversation } from "./webhook-routes";
 import PDFDocument from "pdfkit";
+import { CallInsightsService } from "../services/call-insights.service";
 
 function formatDurationPDF(seconds: number): string {
   if (!seconds) return "0:00";
@@ -471,6 +472,109 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
     }
   });
   
+  router.post("/api/calls/batch-analyze", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.userId!;
+
+      const unanalyzedEL = await db.select({
+        id: calls.id,
+        transcript: calls.transcript,
+        phoneNumber: calls.phoneNumber,
+        fromNumber: calls.fromNumber,
+        toNumber: calls.toNumber,
+        duration: calls.duration,
+        agentId: calls.agentId,
+      })
+        .from(calls)
+        .where(and(
+          eq(calls.userId, userId),
+          isNull(calls.classification),
+          isNotNull(calls.transcript)
+        ))
+        .limit(100);
+
+      const unanalyzedTwilio = await db.select({
+        id: twilioOpenaiCalls.id,
+        transcript: twilioOpenaiCalls.transcript,
+        fromNumber: twilioOpenaiCalls.fromNumber,
+        toNumber: twilioOpenaiCalls.toNumber,
+        duration: twilioOpenaiCalls.duration,
+        agentId: twilioOpenaiCalls.agentId,
+      })
+        .from(twilioOpenaiCalls)
+        .where(and(
+          eq(twilioOpenaiCalls.userId, userId),
+          isNull(twilioOpenaiCalls.classification),
+          isNotNull(twilioOpenaiCalls.transcript)
+        ))
+        .limit(100);
+
+      const allUnanalyzed = [
+        ...unanalyzedEL.map(c => ({ ...c, table: 'calls' as const })),
+        ...unanalyzedTwilio.map(c => ({ ...c, phoneNumber: c.fromNumber, table: 'twilio' as const })),
+      ];
+
+      if (allUnanalyzed.length === 0) {
+        return res.json({ analyzed: 0, total: 0, message: 'All calls already analyzed' });
+      }
+
+      let analyzed = 0;
+      let failed = 0;
+      const results: Array<{ callId: string; classification: string; sentiment: string }> = [];
+
+      for (const call of allUnanalyzed) {
+        if (!call.transcript || call.transcript.trim().length < 20) continue;
+
+        try {
+          let agentName: string | undefined;
+          if (call.agentId) {
+            const [agent] = await db.select({ name: agents.name }).from(agents).where(eq(agents.id, call.agentId)).limit(1);
+            agentName = agent?.name;
+          }
+
+          const insights = await CallInsightsService.analyzeTranscript(
+            call.transcript,
+            {
+              callId: call.id,
+              fromNumber: call.fromNumber || undefined,
+              toNumber: call.toNumber || undefined,
+              agentName,
+              duration: call.duration || undefined,
+            }
+          );
+
+          if (insights) {
+            if (call.table === 'calls') {
+              await db.update(calls).set({
+                classification: insights.classification,
+                sentiment: insights.sentiment,
+                aiSummary: insights.aiSummary,
+              }).where(eq(calls.id, call.id));
+            } else {
+              await db.update(twilioOpenaiCalls).set({
+                classification: insights.classification,
+                sentiment: insights.sentiment,
+                aiSummary: insights.aiSummary,
+              }).where(eq(twilioOpenaiCalls.id, call.id));
+            }
+            analyzed++;
+            results.push({ callId: call.id, classification: insights.classification, sentiment: insights.sentiment });
+          } else {
+            failed++;
+          }
+        } catch (err: any) {
+          console.error(`[BatchAnalyze] Failed for call ${call.id}:`, err.message);
+          failed++;
+        }
+      }
+
+      res.json({ analyzed, failed, total: allUnanalyzed.length, results });
+    } catch (error: any) {
+      console.error("[BatchAnalyze] Error:", error);
+      res.status(500).json({ error: error.message || "Batch analysis failed" });
+    }
+  });
+
   // Analytics
   router.get("/api/analytics", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {

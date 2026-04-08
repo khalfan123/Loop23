@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio, PhoneCall, ChevronDown } from "lucide-react";
+import { Download, Phone, Users, TrendingUp, Clock, Loader2, PhoneIncoming, PhoneOutgoing, Target, BarChart3, Radio, PhoneCall, ChevronDown, Sparkles } from "lucide-react";
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -99,6 +99,7 @@ export default function Analytics() {
   const [activeView, setActiveView] = useState<"analytics" | "call-history" | "live-monitoring">("analytics");
   const [activeTab, setActiveTab] = useState("overview");
   const [isExporting, setIsExporting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [drillFilter, setDrillFilter] = useState<{ type: string; value: string } | null>(null);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
   const [overviewOpen, setOverviewOpen] = useState(true);
@@ -186,6 +187,26 @@ export default function Analytics() {
       toast({ title: t('analytics.toast.exportFailed'), description: t('analytics.toast.exportFailedDesc'), variant: "destructive" });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleBatchAnalyze = async () => {
+    setIsAnalyzing(true);
+    try {
+      const response = await apiRequest('POST', '/api/calls/batch-analyze');
+      const result = await response.json();
+      if (result.analyzed > 0) {
+        toast({ title: 'AI Analysis Complete', description: `Analyzed ${result.analyzed} call(s). Classification & sentiment data updated.` });
+        window.location.reload();
+      } else if (result.total === 0) {
+        toast({ title: 'No Calls to Analyze', description: 'All calls with transcripts already have analysis data.' });
+      } else {
+        toast({ title: 'Analysis Done', description: `${result.failed} call(s) could not be analyzed.`, variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Analysis Failed', description: 'Could not run AI analysis. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -351,6 +372,16 @@ export default function Analytics() {
                 <SelectItem value="year">{t('analytics.timeRange.thisYear')}</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={handleBatchAnalyze}
+              disabled={isAnalyzing}
+              data-testid="button-batch-analyze"
+            >
+              {isAnalyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+              {isAnalyzing ? 'Analyzing...' : 'AI Analyze Calls'}
+            </Button>
             <Button
               variant="default"
               className="rounded-xl"

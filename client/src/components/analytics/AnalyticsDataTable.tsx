@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, X } from "lucide-react";
+import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface CallRow {
   id: string | number;
@@ -25,6 +26,8 @@ interface AnalyticsDataTableProps {
 
 export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: AnalyticsDataTableProps) {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   const filtered = useMemo(() => {
     let rows = data;
@@ -50,12 +53,22 @@ export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: Analyt
     return rows;
   }, [data, activeFilter, search]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const startIdx = (safePage - 1) * pageSize;
+  const pageRows = filtered.slice(startIdx, startIdx + pageSize);
+
   const statusColor = (s?: string) => {
     if (!s) return "secondary";
     const l = s.toLowerCase();
     if (l === 'completed') return 'default';
     if (l === 'failed') return 'destructive';
     return 'secondary';
+  };
+
+  const handlePageSizeChange = (val: string) => {
+    setPageSize(Number(val));
+    setPage(1);
   };
 
   return (
@@ -77,7 +90,7 @@ export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: Analyt
               <Input
                 placeholder="Search..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
                 className="pl-8 w-48 h-9"
                 data-testid="input-search-calls"
               />
@@ -100,12 +113,12 @@ export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: Analyt
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {pageRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-muted-foreground">No records found</td>
                 </tr>
               ) : (
-                filtered.slice(0, 50).map((row, idx) => (
+                pageRows.map((row, idx) => (
                   <tr key={row.id || idx} className="border-b last:border-0" data-testid={`row-call-${row.id || idx}`}>
                     <td className="py-2 pr-4">{row.phone || '—'}</td>
                     <td className="py-2 pr-4">
@@ -121,11 +134,54 @@ export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: Analyt
               )}
             </tbody>
           </table>
-          {filtered.length > 50 && (
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Showing 50 of {filtered.length} records
-            </p>
-          )}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t">
+            <div className="text-xs text-muted-foreground">
+              {filtered.length > 0
+                ? `Showing ${startIdx + 1}–${Math.min(startIdx + pageSize, filtered.length)} of ${filtered.length} records`
+                : 'No records'}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Rows:</span>
+                <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+                  <SelectTrigger className="h-7 w-[70px] text-xs" data-testid="select-page-size">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                    <SelectItem value="200">200</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">
+                  Page {safePage} of {totalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  data-testid="btn-prev-page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  data-testid="btn-next-page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

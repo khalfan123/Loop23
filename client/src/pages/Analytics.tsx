@@ -395,9 +395,9 @@ export default function Analytics() {
               <p className="text-sm text-muted-foreground mt-0.5">{t('analytics.subtitle')}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 glass-surface rounded-2xl px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2 glass-surface rounded-2xl px-2 py-1.5">
             <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-[150px] rounded-xl border-border/40 bg-background/50" data-testid="select-time-range">
+              <SelectTrigger className="w-[130px] h-8 text-xs rounded-xl border-border/40 bg-background/50" data-testid="select-time-range">
                 <SelectValue placeholder={t('analytics.selectPeriod')} />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
@@ -409,23 +409,25 @@ export default function Analytics() {
             </Select>
             <Button
               variant="outline"
-              className="rounded-xl"
+              size="sm"
+              className="rounded-xl h-8 text-xs px-3"
               onClick={handleBatchAnalyze}
               disabled={isAnalyzing}
               data-testid="button-batch-analyze"
             >
-              {isAnalyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              {isAnalyzing ? (analyzeProgress || 'Starting...') : 'AI Analyze Calls'}
+              {isAnalyzing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}
+              {isAnalyzing ? (analyzeProgress || 'Analyzing...') : 'AI Analyze'}
             </Button>
             <Button
               variant="default"
-              className="rounded-xl"
+              size="sm"
+              className="rounded-xl h-8 text-xs px-3"
               onClick={handleExportPDF}
               disabled={isExporting}
               data-testid="button-export-report"
             >
-              {isExporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-              {t('analytics.exportReport')}
+              {isExporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
+              Export
             </Button>
           </div>
         </div>

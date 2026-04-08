@@ -101,7 +101,9 @@ const DEFAULT_COLUMNS = {
   endReason: false,
   concernedQuestions: true,
   status: true,
+  classification: true,
   sentiment: true,
+  campaign: true,
   from: true,
   to: true,
   direction: true,
@@ -666,7 +668,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                   {getWidgetBadge(call)}
                   {columnVisibility.status && getStatusBadge(call.status)}
                   {columnVisibility.sentiment && getSentimentBadge(call.sentiment)}
-                  {getClassificationBadge(call.classification)}
+                  {columnVisibility.classification && getClassificationBadge(call.classification)}
                 </div>
                 
                 <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
@@ -703,7 +705,7 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                   {columnVisibility.agent && call.agent && (
                     <span className="text-xs">Agent: {call.agent.name}</span>
                   )}
-                  {call.campaign && (
+                  {columnVisibility.campaign && call.campaign && (
                     <span className="truncate max-w-[150px]">{call.campaign.name}</span>
                   )}
                 </div>
@@ -890,6 +892,11 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                   </div>
                 </TableHead>
               )}
+              {columnVisibility.classification && (
+                <TableHead className="whitespace-nowrap" data-testid="th-classification">
+                  Classification
+                </TableHead>
+              )}
               {columnVisibility.sentiment && (
                 <TableHead 
                   className="cursor-pointer select-none whitespace-nowrap"
@@ -900,6 +907,11 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                     Sentiment
                     {getSortIcon('sentiment')}
                   </div>
+                </TableHead>
+              )}
+              {columnVisibility.campaign && (
+                <TableHead className="whitespace-nowrap" data-testid="th-campaign">
+                  Campaign
                 </TableHead>
               )}
               {columnVisibility.agent && (
@@ -981,8 +993,16 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
                 {columnVisibility.status && (
                   <TableCell>{getStatusBadge(call.status)}</TableCell>
                 )}
+                {columnVisibility.classification && (
+                  <TableCell>{getClassificationBadge(call.classification)}</TableCell>
+                )}
                 {columnVisibility.sentiment && (
                   <TableCell>{getSentimentBadge(call.sentiment)}</TableCell>
+                )}
+                {columnVisibility.campaign && (
+                  <TableCell className="whitespace-nowrap">
+                    <span className="text-sm truncate max-w-[150px] block">{call.campaign?.name || '-'}</span>
+                  </TableCell>
                 )}
                 {columnVisibility.agent && (
                   <TableCell className="whitespace-nowrap">
@@ -1530,11 +1550,25 @@ export default function Calls({ embedded = false }: { embedded?: boolean } = {})
               Status
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
+              checked={columnVisibility.classification}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, classification: checked }))}
+              data-testid="checkbox-col-classification"
+            >
+              Classification
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
               checked={columnVisibility.sentiment}
               onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, sentiment: checked }))}
               data-testid="checkbox-col-sentiment"
             >
               Sentiment
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={columnVisibility.campaign}
+              onCheckedChange={(checked) => setColumnVisibility(prev => ({ ...prev, campaign: checked }))}
+              data-testid="checkbox-col-campaign"
+            >
+              Campaign
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem
               checked={columnVisibility.from}

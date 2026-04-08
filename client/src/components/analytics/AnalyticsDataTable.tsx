@@ -108,14 +108,13 @@ export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: Analyt
                 <th className="pb-2 pr-4 font-medium">Classification</th>
                 <th className="pb-2 pr-4 font-medium">Sentiment</th>
                 <th className="pb-2 pr-4 font-medium">Duration</th>
-                <th className="pb-2 pr-4 font-medium">Campaign</th>
                 <th className="pb-2 font-medium">Date</th>
               </tr>
             </thead>
             <tbody>
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-muted-foreground">No records found</td>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">No records found</td>
                 </tr>
               ) : (
                 pageRows.map((row, idx) => (
@@ -127,7 +126,6 @@ export function AnalyticsDataTable({ data, activeFilter, onClearFilter }: Analyt
                     <td className="py-2 pr-4">{row.classification || '—'}</td>
                     <td className="py-2 pr-4">{row.sentiment || '—'}</td>
                     <td className="py-2 pr-4">{row.duration ? `${Math.round(row.duration)}s` : '—'}</td>
-                    <td className="py-2 pr-4">{row.campaign || '—'}</td>
                     <td className="py-2">{row.date || '—'}</td>
                   </tr>
                 ))

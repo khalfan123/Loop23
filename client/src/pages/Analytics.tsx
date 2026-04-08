@@ -435,7 +435,6 @@ export default function Analytics() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="glass-surface rounded-xl">
             <TabsTrigger value="overview" className="rounded-lg" data-testid="tab-overview">Overview</TabsTrigger>
-            <TabsTrigger value="campaigns" className="rounded-lg" data-testid="tab-campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="reports" className="rounded-lg" data-testid="tab-reports">Reports</TabsTrigger>
             <TabsTrigger value="calls" className="rounded-lg" data-testid="tab-calls">Calls</TabsTrigger>
           </TabsList>
@@ -579,39 +578,6 @@ export default function Analytics() {
                 </div>
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="campaigns" className="space-y-4 mt-4">
-            <Collapsible open={campaignOpen} onOpenChange={setCampaignOpen}>
-              <SectionHeader title="Campaign Performance" open={campaignOpen} onToggle={() => setCampaignOpen(!campaignOpen)} />
-              <CollapsibleContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                  <AnalyticsChart
-                    title={t('analytics.campaignSuccessRate')}
-                    type="bar"
-                    data={campaignPerformance.length > 0 ? campaignPerformance : [{ name: t('analytics.noCampaigns'), value: 0 }]}
-                    xAxisKey="name"
-                    dataKey="value"
-                    testId="chart-campaign-success"
-                    gradientClassName="glass-card rounded-2xl"
-                  />
-                  <TreemapChart
-                    data={campaignPerformance.map(c => ({ name: c.name, value: c.totalCalls || c.value }))}
-                    onItemClick={(name) => {
-                      setDrillFilter({ type: 'campaign', value: name });
-                      setActiveTab('calls');
-                    }}
-                  />
-                </div>
-                {advanced && advanced.campaignComparisons.length > 0 && (
-                  <CampaignComparisonChart
-                    campaigns={advanced.campaignComparisons}
-                    selectedIds={selectedCampaignIds}
-                    onToggle={toggleCampaign}
-                  />
-                )}
-              </CollapsibleContent>
-            </Collapsible>
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-4 mt-4">

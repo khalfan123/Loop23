@@ -315,32 +315,26 @@ export default function Analytics() {
         />
       </SubPanelSection>
 
-      {activeView === "analytics" && (
-        <>
-          <SubPanelSection title={t('analytics.metrics', 'METRICS')}>
-            <div className="px-2.5 py-2 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{t('analytics.successRate')}</span>
-                <span className="font-medium text-emerald-600">{successRate}%</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{t('analytics.avgDurationLabel')}</span>
-                <span className="font-medium">{formatDuration(avgDuration)}</span>
-              </div>
-              {trends && (
-                <>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Call Trend</span>
-                    <span className={`font-medium ${trends.totalCallsTrend >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {trends.totalCallsTrend > 0 ? '+' : ''}{trends.totalCallsTrend.toFixed(1)}%
-                    </span>
-                  </div>
-                </>
-              )}
+      <SubPanelSection title={t('analytics.metrics', 'METRICS')}>
+        <div className="px-2.5 py-2 space-y-2">
+          <div className="flex items-center justify-between text-sm" data-testid="metric-sidebar-success-rate">
+            <span className="text-muted-foreground">{t('analytics.successRate')}</span>
+            <span className="font-medium text-emerald-600">{successRate}%</span>
+          </div>
+          <div className="flex items-center justify-between text-sm" data-testid="metric-sidebar-avg-duration">
+            <span className="text-muted-foreground">{t('analytics.avgDurationLabel')}</span>
+            <span className="font-medium">{formatDuration(avgDuration)}</span>
+          </div>
+          {trends && (
+            <div className="flex items-center justify-between text-sm" data-testid="metric-sidebar-call-trend">
+              <span className="text-muted-foreground">Call Trend</span>
+              <span className={`font-medium ${trends.totalCallsTrend >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                {trends.totalCallsTrend > 0 ? '+' : ''}{trends.totalCallsTrend.toFixed(1)}%
+              </span>
             </div>
-          </SubPanelSection>
-        </>
-      )}
+          )}
+        </div>
+      </SubPanelSection>
     </div>
   );
 

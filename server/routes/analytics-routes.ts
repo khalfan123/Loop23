@@ -483,7 +483,6 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         fromNumber: calls.fromNumber,
         toNumber: calls.toNumber,
         duration: calls.duration,
-        agentId: calls.agentId,
       })
         .from(calls)
         .where(and(
@@ -510,7 +509,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
         .limit(100);
 
       const allUnanalyzed = [
-        ...unanalyzedEL.map(c => ({ ...c, table: 'calls' as const })),
+        ...unanalyzedEL.map(c => ({ ...c, agentId: null as string | null, table: 'calls' as const })),
         ...unanalyzedTwilio.map(c => ({ ...c, phoneNumber: c.fromNumber, table: 'twilio' as const })),
       ];
 

@@ -472,9 +472,15 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
     }
   });
   
+  const batchAnalysisStatus: Record<string, { status: string; analyzed: number; failed: number; total: number }> = {};
+
   router.post("/api/calls/batch-analyze", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.userId!;
+
+      if (batchAnalysisStatus[userId]?.status === 'running') {
+        return res.json(batchAnalysisStatus[userId]);
+      }
 
       const unanalyzedEL = await db.select({
         id: calls.id,
@@ -490,7 +496,7 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           isNull(calls.classification),
           isNotNull(calls.transcript)
         ))
-        .limit(100);
+        .limit(200);
 
       const unanalyzedTwilio = await db.select({
         id: twilioOpenaiCalls.id,
@@ -506,72 +512,89 @@ export function createAnalyticsRoutes(ctx: RouteContext): Router {
           isNull(twilioOpenaiCalls.classification),
           isNotNull(twilioOpenaiCalls.transcript)
         ))
-        .limit(100);
+        .limit(200);
 
       const allUnanalyzed = [
         ...unanalyzedEL.map(c => ({ ...c, agentId: null as string | null, table: 'calls' as const })),
         ...unanalyzedTwilio.map(c => ({ ...c, phoneNumber: c.fromNumber, table: 'twilio' as const })),
-      ];
+      ].filter(c => c.transcript && c.transcript.trim().length >= 20);
 
       if (allUnanalyzed.length === 0) {
-        return res.json({ analyzed: 0, total: 0, message: 'All calls already analyzed' });
+        return res.json({ status: 'complete', analyzed: 0, failed: 0, total: 0, message: 'All calls already analyzed' });
       }
 
-      let analyzed = 0;
-      let failed = 0;
-      const results: Array<{ callId: string; classification: string; sentiment: string }> = [];
+      batchAnalysisStatus[userId] = { status: 'running', analyzed: 0, failed: 0, total: allUnanalyzed.length };
+      res.json({ status: 'running', analyzed: 0, failed: 0, total: allUnanalyzed.length, message: `Started analyzing ${allUnanalyzed.length} calls in background` });
 
-      for (const call of allUnanalyzed) {
-        if (!call.transcript || call.transcript.trim().length < 20) continue;
+      const { AWSBedrockService } = await import('../services/aws-bedrock');
+      const bedrock = new AWSBedrockService();
 
+      const SYSTEM_PROMPT = `You are an AI call analyst. Analyze the following call transcript and provide structured insights.
+Respond ONLY with valid JSON in this exact format:
+{"aiSummary":"2-3 sentence summary","sentiment":"positive"|"neutral"|"negative","classification":"hot"|"warm"|"cold"|"lost"}
+Classification: hot=strong interest, warm=moderate interest, cold=little interest, lost=declined/hung up.
+Sentiment: positive=friendly, neutral=professional, negative=frustrated.`;
+
+      const CONCURRENCY = 5;
+      let idx = 0;
+
+      async function processCall(call: typeof allUnanalyzed[0]) {
         try {
-          let agentName: string | undefined;
-          if (call.agentId) {
-            const [agent] = await db.select({ name: agents.name }).from(agents).where(eq(agents.id, call.agentId)).limit(1);
-            agentName = agent?.name;
+          const userMsg = `${call.duration ? `Duration: ${Math.floor(call.duration / 60)}m ${call.duration % 60}s\n` : ''}Transcript:\n${call.transcript}`;
+          const response = await bedrock.invoke({
+            model: 'claude-sonnet-4-6',
+            systemPrompt: SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: userMsg }],
+            maxTokens: 300,
+            temperature: 0.2,
+          });
+          const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) { batchAnalysisStatus[userId].failed++; return; }
+          const insights = JSON.parse(jsonMatch[0]);
+          const validS = ['positive', 'neutral', 'negative'];
+          const validC = ['hot', 'warm', 'cold', 'lost'];
+          if (!validS.includes(insights.sentiment) || !validC.includes(insights.classification)) {
+            batchAnalysisStatus[userId].failed++;
+            return;
           }
-
-          const insights = await CallInsightsService.analyzeTranscript(
-            call.transcript,
-            {
-              callId: call.id,
-              fromNumber: call.fromNumber || undefined,
-              toNumber: call.toNumber || undefined,
-              agentName,
-              duration: call.duration || undefined,
-            }
-          );
-
-          if (insights) {
-            if (call.table === 'calls') {
-              await db.update(calls).set({
-                classification: insights.classification,
-                sentiment: insights.sentiment,
-                aiSummary: insights.aiSummary,
-              }).where(eq(calls.id, call.id));
-            } else {
-              await db.update(twilioOpenaiCalls).set({
-                classification: insights.classification,
-                sentiment: insights.sentiment,
-                aiSummary: insights.aiSummary,
-              }).where(eq(twilioOpenaiCalls.id, call.id));
-            }
-            analyzed++;
-            results.push({ callId: call.id, classification: insights.classification, sentiment: insights.sentiment });
+          if (call.table === 'calls') {
+            await db.update(calls).set({ classification: insights.classification, sentiment: insights.sentiment, aiSummary: insights.aiSummary || null }).where(eq(calls.id, call.id));
           } else {
-            failed++;
+            await db.update(twilioOpenaiCalls).set({ classification: insights.classification, sentiment: insights.sentiment, aiSummary: insights.aiSummary || null }).where(eq(twilioOpenaiCalls.id, call.id));
           }
+          batchAnalysisStatus[userId].analyzed++;
+          console.log(`[BatchAnalyze] ✅ ${call.id} → ${insights.classification}/${insights.sentiment}`);
         } catch (err: any) {
-          console.error(`[BatchAnalyze] Failed for call ${call.id}:`, err.message);
-          failed++;
+          console.error(`[BatchAnalyze] ❌ ${call.id}: ${err.message}`);
+          batchAnalysisStatus[userId].failed++;
         }
       }
 
-      res.json({ analyzed, failed, total: allUnanalyzed.length, results });
+      (async () => {
+        try {
+          while (idx < allUnanalyzed.length) {
+            const batch = allUnanalyzed.slice(idx, idx + CONCURRENCY);
+            idx += CONCURRENCY;
+            await Promise.all(batch.map(processCall));
+          }
+          batchAnalysisStatus[userId].status = 'complete';
+          console.log(`[BatchAnalyze] Done: ${batchAnalysisStatus[userId].analyzed} analyzed, ${batchAnalysisStatus[userId].failed} failed`);
+        } catch (err: any) {
+          console.error(`[BatchAnalyze] Fatal error:`, err.message);
+          batchAnalysisStatus[userId].status = 'error';
+        }
+      })();
+
     } catch (error: any) {
       console.error("[BatchAnalyze] Error:", error);
       res.status(500).json({ error: error.message || "Batch analysis failed" });
     }
+  });
+
+  router.get("/api/calls/batch-analyze/status", authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    const status = batchAnalysisStatus[req.userId!];
+    if (!status) return res.json({ status: 'idle', analyzed: 0, failed: 0, total: 0 });
+    res.json(status);
   });
 
   // Analytics

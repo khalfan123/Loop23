@@ -190,23 +190,58 @@ export default function Analytics() {
     }
   };
 
+  const [analyzeProgress, setAnalyzeProgress] = useState('');
+
   const handleBatchAnalyze = async () => {
     setIsAnalyzing(true);
+    setAnalyzeProgress('Starting...');
     try {
       const response = await apiRequest('POST', '/api/calls/batch-analyze');
       const result = await response.json();
-      if (result.analyzed > 0) {
-        toast({ title: 'AI Analysis Complete', description: `Analyzed ${result.analyzed} call(s). Classification & sentiment data updated.` });
-        window.location.reload();
-      } else if (result.total === 0) {
+
+      if (result.status === 'complete' && result.total === 0) {
         toast({ title: 'No Calls to Analyze', description: 'All calls with transcripts already have analysis data.' });
-      } else {
-        toast({ title: 'Analysis Done', description: `${result.failed} call(s) could not be analyzed.`, variant: 'destructive' });
+        setIsAnalyzing(false);
+        setAnalyzeProgress('');
+        return;
       }
+
+      toast({ title: 'AI Analysis Started', description: `Analyzing ${result.total} call(s) in background using Bedrock Claude...` });
+
+      const pollStatus = async () => {
+        const headers: Record<string, string> = {};
+        const authHeader = AuthStorage.getAuthHeader();
+        if (authHeader) headers['Authorization'] = authHeader;
+        const statusRes = await fetch('/api/calls/batch-analyze/status', { credentials: 'include', headers });
+        return statusRes.json();
+      };
+
+      const poll = setInterval(async () => {
+        try {
+          const status = await pollStatus();
+          setAnalyzeProgress(`${status.analyzed}/${status.total} analyzed`);
+          if (status.status !== 'running') {
+            clearInterval(poll);
+            setIsAnalyzing(false);
+            setAnalyzeProgress('');
+            if (status.analyzed > 0) {
+              toast({ title: 'AI Analysis Complete', description: `Analyzed ${status.analyzed} call(s). Refreshing data...` });
+              window.location.reload();
+            } else {
+              toast({ title: 'Analysis Done', description: `${status.failed} call(s) could not be analyzed.`, variant: 'destructive' });
+            }
+          }
+        } catch {
+          clearInterval(poll);
+          setIsAnalyzing(false);
+          setAnalyzeProgress('');
+        }
+      }, 3000);
+
     } catch {
-      toast({ title: 'Analysis Failed', description: 'Could not run AI analysis. Please try again.', variant: 'destructive' });
-    } finally {
+      toast({ title: 'Analysis Failed', description: 'Could not start AI analysis. Please try again.', variant: 'destructive' });
       setIsAnalyzing(false);
+      setAnalyzeProgress('');
     }
   };
 
@@ -380,7 +415,7 @@ export default function Analytics() {
               data-testid="button-batch-analyze"
             >
               {isAnalyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              {isAnalyzing ? 'Analyzing...' : 'AI Analyze Calls'}
+              {isAnalyzing ? (analyzeProgress || 'Starting...') : 'AI Analyze Calls'}
             </Button>
             <Button
               variant="default"

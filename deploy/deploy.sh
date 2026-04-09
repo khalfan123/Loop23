@@ -25,6 +25,9 @@ fi
 
 cd "$APP_DIR"
 
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+log "Current branch: $BRANCH"
+
 log "Saving current commit for rollback..."
 ROLLBACK_COMMIT=$(git rev-parse HEAD)
 echo "$ROLLBACK_COMMIT" > "$LOG_DIR/.last-good-commit"
@@ -32,7 +35,7 @@ echo "$ROLLBACK_COMMIT" > "$LOG_DIR/.last-good-commit"
 log "Pulling latest code..."
 git fetch origin
 CURRENT=$(git rev-parse HEAD)
-git pull origin main
+git pull origin "$BRANCH"
 NEW=$(git rev-parse HEAD)
 
 if [ "$CURRENT" = "$NEW" ] && [ "${FORCE_DEPLOY:-}" != "1" ]; then
@@ -72,12 +75,12 @@ for i in $(seq 1 $RETRIES); do
     fi
     if [ "$i" -eq "$RETRIES" ]; then
         warn "Health check failed after $RETRIES attempts."
-        warn "Rolling back to previous commit $ROLLBACK_COMMIT ..."
-        git checkout "$ROLLBACK_COMMIT"
+        warn "Rolling back to previous commit $ROLLBACK_COMMIT on branch $BRANCH ..."
+        git reset --hard "$ROLLBACK_COMMIT"
         npm ci --production=false 2>&1 | tail -3
         npm run build 2>&1 | tail -3
         sudo systemctl restart "$SERVICE_NAME"
-        error "Deployment failed and rolled back. Check: sudo journalctl -u $SERVICE_NAME -n 50"
+        error "Deployment failed and rolled back to $ROLLBACK_COMMIT. Check: sudo journalctl -u $SERVICE_NAME -n 50"
     fi
     warn "Health check attempt $i/$RETRIES returned $HTTP_CODE, retrying in 3s..."
     sleep 3

@@ -9,6 +9,7 @@ COPY shared ./shared
 COPY client ./client
 COPY server ./server
 COPY script ./script
+COPY migrations ./migrations
 COPY vite.config.ts tsconfig.json tailwind.config.ts postcss.config.js drizzle.config.ts build-version.json ./
 
 RUN npm run build

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EC2_HOST="13.206.82.20"
-EC2_USER="ubuntu"
+EC2_HOST="${EC2_HOST:-13.206.82.20}"
+EC2_USER="${EC2_USER:-ubuntu}"
 EC2_KEY="/tmp/ec2-key.pem"
 APP_DIR="/home/agentlabs/app"
 
@@ -15,15 +15,21 @@ log() { echo -e "${GREEN}[DEPLOY]${NC} $(date '+%H:%M:%S') $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $(date '+%H:%M:%S') $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $(date '+%H:%M:%S') $1"; exit 1; }
 
-SSH_OPTS="-i $EC2_KEY -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=6 -o TCPKeepAlive=yes -o StrictHostKeyChecking=no"
-
 log "========================================="
 log "  AgentLabs EC2 Auto-Deploy"
 log "========================================="
 
 if [ ! -f "$EC2_KEY" ]; then
-    error "SSH key not found at $EC2_KEY"
+    if [ -n "${EC2_SSH_KEY_B64:-}" ]; then
+        log "Reconstructing SSH key from stored secret..."
+        echo "$EC2_SSH_KEY_B64" | base64 -d > "$EC2_KEY"
+        chmod 600 "$EC2_KEY"
+    else
+        error "SSH key not found. Set EC2_SSH_KEY_B64 env var or place key at $EC2_KEY"
+    fi
 fi
+
+SSH_OPTS="-i $EC2_KEY -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=6 -o TCPKeepAlive=yes -o StrictHostKeyChecking=no"
 
 log "[1/5] Testing EC2 connection..."
 ssh $SSH_OPTS $EC2_USER@$EC2_HOST 'echo "Connected to $(hostname)"' || error "Cannot connect to EC2"

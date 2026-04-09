@@ -152,3 +152,14 @@ Backend-only competitive analysis and benchmarking tool that compares Diploy aga
   - `POST /api/internal/benchmark/run-category` — Run by category
   - `POST /api/internal/benchmark/run-scenario` — Run single scenario
 - **Files**: `server/services/competitive-benchmark/` (scenarios, benchmark-engine, llm-evaluator, report-generator, retell-baseline, index), `server/routes/benchmark-routes.ts`
+
+## EC2 Deployment
+The app is deployed to an AWS EC2 instance (t2.medium, Ubuntu 24.04, ap-south-1 Mumbai).
+- **EC2 IP**: 13.206.82.20
+- **Live URL**: http://13.206.82.20
+- **Deploy command**: `bash deploy/push-to-ec2.sh` — builds locally on Replit and pushes to EC2 (~90 seconds)
+- **SSH key**: Stored as `EC2_SSH_KEY_B64` env var (base64-encoded PEM), auto-reconstructed by deploy script
+- **EC2 env vars**: `EC2_HOST`, `EC2_USER` stored in Replit env vars
+- **On EC2**: App runs as systemd service `agentlabs`, Nginx reverse proxy on port 80, PostgreSQL 16 with pgvector
+- **DB on EC2**: user=agentlabs, db=agentlabs, host=localhost
+- **Deploy files**: `deploy/push-to-ec2.sh` (main deploy script), `deploy/agentlabs.service` (systemd), `deploy/nginx.conf`, `deploy/deploy.sh` (git-based alternative)

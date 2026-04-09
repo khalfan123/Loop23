@@ -5,6 +5,7 @@ EC2_HOST="${EC2_HOST:-13.206.82.20}"
 EC2_USER="${EC2_USER:-ubuntu}"
 EC2_KEY="/tmp/ec2-key.pem"
 APP_DIR="/home/agentlabs/app"
+SYNC_DB="${SYNC_DB:-0}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -31,10 +32,10 @@ fi
 
 SSH_OPTS="-i $EC2_KEY -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=6 -o TCPKeepAlive=yes -o StrictHostKeyChecking=no"
 
-log "[1/5] Testing EC2 connection..."
+log "[1/6] Testing EC2 connection..."
 ssh $SSH_OPTS $EC2_USER@$EC2_HOST 'echo "Connected to $(hostname)"' || error "Cannot connect to EC2"
 
-log "[2/5] Building application locally..."
+log "[2/6] Building application locally..."
 npx vite build --outDir dist/public 2>&1 | tail -5
 npx esbuild server/index.ts \
     --bundle --platform=node --format=esm \
@@ -49,22 +50,58 @@ EOF
 
 log "Build complete: $(du -sh dist/ | cut -f1)"
 
-log "[3/5] Pushing build to EC2..."
+log "[3/6] Pushing build to EC2..."
 tar cf - dist/ shared/ migrations/ drizzle.config.ts package.json package-lock.json 2>/dev/null \
     | ssh $SSH_OPTS $EC2_USER@$EC2_HOST \
     "sudo -u agentlabs bash -c 'cd $APP_DIR && rm -rf dist/ && tar xf -'" \
     || error "Failed to transfer files"
 log "Files transferred"
 
-log "[4/5] Running migrations & restarting on EC2..."
-ssh $SSH_OPTS $EC2_USER@$EC2_HOST "sudo bash -c '
-cd $APP_DIR
-sudo -u agentlabs npx drizzle-kit push --force 2>&1 | tail -5
-systemctl restart agentlabs
-sleep 5
-'" || error "Failed to restart on EC2"
+if [ "$SYNC_DB" = "1" ]; then
+    log "[4/6] Syncing database (full mirror)..."
+    ssh $SSH_OPTS $EC2_USER@$EC2_HOST 'sudo systemctl stop agentlabs' || true
 
-log "[5/5] Health check..."
+    ssh $SSH_OPTS $EC2_USER@$EC2_HOST 'sudo -u postgres bash -c "
+        psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '\''agentlabs'\'' AND pid <> pg_backend_pid();\" 2>/dev/null
+        dropdb agentlabs 2>/dev/null
+        createdb agentlabs -O agentlabs
+        psql -d agentlabs -c '\''CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"; CREATE EXTENSION IF NOT EXISTS vector;'\''
+    "' || error "Failed to recreate database"
+
+    pg_dump --no-owner --no-privileges --format=plain --disable-triggers "$DATABASE_URL" 2>/dev/null \
+        | ssh $SSH_OPTS $EC2_USER@$EC2_HOST 'sudo -u postgres psql -d agentlabs 2>&1 | tail -3' \
+        || error "Failed to import database"
+
+    ssh $SSH_OPTS $EC2_USER@$EC2_HOST 'sudo -u postgres psql -d agentlabs -c "
+        GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO agentlabs;
+        GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO agentlabs;
+        GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO agentlabs;
+        GRANT USAGE ON SCHEMA public TO agentlabs;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO agentlabs;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO agentlabs;
+        DO \$\$ DECLARE r RECORD; BEGIN
+            FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = '\''public'\'' LOOP
+                EXECUTE '\''ALTER TABLE public.'\'' || r.tablename || '\'' OWNER TO agentlabs'\'';
+            END LOOP;
+            FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = '\''public'\'' LOOP
+                EXECUTE '\''ALTER SEQUENCE public.'\'' || r.sequence_name || '\'' OWNER TO agentlabs'\'';
+            END LOOP;
+        END \$\$;
+    "' || error "Failed to fix permissions"
+    log "Database synced and permissions set"
+else
+    log "[4/6] Skipping database sync (use SYNC_DB=1 to sync)"
+    ssh $SSH_OPTS $EC2_USER@$EC2_HOST "sudo bash -c '
+    cd $APP_DIR
+    sudo -u agentlabs npx drizzle-kit push --force 2>&1 | tail -5
+    '" || warn "Migration had issues"
+fi
+
+log "[5/6] Restarting application..."
+ssh $SSH_OPTS $EC2_USER@$EC2_HOST "sudo systemctl restart agentlabs" || error "Failed to restart"
+sleep 6
+
+log "[6/6] Health check..."
 RETRIES=8
 for i in $(seq 1 $RETRIES); do
     CODE=$(ssh $SSH_OPTS $EC2_USER@$EC2_HOST "curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/health" 2>/dev/null || echo "000")

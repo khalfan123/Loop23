@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.env.*
+!deploy/.env.production.example
+.git
+.gitignore
+*.log
+.local
+artifacts
+.replit
+replit.md
+replit_agent
+.config
+deploy/.dockerignore

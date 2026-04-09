@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: agentlabs-app
+    restart: always
+    ports:
+      - "5000:5000"
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://agentlabs:${POSTGRES_PASSWORD}@postgres:5432/agentlabs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/client/public/uploads
+      - images:/app/client/public/images
+      - audio:/app/public/audio
+      - avatars:/app/public/avatars
+      - appdata:/app/data
+      - kyc:/app/kyc
+      - exports:/app/exports
+    networks:
+      - agentlabs
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: agentlabs-db
+    restart: always
+    environment:
+      POSTGRES_DB: agentlabs
+      POSTGRES_USER: agentlabs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    expose:
+      - "5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentlabs -d agentlabs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agentlabs
+
+volumes:
+  pgdata:
+  uploads:
+  images:
+  audio:
+  avatars:
+  appdata:
+  kyc:
+  exports:
+
+networks:
+  agentlabs:
+    driver: bridge

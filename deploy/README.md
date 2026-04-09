@@ -33,7 +33,8 @@ This guide walks you through deploying the AgentLabs AI Calling Platform to a de
 | SSH | 22 | Your IP | Server management |
 | HTTP | 80 | 0.0.0.0/0 | Redirect to HTTPS |
 | HTTPS | 443 | 0.0.0.0/0 | Application traffic |
-| Custom TCP | 5000 | 127.0.0.1 | Node.js app (local only) |
+
+> **Note:** Port 5000 (the Node.js app) should NOT be exposed in the security group. Nginx handles all public traffic on ports 80/443 and proxies to the app on localhost:5000.
 
 ### Launch & Connect
 
@@ -272,6 +273,9 @@ Follow the same Nginx and Certbot steps from Option A (sections 3.3 and 3.4), ju
 sudo su - agentlabs
 cd /home/agentlabs/app
 bash deploy/deploy.sh
+# WARNING: If the deploy fails health checks, the script will roll back
+# using `git reset --hard`, which discards any uncommitted local changes.
+# Always commit or stash local changes before deploying.
 ```
 
 **Docker:**

@@ -35,9 +35,13 @@ COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder /app/build-version.json ./build-version.json
 COPY --from=builder /app/client/public ./client/public
 
-RUN mkdir -p client/public/uploads client/public/images public/audio public/avatars public/widget \
-             kyc exports data data/invoices data/refund-notes logs public/images \
+RUN npm install --no-save drizzle-kit tsx esbuild \
+    && mkdir -p client/public/uploads client/public/images public/audio public/avatars public/widget \
+                kyc exports data data/invoices data/refund-notes logs public/images \
     && chown -R agentlabs:agentlabs /app
+
+COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 USER agentlabs
 
@@ -46,7 +50,8 @@ ENV PORT=5000
 
 EXPOSE 5000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:5000/health || exit 1
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["node", "dist/index.cjs"]

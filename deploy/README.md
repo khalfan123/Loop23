@@ -250,13 +250,10 @@ nano .env
 # Note: DATABASE_URL is overridden by docker-compose.yml to use the Postgres container
 # Fill in all other [REQUIRED] variables (JWT_SECRET, API keys, etc.)
 
-# Build and start
+# Build and start (migrations run automatically on startup)
 docker compose -f deploy/docker-compose.yml up -d --build
 
-# Push database schema
-docker compose -f deploy/docker-compose.yml exec app npx drizzle-kit push
-
-# Check logs
+# Check logs (you should see "Running database migrations..." in the output)
 docker compose -f deploy/docker-compose.yml logs -f app
 ```
 

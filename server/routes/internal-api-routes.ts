@@ -308,6 +308,28 @@ router.get("/kyc/documents/:documentId/download", async (req: Request, res: Resp
   }
 });
 
+router.post("/kb-mastermind/run", async (req: Request, res: Response) => {
+  try {
+    const { runKBMastermind } = await import('../services/kb-mastermind');
+    const { departmentId } = req.body;
+    const stats = await runKBMastermind(departmentId || undefined);
+    return res.json({ success: true, stats });
+  } catch (error: any) {
+    console.error('[KB Mastermind] Internal trigger error:', error.message);
+    return res.status(500).json({ error: 'KB Mastermind run failed', message: error.message });
+  }
+});
+
+router.get("/kb-mastermind/status", async (_req: Request, res: Response) => {
+  try {
+    const { getKBMastermindStatus } = await import('../services/kb-mastermind');
+    const status = getKBMastermindStatus();
+    return res.json({ success: true, ...status });
+  } catch (error: any) {
+    return res.status(500).json({ error: 'Failed to get status', message: error.message });
+  }
+});
+
 router.use("/admin", adminRouter);
 
 export default router;

@@ -191,7 +191,7 @@ Speak with authority and confidence. You know your stuff — act like it.`;
             query,
             knowledgeBaseIds,
             userId,
-            5
+            3
           );
           
           if (results.length === 0) {
@@ -202,7 +202,7 @@ Speak with authority and confidence. You know your stuff — act like it.`;
             };
           }
           
-          let formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 1200);
+          let formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 800);
 
           if (config.dataSchema && config.dataSchema.length > 0) {
             const dataSchemaContext = RAGKnowledgeService.buildDataSchemaContext(config.dataSchema);

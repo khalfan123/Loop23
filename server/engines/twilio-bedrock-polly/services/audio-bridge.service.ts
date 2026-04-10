@@ -835,6 +835,9 @@ export class BedrockPollyAudioBridge {
       return;
     }
 
+    let fillerTimer: ReturnType<typeof setTimeout> | null = null;
+    let fillerCancelled = false;
+
     try {
       const buf = audioBuffers.get(callSid) || [];
       audioBuffers.set(callSid, []);
@@ -1018,14 +1021,12 @@ export class BedrockPollyAudioBridge {
       const isComplex = words.length > 20 || (hasKBTools && words.length > 10);
 
       let kbPreFetched = false;
-      const KB_PREFETCH_TIMEOUT_MS = 5000;
+      const KB_PREFETCH_TIMEOUT_MS = 3000;
 
       const kbTool = hasKBTools ? session.agentConfig.tools!.find(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base') : null;
 
       const parallelTasks: Promise<any>[] = [];
 
-      let fillerTimer: ReturnType<typeof setTimeout> | null = null;
-      let fillerCancelled = false;
       const avgMs = this.avgResponseMs.get(callSid) || 1500;
       const shouldConsiderFiller = turnCount >= 1 && !bargeInFlags.get(callSid) && avgMs > 500;
 

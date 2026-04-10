@@ -1,6 +1,6 @@
 'use strict';
 import { db } from '../db';
-import { departments, departmentKnowledgeBases, departmentAgents, knowledgeBase, knowledgeChunks, agents } from '@shared/schema';
+import { departments, departmentKnowledgeBases, knowledgeBase, knowledgeChunks } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { createHash } from 'crypto';
 import { RAGKnowledgeService } from './rag-knowledge';
@@ -328,6 +328,21 @@ export async function runKBMastermind(departmentId?: string): Promise<RunStats> 
 }
 
 export async function runKBMastermindForUser(userId: string, departmentId?: string): Promise<RunStats> {
+  if (isRunning) {
+    return {
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      durationMs: 0,
+      departmentsProcessed: 0,
+      kbsProcessed: 0,
+      chunksRefreshed: 0,
+      chunksSkipped: 0,
+      cacheWarmed: 0,
+      errors: ['Skipped: a training cycle is already in progress'],
+    };
+  }
+
+  isRunning = true;
   const startTime = Date.now();
   const stats: RunStats = {
     startedAt: new Date().toISOString(),
@@ -394,6 +409,8 @@ export async function runKBMastermindForUser(userId: string, departmentId?: stri
     stats.errors.push(`Fatal: ${error.message}`);
     stats.completedAt = new Date().toISOString();
     stats.durationMs = Date.now() - startTime;
+  } finally {
+    isRunning = false;
   }
 
   return stats;

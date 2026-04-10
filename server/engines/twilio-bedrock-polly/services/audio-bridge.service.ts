@@ -2702,21 +2702,42 @@ CONVERSATION STYLE:
     sanitized = sanitized.replace(/\{\s*"error"\s*:\s*"[^"]*"\s*\}/g, '');
     sanitized = sanitized.replace(/SKU:\s*[A-Z0-9]+/gi, '');
 
-    sanitized = sanitized.replace(/(\d+[\.,]\d+)\s*(AED|درهم|USD|EUR)/gi, (match, numStr, currency) => {
+    const isArabic = language === 'ar' || /[\u0600-\u06FF]/.test(sanitized);
+
+    sanitized = sanitized.replace(/(\d+[\.,]\d+)\s*(AED|درهم|USD|EUR|دولار|يورو)/gi, (match, numStr, currency) => {
       const num = parseFloat(numStr.replace(',', '.'));
       if (isNaN(num)) return match;
-      const isArabic = language === 'ar' || /[\u0600-\u06FF]/.test(sanitized);
       if (isArabic) {
-        return this.numberToArabicWords(num) + ' درهم';
+        const rounded = Math.round(num);
+        const currencyWord = /AED|درهم/i.test(currency) ? 'درهم' : /USD|دولار/i.test(currency) ? 'دولار' : 'يورو';
+        return this.numberToArabicWords(rounded) + ' ' + currencyWord;
       }
       const rounded = Math.round(num);
       return this.numberToEnglishWords(rounded) + ' ' + currency;
     });
 
-    sanitized = sanitized.replace(/\b(\d{3,})\b/g, (match) => {
+    sanitized = sanitized.replace(/(\+?\d[\d\s\-]{6,})/g, (match) => {
+      const digits = match.replace(/[^\d]/g, '');
+      if (digits.length < 7) return match;
+      if (isArabic) {
+        const arabicDigitNames = ['صفر', 'واحد', 'اثنين', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+        return digits.split('').map(d => arabicDigitNames[parseInt(d)]).join(' ');
+      }
+      const englishDigitNames = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+      return digits.split('').map(d => englishDigitNames[parseInt(d)]).join(' ');
+    });
+
+    sanitized = sanitized.replace(/\b(\d+[\.,]\d+)\b/g, (match) => {
+      const num = parseFloat(match.replace(',', '.'));
+      if (isNaN(num) || num > 999999) return match;
+      const rounded = Math.round(num);
+      if (isArabic) return this.numberToArabicWords(rounded);
+      return this.numberToEnglishWords(rounded);
+    });
+
+    sanitized = sanitized.replace(/\b(\d+)\b/g, (match) => {
       const num = parseInt(match, 10);
       if (isNaN(num) || num > 999999) return match;
-      const isArabic = language === 'ar' || /[\u0600-\u06FF]/.test(sanitized);
       if (isArabic) return this.numberToArabicWords(num);
       return this.numberToEnglishWords(num);
     });
@@ -2759,16 +2780,29 @@ CONVERSATION STYLE:
 
   private static numberToArabicWords(num: number): string {
     if (num === 0) return 'صفر';
-    const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+    const ones = ['', 'واحد', 'اثنين', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
     const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
-    const tens = ['', '', 'عشرين', 'ثلاثين', 'أربعين', 'خمسين', 'ستين', 'سبعين', 'ثمانين', 'تسعين'];
-    const hundreds = ['', 'مئة', 'مئتان', 'ثلاثمئة', 'أربعمئة', 'خمسمئة', 'ستمئة', 'سبعمئة', 'ثمانمئة', 'تسعمئة'];
+    const tens = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+    const hundreds = ['', 'مئة', 'مئتين', 'ثلاثمئة', 'أربعمئة', 'خمسمئة', 'ستمئة', 'سبعمئة', 'ثمانمئة', 'تسعمئة'];
 
     const rounded = Math.round(num);
+
+    if (rounded >= 1000000) {
+      const millions = Math.floor(rounded / 1000000);
+      const remainder = rounded % 1000000;
+      let result = millions === 1 ? 'مليون' : millions === 2 ? 'مليونين' : this.numberToArabicWords(millions) + ' ملايين';
+      if (remainder > 0) result += ' و' + this.numberToArabicWords(remainder);
+      return result;
+    }
+
     if (rounded >= 1000) {
       const thousands = Math.floor(rounded / 1000);
       const remainder = rounded % 1000;
-      let result = thousands === 1 ? 'ألف' : thousands === 2 ? 'ألفان' : `${ones[thousands] || thousands} آلاف`;
+      let result: string;
+      if (thousands === 1) result = 'ألف';
+      else if (thousands === 2) result = 'ألفين';
+      else if (thousands >= 3 && thousands <= 10) result = this.numberToArabicWords(thousands) + ' آلاف';
+      else result = this.numberToArabicWords(thousands) + ' ألف';
       if (remainder > 0) result += ' و' + this.numberToArabicWords(remainder);
       return result;
     }

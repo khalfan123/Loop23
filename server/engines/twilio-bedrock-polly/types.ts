@@ -353,6 +353,7 @@ export interface BedrockPollyBridgeSession {
   _mediaLogThrottle?: number;
   _kbPreFetched?: boolean;
   _retryAttempted?: boolean;
+  _cancelFiller?: () => void;
 }
 
 /**

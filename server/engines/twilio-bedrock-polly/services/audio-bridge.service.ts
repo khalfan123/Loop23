@@ -773,13 +773,15 @@ export class BedrockPollyAudioBridge {
       let pcmBuffer: Buffer;
       const { ttsProvider, agentConfig } = session;
 
-      if (ttsProvider === 'cartesia' && agentConfig.cartesiaVoiceId) {
+      if (ttsProvider === 'cartesia') {
+        if (!agentConfig.cartesiaVoiceId) return;
         try {
           pcmBuffer = await this.synthesizeWithCartesia(filler, agentConfig.cartesiaVoiceId, agentConfig.language);
         } catch {
           return;
         }
-      } else if (ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId) {
+      } else if (ttsProvider === 'elevenlabs') {
+        if (!agentConfig.elevenLabsVoiceId) return;
         const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
         if (!apiKey) return;
         try {
@@ -1094,11 +1096,19 @@ export class BedrockPollyAudioBridge {
       const llmProvider = isOpenAIModel(agentConfig.model) ? 'OpenAI' : 'Bedrock';
       console.log(`[BedrockPolly Bridge] Calling ${llmProvider} for ${callSid} (messages=${session.messages.length}, bargeIn=${bargeInFlags.get(callSid)})`);
 
+      const cancelFiller = () => {
+        if (!fillerCancelled) {
+          fillerCancelled = true;
+          if (fillerTimer) clearTimeout(fillerTimer);
+        }
+      };
+      session._cancelFiller = cancelFiller;
+
       const bedrockStart = Date.now();
       const responseText = await this.streamBedrockAndSpeak(session, sttMs);
 
-      fillerCancelled = true;
-      if (fillerTimer) clearTimeout(fillerTimer);
+      cancelFiller();
+      delete session._cancelFiller;
 
       const responseMs = Date.now() - bedrockStart;
       const prevAvg = this.avgResponseMs.get(callSid) || responseMs;
@@ -1753,7 +1763,10 @@ CONVERSATION STYLE:
         let lastStreamLog = 0;
         for await (const event of eventStream) {
           if (event.type === 'text') {
-            if (!firstTokenTime) firstTokenTime = Date.now();
+            if (!firstTokenTime) {
+              firstTokenTime = Date.now();
+              session._cancelFiller?.();
+            }
             fullText += event.text;
             sentenceBuffer += event.text;
 
@@ -1799,7 +1812,10 @@ CONVERSATION STYLE:
         let lastStreamLog = 0;
         let toolCallDetected = false;
         for await (const token of stream) {
-          if (!firstTokenTime) firstTokenTime = Date.now();
+          if (!firstTokenTime) {
+            firstTokenTime = Date.now();
+            session._cancelFiller?.();
+          }
           fullText += token;
 
           const now = Date.now();

@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-bash "$SCRIPT_DIR/bootstrap-node-env.sh"
+npm install --prefer-offline --no-audit --no-fund 2>/dev/null || true
 
 if [ -n "${DATABASE_URL:-}" ]; then
   npx drizzle-kit push --force

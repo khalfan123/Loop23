@@ -2098,7 +2098,11 @@ The prompt should:
     try {
       const { getKBMastermindStatus } = await import('../services/kb-mastermind');
       const status = getKBMastermindStatus();
-      return res.json({ success: true, ...status });
+      return res.json({
+        success: true,
+        isRunning: status.isRunning,
+        lastRunAt: status.lastRunAt,
+      });
     } catch (error: any) {
       return res.status(500).json({ error: 'Failed to get status', message: error.message });
     }

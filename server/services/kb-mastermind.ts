@@ -1,7 +1,7 @@
 'use strict';
 import { db } from '../db';
 import { departments, departmentKnowledgeBases, departmentAgents, knowledgeBase, knowledgeChunks, agents } from '@shared/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { createHash } from 'crypto';
 import { RAGKnowledgeService } from './rag-knowledge';
 
@@ -129,9 +129,7 @@ async function reprocessKB(kbId: string, userId: string): Promise<{ chunksRefres
     }
   }
 
-  await db
-    .delete(knowledgeChunks)
-    .where(eq(knowledgeChunks.knowledgeBaseId, kbId));
+  await RAGKnowledgeService.deleteKnowledgeChunks(kbId, userId);
 
   const result = await RAGKnowledgeService.processKnowledgeItem(
     kbId,
@@ -139,6 +137,10 @@ async function reprocessKB(kbId: string, userId: string): Promise<{ chunksRefres
     kb.content,
     { contentHash: newHash, reprocessedAt: new Date().toISOString(), source: 'kb-mastermind' }
   );
+
+  if (!result.success) {
+    throw new Error(result.error || 'processKnowledgeItem returned success=false');
+  }
 
   return {
     chunksRefreshed: result.chunksCreated,

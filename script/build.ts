@@ -93,32 +93,28 @@ async function buildAll() {
       const manifestPath = path.join(pluginPath, "plugin.json");
       if (!fs.existsSync(manifestPath)) continue;
 
-      const tsFiles: string[] = [];
-      async function collectTs(dir: string) {
-        const items = await readdir(dir, { withFileTypes: true });
-        for (const item of items) {
-          const fullPath = path.join(dir, item.name);
-          if (item.isDirectory()) {
-            await collectTs(fullPath);
-          } else if (item.name.endsWith(".ts") && !item.name.endsWith(".d.ts")) {
-            tsFiles.push(fullPath);
-          }
-        }
-      }
-      await collectTs(pluginPath);
+      const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
+      const entryPoint = manifest.entryPoint || "index.ts";
+      const entryFile = path.join(pluginPath, entryPoint);
+      if (!fs.existsSync(entryFile)) continue;
 
-      if (tsFiles.length > 0) {
-        await esbuild({
-          entryPoints: tsFiles,
-          platform: "node",
-          format: "esm",
-          outdir: pluginPath,
-          outExtension: { ".js": ".js" },
-          bundle: false,
-          logLevel: "info",
-        });
-        console.log(`compiled plugin '${entry.name}' (${tsFiles.length} files)`);
-      }
+      const outFile = entryFile.replace(/\.ts$/, ".js");
+      await esbuild({
+        entryPoints: [entryFile],
+        platform: "node",
+        format: "esm",
+        outfile: outFile,
+        bundle: true,
+        packages: "external",
+        logLevel: "info",
+        banner: {
+          js: [
+            'import { createRequire as __cr } from "module";',
+            'const require = __cr(import.meta.url);',
+          ].join("\n"),
+        },
+      });
+      console.log(`bundled plugin '${entry.name}' → ${path.basename(outFile)}`);
     }
   }
 }

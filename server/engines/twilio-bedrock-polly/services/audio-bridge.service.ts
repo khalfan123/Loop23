@@ -1152,6 +1152,9 @@ export class BedrockPollyAudioBridge {
     } catch (error: any) {
       console.error(`[BedrockPolly Bridge] Turn processing error for ${callSid}:`, error.message);
     } finally {
+      if (fillerTimer) clearTimeout(fillerTimer);
+      fillerCancelled = true;
+      delete session._cancelFiller;
       session.isProcessing = false;
       lastTtsEndTime.set(callSid, Date.now());
       bargeInAccum.set(callSid, 0);

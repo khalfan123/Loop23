@@ -728,7 +728,7 @@ export class BedrockPollyAudioBridge {
   };
   private static lastFillerUsed: Map<string, string> = new Map();
   private static avgResponseMs: Map<string, number> = new Map();
-  private static readonly FILLER_DELAY_MS = 200;
+  private static readonly FILLER_DELAY_MS = 50;
 
   private static getPollyFallbackVoice(language?: string): string {
     const langVoiceMap: Record<string, string> = {

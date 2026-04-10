@@ -639,7 +639,7 @@ ${options.systemPrompt}`;
         });
         await Promise.race([
           client.send(command),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), process.env.NODE_ENV === 'production' ? 20000 : 8000)),
         ]);
         console.log(`[Bedrock] ✅ Model "${alias}" (${modelId}) is accessible`);
         if (!firstWorking) firstWorking = alias;

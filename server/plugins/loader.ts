@@ -41,6 +41,13 @@ const getDirname = () => {
 
 const currentDir = getDirname();
 
+function getPluginsDir(): string {
+  if (process.env.NODE_ENV === 'production') {
+    return path.resolve(process.cwd(), 'plugins');
+  }
+  return path.resolve(currentDir, '../../plugins');
+}
+
 export interface PluginManifest {
   name: string;
   displayName: string;
@@ -139,7 +146,7 @@ async function isPluginEnabled(pluginName: string): Promise<boolean> {
  * Discover all plugins in the plugins directory
  */
 export function discoverPlugins(): PluginManifest[] {
-  const pluginsDir = path.resolve(currentDir, '../../plugins');
+  const pluginsDir = getPluginsDir();
   const plugins: PluginManifest[] = [];
   
   if (!fs.existsSync(pluginsDir)) {
@@ -175,7 +182,7 @@ export function discoverPlugins(): PluginManifest[] {
  * Load and register all enabled plugins
  */
 export async function loadPlugins(app: Express, options: PluginLoaderOptions): Promise<LoadedPlugin[]> {
-  const pluginsDir = path.resolve(currentDir, '../../plugins');
+  const pluginsDir = getPluginsDir();
   const manifests = discoverPlugins();
   const results: LoadedPlugin[] = [];
   

@@ -1,6 +1,8 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile, writeFile } from "fs/promises";
+import { rm, readFile, writeFile, readdir, stat } from "fs/promises";
+import path from "path";
+import fs from "fs";
 
 const allowlist = [
   "@anthropic-ai/sdk",
@@ -80,6 +82,45 @@ async function buildAll() {
     'import("./index.mjs").catch(e => { console.error(e); process.exit(1); });\n'
   );
   console.log("wrote dist/index.cjs ESM loader wrapper");
+
+  const pluginsDir = path.resolve("plugins");
+  if (fs.existsSync(pluginsDir)) {
+    console.log("compiling plugins...");
+    const pluginEntries = await readdir(pluginsDir, { withFileTypes: true });
+    for (const entry of pluginEntries) {
+      if (!entry.isDirectory()) continue;
+      const pluginPath = path.join(pluginsDir, entry.name);
+      const manifestPath = path.join(pluginPath, "plugin.json");
+      if (!fs.existsSync(manifestPath)) continue;
+
+      const tsFiles: string[] = [];
+      async function collectTs(dir: string) {
+        const items = await readdir(dir, { withFileTypes: true });
+        for (const item of items) {
+          const fullPath = path.join(dir, item.name);
+          if (item.isDirectory()) {
+            await collectTs(fullPath);
+          } else if (item.name.endsWith(".ts") && !item.name.endsWith(".d.ts")) {
+            tsFiles.push(fullPath);
+          }
+        }
+      }
+      await collectTs(pluginPath);
+
+      if (tsFiles.length > 0) {
+        await esbuild({
+          entryPoints: tsFiles,
+          platform: "node",
+          format: "esm",
+          outdir: pluginPath,
+          outExtension: { ".js": ".js" },
+          bundle: false,
+          logLevel: "info",
+        });
+        console.log(`compiled plugin '${entry.name}' (${tsFiles.length} files)`);
+      }
+    }
+  }
 }
 
 buildAll().catch((err) => {

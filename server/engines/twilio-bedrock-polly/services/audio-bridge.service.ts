@@ -727,6 +727,8 @@ export class BedrockPollyAudioBridge {
     hi: ['तो,', 'अच्छा,', 'देखो,', 'ठीक,', 'हाँ तो,', 'चलो,'],
   };
   private static lastFillerUsed: Map<string, string> = new Map();
+  private static avgResponseMs: Map<string, number> = new Map();
+  private static readonly FILLER_DELAY_MS = 800;
 
   private static getPollyFallbackVoice(language?: string): string {
     const langVoiceMap: Record<string, string> = {
@@ -788,7 +790,11 @@ export class BedrockPollyAudioBridge {
       } else {
         const rawVoice = agentConfig.voice || 'Joanna';
         const voiceId = rawVoice.match(/^[0-9a-f-]{36}$/i) ? this.getPollyFallbackVoice(agentConfig.language) : rawVoice;
-        pcmBuffer = await this.synthesizeWithPolly(filler, voiceId);
+        try {
+          pcmBuffer = await this.synthesizePollyNeuralOnly(filler, voiceId);
+        } catch {
+          return;
+        }
       }
 
       const mulawAudio = this.pcmToMulaw(pcmBuffer);
@@ -885,16 +891,6 @@ export class BedrockPollyAudioBridge {
 
       const turnCount = session.messages.filter(m => m.role === 'user').length;
       const isLongUtterance = audioBuffer.length > 16000;
-
-      const isStreamReady = session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid;
-      const isVeryLongUtterance = audioBuffer.length > 24000;
-      if (turnCount >= 2 && isVeryLongUtterance && isStreamReady && !playingGreeting.get(callSid) && !bargeInFlags.get(callSid)) {
-        const lang = session.agentConfig.language || 'en';
-        const ackFillers = this.ACKNOWLEDGMENT_FILLERS[lang] || this.ACKNOWLEDGMENT_FILLERS['en'];
-        const filler = this.getRandomFiller(ackFillers, callSid);
-        console.log(`[BedrockPolly Bridge] Playing acknowledgment filler for ${callSid}: "${filler}"`);
-        await this.playFillerAudio(session, filler);
-      }
 
       const turnStart = Date.now();
       const recentUserMessages = session.messages.filter(m => m.role === 'user').slice(-4).map(m => m.content).filter(Boolean);
@@ -1026,12 +1022,22 @@ export class BedrockPollyAudioBridge {
 
       const parallelTasks: Promise<any>[] = [];
 
-      if (isComplex && hasKBTools && !bargeInFlags.get(callSid)) {
-        const lang = session.agentConfig.language || 'en';
-        const thinkFillers = this.THINKING_FILLERS[lang] || this.THINKING_FILLERS['en'];
-        const thinkFiller = this.getRandomFiller(thinkFillers, callSid);
-        console.log(`[BedrockPolly Bridge] Playing thinking filler for ${callSid}: "${thinkFiller}"`);
-        parallelTasks.push(this.playFillerAudio(session, thinkFiller));
+      let fillerTimer: ReturnType<typeof setTimeout> | null = null;
+      let fillerCancelled = false;
+      const avgMs = this.avgResponseMs.get(callSid) || 1500;
+      const shouldConsiderFiller = turnCount >= 1 && !bargeInFlags.get(callSid) && avgMs > 500;
+
+      if (shouldConsiderFiller) {
+        fillerTimer = setTimeout(async () => {
+          if (fillerCancelled || bargeInFlags.get(callSid)) return;
+          const lang = session.agentConfig.language || 'en';
+          const fillers = hasKBTools
+            ? (this.THINKING_FILLERS[lang] || this.THINKING_FILLERS['en'])
+            : (this.ACKNOWLEDGMENT_FILLERS[lang] || this.ACKNOWLEDGMENT_FILLERS['en']);
+          const filler = this.getRandomFiller(fillers, callSid);
+          console.log(`[BedrockPolly Bridge] Playing delayed filler for ${callSid}: "${filler}" (avgMs=${Math.round(avgMs)})`);
+          await this.playFillerAudio(session, filler);
+        }, this.FILLER_DELAY_MS);
       }
 
       let kbResultHolder: any = null;
@@ -1090,6 +1096,13 @@ export class BedrockPollyAudioBridge {
 
       const bedrockStart = Date.now();
       const responseText = await this.streamBedrockAndSpeak(session, sttMs);
+
+      fillerCancelled = true;
+      if (fillerTimer) clearTimeout(fillerTimer);
+
+      const responseMs = Date.now() - bedrockStart;
+      const prevAvg = this.avgResponseMs.get(callSid) || responseMs;
+      this.avgResponseMs.set(callSid, prevAvg * 0.6 + responseMs * 0.4);
 
       if (kbPreFetched) {
         session._kbPreFetched = false;
@@ -2874,6 +2887,30 @@ CONVERSATION STYLE:
     return result.audioStream;
   }
 
+  private static async synthesizePollyNeuralOnly(text: string, voiceId: string): Promise<Buffer> {
+    try {
+      const ssmlText = humanizeToSSML(text);
+      const result = await awsPollyService.synthesizeSpeech({
+        text: ssmlText,
+        voiceId,
+        engine: 'neural',
+        outputFormat: 'pcm',
+        sampleRate: '8000',
+        textType: 'ssml',
+      });
+      return result.audioStream;
+    } catch {
+      const result = await awsPollyService.synthesizeSpeech({
+        text,
+        voiceId,
+        engine: 'neural',
+        outputFormat: 'pcm',
+        sampleRate: '8000',
+      });
+      return result.audioStream;
+    }
+  }
+
   /**
    * Convert a PCM 16-bit signed LE buffer to mu-law encoded bytes.
    * Each 16-bit PCM sample becomes one 8-bit mu-law byte, halving the
@@ -3472,6 +3509,7 @@ CONVERSATION STYLE:
       whisperAbortControllers.get(callSid)?.abort();
       whisperAbortControllers.delete(callSid);
       this.lastFillerUsed.delete(callSid);
+      this.avgResponseMs.delete(callSid);
 
       const nrTimer = noResponseTimers.get(callSid);
       if (nrTimer) {

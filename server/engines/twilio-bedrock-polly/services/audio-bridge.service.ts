@@ -2223,29 +2223,7 @@ CONVERSATION STYLE:
   }
 
   private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string): number {
-    const MIN_TOKENS = 256;
-    const MAX_TOKENS = 1024;
-    const DEFAULT_TOKENS = 512;
-
-    if (!messages || messages.length === 0) return DEFAULT_TOKENS;
-
-    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-    if (!lastUserMsg) return DEFAULT_TOKENS;
-
-    const userText = lastUserMsg.content.trim();
-    const wordCount = userText.split(/\s+/).length;
-
-    const shortPhrases = /^(مرحبا|هلا|أهلا|hi|hello|hey|ok|okay|نعم|لا|شكرا|bye|thanks|thank you|يعطيك العافية|تمام|ماشي|good|fine|great|الحمد لله|إن شاء الله|no|nope|yeah|yep|sure)$/i;
-    if (shortPhrases.test(userText)) {
-      return MIN_TOKENS;
-    }
-
-    const complexPatterns = /(explain|اشرح|compare|قارن|difference|الفرق|how does|كيف يعمل|tell me about|حدثني عن|what are all|ما هي كل|list|اذكر|describe|صف)/i;
-    if (complexPatterns.test(userText) || wordCount > 15) {
-      return MAX_TOKENS;
-    }
-
-    return DEFAULT_TOKENS;
+    return 4096;
   }
 
   private static extractToolCallJson(text: string): { jsonStr: string; textBefore: string } {

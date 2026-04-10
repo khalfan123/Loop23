@@ -9,6 +9,7 @@ const DAILY_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const INITIAL_DELAY_MS = 60 * 1000;
 
 let intervalId: NodeJS.Timeout | null = null;
+let initialTimeoutId: NodeJS.Timeout | null = null;
 let isRunning = false;
 let lastRunTimestamp: number | null = null;
 let lastRunStats: RunStats | null = null;
@@ -73,6 +74,35 @@ async function getActiveDepartmentsWithKBs(departmentId?: string): Promise<Array
   return results;
 }
 
+async function getActiveDepartmentsWithKBsForUser(userId: string, departmentId?: string): Promise<Array<{
+  deptId: string;
+  deptName: string;
+  userId: string;
+  kbIds: string[];
+}>> {
+  const conditions = [eq(departments.isActive, true), eq(departments.engineType, 'bedrock-polly'), eq(departments.userId, userId)];
+  if (departmentId) conditions.push(eq(departments.id, departmentId));
+
+  const depts = await db
+    .select({ id: departments.id, name: departments.name, userId: departments.userId })
+    .from(departments)
+    .where(and(...conditions));
+
+  if (depts.length === 0) return [];
+
+  const results: Array<{ deptId: string; deptName: string; userId: string; kbIds: string[] }> = [];
+  for (const dept of depts) {
+    const deptKBs = await db
+      .select({ knowledgeBaseId: departmentKnowledgeBases.knowledgeBaseId })
+      .from(departmentKnowledgeBases)
+      .where(eq(departmentKnowledgeBases.departmentId, dept.id));
+    const kbIds = deptKBs.map(dk => dk.knowledgeBaseId);
+    if (kbIds.length === 0) continue;
+    results.push({ deptId: dept.id, deptName: dept.name, userId: dept.userId, kbIds });
+  }
+  return results;
+}
+
 async function reprocessKB(kbId: string, userId: string): Promise<{ chunksRefreshed: number; chunksSkipped: number }> {
   const [kb] = await db
     .select()
@@ -99,32 +129,16 @@ async function reprocessKB(kbId: string, userId: string): Promise<{ chunksRefres
     }
   }
 
+  await db
+    .delete(knowledgeChunks)
+    .where(eq(knowledgeChunks.knowledgeBaseId, kbId));
+
   const result = await RAGKnowledgeService.processKnowledgeItem(
     kbId,
     userId,
     kb.content,
     { contentHash: newHash, reprocessedAt: new Date().toISOString(), source: 'kb-mastermind' }
   );
-
-  if (result.success && result.chunksCreated > 0) {
-    const oldChunkIds = existingChunks.length > 0
-      ? (await db
-          .select({ id: knowledgeChunks.id })
-          .from(knowledgeChunks)
-          .where(and(
-            eq(knowledgeChunks.knowledgeBaseId, kbId),
-            sql`(${knowledgeChunks.metadata}->>'source') IS DISTINCT FROM 'kb-mastermind'
-                 OR (${knowledgeChunks.metadata}->>'contentHash') IS DISTINCT FROM ${newHash}`
-          ))
-        ).map(c => c.id)
-      : [];
-
-    if (oldChunkIds.length > 0) {
-      await db
-        .delete(knowledgeChunks)
-        .where(inArray(knowledgeChunks.id, oldChunkIds));
-    }
-  }
 
   return {
     chunksRefreshed: result.chunksCreated,
@@ -311,6 +325,78 @@ export async function runKBMastermind(departmentId?: string): Promise<RunStats> 
   return stats;
 }
 
+export async function runKBMastermindForUser(userId: string, departmentId?: string): Promise<RunStats> {
+  const startTime = Date.now();
+  const stats: RunStats = {
+    startedAt: new Date().toISOString(),
+    completedAt: '',
+    durationMs: 0,
+    departmentsProcessed: 0,
+    kbsProcessed: 0,
+    chunksRefreshed: 0,
+    chunksSkipped: 0,
+    cacheWarmed: 0,
+    errors: [],
+  };
+
+  try {
+    console.log(`🧠 [KB Mastermind] Manual run for user ${userId}${departmentId ? ` dept ${departmentId}` : ''}`);
+
+    const depts = await getActiveDepartmentsWithKBsForUser(userId, departmentId);
+
+    if (depts.length === 0) {
+      console.log(`🧠 No departments with linked KBs found for user`);
+      stats.completedAt = new Date().toISOString();
+      stats.durationMs = Date.now() - startTime;
+      return stats;
+    }
+
+    for (const dept of depts) {
+      console.log(`🧠 [${dept.deptName}] Processing ${dept.kbIds.length} KB(s)...`);
+      let deptContent = '';
+
+      for (const kbId of dept.kbIds) {
+        try {
+          const result = await reprocessKB(kbId, dept.userId);
+          stats.kbsProcessed++;
+          if (result.chunksSkipped > 0) {
+            stats.chunksSkipped++;
+          } else {
+            stats.chunksRefreshed += result.chunksRefreshed;
+          }
+
+          const [kb] = await db
+            .select({ content: knowledgeBase.content })
+            .from(knowledgeBase)
+            .where(eq(knowledgeBase.id, kbId))
+            .limit(1);
+          if (kb?.content) deptContent += kb.content.substring(0, 2000) + '\n';
+        } catch (err: any) {
+          stats.errors.push(`KB ${kbId} in ${dept.deptName}: ${err.message}`);
+        }
+      }
+
+      if (deptContent.length > 0) {
+        try {
+          const warmed = await warmSearchCache(dept.kbIds, dept.userId, deptContent);
+          stats.cacheWarmed += warmed;
+        } catch (_) {}
+      }
+
+      stats.departmentsProcessed++;
+    }
+
+    stats.completedAt = new Date().toISOString();
+    stats.durationMs = Date.now() - startTime;
+  } catch (error: any) {
+    stats.errors.push(`Fatal: ${error.message}`);
+    stats.completedAt = new Date().toISOString();
+    stats.durationMs = Date.now() - startTime;
+  }
+
+  return stats;
+}
+
 export function startKBMastermind(): void {
   if (intervalId) {
     console.log('[KB Mastermind] Already running');
@@ -319,7 +405,8 @@ export function startKBMastermind(): void {
 
   console.log(`🧠 [KB Mastermind] Starting daily scheduler (runs every 24h, first run in ${INITIAL_DELAY_MS / 1000}s)`);
 
-  setTimeout(() => {
+  initialTimeoutId = setTimeout(() => {
+    initialTimeoutId = null;
     runKBMastermind().catch(err => {
       console.error('[KB Mastermind] Initial run failed:', err);
     });
@@ -333,11 +420,15 @@ export function startKBMastermind(): void {
 }
 
 export function stopKBMastermind(): void {
+  if (initialTimeoutId) {
+    clearTimeout(initialTimeoutId);
+    initialTimeoutId = null;
+  }
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;
-    console.log('[KB Mastermind] Scheduler stopped');
   }
+  console.log('[KB Mastermind] Scheduler stopped');
 }
 
 export function getKBMastermindStatus(): {

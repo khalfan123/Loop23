@@ -2072,7 +2072,7 @@ The prompt should:
 
   router.post("/kb-mastermind/run", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const { runKBMastermind } = await import('../services/kb-mastermind');
+      const { runKBMastermindForUser } = await import('../services/kb-mastermind');
       const { departmentId } = req.body;
 
       if (departmentId) {
@@ -2086,7 +2086,7 @@ The prompt should:
         }
       }
 
-      const stats = await runKBMastermind(departmentId || undefined);
+      const stats = await runKBMastermindForUser(req.userId!, departmentId || undefined);
       return res.json({ success: true, stats });
     } catch (error: any) {
       console.error('[KB Mastermind] Manual trigger error:', error.message);

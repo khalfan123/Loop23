@@ -157,12 +157,12 @@ function createMulawWavHeader(
 export class BedrockPollyAudioBridge {
   private static activeSessions: Map<string, BedrockPollyBridgeSession> = new Map();
 
-  private static readonly SILENCE_SHORT_MS = 250;
-  private static readonly SILENCE_MEDIUM_MS = 200;
-  private static readonly SILENCE_LONG_UTTERANCE_MS = 150;
+  private static readonly SILENCE_SHORT_MS = 80;
+  private static readonly SILENCE_MEDIUM_MS = 60;
+  private static readonly SILENCE_LONG_UTTERANCE_MS = 40;
   private static readonly LONG_UTTERANCE_BYTES = 16000;
   private static readonly SHORT_UTTERANCE_BYTES = 8000;
-  private static readonly OPENING_SILENCE_THRESHOLD_MS = 600;
+  private static readonly OPENING_SILENCE_THRESHOLD_MS = 300;
   private static readonly OPENING_PHASE_DURATION_MS = 8000;
   private static readonly MIN_AUDIO_LENGTH = 6400;
   private static readonly MAX_BUFFER_DURATION_MS = 15000;
@@ -728,7 +728,7 @@ export class BedrockPollyAudioBridge {
   };
   private static lastFillerUsed: Map<string, string> = new Map();
   private static avgResponseMs: Map<string, number> = new Map();
-  private static readonly FILLER_DELAY_MS = 800;
+  private static readonly FILLER_DELAY_MS = 200;
 
   private static getPollyFallbackVoice(language?: string): string {
     const langVoiceMap: Record<string, string> = {
@@ -1028,7 +1028,7 @@ export class BedrockPollyAudioBridge {
       const parallelTasks: Promise<any>[] = [];
 
       const avgMs = this.avgResponseMs.get(callSid) || 1500;
-      const shouldConsiderFiller = turnCount >= 1 && !bargeInFlags.get(callSid) && avgMs > 500;
+      const shouldConsiderFiller = !bargeInFlags.get(callSid);
 
       if (shouldConsiderFiller) {
         fillerTimer = setTimeout(async () => {

@@ -28,6 +28,7 @@ import { ElevenLabsService } from "../services/elevenlabs";
 import { ElevenLabsPoolService } from "../services/elevenlabs-pool";
 import { BatchCallingService } from "../services/batch-calling";
 import { PlanLimitExceededError } from "../services/contact-upload-service";
+import { getOpenAIClient } from "../services/openai-modelfarm";
 
 export function createCampaignRoutes(ctx: RouteContext): Router {
   const router = Router();
@@ -117,11 +118,7 @@ export function createCampaignRoutes(ctx: RouteContext): Router {
   router.post("/api/campaigns/generate-greeting", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const { callType, campaignName, useCase, useCaseDescription, language, agentName, companyName, contactName, productOrService } = req.body;
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
+      const openai = await getOpenAIClient();
 
       const agentIdentity = agentName || 'the agent';
       let company = companyName || '';
@@ -215,11 +212,7 @@ Only output the greeting text. Nothing else.`
   router.post("/api/campaigns/suggest-agent-name", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const { useCase, useCaseDescription, voiceName, voiceGender, campaignName, companyName } = req.body;
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
+      const openai = await getOpenAIClient();
 
       const context = [
         useCase ? `Use case: ${useCase}` : '',
@@ -264,11 +257,7 @@ Only output the greeting text. Nothing else.`
   router.post("/api/campaigns/generate-script", authenticateHybrid, async (req: AuthRequest, res: Response) => {
     try {
       const { campaignType, campaignName, campaignGoal } = req.body;
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
+      const openai = await getOpenAIClient();
 
       const response = await openai.chat.completions.create({
         model: "gpt-5-nano",
@@ -312,11 +301,7 @@ Only output the greeting text. Nothing else.`
         productOrService,
       } = req.body;
 
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
+      const openai = await getOpenAIClient();
 
       const rawCustomFields = contactSample?.customFields || {};
       const sampleCustomFields: Record<string, string> = {};
@@ -425,11 +410,7 @@ Create a greeting template, call script playbook, and system prompt that maximiz
       const { script, tone } = req.body;
       if (!script || !tone) return res.status(400).json({ error: "Script and tone are required" });
 
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
+      const openai = await getOpenAIClient();
 
       const response = await openai.chat.completions.create({
         model: "gpt-5-nano",
@@ -462,11 +443,7 @@ Create a greeting template, call script playbook, and system prompt that maximiz
         heavy: "Completely transform into natural human conversation - add fillers, varied pacing, emotional reactions, rhetorical questions, and make it sound like an authentic human conversation.",
       };
 
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
+      const openai = await getOpenAIClient();
 
       const response = await openai.chat.completions.create({
         model: "gpt-5-nano",
@@ -493,11 +470,7 @@ Create a greeting template, call script playbook, and system prompt that maximiz
       const { useCase, language } = req.body;
       if (!useCase) return res.status(400).json({ error: "Use case is required" });
 
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
+      const openai = await getOpenAIClient();
 
       const langNote = language && language !== 'en'
         ? `Generate field questions in the language matching code "${language}".`
@@ -709,23 +682,23 @@ OUTPUT RULES:
         }
       }
 
-      if (!systemPrompt && process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
-        const OpenAI = (await import("openai")).default;
-        const openai = new OpenAI({
-          apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-          baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-        });
+      if (!systemPrompt) {
+        try {
+          const openai = await getOpenAIClient();
 
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: metaPrompt },
-            { role: "user", content: `Generate the best possible system prompt for a "${useCase}" outbound calling campaign with agent "${agentName}".` }
-          ],
-          max_completion_tokens: 2000,
-          temperature: 0.6,
-        });
-        systemPrompt = response.choices[0]?.message?.content?.trim() || '';
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: metaPrompt },
+              { role: "user", content: `Generate the best possible system prompt for a "${useCase}" outbound calling campaign with agent "${agentName}".` }
+            ],
+            max_completion_tokens: 2000,
+            temperature: 0.6,
+          });
+          systemPrompt = response.choices[0]?.message?.content?.trim() || '';
+        } catch (oaiErr: any) {
+          console.error("OpenAI prompt generation also failed:", oaiErr.message);
+        }
       }
 
       if (!systemPrompt) {

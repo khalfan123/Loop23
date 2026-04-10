@@ -1397,18 +1397,19 @@ export class BedrockPollyAudioBridge {
   }
 
   private static async resolveOpenAIKey(): Promise<string | null> {
-    if (this.isValidApiKey(process.env.OPENAI_API_KEY)) {
-      console.log('[BedrockPolly Bridge] Using OpenAI key from OPENAI_API_KEY env var');
-      return process.env.OPENAI_API_KEY;
-    }
-    if (this.isValidApiKey(process.env.AI_INTEGRATIONS_OPENAI_API_KEY)) {
-      console.log('[BedrockPolly Bridge] Using OpenAI key from AI_INTEGRATIONS env var');
-      return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-    }
-
     const now = Date.now();
     if (this.cachedOpenAIKey && (now - this.cachedKeyTimestamp) < this.KEY_CACHE_TTL_MS) {
       return this.cachedOpenAIKey;
+    }
+
+    try {
+      const { resolveOpenAIApiKey } = await import('../../../services/openai-modelfarm');
+      const key = await resolveOpenAIApiKey();
+      this.cachedOpenAIKey = key;
+      this.cachedKeyTimestamp = now;
+      return key;
+    } catch (resolveErr) {
+      console.debug("[AudioBridge] Centralized key resolution failed, falling back to direct DB lookup:", resolveErr instanceof Error ? resolveErr.message : resolveErr);
     }
 
     try {
@@ -1419,13 +1420,13 @@ export class BedrockPollyAudioBridge {
       if (cred?.apiKey && this.isValidApiKey(cred.apiKey)) {
         this.cachedOpenAIKey = cred.apiKey;
         this.cachedKeyTimestamp = now;
-        console.log(`[BedrockPolly Bridge] Resolved OpenAI key from DB (${cred.apiKey.substring(0, 12)}...)`);
+        console.log(`[BedrockPolly Bridge] Resolved OpenAI key from DB credentials pool (${cred.apiKey.substring(0, 12)}...)`);
         return cred.apiKey;
       }
     } catch (err: any) {
       console.error('[BedrockPolly Bridge] Failed to resolve OpenAI key from DB:', err.message);
     }
-    console.error('[BedrockPolly Bridge] No valid OpenAI key found in env vars or DB');
+    console.error('[BedrockPolly Bridge] No valid OpenAI key found. Configure it in Admin Settings or set OPENAI_API_KEY env var.');
     return null;
   }
 

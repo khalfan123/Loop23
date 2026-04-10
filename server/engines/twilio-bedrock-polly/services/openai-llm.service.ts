@@ -17,10 +17,19 @@ function isValidKey(k: string | undefined): k is string {
 }
 
 async function resolveKey(): Promise<string> {
-  if (isValidKey(process.env.OPENAI_API_KEY)) return process.env.OPENAI_API_KEY;
-  if (isValidKey(process.env.AI_INTEGRATIONS_OPENAI_API_KEY)) return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
   const now = Date.now();
   if (cachedKey && (now - cachedKeyTs) < KEY_TTL) return cachedKey;
+
+  try {
+    const { resolveOpenAIApiKey } = await import('../../../services/openai-modelfarm');
+    const key = await resolveOpenAIApiKey();
+    if (isValidKey(key)) {
+      cachedKey = key;
+      cachedKeyTs = now;
+      return key;
+    }
+  } catch {}
+
   try {
     const [cred] = await db.select({ apiKey: openaiCredentials.apiKey }).from(openaiCredentials).limit(1);
     if (cred?.apiKey && isValidKey(cred.apiKey)) {
@@ -31,7 +40,7 @@ async function resolveKey(): Promise<string> {
   } catch (err: any) {
     console.error('[OpenAI LLM] Failed to resolve key from DB:', err.message);
   }
-  throw new Error('No valid OpenAI API key found for LLM calls');
+  throw new Error('No valid OpenAI API key found for LLM calls. Configure it in Admin Settings or set the OPENAI_API_KEY environment variable.');
 }
 
 let clientInstance: OpenAI | null = null;

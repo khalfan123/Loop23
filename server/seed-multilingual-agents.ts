@@ -8,10 +8,13 @@ import { agents, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+import { getOpenAIClient } from "./services/openai-modelfarm";
+
+let openai: OpenAI;
+async function ensureOpenAI() {
+  if (!openai) openai = await getOpenAIClient();
+  return openai;
+}
 
 interface AgentData {
   name: string;
@@ -225,6 +228,7 @@ async function translateText(text: string, targetLang: string): Promise<string> 
   if (!text) return text;
   
   try {
+    await ensureOpenAI();
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [

@@ -1761,30 +1761,11 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
                     let apiKey: string | undefined;
                     
                     try {
-                      const [dbSetting] = await db
-                        .select()
-                        .from(globalSettings)
-                        .where(eq(globalSettings.key, "openai_api_key"))
-                        .limit(1);
-                      
-                      if (dbSetting?.value) {
-                        apiKey = (dbSetting.value as string).replace(/^"+|"+$/g, '');
-                      }
-                    } catch (dbError) {
-                      console.warn(`⚠️ [WebSocket] Failed to fetch openai_api_key from global_settings:`, dbError);
-                    }
-                    
-                    if (!apiKey) {
-                      apiKey = process.env.OPENAI_API_KEY;
-                    }
-                    
-                    if (!apiKey) {
-                      apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-                    }
-                    
-                    if (!apiKey) {
-                      console.error(`❌ [WebSocket] No OpenAI credentials available (not in pool, global_settings, or env vars) for agent ${agent.id}`);
-                      ws.close(1011, 'No OpenAI credentials available');
+                      const { resolveOpenAIApiKey } = await import("./services/openai-modelfarm");
+                      apiKey = await resolveOpenAIApiKey();
+                    } catch (keyError: any) {
+                      console.error(`❌ [WebSocket] No OpenAI credentials available for agent ${agent.id}:`, keyError.message);
+                      ws.close(1011, 'No OpenAI credentials available. Configure in Admin Settings or set OPENAI_API_KEY env var.');
                       return;
                     }
                     

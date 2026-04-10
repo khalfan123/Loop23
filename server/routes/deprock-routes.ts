@@ -1888,6 +1888,7 @@ Write it entirely in ${langLabel}.`
       }
 
       const openai = await getOpenAIClient();
+
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         max_completion_tokens: 1500,
@@ -1917,9 +1918,26 @@ The prompt should:
 
       const generatedPrompt = response.choices[0]?.message?.content?.trim() || "";
       res.json({ prompt: generatedPrompt });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[Deprock] Generate prompt error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate prompt" });
+      const msg = error instanceof Error ? error.message : String(error);
+      const statusCode = (error as { status?: number })?.status;
+      const errorCode = (error as { code?: string })?.code;
+
+      if (msg.includes("No OpenAI API key found") || msg.includes("OPENAI_API_KEY")) {
+        return res.status(503).json({
+          error: "OpenAI API key is not configured. Please set it in Admin Settings → Credentials → OpenAI, or set the OPENAI_API_KEY environment variable.",
+          code: "OPENAI_KEY_MISSING",
+        });
+      }
+
+      if (statusCode === 401 || errorCode === 'invalid_api_key') {
+        return res.status(503).json({
+          error: "OpenAI API key is invalid or expired. Please update it in Admin Settings → Credentials → OpenAI.",
+          code: "OPENAI_KEY_INVALID",
+        });
+      }
+      res.status(500).json({ error: msg || "Failed to generate prompt" });
     }
   });
 

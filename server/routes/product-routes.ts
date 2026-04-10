@@ -1,16 +1,11 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import OpenAI from "openai";
 import { storage } from "../storage";
 import { db } from "../db";
 import { knowledgeBase, products, insertProductSchema } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { RAGKnowledgeService } from "../services/rag-knowledge";
-
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+import { getOpenAIClient } from "../services/openai-modelfarm";
 
 interface AuthRequest extends Request {
   user?: any;
@@ -368,6 +363,7 @@ export function createProductRoutes(authenticate: any) {
       const sampleLines = lines.slice(0, Math.min(lines.length, 8));
       const sampleCsv = sampleLines.join("\n");
 
+      const openai = await getOpenAIClient();
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         temperature: 0,

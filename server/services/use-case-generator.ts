@@ -42,7 +42,10 @@ export async function generateUseCasesFromKB(userId: string): Promise<void> {
     const { context } = await getBusinessContextFromKB(userId);
     if (!context) return;
 
-    if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+    try {
+      const { resolveOpenAIApiKey } = await import("./openai-modelfarm");
+      await resolveOpenAIApiKey();
+    } catch {
       console.warn("[UseCaseGenerator] OpenAI API key not configured, skipping generation");
       return;
     }
@@ -73,8 +76,11 @@ export async function generateUseCasesFromKB(userId: string): Promise<void> {
 export async function generateUseCasesOnDemand(userId: string, userGoal?: string): Promise<Array<{ name: string; description: string; category: string }>> {
   const { context } = await getBusinessContextFromKB(userId);
 
-  if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
-    throw new Error("AI service not configured");
+  const { resolveOpenAIApiKey } = await import("./openai-modelfarm");
+  try {
+    await resolveOpenAIApiKey();
+  } catch {
+    throw new Error("AI service not configured. Please set the OpenAI API key in Admin Settings or environment variables.");
   }
 
   const useCases = await callAIForUseCases(context, userGoal);
@@ -102,11 +108,8 @@ async function callAIForUseCases(
   businessContext: string,
   userGoal?: string
 ): Promise<Array<{ name: string; description: string; category: string }>> {
-  const OpenAI = (await import("openai")).default;
-  const openai = new OpenAI({
-    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  });
+  const { getOpenAIClient } = await import("./openai-modelfarm");
+  const openai = await getOpenAIClient();
 
   const goalInstruction = userGoal
     ? `\n\nThe user has described what they want to achieve:\n"${userGoal}"\n\nPrioritize use cases that directly help them achieve this goal. Make the use cases highly specific to their stated objective and their business.`

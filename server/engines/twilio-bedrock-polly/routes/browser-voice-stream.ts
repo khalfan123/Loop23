@@ -34,13 +34,8 @@ function sendMessage(ws: WebSocket, message: Record<string, unknown>): void {
 }
 
 async function getOpenAIApiKey(): Promise<string> {
-  try {
-    const [dbSetting] = await db.select().from(globalSettings).where(eq(globalSettings.key, 'openai_api_key')).limit(1);
-    if (dbSetting?.value) return dbSetting.value as string;
-  } catch (e) {}
-  if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
-  if (process.env.AI_INTEGRATIONS_OPENAI_API_KEY) return process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  throw new Error('No OpenAI API key found. Configure it in Admin Settings or as an environment variable.');
+  const { resolveOpenAIApiKey } = await import('../../../services/openai-modelfarm');
+  return resolveOpenAIApiKey();
 }
 
 async function transcribeAudio(audioBuffer: Buffer, language?: string): Promise<string> {

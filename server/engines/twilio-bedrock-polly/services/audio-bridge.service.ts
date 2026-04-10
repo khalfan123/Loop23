@@ -709,23 +709,24 @@ export class BedrockPollyAudioBridge {
   }
 
   private static readonly ACKNOWLEDGMENT_FILLERS: Record<string, string[]> = {
-    en: ['Mm-hmm.', 'Right.', 'Yeah.', 'Okay.', 'Yep.', 'Uh-huh.'],
-    ar: ['تمام.', 'أها.', 'ماشي.', 'أوكي.', 'اه.', 'صح.'],
-    es: ['Ajá.', 'Sí.', 'Vale.', 'Okey.', 'Claro.', 'Mmm.'],
-    fr: ['Ouais.', 'Oui.', 'Okay.', 'Hmm.', 'Mmm.', 'D\'accord.'],
-    de: ['Ja.', 'Klar.', 'Okay.', 'Mmm.', 'Genau.', 'Jo.'],
-    pt: ['Sim.', 'Tá.', 'Okay.', 'Aham.', 'Certo.', 'Mmm.'],
-    hi: ['हाँ.', 'अच्छा.', 'हम्म.', 'जी.', 'ठीक.', 'ओके.'],
+    en: ['Mm-hmm.', 'Right.', 'Yeah.', 'Okay.', 'Yep.', 'Uh-huh.', 'Got it.', 'Sure.', 'Mhm.'],
+    ar: ['تمام.', 'أها.', 'ماشي.', 'أوكي.', 'اه.', 'صح.', 'أكيد.', 'طيب.', 'إي.'],
+    es: ['Ajá.', 'Sí.', 'Vale.', 'Okey.', 'Claro.', 'Mmm.', 'Exacto.', 'Ya.', 'Entiendo.'],
+    fr: ['Ouais.', 'Oui.', 'Okay.', 'Hmm.', 'Mmm.', 'Entendu.', 'Voilà.', 'Bien sûr.', 'Tout à fait.'],
+    de: ['Ja.', 'Klar.', 'Okay.', 'Mmm.', 'Genau.', 'Jo.', 'Stimmt.', 'Richtig.', 'Verstehe.'],
+    pt: ['Sim.', 'Tá.', 'Okay.', 'Aham.', 'Certo.', 'Mmm.', 'Entendi.', 'Claro.', 'Pois.'],
+    hi: ['हाँ.', 'अच्छा.', 'हम्म.', 'जी.', 'ठीक.', 'ओके.', 'समझा.', 'बिल्कुल.', 'सही.'],
   };
   private static readonly THINKING_FILLERS: Record<string, string[]> = {
-    en: ['So,', 'Well,', 'Right,'],
-    ar: ['طيب،', 'تمام،', 'أكيد،'],
-    es: ['Bueno,', 'Entonces,', 'Mira,'],
-    fr: ['Alors,', 'Bon,', 'Donc,'],
-    de: ['Also,', 'Okay,', 'So,'],
-    pt: ['Então,', 'Bom,', 'Olha,'],
-    hi: ['तो,', 'अच्छा,', 'देखो,'],
+    en: ['So,', 'Well,', 'Right,', 'Okay,', 'Alright,', 'Got it,'],
+    ar: ['طيب،', 'تمام،', 'أكيد،', 'ماشي،', 'أها،', 'خلاص،'],
+    es: ['Bueno,', 'Entonces,', 'Mira,', 'Vale,', 'Oye,', 'Pues,'],
+    fr: ['Alors,', 'Bon,', 'Donc,', 'Voilà,', 'Écoute,', 'Bien,'],
+    de: ['Also,', 'Okay,', 'So,', 'Gut,', 'Schau,', 'Na,'],
+    pt: ['Então,', 'Bom,', 'Olha,', 'Pois,', 'Veja,', 'Certo,'],
+    hi: ['तो,', 'अच्छा,', 'देखो,', 'ठीक,', 'हाँ तो,', 'चलो,'],
   };
+  private static lastFillerUsed: Map<string, string> = new Map();
 
   private static getPollyFallbackVoice(language?: string): string {
     const langVoiceMap: Record<string, string> = {
@@ -753,16 +754,44 @@ export class BedrockPollyAudioBridge {
     return langVoiceMap[langPrefix] || 'Joanna';
   }
 
-  private static getRandomFiller(fillers: string[]): string {
-    return fillers[Math.floor(Math.random() * fillers.length)];
+  private static getRandomFiller(fillers: string[], callSid?: string): string {
+    if (!callSid || fillers.length <= 1) {
+      return fillers[Math.floor(Math.random() * fillers.length)];
+    }
+    const lastUsed = this.lastFillerUsed.get(callSid);
+    const available = fillers.filter(f => f !== lastUsed);
+    const pool = available.length > 0 ? available : fillers;
+    const chosen = pool[Math.floor(Math.random() * pool.length)];
+    this.lastFillerUsed.set(callSid, chosen);
+    return chosen;
   }
 
   private static async playFillerAudio(session: BedrockPollyBridgeSession, filler: string): Promise<void> {
     try {
-      const rawVoice = session.agentConfig.voice || 'Joanna';
-      const voiceId = rawVoice.match(/^[0-9a-f-]{36}$/i) ? this.getPollyFallbackVoice(session.agentConfig.language) : rawVoice;
-      const audioBuffer = await this.synthesizeWithPolly(filler, voiceId);
-      const mulawAudio = this.pcmToMulaw(audioBuffer);
+      let pcmBuffer: Buffer;
+      const { ttsProvider, agentConfig } = session;
+
+      if (ttsProvider === 'cartesia' && agentConfig.cartesiaVoiceId) {
+        try {
+          pcmBuffer = await this.synthesizeWithCartesia(filler, agentConfig.cartesiaVoiceId, agentConfig.language);
+        } catch {
+          return;
+        }
+      } else if (ttsProvider === 'elevenlabs' && agentConfig.elevenLabsVoiceId) {
+        const apiKey = agentConfig.elevenLabsApiKey || process.env.ELEVENLABS_API_KEY;
+        if (!apiKey) return;
+        try {
+          pcmBuffer = await this.synthesizeWithElevenLabs(filler, agentConfig.elevenLabsVoiceId, apiKey);
+        } catch {
+          return;
+        }
+      } else {
+        const rawVoice = agentConfig.voice || 'Joanna';
+        const voiceId = rawVoice.match(/^[0-9a-f-]{36}$/i) ? this.getPollyFallbackVoice(agentConfig.language) : rawVoice;
+        pcmBuffer = await this.synthesizeWithPolly(filler, voiceId);
+      }
+
+      const mulawAudio = this.pcmToMulaw(pcmBuffer);
       const chunkSize = 640;
       for (let offset = 0; offset < mulawAudio.length; offset += chunkSize) {
         if (bargeInFlags.get(session.callSid)) break;
@@ -858,10 +887,11 @@ export class BedrockPollyAudioBridge {
       const isLongUtterance = audioBuffer.length > 16000;
 
       const isStreamReady = session.twilioWs && session.twilioWs.readyState === WebSocket.OPEN && session.streamSid;
-      if (turnCount >= 1 && isLongUtterance && isStreamReady && !playingGreeting.get(callSid) && !bargeInFlags.get(callSid)) {
+      const isVeryLongUtterance = audioBuffer.length > 24000;
+      if (turnCount >= 2 && isVeryLongUtterance && isStreamReady && !playingGreeting.get(callSid) && !bargeInFlags.get(callSid)) {
         const lang = session.agentConfig.language || 'en';
         const ackFillers = this.ACKNOWLEDGMENT_FILLERS[lang] || this.ACKNOWLEDGMENT_FILLERS['en'];
-        const filler = this.getRandomFiller(ackFillers);
+        const filler = this.getRandomFiller(ackFillers, callSid);
         console.log(`[BedrockPolly Bridge] Playing acknowledgment filler for ${callSid}: "${filler}"`);
         await this.playFillerAudio(session, filler);
       }
@@ -996,10 +1026,10 @@ export class BedrockPollyAudioBridge {
 
       const parallelTasks: Promise<any>[] = [];
 
-      if (isComplex && !bargeInFlags.get(callSid)) {
+      if (isComplex && hasKBTools && !bargeInFlags.get(callSid)) {
         const lang = session.agentConfig.language || 'en';
         const thinkFillers = this.THINKING_FILLERS[lang] || this.THINKING_FILLERS['en'];
-        const thinkFiller = this.getRandomFiller(thinkFillers);
+        const thinkFiller = this.getRandomFiller(thinkFillers, callSid);
         console.log(`[BedrockPolly Bridge] Playing thinking filler for ${callSid}: "${thinkFiller}"`);
         parallelTasks.push(this.playFillerAudio(session, thinkFiller));
       }
@@ -1603,7 +1633,7 @@ export class BedrockPollyAudioBridge {
       behaviorPromptAdditions += `\n- Ask a MAXIMUM of ${behaviorCfg.maxQuestionsPerTurn} questions at a time. Never overwhelm the caller.`;
     }
     if (behaviorCfg.useDiscourseMarkers !== false) {
-      behaviorPromptAdditions += `\n- Use casual discourse markers to sound natural (e.g., "So basically...", "Okay so here's the thing...", "Right, so...", "Yeah so...", "Alright...")`;
+      behaviorPromptAdditions += `\n- Use brief, natural discourse markers only when transitioning topics (e.g., "So,", "Right,", "Okay,"). Never use them before answering a direct question — just answer.`;
     }
     if (behaviorCfg.silenceTimeoutSec) {
       behaviorPromptAdditions += `\n- If the caller is silent for a while, gently prompt them: "Are you still there?" or "Take your time, I'm here when you're ready."`;
@@ -2750,6 +2780,8 @@ CONVERSATION STYLE:
 
   private static ssmlBlockedVoices: Set<string> = new Set();
   private static neuralBlockedVoices: Set<string> = new Set();
+  private static neuralFailureCounts: Map<string, number> = new Map();
+  private static ssmlFailureCounts: Map<string, number> = new Map();
 
   /**
    * Synthesize text using AWS Polly returning 8kHz PCM buffer.
@@ -2782,10 +2814,17 @@ CONVERSATION STYLE:
           sampleRate: '8000',
           textType: 'ssml',
         });
+        this.ssmlFailureCounts.delete(voiceId);
         return result.audioStream;
       } catch (e: any) {
-        console.warn(`[BedrockPolly Bridge] SSML+Neural failed for ${voiceId}, caching: ${e.message}`);
-        this.ssmlBlockedVoices.add(voiceId);
+        const count = (this.ssmlFailureCounts.get(voiceId) || 0) + 1;
+        this.ssmlFailureCounts.set(voiceId, count);
+        if (count >= 2) {
+          console.warn(`[BedrockPolly Bridge] SSML+Neural failed ${count}x for ${voiceId}, blocking: ${e.message}`);
+          this.ssmlBlockedVoices.add(voiceId);
+        } else {
+          console.warn(`[BedrockPolly Bridge] SSML+Neural failed once for ${voiceId}, will retry next time: ${e.message}`);
+        }
       }
     }
 
@@ -2798,10 +2837,30 @@ CONVERSATION STYLE:
           outputFormat: 'pcm',
           sampleRate: '8000',
         });
+        this.neuralFailureCounts.delete(voiceId);
         return result.audioStream;
       } catch (e: any) {
-        console.warn(`[BedrockPolly Bridge] Neural failed for ${voiceId}, caching: ${e.message}`);
-        this.neuralBlockedVoices.add(voiceId);
+        const count = (this.neuralFailureCounts.get(voiceId) || 0) + 1;
+        this.neuralFailureCounts.set(voiceId, count);
+        if (count >= 2) {
+          console.warn(`[BedrockPolly Bridge] Neural failed ${count}x for ${voiceId}, blocking: ${e.message}`);
+          this.neuralBlockedVoices.add(voiceId);
+        } else {
+          console.warn(`[BedrockPolly Bridge] Neural failed once for ${voiceId}, will retry next time: ${e.message}`);
+          try {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            result = await awsPollyService.synthesizeSpeech({
+              text,
+              voiceId,
+              engine: 'neural',
+              outputFormat: 'pcm',
+              sampleRate: '8000',
+            });
+            this.neuralFailureCounts.delete(voiceId);
+            return result.audioStream;
+          } catch {
+          }
+        }
       }
     }
 
@@ -3412,6 +3471,7 @@ CONVERSATION STYLE:
       peakEnergy.delete(callSid);
       whisperAbortControllers.get(callSid)?.abort();
       whisperAbortControllers.delete(callSid);
+      this.lastFillerUsed.delete(callSid);
 
       const nrTimer = noResponseTimers.get(callSid);
       if (nrTimer) {

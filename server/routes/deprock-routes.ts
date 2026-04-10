@@ -2070,6 +2070,40 @@ The prompt should:
     }
   });
 
+  router.post("/kb-mastermind/run", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { runKBMastermind } = await import('../services/kb-mastermind');
+      const { departmentId } = req.body;
+
+      if (departmentId) {
+        const [dept] = await db
+          .select({ id: departments.id })
+          .from(departments)
+          .where(and(eq(departments.id, departmentId), eq(departments.userId, req.userId!)))
+          .limit(1);
+        if (!dept) {
+          return res.status(404).json({ error: 'Department not found' });
+        }
+      }
+
+      const stats = await runKBMastermind(departmentId || undefined);
+      return res.json({ success: true, stats });
+    } catch (error: any) {
+      console.error('[KB Mastermind] Manual trigger error:', error.message);
+      return res.status(500).json({ error: 'KB Mastermind run failed', message: error.message });
+    }
+  });
+
+  router.get("/kb-mastermind/status", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { getKBMastermindStatus } = await import('../services/kb-mastermind');
+      const status = getKBMastermindStatus();
+      return res.json({ success: true, ...status });
+    } catch (error: any) {
+      return res.status(500).json({ error: 'Failed to get status', message: error.message });
+    }
+  });
+
   return router;
 }
 

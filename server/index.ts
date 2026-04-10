@@ -36,6 +36,7 @@ import { correlationIdMiddleware } from "./middleware/correlation-id";
 import { emailService } from "./services/email-service";
 import { initializeDirectories } from "./utils/init-directories";
 import { RAGKnowledgeService } from "./services/rag-knowledge";
+import { startKBMastermind } from "./services/kb-mastermind";
 
 // Setup global error handlers and shutdown signals FIRST
 // This ensures crashes are caught even during initialization
@@ -407,6 +408,7 @@ server.listen({
   webhookRetryService.start();
   initializeMigrationEngine();
   startStaleCallsCleanup();
+  startKBMastermind();
   signalReady();
   
   appFullyInitialized = true;

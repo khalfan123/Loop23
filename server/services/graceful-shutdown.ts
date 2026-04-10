@@ -19,6 +19,7 @@ import { Server } from 'http';
 import { CampaignScheduler } from './campaign-scheduler';
 import { stopPhoneBillingCron } from './phone-billing-cron';
 import { stopStaleCallsCleanup } from './stale-calls-cleanup';
+import { stopKBMastermind } from './kb-mastermind';
 import { pool } from '../db';
 
 /**
@@ -83,6 +84,7 @@ export async function gracefulShutdown(signal: string, exitCode: number = 0): Pr
     CampaignScheduler.stopBackgroundScheduler();
     stopPhoneBillingCron();
     stopStaleCallsCleanup();
+    stopKBMastermind();
     console.log('   ✓ Schedulers stopped');
 
     // Step 3: Wait for pending operations (brief delay)

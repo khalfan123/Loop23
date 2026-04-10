@@ -928,11 +928,20 @@ export function createDeprockRoutes(authenticateToken: (req: Request, res: Respo
       }
 
       if (!resolvedAgentId && trimmedAgentName) {
-        const userKBs = await db
-          .select({ id: knowledgeBase.id })
-          .from(knowledgeBase)
-          .where(eq(knowledgeBase.userId, req.userId!));
-        const kbIds = userKBs.map(kb => kb.id);
+        const deptKBs = await db
+          .select({ knowledgeBaseId: departmentKnowledgeBases.knowledgeBaseId })
+          .from(departmentKnowledgeBases)
+          .where(eq(departmentKnowledgeBases.departmentId, id));
+        let kbIds = deptKBs.map(dk => dk.knowledgeBaseId);
+
+        if (kbIds.length === 0) {
+          const userKBs = await db
+            .select({ id: knowledgeBase.id })
+            .from(knowledgeBase)
+            .where(eq(knowledgeBase.userId, req.userId!))
+            .limit(50);
+          kbIds = userKBs.map(kb => kb.id);
+        }
 
         const isElVoice = isElevenLabsVoiceId(voiceId);
         const isCartesiaVoice = isCartesiaVoiceId(voiceId);

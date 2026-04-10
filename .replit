@@ -73,7 +73,6 @@ outputType = "webview"
 [userenv]
 
 [userenv.shared]
-APP_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
 APP_URL = "https://looop23.replit.app"
 DEV_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
 AWS_REGION = "us-east-1"
@@ -89,9 +88,11 @@ EC2_USER = "ubuntu"
 
 [userenv.development]
 NODE_ENV = "development"
+APP_DOMAIN = "https://2ac5df53-4b3e-498b-8b44-fa8ab7b88808-00-36ydz4ucckor3.spock.replit.dev"
 
 [userenv.production]
 NODE_ENV = "production"
+APP_DOMAIN = "https://looop23.replit.app"
 
 [agent]
 integrations = ["javascript_openai_ai_integrations:2.0.0", "javascript_anthropic_ai_integrations:2.0.0"]

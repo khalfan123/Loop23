@@ -1929,14 +1929,10 @@ CONVERSATION STYLE:
 
       let usedLegacyToolCallDetection = false;
 
-      await Promise.resolve();
-
       const injectKBContext = (kbResult: KBResult): void => {
         session._kbPreFetched = true;
-        const kbResultStr = JSON.stringify(kbResult);
         if (kbResult.found !== false) {
-          const rawInfo = kbResult.information || kbResultStr;
-          const kbInfo = typeof rawInfo === 'string' ? rawInfo : JSON.stringify(rawInfo);
+          const kbInfo = kbResult.information || JSON.stringify(kbResult);
           const kbMsg = {
             role: 'user' as const,
             content: `[IMPORTANT — Reference data from your knowledge base for this question. Use this information to answer the caller's question directly and confidently. Do NOT say you need to look it up — you already have the answer below:]\n\n${kbInfo}`,

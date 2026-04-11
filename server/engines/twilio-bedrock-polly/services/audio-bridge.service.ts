@@ -1922,11 +1922,14 @@ CONVERSATION STYLE:
 
       let usedLegacyToolCallDetection = false;
 
+      const KB_PRE_TOKEN_WINDOW_MS = 200;
       if (session._kbPromise) {
+        const kbWaitStart = Date.now();
         const kbResult = await Promise.race([
           session._kbPromise,
-          Promise.resolve(null),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), KB_PRE_TOKEN_WINDOW_MS)),
         ]);
+        const kbWaitMs = Date.now() - kbWaitStart;
         if (kbResult) {
           session._kbPreFetched = true;
           const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
@@ -1939,7 +1942,7 @@ CONVERSATION STYLE:
             };
             bedrockMessages.push(kbMsg);
             session.messages.push({ ...kbMsg, timestamp: new Date() });
-            console.log(`[BedrockPolly Bridge] KB context injected pre-LLM for ${callSid} (${kbInfo.length} chars)`);
+            console.log(`[BedrockPolly Bridge] KB context injected pre-first-token for ${callSid} in ${kbWaitMs}ms (${kbInfo.length} chars)`);
           } else {
             const kbMsg = {
               role: 'user' as const,
@@ -1947,10 +1950,10 @@ CONVERSATION STYLE:
             };
             bedrockMessages.push(kbMsg);
             session.messages.push({ ...kbMsg, timestamp: new Date() });
-            console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
+            console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid} (waited ${kbWaitMs}ms), injecting "answer from identity" directive`);
           }
         } else {
-          console.log(`[BedrockPolly Bridge] KB not yet resolved at LLM start for ${callSid} — tool-call fallback active`);
+          console.log(`[BedrockPolly Bridge] KB not resolved within ${KB_PRE_TOKEN_WINDOW_MS}ms pre-token window for ${callSid} (waited ${kbWaitMs}ms) — tool-call fallback active`);
         }
       }
 

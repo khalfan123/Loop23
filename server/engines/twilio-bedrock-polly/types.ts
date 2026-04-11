@@ -12,6 +12,18 @@
 
 import type WebSocket from 'ws';
 
+export interface KBResult {
+  found: boolean;
+  information?: string;
+  [key: string]: unknown;
+}
+
+export interface KBPrefetchState {
+  resolved: boolean;
+  result: KBResult | null;
+  promise: Promise<KBResult | null>;
+}
+
 /**
  * Supported Amazon Polly neural voice IDs
  */
@@ -352,7 +364,7 @@ export interface BedrockPollyBridgeSession {
   explicitEndCall: boolean;
   _mediaLogThrottle?: number;
   _kbPreFetched?: boolean;
-  _kbState?: { resolved: boolean; result: any; promise: Promise<any> };
+  _kbState?: KBPrefetchState;
   _retryAttempted?: boolean;
   _cancelFiller?: () => void;
 }

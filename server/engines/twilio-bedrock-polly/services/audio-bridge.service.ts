@@ -31,6 +31,8 @@ import type {
   CreateSessionParams,
   TwilioMediaStreamEvent,
   BedrockConversationMessage,
+  KBResult,
+  KBPrefetchState,
 } from '../types';
 import { isOpenAIModel } from '../types';
 import { openaiInvokeStream, openaiInvoke, openaiInvokeStreamStructured } from './openai-llm.service';
@@ -1042,9 +1044,8 @@ export class BedrockPollyAudioBridge {
 
       if (kbTool?.handler) {
         const kbStartMs = Date.now();
-        const kbStateObj: { resolved: boolean; result: any; promise: Promise<any> } = { resolved: false, result: null, promise: null as any };
-        kbStateObj.promise = kbTool.handler({ query: transcription })
-          .then((kbResult: any) => {
+        const kbPromise: Promise<KBResult | null> = kbTool.handler({ query: transcription })
+          .then((kbResult: KBResult | null) => {
             const kbMs = Date.now() - kbStartMs;
             kbStateObj.result = kbResult;
             kbStateObj.resolved = true;
@@ -1053,11 +1054,12 @@ export class BedrockPollyAudioBridge {
               console.log(`[BedrockPolly Bridge] KB resolved for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars, found=${kbResult.found})`);
             }
             return kbResult;
-          }).catch((kbErr: any) => {
+          }).catch((kbErr: Error) => {
             console.warn(`[BedrockPolly Bridge] KB pre-fetch failed for ${callSid}: ${kbErr.message}`);
             kbStateObj.resolved = true;
             return null;
           });
+        const kbStateObj: KBPrefetchState = { resolved: false, result: null, promise: kbPromise };
         session._kbState = kbStateObj;
         console.log(`[BedrockPolly Bridge] KB fetch started for ${callSid} — proceeding to LLM immediately (non-blocking)`);
       }
@@ -1929,9 +1931,9 @@ CONVERSATION STYLE:
 
       await Promise.resolve();
 
-      const injectKBContext = (kbResult: any): void => {
+      const injectKBContext = (kbResult: KBResult): void => {
         session._kbPreFetched = true;
-        const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
+        const kbResultStr = JSON.stringify(kbResult);
         if (kbResult.found !== false) {
           const rawInfo = kbResult.information || kbResultStr;
           const kbInfo = typeof rawInfo === 'string' ? rawInfo : JSON.stringify(rawInfo);
@@ -1974,7 +1976,8 @@ CONVERSATION STYLE:
             ]);
             if (winner.type === 'kb' && kbState.result) {
               injectKBContext(kbState.result);
-              console.log(`[BedrockPolly Bridge] KB won race vs first token for ${callSid} — restarting stream with KB context`);
+              console.log(`[BedrockPolly Bridge] KB won race vs first token for ${callSid} — closing abandoned stream and restarting with KB context`);
+              iter.return?.(undefined);
               const kbStream = createStructuredStream(primaryModel);
               if (kbStream) {
                 await consumeStructuredStream(kbStream);
@@ -2019,7 +2022,8 @@ CONVERSATION STYLE:
             ]);
             if (winner.type === 'kb' && kbState.result) {
               injectKBContext(kbState.result);
-              console.log(`[BedrockPolly Bridge] KB won race vs first token (legacy) for ${callSid} — restarting stream with KB context`);
+              console.log(`[BedrockPolly Bridge] KB won race vs first token (legacy) for ${callSid} — closing abandoned stream and restarting with KB context`);
+              iter.return?.(undefined);
               const kbStream = createLegacyStream(primaryModel);
               usedLegacyToolCallDetection = await consumeLegacyStream(kbStream);
             } else {

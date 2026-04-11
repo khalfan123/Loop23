@@ -3714,9 +3714,30 @@ CONVERSATION STYLE:
       }
       RealtimeSentimentService.resetCall(callSid);
       clearSpeaker(callSid);
-      delete session._agentAssistState;
     } catch (cleanupErr: any) {
       console.error(`[BedrockPolly Bridge] Timer/buffer cleanup error for ${callSid}: ${cleanupErr.message}`);
+    }
+
+    try {
+      const assistSummary = AgentAssistService.getPostCallSummary(session._agentAssistState);
+      if (assistSummary && (assistSummary.totalInterventions > 0 || assistSummary.complianceAlerts > 0 || assistSummary.stepsCompleted.length > 0)) {
+        const [callRecord] = await db
+          .select({ id: calls.id, metadata: calls.metadata })
+          .from(calls)
+          .where(eq(calls.twilioSid, callSid))
+          .limit(1);
+        if (callRecord) {
+          const existingMeta = (callRecord.metadata as Record<string, any>) || {};
+          await db.update(calls).set({
+            metadata: { ...existingMeta, agentAssistSummary: assistSummary },
+          }).where(eq(calls.id, callRecord.id));
+          console.log(`[BedrockPolly Bridge] Stored agent assist summary for call ${callRecord.id}: ${assistSummary.totalInterventions} interventions, ${assistSummary.complianceAlerts} compliance alerts, ${assistSummary.stepsCompleted.length} steps completed`);
+        }
+      }
+      delete session._agentAssistState;
+    } catch (assistCleanupErr: any) {
+      console.error(`[BedrockPolly Bridge] Agent assist summary storage error: ${assistCleanupErr.message}`);
+      delete session._agentAssistState;
     }
 
     try {

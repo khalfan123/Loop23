@@ -21,6 +21,7 @@ export interface AgentAssistConfig {
 export interface AgentAssistState {
   completedSteps: Set<string>;
   previousInterventions: string[];
+  recentComplianceAlerts: Set<string>;
   lastSentimentLevel: string;
   pendingSuggestion?: string;
   turnsSinceLastIntervention: number;
@@ -59,6 +60,7 @@ export class AgentAssistService {
     return {
       completedSteps: new Set(),
       previousInterventions: [],
+      recentComplianceAlerts: new Set(),
       lastSentimentLevel: 'neutral',
       turnsSinceLastIntervention: 0,
       assistEvents: [],
@@ -86,13 +88,19 @@ export class AgentAssistService {
     const complianceResult = this.checkCompliance(config, messages, latestTranscription);
     if (complianceResult.violations.length > 0) {
       for (const v of complianceResult.violations) {
-        events.push({ type: 'compliance_alert', detail: v });
-        state.assistEvents.push({ type: 'compliance_alert', detail: v, timestamp: new Date() });
+        if (!state.recentComplianceAlerts.has(v)) {
+          events.push({ type: 'compliance_alert', detail: v });
+          state.assistEvents.push({ type: 'compliance_alert', detail: v, timestamp: new Date() });
+          state.recentComplianceAlerts.add(v);
+        }
       }
-      if (!suggestion) {
+      if (events.some(e => e.type === 'compliance_alert') && !suggestion) {
         suggestion = complianceResult.suggestion;
         highestPriority = 'compliance';
       }
+    }
+    if (complianceResult.violations.length === 0) {
+      state.recentComplianceAlerts.clear();
     }
 
     const stepResult = this.trackSteps(config, state, messages, latestTranscription);

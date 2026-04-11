@@ -35,6 +35,8 @@ import {
   UserCheck,
   ShieldAlert,
   TrendingDown,
+  CheckCircle2,
+  Lightbulb,
 } from "lucide-react";
 
 type SentimentLevel = 'positive' | 'neutral' | 'cautious' | 'negative' | 'critical';
@@ -73,6 +75,16 @@ interface LiveCallStats {
   byStatus: Record<string, number>;
 }
 
+interface AgentAssistEvent {
+  callId: string;
+  eventKind: string;
+  detail: string;
+  suggestion?: string;
+  stepsCompleted?: string[];
+  stepsPending?: string[];
+  timestamp: number;
+}
+
 interface WsMessage {
   type: string;
   activeCalls?: LiveCall[];
@@ -85,6 +97,11 @@ interface WsMessage {
   sentimentLevel?: string;
   sentimentScore?: number;
   sentimentReason?: string | null;
+  eventKind?: string;
+  detail?: string;
+  suggestion?: string;
+  stepsCompleted?: string[];
+  stepsPending?: string[];
 }
 
 const ENGINE_LABELS: Record<string, string> = {
@@ -132,6 +149,7 @@ export default function LiveMonitoring() {
   const [sentimentFilter, setSentimentFilter] = useState<string>("all");
   const [selectedCall, setSelectedCall] = useState<LiveCall | null>(null);
   const [transcriptMessages, setTranscriptMessages] = useState<{ role: string; message: string }[]>([]);
+  const [agentAssistEvents, setAgentAssistEvents] = useState<AgentAssistEvent[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -231,6 +249,34 @@ export default function LiveMonitoring() {
                   description: `${data.call.contactName || data.call.toNumber || 'A call'} flagged: ${data.call.sentimentReason || 'negative sentiment'}`,
                   variant: "destructive",
                 });
+              }
+              break;
+
+            case 'agent_assist':
+              if (data.callId && data.eventKind && data.detail) {
+                const assistEvt: AgentAssistEvent = {
+                  callId: data.callId,
+                  eventKind: data.eventKind,
+                  detail: data.detail,
+                  suggestion: data.suggestion,
+                  stepsCompleted: data.stepsCompleted,
+                  stepsPending: data.stepsPending,
+                  timestamp: Date.now(),
+                };
+                setAgentAssistEvents(prev => [...prev.slice(-49), assistEvt]);
+
+                if (data.eventKind === 'compliance_alert') {
+                  toast({
+                    title: "Compliance Alert",
+                    description: data.detail,
+                    variant: "destructive",
+                  });
+                } else if (data.eventKind === 'intervention') {
+                  toast({
+                    title: "Agent Assist",
+                    description: data.suggestion || data.detail,
+                  });
+                }
               }
               break;
 
@@ -809,6 +855,58 @@ export default function LiveMonitoring() {
                 </div>
 
                 <Separator />
+
+                {agentAssistEvents.filter(e => e.callId === selectedCall.callId).length > 0 && (
+                  <>
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium tracking-tight flex items-center gap-1">
+                          <Lightbulb className="h-4 w-4" />
+                          Agent Assist
+                        </h4>
+                        <Badge variant="outline" className="text-xs">
+                          {agentAssistEvents.filter(e => e.callId === selectedCall.callId).length} events
+                        </Badge>
+                      </div>
+                      <ScrollArea className="h-[200px] rounded-2xl border p-3 glass-surface" data-testid="panel-agent-assist">
+                        <div className="space-y-2">
+                          {agentAssistEvents
+                            .filter(e => e.callId === selectedCall.callId)
+                            .map((evt, idx) => (
+                              <div
+                                key={idx}
+                                className={`text-sm p-2 rounded-lg ${
+                                  evt.eventKind === 'compliance_alert'
+                                    ? 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/30'
+                                    : evt.eventKind === 'step_completed'
+                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/30'
+                                    : evt.eventKind === 'intervention'
+                                    ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30'
+                                    : 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30'
+                                }`}
+                                data-testid={`agent-assist-event-${idx}`}
+                              >
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  {evt.eventKind === 'compliance_alert' && <ShieldAlert className="h-3 w-3" />}
+                                  {evt.eventKind === 'step_completed' && <CheckCircle2 className="h-3 w-3" />}
+                                  {evt.eventKind === 'intervention' && <Lightbulb className="h-3 w-3" />}
+                                  {evt.eventKind === 'step_missed' && <AlertCircle className="h-3 w-3" />}
+                                  <span className="text-xs font-medium capitalize">
+                                    {evt.eventKind.replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+                                <p className="text-xs">{evt.detail}</p>
+                                {evt.suggestion && (
+                                  <p className="text-xs mt-1 font-medium opacity-80">Suggestion: {evt.suggestion}</p>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                    <Separator />
+                  </>
+                )}
 
                 <div className="flex gap-2">
                   <Button

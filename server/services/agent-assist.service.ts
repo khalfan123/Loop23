@@ -103,20 +103,10 @@ export class AgentAssistService {
       state.recentComplianceAlerts.clear();
     }
 
-    const stepResult = this.trackSteps(config, state, messages, latestTranscription);
+    const stepResult = (sensitivity !== 'low') ? this.trackSteps(config, state, messages, latestTranscription) : { newlyCompleted: [], missedSteps: [] };
     for (const completed of stepResult.newlyCompleted) {
       events.push({ type: 'step_completed', detail: `Step completed: ${completed}` });
       state.assistEvents.push({ type: 'step_completed', detail: `Step completed: ${completed}`, timestamp: new Date() });
-    }
-
-    const sentimentResult = this.detectSentimentShift(state, callId, language);
-    if (sentimentResult.shifted) {
-      events.push({ type: 'sentiment_shift', detail: sentimentResult.detail });
-      state.assistEvents.push({ type: 'sentiment_shift', detail: sentimentResult.detail, timestamp: new Date() });
-      if (highestPriority === 'none' && !suggestion) {
-        suggestion = sentimentResult.suggestion;
-        highestPriority = 'experience';
-      }
     }
 
     const turnCount = messages.filter(m => m.role === 'user').length;
@@ -125,6 +115,18 @@ export class AgentAssistService {
       suggestion = `Address: ${nextStep.name}`;
       highestPriority = 'resolution';
       events.push({ type: 'step_missed', detail: `Pending step: ${nextStep.name}` });
+    }
+
+    if (sensitivity === 'high') {
+      const sentimentResult = this.detectSentimentShift(state, callId, language);
+      if (sentimentResult.shifted) {
+        events.push({ type: 'sentiment_shift', detail: sentimentResult.detail });
+        state.assistEvents.push({ type: 'sentiment_shift', detail: sentimentResult.detail, timestamp: new Date() });
+        if (highestPriority === 'none' && !suggestion) {
+          suggestion = sentimentResult.suggestion;
+          highestPriority = 'experience';
+        }
+      }
     }
 
     state.turnsSinceLastIntervention++;

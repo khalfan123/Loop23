@@ -1018,13 +1018,68 @@ export default function CallDetailPanel({
                         )}
 
                         {call.metadata &&
-                          Object.keys(call.metadata).length > 0 && (
+                          (call.metadata as any)?.agentAssistSummary && (
+                            <>
+                              <span className="text-muted-foreground col-span-2 mt-3 font-medium flex items-center gap-1">
+                                <Zap className="h-3.5 w-3.5" />
+                                Agent Assist Summary
+                              </span>
+                              <div className="col-span-2 glass-surface rounded-2xl p-3 space-y-2" data-testid="agent-assist-summary">
+                                <div className="flex gap-3 text-xs">
+                                  <div className="flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3 text-red-500" />
+                                    <span>{(call.metadata as any).agentAssistSummary.complianceAlerts || 0} compliance alerts</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Activity className="h-3 w-3 text-blue-500" />
+                                    <span>{(call.metadata as any).agentAssistSummary.totalInterventions || 0} interventions</span>
+                                  </div>
+                                </div>
+                                {((call.metadata as any).agentAssistSummary.stepsCompleted?.length || 0) > 0 && (
+                                  <div className="text-xs">
+                                    <span className="font-medium flex items-center gap-1 mb-1">
+                                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                      Steps Completed
+                                    </span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {(call.metadata as any).agentAssistSummary.stepsCompleted.map((step: string, i: number) => (
+                                        <Badge key={i} variant="outline" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30">
+                                          {step}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {((call.metadata as any).agentAssistSummary.events?.length || 0) > 0 && (
+                                  <div className="text-xs space-y-1">
+                                    <span className="font-medium">Event Timeline</span>
+                                    {(call.metadata as any).agentAssistSummary.events.slice(0, 10).map((evt: any, i: number) => (
+                                      <div key={i} className={`text-xs p-1.5 rounded ${
+                                        evt.type === 'compliance_alert' ? 'bg-red-500/10 text-red-700 dark:text-red-400'
+                                        : evt.type === 'step_completed' ? 'bg-green-500/10 text-green-700 dark:text-green-400'
+                                        : evt.type === 'intervention' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                                        : 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
+                                      }`}>
+                                        <span className="font-medium capitalize">{evt.type.replace(/_/g, ' ')}</span>: {evt.detail}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
+
+                        {call.metadata &&
+                          Object.keys(call.metadata).filter(k => k !== 'agentAssistSummary').length > 0 && (
                             <>
                               <span className="text-muted-foreground col-span-2 mt-3 font-medium">
                                 Additional Metadata
                               </span>
                               <pre className="col-span-2 text-xs glass-surface rounded-2xl p-3 overflow-x-auto">
-                                {JSON.stringify(call.metadata, null, 2)}
+                                {JSON.stringify(
+                                  Object.fromEntries(Object.entries(call.metadata).filter(([k]) => k !== 'agentAssistSummary')),
+                                  null, 2
+                                )}
                               </pre>
                             </>
                           )}

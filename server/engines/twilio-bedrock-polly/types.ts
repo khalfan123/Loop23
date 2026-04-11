@@ -382,18 +382,7 @@ export interface BedrockPollyBridgeSession {
   _kbState?: KBPrefetchState;
   _retryAttempted?: boolean;
   _cancelFiller?: () => void;
-  _agentAssistState?: {
-    completedSteps: Set<string>;
-    previousInterventions: string[];
-    lastSentimentLevel: string;
-    pendingSuggestion?: string;
-    turnsSinceLastIntervention: number;
-    assistEvents: Array<{
-      type: 'compliance_alert' | 'step_completed' | 'step_missed' | 'sentiment_shift' | 'intervention';
-      detail: string;
-      timestamp: Date;
-    }>;
-  };
+  _agentAssistState?: import('../../../services/agent-assist.service').AgentAssistState;
 }
 
 /**

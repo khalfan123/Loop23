@@ -1042,18 +1042,21 @@ export class BedrockPollyAudioBridge {
 
       if (kbTool?.handler) {
         const kbStartMs = Date.now();
-        session._kbPromise = kbTool.handler({ query: transcription })
+        const kbState: { resolved: boolean; result: any } = { resolved: false, result: null };
+        kbTool.handler({ query: transcription })
           .then((kbResult: any) => {
             const kbMs = Date.now() - kbStartMs;
+            kbState.result = kbResult;
+            kbState.resolved = true;
             if (kbResult) {
               const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
               console.log(`[BedrockPolly Bridge] KB resolved for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars, found=${kbResult.found})`);
             }
-            return kbResult;
           }).catch((kbErr: any) => {
             console.warn(`[BedrockPolly Bridge] KB pre-fetch failed for ${callSid}: ${kbErr.message}`);
-            return null;
+            kbState.resolved = true;
           });
+        session._kbState = kbState;
         console.log(`[BedrockPolly Bridge] KB fetch started for ${callSid} — proceeding to LLM immediately (non-blocking)`);
       }
 
@@ -1087,7 +1090,7 @@ export class BedrockPollyAudioBridge {
           session.messages.splice(kbContextIdx, 1);
         }
       }
-      delete session._kbPromise;
+      delete session._kbState;
 
       if (!responseText || responseText.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty Bedrock response for ${callSid}`);
@@ -1922,39 +1925,32 @@ CONVERSATION STYLE:
 
       let usedLegacyToolCallDetection = false;
 
-      const KB_PRE_TOKEN_WINDOW_MS = 200;
-      if (session._kbPromise) {
-        const kbWaitStart = Date.now();
-        const kbResult = await Promise.race([
-          session._kbPromise,
-          new Promise<null>(resolve => setTimeout(() => resolve(null), KB_PRE_TOKEN_WINDOW_MS)),
-        ]);
-        const kbWaitMs = Date.now() - kbWaitStart;
-        if (kbResult) {
-          session._kbPreFetched = true;
-          const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
-          if (kbResult.found !== false) {
-            const rawInfo = kbResult.information || kbResultStr;
-            const kbInfo = typeof rawInfo === 'string' ? rawInfo : JSON.stringify(rawInfo);
-            const kbMsg = {
-              role: 'user' as const,
-              content: `[IMPORTANT — Reference data from your knowledge base for this question. Use this information to answer the caller's question directly and confidently. Do NOT say you need to look it up — you already have the answer below:]\n\n${kbInfo}`,
-            };
-            bedrockMessages.push(kbMsg);
-            session.messages.push({ ...kbMsg, timestamp: new Date() });
-            console.log(`[BedrockPolly Bridge] KB context injected pre-first-token for ${callSid} in ${kbWaitMs}ms (${kbInfo.length} chars)`);
-          } else {
-            const kbMsg = {
-              role: 'user' as const,
-              content: `[No matching information found in your knowledge base for this query. Answer using your general knowledge and what you know from this conversation. Try to be helpful — suggest alternatives or offer to help with something else.]`,
-            };
-            bedrockMessages.push(kbMsg);
-            session.messages.push({ ...kbMsg, timestamp: new Date() });
-            console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid} (waited ${kbWaitMs}ms), injecting "answer from identity" directive`);
-          }
+      const kbState = session._kbState;
+      if (kbState?.resolved && kbState.result) {
+        session._kbPreFetched = true;
+        const kbResult = kbState.result;
+        const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
+        if (kbResult.found !== false) {
+          const rawInfo = kbResult.information || kbResultStr;
+          const kbInfo = typeof rawInfo === 'string' ? rawInfo : JSON.stringify(rawInfo);
+          const kbMsg = {
+            role: 'user' as const,
+            content: `[IMPORTANT — Reference data from your knowledge base for this question. Use this information to answer the caller's question directly and confidently. Do NOT say you need to look it up — you already have the answer below:]\n\n${kbInfo}`,
+          };
+          bedrockMessages.push(kbMsg);
+          session.messages.push({ ...kbMsg, timestamp: new Date() });
+          console.log(`[BedrockPolly Bridge] KB context injected pre-stream for ${callSid} (${kbInfo.length} chars, zero-wait)`);
         } else {
-          console.log(`[BedrockPolly Bridge] KB not resolved within ${KB_PRE_TOKEN_WINDOW_MS}ms pre-token window for ${callSid} (waited ${kbWaitMs}ms) — tool-call fallback active`);
+          const kbMsg = {
+            role: 'user' as const,
+            content: `[No matching information found in your knowledge base for this query. Answer using your general knowledge and what you know from this conversation. Try to be helpful — suggest alternatives or offer to help with something else.]`,
+          };
+          bedrockMessages.push(kbMsg);
+          session.messages.push({ ...kbMsg, timestamp: new Date() });
+          console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive (zero-wait)`);
         }
+      } else if (kbState && !kbState.resolved) {
+        console.log(`[BedrockPolly Bridge] KB not yet resolved at stream start for ${callSid} — tool-call fallback active (zero-wait)`);
       }
 
       try {

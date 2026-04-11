@@ -41,7 +41,7 @@ import { converseStream, converseWithToolResults } from '../../../services/agent
 import type { LLMStreamEvent, StructuredToolCall, StructuredToolResult, ToolDefinition } from '../../../services/agent-orchestration/tool-registry';
 import { humanizeToSSML } from './ssml-humanizer';
 import { conversationResumptionService } from '../../../services/conversation-resumption';
-import { calls } from '@shared/schema';
+import { calls, twilioOpenaiCalls } from '@shared/schema';
 import { RealtimeSentimentService } from '../../../services/realtime-sentiment.service';
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
@@ -3723,16 +3723,16 @@ CONVERSATION STYLE:
       const assistSummary = AgentAssistService.getPostCallSummary(session._agentAssistState, assistConfig || undefined);
       if (assistSummary && (assistSummary.totalInterventions > 0 || assistSummary.complianceAlerts > 0 || assistSummary.stepsCompleted.length > 0 || assistSummary.stepsMissed.length > 0)) {
         const [callRecord] = await db
-          .select({ id: calls.id, metadata: calls.metadata })
-          .from(calls)
-          .where(eq(calls.twilioSid, callSid))
+          .select({ id: twilioOpenaiCalls.id, metadata: twilioOpenaiCalls.metadata })
+          .from(twilioOpenaiCalls)
+          .where(eq(twilioOpenaiCalls.twilioCallSid, callSid))
           .limit(1);
         if (callRecord) {
-          const existingMeta = (callRecord.metadata as Record<string, any>) || {};
-          await db.update(calls).set({
+          const existingMeta = (callRecord.metadata as Record<string, unknown>) || {};
+          await db.update(twilioOpenaiCalls).set({
             metadata: { ...existingMeta, agentAssistSummary: assistSummary },
-          }).where(eq(calls.id, callRecord.id));
-          console.log(`[BedrockPolly Bridge] Stored agent assist summary for call ${callRecord.id}: ${assistSummary.totalInterventions} interventions, ${assistSummary.complianceAlerts} compliance alerts, ${assistSummary.stepsCompleted.length} steps completed`);
+          }).where(eq(twilioOpenaiCalls.id, callRecord.id));
+          console.log(`[BedrockPolly Bridge] Stored agent assist summary for call ${callRecord.id}: ${assistSummary.totalInterventions} interventions, ${assistSummary.complianceAlerts} compliance alerts, ${assistSummary.stepsCompleted.length} steps completed, ${assistSummary.stepsMissed.length} steps missed`);
         }
       }
       delete session._agentAssistState;

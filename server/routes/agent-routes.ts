@@ -30,6 +30,18 @@ import { generateAgentAvatar } from "../services/avatar-generator";
 import { generateUseCasesFromKB } from "../services/use-case-generator";
 import { buildElevenLabsDynamicFormWebhookTools, DYNAMIC_FORM_PROMPT } from "../services/dynamic-form-tools";
 
+function validateAgentAssistConfig(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const cfg = raw as Record<string, unknown>;
+  if (typeof cfg.enabled !== 'boolean') return null;
+  const validSensitivities = ['low', 'medium', 'high'];
+  if (cfg.sensitivity && !validSensitivities.includes(cfg.sensitivity as string)) return null;
+  if (cfg.compliancePhrases && !Array.isArray(cfg.compliancePhrases)) return null;
+  if (cfg.requiredDisclosures && !Array.isArray(cfg.requiredDisclosures)) return null;
+  if (cfg.requiredSteps && !Array.isArray(cfg.requiredSteps)) return null;
+  return cfg;
+}
+
 export function createAgentRoutes(ctx: RouteContext): Router {
   const router = Router();
   const { db, storage, authenticateToken, authenticateHybrid, elevenLabsService, upload } = ctx;
@@ -476,11 +488,10 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         tags: tags || null,
         specialist: specialist || null,
         avatarUrl: avatarUrl || null,
-        // Behavior and agent assist config
         behaviorConfig: req.body.behaviorConfig || null,
         waitingMessages: req.body.waitingMessages || null,
         dataSchema: req.body.dataSchema || null,
-        agentAssistConfig: req.body.agentAssistConfig || null,
+        agentAssistConfig: validateAgentAssistConfig(req.body.agentAssistConfig),
       });
 
       if (usedCredentialId) {
@@ -669,9 +680,12 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         return res.status(400).json({ error: "Transfer phone number or transfer agent is required when call transfer is enabled" });
       }
 
-      // Sanitize sipPhoneNumberId: convert empty string to null to avoid foreign key constraint violation
       if ('sipPhoneNumberId' in req.body && req.body.sipPhoneNumberId === '') {
         req.body.sipPhoneNumberId = null;
+      }
+
+      if ('agentAssistConfig' in req.body) {
+        req.body.agentAssistConfig = validateAgentAssistConfig(req.body.agentAssistConfig);
       }
 
       try {
@@ -729,7 +743,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           if (reqValue !== undefined) {
             let hasChanged = false;
             
-            if (field === 'config' || field === 'knowledgeBaseIds') {
+            if (field === 'config' || field === 'knowledgeBaseIds' || field === 'agentAssistConfig') {
               hasChanged = JSON.stringify(reqValue) !== JSON.stringify(agentValue);
             } else {
               hasChanged = reqValue !== agentValue;

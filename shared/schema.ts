@@ -4139,6 +4139,7 @@ export const opsAnalysisRuns = pgTable("ops_analysis_runs", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   callId: varchar("call_id").notNull(),
   tasksCreated: integer("tasks_created").notNull().default(0),
+  complianceReport: jsonb("compliance_report"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   uniqueUserCall: unique().on(table.userId, table.callId),

@@ -1,0 +1,1 @@
+ALTER TABLE "ops_analysis_runs" ADD COLUMN "compliance_report" jsonb;

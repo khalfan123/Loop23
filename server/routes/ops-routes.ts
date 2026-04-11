@@ -57,11 +57,15 @@ async function fetchBusinessContext(call: any): Promise<BusinessContext> {
         name: agents.name,
         systemPrompt: agents.systemPrompt,
         language: agents.language,
+        agentAssistConfig: agents.agentAssistConfig,
       }).from(agents).where(eqOp(agents.id, call.agentId)).limit(1);
       if (agent) {
         ctx.agentName = agent.name;
         ctx.agentSystemPrompt = agent.systemPrompt;
         ctx.language = agent.language;
+        if (agent.agentAssistConfig?.complianceRules) {
+          ctx.complianceRules = agent.agentAssistConfig.complianceRules;
+        }
       }
       const deptAgent = await db.select({ deptName: departments.name })
         .from(departmentAgents)
@@ -79,6 +83,23 @@ async function fetchBusinessContext(call: any): Promise<BusinessContext> {
 export function createOpsRoutes(ctx: RouteContext): Router {
   const router = Router();
   const { storage, authenticateHybrid } = ctx;
+
+  router.get('/api/ops/compliance-reports', authenticateHybrid, async (req: AuthRequest, res: Response) => {
+    try {
+      const runs = await storage.getOpsAnalysisRuns(req.userId!);
+      const reports = runs
+        .filter(r => r.complianceReport && typeof r.complianceReport === 'object')
+        .map(r => ({
+          callId: r.callId,
+          complianceReport: r.complianceReport,
+          analyzedAt: r.createdAt,
+        }));
+      res.json({ reports });
+    } catch (error: any) {
+      logger.error('Failed to get compliance reports', { error: error.message }, 'Ops Routes');
+      res.status(500).json({ error: 'Failed to get compliance reports' });
+    }
+  });
 
   // Calls with transcripts not yet analyzed by Callpilot
   router.get('/api/ops/calls-pending', authenticateHybrid, async (req: AuthRequest, res: Response) => {
@@ -290,10 +311,13 @@ export function createOpsRoutes(ctx: RouteContext): Router {
       const existing = await storage.getCallOpsTasks(callId);
       const ownedExisting = existing.filter((t) => t.userId === req.userId);
       if (ownedExisting.length > 0 && !req.query.force) {
+        const analysisRuns = await storage.getOpsAnalysisRuns(req.userId!);
+        const existingRun = analysisRuns.find(r => r.callId === callId);
         return res.json({
           message: 'Tasks already extracted for this call',
           tasks: ownedExisting,
           alreadyExtracted: true,
+          complianceReport: existingRun?.complianceReport ?? null,
         });
       }
 
@@ -309,13 +333,14 @@ export function createOpsRoutes(ctx: RouteContext): Router {
 
       const insertData = CallpilotAI.buildInsertTasks(result.tasks, req.userId!, callId);
       const created = await storage.createOpsTasks(insertData);
-      await storage.recordOpsAnalysisRun(req.userId!, callId, created.length);
+      await storage.recordOpsAnalysisRun(req.userId!, callId, created.length, result.complianceReport);
 
       res.json({
         message: `Extracted ${created.length} task(s) from call`,
         tasks: created,
         callSummary: result.callSummary,
         callBrief: result.callBrief,
+        complianceReport: result.complianceReport,
         provider: result.provider,
         modelUsed: result.modelUsed,
       });
@@ -344,7 +369,7 @@ export function createOpsRoutes(ctx: RouteContext): Router {
         });
       }
 
-      const results: { callId: string; tasksCreated: number; success: boolean; provider?: string; error?: string }[] = [];
+      const results: { callId: string; tasksCreated: number; success: boolean; provider?: string; complianceReport?: unknown; error?: string }[] = [];
 
       for (const call of unanalyzedCalls) {
         try {
@@ -364,8 +389,8 @@ export function createOpsRoutes(ctx: RouteContext): Router {
 
           const insertData = CallpilotAI.buildInsertTasks(result.tasks, req.userId!, call.id);
           const created = await storage.createOpsTasks(insertData);
-          await storage.recordOpsAnalysisRun(req.userId!, call.id, created.length);
-          results.push({ callId: call.id, tasksCreated: created.length, success: true, provider: result.provider });
+          await storage.recordOpsAnalysisRun(req.userId!, call.id, created.length, result.complianceReport);
+          results.push({ callId: call.id, tasksCreated: created.length, success: true, provider: result.provider, complianceReport: result.complianceReport });
         } catch (err: any) {
           results.push({ callId: call.id, tasksCreated: 0, success: false, error: err.message });
         }
@@ -411,7 +436,7 @@ export function createOpsRoutes(ctx: RouteContext): Router {
 
       const insertData = CallpilotAI.buildInsertTasks(result.tasks, req.userId!, callId);
       const created = await storage.createOpsTasks(insertData);
-      await storage.recordOpsAnalysisRun(req.userId!, callId, created.length);
+      await storage.recordOpsAnalysisRun(req.userId!, callId, created.length, result.complianceReport);
 
       res.json({
         message: `Re-analyzed: removed ${deletedCount} old task(s), created ${created.length} new task(s)`,
@@ -419,6 +444,7 @@ export function createOpsRoutes(ctx: RouteContext): Router {
         oldTasksRemoved: deletedCount,
         callSummary: result.callSummary,
         callBrief: result.callBrief,
+        complianceReport: result.complianceReport,
         provider: result.provider,
         modelUsed: result.modelUsed,
       });
@@ -437,7 +463,7 @@ export function createOpsRoutes(ctx: RouteContext): Router {
         return res.json({ message: 'No calls to re-analyze', results: [], totalCreated: 0 });
       }
 
-      const results: { callId: string; oldRemoved: number; newCreated: number; success: boolean; error?: string }[] = [];
+      const results: { callId: string; oldRemoved: number; newCreated: number; success: boolean; complianceReport?: unknown; error?: string }[] = [];
 
       for (const callId of callIds) {
         try {
@@ -465,9 +491,9 @@ export function createOpsRoutes(ctx: RouteContext): Router {
 
           const insertData = CallpilotAI.buildInsertTasks(result.tasks, req.userId!, callId);
           const created = await storage.createOpsTasks(insertData);
-          await storage.recordOpsAnalysisRun(req.userId!, callId, created.length);
+          await storage.recordOpsAnalysisRun(req.userId!, callId, created.length, result.complianceReport);
 
-          results.push({ callId, oldRemoved: deletedCount, newCreated: created.length, success: true });
+          results.push({ callId, oldRemoved: deletedCount, newCreated: created.length, success: true, complianceReport: result.complianceReport });
         } catch (err: any) {
           results.push({ callId, oldRemoved: 0, newCreated: 0, success: false, error: err.message });
         }

@@ -6,6 +6,7 @@ import {
   Cpu, ListTodo, CheckCircle2, Clock, XCircle, Plus,
   Loader2, RefreshCw, Trash2, Search, PhoneCall, AlertCircle,
   User, CalendarDays, MessageSquareQuote, Smartphone,
+  ShieldCheck, ShieldAlert, ShieldX, ChevronDown, ChevronUp, Quote,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,6 +89,139 @@ const STATUS_LABELS: Record<OpsTask['status'], string> = {
 const TYPE_ICON: Record<OpsTask['taskType'], string> = {
   refund: '💰', callback: '📞', followup: '📋', escalation: '🚨', other: '📌',
 };
+
+interface ComplianceViolation {
+  description: string;
+  category: 'missing_disclosure' | 'misleading_statement' | 'unauthorized_action' | 'identity_verification_failure';
+  severity: 'critical' | 'major' | 'minor';
+  evidence: string;
+  recommendedCorrection: string;
+}
+
+interface ComplianceReport {
+  status: 'pass' | 'fail' | 'warning';
+  violations: ComplianceViolation[];
+}
+
+const SEVERITY_BADGE: Record<ComplianceViolation['severity'], string> = {
+  critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800',
+  major: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+  minor: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800',
+};
+
+const CATEGORY_LABELS: Record<ComplianceViolation['category'], string> = {
+  missing_disclosure: 'Missing Disclosure',
+  misleading_statement: 'Misleading Statement',
+  unauthorized_action: 'Unauthorized Action',
+  identity_verification_failure: 'Identity Verification Failure',
+};
+
+const COMPLIANCE_STATUS_CONFIG: Record<ComplianceReport['status'], { label: string; className: string; Icon: typeof ShieldCheck }> = {
+  pass: { label: 'Pass', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', Icon: ShieldCheck },
+  fail: { label: 'Fail', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', Icon: ShieldX },
+  warning: { label: 'Warning', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', Icon: ShieldAlert },
+};
+
+function ComplianceReportPanel({ report, callId, analyzedAt }: { report: ComplianceReport; callId?: string; analyzedAt?: string }) {
+  const [expanded, setExpanded] = useState(true);
+  const statusConfig = COMPLIANCE_STATUS_CONFIG[report.status];
+  const StatusIcon = statusConfig.Icon;
+
+  return (
+    <Card className="glass-card rounded-2xl" data-testid={`card-compliance-report${callId ? `-${callId}` : ''}`}>
+      <CardContent className="p-4 sm:p-5">
+        <button
+          className="flex items-center justify-between w-full text-left"
+          onClick={() => setExpanded(!expanded)}
+          data-testid="button-toggle-compliance"
+        >
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${statusConfig.className}`}>
+              <StatusIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">Compliance Report</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Badge className={`text-xs px-2 py-0.5 ${statusConfig.className}`} data-testid="badge-compliance-status">
+                  {statusConfig.label}
+                </Badge>
+                {report.violations.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {report.violations.length} violation{report.violations.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {callId && (
+                  <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded" data-testid="text-compliance-callid">
+                    {callId.substring(0, 8)}...
+                  </span>
+                )}
+                {analyzedAt && (
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(analyzedAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+        </button>
+
+        {expanded && report.violations.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {report.violations.map((violation, idx) => (
+              <div
+                key={idx}
+                className={`rounded-xl border p-3 space-y-2 ${
+                  violation.severity === 'critical'
+                    ? 'border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20'
+                    : violation.severity === 'major'
+                    ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
+                    : 'border-yellow-300 bg-yellow-50/50 dark:border-yellow-800 dark:bg-yellow-950/20'
+                }`}
+                data-testid={`card-violation-${idx}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium" data-testid={`text-violation-desc-${idx}`}>{violation.description}</p>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Badge className={`text-xs px-2 py-0.5 ${SEVERITY_BADGE[violation.severity]}`} data-testid={`badge-violation-severity-${idx}`}>
+                      {violation.severity}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs px-2 py-0.5" data-testid={`badge-violation-category-${idx}`}>
+                      {CATEGORY_LABELS[violation.category]}
+                    </Badge>
+                  </div>
+                </div>
+
+                {violation.evidence && (
+                  <div className="flex items-start gap-2">
+                    <Quote className="w-3 h-3 text-muted-foreground mt-1 shrink-0" />
+                    <blockquote className="text-xs text-muted-foreground italic border-l-2 border-muted-foreground/30 pl-2" data-testid={`text-violation-evidence-${idx}`}>
+                      {violation.evidence}
+                    </blockquote>
+                  </div>
+                )}
+
+                {violation.recommendedCorrection && (
+                  <div className="text-xs">
+                    <span className="font-medium text-foreground">Recommended: </span>
+                    <span className="text-muted-foreground" data-testid={`text-violation-correction-${idx}`}>{violation.recommendedCorrection}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {expanded && report.violations.length === 0 && (
+          <p className="mt-3 text-sm text-muted-foreground flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-green-500" />
+            No compliance violations detected.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function TaskCard({
   task,
@@ -415,6 +549,14 @@ export default function Callpilot() {
     queryKey: ['/api/ops/stats'],
   });
 
+  const { data: complianceData } = useQuery<{
+    reports: { callId: string; complianceReport: ComplianceReport; analyzedAt: string }[];
+  }>({
+    queryKey: ['/api/ops/compliance-reports'],
+  });
+
+  const complianceReports = complianceData?.reports || [];
+
   const { data: tasksData, isLoading: tasksLoading, isError: tasksError, refetch } = useQuery<TasksResponse>({
     queryKey: ['/api/ops/tasks', statusFilter, typeFilter],
     queryFn: async () => {
@@ -474,6 +616,7 @@ export default function Callpilot() {
       const data = await res.json();
       queryClient.invalidateQueries({ queryKey: ['/api/ops/tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/api/ops/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ops/compliance-reports'] });
       toast({ title: 'Re-analysis complete', description: data.message });
       setSelectedTask(null);
     },
@@ -486,6 +629,7 @@ export default function Callpilot() {
       const data = await res.json();
       queryClient.invalidateQueries({ queryKey: ['/api/ops/tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/api/ops/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ops/compliance-reports'] });
       toast({ title: 'Re-analysis complete', description: data.message });
     },
     onError: () => toast({ title: 'Re-analysis failed', variant: 'destructive' }),
@@ -596,6 +740,18 @@ export default function Callpilot() {
           </SelectContent>
         </Select>
       </div>
+
+      {complianceReports.length > 0 && (
+        <div className="space-y-3" data-testid="section-compliance-reports">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-primary" />
+            Compliance Reports ({complianceReports.length} call{complianceReports.length !== 1 ? 's' : ''})
+          </h2>
+          {complianceReports.map((r) => (
+            <ComplianceReportPanel key={r.callId} report={r.complianceReport} callId={r.callId} analyzedAt={r.analyzedAt} />
+          ))}
+        </div>
+      )}
 
       {/* Error */}
       {tasksError && (

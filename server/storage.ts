@@ -408,7 +408,8 @@ export interface IStorage {
   deleteOpsTask(id: string): Promise<void>;
   deleteOpsTasksByCallId(callId: string, userId: string): Promise<number>;
   deleteOpsAnalysisRun(callId: string): Promise<void>;
-  recordOpsAnalysisRun(userId: string, callId: string, tasksCreated: number): Promise<void>;
+  recordOpsAnalysisRun(userId: string, callId: string, tasksCreated: number, complianceReport?: unknown): Promise<void>;
+  getOpsAnalysisRuns(userId: string): Promise<{ callId: string; tasksCreated: number; complianceReport: unknown; createdAt: Date }[]>;
   getOpsTaskStats(userId: string): Promise<{ pending: number; in_progress: number; completed: number; cancelled: number; total: number }>;
   getOpsMetrics(userId: string, startDate?: Date, endDate?: Date): Promise<{
     aht: number;
@@ -2677,10 +2678,28 @@ export class DbStorage implements IStorage {
       .limit(limit);
   }
 
-  async recordOpsAnalysisRun(userId: string, callId: string, tasksCreated: number): Promise<void> {
+  async recordOpsAnalysisRun(userId: string, callId: string, tasksCreated: number, complianceReport?: unknown): Promise<void> {
     await db.insert(opsAnalysisRuns)
-      .values({ userId, callId, tasksCreated })
-      .onConflictDoNothing();
+      .values({ userId, callId, tasksCreated, complianceReport: complianceReport ?? null })
+      .onConflictDoUpdate({
+        target: [opsAnalysisRuns.userId, opsAnalysisRuns.callId],
+        set: {
+          tasksCreated,
+          complianceReport: complianceReport ?? null,
+          createdAt: new Date(),
+        },
+      });
+  }
+
+  async getOpsAnalysisRuns(userId: string): Promise<{ callId: string; tasksCreated: number; complianceReport: unknown; createdAt: Date }[]> {
+    return db.select({
+      callId: opsAnalysisRuns.callId,
+      tasksCreated: opsAnalysisRuns.tasksCreated,
+      complianceReport: opsAnalysisRuns.complianceReport,
+      createdAt: opsAnalysisRuns.createdAt,
+    }).from(opsAnalysisRuns)
+      .where(eq(opsAnalysisRuns.userId, userId))
+      .orderBy(desc(opsAnalysisRuns.createdAt));
   }
 
   async createOpsTask(data: InsertOpsTask): Promise<OpsTask> {

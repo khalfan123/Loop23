@@ -15,10 +15,24 @@ interface ExtractedTask {
   sourceExcerpt: string;
 }
 
+export interface ComplianceViolation {
+  description: string;
+  category: 'missing_disclosure' | 'misleading_statement' | 'unauthorized_action' | 'identity_verification_failure';
+  severity: 'critical' | 'major' | 'minor';
+  evidence: string;
+  recommendedCorrection: string;
+}
+
+export interface ComplianceReport {
+  status: 'pass' | 'fail' | 'warning';
+  violations: ComplianceViolation[];
+}
+
 export interface ExtractionResult {
   tasks: ExtractedTask[];
   callSummary: string;
   callBrief: CallBrief;
+  complianceReport: ComplianceReport;
   provider: 'bedrock' | 'openai';
   modelUsed: string;
 }
@@ -38,6 +52,11 @@ export interface BusinessContext {
   agentName?: string | null;
   departmentName?: string | null;
   language?: string | null;
+  complianceRules?: {
+    requiredPhrases?: string[];
+    bannedPhrases?: string[];
+    disclosures?: string[];
+  } | null;
 }
 
 function buildSystemPrompt(businessContext?: BusinessContext): string {
@@ -61,6 +80,22 @@ function buildSystemPrompt(businessContext?: BusinessContext): string {
       const truncatedPrompt = businessContext.agentSystemPrompt.substring(0, 2000);
       lines.push(`Agent Instructions (describes the business, products, and services):\n${truncatedPrompt}`);
     }
+    if (businessContext.complianceRules) {
+      const rules = businessContext.complianceRules;
+      const ruleLines: string[] = [];
+      if (rules.disclosures && rules.disclosures.length > 0) {
+        ruleLines.push(`Required Disclosures (agent MUST say these during the call):\n${rules.disclosures.map(d => `  - "${d}"`).join('\n')}`);
+      }
+      if (rules.bannedPhrases && rules.bannedPhrases.length > 0) {
+        ruleLines.push(`Banned Phrases (agent must NEVER say these):\n${rules.bannedPhrases.map(p => `  - "${p}"`).join('\n')}`);
+      }
+      if (rules.requiredPhrases && rules.requiredPhrases.length > 0) {
+        ruleLines.push(`Required Phrases (agent MUST say these):\n${rules.requiredPhrases.map(p => `  - "${p}"`).join('\n')}`);
+      }
+      if (ruleLines.length > 0) {
+        lines.push(`COMPLIANCE RULES:\n${ruleLines.join('\n')}`);
+      }
+    }
     if (lines.length > 0) {
       businessSection = `\n\nBUSINESS CONTEXT (use this to understand what this company does, what products/services they sell, and to correctly interpret the transcript):\n${lines.join('\n')}`;
     }
@@ -70,7 +105,8 @@ function buildSystemPrompt(businessContext?: BusinessContext): string {
 1. Extract structured, actionable follow-up tasks from call transcripts
 2. Produce a concise call brief for the ops team
 3. Assess risk level and whether follow-up is required
-4. ALL output (titles, descriptions, summaries, briefs) MUST be in English regardless of the transcript language
+4. Perform a compliance audit identifying violations based on transcript evidence
+5. ALL output (titles, descriptions, summaries, briefs) MUST be in English regardless of the transcript language
 ${businessSection}
 
 Rules for task extraction:
@@ -95,6 +131,16 @@ Speech-to-text (STT) transcripts from phone calls frequently contain garbled, mi
 
 IMPORTANT: Write ALL output fields (title, description, callSummary, callBrief headline/outcome/customerIntent/agentPerformance) in English. Even if the transcript is in Arabic or another language, the structured output must be in English for the ops team.
 
+Rules for compliance audit:
+1. Check for MISSING REQUIRED DISCLOSURES — if COMPLIANCE RULES list required disclosures or required phrases, verify whether the agent said them. If not, flag as "missing_disclosure".
+2. Check for MISLEADING STATEMENTS — identify any incorrect or misleading claims made by the agent (e.g., promising something the business cannot deliver, quoting wrong prices, giving inaccurate information about policies).
+3. Check for UNAUTHORIZED ACTIONS — identify actions the agent took or promised that they were not authorized to perform (e.g., approving refunds beyond limits, making commitments outside scope).
+4. Check for IDENTITY VERIFICATION FAILURES — if the call involves sensitive account actions, check whether the agent properly verified the caller's identity before proceeding.
+5. ONLY flag violations that are directly supported by transcript evidence — include the exact quote as evidence. Do NOT infer violations beyond what the transcript shows.
+6. If COMPLIANCE RULES include banned phrases, check if the agent used any of them.
+7. Assign severity: "critical" for serious regulatory/financial violations, "major" for significant policy breaches, "minor" for best-practice deviations.
+8. Determine overall status: "pass" if no violations, "fail" if any critical or major violations exist, "warning" if only minor violations exist.
+
 Always respond ONLY with valid JSON in this exact structure:
 {
   "tasks": [
@@ -116,10 +162,22 @@ Always respond ONLY with valid JSON in this exact structure:
     "agentPerformance": "Brief assessment of how the agent handled the call (in English)",
     "followUpRequired": true,
     "riskLevel": "low|medium|high"
+  },
+  "complianceReport": {
+    "status": "pass|fail|warning",
+    "violations": [
+      {
+        "description": "What the violation is (in English)",
+        "category": "missing_disclosure|misleading_statement|unauthorized_action|identity_verification_failure",
+        "severity": "critical|major|minor",
+        "evidence": "Exact transcript quote that proves this violation",
+        "recommendedCorrection": "What the agent should have said or done instead (in English)"
+      }
+    ]
   }
 }
 
-If there are no actionable tasks, return { "tasks": [], "callSummary": "...", "callBrief": { ... } }
+If there are no actionable tasks, return empty tasks array. If there are no compliance violations, return complianceReport with status "pass" and empty violations array.
 No markdown. No explanation. Only valid JSON.`;
 }
 
@@ -157,6 +215,7 @@ function parseResult(raw: string): Omit<ExtractionResult, 'provider' | 'modelUse
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
       callSummary: parsed.callSummary || '',
       callBrief: parseBrief(parsed.callBrief),
+      complianceReport: parseComplianceReport(parsed.complianceReport),
     };
   } catch {
     return emptyResult();
@@ -185,6 +244,39 @@ function parseBrief(raw: unknown): CallBrief {
   };
 }
 
+function parseComplianceReport(raw: unknown): ComplianceReport {
+  if (!raw || typeof raw !== 'object') {
+    return { status: 'pass', violations: [] };
+  }
+  const r = raw as Record<string, unknown>;
+  const validCategories = ['missing_disclosure', 'misleading_statement', 'unauthorized_action', 'identity_verification_failure'];
+  const validSeverities = ['critical', 'major', 'minor'];
+
+  const violations: ComplianceViolation[] = [];
+  if (Array.isArray(r.violations)) {
+    for (const v of r.violations) {
+      if (v && typeof v === 'object') {
+        const vObj = v as Record<string, unknown>;
+        violations.push({
+          description: typeof vObj.description === 'string' ? vObj.description : '',
+          category: (validCategories.includes(vObj.category as string) ? vObj.category : 'missing_disclosure') as ComplianceViolation['category'],
+          severity: (validSeverities.includes(vObj.severity as string) ? vObj.severity : 'minor') as ComplianceViolation['severity'],
+          evidence: typeof vObj.evidence === 'string' ? vObj.evidence : '',
+          recommendedCorrection: typeof vObj.recommendedCorrection === 'string' ? vObj.recommendedCorrection : '',
+        });
+      }
+    }
+  }
+
+  let status: ComplianceReport['status'] = 'pass';
+  if (violations.length > 0) {
+    const hasCriticalOrMajor = violations.some(v => v.severity === 'critical' || v.severity === 'major');
+    status = hasCriticalOrMajor ? 'fail' : 'warning';
+  }
+
+  return { status, violations };
+}
+
 function emptyResult(): Omit<ExtractionResult, 'provider' | 'modelUsed'> {
   return {
     tasks: [],
@@ -197,6 +289,7 @@ function emptyResult(): Omit<ExtractionResult, 'provider' | 'modelUsed'> {
       followUpRequired: false,
       riskLevel: 'low',
     },
+    complianceReport: { status: 'pass', violations: [] },
   };
 }
 
@@ -220,7 +313,7 @@ async function extractWithBedrock(userMessage: string, systemPrompt: string): Pr
     model: modelAlias,
     systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
-    maxTokens: 3000,
+    maxTokens: 4000,
     temperature: 0.2,
   });
 
@@ -243,7 +336,7 @@ async function extractWithOpenAI(userMessage: string, systemPrompt: string): Pro
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userMessage },
     ],
-    max_completion_tokens: 3000,
+    max_completion_tokens: 4000,
     temperature: 0.2,
   });
 

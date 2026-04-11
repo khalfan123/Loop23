@@ -71,6 +71,7 @@ const bargeInFlags: Map<string, boolean> = new Map();
 const noResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 const callerHasSpoken: Map<string, boolean> = new Map();
 const inboundHallucinationCount: Map<string, number> = new Map();
+const postHallucinationRelaxed: Map<string, boolean> = new Map();
 const inboundNoResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
 const bargeInAccum: Map<string, number> = new Map();
@@ -396,6 +397,11 @@ export class BedrockPollyAudioBridge {
       inboundHallucinationCount.set(newKey, hallucCount);
     }
 
+    if (postHallucinationRelaxed.has(oldKey)) {
+      postHallucinationRelaxed.delete(oldKey);
+      postHallucinationRelaxed.set(newKey, true);
+    }
+
     const inbNrTimer = inboundNoResponseTimers.get(oldKey);
     if (inbNrTimer) {
       inboundNoResponseTimers.delete(oldKey);
@@ -661,7 +667,8 @@ export class BedrockPollyAudioBridge {
     const isOpeningPhase = session.isOutbound && !callerHasSpoken.get(callSid);
     const isEarlyConversation = session.isOutbound && session.messages.filter(m => m.role === 'user').length < 2;
     const isInboundEarlyConversation = !session.isOutbound && session.messages.filter(m => m.role === 'user').length < 2;
-    const minRequired = isOpeningPhase ? Math.floor(this.MIN_AUDIO_LENGTH * 0.3) : ((isEarlyConversation || isInboundEarlyConversation) ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH);
+    const isPostHallucination = postHallucinationRelaxed.get(callSid) === true;
+    const minRequired = (isOpeningPhase || isPostHallucination) ? Math.floor(this.MIN_AUDIO_LENGTH * 0.3) : ((isEarlyConversation || isInboundEarlyConversation) ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH);
     console.log(`[BedrockPolly Bridge] onSilenceDetected for ${callSid}: bufferSize=${totalLength}b, minRequired=${minRequired}b, callerHasSpoken=${callerHasSpoken.get(callSid)}${isOpeningPhase ? ' (opening phase - relaxed threshold)' : ''}`);
 
     if (totalLength < minRequired) {
@@ -924,16 +931,11 @@ export class BedrockPollyAudioBridge {
           const count = (inboundHallucinationCount.get(callSid) || 0) + 1;
           inboundHallucinationCount.set(callSid, count);
 
+          postHallucinationRelaxed.set(callSid, true);
+
           if (count <= 2) {
             const lang = session.agentConfig.language || 'en';
-            const reprompts: Record<string, string> = {
-              en: "I'm here. Please go ahead.",
-              ar: "أنا هنا، تفضل.",
-              es: "Estoy aquí. Adelante, por favor.",
-              fr: "Je suis là. Allez-y, s'il vous plaît.",
-              hi: "मैं यहाँ हूँ। कृपया बताइए।",
-            };
-            const reprompt = reprompts[lang] || reprompts['en'];
+            const reprompt = this.buildContextualReprompt(session, lang);
             console.log(`[BedrockPolly Bridge] Inbound hallucination re-prompt #${count} for ${callSid}: "${reprompt}"`);
             this.synthesizeAndSend(session, reprompt).then(() => {
               lastTtsEndTime.set(callSid, Date.now());
@@ -945,6 +947,8 @@ export class BedrockPollyAudioBridge {
 
         return;
       }
+
+      postHallucinationRelaxed.delete(callSid);
 
       const expectedLang = session.agentConfig.language || 'en';
       if (this.isLanguageMismatch(transcription, expectedLang)) {
@@ -1021,11 +1025,9 @@ export class BedrockPollyAudioBridge {
       const isComplex = words.length > 20 || (hasKBTools && words.length > 10);
 
       let kbPreFetched = false;
-      const KB_PREFETCH_TIMEOUT_MS = 3000;
+      const KB_QUICK_WAIT_MS = 150;
 
       const kbTool = hasKBTools ? session.agentConfig.tools!.find(t => t.name === 'lookup_knowledge_base' || t.name === 'lookup_bedrock_knowledge_base') : null;
-
-      const parallelTasks: Promise<any>[] = [];
 
       const avgMs = this.avgResponseMs.get(callSid) || 1500;
       const shouldConsiderFiller = !bargeInFlags.get(callSid);
@@ -1044,30 +1046,27 @@ export class BedrockPollyAudioBridge {
       }
 
       let kbResultHolder: any = null;
+      let kbPromiseRef: Promise<any> | null = null;
       if (kbTool?.handler) {
         const kbStartMs = Date.now();
-        const kbPromise = Promise.race([
-          kbTool.handler({ query: transcription }),
-          new Promise<null>(resolve => setTimeout(() => resolve(null), KB_PREFETCH_TIMEOUT_MS)),
-        ]).then((kbResult: any) => {
-          const kbMs = Date.now() - kbStartMs;
-          if (!kbResult) {
-            console.warn(`[BedrockPolly Bridge] KB pre-fetch timed out for ${callSid} after ${kbMs}ms — falling back to tool call`);
-          } else {
-            kbResultHolder = kbResult;
-            const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
-            console.log(`[BedrockPolly Bridge] Pre-fetched KB for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars, found=${kbResult.found})`);
-          }
-          return kbResult;
-        }).catch((kbErr: any) => {
-          console.warn(`[BedrockPolly Bridge] KB pre-fetch failed for ${callSid}: ${kbErr.message}`);
-          return null;
-        });
-        parallelTasks.push(kbPromise);
-      }
+        kbPromiseRef = kbTool.handler({ query: transcription })
+          .then((kbResult: any) => {
+            const kbMs = Date.now() - kbStartMs;
+            if (kbResult) {
+              kbResultHolder = kbResult;
+              const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
+              console.log(`[BedrockPolly Bridge] Pre-fetched KB for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars, found=${kbResult.found})`);
+            }
+            return kbResult;
+          }).catch((kbErr: any) => {
+            console.warn(`[BedrockPolly Bridge] KB pre-fetch failed for ${callSid}: ${kbErr.message}`);
+            return null;
+          });
 
-      if (parallelTasks.length > 0) {
-        await Promise.all(parallelTasks);
+        await Promise.race([
+          kbPromiseRef,
+          new Promise<null>(resolve => setTimeout(() => resolve(null), KB_QUICK_WAIT_MS)),
+        ]);
       }
 
       if (kbResultHolder) {
@@ -1092,6 +1091,8 @@ export class BedrockPollyAudioBridge {
           });
           console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
         }
+      } else if (kbPromiseRef) {
+        console.log(`[BedrockPolly Bridge] KB not ready in ${KB_QUICK_WAIT_MS}ms for ${callSid} — proceeding to LLM without blocking (tool-call fallback available)`);
       }
 
       const llmProvider = isOpenAIModel(agentConfig.model) ? 'OpenAI' : 'Bedrock';
@@ -1251,6 +1252,34 @@ export class BedrockPollyAudioBridge {
     'رابط القناة',
   ];
 
+  private static buildContextualReprompt(session: BedrockPollyBridgeSession, lang: string): string {
+    const lastAssistantMsg = [...session.messages].reverse().find(m => m.role === 'assistant');
+    if (lastAssistantMsg?.content) {
+      const content = lastAssistantMsg.content.trim();
+      const lastSentence = content.split(/[.?!。؟]\s*/).filter(s => s.trim().length > 5).pop();
+      if (lastSentence && lastSentence.length > 10) {
+        const topic = lastSentence.substring(0, 60).trim().replace(/[\n\r\t\[\]{}]/g, ' ').replace(/\s+/g, ' ').trim();
+        const contextPrompts: Record<string, (t: string) => string> = {
+          ar: (t) => `عذراً لم أسمعك، هل تبي أكمل عن ${t}؟`,
+          en: (t) => `Sorry, I didn't catch that. Would you like me to continue about ${t}?`,
+          es: (t) => `Disculpa, no te escuché. ¿Quieres que continúe sobre ${t}?`,
+          fr: (t) => `Désolé, je n'ai pas entendu. Voulez-vous que je continue sur ${t} ?`,
+          hi: (t) => `माफ़ कीजिए, सुनाई नहीं दिया। क्या आप ${t} के बारे में जानना चाहते हैं?`,
+        };
+        const builder = contextPrompts[lang] || contextPrompts['en'];
+        return builder(topic);
+      }
+    }
+    const fallbacks: Record<string, string> = {
+      en: "I'm here. Please go ahead.",
+      ar: "أنا هنا، تفضل.",
+      es: "Estoy aquí. Adelante, por favor.",
+      fr: "Je suis là. Allez-y, s'il vous plaît.",
+      hi: "मैं यहाँ हूँ। कृपया बताइए।",
+    };
+    return fallbacks[lang] || fallbacks['en'];
+  }
+
   private static isWhisperHallucination(text: string): boolean {
     const trimmed = text.trim();
     if (trimmed.length < 3) return true;
@@ -1278,10 +1307,10 @@ export class BedrockPollyAudioBridge {
       const arabicRatio = arabicOnly.length / trimmed.length;
       if (arabicRatio > 0.8) {
         const cleanedForCheck = trimmed.replace(/[؟?!.,،؛\s]+$/g, '').replace(/(.)\1{2,}/g, '$1$1');
-        const validShortArabic = /^(ألو|مرحبا|مرحباً|أهلا|أهلاً|هلا|نعم|لا|أيوه|أيوا|أريد|ممكن|طيب|تمام|ماشي|شكرا|شكراً|يعطيك العافية|سلام|السلام عليكم|وعليكم السلام|أبي|أبغى|بدي|عايز|كيف|ليش|وين|متى|كم|مين|شو|إيش|هل|مساعدة|سؤال|استفسار|مشكلة|حساب|فاتورة|رصيد|خدمة|اشتراك)$/i;
+        const validShortArabic = /^(ألو|مرحبا|مرحباً|أهلا|أهلاً|هلا|نعم|لا|أيوه|أيوا|أريد|ممكن|طيب|تمام|ماشي|شكرا|شكراً|يعطيك العافية|سلام|السلام عليكم|وعليكم السلام|أبي|أبغى|بدي|عايز|كيف|ليش|وين|متى|كم|مين|شو|إيش|هل|مساعدة|سؤال|استفسار|مشكلة|حساب|فاتورة|رصيد|خدمة|اشتراك|بقصد|بيارات|بخصوص|مشكلتي|رقمي|خطي|باقتي|فلوسي|حسابي|تحويل|إلغاء|تفعيل|تجديد|عرض|سعر|شريحة|إنترنت|بيانات|مكالمات|رسائل|رقم|جديد|قديم|تغيير|دفع|فاتورتي|موعد|حجز|إصلاح|صيانة|ضايع|مسروق|تأمين|باقة|عطل|تعطل|خصم|تكلفة|رسوم|توصيل|عنوان|شحن|طلب|إرجاع|استبدال|ضمان|تعويض|حق|بلاغ|شكوى|اعتراض|مبلغ|أقساط|سداد|تسديد|رصيدي|ابي|ابغى|محتاج|عندي|ابا|أبا)$/i;
         const arabicWords = trimmed.split(/\s+/).filter(w => w.length > 0);
 
-        if (arabicWords.length <= 2 && trimmed.length < 15) {
+        if (arabicWords.length <= 2 && trimmed.length < 10) {
           if (!validShortArabic.test(cleanedForCheck)) return true;
         }
 
@@ -3551,6 +3580,7 @@ CONVERSATION STYLE:
       callerHasSpoken.delete(callSid);
       lastTtsEndTime.delete(callSid);
       inboundHallucinationCount.delete(callSid);
+      postHallucinationRelaxed.delete(callSid);
       const inboundNrTimer = inboundNoResponseTimers.get(callSid);
       if (inboundNrTimer) {
         clearTimeout(inboundNrTimer);

@@ -1042,21 +1042,23 @@ export class BedrockPollyAudioBridge {
 
       if (kbTool?.handler) {
         const kbStartMs = Date.now();
-        const kbState: { resolved: boolean; result: any } = { resolved: false, result: null };
-        kbTool.handler({ query: transcription })
+        const kbStateObj: { resolved: boolean; result: any; promise: Promise<any> } = { resolved: false, result: null, promise: null as any };
+        kbStateObj.promise = kbTool.handler({ query: transcription })
           .then((kbResult: any) => {
             const kbMs = Date.now() - kbStartMs;
-            kbState.result = kbResult;
-            kbState.resolved = true;
+            kbStateObj.result = kbResult;
+            kbStateObj.resolved = true;
             if (kbResult) {
               const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
               console.log(`[BedrockPolly Bridge] KB resolved for ${callSid} in ${kbMs}ms (${kbResultStr.length} chars, found=${kbResult.found})`);
             }
+            return kbResult;
           }).catch((kbErr: any) => {
             console.warn(`[BedrockPolly Bridge] KB pre-fetch failed for ${callSid}: ${kbErr.message}`);
-            kbState.resolved = true;
+            kbStateObj.resolved = true;
+            return null;
           });
-        session._kbState = kbState;
+        session._kbState = kbStateObj;
         console.log(`[BedrockPolly Bridge] KB fetch started for ${callSid} — proceeding to LLM immediately (non-blocking)`);
       }
 
@@ -1925,10 +1927,10 @@ CONVERSATION STYLE:
 
       let usedLegacyToolCallDetection = false;
 
-      const kbState = session._kbState;
-      if (kbState?.resolved && kbState.result) {
+      await Promise.resolve();
+
+      const injectKBContext = (kbResult: any): void => {
         session._kbPreFetched = true;
-        const kbResult = kbState.result;
         const kbResultStr = typeof kbResult === 'string' ? kbResult : JSON.stringify(kbResult);
         if (kbResult.found !== false) {
           const rawInfo = kbResult.information || kbResultStr;
@@ -1939,7 +1941,7 @@ CONVERSATION STYLE:
           };
           bedrockMessages.push(kbMsg);
           session.messages.push({ ...kbMsg, timestamp: new Date() });
-          console.log(`[BedrockPolly Bridge] KB context injected pre-stream for ${callSid} (${kbInfo.length} chars, zero-wait)`);
+          console.log(`[BedrockPolly Bridge] KB context injected for ${callSid} (${kbInfo.length} chars)`);
         } else {
           const kbMsg = {
             role: 'user' as const,
@@ -1947,19 +1949,103 @@ CONVERSATION STYLE:
           };
           bedrockMessages.push(kbMsg);
           session.messages.push({ ...kbMsg, timestamp: new Date() });
-          console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive (zero-wait)`);
+          console.log(`[BedrockPolly Bridge] KB returned no results for ${callSid}, injecting "answer from identity" directive`);
         }
-      } else if (kbState && !kbState.resolved) {
-        console.log(`[BedrockPolly Bridge] KB not yet resolved at stream start for ${callSid} — tool-call fallback active (zero-wait)`);
+      };
+
+      const kbState = session._kbState;
+      let kbInjectedPreStream = false;
+      if (kbState?.resolved && kbState.result) {
+        injectKBContext(kbState.result);
+        kbInjectedPreStream = true;
+        console.log(`[BedrockPolly Bridge] KB injected pre-stream for ${callSid} (zero-wait)`);
       }
 
       try {
         const structuredStream = createStructuredStream(primaryModel);
         if (structuredStream) {
-          await consumeStructuredStream(structuredStream);
+          if (kbState && !kbInjectedPreStream && !kbState.resolved) {
+            console.log(`[BedrockPolly Bridge] KB pending — LLM stream started, racing KB against first token for ${callSid}`);
+            const iter = structuredStream[Symbol.asyncIterator]();
+            const firstEventPromise = iter.next();
+            const winner = await Promise.race([
+              firstEventPromise.then((v) => ({ type: 'token' as const, value: v })),
+              kbState.promise.then(() => ({ type: 'kb' as const, value: null })),
+            ]);
+            if (winner.type === 'kb' && kbState.result) {
+              injectKBContext(kbState.result);
+              console.log(`[BedrockPolly Bridge] KB won race vs first token for ${callSid} — restarting stream with KB context`);
+              const kbStream = createStructuredStream(primaryModel);
+              if (kbStream) {
+                await consumeStructuredStream(kbStream);
+              }
+            } else {
+              const firstResult = winner.type === 'token' ? winner.value : await firstEventPromise;
+              if (!firstResult.done) {
+                const firstEvent = firstResult.value as LLMStreamEvent;
+                if (firstEvent.type === 'text') {
+                  if (!firstTokenTime) {
+                    firstTokenTime = Date.now();
+                    session._cancelFiller?.();
+                  }
+                  fullText += firstEvent.text;
+                  sentenceBuffer += firstEvent.text;
+                } else if (firstEvent.type === 'tool_call') {
+                  collectedToolCalls.push(firstEvent.toolCall);
+                }
+              }
+              const resumeStream: AsyncGenerator<LLMStreamEvent> = (async function* () {
+                while (true) {
+                  const next = await iter.next();
+                  if (next.done) return;
+                  yield next.value;
+                }
+              })();
+              await consumeStructuredStream(resumeStream);
+              console.log(`[BedrockPolly Bridge] First token arrived before KB for ${callSid} — continued without KB injection`);
+            }
+          } else {
+            await consumeStructuredStream(structuredStream);
+          }
         } else {
           const legacyStream = createLegacyStream(primaryModel);
-          usedLegacyToolCallDetection = await consumeLegacyStream(legacyStream);
+          if (kbState && !kbInjectedPreStream && !kbState.resolved) {
+            console.log(`[BedrockPolly Bridge] KB pending (legacy) — LLM stream started, racing KB against first token for ${callSid}`);
+            const iter = legacyStream[Symbol.asyncIterator]();
+            const firstEventPromise = iter.next();
+            const winner = await Promise.race([
+              firstEventPromise.then((v) => ({ type: 'token' as const, value: v })),
+              kbState.promise.then(() => ({ type: 'kb' as const, value: null })),
+            ]);
+            if (winner.type === 'kb' && kbState.result) {
+              injectKBContext(kbState.result);
+              console.log(`[BedrockPolly Bridge] KB won race vs first token (legacy) for ${callSid} — restarting stream with KB context`);
+              const kbStream = createLegacyStream(primaryModel);
+              usedLegacyToolCallDetection = await consumeLegacyStream(kbStream);
+            } else {
+              const firstResult = winner.type === 'token' ? winner.value : await firstEventPromise;
+              if (!firstResult.done) {
+                const firstToken = firstResult.value as string;
+                if (!firstTokenTime) {
+                  firstTokenTime = Date.now();
+                  session._cancelFiller?.();
+                }
+                fullText += firstToken;
+                sentenceBuffer += firstToken;
+              }
+              const resumeStream: AsyncGenerator<string> = (async function* () {
+                while (true) {
+                  const next = await iter.next();
+                  if (next.done) return;
+                  yield next.value;
+                }
+              })();
+              usedLegacyToolCallDetection = await consumeLegacyStream(resumeStream);
+              console.log(`[BedrockPolly Bridge] First token arrived before KB (legacy) for ${callSid} — continued without KB injection`);
+            }
+          } else {
+            usedLegacyToolCallDetection = await consumeLegacyStream(legacyStream);
+          }
         }
       } catch (streamErr: any) {
         console.warn(`[BedrockPolly Bridge] Stream failed for ${callSid}: ${streamErr.message}. Retrying with legacy...`);

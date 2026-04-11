@@ -352,7 +352,7 @@ export interface BedrockPollyBridgeSession {
   explicitEndCall: boolean;
   _mediaLogThrottle?: number;
   _kbPreFetched?: boolean;
-  _kbState?: { resolved: boolean; result: any };
+  _kbState?: { resolved: boolean; result: any; promise: Promise<any> };
   _retryAttempted?: boolean;
   _cancelFiller?: () => void;
 }

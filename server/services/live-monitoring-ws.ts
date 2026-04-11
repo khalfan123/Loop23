@@ -112,6 +112,8 @@ class LiveMonitoringWebSocket {
         return event.userId === client.userId;
       case 'sentiment_alert':
         return event.userId === client.userId;
+      case 'agent_assist':
+        return event.userId === client.userId;
       default:
         return false;
     }
@@ -130,6 +132,17 @@ class LiveMonitoringWebSocket {
       });
     }
     if (event.type === 'sentiment_alert') {
+      return JSON.stringify({
+        ...event,
+        call: {
+          ...event.call,
+          startedAt: event.call.startedAt.toISOString(),
+          answeredAt: event.call.answeredAt?.toISOString() || null,
+          duration: event.call.duration || Math.floor((Date.now() - event.call.startedAt.getTime()) / 1000),
+        },
+      });
+    }
+    if (event.type === 'agent_assist') {
       return JSON.stringify({
         ...event,
         call: {

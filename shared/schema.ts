@@ -251,6 +251,22 @@ export const agents = pgTable("agents", {
   // Preset tracking
   sourcePresetId: varchar("source_preset_id"),
 
+  agentAssistConfig: jsonb("agent_assist_config").$type<{
+    enabled?: boolean;
+    sensitivity?: 'low' | 'medium' | 'high';
+    complianceRules?: {
+      requiredPhrases?: string[];
+      bannedPhrases?: string[];
+      disclosures?: string[];
+    };
+    requiredSteps?: Array<{
+      id: string;
+      name: string;
+      description: string;
+      order: number;
+    }>;
+  }>(),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

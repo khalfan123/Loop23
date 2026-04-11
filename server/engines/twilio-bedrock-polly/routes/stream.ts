@@ -281,6 +281,7 @@ async function initializeSession(
       const metaBehaviorConfig = metadata?.behaviorConfig as Record<string, any> | undefined;
       const metaWaitingMessages = metadata?.waitingMessages as string[] | undefined;
       const metaDataSchema = metadata?.dataSchema as Array<{ name: string; type: string; description: string; required?: boolean }> | undefined;
+      const metaAgentAssistConfig = metadata?.agentAssistConfig as AgentConfig['agentAssistConfig'] | undefined;
 
       const streamTtsProvider = (metadata?.ttsProvider as string) || undefined;
 
@@ -301,6 +302,7 @@ async function initializeSession(
         behaviorConfig: metaBehaviorConfig || undefined,
         waitingMessages: metaWaitingMessages || undefined,
         dataSchema: metaDataSchema || undefined,
+        agentAssistConfig: metaAgentAssistConfig || undefined,
       });
 
       let knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;

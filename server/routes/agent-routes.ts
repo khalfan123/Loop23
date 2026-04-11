@@ -476,6 +476,11 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         tags: tags || null,
         specialist: specialist || null,
         avatarUrl: avatarUrl || null,
+        // Behavior and agent assist config
+        behaviorConfig: req.body.behaviorConfig || null,
+        waitingMessages: req.body.waitingMessages || null,
+        dataSchema: req.body.dataSchema || null,
+        agentAssistConfig: req.body.agentAssistConfig || null,
       });
 
       if (usedCredentialId) {
@@ -714,7 +719,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           'voiceStability', 'voiceSimilarityBoost', 'voiceSpeed',
           'transferPhoneNumber', 'transferAgentId', 'transferEnabled', 'detectLanguageEnabled',
           'endConversationEnabled', 'knowledgeBaseIds', 'knowledgeBaseOnly', 'maxDurationSeconds',
-          'flowId', 'config'
+          'flowId', 'config', 'agentAssistConfig'
         ];
         
         for (const field of fieldsToCheck) {

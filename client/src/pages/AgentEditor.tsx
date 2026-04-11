@@ -26,6 +26,7 @@ import VoicePreviewButton from "@/components/VoicePreviewButton";
 import OpenAIVoicePreviewButton from "@/components/OpenAIVoicePreviewButton";
 import PromptTemplatesLibrary from "@/components/PromptTemplatesLibrary";
 import AgentBehaviorSettings from "@/components/AgentBehaviorSettings";
+import AgentAssistSettings from "@/components/AgentAssistSettings";
 import { SUPPORTED_LANGUAGES, getLanguageLabel, isProviderSupported } from "@/lib/languages";
 import { LanguageOptionLabel } from "@/components/LanguageProviderBadges";
 import { usePluginStatus } from "@/hooks/use-plugin-status";
@@ -162,6 +163,7 @@ export default function AgentEditor() {
     specialist: "",
     behaviorConfig: {} as Record<string, any>,
     waitingMessages: [] as string[],
+    agentAssistConfig: {} as Record<string, any>,
   });
 
   const { data: existingAgent, isLoading: agentLoading } = useQuery<Agent>({
@@ -287,6 +289,7 @@ export default function AgentEditor() {
         specialist: existingAgent.specialist || "",
         behaviorConfig: (existingAgent as any).behaviorConfig || {},
         waitingMessages: (existingAgent as any).waitingMessages || [],
+        agentAssistConfig: (existingAgent as any).agentAssistConfig || {},
       });
     }
   }, [existingAgent, isEditMode]);
@@ -1353,6 +1356,13 @@ export default function AgentEditor() {
             waitingMessages={formData.waitingMessages}
             onBehaviorConfigChange={(config) => setFormData({ ...formData, behaviorConfig: config })}
             onWaitingMessagesChange={(messages) => setFormData({ ...formData, waitingMessages: messages })}
+          />
+
+          <Separator className="my-2" />
+
+          <AgentAssistSettings
+            config={formData.agentAssistConfig}
+            onChange={(config) => setFormData({ ...formData, agentAssistConfig: config })}
           />
         </div>
 

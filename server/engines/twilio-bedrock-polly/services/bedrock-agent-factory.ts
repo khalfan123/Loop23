@@ -87,6 +87,7 @@ export class BedrockAgentFactory {
     behaviorConfig?: Record<string, any>;
     waitingMessages?: string[];
     dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
+    agentAssistConfig?: AgentConfig['agentAssistConfig'];
   }): AgentConfigWithContext {
     const tier = params.userTier || 'free';
     const voice = (params.ttsProvider === 'elevenlabs' || params.ttsProvider === 'cartesia') ? params.voice : this.validateVoice(params.voice);
@@ -150,6 +151,7 @@ Speak with authority and confidence. You know your stuff — act like it.`;
       behaviorConfig: params.behaviorConfig,
       waitingMessages: params.waitingMessages,
       dataSchema: params.dataSchema,
+      agentAssistConfig: params.agentAssistConfig,
     };
   }
 
@@ -1867,6 +1869,7 @@ RESPONSE STYLE: You are a seasoned expert who knows your field inside out. Answe
       behaviorConfig?: Record<string, any> | null;
       waitingMessages?: string[] | null;
       dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }> | null;
+      agentAssistConfig?: AgentConfig['agentAssistConfig'] | null;
     },
     userTier: 'free' | 'pro',
     callId?: string,
@@ -1909,6 +1912,7 @@ RESPONSE STYLE: You are a seasoned expert who knows your field inside out. Answe
         behaviorConfig: agent.behaviorConfig || undefined,
         waitingMessages: agent.waitingMessages || undefined,
         dataSchema: agent.dataSchema || undefined,
+        agentAssistConfig: agent.agentAssistConfig || undefined,
       });
     }
 

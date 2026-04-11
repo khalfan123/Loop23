@@ -215,6 +215,21 @@ export interface AgentConfig {
   behaviorConfig?: Record<string, any>;
   waitingMessages?: string[];
   dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
+  agentAssistConfig?: {
+    enabled?: boolean;
+    sensitivity?: 'low' | 'medium' | 'high';
+    complianceRules?: {
+      requiredPhrases?: string[];
+      bannedPhrases?: string[];
+      disclosures?: string[];
+    };
+    requiredSteps?: Array<{
+      id: string;
+      name: string;
+      description: string;
+      order: number;
+    }>;
+  };
 }
 
 /**
@@ -367,6 +382,18 @@ export interface BedrockPollyBridgeSession {
   _kbState?: KBPrefetchState;
   _retryAttempted?: boolean;
   _cancelFiller?: () => void;
+  _agentAssistState?: {
+    completedSteps: Set<string>;
+    previousInterventions: string[];
+    lastSentimentLevel: string;
+    pendingSuggestion?: string;
+    turnsSinceLastIntervention: number;
+    assistEvents: Array<{
+      type: 'compliance_alert' | 'step_completed' | 'step_missed' | 'sentiment_shift' | 'intervention';
+      detail: string;
+      timestamp: Date;
+    }>;
+  };
 }
 
 /**

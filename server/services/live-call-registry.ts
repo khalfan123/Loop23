@@ -35,7 +35,8 @@ export type LiveCallEvent =
   | { type: 'call_updated'; call: LiveCall }
   | { type: 'call_ended'; callId: string; userId: string }
   | { type: 'transcript_update'; callId: string; userId: string; message: string; role: 'agent' | 'caller' }
-  | { type: 'sentiment_alert'; callId: string; userId: string; sentimentLevel: string; sentimentScore: number; sentimentReason: string | null; call: LiveCall };
+  | { type: 'sentiment_alert'; callId: string; userId: string; sentimentLevel: string; sentimentScore: number; sentimentReason: string | null; call: LiveCall }
+  | { type: 'agent_assist'; callId: string; userId: string; eventKind: 'compliance_alert' | 'step_completed' | 'step_missed' | 'sentiment_shift' | 'intervention'; detail: string; suggestion?: string; stepsCompleted?: string[]; stepsPending?: string[]; call: LiveCall };
 
 const STALE_CALL_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 const STALE_CALL_CHECK_INTERVAL_MS = 60 * 1000;
@@ -55,6 +56,15 @@ class LiveCallRegistry extends EventEmitter {
     this.startDurationTracker(call.callId);
     this.emit('call_event', { type: 'call_started', call: { ...call } } as LiveCallEvent);
     console.log(`📞 [LiveRegistry] Call registered: ${call.callId} (${call.direction}, ${call.engine})`);
+  }
+
+  findCallIdByTwilioSid(twilioCallSid: string): string | undefined {
+    for (const [callId, call] of this.activeCalls.entries()) {
+      if (call.twilioCallSid === twilioCallSid) {
+        return callId;
+      }
+    }
+    return undefined;
   }
 
   updateCall(callId: string, updates: Partial<LiveCall>): void {
@@ -118,6 +128,24 @@ class LiveCallRegistry extends EventEmitter {
       } as LiveCallEvent);
       console.log(`🚨 [LiveRegistry] Sentiment alert for ${callId}: ${level} (score: ${score}) — ${reason}`);
     }
+  }
+
+  emitAgentAssist(callId: string, eventKind: 'compliance_alert' | 'step_completed' | 'step_missed' | 'sentiment_shift' | 'intervention', detail: string, suggestion?: string, stepsCompleted?: string[], stepsPending?: string[]): void {
+    const existing = this.activeCalls.get(callId);
+    if (!existing) return;
+
+    this.emit('call_event', {
+      type: 'agent_assist',
+      callId,
+      userId: existing.userId,
+      eventKind,
+      detail,
+      suggestion,
+      stepsCompleted,
+      stepsPending,
+      call: { ...existing },
+    } as LiveCallEvent);
+    console.log(`🤖 [LiveRegistry] Agent assist ${eventKind} for ${callId}: ${detail}`);
   }
 
   getFlaggedCalls(): LiveCall[] {

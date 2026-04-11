@@ -228,6 +228,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       behaviorConfig: agent.behaviorConfig || null,
       waitingMessages: agent.waitingMessages || null,
       dataSchema: agent.dataSchema || null,
+      agentAssistConfig: (agent as any).agentAssistConfig || null,
       resumedFromCallId: resumedFromCallId,
     };
 

@@ -46,6 +46,7 @@ import { RealtimeSentimentService } from '../../../services/realtime-sentiment.s
 import { liveCallRegistry } from '../../../services/live-call-registry';
 import { NotificationService } from '../../../services/notification-service';
 import { enrollSpeaker, matchesSpeaker, isEnrolled, clearSpeaker } from '../../../services/voice-fingerprint';
+import { AgentAssistService } from '../../../services/agent-assist.service';
 
 /**
  * Silence detection timers keyed by callSid.
@@ -987,13 +988,15 @@ export class BedrockPollyAudioBridge {
         session.onTranscriptCallback(transcription, true);
       }
 
+      const resolvedCallId = liveCallRegistry.findCallIdByTwilioSid(callSid) || callSid;
+
       try {
         const sentimentResult = RealtimeSentimentService.analyzeSentiment(
           callSid,
           transcription,
           session.agentConfig.language || 'en'
         );
-        liveCallRegistry.updateSentiment(callSid, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);
+        liveCallRegistry.updateSentiment(resolvedCallId, sentimentResult.level, sentimentResult.score, sentimentResult.alert, sentimentResult.reason);
         if (sentimentResult.alert && session.userId) {
           NotificationService.create({
             userId: session.userId,
@@ -1007,6 +1010,41 @@ export class BedrockPollyAudioBridge {
         }
       } catch (sentErr: any) {
         console.error(`[BedrockPolly Bridge] Sentiment analysis error for ${callSid}: ${sentErr.message}`);
+      }
+
+      try {
+        const assistConfig = session.agentConfig.agentAssistConfig;
+        if (assistConfig?.enabled) {
+          if (!session._agentAssistState) {
+            session._agentAssistState = AgentAssistService.createState();
+          }
+          const assistDecision = AgentAssistService.analyze(
+            assistConfig,
+            session._agentAssistState,
+            session.messages.map(m => ({ role: m.role, content: m.content })),
+            transcription,
+            callSid,
+            session.agentConfig.language || 'en',
+          );
+          if (assistDecision.events.length > 0) {
+            for (const evt of assistDecision.events) {
+              liveCallRegistry.emitAgentAssist(
+                resolvedCallId,
+                evt.type,
+                evt.detail,
+                assistDecision.suggestion,
+                assistDecision.stepsCompleted,
+                assistDecision.stepsPending,
+              );
+            }
+          }
+          if (assistDecision.shouldIntervene && assistDecision.suggestion) {
+            session._agentAssistState.pendingSuggestion = assistDecision.suggestion;
+            console.log(`[BedrockPolly Bridge] Agent assist intervention for ${callSid}: "${assistDecision.suggestion}"`);
+          }
+        }
+      } catch (assistErr: any) {
+        console.error(`[BedrockPolly Bridge] Agent assist error for ${callSid}: ${assistErr.message}`);
       }
 
       session.messages.push({
@@ -1691,7 +1729,13 @@ CONVERSATION STYLE:
       languageReminder = `\n\nREMINDER: Respond ONLY in fluent ${langName}. Do NOT use any English.`;
     }
 
-    return agentConfig.systemPrompt + kbOverride + conversationStyle + backgroundNoiseInstruction + toolBehaviorInstructions + languageReminder;
+    let agentAssistDirective = '';
+    if (session._agentAssistState?.pendingSuggestion) {
+      agentAssistDirective = AgentAssistService.buildAssistDirective(session._agentAssistState.pendingSuggestion);
+      delete session._agentAssistState.pendingSuggestion;
+    }
+
+    return agentConfig.systemPrompt + kbOverride + conversationStyle + backgroundNoiseInstruction + toolBehaviorInstructions + languageReminder + agentAssistDirective;
   }
 
   private static getActiveToolsForSession(session: BedrockPollyBridgeSession): Array<{ name: string; description: string; parameters: Record<string, unknown>; handler?: (params: Record<string, unknown>) => Promise<unknown> }> {
@@ -3670,6 +3714,7 @@ CONVERSATION STYLE:
       }
       RealtimeSentimentService.resetCall(callSid);
       clearSpeaker(callSid);
+      delete session._agentAssistState;
     } catch (cleanupErr: any) {
       console.error(`[BedrockPolly Bridge] Timer/buffer cleanup error for ${callSid}: ${cleanupErr.message}`);
     }

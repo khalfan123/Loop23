@@ -238,7 +238,7 @@ export class AgentAssistService {
     const sortedSteps = [...steps].sort((a, b) => a.order - b.order);
 
     for (const step of sortedSteps) {
-      if (state.completedSteps.has(step.id)) continue;
+      if (state.completedSteps.has(step.name)) continue;
 
       const stepKeywords = step.name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
       const descKeywords = step.description.toLowerCase().split(/\s+/).filter(w => w.length > 3);
@@ -250,12 +250,12 @@ export class AgentAssistService {
       const matchRatio = matchCount / allKeywords.length;
 
       if (matchRatio >= 0.4) {
-        state.completedSteps.add(step.id);
+        state.completedSteps.add(step.name);
         newlyCompleted.push(step.name);
       }
     }
 
-    const missedSteps = sortedSteps.filter(s => !state.completedSteps.has(s.id));
+    const missedSteps = sortedSteps.filter(s => !state.completedSteps.has(s.name));
 
     return { newlyCompleted, missedSteps };
   }

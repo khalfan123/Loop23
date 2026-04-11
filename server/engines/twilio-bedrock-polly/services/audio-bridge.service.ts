@@ -3719,8 +3719,9 @@ CONVERSATION STYLE:
     }
 
     try {
-      const assistSummary = AgentAssistService.getPostCallSummary(session._agentAssistState);
-      if (assistSummary && (assistSummary.totalInterventions > 0 || assistSummary.complianceAlerts > 0 || assistSummary.stepsCompleted.length > 0)) {
+      const assistConfig = session.agentConfig.agentAssistConfig;
+      const assistSummary = AgentAssistService.getPostCallSummary(session._agentAssistState, assistConfig || undefined);
+      if (assistSummary && (assistSummary.totalInterventions > 0 || assistSummary.complianceAlerts > 0 || assistSummary.stepsCompleted.length > 0 || assistSummary.stepsMissed.length > 0)) {
         const [callRecord] = await db
           .select({ id: calls.id, metadata: calls.metadata })
           .from(calls)

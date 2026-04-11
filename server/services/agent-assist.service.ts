@@ -143,6 +143,7 @@ export class AgentAssistService {
     }
 
     if (shouldIntervene && suggestion) {
+      suggestion = this.capSuggestionLength(suggestion);
       state.pendingSuggestion = suggestion;
       state.previousInterventions.push(suggestion);
       if (state.previousInterventions.length > 20) {
@@ -155,7 +156,7 @@ export class AgentAssistService {
 
     return {
       shouldIntervene,
-      suggestion: shouldIntervene ? suggestion : undefined,
+      suggestion: shouldIntervene && suggestion ? this.capSuggestionLength(suggestion) : undefined,
       events,
       stepsCompleted: Array.from(state.completedSteps),
       stepsPending: stepResult.missedSteps.map(s => s.name),
@@ -304,18 +305,29 @@ export class AgentAssistService {
 ${suggestion}`;
   }
 
-  static getPostCallSummary(state: AgentAssistState | undefined): {
+  static getPostCallSummary(state: AgentAssistState | undefined, config?: AgentAssistConfig): {
     totalInterventions: number;
     complianceAlerts: number;
     stepsCompleted: string[];
+    stepsMissed: string[];
     events: Array<{ type: string; detail: string; timestamp: Date }>;
   } | null {
     if (!state) return null;
+    const allStepNames = (config?.requiredSteps || []).map(s => s.name);
+    const completedSet = state.completedSteps;
+    const missed = allStepNames.filter(name => !completedSet.has(name));
     return {
       totalInterventions: state.assistEvents.filter(e => e.type === 'intervention').length,
       complianceAlerts: state.assistEvents.filter(e => e.type === 'compliance_alert').length,
-      stepsCompleted: Array.from(state.completedSteps),
+      stepsCompleted: Array.from(completedSet),
+      stepsMissed: missed,
       events: state.assistEvents,
     };
+  }
+
+  private static capSuggestionLength(suggestion: string): string {
+    const words = suggestion.split(/\s+/);
+    if (words.length <= 15) return suggestion;
+    return words.slice(0, 15).join(' ');
   }
 }

@@ -506,3 +506,184 @@ export function getKBMastermindStatus(): {
     lastRunStats,
   };
 }
+
+export async function getAgentLearningProgress(userId: string): Promise<{
+  departments: Array<{
+    id: string;
+    name: string;
+    agents: Array<{
+      id: string;
+      name: string;
+      expertMode: boolean;
+      knowledgeSources: number;
+      chunksLearned: number;
+      totalChunks: number;
+      learningScore: number;
+    }>;
+    knowledgeBases: Array<{
+      id: string;
+      name: string;
+      totalChunks: number;
+      embeddedChunks: number;
+      contentSize: number;
+    }>;
+    overallScore: number;
+  }>;
+  globalStats: {
+    totalAgents: number;
+    expertAgents: number;
+    totalKBs: number;
+    totalChunks: number;
+    embeddedChunks: number;
+    lastTrainedAt: string | null;
+    isTraining: boolean;
+  };
+}> {
+  const depts = await db
+    .select({ id: departments.id, name: departments.name })
+    .from(departments)
+    .where(and(eq(departments.isActive, true), eq(departments.engineType, 'bedrock-polly'), eq(departments.userId, userId)));
+
+  let totalAgents = 0;
+  let expertAgents = 0;
+  let totalKBs = 0;
+  let totalChunksGlobal = 0;
+  let embeddedChunksGlobal = 0;
+
+  const deptResults = [];
+
+  for (const dept of depts) {
+    const deptAgentRows = await db
+      .select({ agentId: departmentAgents.agentId })
+      .from(departmentAgents)
+      .where(eq(departmentAgents.departmentId, dept.id));
+
+    const agentIds = deptAgentRows.map(da => da.agentId);
+
+    let deptAgents: Array<{
+      id: string;
+      name: string;
+      expertMode: boolean;
+      knowledgeSources: number;
+      chunksLearned: number;
+      totalChunks: number;
+      learningScore: number;
+    }> = [];
+
+    if (agentIds.length > 0) {
+      const agentRows = await db
+        .select({
+          id: agents.id,
+          name: agents.name,
+          expertMode: agents.expertMode,
+          knowledgeBaseIds: agents.knowledgeBaseIds,
+        })
+        .from(agents)
+        .where(inArray(agents.id, agentIds));
+
+      for (const agent of agentRows) {
+        const agentKbIds = (agent.knowledgeBaseIds as string[]) || [];
+        let agentChunksLearned = 0;
+        let agentTotalChunks = 0;
+
+        if (agentKbIds.length > 0) {
+          const chunkStats = await db
+            .select({
+              total: knowledgeChunks.id,
+            })
+            .from(knowledgeChunks)
+            .where(inArray(knowledgeChunks.knowledgeBaseId, agentKbIds));
+
+          agentTotalChunks = chunkStats.length;
+          agentChunksLearned = chunkStats.length;
+        }
+
+        const learningScore = agentKbIds.length === 0 ? 0 :
+          agentTotalChunks === 0 ? 10 :
+          Math.min(100, Math.round((agentChunksLearned / Math.max(agentTotalChunks, 1)) * 80 + (agentKbIds.length > 0 ? 20 : 0)));
+
+        deptAgents.push({
+          id: agent.id,
+          name: agent.name,
+          expertMode: agent.expertMode || false,
+          knowledgeSources: agentKbIds.length,
+          chunksLearned: agentChunksLearned,
+          totalChunks: agentTotalChunks,
+          learningScore,
+        });
+
+        totalAgents++;
+        if (agent.expertMode) expertAgents++;
+      }
+    }
+
+    const deptKBRows = await db
+      .select({ knowledgeBaseId: departmentKnowledgeBases.knowledgeBaseId })
+      .from(departmentKnowledgeBases)
+      .where(eq(departmentKnowledgeBases.departmentId, dept.id));
+
+    const kbIds = deptKBRows.map(dk => dk.knowledgeBaseId);
+    let kbDetails: Array<{
+      id: string;
+      name: string;
+      totalChunks: number;
+      embeddedChunks: number;
+      contentSize: number;
+    }> = [];
+
+    if (kbIds.length > 0) {
+      const kbRows = await db
+        .select({
+          id: knowledgeBase.id,
+          name: knowledgeBase.name,
+          content: knowledgeBase.content,
+        })
+        .from(knowledgeBase)
+        .where(inArray(knowledgeBase.id, kbIds));
+
+      for (const kb of kbRows) {
+        const chunks = await db
+          .select({ id: knowledgeChunks.id })
+          .from(knowledgeChunks)
+          .where(eq(knowledgeChunks.knowledgeBaseId, kb.id));
+
+        const contentSize = (kb.content || '').length;
+        kbDetails.push({
+          id: kb.id,
+          name: kb.name,
+          totalChunks: chunks.length,
+          embeddedChunks: chunks.length,
+          contentSize,
+        });
+
+        totalKBs++;
+        totalChunksGlobal += chunks.length;
+        embeddedChunksGlobal += chunks.length;
+      }
+    }
+
+    const overallScore = deptAgents.length === 0 ? 0 :
+      Math.round(deptAgents.reduce((sum, a) => sum + a.learningScore, 0) / deptAgents.length);
+
+    deptResults.push({
+      id: dept.id,
+      name: dept.name,
+      agents: deptAgents,
+      knowledgeBases: kbDetails,
+      overallScore,
+    });
+  }
+
+  return {
+    departments: deptResults,
+    globalStats: {
+      totalAgents,
+      expertAgents,
+      totalKBs,
+      totalChunks: totalChunksGlobal,
+      embeddedChunks: embeddedChunksGlobal,
+      lastTrainedAt: lastRunTimestamp ? new Date(lastRunTimestamp).toISOString() : null,
+      isTraining: isRunning,
+    },
+  };
+}

@@ -6,6 +6,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import IncomingCallCanvas from "@/pages/IncomingCallCanvas";
 import HumanAgentCanvas from "@/pages/HumanAgentCanvas";
 import DeprockCallSimulator from "@/pages/DeprockCallSimulator";
+import AgentLearningProgress from "@/components/AgentLearningProgress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -526,7 +527,7 @@ export default function DeprockManagement() {
     staleTime: 10 * 60 * 1000,
   });
   
-  const [activeTab, setActiveTab] = useState<"org-map" | "departments" | "incoming-connections" | "human-connections">("org-map");
+  const [activeTab, setActiveTab] = useState<"org-map" | "departments" | "incoming-connections" | "human-connections" | "agent-learning">("org-map");
   const [showSimulator, setShowSimulator] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -1353,6 +1354,12 @@ export default function DeprockManagement() {
           isActive={activeTab === 'human-connections'}
           onClick={() => setActiveTab('human-connections')}
         />
+        <SubPanelItem
+          icon={<Sparkles className="w-4 h-4" />}
+          label="Agent Learning"
+          isActive={activeTab === 'agent-learning'}
+          onClick={() => setActiveTab('agent-learning')}
+        />
       </SubPanelSection>
 
       <SubPanelSection title="STATS">
@@ -1795,6 +1802,10 @@ export default function DeprockManagement() {
           <div className="h-[calc(100vh-200px)] min-h-[300px]">
             <HumanAgentCanvas embedded={true} />
           </div>
+        )}
+
+        {activeTab === 'agent-learning' && (
+          <AgentLearningProgress />
         )}
 
       <Dialog open={showCreateDialog} onOpenChange={(open) => {

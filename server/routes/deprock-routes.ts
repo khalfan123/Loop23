@@ -2108,6 +2108,17 @@ The prompt should:
     }
   });
 
+  router.get("/kb-mastermind/learning-progress", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { getAgentLearningProgress } = await import('../services/kb-mastermind');
+      const progress = await getAgentLearningProgress(req.userId!);
+      return res.json({ success: true, ...progress });
+    } catch (error: any) {
+      console.error('[KB Mastermind] Learning progress error:', error.message);
+      return res.status(500).json({ error: 'Failed to get learning progress', message: error.message });
+    }
+  });
+
   return router;
 }
 

@@ -492,6 +492,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
         waitingMessages: req.body.waitingMessages || null,
         dataSchema: req.body.dataSchema || null,
         agentAssistConfig: validateAgentAssistConfig(req.body.agentAssistConfig),
+        expertMode: req.body.expertMode || false,
       });
 
       if (usedCredentialId) {
@@ -1108,6 +1109,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
           tags: variantData.tags || null,
           specialist: variantData.specialist || null,
           avatarUrl: agent.avatarUrl || null,
+          expertMode: agent.expertMode || false,
         });
 
         createdAgents.push({
@@ -1278,6 +1280,7 @@ export function createAgentRoutes(ctx: RouteContext): Router {
               tags: variantData.tags || null,
               specialist: variantData.specialist || null,
               avatarUrl: agent.avatarUrl || null,
+              expertMode: agent.expertMode || false,
             });
 
             allCreatedAgents.push({

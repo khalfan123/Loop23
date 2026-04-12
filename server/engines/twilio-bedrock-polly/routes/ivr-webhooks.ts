@@ -943,8 +943,11 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
 
     recordingPromise.catch(() => {});
 
+    const ringToneUrl = `${buildBaseUrl()}/api/deprock/ivr/ring-tone`;
+
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
+  <Play>${escapeXml(ringToneUrl)}</Play>
   <Connect>
     <Stream url="${escapeXml(streamUrl)}">
       <Parameter name="callId" value="${escapeXml(callId)}" />
@@ -960,6 +963,26 @@ router.post('/connect-agent', async (req: Request, res: Response) => {
     logger.error('[Deprock IVR] Error in /connect-agent', error, 'DeprockIVR');
     res.type('text/xml');
     res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>An error occurred. Please try again later.</Say><Hangup/></Response>`);
+  }
+});
+
+router.get('/ring-tone', async (_req: Request, res: Response) => {
+  try {
+    const { join } = await import('path');
+    const { existsSync, createReadStream } = await import('fs');
+    const ringTonePath = join(process.cwd(), 'client', 'public', 'audio', 'ring-tone.wav');
+    if (!existsSync(ringTonePath)) {
+      res.status(404).send('Ring tone not found');
+      return;
+    }
+    res.set({
+      'Content-Type': 'audio/wav',
+      'Cache-Control': 'public, max-age=86400',
+    });
+    createReadStream(ringTonePath).pipe(res);
+  } catch (err) {
+    console.error('[Deprock IVR] Error serving ring tone:', err);
+    res.status(500).send('Error');
   }
 });
 

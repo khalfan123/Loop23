@@ -1537,6 +1537,9 @@ export async function handleIvrSelection(req: Request, res: Response) {
         console.error(`⚠️ [IVR Selection] Failed to create call record:`, callErr);
       }
       
+      const ringDomain = getDomain(req.headers.host as string);
+      const ringToneUrl = `${ringDomain}/api/deprock/ivr/ring-tone`;
+      response.play(ringToneUrl);
       const connect = response.connect();
       const stream = connect.stream({ url: streamUrl });
       stream.parameter({ name: 'agentId', value: selectedAgent.id });

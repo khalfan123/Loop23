@@ -75,6 +75,7 @@ const noResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 const callerHasSpoken: Map<string, boolean> = new Map();
 const inboundHallucinationCount: Map<string, number> = new Map();
 const postHallucinationRelaxed: Map<string, boolean> = new Map();
+const postBargeInRelaxed: Map<string, boolean> = new Map();
 const inboundNoResponseTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
 const bargeInAccum: Map<string, number> = new Map();
@@ -405,6 +406,12 @@ export class BedrockPollyAudioBridge {
       postHallucinationRelaxed.set(newKey, true);
     }
 
+    if (postBargeInRelaxed.has(oldKey)) {
+      const bargeInVal = postBargeInRelaxed.get(oldKey)!;
+      postBargeInRelaxed.delete(oldKey);
+      postBargeInRelaxed.set(newKey, bargeInVal);
+    }
+
     const inbNrTimer = inboundNoResponseTimers.get(oldKey);
     if (inbNrTimer) {
       inboundNoResponseTimers.delete(oldKey);
@@ -671,8 +678,9 @@ export class BedrockPollyAudioBridge {
     const isEarlyConversation = session.isOutbound && session.messages.filter(m => m.role === 'user').length < 2;
     const isInboundEarlyConversation = !session.isOutbound && session.messages.filter(m => m.role === 'user').length < 2;
     const isPostHallucination = postHallucinationRelaxed.get(callSid) === true;
-    const minRequired = (isOpeningPhase || isPostHallucination) ? Math.floor(this.MIN_AUDIO_LENGTH * 0.3) : ((isEarlyConversation || isInboundEarlyConversation) ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH);
-    console.log(`[BedrockPolly Bridge] onSilenceDetected for ${callSid}: bufferSize=${totalLength}b, minRequired=${minRequired}b, callerHasSpoken=${callerHasSpoken.get(callSid)}${isOpeningPhase ? ' (opening phase - relaxed threshold)' : ''}`);
+    const isPostBargeIn = postBargeInRelaxed.get(callSid) === true;
+    const minRequired = (isOpeningPhase || isPostHallucination || isPostBargeIn) ? Math.floor(this.MIN_AUDIO_LENGTH * 0.3) : ((isEarlyConversation || isInboundEarlyConversation) ? Math.floor(this.MIN_AUDIO_LENGTH * 0.5) : this.MIN_AUDIO_LENGTH);
+    console.log(`[BedrockPolly Bridge] onSilenceDetected for ${callSid}: bufferSize=${totalLength}b, minRequired=${minRequired}b, callerHasSpoken=${callerHasSpoken.get(callSid)}${isOpeningPhase ? ' (opening phase - relaxed threshold)' : ''}${isPostBargeIn ? ' (post-barge-in relaxed)' : ''}`);
 
     if (totalLength < minRequired) {
       if (isOpeningPhase && totalLength > 0) {
@@ -711,6 +719,7 @@ export class BedrockPollyAudioBridge {
     session.isProcessing = true;
     bargeInFlags.set(callSid, false);
     bargeInAccum.set(callSid, 0);
+    postBargeInRelaxed.set(callSid, false);
 
     this.processUserTurn(session).catch((err) => {
       console.error(`[BedrockPolly Bridge] Error processing user turn for ${callSid}:`, err);
@@ -1827,6 +1836,7 @@ CONVERSATION STYLE:
 
             if (bargeInFlags.get(callSid) && sentencesSent > 0) {
               console.log(`[BedrockPolly Bridge] Barge-in during streaming for ${callSid} (after ${sentencesSent} segments)`);
+              postBargeInRelaxed.set(callSid, true);
               break;
             }
             if (session.status === 'disconnected') break;
@@ -1881,7 +1891,10 @@ CONVERSATION STYLE:
             continue;
           }
 
-          if (bargeInFlags.get(callSid) && sentencesSent > 0) break;
+          if (bargeInFlags.get(callSid) && sentencesSent > 0) {
+            postBargeInRelaxed.set(callSid, true);
+            break;
+          }
           if (session.status === 'disconnected') break;
 
           const useEager = sentencesSent === 0;
@@ -3683,6 +3696,7 @@ CONVERSATION STYLE:
       bufferStartTimes.delete(callSid);
       bargeInFlags.delete(callSid);
       bargeInAccum.delete(callSid);
+      postBargeInRelaxed.delete(callSid);
       playingGreeting.delete(callSid);
       greetingMarkCallbacks.delete(callSid);
       openingPhaseEnd.delete(callSid);

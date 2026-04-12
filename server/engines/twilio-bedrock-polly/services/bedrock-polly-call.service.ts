@@ -316,7 +316,7 @@ export class BedrockPollyCallService {
 
         effectiveSystemPrompt = resolveTemplateVariables(effectiveSystemPrompt);
 
-        const callExpertMode = !!(agent as any).expertMode;
+        const callExpertMode = !!agent.expertMode;
 
         let naturalConfig = BedrockAgentFactory.createAgentConfig({
           voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,

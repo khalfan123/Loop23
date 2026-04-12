@@ -153,6 +153,7 @@ Speak with authority and confidence. You know your stuff — act like it.${param
       waitingMessages: params.waitingMessages,
       dataSchema: params.dataSchema,
       agentAssistConfig: params.agentAssistConfig,
+      expertMode: params.expertMode,
     };
   }
 

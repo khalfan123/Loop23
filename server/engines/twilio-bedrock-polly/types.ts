@@ -230,6 +230,7 @@ export interface AgentConfig {
       order: number;
     }>;
   };
+  expertMode?: boolean;
 }
 
 /**

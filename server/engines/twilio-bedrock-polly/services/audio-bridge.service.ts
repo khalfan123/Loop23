@@ -945,7 +945,7 @@ export class BedrockPollyAudioBridge {
 
           postHallucinationRelaxed.set(callSid, true);
 
-          if (count <= 2) {
+          if (count <= 1) {
             const lang = session.agentConfig.language || 'en';
             const reprompt = this.buildContextualReprompt(session, lang);
             console.log(`[BedrockPolly Bridge] Inbound hallucination re-prompt #${count} for ${callSid}: "${reprompt}"`);
@@ -954,6 +954,25 @@ export class BedrockPollyAudioBridge {
             }).catch(err => {
               console.error(`[BedrockPolly Bridge] Error sending hallucination re-prompt for ${callSid}:`, err);
             });
+          } else if (count === 2) {
+            console.log(`[BedrockPolly Bridge] Hallucination escalation #${count} for ${callSid} — sending proactive offering via LLM`);
+            const lang = session.agentConfig.language || 'en';
+            const proactiveMsg = lang === 'ar'
+              ? 'الخط مو واضح شوي، بس أنا هنا أساعدك. هل تبي تسأل عن حسابك، خدمة معينة، أو شي ثاني؟'
+              : lang === 'es'
+              ? 'La línea no está muy clara, pero estoy aquí para ayudarte. ¿Quieres preguntar sobre tu cuenta, un servicio, o algo más?'
+              : lang === 'fr'
+              ? 'La ligne n\'est pas très claire, mais je suis là pour vous aider. Souhaitez-vous poser une question sur votre compte, un service, ou autre chose ?'
+              : 'The line isn\'t very clear, but I\'m here to help. Are you calling about your account, a service, or something else?';
+            this.synthesizeAndSend(session, proactiveMsg).then(() => {
+              lastTtsEndTime.set(callSid, Date.now());
+            }).catch(err => {
+              console.error(`[BedrockPolly Bridge] Error sending proactive offering for ${callSid}:`, err);
+            });
+            session.messages.push({ role: 'assistant', content: proactiveMsg, timestamp: new Date() });
+            session.transcriptParts.push({ role: 'assistant', text: proactiveMsg, timestamp: new Date() });
+          } else if (count >= 3) {
+            console.log(`[BedrockPolly Bridge] Hallucination count ${count} for ${callSid} — silently waiting for clear speech`);
           }
         }
 
@@ -1089,6 +1108,19 @@ export class BedrockPollyAudioBridge {
         }, this.FILLER_DELAY_MS);
       }
 
+      if (session._lateKBResult && kbTool?.handler) {
+        const lateKB = session._lateKBResult;
+        delete session._lateKBResult;
+        const lateKBInfo = lateKB.information || JSON.stringify(lateKB);
+        const lateKBMsg = {
+          role: 'user' as const,
+          content: `[Background knowledge base context from previous lookup — use if relevant to the current question:]\n\n${lateKBInfo}`,
+          timestamp: new Date(),
+        };
+        session.messages.push(lateKBMsg);
+        console.log(`[BedrockPolly Bridge] Injected late KB result from previous turn for ${callSid} (${lateKBInfo.length} chars)`);
+      }
+
       if (kbTool?.handler) {
         const kbStartMs = Date.now();
         const kbPromise: Promise<KBResult | null> = kbTool.handler({ query: transcription })
@@ -1141,7 +1173,24 @@ export class BedrockPollyAudioBridge {
           session.messages.splice(kbContextIdx, 1);
         }
       }
-      delete session._kbState;
+
+      const kbStateRef = session._kbState;
+      if (kbStateRef && !kbStateRef.resolved) {
+        kbStateRef.promise.then(() => {
+          if (session._kbState !== kbStateRef) return;
+          if (kbStateRef.result?.found !== false) {
+            session._lateKBResult = kbStateRef.result || null;
+            console.log(`[BedrockPolly Bridge] Late KB result cached for next turn for ${callSid}`);
+          }
+          delete session._kbState;
+        }).catch(() => {
+          if (session._kbState === kbStateRef) {
+            delete session._kbState;
+          }
+        });
+      } else {
+        delete session._kbState;
+      }
 
       if (!responseText || responseText.trim().length === 0) {
         console.log(`[BedrockPolly Bridge] Empty Bedrock response for ${callSid}`);
@@ -1236,6 +1285,7 @@ export class BedrockPollyAudioBridge {
     'SBS',
     'TV',
     'FM',
+    'عالم سافر عن أوروبا',
   ];
 
   private static readonly WHISPER_HALLUCINATION_CONTAINS: string[] = [
@@ -1269,6 +1319,10 @@ export class BedrockPollyAudioBridge {
     'اضغط لايك',
     'فعل الجرس',
     'رابط القناة',
+    'عالم سافر عن',
+    'سافر عن أوروبا',
+    'برنامج اليوم',
+    'نشرة الأخبار',
   ];
 
   private static buildContextualReprompt(session: BedrockPollyBridgeSession, lang: string): string {
@@ -1329,7 +1383,7 @@ export class BedrockPollyAudioBridge {
         const validShortArabic = /^(ألو|مرحبا|مرحباً|أهلا|أهلاً|هلا|نعم|لا|أيوه|أيوا|أريد|ممكن|طيب|تمام|ماشي|شكرا|شكراً|يعطيك العافية|سلام|السلام عليكم|وعليكم السلام|أبي|أبغى|بدي|عايز|كيف|ليش|وين|متى|كم|مين|شو|إيش|هل|مساعدة|سؤال|استفسار|مشكلة|حساب|فاتورة|رصيد|خدمة|اشتراك|بقصد|بيارات|بخصوص|مشكلتي|رقمي|خطي|باقتي|فلوسي|حسابي|تحويل|إلغاء|تفعيل|تجديد|عرض|سعر|شريحة|إنترنت|بيانات|مكالمات|رسائل|رقم|جديد|قديم|تغيير|دفع|فاتورتي|موعد|حجز|إصلاح|صيانة|ضايع|مسروق|تأمين|باقة|عطل|تعطل|خصم|تكلفة|رسوم|توصيل|عنوان|شحن|طلب|إرجاع|استبدال|ضمان|تعويض|حق|بلاغ|شكوى|اعتراض|مبلغ|أقساط|سداد|تسديد|رصيدي|ابي|ابغى|محتاج|عندي|ابا|أبا)$/i;
         const arabicWords = trimmed.split(/\s+/).filter(w => w.length > 0);
 
-        if (arabicWords.length <= 2 && trimmed.length < 10) {
+        if (arabicWords.length <= 2 && trimmed.length < 8) {
           if (!validShortArabic.test(cleanedForCheck)) return true;
         }
 
@@ -1573,12 +1627,18 @@ export class BedrockPollyAudioBridge {
         formData.append('language', whisperLang);
       }
 
+      const langBase = (language || '').split('-')[0].toLowerCase();
+
       let whisperPrompt = '';
-      if (language === 'ar') {
-        whisperPrompt = 'ألو، مرحبا، أهلا، أريد، ممكن، سؤال، مساعدة، حساب، فاتورة، رصيد، دفع، موعد، حجز، إلغاء، اشتراك، تجوال، خدمة، مشكلة، شكوى، استفسار';
+      if (langBase === 'ar') {
+        whisperPrompt = 'ألو، مرحبا، أهلاً وسهلاً، يا هلا، أبي، أبغى، بدي، عايز، ممكن، سؤال، مساعدة، حساب، فاتورة، رصيد، دفع، موعد، حجز، إلغاء، اشتراك، تجوال، خدمة، مشكلة، شكوى، استفسار، تفضل، أبشر، ما عليك أمر، إن شاء الله، طيب، تمام، ماشي، أيوه، كيف الحال، شخبارك، وش تبي، أريد أعرف، عندي مشكلة، محتاج مساعدة، بخصوص، رقمي، خطي، باقتي، تحويل، تفعيل، تجديد، عرض، سعر، شريحة، إنترنت، بيانات';
+      } else if (langBase === 'hi') {
+        whisperPrompt = 'हैलो, नमस्ते, मुझे, चाहिए, सवाल, मदद, खाता, बिल, बैलेंस, भुगतान, बुकिंग, रद्द, सदस्यता, सेवा, समस्या, शिकायत, पूछताछ';
+      } else if (langBase === 'es') {
+        whisperPrompt = 'Hola, buenos días, necesito, quiero, ayuda, cuenta, factura, saldo, pago, cita, reserva, cancelar, suscripción, servicio, problema, queja, consulta';
       }
       if (conversationContext && conversationContext.length > 0) {
-        const recentContext = conversationContext.slice(-2).join(' ').substring(0, 200);
+        const recentContext = conversationContext.slice(-3).join(' ').substring(0, 300);
         whisperPrompt = whisperPrompt ? `${whisperPrompt}. ${recentContext}` : recentContext;
       }
       if (whisperPrompt) {
@@ -1636,13 +1696,17 @@ export class BedrockPollyAudioBridge {
 
       console.log(`[BedrockPolly Bridge] Whisper: ${sttMs}ms, "${text.substring(0, 200)}" (${text.length} chars, ${wavBuffer.length}b WAV, noSpeech=${noSpeechProb.toFixed(2)}, avgLogprob=${avgLogprob.toFixed(2)}, segs=${segmentCount})`);
 
-      if (segmentCount > 0 && noSpeechProb > 0.6) {
-        console.log(`[BedrockPolly Bridge] Whisper confidence reject: noSpeechProb=${noSpeechProb.toFixed(3)} > 0.6 for ${callSid}: "${text.substring(0, 100)}"`);
+      const isArabicLang = langBase === 'ar';
+      const noSpeechThreshold = isArabicLang ? 0.78 : 0.6;
+      const avgLogprobThreshold = isArabicLang ? -1.3 : -1.0;
+
+      if (segmentCount > 0 && noSpeechProb > noSpeechThreshold) {
+        console.log(`[BedrockPolly Bridge] Whisper confidence reject: noSpeechProb=${noSpeechProb.toFixed(3)} > ${noSpeechThreshold} for ${callSid}: "${text.substring(0, 100)}"`);
         return '';
       }
 
-      if (segmentCount > 0 && avgLogprob < -1.0) {
-        console.log(`[BedrockPolly Bridge] Whisper confidence reject: avgLogprob=${avgLogprob.toFixed(3)} < -1.0 for ${callSid}: "${text.substring(0, 100)}"`);
+      if (segmentCount > 0 && avgLogprob < avgLogprobThreshold) {
+        console.log(`[BedrockPolly Bridge] Whisper confidence reject: avgLogprob=${avgLogprob.toFixed(3)} < ${avgLogprobThreshold} for ${callSid}: "${text.substring(0, 100)}"`);
         return '';
       }
 
@@ -2014,6 +2078,19 @@ CONVERSATION STYLE:
         injectKBContext(kbState.result);
         kbInjectedPreStream = true;
         console.log(`[BedrockPolly Bridge] KB injected pre-stream for ${callSid} (zero-wait)`);
+      } else if (kbState && !kbState.resolved) {
+        const KB_HEAD_START_MS = 300;
+        const kbRaceResult = await Promise.race([
+          kbState.promise.then(() => 'kb' as const),
+          new Promise<'timeout'>(r => setTimeout(() => r('timeout'), KB_HEAD_START_MS)),
+        ]);
+        if (kbRaceResult === 'kb' && kbState.result) {
+          injectKBContext(kbState.result);
+          kbInjectedPreStream = true;
+          console.log(`[BedrockPolly Bridge] KB resolved within ${KB_HEAD_START_MS}ms head start for ${callSid}`);
+        } else {
+          console.log(`[BedrockPolly Bridge] KB not ready after ${KB_HEAD_START_MS}ms head start for ${callSid} — proceeding to LLM`);
+        }
       }
 
       try {

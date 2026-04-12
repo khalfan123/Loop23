@@ -381,6 +381,7 @@ export interface BedrockPollyBridgeSession {
   _mediaLogThrottle?: number;
   _kbPreFetched?: boolean;
   _kbState?: KBPrefetchState;
+  _lateKBResult?: KBResult | null;
   _retryAttempted?: boolean;
   _cancelFiller?: () => void;
   _agentAssistState?: import('../../../services/agent-assist.service').AgentAssistState;

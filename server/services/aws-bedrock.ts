@@ -361,7 +361,7 @@ ${options.systemPrompt}`;
   ): Promise<BedrockResponse> {
     const payload: Record<string, any> = {
       anthropic_version: "bedrock-2023-05-31",
-      max_tokens: options.maxTokens || 4096,
+      max_tokens: options.maxTokens || 8192,
       messages: options.messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
@@ -405,7 +405,7 @@ ${options.systemPrompt}`;
       inputText:
         (options.systemPrompt ? `System: ${options.systemPrompt}\n\n` : "") + inputText,
       textGenerationConfig: {
-        maxTokenCount: options.maxTokens || 4096,
+        maxTokenCount: options.maxTokens || 8192,
         temperature: options.temperature ?? 0.7,
         topP: options.topP ?? 0.9,
         stopSequences: options.stopSequences || [],
@@ -439,7 +439,7 @@ ${options.systemPrompt}`;
 
     const payload = {
       prompt,
-      max_gen_len: options.maxTokens || 4096,
+      max_gen_len: options.maxTokens || 8192,
       temperature: options.temperature ?? 0.7,
       top_p: options.topP ?? 0.9,
     };
@@ -475,7 +475,7 @@ ${options.systemPrompt}`;
       prompt:
         (options.systemPrompt ? `<s>[SYSTEM] ${options.systemPrompt}</s>\n` : "") +
         prompt,
-      max_tokens: options.maxTokens || 4096,
+      max_tokens: options.maxTokens || 8192,
       temperature: options.temperature ?? 0.7,
       top_p: options.topP ?? 0.9,
       stop: options.stopSequences,
@@ -523,7 +523,7 @@ ${options.systemPrompt}`;
 
     const payload: Record<string, any> = {
       anthropic_version: "bedrock-2023-05-31",
-      max_tokens: options.maxTokens || 4096,
+      max_tokens: options.maxTokens || 8192,
       messages: options.messages.map((msg) => ({
         role: msg.role,
         content: msg.content,

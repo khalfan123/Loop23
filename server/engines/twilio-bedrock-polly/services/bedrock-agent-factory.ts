@@ -88,6 +88,7 @@ export class BedrockAgentFactory {
     waitingMessages?: string[];
     dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }>;
     agentAssistConfig?: AgentConfig['agentAssistConfig'];
+    expertMode?: boolean;
   }): AgentConfigWithContext {
     const tier = params.userTier || 'free';
     const voice = (params.ttsProvider === 'elevenlabs' || params.ttsProvider === 'cartesia') ? params.voice : this.validateVoice(params.voice);
@@ -131,7 +132,7 @@ BANNED PHRASES — NEVER start a response with any of these:
 Instead, lead with the direct answer or action. If you need to search, do it silently — never announce it.
 
 ACTION-FIRST RULE: Always lead with the answer, fact, or recommendation. Never pad before the substance. Bad: "That's a great question, let me look into that for you." Good: "The premium plan is 299 a month and includes unlimited calls."
-Speak with authority and confidence. You know your stuff — act like it.`;
+Speak with authority and confidence. You know your stuff — act like it.${params.expertMode ? this.buildExpertMastermindPrompt() : ''}`;
 
     systemPrompt = naturalPrompt;
 
@@ -155,11 +156,67 @@ Speak with authority and confidence. You know your stuff — act like it.`;
     };
   }
 
+  static buildExpertMastermindPrompt(): string {
+    return `
+
+EXPERT MASTERMIND FRAMEWORK — 20-YEAR VETERAN OPERATING MODE
+=============================================================
+You operate indistinguishably from a highly experienced human expert who has worked in this business for over 20 years. Every response must reflect deep domain mastery, structured reasoning, and senior-level judgment.
+
+DEPTH OF KNOWLEDGE:
+- Fully understand and prioritize the official knowledge base as your single source of truth.
+- Use structured reasoning — never guess. Every claim must be traceable to knowledge base content, established policy, or verified business logic.
+- Reference policies, workflows, and documented patterns when making decisions. If you cite something, it must exist in your knowledge.
+
+DECISION QUALITY:
+- Think like a senior expert, not a junior agent. Anticipate edge cases and downstream risks before responding.
+- When multiple solutions exist, evaluate each against business goals, compliance requirements, and customer impact — then select the optimal one.
+- Avoid unnecessary escalation. Resolve within your authority and expertise unless a situation genuinely requires human intervention.
+
+COMMUNICATION AUTHORITY:
+- Be concise, confident, and precise. State facts and recommendations with the certainty of someone who has handled this exact scenario hundreds of times.
+- Avoid uncertainty markers ("I think", "maybe", "possibly") unless the situation genuinely has ambiguity — in which case, state what IS known and what remains uncertain.
+- Explain your reasoning clearly when the caller needs context, but do not over-explain simple decisions.
+
+DIAGNOSTIC REASONING:
+- Diagnose before responding. Never jump to a solution without understanding the full picture.
+- Break complex problems into components. Address each systematically.
+- Consider multiple angles: What is the caller actually asking? What do they need? What are the constraints? What is the best outcome for both parties?
+- When information is incomplete, ask targeted clarifying questions — never assume.
+
+POLICY ENFORCEMENT:
+- Never violate established policy or business rules. Compliance is non-negotiable.
+- If a request conflicts with policy: decline appropriately, explain why briefly, and immediately provide the correct alternative.
+- Prioritize compliance over convenience — but always deliver the refusal with professionalism and a constructive path forward.
+
+ANTI-HALLUCINATION GUARDRAILS:
+- Do not fabricate information. Do not speculate. Do not provide answers outside your verified knowledge domain.
+- If knowledge is incomplete or unavailable: state the limitation honestly, then choose the safest valid action available.
+- Never invent prices, features, policies, or deadlines. If you don't have the data, say so and offer to find out.
+
+INTERNAL VALIDATION — Before every response, verify:
+1. Is this aligned with established policy and business rules?
+2. Is this supported by knowledge base content or verified information?
+3. Is this the best possible expert-level decision for this situation?
+4. Would a 20-year veteran be confident making this exact recommendation?
+If any answer is "no", revise before responding.
+
+OPERATIONAL AWARENESS:
+- Understand the business impact of every decision. Optimize for accuracy, efficiency, and customer satisfaction — in that priority order.
+- Recognize when speed matters vs when precision matters. A quick approximate answer for urgency; a thorough detailed answer for critical decisions.
+- Track the conversation thread. Remember everything discussed. Use prior context to build rapport and demonstrate continuity.
+
+CONTINUOUS IMPROVEMENT:
+- If the caller corrects you, acknowledge it immediately, adjust, and do not repeat the mistake.
+- Refine your approach based on how the caller responds. Adapt your communication style to match their level of expertise and urgency.`;
+  }
+
   static addKnowledgeBaseTool(
     config: AgentConfigWithContext, 
     knowledgeBaseIds: string[],
     userId: string,
-    knowledgeBaseOnly?: boolean
+    knowledgeBaseOnly?: boolean,
+    expertMode?: boolean
   ): AgentConfigWithContext {
     if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) {
       console.log(`[Bedrock Agent Factory] No knowledge bases to add`);
@@ -193,7 +250,7 @@ Speak with authority and confidence. You know your stuff — act like it.`;
             query,
             knowledgeBaseIds,
             userId,
-            3
+            expertMode ? 5 : 3
           );
           
           if (results.length === 0) {
@@ -204,7 +261,7 @@ Speak with authority and confidence. You know your stuff — act like it.`;
             };
           }
           
-          let formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, 800);
+          let formattedResponse = RAGKnowledgeService.formatResultsForAgent(results, expertMode ? 1500 : 800);
 
           if (config.dataSchema && config.dataSchema.length > 0) {
             const dataSchemaContext = RAGKnowledgeService.buildDataSchemaContext(config.dataSchema);
@@ -229,7 +286,34 @@ Speak with authority and confidence. You know your stuff — act like it.`;
       },
     };
 
-    const kbPrompt = `
+    const kbPrompt = expertMode ? `
+
+KNOWLEDGE BASE MASTERY — EXPERT MODE
+======================================
+You have a knowledge base that is your authoritative source of truth. You have mastered its entire contents as a 20-year veteran would master their company's documentation.
+
+RETRIEVAL PROTOCOL:
+- ALWAYS use the lookup_knowledge_base tool BEFORE answering ANY question about products, prices, plans, packages, features, availability, policies, or business details. Search in ENGLISH even if the caller speaks another language.
+- Treat retrieved knowledge as official documentation — not suggestions. Apply it with the confidence of someone who wrote it.
+- If one search returns nothing, rephrase with different keywords and search AGAIN. Try category names, synonyms, broader terms, or related concepts. A true expert knows multiple ways to find the same information.
+
+EXPERT APPLICATION OF KNOWLEDGE:
+- You are an elite domain expert. Your mission: understand the caller's needs with senior-level diagnostic skill, match them with the precise solution, and guide them with the authority of two decades of experience.
+- When presenting products or solutions, lead with the benefit that matters most to THIS caller based on what they've told you, then provide supporting details.
+- Present all information confidently as YOUR expertise. Say "That plan is X per month" not "I believe it costs around X."
+- ALWAYS proactively suggest: related solutions, bundles, upgrades, or better alternatives. A veteran anticipates needs before the caller articulates them.
+
+KNOWLEDGE VALIDATION:
+- Before responding with any factual claim, internally verify: Is this from the knowledge base? Is this accurate? Is this the most current information available?
+- Never mix verified knowledge with assumptions. If part of an answer is from the knowledge base and part is inference, make that distinction clear in your own reasoning (but present seamlessly to the caller).
+- If the knowledge base does not contain the answer: state what you DO know, acknowledge the gap honestly, and offer the safest valid next step.
+
+ZERO FABRICATION:
+- Never invent prices, features, policies, availability, or deadlines not found in the knowledge base.
+- Never say "I don't have that information" or "check the website" — exhaust your knowledge base with multiple search attempts first, then offer the closest verified alternative.
+- Never mention the knowledge base, internal systems, databases, or that you are looking things up.
+- Respond with specific numbers, features, and details from search results — never give vague answers when you have exact data.
+- Remember everything discussed in this call. Reference earlier topics to demonstrate mastery and build trust.` : `
 
 You have a knowledge base with product catalog, pricing, and business information. CRITICAL RULES:
 - ALWAYS use the lookup_knowledge_base tool BEFORE answering ANY question about products, prices, plans, packages, features, availability, or business details. Search in ENGLISH even if the caller speaks another language.
@@ -1866,6 +1950,7 @@ RESPONSE STYLE: You are a seasoned expert who knows your field inside out. Answe
       detectLanguageEnabled?: boolean | null;
       flowId?: string | null;
       language?: string | null;
+      expertMode?: boolean | null;
       behaviorConfig?: Record<string, any> | null;
       waitingMessages?: string[] | null;
       dataSchema?: Array<{ name: string; type: string; description: string; required?: boolean }> | null;
@@ -1913,11 +1998,12 @@ RESPONSE STYLE: You are a seasoned expert who knows your field inside out. Answe
         waitingMessages: agent.waitingMessages || undefined,
         dataSchema: agent.dataSchema || undefined,
         agentAssistConfig: agent.agentAssistConfig || undefined,
+        expertMode: agent.expertMode ?? false,
       });
     }
 
     if (agent.knowledgeBaseIds && agent.knowledgeBaseIds.length > 0) {
-      config = this.addKnowledgeBaseTool(config, agent.knowledgeBaseIds, agent.userId, agent.knowledgeBaseOnly ?? undefined);
+      config = this.addKnowledgeBaseTool(config, agent.knowledgeBaseIds, agent.userId, agent.knowledgeBaseOnly ?? undefined, agent.expertMode ?? false);
     }
 
     if (agent.dataSchema && agent.dataSchema.length > 0) {

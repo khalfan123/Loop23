@@ -1,7 +1,7 @@
 'use strict';
 import { db } from '../db';
-import { departments, departmentKnowledgeBases, knowledgeBase, knowledgeChunks } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { departments, departmentKnowledgeBases, departmentAgents, agents, knowledgeBase, knowledgeChunks } from '@shared/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import { createHash } from 'crypto';
 import { RAGKnowledgeService } from './rag-knowledge';
 
@@ -183,13 +183,40 @@ function extractSampleQueries(content: string, maxQueries: number = 3): string[]
   return queries.slice(0, maxQueries);
 }
 
-async function warmSearchCache(kbIds: string[], userId: string, content: string): Promise<number> {
-  const queries = extractSampleQueries(content);
+async function hasExpertModeAgents(departmentId: string): Promise<boolean> {
+  try {
+    const deptAgents = await db
+      .select({ agentId: departmentAgents.agentId })
+      .from(departmentAgents)
+      .where(eq(departmentAgents.departmentId, departmentId));
+
+    if (deptAgents.length === 0) return false;
+
+    const agentIds = deptAgents.map(da => da.agentId);
+    const expertAgents = await db
+      .select({ id: agents.id })
+      .from(agents)
+      .where(and(
+        inArray(agents.id, agentIds),
+        eq(agents.expertMode, true)
+      ))
+      .limit(1);
+
+    return expertAgents.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function warmSearchCache(kbIds: string[], userId: string, content: string, isExpertMode: boolean = false): Promise<number> {
+  const maxQueries = isExpertMode ? 6 : 3;
+  const queries = extractSampleQueries(content, maxQueries);
   let warmed = 0;
 
   for (const query of queries) {
     try {
-      await RAGKnowledgeService.searchKnowledge(query, kbIds, userId, 3);
+      const topK = isExpertMode ? 5 : 3;
+      await RAGKnowledgeService.searchKnowledge(query, kbIds, userId, topK);
       warmed++;
     } catch (err: any) {
       console.warn(`[KB Mastermind] Cache warm query failed: ${err.message}`);
@@ -253,8 +280,25 @@ export async function runKBMastermind(departmentId?: string): Promise<RunStats> 
 
     console.log(`🧠 Found ${depts.length} department(s) with knowledge bases`);
 
+    const expertDeptIds = new Set<string>();
     for (const dept of depts) {
-      console.log(`\n🧠 [${dept.deptName}] Processing ${dept.kbIds.length} KB(s)...`);
+      const isExpert = await hasExpertModeAgents(dept.deptId);
+      if (isExpert) expertDeptIds.add(dept.deptId);
+    }
+
+    const sortedDepts = [...depts].sort((a, b) => {
+      const aExpert = expertDeptIds.has(a.deptId) ? 0 : 1;
+      const bExpert = expertDeptIds.has(b.deptId) ? 0 : 1;
+      return aExpert - bExpert;
+    });
+
+    if (expertDeptIds.size > 0) {
+      console.log(`🧠 Expert Mode departments (priority processing): ${expertDeptIds.size}`);
+    }
+
+    for (const dept of sortedDepts) {
+      const isExpert = expertDeptIds.has(dept.deptId);
+      console.log(`\n🧠 [${dept.deptName}]${isExpert ? ' [EXPERT MODE]' : ''} Processing ${dept.kbIds.length} KB(s)...`);
       let deptContent = '';
 
       for (const kbId of dept.kbIds) {
@@ -270,13 +314,14 @@ export async function runKBMastermind(departmentId?: string): Promise<RunStats> 
             console.log(`   ✅ KB ${kbId}: ${result.chunksRefreshed} chunks refreshed`);
           }
 
+          const contentLimit = isExpert ? 4000 : 2000;
           const [kb] = await db
             .select({ content: knowledgeBase.content })
             .from(knowledgeBase)
             .where(eq(knowledgeBase.id, kbId))
             .limit(1);
           if (kb?.content) {
-            deptContent += kb.content.substring(0, 2000) + '\n';
+            deptContent += kb.content.substring(0, contentLimit) + '\n';
           }
         } catch (err: any) {
           const errMsg = `KB ${kbId} in ${dept.deptName}: ${err.message}`;
@@ -287,9 +332,9 @@ export async function runKBMastermind(departmentId?: string): Promise<RunStats> 
 
       if (deptContent.length > 0) {
         try {
-          const warmed = await warmSearchCache(dept.kbIds, dept.userId, deptContent);
+          const warmed = await warmSearchCache(dept.kbIds, dept.userId, deptContent, isExpert);
           stats.cacheWarmed += warmed;
-          console.log(`   🔥 Cache warmed with ${warmed} queries`);
+          console.log(`   🔥 Cache warmed with ${warmed} queries${isExpert ? ' (expert mode: expanded)' : ''}`);
         } catch (err: any) {
           console.warn(`   ⚠️  Cache warming failed: ${err.message}`);
         }

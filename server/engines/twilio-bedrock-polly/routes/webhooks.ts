@@ -230,6 +230,7 @@ router.post('/voice/incoming', async (req: Request, res: Response) => {
       dataSchema: agent.dataSchema || null,
       agentAssistConfig: agent.agentAssistConfig || null,
       resumedFromCallId: resumedFromCallId,
+      expertMode: !!(agent as any).expertMode,
     };
 
     const webhookLanguage = agent.language || 'en';

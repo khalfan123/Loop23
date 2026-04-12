@@ -252,6 +252,8 @@ async function initializeSession(
         streamLanguage
       );
 
+      const flowExpertMode = !!(metadata?.expertMode);
+
       const factoryConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
         model: ((metadata?.bedrockModel as string) || (callRecord as any).bedrockModel || BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
@@ -264,6 +266,7 @@ async function initializeSession(
         elevenLabsVoiceId: (metadata?.elevenLabsVoiceId as string) || undefined,
         elevenLabsApiKey: (metadata?.elevenLabsApiKey as string) || undefined,
         cartesiaVoiceId: (metadata?.ttsProvider === 'cartesia' ? ((metadata?.cartesiaVoiceId as string) || (callRecord.openaiVoice as string) || undefined) : undefined),
+        expertMode: flowExpertMode,
       });
       agentConfig = {
         ...factoryConfig,
@@ -285,6 +288,8 @@ async function initializeSession(
 
       const streamTtsProvider = (metadata?.ttsProvider as string) || undefined;
 
+      const metaExpertMode = !!(metadata?.expertMode);
+
       agentConfig = BedrockAgentFactory.createAgentConfig({
         voice: ((callRecord.openaiVoice as string) || BEDROCK_POLLY_CONFIG.defaultVoice),
         model: ((metadata?.bedrockModel as string) || (callRecord as any).bedrockModel || BEDROCK_POLLY_CONFIG.defaultModel) as BedrockModel,
@@ -303,6 +308,7 @@ async function initializeSession(
         waitingMessages: metaWaitingMessages || undefined,
         dataSchema: metaDataSchema || undefined,
         agentAssistConfig: metaAgentAssistConfig || undefined,
+        expertMode: metaExpertMode,
       });
 
       let knowledgeBaseIds = metadata?.knowledgeBaseIds as string[] | undefined;
@@ -314,7 +320,9 @@ async function initializeSession(
         agentConfig = BedrockAgentFactory.addKnowledgeBaseTool(
           agentConfig,
           knowledgeBaseIds,
-          callRecord.userId
+          callRecord.userId,
+          undefined,
+          metaExpertMode
         );
       }
 

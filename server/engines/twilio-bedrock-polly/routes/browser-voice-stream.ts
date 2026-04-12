@@ -292,6 +292,8 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
       if (!elApiKey) elApiKey = process.env.ELEVENLABS_API_KEY;
     }
 
+    const agentExpertMode = !!(agent as any).expertMode;
+
     let agentConfig = BedrockAgentFactory.createAgentConfig({
       voice,
       model,
@@ -306,6 +308,7 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
       ttsProvider: agentTtsProvider,
       elevenLabsVoiceId: agent.elevenLabsVoiceId || undefined,
       elevenLabsApiKey: elApiKey,
+      expertMode: agentExpertMode,
     });
 
     let knowledgeBaseIds = agent.knowledgeBaseIds as string[] | null;
@@ -319,6 +322,7 @@ async function handleInit(ws: WebSocket, agentId: string, sessionId: string, cal
         knowledgeBaseIds,
         agent.userId,
         agent.knowledgeBaseOnly ?? undefined,
+        agentExpertMode,
       );
     }
 

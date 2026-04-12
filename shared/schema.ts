@@ -223,6 +223,7 @@ export const agents = pgTable("agents", {
   avatarUrl: text("avatar_url"), // URL/path to agent avatar image
   
   reasoningMode: text("reasoning_mode").default("deep"), // 'quick' | 'deep' | 'expert' — controls AI reasoning depth for knowledge queries
+  expertMode: boolean("expert_mode").default(false), // Enables 20-year veteran expert persona with enhanced KB mastery, policy enforcement, and diagnostic reasoning
 
   // Behavior Configuration — runtime-configurable flags inspired by Microsoft Call Center AI
   behaviorConfig: jsonb("behavior_config").$type<{

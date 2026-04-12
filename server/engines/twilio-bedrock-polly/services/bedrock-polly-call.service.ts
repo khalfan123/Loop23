@@ -316,6 +316,8 @@ export class BedrockPollyCallService {
 
         effectiveSystemPrompt = resolveTemplateVariables(effectiveSystemPrompt);
 
+        const callExpertMode = !!(agent as any).expertMode;
+
         let naturalConfig = BedrockAgentFactory.createAgentConfig({
           voice: (agent.awsPollyVoiceId || agent.openaiVoice as string) || defaultVoice,
           model: defaultModel,
@@ -334,13 +336,16 @@ export class BedrockPollyCallService {
             agentId,
             callId,
           },
+          expertMode: callExpertMode,
         });
 
         if (enrichedKbIds.length > 0) {
           naturalConfig = BedrockAgentFactory.addKnowledgeBaseTool(
             naturalConfig, 
             enrichedKbIds, 
-            userId
+            userId,
+            undefined,
+            callExpertMode
           );
         }
 
@@ -384,7 +389,9 @@ export class BedrockPollyCallService {
           naturalConfig = BedrockAgentFactory.addKnowledgeBaseTool(
             naturalConfig,
             campaignKbIds,
-            userId
+            userId,
+            undefined,
+            callExpertMode
           );
           logger.info(`[Outbound] Added campaign-level KB tool (${campaignKbIds.length} KBs)`, undefined, 'BedrockPollyCall');
         }

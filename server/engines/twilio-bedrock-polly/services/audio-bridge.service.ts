@@ -1778,7 +1778,7 @@ CONVERSATION STYLE:
       }));
     }
 
-    const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt);
+    const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt, agentConfig.expertMode);
     const provider = isBedrock ? 'Bedrock/Converse' : 'OpenAI';
     console.log(`[BedrockPolly Bridge] streamBedrockAndSpeak: ${provider} model=${agentConfig.model}, adaptive maxTokens=${adaptiveTokens}, messages=${bedrockMessages.length}, tools=${activeTools.length}, structured=${useStructured}`);
 
@@ -2307,7 +2307,7 @@ CONVERSATION STYLE:
           messages: bedrockMessages as Array<{ role: 'user' | 'assistant'; content: string }>,
           systemPrompt,
           temperature: agentConfig.temperature ?? 0.7,
-          maxTokens: this.estimateMaxTokens(bedrockMessages, systemPrompt),
+          maxTokens: this.estimateMaxTokens(bedrockMessages, systemPrompt, agentConfig.expertMode),
           tools: bedrockToolSpecs,
         };
 
@@ -2390,8 +2390,8 @@ CONVERSATION STYLE:
     return await this.streamBedrockAndSpeak(session);
   }
 
-  private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string): number {
-    return 4096;
+  private static estimateMaxTokens(messages: Array<{ role: string; content: string }>, systemPrompt?: string, expertMode?: boolean): number {
+    return expertMode ? 8192 : 4096;
   }
 
   private static extractToolCallJson(text: string): { jsonStr: string; textBefore: string } {
@@ -2531,7 +2531,7 @@ CONVERSATION STYLE:
 
     const systemPrompt = this.buildSystemPromptForStructured(session, hasTools);
 
-    const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt);
+    const adaptiveTokens = this.estimateMaxTokens(bedrockMessages, systemPrompt, agentConfig.expertMode);
     console.log(`[BedrockPolly Bridge] getBedrockResponse: systemPrompt=${systemPrompt.length} chars, messages=${bedrockMessages.length}, model=${agentConfig.model}, maxTokens=${adaptiveTokens}`);
 
     try {

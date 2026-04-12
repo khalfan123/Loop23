@@ -119,7 +119,7 @@ export async function* openaiInvokeStream(options: OpenAILLMStreamOptions): Asyn
     model,
     messages: msgs,
     temperature: options.temperature ?? 0.7,
-    max_tokens: options.maxTokens ?? 1024,
+    max_tokens: options.maxTokens ?? 4096,
     stream: true,
   };
   if (hasTools) {
@@ -204,7 +204,7 @@ export async function openaiInvoke(options: OpenAILLMStreamOptions): Promise<Ope
     model,
     messages: msgs,
     temperature: options.temperature ?? 0.7,
-    max_tokens: options.maxTokens ?? 1024,
+    max_tokens: options.maxTokens ?? 4096,
   };
   if (hasTools) {
     createParams.tools = buildOpenAITools(options.tools!);
@@ -258,7 +258,7 @@ export async function* openaiInvokeStreamStructured(options: OpenAILLMStreamOpti
     model,
     messages: msgs,
     temperature: options.temperature ?? 0.7,
-    max_tokens: options.maxTokens ?? 1024,
+    max_tokens: options.maxTokens ?? 4096,
     stream: true,
     stream_options: { include_usage: true },
   };
